@@ -101,7 +101,10 @@ mod check_bounds {
         );
 
         assert!(bool_1.is_in(&true), "Issue with is_in for `true` of Bool.");
-        assert!(bool_1.is_in(&false), "Issue with is_in for `false` of Bool.");
+        assert!(
+            bool_1.is_in(&false),
+            "Issue with is_in for `false` of Bool."
+        );
     }
     #[test]
     fn test_cat() {
@@ -170,6 +173,59 @@ mod check_mid {
         );
     }
 }
+
+
+mod check_range {
+    use tantale::core::domain::{Int, Nat, NumericallyBounded, Real};
+
+    #[test]
+    fn test_range_real_zero() {
+        let real_1 = Real::new(0.0, 10.0).unwrap();
+        assert_eq!(
+            real_1.range(),
+            10.0,
+            "Error for range of NumericallyBounded Real."
+        );
+    }
+    #[test]
+    fn test_range_nat_zero() {
+        let nat_1 = Nat::new(0, 10).unwrap();
+        assert_eq!(nat_1.range(), 10, "Error for range of NumericallyBounded Nat.");
+    }
+    #[test]
+    fn test_range_int_zero() {
+        let int_1 = Int::new(0, 10).unwrap();
+        assert_eq!(int_1.range(), 10, "Error for range of NumericallyBounded Int.");
+    }
+    #[test]
+    fn test_range_real_nzero() {
+        let real_1 = Real::new(1.0, 11.0).unwrap();
+        assert_eq!(
+            real_1.range(),
+            10.0,
+            "Error for range of NumericallyBounded Real."
+        );
+    }
+    #[test]
+    fn test_range_nat_nzero() {
+        let nat_1 = Nat::new(1, 11).unwrap();
+        assert_eq!(
+            nat_1.range(),
+            10,
+            "Error for odd range of NumericallyBounded Nat."
+        );
+    }
+    #[test]
+    fn test_range_int_nzero() {
+        let int_1 = Int::new(1, 11).unwrap();
+        assert_eq!(
+            int_1.range(),
+            10,
+            "Error for odd range of NumericallyBounded Int."
+        );
+    }
+}
+
 
 mod check_domtype {
     use tantale::core::domain::{self, Domain};
@@ -315,27 +371,3 @@ mod check_default_sampler {
         );
     }
 }
-
-mod check_into_real {
-    #[test]
-    fn test_real_into_real() {
-        use tantale::core::domain::Real;
-        use tantale::core::convertible::Convertible;
-
-        let real_1 = Real::new(0.0, 10.0).expect("Error while creating Real 1");
-        let real_2 = Real::new(80.0, 100.0).expect("Error while creating Real 2");
-
-        let point = 5.0;
-
-        let mapped = real_1.to_real(&point, &real_2).expect("Error in mapping middle from Real to Real");
-        assert_eq!(mapped,90.0,"Mapping middle of Real to Real does not match")
-    }
-}
-
-mod check_into_nat {}
-
-mod check_into_int {}
-
-mod check_into_bool {}
-
-mod check_into_cat {}

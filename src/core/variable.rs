@@ -38,7 +38,6 @@ impl<'a, T: Domain, U: Domain> Variable<'a, T, U> {
         sampobj: Option<fn(&T, &mut ThreadRng) -> T::TypeDom>,
         sampopt: Option<fn(&U, &mut ThreadRng) -> U::TypeDom>,
     ) -> Variable<'a, T, U> {
-        
         let samplerobj_selected = sampobj.unwrap_or_else(|| domobj.default_sampler());
         let sampleropt_selected = sampopt.unwrap_or_else(|| domopt.default_sampler());
 

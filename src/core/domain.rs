@@ -16,11 +16,11 @@ pub trait Domain {
     /// Associated function to automatically return a default [`crate::core::sampler`] for the domain the trait is implemented.
     fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom;
     /// Returns `true`` if a given borrowed `point` is in the domain. Otherwise returns `false`.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// * point : &Self::TypeDom - a borrowed point.
-    /// 
+    ///
     fn is_in(&self, point: &Self::TypeDom) -> bool;
 }
 
@@ -33,6 +33,8 @@ pub trait NumericallyBounded: Domain {
     fn upper(&self) -> <Self as Domain>::TypeDom;
     /// Getter method for the middle of the axis.
     fn mid(&self) -> <Self as Domain>::TypeDom;
+    /// Getter method for the middle of the axis.
+    fn range(&self) -> <Self as Domain>::TypeDom;
     /// Getter method for the lower and upper bounds.
     fn bounds(&self) -> (<Self as Domain>::TypeDom, <Self as Domain>::TypeDom) {
         (self.lower(), self.upper())
@@ -69,6 +71,7 @@ pub struct Real {
     lower: f64,
     upper: f64,
     mid: f64,
+    range: f64,
 }
 impl Real {
     /// Fabric for the [`Real`] `struct`. It returns a [`Result<Real, DomainError>`].
@@ -78,14 +81,17 @@ impl Real {
     /// # Arguments
     /// * `lower`: `f64` - Lower bound of the [`Real`] domain.
     /// * `upper`: `f64` - Upper bound of the [`Real`] domain.
-    ///
+    /// * `mid`: `f64` - Middle point of the [`Real`] domain. $\frac{\texttt{upper}-\texttt{lower}}{2}$
+    /// * `range`: `f64` - Range of the [`Real`] domain.$\texttt{upper}-\texttt{lower}$
+    /// 
     /// # Errors
     ///
     /// If `$\texttt{lower} > \texttt{upper}$`, returns a [`DomainError`].
     pub fn new(lower: f64, upper: f64) -> Result<Real, DomainError> {
         if lower < upper {
             let mid = (upper + lower) / 2.0;
-            Ok(Real { lower, upper, mid })
+            let range = upper - lower;
+            Ok(Real { lower, upper, mid,range })
         } else {
             Err(DomainError {
                 code: 100,
@@ -138,6 +144,10 @@ impl NumericallyBounded for Real {
     fn mid(&self) -> <Self as Domain>::TypeDom {
         self.mid
     }
+    /// Getter for `range` attribute of [`Real`].
+    fn range(&self) -> <Self as Domain>::TypeDom {
+        self.range
+    }
 }
 
 impl fmt::Display for Real {
@@ -157,9 +167,10 @@ impl fmt::Display for Real {
 /// It prevents any modification of the [`Domain`] during the optimization process. Some algorithms might modify the [`Domain`], for example *divide-and-conquer* approaches.
 /// In that case, the algorithm should create a new [`Domain`].
 ///
-/// * `lower`: `u64` - Lower bound of the [`Real`] domain.
-/// * `upper`: `u64` - Upper bound of the [`Real`] domain.
-/// * `mid`: `u64` - Middle point of the [`Real`] domain.
+/// * `lower`: `u64` - Lower bound of the [`Nat`] domain.
+/// * `upper`: `u64` - Upper bound of the [`Nat`] domain.
+/// * `mid`: `u64` - Middle point of the [`Nat`] domain. $\frac{\texttt{upper}-\texttt{lower}}{2}$
+/// * `range`: `u64` - Range of the [`Nat`] domain.$\texttt{upper}-\texttt{lower}$
 ///
 /// # Examples
 ///
@@ -175,6 +186,7 @@ pub struct Nat {
     lower: u64,
     upper: u64,
     mid: u64,
+    range: u64,
 }
 impl Nat {
     /// Fabric for the [`Nat`] `struct`. It returns a [`Result<Nat, DomainError>`].
@@ -190,20 +202,18 @@ impl Nat {
     ///
     /// If the $\texttt{lower} > \texttt{upper}$, returns a [`DomainError`].
     pub fn new(lower: u64, upper: u64) -> Result<Nat, DomainError> {
-        let subtract = std::panic::catch_unwind(|| upper-lower);
-        if subtract.is_err() || subtract.unwrap() < 2{
+        let range = std::panic::catch_unwind(|| upper - lower);
+        if range.is_err() || *range.as_ref().unwrap() < 2 {
             return Err(DomainError {
                 code: 100,
                 msg: String::from(format!("{} - {} is not > 1", upper, lower)),
-            })
-        }
-        else{
+            });
+        } else {
             let mid = (upper + lower) / 2;
-            Ok(Nat { lower, upper, mid })
-        }
-            
+            Ok(Nat { lower, upper, mid, range:range.unwrap()})
         }
     }
+}
 impl Domain for Nat {
     type TypeDom = u64;
 
@@ -236,17 +246,21 @@ impl Domain for Nat {
     }
 }
 impl NumericallyBounded for Nat {
-    /// Getter for `lower` attribute of [`Real`].
+    /// Getter for `lower` attribute of [`Nat`].
     fn lower(&self) -> <Self as Domain>::TypeDom {
         self.lower
     }
-    /// Getter for `upper` attribute of [`Real`].
+    /// Getter for `upper` attribute of [`Nat`].
     fn upper(&self) -> <Self as Domain>::TypeDom {
         self.upper
     }
-    /// Getter for `mid` attribute of [`Real`].
+    /// Getter for `mid` attribute of [`Nat`].
     fn mid(&self) -> <Self as Domain>::TypeDom {
         self.mid
+    }
+    /// Getter for `mid` attribute of [`Nat`].
+    fn range(&self) -> <Self as Domain>::TypeDom {
+        self.range
     }
 }
 impl fmt::Display for Nat {
@@ -264,7 +278,8 @@ impl fmt::Display for Nat {
 ///
 /// * `lower`: `i64` - Lower bound of the [`Int`] domain.
 /// * `upper`: `i64` - Upper bound of the [`Int`] domain.
-/// * `mid`: `i64` - Middle point of the [`Int`] domain.
+/// * `mid`: `i64` - Middle point of the [`Int`] domain. $\frac{\texttt{upper}-\texttt{lower}}{2}$
+/// * `range`: `i64` - Range of the [`Int`] domain.$\texttt{upper}-\texttt{lower}$
 ///
 /// # Examples
 ///
@@ -280,6 +295,7 @@ pub struct Int {
     lower: i64,
     upper: i64,
     mid: i64,
+    range:i64,
 }
 impl Int {
     /// Fabric for the [`Int`] `struct`. It returns a [`Result<Int, DomainError>`].
@@ -295,15 +311,15 @@ impl Int {
     ///
     /// If the $\texttt{lower} > \texttt{upper}$, returns a [`DomainError`].
     pub fn new(lower: i64, upper: i64) -> Result<Int, DomainError> {
-        if upper - lower < 2{
+        let range = upper-lower;
+        if range < 2 {
             return Err(DomainError {
                 code: 100,
                 msg: String::from(format!("{} - {} is not > 1", upper, lower)),
-            })
-        }
-        else{
+            });
+        } else {
             let mid = (upper + lower) / 2;
-            Ok(Int { lower, upper, mid })
+            Ok(Int { lower, upper, mid, range })
         }
     }
 }
@@ -337,17 +353,21 @@ impl Domain for Int {
     }
 }
 impl NumericallyBounded for Int {
-    /// Getter for `lower` attribute of [`Real`].
+    /// Getter for `lower` attribute of [`Int`].
     fn lower(&self) -> <Self as Domain>::TypeDom {
         self.lower
     }
-    /// Getter for `upper` attribute of [`Real`].
+    /// Getter for `upper` attribute of [`Int`].
     fn upper(&self) -> <Self as Domain>::TypeDom {
         self.upper
     }
-    /// Getter for `mid` attribute of [`Real`].
+    /// Getter for `mid` attribute of [`Int`].
     fn mid(&self) -> <Self as Domain>::TypeDom {
         self.mid
+    }
+    /// Getter for `range` attribute of [`Int`].
+    fn range(&self) -> <Self as Domain>::TypeDom {
+        self.range
     }
 }
 impl fmt::Display for Int {
