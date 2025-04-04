@@ -1,6 +1,27 @@
 use crate::core::domain::{Bool, Cat, Domain, Int, Nat, NumericallyBounded, Real};
 
-use rand::prelude::{IteratorRandom, Rng, ThreadRng};
+use rand::{
+    distr::uniform::SampleUniform,
+    prelude::{IteratorRandom, Rng, ThreadRng},
+};
+
+/// Uniform distribution.
+/// Uniformly sample within a [`NumericallyBounded`] [`Domain`].
+/// This is the default sampler for [`NumericallyBounded`] [`Domain`].
+///
+/// $$\sim \mathcal{U}\[\texttt{lower},\texttt{upper}\]$$
+///
+/// # Arguments
+///
+/// * domain : &[`NumericallyBounded`] - Reference to a [`NumericallyBounded`] [`Domain`]
+/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+///
+pub fn uniform<T: PartialOrd + SampleUniform + Clone>(
+    domain: &std::ops::RangeInclusive<T>,
+    rng: &mut ThreadRng,
+) -> T {
+    rng.random_range(domain.clone())
+}
 
 /// Uniform distribution for [`Real`] [`Domain`].
 /// Uniformly sample a real within \[lower,upper\].

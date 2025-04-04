@@ -17,6 +17,7 @@ impl ErrMsg for DomainError {
             101 => "Mapping not implemented",
             102 => "Resulting mapping out of bounds",
             103 => "Input out of bounds",
+            104 => "Target domain range is too small",
             _ => "Went wrong",
         };
 

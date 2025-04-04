@@ -1,3 +1,8 @@
+/// # Variable
+/// This crate describes what a variable is.
+/// Most of the domains implements the [`Domain`] type trait [`TypeDom`]. It gives the type of a point within this domain.
+/// Domains are use in [`crate::core::variable::Variable`] to define the type of the variable, its `TypeObjective` and `TypeOptimizer`, repectively the input type of that variable within the [`crate::core::objective:Objective`] function, and the input type of the [`crate::core::optimizer::Optimizer`].
+///
 use crate::core::domain::Domain;
 use rand::prelude::ThreadRng;
 
@@ -48,5 +53,13 @@ impl<'a, T: Domain, U: Domain> Variable<'a, T, U> {
             sampler_obj: samplerobj_selected,
             sampler_opt: sampleropt_selected,
         }
+    }
+
+    pub fn sample_obj(&self, rng: &mut ThreadRng) -> <Self as DomainObjective>::TypeObj {
+        (self.sampler_obj)(&self.domain_obj, rng)
+    }
+
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> <Self as DomainOptimizer>::TypeOpt {
+        (self.sampler_opt)(&self.domain_opt, rng)
     }
 }

@@ -1,26 +1,29 @@
 mod check_into_nat {
-    
+
     use tantale::core::convertible::Convertible;
-    use tantale::core::domain::{Real, Nat, Int, Bool};
-    fn get_domain_real()->Real{
+    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
+    fn get_domain_real() -> Real {
         return Real::new(0.0, 10.0).expect("Error while creating input Real domain");
     }
-    fn get_domain_nat()->Nat{
+    fn get_domain_nat() -> Nat {
         return Nat::new(0, 10).expect("Error while creating input Nat domain");
     }
-    fn get_domain_int()->Int{
+    fn get_domain_int() -> Int {
         return Int::new(0, 10).expect("Error while creating input Int domain");
     }
-    fn get_domain_bool()->Bool{
+    fn get_domain_bool() -> Bool {
         return Bool::new().expect("Error while creating input Bool domain");
     }
-    fn get_domain_2()->Nat{
+    fn get_domain_cat<'a>() -> Cat<'a, 3> {
+        let activation = ["relu", "tanh", "sigmoid"];
+        return Cat::new(activation).expect("Error while creating Cat");
+    }
+    fn get_domain_2() -> Nat {
         return Nat::new(80, 100).expect("Error while creating output domain");
     }
 
     #[test]
     fn test_real_into_nat() {
-
         let domain_1 = get_domain_real();
         let domain_2 = get_domain_2();
 
@@ -29,10 +32,7 @@ mod check_into_nat {
         let mapped = domain_1
             .to_nat(&point, &domain_2)
             .expect("Error in mapping middle from Real to Nat");
-        assert_eq!(
-            mapped, 90,
-            "Mapping middle of Real to Nat does not match"
-        )
+        assert_eq!(mapped, 90, "Mapping middle of Real to Nat does not match")
     }
     #[test]
     fn test_real_into_nat_lower() {
@@ -77,14 +77,10 @@ mod check_into_nat {
         let mapped = domain_1
             .to_nat(&point, &domain_2)
             .expect("Error in mapping middle from Real to Nat");
-        assert_eq!(
-            mapped, 90,
-            "Mapping middle of Real to Nat does not match"
-        )
+        assert_eq!(mapped, 90, "Mapping middle of Real to Nat does not match")
     }
     #[test]
     fn test_nat_into_nat_lower() {
-
         let domain_1 = get_domain_nat();
         let domain_2 = get_domain_2();
 
@@ -126,14 +122,10 @@ mod check_into_nat {
         let mapped = domain_1
             .to_nat(&point, &domain_2)
             .expect("Error in mapping middle from Int to Nat");
-        assert_eq!(
-            mapped, 90,
-            "Mapping middle of Int to Nat does not match"
-        )
+        assert_eq!(mapped, 90, "Mapping middle of Int to Nat does not match")
     }
     #[test]
     fn test_int_into_nat_lower() {
-
         let domain_1 = get_domain_int();
         let domain_2 = get_domain_2();
 
@@ -166,7 +158,6 @@ mod check_into_nat {
     // BOOL to Nat
     #[test]
     fn test_bool_into_nat_false() {
-
         let domain_1 = get_domain_bool();
         let domain_2 = get_domain_2();
 
@@ -196,4 +187,48 @@ mod check_into_nat {
         )
     }
 
+    // CAT to Nat
+
+    #[test]
+    fn cat_into_nat() {
+        let domain_1 = get_domain_cat();
+        let domain_2 = get_domain_2();
+
+        let point = "tanh";
+
+        let mapped = domain_1
+            .to_nat(&point, &domain_2)
+            .expect("Error in mapping middle from Cat to Nat");
+        assert_eq!(mapped, 90, "Mapping middle of Cat to Nat does not match")
+    }
+    #[test]
+    fn cat_into_nat_lower() {
+        let domain_1 = get_domain_cat();
+        let domain_2 = get_domain_2();
+
+        let point = "relu";
+
+        let mapped = domain_1
+            .to_nat(&point, &domain_2)
+            .expect("Error in mapping lower bound from Cat to Nat");
+        assert_eq!(
+            mapped, 80,
+            "Mapping lower bound of Cat to Nat does not match"
+        )
+    }
+    #[test]
+    fn cat_into_nat_upper() {
+        let domain_1 = get_domain_cat();
+        let domain_2 = get_domain_2();
+
+        let point = "sigmoid";
+
+        let mapped = domain_1
+            .to_nat(&point, &domain_2)
+            .expect("Error in mapping upper bound from Real to Real");
+        assert_eq!(
+            mapped, 100,
+            "Mapping upper bound of Cat to Nat does not match"
+        )
+    }
 }

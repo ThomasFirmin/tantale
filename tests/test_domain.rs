@@ -53,14 +53,9 @@ mod check_bounds {
         );
     }
     #[test]
-    #[should_panic(expected = "Error while creating Nat: Boundaries error, 0 - 10 is not > 1.")]
+    #[should_panic(expected = "Error while creating Nat: Boundaries error, 10 is not < 0.")]
     fn test_fail_nat_bounds() {
         domain::Nat::new(10, 0).expect("Error while creating Nat");
-    }
-    #[test]
-    #[should_panic(expected = "Error while creating Nat: Boundaries error, 2 - 1 is not > 1.")]
-    fn test_fail_nat_short_bounds() {
-        domain::Nat::new(1, 2).expect("Error while creating Nat");
     }
     #[test]
     fn test_int() {
@@ -82,14 +77,9 @@ mod check_bounds {
         );
     }
     #[test]
-    #[should_panic(expected = "Error while creating Int: Boundaries error, 0 - 10 is not > 1.")]
+    #[should_panic(expected = "Error while creating Int: Boundaries error, 10 is not < 0.")]
     fn test_fail_int_bounds() {
         domain::Int::new(10, 0).expect("Error while creating Int");
-    }
-    #[test]
-    #[should_panic(expected = "Error while creating Int: Boundaries error, 2 - 1 is not > 1.")]
-    fn test_fail_int_short_bounds() {
-        domain::Int::new(1, 2).expect("Error while creating Int");
     }
     #[test]
     fn test_bool() {
@@ -174,58 +164,64 @@ mod check_mid {
     }
 }
 
-
-mod check_range {
+mod check_width {
     use tantale::core::domain::{Int, Nat, NumericallyBounded, Real};
 
     #[test]
-    fn test_range_real_zero() {
+    fn test_width_real_zero() {
         let real_1 = Real::new(0.0, 10.0).unwrap();
         assert_eq!(
-            real_1.range(),
+            real_1.width(),
             10.0,
             "Error for range of NumericallyBounded Real."
         );
     }
     #[test]
-    fn test_range_nat_zero() {
+    fn test_width_nat_zero() {
         let nat_1 = Nat::new(0, 10).unwrap();
-        assert_eq!(nat_1.range(), 10, "Error for range of NumericallyBounded Nat.");
+        assert_eq!(
+            nat_1.width(),
+            10,
+            "Error for range of NumericallyBounded Nat."
+        );
     }
     #[test]
-    fn test_range_int_zero() {
+    fn test_width_int_zero() {
         let int_1 = Int::new(0, 10).unwrap();
-        assert_eq!(int_1.range(), 10, "Error for range of NumericallyBounded Int.");
+        assert_eq!(
+            int_1.width(),
+            10,
+            "Error for range of NumericallyBounded Int."
+        );
     }
     #[test]
-    fn test_range_real_nzero() {
+    fn test_width_real_nzero() {
         let real_1 = Real::new(1.0, 11.0).unwrap();
         assert_eq!(
-            real_1.range(),
+            real_1.width(),
             10.0,
             "Error for range of NumericallyBounded Real."
         );
     }
     #[test]
-    fn test_range_nat_nzero() {
+    fn test_width_nat_nzero() {
         let nat_1 = Nat::new(1, 11).unwrap();
         assert_eq!(
-            nat_1.range(),
+            nat_1.width(),
             10,
             "Error for odd range of NumericallyBounded Nat."
         );
     }
     #[test]
-    fn test_range_int_nzero() {
+    fn test_width_int_nzero() {
         let int_1 = Int::new(1, 11).unwrap();
         assert_eq!(
-            int_1.range(),
+            int_1.width(),
             10,
             "Error for odd range of NumericallyBounded Int."
         );
     }
 }
-
 
 mod check_domtype {
     use tantale::core::domain::{self, Domain};
