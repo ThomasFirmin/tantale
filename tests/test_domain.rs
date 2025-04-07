@@ -1,8 +1,8 @@
 mod check_bounds {
-    use tantale::core::domain::{self, Domain, NumericallyBounded};
+    use tantale::core::{Bool, Domain, DomainBounded, Int, Nat, Real, Cat};
     #[test]
     fn test_real() {
-        let real_1 = domain::Real::new(0.0, 10.0).expect("Error while creating Real");
+        let real_1 = Real::new(0.0, 10.0);
         assert_eq!(real_1.lower(), 0.0, "Issue with lower bound of Real.");
         assert_eq!(real_1.upper(), 10.0, "Issue with upper bound of Real.");
         assert_eq!(real_1.bounds(), (0.0, 10.0), "Issue with bounds of Real.");
@@ -31,11 +31,11 @@ mod check_bounds {
     #[test]
     #[should_panic(expected = "Error while creating Real: Boundaries error, 10.1 is not < 0.1.")]
     fn test_fail_real_bounds() {
-        domain::Real::new(10.1, 0.1).expect("Error while creating Real");
+        Real::new(10.1, 0.1);
     }
     #[test]
     fn test_nat() {
-        let nat_1 = domain::Nat::new(1, 10).expect("Error while creating Nat");
+        let nat_1 = Nat::new(1, 10);
         assert_eq!(nat_1.lower(), 1, "Issue with lower bound of Nat.");
         assert_eq!(nat_1.upper(), 10, "Issue with upper bound of Nat.");
         assert_eq!(nat_1.bounds(), (1, 10), "Issue with bounds of Nat.");
@@ -55,11 +55,11 @@ mod check_bounds {
     #[test]
     #[should_panic(expected = "Error while creating Nat: Boundaries error, 10 is not < 0.")]
     fn test_fail_nat_bounds() {
-        domain::Nat::new(10, 0).expect("Error while creating Nat");
+        Nat::new(10, 0);
     }
     #[test]
     fn test_int() {
-        let int_1 = domain::Int::new(0, 10).expect("Error while creating Int");
+        let int_1 = Int::new(0, 10);
         assert_eq!(int_1.lower(), 0, "Issue with lower bound of Int.");
         assert_eq!(int_1.upper(), 10, "Issue with upper bound of Int.");
         assert_eq!(int_1.bounds(), (0, 10), "Issue with bounds of Int.");
@@ -79,11 +79,11 @@ mod check_bounds {
     #[test]
     #[should_panic(expected = "Error while creating Int: Boundaries error, 10 is not < 0.")]
     fn test_fail_int_bounds() {
-        domain::Int::new(10, 0).expect("Error while creating Int");
+        Int::new(10, 0);
     }
     #[test]
     fn test_bool() {
-        let bool_1 = domain::Bool::new().expect("Error while creating bool");
+        let bool_1 = Bool::new();
         assert_eq!(
             bool_1.values(),
             (true, false),
@@ -100,7 +100,7 @@ mod check_bounds {
     fn test_cat() {
         let activation = ["relu", "tanh", "sigmoid"];
         let check = ["relu", "tanh", "sigmoid"];
-        let cat_1 = domain::Cat::new(activation).expect("Error while creating Cat");
+        let cat_1 = Cat::new(activation);
         assert_eq!(cat_1.values(), check, "Issue with content of Cat.");
 
         assert!(
@@ -123,11 +123,11 @@ mod check_bounds {
 }
 
 mod check_mid {
-    use tantale::core::domain::{Int, Nat, NumericallyBounded, Real};
+    use tantale::core::{DomainBounded, Int, Nat, Real};
 
     #[test]
     fn test_mid_real() {
-        let real_1 = Real::new(0.0, 10.0).unwrap();
+        let real_1 = Real::new(0.0, 10.0);
         assert_eq!(
             real_1.mid(),
             5.0,
@@ -136,17 +136,17 @@ mod check_mid {
     }
     #[test]
     fn test_mid_nat_even() {
-        let nat_1 = Nat::new(0, 10).unwrap();
+        let nat_1 = Nat::new(0, 10);
         assert_eq!(nat_1.mid(), 5, "Error for mid of NumericallyBounded Nat.");
     }
     #[test]
     fn test_mid_int_even() {
-        let int_1 = Int::new(0, 10).unwrap();
+        let int_1 = Int::new(0, 10);
         assert_eq!(int_1.mid(), 5, "Error for mid of NumericallyBounded Int.");
     }
     #[test]
     fn test_mid_nat_odd() {
-        let nat_1 = Nat::new(0, 11).unwrap();
+        let nat_1 = Nat::new(0, 11);
         assert_eq!(
             nat_1.mid(),
             5,
@@ -155,7 +155,7 @@ mod check_mid {
     }
     #[test]
     fn test_mid_int_odd() {
-        let int_1 = Int::new(0, 11).unwrap();
+        let int_1 = Int::new(0, 11);
         assert_eq!(
             int_1.mid(),
             5,
@@ -165,11 +165,11 @@ mod check_mid {
 }
 
 mod check_width {
-    use tantale::core::domain::{Int, Nat, NumericallyBounded, Real};
+    use tantale::core::{DomainBounded, Int, Nat, Real};
 
     #[test]
     fn test_width_real_zero() {
-        let real_1 = Real::new(0.0, 10.0).unwrap();
+        let real_1 = Real::new(0.0, 10.0);
         assert_eq!(
             real_1.width(),
             10.0,
@@ -178,7 +178,7 @@ mod check_width {
     }
     #[test]
     fn test_width_nat_zero() {
-        let nat_1 = Nat::new(0, 10).unwrap();
+        let nat_1 = Nat::new(0, 10);
         assert_eq!(
             nat_1.width(),
             10,
@@ -187,7 +187,7 @@ mod check_width {
     }
     #[test]
     fn test_width_int_zero() {
-        let int_1 = Int::new(0, 10).unwrap();
+        let int_1 = Int::new(0, 10);
         assert_eq!(
             int_1.width(),
             10,
@@ -196,7 +196,7 @@ mod check_width {
     }
     #[test]
     fn test_width_real_nzero() {
-        let real_1 = Real::new(1.0, 11.0).unwrap();
+        let real_1 = Real::new(1.0, 11.0);
         assert_eq!(
             real_1.width(),
             10.0,
@@ -205,7 +205,7 @@ mod check_width {
     }
     #[test]
     fn test_width_nat_nzero() {
-        let nat_1 = Nat::new(1, 11).unwrap();
+        let nat_1 = Nat::new(1, 11);
         assert_eq!(
             nat_1.width(),
             10,
@@ -214,7 +214,7 @@ mod check_width {
     }
     #[test]
     fn test_width_int_nzero() {
-        let int_1 = Int::new(1, 11).unwrap();
+        let int_1 = Int::new(1, 11);
         assert_eq!(
             int_1.width(),
             10,
@@ -224,7 +224,7 @@ mod check_width {
 }
 
 mod check_domtype {
-    use tantale::core::domain::{self, Domain};
+    use tantale::core::{Real, Nat, Int, Cat, Bool, Domain};
 
     #[test]
     fn test_isf64() {
@@ -236,10 +236,7 @@ mod check_domtype {
         {
             true
         }
-        assert!(
-            check_if_isf64::<domain::Real>(),
-            "Real does not have a f64 VarType"
-        );
+        assert!(check_if_isf64::<Real>(), "Real does not have a f64 VarType");
     }
 
     #[test]
@@ -257,7 +254,7 @@ mod check_domtype {
             true
         }
         assert!(
-            check_if_isusize::<domain::Nat>(),
+            check_if_isusize::<Nat>(),
             "Nat does not have a usize VarType"
         );
     }
@@ -277,7 +274,7 @@ mod check_domtype {
             true
         }
         assert!(
-            check_if_isisize::<domain::Int>(),
+            check_if_isisize::<Int>(),
             "Int does not have a isize VarType"
         );
     }
@@ -293,7 +290,7 @@ mod check_domtype {
             true
         }
         assert!(
-            check_if_isbool::<domain::Bool>(),
+            check_if_isbool::<Bool>(),
             "Bool does not have a bool VarType"
         );
     }
@@ -308,17 +305,17 @@ mod check_domtype {
         {
             assert!(true, "Cat does not have a &str VarType.");
         }
-        check_if_isstr::<domain::Cat<'_, 3>>();
+        check_if_isstr::<Cat<'_, 3>>();
     }
 }
 
 mod check_default_sampler {
     use rand;
-    use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real};
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real};
     #[test]
     fn test_sampler_real() {
         let mut rng = rand::rng();
-        let real_1 = Real::new(0.0, 10.0).expect("Error while creating Real");
+        let real_1 = Real::new(0.0, 10.0);
         let sampler = real_1.default_sampler();
         assert!(
             real_1.is_in(&sampler(&real_1, &mut rng)),
@@ -328,7 +325,7 @@ mod check_default_sampler {
     #[test]
     fn test_sampler_nat() {
         let mut rng = rand::rng();
-        let nat_1 = Nat::new(0, 10).expect("Error while creating Nat");
+        let nat_1 = Nat::new(0, 10);
         let sampler = nat_1.default_sampler();
         assert!(
             nat_1.is_in(&sampler(&nat_1, &mut rng)),
@@ -338,7 +335,7 @@ mod check_default_sampler {
     #[test]
     fn test_sampler_int() {
         let mut rng = rand::rng();
-        let int_1 = Int::new(0, 10).expect("Error while creating Int");
+        let int_1 = Int::new(0, 10);
         let sampler = int_1.default_sampler();
         assert!(
             int_1.is_in(&sampler(&int_1, &mut rng)),
@@ -348,7 +345,7 @@ mod check_default_sampler {
     #[test]
     fn test_sampler_bool() {
         let mut rng = rand::rng();
-        let bool_1 = Bool::new().expect("Error while creating Bool");
+        let bool_1 = Bool::new();
         let sampler = bool_1.default_sampler();
         assert!(
             bool_1.is_in(&sampler(&bool_1, &mut rng)),
@@ -359,7 +356,7 @@ mod check_default_sampler {
     fn test_sampler_cat() {
         let mut rng = rand::rng();
         let activation = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(activation).expect("Error while creating Cat");
+        let cat_1 = Cat::new(activation);
         let sampler = cat_1.default_sampler();
         assert!(
             cat_1.is_in(&sampler(&cat_1, &mut rng)),

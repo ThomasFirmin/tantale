@@ -1,5 +1,4 @@
-
-use crate::core::domain::{Bool, Bounded, Cat, Domain, NumericallyBounded, Real, Int, Nat};
+use crate::core::domain::{Bool, Bounded, Cat, Domain, DomainBounded};
 use crate::core::errors::DomainError;
 
 use num::{Num, NumCast};
@@ -8,13 +7,13 @@ use std::fmt::Display;
 
 use num::cast::AsPrimitive;
 
-pub trait OnTo<Out:Domain> {
-    /// [`OnTo`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`]
+pub trait Onto<Out: Domain>: Domain {
+    /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Real`] domain.
-    /// * `target` : &Real - Reference to the targeted domain.
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Domain - Reference to the targeted domain.
     ///
     /// # Errors
     ///
@@ -22,35 +21,51 @@ pub trait OnTo<Out:Domain> {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self,_item:&<Self as Domain>::TypeDom,_target: &Out)->Result<Out::TypeDom, DomainError>
-    where
-        Self: Domain
-    {
+    fn onto(&self, _item: &Self::TypeDom, _target: &Out) -> Result<Out::TypeDom, DomainError> {
         Err(DomainError {
             code: 101,
             msg: format!(
-                "Consider implement OnTo<{}> for {}",
-                std::any::type_name::<Self>(),std::any::type_name::<Out>()
+                "Consider implement Onto<{}> for {}",
+                std::any::type_name::<Self>(),
+                std::any::type_name::<Out>()
             ),
         })
     }
 }
 
-impl <In,Out> OnTo<Bounded<Out>> for Bounded<In>
+
+impl<In, Out> Onto<Bounded<Out>> for Bounded<In>
 where
-    In: Num + NumCast + PartialOrd + Clone + SampleUniform+AsPrimitive<f64> + Display,
-    Out: Num + NumCast + PartialOrd + Clone + SampleUniform+AsPrimitive<f64> + Display,
+    In: Num + NumCast + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display,
+    Out: Num + NumCast + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display,
     f64: AsPrimitive<Out>,
 {
-    fn onto(&self,item:&<Self as Domain>::TypeDom,target: &Bounded<Out>)->Result<<Bounded<Out> as Domain>::TypeDom, DomainError> 
-    {
-        
+    /// [`Onto`] function between [`Bounded`] [`Domain`].
+    /// 
+    /// Considering $l_{in}$, $u_{in}$, $l_{out}$ and $u_{out}$ the lower and upper bounds of
+    /// the input [`Bounded`] [`Domain`] and the output [`Bounded`] [`Domain`], and $x$ the item to be mapped,
+    /// the mapping is given by 
+    /// 
+    /// $$ \frac{x-l_{in}}{u_{in}-l_{in}} \times (u_{out}-l_{out}) + l_{out}$$
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Bounded<Out> - Reference to the targeted domain.
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &In, target: &Bounded<Out>) -> Result<Out, DomainError> {
         if self.is_in(item) {
-            let a:f64 = (*item - self.lower()).as_();
-            let b:f64 = self.width().as_();
-            let c:f64 = target.width().as_();
-            let mapped:<Bounded<Out> as Domain>::TypeDom = (a / b * c).as_() + target.lower();
-    
+            let a: f64 = (*item - self.lower()).as_();
+            let b: f64 = self.width().as_();
+            let c: f64 = target.width().as_();
+            let mapped: Out = (a / b * c).as_() + target.lower();
+
             if target.is_in(&mapped) {
                 Ok(mapped)
             } else {
@@ -68,6 +83,177 @@ where
     }
 }
 
+impl<In> Onto<Bool> for Bounded<In>
+where
+    In: Num + NumCast + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display,
+    f64: AsPrimitive<In>,
+{
+    /// [`Onto`] function between [`Bounded`] [`Domain`].
+    /// 
+    /// Considering $l$ and $u$ the lower and upper bounds of
+    /// the input [`Bounded`] [`Domain`], and $x$ the `item`, returns `true` if $x>\frac{u-l}{2}$
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Bool - Reference to the targeted domain.
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &In, _target: &Bool) -> Result<<Bool as Domain>::TypeDom, DomainError> {
+        if self.is_in(item) {
+            Ok(*item > self.mid())
+        } else {
+            return Err(DomainError {
+                code: 103,
+                msg: format!("{} not in {}", item, self),
+            });
+        }
+    }
+}
+
+impl<'a, In, const N: usize> Onto<Cat<'a, N>> for Bounded<In>
+where
+    In: Num + NumCast + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display,
+    f64: AsPrimitive<In>,
+{
+    /// [`Onto`] function between [`Bounded`] [`Domain`].
+    /// 
+    /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
+    /// the input [`Bounded`] [`Domain`] and $\ell_{en}$ the length of `values` of the [`Cat`] [`Domain`]. The variable $x$ is the item to be mapped.
+    /// The mapping is given by mapping item to an index of `values` in [`Cat`]: 
+    /// 
+    /// $$ \texttt{Floor}\Biggl(\frac{x-l_{in}}{u_{in}-l_{in}} \times (\ell_{en}-1)\Biggl) $$
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Cat<'a, N> - Reference to the targeted domain.
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(
+        &self,
+        item: &In,
+        target: &Cat<'a, N>,
+    ) -> Result<<Cat<'a, N> as Domain>::TypeDom, DomainError> {
+        if self.is_in(item) {
+            let a: f64 = (*item - self.lower()).as_();
+            let b: f64 = self.width().as_();
+            let c: f64 = (target.values().len() - 1).as_();
+            let mapped = target.values()[(a / b * c) as usize];
+
+            if target.is_in(&mapped) {
+                Ok(mapped)
+            } else {
+                Err(DomainError {
+                    code: 101,
+                    msg: format!("{} -> {} not in {}", item, mapped, target),
+                })
+            }
+        } else {
+            Err(DomainError {
+                code: 103,
+                msg: format!("{} not in {}", item, self),
+            })
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+impl<Out> Onto<Bounded<Out>> for Bool
+where
+    Out: Num + NumCast + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display,
+    f64: AsPrimitive<Out>,
+{
+    /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].
+    /// 
+    /// Considering $l_{out}$ and $u_{out}$ the lower and upper bounds of
+    /// the the output [`Bounded`] [`Domain`], and $x$ the item to be mapped.
+    /// If `item` is `true` returns $u_{out}$, otherwise returns $l_{out}$ .
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Bounded<Out> - Reference to the targeted domain.
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &<Bool as Domain>::TypeDom, target: &Bounded<Out>) -> Result<Out, DomainError> {
+        if self.is_in(item) {
+            let mapped = if *item {target.upper()} else{target.lower()}; 
+            if target.is_in(&mapped) {
+                Ok(mapped)
+            } else {
+                Err(DomainError {
+                    code: 101,
+                    msg: format!("{} -> {} not in {}", item, mapped, target),
+                })
+            }
+        } else {
+            Err(DomainError {
+                code: 103,
+                msg: format!("{} not in {}", item, self),
+            })
+        }
+    }
+}
+
+
+impl Onto<Bool> for Bool
+where
+{
+    /// [`Onto`] function between a [`Bool`] and another [`Bool`] [`Domain`].
+    /// 
+    /// Useless, return `true` if `*item` is `true`, `false` otherwise.
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : <Self as Domain>::TypeDom - The point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : &Bool - Reference to the targeted domain.
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &bool, _target: &Bool) -> Result<bool, DomainError> {
+        Ok(*item)
+    }
+}
+
+
+
+
 // impl<In> Convertible for Bounded<In> {
 //     /// See [`Convertible`] for more infos.
 //     /// Considering $m$ as the middle point of the [`Real`] domain, the mapping is given by:
@@ -76,7 +262,7 @@ where
 //         &self,
 //         item: &<Self as Domain>::TypeDom,
 //         _target: &Bool,
-//     ) -> Result<<Bool as Domain>::TypeDom, DomainError> 
+//     ) -> Result<<Bool as Domain>::TypeDom, DomainError>
 //     where
 //         Self: Domain + NumericallyBounded + Display,
 //         <Self as Domain>::TypeDom: Num + NumCast + PartialOrd +Display,
@@ -92,8 +278,6 @@ where
 //         }
 //     }
 // }
-
-
 
 // impl Convertible for Nat {
 //     /// See [`Convertible`] for more infos.

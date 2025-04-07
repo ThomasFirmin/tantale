@@ -1,4 +1,4 @@
-use crate::core::domain::{Bool, Cat, Domain, Int, Nat, NumericallyBounded, Real};
+use crate::core::domain::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real};
 
 use rand::{
     distr::uniform::SampleUniform,
@@ -91,7 +91,7 @@ where
     rng.random_bool(0.5)
 }
 
-fn _from_str_to_typevar<'a, const N: usize>(
+fn _from_str_to_typedom<'a, const N: usize>(
     _d: &Cat<'a, N>,
     to_cast: &'a str,
 ) -> <Cat<'a, N> as Domain>::TypeDom {
@@ -110,9 +110,6 @@ fn _from_str_to_typevar<'a, const N: usize>(
 pub fn uniform_cat<'a, const N: usize>(
     domain: &Cat<'a, N>,
     rng: &mut ThreadRng,
-) -> <Cat<'a, N> as Domain>::TypeDom
-where
-    Cat<'a, N>: Domain,
-{
-    _from_str_to_typevar(domain, domain.values().iter().choose(rng).unwrap())
+) -> <Cat<'a, N> as Domain>::TypeDom {
+    domain.values().iter().choose(rng).unwrap()
 }

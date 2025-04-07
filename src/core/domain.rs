@@ -4,7 +4,6 @@
 /// Most of the domains implements the [`Domain`] type trait [`TypeDom`]. It gives the type of a point within this domain.
 /// Domains are use in [`crate::core::variable::Variable`] to define the type of the variable, its `TypeObjective` and `TypeOptimizer`, repectively the input type of that variable within the [`crate::core::objective:Objective`] function, and the input type of the [`crate::core::optimizer::Optimizer`].
 ///
-use crate::core::errors::DomainError;
 use crate::core::sampler::{uniform, uniform_bool, uniform_cat};
 
 use num::{Num, NumCast};
@@ -28,7 +27,7 @@ pub trait Domain {
 }
 
 /// Describes a peculiar trait for some of the domains that are numerically bounded by a `lower` and `upper` bound.
-pub trait NumericallyBounded: Domain {
+pub trait DomainBounded: Domain {
     /// Getter method for the lower bound.
     fn lower(&self) -> Self::TypeDom;
     /// Getter method for the upper bound.
@@ -43,7 +42,7 @@ pub trait NumericallyBounded: Domain {
     }
 }
 
-pub struct Bounded<T:Num+NumCast> {
+pub struct Bounded<T: Num + NumCast> {
     bounds: RangeInclusive<T>,
     mid: T,
     width: T,
@@ -51,12 +50,12 @@ pub struct Bounded<T:Num+NumCast> {
 
 impl<T> Bounded<T>
 where
-    T : Num + NumCast,
-    T : PartialOrd,
+    T: Num + NumCast,
+    T: PartialOrd,
     T: Clone,
     T: Display,
 {
-    /// Fabric for the [`Bounded`] `struct`. It returns a [`Result<Bounded, DomainError>`].
+    /// Fabric for the [`Bounded`] `struct`. It returns a [`Bounded`].
     ///
     /// The `mid` attribute is automatically computed with $\frac{\texttt{lower}+\texttt{upper}}{2}$.
     ///
@@ -65,24 +64,18 @@ where
     /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
     /// * `mid`: `T` - Middle point of the [`Bounded`] [`Domain`]. $\frac{\texttt{upper}-\texttt{lower}}{2}$
     /// * `width`: `T` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
-    ///
-    /// # Errors
-    ///
-    /// If `$\texttt{lower} > \texttt{upper}$`, returns a [`DomainError`].
-    pub fn new(lower: T, upper: T) -> Result<Bounded<T>, DomainError> {
+    /// 
+    pub fn new(lower: T, upper: T) -> Bounded<T> {
         if lower < upper {
             let mid = (upper.clone() + lower.clone()) / T::from(2i8).unwrap();
             let width = upper.clone() - lower.clone();
-            Ok(Bounded {
+            Bounded {
                 bounds: std::ops::RangeInclusive::new(lower, upper),
                 mid,
                 width,
-            })
+            }
         } else {
-            Err(DomainError {
-                code: 100,
-                msg: String::from(format!("{} is not < {}", lower, upper)),
-            })
+            panic!("{} is not < {}", lower, upper);
         }
     }
 }
@@ -99,7 +92,7 @@ impl<T: Num + NumCast + PartialOrd + Clone + SampleUniform> Domain for Bounded<T
     }
 }
 
-impl<T: Num + NumCast + PartialOrd + Clone + SampleUniform> NumericallyBounded for Bounded<T> {
+impl<T: Num + NumCast + PartialOrd + Clone + SampleUniform> DomainBounded for Bounded<T> {
     fn lower(&self) -> Self::TypeDom {
         self.bounds.start().clone()
     }
@@ -136,7 +129,7 @@ impl<T: Num + NumCast + Display> fmt::Display for Bounded<T> {
 ///
 /// ```
 /// use tantale::core::{Real,NumericallyBounded};
-/// let realdom = Real::new(0.0, 10.0).unwrap();
+/// let realdom = Real::new(0.0, 10.0);
 /// assert_eq!(realdom.lower(), 0.0);
 /// assert_eq!(realdom.upper(), 10.0);
 /// assert_eq!(realdom.bounds(), (0.0, 10.0));
@@ -156,20 +149,16 @@ pub type Int = Bounded<i64>;
 ///
 /// ```
 /// use tantale::core::Bool;
-/// let booldom = Bool::new().unwrap();
+/// let booldom = Bool::new();
 /// assert_eq!(booldom.values(),(true, false));
 /// ```
 #[derive(Clone, Copy)]
 pub struct Bool;
 impl Bool {
-    /// Fabric for the [`Bool`] `struct`. It returns a [`Result<Bool, DomainError>`].
+    /// Fabric for the [`Bool`] `struct`. It returns a [`Bool`].
     ///
-    /// # Errors
-    ///
-    /// Should not return a [`DomainError`].
-    /// The function returns a [`Result`] for consistency.
-    pub fn new() -> Result<Bool, DomainError> {
-        Ok(Bool {})
+    pub fn new() -> Bool {
+        Bool {}
     }
     pub fn values(&self) -> (bool, bool) {
         (true, false)
@@ -198,7 +187,7 @@ impl Domain for Bool {
     /// use tantale::core::{Bool, Domain};
     ///
     /// let mut rng = rand::rng();
-    /// let bool_1 = Bool::new().unwrap();
+    /// let bool_1 = Bool::new();
     /// let sampler = bool_1.default_sampler();
     /// assert!(bool_1.is_in(&sampler(&bool_1, &mut rng)));
     /// ```
@@ -229,7 +218,7 @@ impl fmt::Display for Bool {
 /// use tantale::core::Cat;
 /// let activation = ["relu", "tanh", "sigmoid"];
 /// let check = ["relu", "tanh", "sigmoid"];
-/// let cat_1 = Cat::new(activation).unwrap();
+/// let cat_1 = Cat::new(activation);
 /// assert_eq!(cat_1.values(), check);
 /// ```
 #[derive(Clone, Copy)]
@@ -237,7 +226,7 @@ pub struct Cat<'a, const N: usize> {
     values: [&'a str; N],
 }
 impl<'a, const N: usize> Cat<'a, N> {
-    /// Fabric for the [`Cat`] `struct`. It returns a [`Result<Cat, DomainError>`].
+    /// Fabric for the [`Cat`] `struct`.
     ///
     /// # Arguments
     ///
@@ -247,8 +236,8 @@ impl<'a, const N: usize> Cat<'a, N> {
     ///
     /// Should not return a [`DomainError`].
     /// The function returns a [`Result`] for consistency.
-    pub fn new(values: [&'a str; N]) -> Result<Cat<'a, N>, DomainError> {
-        Ok(Cat { values })
+    pub fn new(values: [&'a str; N]) -> Cat<'a, N> {
+        Cat { values }
     }
     /// Getter for values
     pub fn values(&self) -> [&'a str; N] {
@@ -282,7 +271,7 @@ impl<'a, const N: usize> Domain for Cat<'a, N> {
     ///
     /// let mut rng = rand::rng();
     /// let activation = ["relu", "tanh", "sigmoid"];
-    /// let cat_1 = Cat::new(activation).unwrap();
+    /// let cat_1 = Cat::new(activation);
     /// let sampler = cat_1.default_sampler();
     /// assert!(cat_1.is_in(&sampler(&cat_1, &mut rng)));
     ///
