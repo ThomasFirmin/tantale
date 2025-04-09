@@ -1,0 +1,44 @@
+pub use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
+pub use tantale::core::onto::Onto;
+
+pub fn get_domain_real() -> Real {
+    return Real::new(0.0, 10.0);
+}
+
+pub fn get_domain_nat() -> Nat {
+    return Nat::new(0, 10);
+}
+
+pub fn get_domain_int() -> Int {
+    return Int::new(0, 10);
+}
+
+pub fn get_domain_bool() -> Bool {
+    return Bool::new();
+}
+
+pub fn get_domain_cat<'a>() -> Cat<'a, 3> {
+    let activation = ["relu", "tanh", "sigmoid"];
+    return Cat::new(activation);
+}
+
+pub fn get_domain_real_2() -> Real {
+    return Real::new(80.0, 100.0);
+}
+
+pub fn get_domain_nat_2() -> Nat {
+    return Nat::new(80, 100);
+}
+
+pub fn get_domain_int_2() -> Int {
+    return Int::new(80, 100);
+}
+
+pub fn get_domain_bool_2() -> Bool {
+    return Bool::new();
+}
+
+pub fn get_domain_cat_2<'a>() -> Cat<'a, 3> {
+    let activation = ["relu", "tanh", "sigmoid"];
+    return Cat::new(activation);
+}

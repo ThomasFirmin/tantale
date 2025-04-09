@@ -6,15 +6,15 @@ use rand::{
 };
 
 /// Uniform distribution.
-/// Uniformly sample within a [`NumericallyBounded`] [`Domain`].
-/// This is the default sampler for [`NumericallyBounded`] [`Domain`].
+/// Uniformly sample within a [`DomainBounded`] [`Domain`].
+/// This is the default sampler for [`DomainBounded`] [`Domain`].
 ///
 /// $$\sim \mathcal{U}\[\texttt{lower},\texttt{upper}\]$$
 ///
 /// # Arguments
 ///
-/// * domain : &[`NumericallyBounded`] - Reference to a [`NumericallyBounded`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`DomainBounded`] - A borrowed [`DomainBounded`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform<T: PartialOrd + SampleUniform + Clone>(
     domain: &std::ops::RangeInclusive<T>,
@@ -31,8 +31,8 @@ pub fn uniform<T: PartialOrd + SampleUniform + Clone>(
 ///
 /// # Arguments
 ///
-/// * domain : &[`Real`] - Reference to a [`Real`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`Real`] - A borrowed [`Real`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_real(domain: &Real, rng: &mut ThreadRng) -> <Real as Domain>::TypeDom
 where
@@ -49,8 +49,8 @@ where
 ///
 /// # Arguments
 ///
-/// * domain : &[`Nat`] - Reference to a [`Nat`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`Nat`] - A borrowed [`Nat`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_nat(domain: &Nat, rng: &mut ThreadRng) -> <Nat as Domain>::TypeDom
 where
@@ -67,8 +67,8 @@ where
 ///
 /// # Arguments
 ///
-/// * domain : &[`Int`] - Reference to a [`Int`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`Int`] - A borrowed [`Int`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_int(domain: &Int, rng: &mut ThreadRng) -> <Int as Domain>::TypeDom
 where
@@ -81,8 +81,8 @@ where
 ///
 /// # Arguments
 ///
-/// * domain : &[`Bool`] - Reference to a [`Bool`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`Bool`] - A borrowed [`Bool`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_bool(_domain: &Bool, rng: &mut ThreadRng) -> <Bool as Domain>::TypeDom
 where
@@ -104,8 +104,8 @@ fn _from_str_to_typedom<'a, const N: usize>(
 ///
 /// # Arguments
 ///
-/// * domain : &[`Cat`] - Reference to a [`Cat`] [`Domain`]
-/// * rng : &mut [`ThreadRng`] - A mutable reference to a thread-local generator
+/// * `domain` : `&`[`Cat`] - A borrowed [`Cat`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_cat<'a, const N: usize>(
     domain: &Cat<'a, N>,
