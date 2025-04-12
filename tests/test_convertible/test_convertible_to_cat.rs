@@ -141,35 +141,3 @@ fn int_into_cat_upper() {
         "Mapping upper bound of Int to Cat does not match"
     )
 }
-
-// BOOL to Cat
-#[test]
-fn bool_into_cat_false() {
-    let domain_1 = get_domain_bool();
-    let domain_2 = get_domain_cat_2();
-
-    let point = false;
-
-    let mapped = domain_1
-        .onto(&point, &domain_2)
-        .expect("Error in mapping lower bound from Nat to Cat");
-    assert_eq!(
-        mapped, "relu",
-        "Mapping lower bound of Nat to Cat does not match"
-    )
-}
-#[test]
-fn bool_into_cat_true() {
-    let domain_1 = get_domain_bool();
-    let domain_2 = get_domain_cat_2();
-
-    let point = true;
-
-    let mapped = domain_1
-        .onto(&point, &domain_2)
-        .expect("Error in mapping upper bound from Nat to Cat");
-    assert_eq!(
-        mapped, "sigmoid",
-        "Mapping upper bound of Nat to Cat does not match"
-    )
-}

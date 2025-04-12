@@ -3,7 +3,7 @@
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
 pub mod domain;
-pub use crate::core::domain::{Bool, Bounded, Cat, Domain, DomainBounded, Int, Nat, Real};
+pub use crate::core::domain::{Bool, Bounded, Cat, Domain, DomainBounded, Int, Nat, Real,Unit};
 pub mod onto;
 
 pub mod errors;

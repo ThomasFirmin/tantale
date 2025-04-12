@@ -10,16 +10,16 @@
 ///
 use crate::core::sampler::{uniform, uniform_bool, uniform_cat};
 
-use num::{Num, NumCast};
+use num::{Float, Num, NumCast};
 use rand::distr::uniform::SampleUniform;
 use rand::prelude::ThreadRng;
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 use std::ops::RangeInclusive;
 
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the `default_sampler` and `is_in` methods.
 pub trait Domain {
-    type TypeDom;
+    type TypeDom:PartialEq + Clone + Copy + Display + Debug;
     /// Associated function to automatically return a default [`crate::core::sampler`]
     /// for the domain the trait is implemented.
     fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom;
@@ -55,9 +55,9 @@ pub trait DomainBounded: Domain {
 pub struct Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
-    T: Clone,
-    T: Display,
+    T: PartialEq + PartialOrd,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     bounds: RangeInclusive<T>,
     mid: T,
@@ -67,25 +67,23 @@ where
 impl<T> Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
+    T: PartialEq + PartialOrd,
     T: SampleUniform,
-    T: Clone,
-    T: Display,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     /// Fabric for a [`Bounded`].
     ///
     /// * The `mid` attribute is automatically computed with $\frac{\texttt{lower}+\texttt{upper}}{2}$.
     /// * The `width` attribute is automatically computed with $\texttt{upper}-\texttt{lower}$.
     ///
-    /// # Arguments
+    /// # Parameters
     /// * `lower`: `T` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
-    /// * `mid`: `T` - Middle point of the [`Bounded`] [`Domain`].
-    /// * `width`: `T` - Width of the [`Bounded`] [`Domain`].
     ///
     pub fn new(lower: T, upper: T) -> Bounded<T> {
         if lower < upper {
-            let mid = (upper.clone() + lower.clone()) / T::from(2i8).unwrap();
+            let mid = (upper.clone() + lower.clone()) / T::from(2).unwrap();
             let width = upper.clone() - lower.clone();
             Bounded {
                 bounds: std::ops::RangeInclusive::new(lower, upper),
@@ -98,13 +96,13 @@ where
     }
 }
 
-impl <T> Domain for Bounded<T>
+impl<T> Domain for Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
-    T:SampleUniform,
-    T: Clone,
-    T: Display,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     type TypeDom = T;
 
@@ -122,10 +120,10 @@ where
 impl<T> DomainBounded for Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
-    T:SampleUniform,
-    T: Clone,
-    T: Display,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     fn lower(&self) -> Self::TypeDom {
         self.bounds.start().clone()
@@ -141,26 +139,26 @@ where
     }
 }
 
-impl <T> std::clone::Clone for Bounded<T>
+impl<T> std::clone::Clone for Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
-    T:SampleUniform,
-    T: Clone,
-    T: Display,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     fn clone(&self) -> Self {
         Bounded::new(self.bounds.start().clone(), self.bounds.end().clone())
     }
 }
 
-impl<T> fmt::Display for Bounded<T> 
+impl<T> fmt::Display for Bounded<T>
 where
     T: Num + NumCast,
-    T: PartialOrd,
-    T:SampleUniform,
-    T: Clone,
-    T: Display,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -260,6 +258,102 @@ pub type Nat = Bounded<u64>;
 /// assert_eq!(dom.width(), 10);
 /// ```
 pub type Int = Bounded<i64>;
+
+/// A [`Unit`] domain within `[0,1]`. The floating point type is inferred.
+/// /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
+///
+pub struct Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialOrd,
+    T: Clone + Copy,
+    T: Display,
+{
+    bounds:RangeInclusive<T>
+}
+
+impl<T> Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
+{
+    /// Fabric for a [`Unit`] [`Domain`].
+    pub fn new() -> Unit<T> {
+        Unit{bounds:RangeInclusive::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())}
+    }
+}
+
+impl<T> Domain for Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
+{
+    type TypeDom = T;
+
+    /// Default sampler for [`Unit`].
+    /// See [`uniform`].
+    fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
+        |s, rng| uniform(&s.bounds, rng)
+    }
+
+    fn is_in(&self, item: &Self::TypeDom) -> bool {
+        self.bounds.contains(item)
+    }
+}
+
+impl<T> DomainBounded for Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
+{
+    fn lower(&self) -> Self::TypeDom {
+        T::from(0.0).unwrap()
+    }
+    fn upper(&self) -> Self::TypeDom {
+        T::from(1.0).unwrap()
+    }
+    fn mid(&self) -> Self::TypeDom {
+        Self::TypeDom::from(0.5).unwrap()
+    }
+    fn width(&self) -> Self::TypeDom {
+        T::from(1.0).unwrap()
+    }
+}
+
+impl<T> std::clone::Clone for Unit<T>
+where
+    T: Float+Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display+Debug,
+{
+    fn clone(&self) -> Self {
+        Unit::new()
+    }
+}
+
+impl<T> fmt::Display for Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
+    }
+}
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 

@@ -1,5 +1,5 @@
 mod check_bounds {
-    use tantale::core::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real};
+    use tantale::core::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real, Unit};
     #[test]
     fn create_real() {
         let real_1 = Real::new(0.0, 10.0);
@@ -112,10 +112,64 @@ mod check_bounds {
             "Issue with is_in with value not in values of Cat."
         );
     }
+    #[test]
+    fn create_unit64() {
+        let unit: Unit<f64> = Unit::new();
+        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit<f64>.");
+        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit<f64>.");
+
+        assert!(
+            unit.is_in(&0.0),
+            "Issue with is_in for lower bound of Unit<f64>."
+        );
+        assert!(
+            unit.is_in(&0.5),
+            "Issue with is_in for mid value from Unit<f64>."
+        );
+        assert!(
+            unit.is_in(&1.0),
+            "Issue with is_in for upper bound of Unit<f64>."
+        );
+        assert!(
+            !unit.is_in(&-1.0),
+            "Issue with is_in with value < lower bound of Unit<f64>."
+        );
+        assert!(
+            !unit.is_in(&11.0),
+            "Issue with is_in with value > upper bound of Unit<f64>."
+        );
+    }
+    #[test]
+    fn create_unit32() {
+        let unit: Unit<f32> = Unit::new();
+        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit<f32>.");
+        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit<f32>.");
+
+        assert!(
+            unit.is_in(&0.0),
+            "Issue with is_in for lower bound of Unit<f32>."
+        );
+        assert!(
+            unit.is_in(&0.5),
+            "Issue with is_in for mid value from Unit<f32>."
+        );
+        assert!(
+            unit.is_in(&1.0),
+            "Issue with is_in for upper bound of Unit<f32>."
+        );
+        assert!(
+            !unit.is_in(&-1.0),
+            "Issue with is_in with value < lower bound of Unit<f32>."
+        );
+        assert!(
+            !unit.is_in(&11.0),
+            "Issue with is_in with value > upper bound of Unit<f32>."
+        );
+    }
 }
 
 mod check_mid {
-    use tantale::core::{DomainBounded, Int, Nat, Real};
+    use tantale::core::{DomainBounded, Int, Nat, Real,Unit};
 
     #[test]
     fn mid_real() {
@@ -141,6 +195,16 @@ mod check_mid {
     fn mid_int_odd() {
         let int_1 = Int::new(0, 11);
         assert_eq!(int_1.mid(), 5, "Error for odd mid of DomainBounded Int.");
+    }
+    #[test]
+    fn mid_unit64() {
+        let unit:Unit<f64> = Unit::new();
+        assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<64>.");
+    }
+    #[test]
+    fn mid_unit32() {
+        let unit:Unit<f64> = Unit::new();
+        assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<f32>.");
     }
 }
 
@@ -196,58 +260,49 @@ mod check_width {
 }
 
 mod check_domtype {
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real};
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 
     #[test]
-    fn isf64() {
+    fn tests_real_typedom() {
         trait IsF64 {}
         impl IsF64 for f64 {}
-        fn check_if_isf64<T: Domain>() -> bool
+        fn check_type<T: Domain>() -> bool
         where
             T::TypeDom: IsF64,
         {
             true
         }
-        assert!(check_if_isf64::<Real>(), "Real does not have a f64 VarType");
+        assert!(check_type::<Real>(), "Real does not have a f64 TypeDom");
     }
-
     #[test]
-    fn tests_usize() {
+    fn tests_nat_typedom() {
         trait IsUsize {}
         impl IsUsize for u64 {}
-        impl IsUsize for u32 {}
-        impl IsUsize for u16 {}
-        impl IsUsize for u8 {}
-        impl IsUsize for usize {}
-        fn check_if_isusize<T: Domain>() -> bool
+        fn check_type<T: Domain>() -> bool
         where
             T::TypeDom: IsUsize,
         {
             true
         }
         assert!(
-            check_if_isusize::<Nat>(),
-            "Nat does not have a usize VarType"
+            check_type::<Nat>(),
+            "Nat does not have a usize TypeDom"
         );
     }
 
     #[test]
-    fn tests_isize() {
+    fn tests_int_typedom() {
         trait IsIsize {}
         impl IsIsize for i64 {}
-        impl IsIsize for i32 {}
-        impl IsIsize for i16 {}
-        impl IsIsize for i8 {}
-        impl IsIsize for isize {}
-        fn check_if_isisize<T: Domain>() -> bool
+        fn check_type<T: Domain>() -> bool
         where
             T::TypeDom: IsIsize,
         {
             true
         }
         assert!(
-            check_if_isisize::<Int>(),
-            "Int does not have a isize VarType"
+            check_type::<Int>(),
+            "Nat does not have a usize TypeDom"
         );
     }
 
@@ -255,15 +310,15 @@ mod check_domtype {
     fn isbool() {
         trait IsBool {}
         impl IsBool for bool {}
-        fn check_if_isbool<T: Domain>() -> bool
+        fn check_type<T: Domain>() -> bool
         where
             T::TypeDom: IsBool,
         {
             true
         }
         assert!(
-            check_if_isbool::<Bool>(),
-            "Bool does not have a bool VarType"
+            check_type::<Bool>(),
+            "Bool does not have a bool TypeDom"
         );
     }
 
@@ -271,19 +326,33 @@ mod check_domtype {
     fn isstr() {
         trait IsStrRef<'a> {}
         impl IsStrRef<'_> for &'_ str {}
-        fn check_if_isstr<T: Domain>()
+        fn check_type<T: Domain>()
         where
             T::TypeDom: for<'b> IsStrRef<'b>,
         {
-            assert!(true, "Cat does not have a &str VarType.");
+            assert!(true, "Cat does not have a &str TypeDom.");
         }
-        check_if_isstr::<Cat<'_, 3>>();
+        check_type::<Cat<'_, 3>>();
+    }
+    #[test]
+    fn tests_unit_typedom() {
+        trait IsFloat {}
+        impl IsFloat for f64 {}
+        impl IsFloat for f32 {}
+        fn check_type<T: Domain>() -> bool
+        where
+            T::TypeDom: IsFloat,
+        {
+            true
+        }
+        assert!(check_type::<Unit<f32>>(), "Unit<f32> does not have a f32 TypeDom");
+        assert!(check_type::<Unit<f64>>(), "Unit<f64> does not have a f64 TypeDom");
     }
 }
 
 mod check_default_sampler {
     use rand;
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real};
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
@@ -333,6 +402,23 @@ mod check_default_sampler {
         assert!(
             cat_1.is_in(&sampler(&cat_1, &mut rng)),
             "Error while sampling with the default sampler of Real"
+        );
+    }
+    #[test]
+    fn sampler_unit() {
+        let mut rng = rand::rng();
+        let unit_1:Unit<f64> = Unit::new();
+        let sampler = unit_1.default_sampler();
+        assert!(
+            unit_1.is_in(&sampler(&unit_1, &mut rng)),
+            "Error while sampling with the default sampler of Unit<f64>"
+        );
+
+        let unit_1:Unit<f32> = Unit::new();
+        let sampler = unit_1.default_sampler();
+        assert!(
+            unit_1.is_in(&sampler(&unit_1, &mut rng)),
+            "Error while sampling with the default sampler of Unit<f32>"
         );
     }
 }
