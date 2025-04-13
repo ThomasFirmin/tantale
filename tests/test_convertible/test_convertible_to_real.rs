@@ -72,7 +72,7 @@ fn nat_into_real() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_real_2();
 
-    let point = 5;
+    let point = 6;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -87,7 +87,7 @@ fn nat_into_real_lower() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_real_2();
 
-    let point = 0;
+    let point = 1;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -102,7 +102,7 @@ fn nat_into_real_upper() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_real_2();
 
-    let point = 10;
+    let point = 11;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -115,13 +115,13 @@ fn nat_into_real_upper() {
 
 #[test]
 #[should_panic(
-    expected = "Error in mapping upper bound from Nat to Real: Input out of bounds, 11 not in [0,10]."
+    expected = "Error in mapping upper bound from Nat to Real: Input out of bounds, 12 not in [1,11]."
 )]
 fn nat_into_real_oob() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_real_2();
 
-    let point = 11;
+    let point = 12;
 
     let mapped = domain_1
         .onto(&point, &domain_2)

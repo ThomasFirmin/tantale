@@ -50,7 +50,7 @@ fn nat_into_int() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_int_2();
 
-    let point = 5;
+    let point = 6;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -62,7 +62,7 @@ fn nat_into_int_lower() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_int_2();
 
-    let point = 0;
+    let point = 1;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -77,7 +77,7 @@ fn nat_into_int_upper() {
     let domain_1 = get_domain_nat();
     let domain_2 = get_domain_int_2();
 
-    let point = 10;
+    let point = 11;
 
     let mapped = domain_1
         .onto(&point, &domain_2)

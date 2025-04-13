@@ -3,7 +3,7 @@ use crate::core::errors::DomainError;
 
 use num::{Num, NumCast};
 use rand::distr::uniform::SampleUniform;
-use std::fmt::{Display,Debug};
+use std::fmt::{Debug, Display};
 
 use num::cast::AsPrimitive;
 
@@ -35,8 +35,24 @@ pub trait Onto<Out: Domain>: Domain {
 
 impl<In, Out> Onto<Bounded<Out>> for Bounded<In>
 where
-    In: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
-    Out: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
+    In: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
+    Out: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between [`Bounded`] [`Domain`].
@@ -84,7 +100,15 @@ where
 
 impl<In> Onto<Bool> for Bounded<In>
 where
-    In: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
+    In: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between [`Bounded`] [`Domain`].
@@ -117,7 +141,15 @@ where
 
 impl<'a, In, const N: usize> Onto<Cat<'a, N>> for Bounded<In>
 where
-    In: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
+    In: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between [`Bounded`] [`Domain`].
@@ -169,7 +201,15 @@ where
 
 impl<Out> Onto<Bounded<Out>> for Bool
 where
-    Out: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
+    Out: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].
@@ -240,7 +280,15 @@ impl Onto<Bool> for Bool {
 
 impl<'a, const N: usize, Out> Onto<Bounded<Out>> for Cat<'a, N>
 where
-    Out: Num + NumCast + PartialEq + PartialOrd + Clone + SampleUniform + AsPrimitive<f64> + Display + Debug,
+    Out: Num
+        + NumCast
+        + PartialEq
+        + PartialOrd
+        + Clone
+        + SampleUniform
+        + AsPrimitive<f64>
+        + Display
+        + Debug,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Cat`] and a [`Bounded`] [`Domain`].

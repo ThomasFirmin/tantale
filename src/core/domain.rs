@@ -19,7 +19,7 @@ use std::ops::RangeInclusive;
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the `default_sampler` and `is_in` methods.
 pub trait Domain {
-    type TypeDom:PartialEq + Clone + Copy + Display + Debug;
+    type TypeDom: PartialEq + Clone + Copy + Display + Debug;
     /// Associated function to automatically return a default [`crate::core::sampler`]
     /// for the domain the trait is implemented.
     fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom;
@@ -57,7 +57,7 @@ where
     T: Num + NumCast,
     T: PartialEq + PartialOrd,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     bounds: RangeInclusive<T>,
     mid: T,
@@ -70,7 +70,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     /// Fabric for a [`Bounded`].
     ///
@@ -102,7 +102,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     type TypeDom = T;
 
@@ -123,7 +123,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     fn lower(&self) -> Self::TypeDom {
         self.bounds.start().clone()
@@ -145,7 +145,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     fn clone(&self) -> Self {
         Bounded::new(self.bounds.start().clone(), self.bounds.end().clone())
@@ -158,7 +158,20 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
+    }
+}
+
+impl<T> fmt::Debug for Bounded<T>
+where
+    T: Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display + Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -269,7 +282,7 @@ where
     T: Clone + Copy,
     T: Display,
 {
-    bounds:RangeInclusive<T>
+    bounds: RangeInclusive<T>,
 }
 
 impl<T> Unit<T>
@@ -278,11 +291,13 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     /// Fabric for a [`Unit`] [`Domain`].
     pub fn new() -> Unit<T> {
-        Unit{bounds:RangeInclusive::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())}
+        Unit {
+            bounds: RangeInclusive::new(T::from(0.0).unwrap(), T::from(1.0).unwrap()),
+        }
     }
 }
 
@@ -292,7 +307,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     type TypeDom = T;
 
@@ -313,7 +328,7 @@ where
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     fn lower(&self) -> Self::TypeDom {
         T::from(0.0).unwrap()
@@ -331,11 +346,11 @@ where
 
 impl<T> std::clone::Clone for Unit<T>
 where
-    T: Float+Num + NumCast,
+    T: Float + Num + NumCast,
     T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display+Debug,
+    T: Display + Debug,
 {
     fn clone(&self) -> Self {
         Unit::new()
@@ -345,10 +360,23 @@ where
 impl<T> fmt::Display for Unit<T>
 where
     T: Float + Num + NumCast,
-    T: PartialOrd,
+    T: PartialEq + PartialOrd,
     T: SampleUniform,
     T: Clone + Copy,
-    T: Display,
+    T: Display + Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
+    }
+}
+
+impl<T> fmt::Debug for Unit<T>
+where
+    T: Float + Num + NumCast,
+    T: PartialEq + PartialOrd,
+    T: SampleUniform,
+    T: Clone + Copy,
+    T: Display + Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -411,6 +439,11 @@ impl Domain for Bool {
     }
 }
 impl fmt::Display for Bool {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{T,F}}")
+    }
+}
+impl fmt::Debug for Bool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{T,F}}")
     }
@@ -493,7 +526,19 @@ impl<'a, const N: usize> Domain for Cat<'a, N> {
         self.values.contains(point)
     }
 }
+
 impl<'a, const N: usize> fmt::Display for Cat<'a, N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let vsize = self.values.len() - 1;
+        write!(f, "{{")?;
+        for elem in self.values[..vsize].iter() {
+            write!(f, "{}, ", elem)?;
+        }
+        write!(f, "{}}}", self.values[vsize])
+    }
+}
+
+impl<'a, const N: usize> fmt::Debug for Cat<'a, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let vsize = self.values.len() - 1;
         write!(f, "{{")?;

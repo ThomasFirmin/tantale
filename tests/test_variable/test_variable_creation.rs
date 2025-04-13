@@ -7,8 +7,7 @@ use tantale::var;
 
 use paste::paste;
 
-fn _test_variable_assertion<'a, T : Variable<'a>>(item: &T)
-{
+fn _test_variable_assertion<'a, T: Variable<'a>>(item: &T) {
     let mut rng = rand::rng();
     assert_eq!(item.name(), "a", "Error in variable name.");
 

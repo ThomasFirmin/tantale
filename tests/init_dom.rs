@@ -6,7 +6,7 @@ pub fn get_domain_real() -> Real {
 }
 
 pub fn get_domain_nat() -> Nat {
-    return Nat::new(0, 10);
+    return Nat::new(1, 11);
 }
 
 pub fn get_domain_int() -> Int {
