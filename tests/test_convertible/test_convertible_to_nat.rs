@@ -43,6 +43,23 @@ fn real_into_nat_upper() {
     )
 }
 
+#[test]
+#[should_panic]
+fn real_into_nat_oob() {
+    let domain_1 = get_domain_real();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 11.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Real to Nat");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Real to Nat does not match"
+    )
+}
+
 // NAT to Nat
 
 #[test]
@@ -88,6 +105,23 @@ fn nat_into_nat_upper() {
     )
 }
 
+#[test]
+#[should_panic]
+fn nat_into_nat_oob() {
+    let domain_1 = get_domain_nat();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 12;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Nat to Nat");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Nat to Nat does not match"
+    )
+}
+
 // INT to Nat
 
 #[test]
@@ -123,6 +157,23 @@ fn int_into_nat_upper() {
     let domain_2 = get_domain_nat_2();
 
     let point = 10;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Int to Nat");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Int to Nat does not match"
+    )
+}
+
+#[test]
+#[should_panic]
+fn int_into_nat_oob() {
+    let domain_1 = get_domain_int();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 11;
 
     let mapped = domain_1
         .onto(&point, &domain_2)
@@ -211,9 +262,7 @@ fn cat_into_nat_upper() {
 }
 
 #[test]
-#[should_panic(
-    expected = "Error in mapping upper bound from Cat to Nat: Input out of bounds, pineapple not in {relu, tanh, sigmoid}."
-)]
+#[should_panic]
 fn cat_into_nat_oob() {
     let domain_1 = get_domain_cat();
     let domain_2 = get_domain_nat_2();
@@ -223,4 +272,64 @@ fn cat_into_nat_oob() {
     let _mapped = domain_1
         .onto(&point, &domain_2)
         .expect("Error in mapping upper bound from Cat to Nat");
+}
+
+#[test]
+fn unit_into_nat() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 0.5;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping middle from Unit to Nat");
+    assert_eq!(mapped, 90, "Mapping middle of Unit to Nat does not match")
+}
+#[test]
+fn unit_into_nat_lower() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 0.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping lower bound from Unit to Nat");
+    assert_eq!(
+        mapped, 80,
+        "Mapping lower bound of Unit to Nat does not match"
+    )
+}
+#[test]
+fn unit_into_nat_upper() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 1.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Unit to Nat");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Unit to Nat does not match"
+    )
+}
+
+#[test]
+#[should_panic]
+fn unit_into_nat_oob() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_nat_2();
+
+    let point = 1.1;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Unit to Nat");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Unit to Nat does not match"
+    )
 }

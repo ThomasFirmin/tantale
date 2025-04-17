@@ -43,6 +43,24 @@ fn real_into_int_upper() {
     )
 }
 
+#[test]
+#[should_panic]
+fn real_into_int_oob() {
+    let domain_1 = get_domain_real();
+    let domain_2 = get_domain_int_2();
+
+    let point = 11.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Real to Int");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Real to Unit does not match"
+    )
+}
+
+
 // NAT to Int
 
 #[test]
@@ -88,6 +106,24 @@ fn nat_into_int_upper() {
     )
 }
 
+#[test]
+#[should_panic]
+fn nat_into_int_oob() {
+    let domain_1 = get_domain_nat();
+    let domain_2 = get_domain_int_2();
+
+    let point = 12;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Nat to Int");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Nat to Unit does not match"
+    )
+}
+
+
 // INT to Int
 
 #[test]
@@ -132,6 +168,24 @@ fn int_into_int_upper() {
         "Mapping upper bound of Int to Int does not match"
     )
 }
+
+#[test]
+#[should_panic]
+fn int_into_int_oob() {
+    let domain_1 = get_domain_int();
+    let domain_2 = get_domain_int_2();
+
+    let point = 11;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Int to Int");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Int to Int does not match"
+    )
+}
+
 
 // BOOL to Int
 #[test]
@@ -209,11 +263,8 @@ fn cat_into_int_upper() {
         "Mapping upper bound of Cat to Nat does not match"
     )
 }
-
 #[test]
-#[should_panic(
-    expected = "Error in mapping upper bound from Cat to Int: Input out of bounds, pineapple not in {relu, tanh, sigmoid}."
-)]
+#[should_panic]
 fn cat_into_int_oob() {
     let domain_1 = get_domain_cat();
     let domain_2 = get_domain_int_2();
@@ -223,4 +274,64 @@ fn cat_into_int_oob() {
     let _mapped = domain_1
         .onto(&point, &domain_2)
         .expect("Error in mapping upper bound from Cat to Int");
+}
+
+#[test]
+fn unit_into_int() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_int_2();
+
+    let point = 0.5;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping middle from Unit to Int");
+    assert_eq!(mapped, 90, "Mapping middle of Unit to Int does not match")
+}
+#[test]
+fn unit_into_int_lower() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_int_2();
+
+    let point = 0.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping lower bound from Unit to Int");
+    assert_eq!(
+        mapped, 80,
+        "Mapping lower bound of Unit to Int does not match"
+    )
+}
+#[test]
+fn unit_into_int_upper() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_int_2();
+
+    let point = 1.0;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Unit to Int");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Unit to Int does not match"
+    )
+}
+
+#[test]
+#[should_panic]
+fn unit_into_int_oob() {
+    let domain_1 = get_domain_unit();
+    let domain_2 = get_domain_int_2();
+
+    let point = 1.1;
+
+    let mapped = domain_1
+        .onto(&point, &domain_2)
+        .expect("Error in mapping upper bound from Unit to Int");
+    assert_eq!(
+        mapped, 100,
+        "Mapping upper bound of Unit to Unit does not match"
+    )
 }

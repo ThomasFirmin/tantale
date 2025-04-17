@@ -11,11 +11,11 @@ use crate::core::optimizer::Optimizer;
 /// that variable within the [`Objective`] function, and the input type of the [`Optimizer`].
 ///
 use crate::core::domain::Domain;
-use crate::core::errors::DomainError;
-use crate::core::onto::Onto;
+use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
+use crate::core::domain::onto::Onto;
 
 use rand::prelude::ThreadRng;
-use std::fmt::{Display,Debug};
+use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
 pub trait Variable<'a> {
@@ -26,13 +26,18 @@ pub trait Variable<'a> {
     ///
     /// # Parameters
     ///
-    /// * `name` : `&'a str` - Accessible via the method [`name()`](Variable::name) .The name of the variable, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : `Obj` - Accessible via the method [`domain_obj()`](Variable::domain_obj) .A single-[`Variable`] [`Domain`] of the [`Objective`] [`Domain`].
-    /// * `domopt` : `Opt` - Accessible via the method [`domain_opt()`](Variable::domain_opt) .A single-[`Variable`] [`Domain`] of the [`Optimizer`] [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` - An optional sampler function for the [`Objective`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    /// * sampopt : Option<fn(&Opt, &mut ThreadRng) -> Opt::TypeDom> - An optional sampler function for the [`Optimizer`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * `name` : `&'a str` - Accessible via the method [`name()`](Variable::name) .
+    /// The name of the variable, mostly used for saving, or pass a point as a keyword.
+    /// * `domobj` : `Obj` - Accessible via the method [`domain_obj()`](Variable::domain_obj).
+    /// The [`Domain`] of the [`Objective`] [`Domain`].
+    /// * `domopt` : `Opt` - Accessible via the method [`domain_opt()`](Variable::domain_opt).
+    /// The [`Domain`] of the [`Optimizer`] [`Domain`].
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Objective`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Optimizer`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
     fn new(
         name: &'a str,
@@ -43,11 +48,14 @@ pub trait Variable<'a> {
     ) -> Self;
     /// Returns the name of the [`Variable`].
     fn name(&self) -> &'a str;
+
     /// Returns the domain of the [`Objective`] function.
     fn domain_obj(&self) -> Rc<Self::TypeObj>;
+
     /// Returns the domain of the [`Optimizer`] algorithm.
     fn domain_opt(&self) -> Rc<Self::TypeOpt>;
-    /// Samples a point from the **Objective** `domobj` [`Domain`].
+
+    /// Samples a point from the [`Objective`] `domobj` [`Domain`].
     ///
     /// # Parameters
     ///
@@ -59,7 +67,7 @@ pub trait Variable<'a> {
     ///
     fn sample_obj(&self, rng: &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom;
 
-    /// Samples a point from the **Optimizer** `domopt` [`Domain`].
+    /// Samples a point from the [`Optimizer`] `domopt` [`Domain`].
     ///
     /// # Parameters
     ///
@@ -70,7 +78,8 @@ pub trait Variable<'a> {
     /// * `Opt::`[`TypeDom`](Domain::TypeDom) : A random point within the `Opt` [`Domain`].
     ///
     fn sample_opt(&self, rng: &mut ThreadRng) -> <Self::TypeOpt as Domain>::TypeDom;
-    /// Replicates a given [`Variable`] to create a new one with a new given name.
+
+    /// Replicates a given [`Variable`] to create a new one with a given name.
     ///
     /// # Parameters
     ///
@@ -82,6 +91,7 @@ pub trait Variable<'a> {
     /// * [`Variable`]`<'b, Obj, Opt>`
     ///
     fn replicate(&self, name: &'a str) -> Self;
+
     /// Maps an input point from the [`Objective`] `domopt` [`Domain`] to the [`Optimizer`]
     /// `domopt` [`Domain`].
     /// See [`Onto`] for more info.
@@ -94,7 +104,7 @@ pub trait Variable<'a> {
     ///
     /// * [`Result`]`<Opt::`[`TypeDom`](Domain::TypeDom)`, `[`DomainError`]`>`
     ///
-    /// The function return the `item` mapped into the `Opt` [`Domain`].
+    /// The function returns the `item` mapped into the `Opt` [`Domain`].
     /// If an error occurs it returns a [`DomainError`].
     ///
     /// # Types
@@ -124,7 +134,7 @@ pub trait Variable<'a> {
     ///
     /// * [`Result`]`<Obj::`[`TypeDom`](Domain::TypeDom)`, `[`DomainError`]`>`
     ///
-    /// The function return the `item` mapped into the `Obj` [`Domain`].
+    /// The function returns the `item` mapped into the `Obj` [`Domain`].
     /// If an error occurs it returns a [`DomainError`].
     ///
     /// # Types
@@ -143,6 +153,8 @@ pub trait Variable<'a> {
     ) -> Result<<Self::TypeObj as Domain>::TypeDom, DomainError>;
 }
 
+/// Describes a [`Variable`] where the [`Objective`] [`Domain`] **is different** from the [`Optimizer`] [`Domain`].
+///
 #[derive(Clone)]
 pub struct VariableDouble<'a, Obj, Opt>
 where
@@ -169,12 +181,14 @@ where
     /// # Parameters
     ///
     /// * `name` : `&'a str` - The name of the variable, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : `Obj` - A single-[`Variable`] [`Domain`] of the [`Objective`] [`Domain`].
-    /// * `domopt` : `Opt` - A single-[`Variable`] [`Domain`] of the [`Optimizer`] [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` - An optional sampler function for the [`Objective`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    /// * sampopt : Option<fn(&Opt, &mut ThreadRng) -> Opt::TypeDom> - An optional sampler function for the [`Optimizer`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * `domobj` : `Obj` - The [`Domain`] of the [`Objective`] function.
+    /// * `domopt` : `Opt` - The [`Domain`] of the [`Optimizer`] algorithm.
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Objective`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Optimizer`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
     fn new(
         name: &'a str,
@@ -229,6 +243,8 @@ where
     }
 }
 
+/// Describes a [`Variable`] where the [`Objective`] [`Domain`] **is the same** as the [`Optimizer`] [`Domain`].
+///
 #[derive(Clone)]
 pub struct VariableSingle<'a, Obj>
 where
@@ -243,7 +259,6 @@ where
 impl<'a, Obj> Variable<'a> for VariableSingle<'a, Obj>
 where
     Obj: Domain + Clone + Display + Debug,
-    Obj::TypeDom: Clone,
 {
     type TypeObj = Obj;
     type TypeOpt = Obj;
@@ -253,10 +268,12 @@ where
     ///
     /// * `name` : `&'a str` - The name of the variable, mostly used for saving, or pass a point as a keyword.
     /// * `domobj` : `Obj` - A single-[`Variable`] [`Domain`] of the [`Objective`] [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` - An optional sampler function for the [`Objective`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    /// * sampopt : Option<fn(&Opt, &mut ThreadRng) -> Opt::TypeDom> - An optional sampler function for the [`Optimizer`] [`Domain`].
-    /// By default use the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Objective`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * sampopt : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Optimizer`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
     fn new(
         name: &'a str,
@@ -306,25 +323,19 @@ where
         )
     }
     fn onto_opt(&self, item: &Obj::TypeDom) -> Result<Obj::TypeDom, DomainError> {
-        if self.domain_obj.is_in(&item){
-            Ok(item.clone())}
-        else{
-            Err(DomainError {
-                code: 103,
-                msg: format!("{} not in {}", item, self.domain_obj),
-            })
-        }
+        if self.domain_obj.is_in(&item) {
+            Ok(item.clone())
+        } else {
+            Err(DomainError::OoB(DomainOoBError(format!("{} not in {}", item, self.domain_obj))))
     }
+}
     fn onto_obj(&self, item: &Obj::TypeDom) -> Result<Obj::TypeDom, DomainError> {
-        if self.domain_obj.is_in(&item){
-            Ok(item.clone())}
-        else{
-            Err(DomainError {
-                code: 103,
-                msg: format!("{} not in {}", item, self.domain_obj),
-            })
-        }
+        if self.domain_obj.is_in(&item) {
+            Ok(item.clone())
+        } else {
+            Err(DomainError::OoB(DomainOoBError(format!("{} not in {}", item, self.domain_obj))))
     }
+}
 }
 
 /// Creates a [`Variable`] containing the arguments.
@@ -426,7 +437,7 @@ where
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
 /// use tantale::core::variable::Variable;
-/// use tantale::core::sampler::uniform_real;
+/// use tantale::core::domain::sampler::uniform_real;
 /// use tantale::var;
 ///
 /// let domobj = Real::new(80.0, 100.0);
@@ -455,7 +466,7 @@ where
 /// ```
 /// use tantale::core::domain::{Real, Int, Domain, DomainBounded};
 /// /// use tantale::core::variable::Variable;
-/// use tantale::core::sampler::{uniform_real,uniform_int};
+/// use tantale::core::domain::sampler::{uniform_real,uniform_int};
 /// use tantale::var;
 ///
 /// let domobj = Int::new(0, 100);
@@ -492,46 +503,46 @@ macro_rules! var {
     // Defining both samplers
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
         use $crate::core::variable::Variable;
-        $crate::core::variable::VariableDouble::new(
+        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
             $name,
             std::rc::Rc::new($domobj),
             Some(std::rc::Rc::new($domopt)),
             Some($sampobj),
             Some($sampopt),
-        )
+        ))
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr) => {{
         use $crate::core::variable::Variable;
-        $crate::core::variable::VariableDouble::new(
+        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
             $name,
             std::rc::Rc::new($domobj),
             Some(std::rc::Rc::new($domopt)),
             Some($sampobj),
             None,
-        )
+        ))
     }};
     // Solely defining optimizer sampler
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
         use $crate::core::variable::Variable;
-        $crate::core::variable::VariableDouble::new(
+        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
             $name,
             std::rc::Rc::new($domobj),
             Some(std::rc::Rc::new($domopt)),
             None,
             Some($sampopt),
-        )
+        ))
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr) => {{
         use $crate::core::variable::Variable;
-        $crate::core::variable::VariableDouble::new(
+        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
             $name,
             std::rc::Rc::new($domobj),
             Some(std::rc::Rc::new($domopt)),
             None,
             None,
-        )
+        ))
     }};
 
     // Solely defining objective domain
@@ -540,33 +551,33 @@ macro_rules! var {
         use $crate::core::variable::Variable;
         let domobj = std::rc::Rc::new($domobj);
         let domopt = std::rc::Rc::clone(&domobj);
-        $crate::core::variable::VariableSingle::new(
+        std::rc::Rc::new($crate::core::variable::VariableSingle::new(
             $name,
             domobj,
             None,
             Some($sampobj),
             Some($sampopt),
-        )
+        ))
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr) => {{
         use $crate::core::variable::Variable;
         let domobj = std::rc::Rc::new($domobj);
         let domopt = std::rc::Rc::clone(&domobj);
-        $crate::core::variable::VariableSingle::new($name, domobj, None, Some($sampobj), None)
+        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, Some($sampobj), None))
     }};
     // Solely defining optimizer sampler
     ($name:literal ;  obj | $domobj:expr ; opt | => $sampopt:expr) => {{
         use $crate::core::variable::Variable;
         let domobj = std::rc::Rc::new($domobj);
         let domopt = std::rc::Rc::clone(&domobj);
-        $crate::core::variable::VariableSingle::new($name, domobj, None, None, Some($sampopt))
+        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, None, Some($sampopt)))
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr) => {{
         use $crate::core::variable::Variable;
         let domobj = std::rc::Rc::new($domobj);
         let domopt = std::rc::Rc::clone(&domobj);
-        $crate::core::variable::VariableSingle::new($name, domobj, None, None, None)
+        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, None, None))
     }};
 }

@@ -1,7 +1,7 @@
 mod check_sampler {
     use rand;
     use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real};
-    use tantale::core::sampler::*;
+    use tantale::core::domain::sampler::*;
 
     #[test]
     fn sampler_real() {
@@ -43,7 +43,7 @@ mod check_sampler {
     fn sampler_cat() {
         let mut rng = rand::rng();
         let activation = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(activation);
+        let cat_1 = Cat::new(&activation);
         assert!(
             cat_1.is_in(&uniform_cat(&cat_1, &mut rng)),
             "Error while sampling with the default sampler of Real"

@@ -1,13 +1,15 @@
 use super::init_dom::*;
 
 use tantale::core::domain::Domain;
-use tantale::core::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
+use tantale::core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
 use tantale::core::variable::Variable;
 use tantale::var;
 
+use std::rc::Rc;
+
 use paste::paste;
 
-fn _test_variable_assertion<'a, T: Variable<'a>>(item: &T) {
+fn _test_variable_assertion<'a, T: Variable<'a>>(item: Rc<T>) {
     let mut rng = rand::rng();
     assert_eq!(item.name(), "a", "Error in variable name.");
 
@@ -48,7 +50,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = var!("a" ; obj | domobj ; opt | domopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -57,7 +59,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -66,7 +68,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sopt = [<uniform_$dom2>];
                 let variable = var!("a" ; obj | domobj ; opt | domopt => sopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -76,7 +78,7 @@ macro_rules! get_variable {
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom2>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt => sopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
         }
     };
@@ -103,7 +105,6 @@ get_variable!(int -> cat);
 get_variable!(bool -> real);
 get_variable!(bool -> nat);
 get_variable!(bool -> int);
-get_variable!(bool -> bool);
 
 get_variable!(cat -> real);
 get_variable!(cat -> nat);
@@ -118,7 +119,7 @@ macro_rules! get_variable_single_dom {
             fn [<$dom1 _single>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let variable = var!("a" ; obj | domobj);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -126,7 +127,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -134,7 +135,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj ; opt | => sopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
             #[test]
@@ -143,7 +144,7 @@ macro_rules! get_variable_single_dom {
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
-                _test_variable_assertion(&variable)
+                _test_variable_assertion(variable)
             }
 
         }

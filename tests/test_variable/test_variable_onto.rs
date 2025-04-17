@@ -103,8 +103,6 @@ get_variable!(low | int -> cat ; 0 => "relu" ; "relu" => 0);
 get_variable!(up | int -> cat ; 10 => "sigmoid" ; "sigmoid" => 10);
 get_variable!(mid | int -> cat ; 5 => "tanh" ; "tanh" => 5);
 
-
-
 // BOTH DOMAIN SHOULD PANIC
 
 macro_rules! get_variable_panic {
@@ -200,12 +198,6 @@ get_variable_panic!(mid | int -> int; 11 => 100 ; 101 => 10);
 
 get_variable_panic!(low | int -> cat ; 11 => "tanh" ; "athirdpotato" => 10);
 
-
-
-
-
-
-
 // ONE DOMAIN ARE DEFINED
 macro_rules! get_variable_single {
     ($name:ident | $dom1:ident ; $input_1:expr => $output_1:expr ; $input_2:expr => $output_2:expr) => {
@@ -254,7 +246,6 @@ get_variable_single!(up |  bool ; true => true ; true => true);
 get_variable_single!(low |  cat ; "relu" => "relu" ; "relu" => "relu");
 get_variable_single!(mid |  cat ; "sigmoid" => "sigmoid" ; "sigmoid" => "sigmoid");
 get_variable_single!(up |  cat ; "tanh" => "tanh" ; "tanh" => "tanh");
-
 
 // BOTH DOMAIN SHOULD PANIC
 
