@@ -1,6 +1,7 @@
 use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Bounded,DomainBounded};
-use crate::core::domain::unit::Unit;
+use crate::core::domain::bounded::{Bounded,DomainBounded,BoundedBounds};
+use crate::core::domain::unit::{Unit,UnitBounds};
+use crate::core::domain::base::{BaseDom,BaseTypeDom};
 use crate::core::domain::sampler::uniform_cat;
 use crate::core::domain::onto::Onto;
 use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
@@ -224,6 +225,47 @@ where
             None => {
                 Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, self))))
             }
+        }
+    }
+}
+
+impl<'a, const N :usize, const M :usize,T,U> Onto<BaseDom<'a,N,T,U>> for Cat<'a,M>
+where
+    T:BoundedBounds,
+    U:UnitBounds,
+
+    f64: AsPrimitive<T>,
+    f64: AsPrimitive<U>,
+{
+    /// [`Onto`] function between a [`Cat`] [`Domain`] and a [`BaseDom`][`Domain`].
+    ///
+    //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use (`onto`)[`Onto::onto`] of [`Self`].
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a,N,T,U>` - A borrowed targetted [`Domain`].
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError::OoB`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &<Cat<'a,M> as Domain>::TypeDom, target: &BaseDom<'a,N,T,U>) -> Result<<BaseDom<'a,N,T,U> as Domain>::TypeDom, DomainError> {
+        match target{
+            BaseDom::Bounded(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bounded(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Unit(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Unit(i)),
+                Err(e) => Err(e),
+            },
+            BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+            BaseDom::Cat(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
         }
     }
 }

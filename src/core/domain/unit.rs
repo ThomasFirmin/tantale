@@ -1,39 +1,31 @@
 use crate::core::domain::Domain;
-use crate::core::domain::bounded::{DomainBounded, Bounded};
+use crate::core::domain::bounded::{DomainBounded, Bounded,BoundedBounds};
 use crate::core::domain::bool::Bool;
 use crate::core::domain::cat::Cat;
+use crate::core::domain::base::{BaseDom,BaseTypeDom};
 use crate::core::domain::sampler::uniform;
 use crate::core::domain::onto::Onto;
 use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
 
 use std::ops::RangeInclusive;
-use std::fmt::{self, Debug, Display};
+use std::fmt;
 use num::cast::AsPrimitive;
-use num::{Float, Num, NumCast};
+use num::Float;
 use rand::rngs::ThreadRng;
-use rand::distr::uniform::SampleUniform;
+
+pub trait UnitBounds : BoundedBounds + Float {}
+impl<T:BoundedBounds + Float> UnitBounds for T {}
+
 
 /// A [`Unit`] domain within `[0,1]`. The floating point type is inferred.
 /// /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
 ///
-pub struct Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+pub struct Unit<T:UnitBounds>
 {
     bounds: RangeInclusive<T>,
 }
 
-impl<T> Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> Unit<T>
 {
     /// Fabric for a [`Unit`] [`Domain`].
     pub fn new() -> Unit<T> {
@@ -43,13 +35,7 @@ where
     }
 }
 
-impl<T> Domain for Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> Domain for Unit<T>
 {
     type TypeDom = T;
 
@@ -64,13 +50,7 @@ where
     }
 }
 
-impl<T> DomainBounded for Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> DomainBounded for Unit<T>
 {
     fn lower(&self) -> Self::TypeDom {
         T::from(0.0).unwrap()
@@ -86,39 +66,21 @@ where
     }
 }
 
-impl<T> std::clone::Clone for Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> std::clone::Clone for Unit<T>
 {
     fn clone(&self) -> Self {
         Unit::new()
     }
 }
 
-impl<T> fmt::Display for Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> fmt::Display for Unit<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
-impl<T> fmt::Debug for Unit<T>
-where
-    T: Float + Num + NumCast,
-    T: PartialEq + PartialOrd,
-    T: SampleUniform,
-    T: Clone + Copy,
-    T: Display + Debug,
+impl<T:UnitBounds> fmt::Debug for Unit<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -128,25 +90,8 @@ where
 
 impl<In, Out> Onto<Bounded<Out>> for Unit<In>
 where
-    In: Num
-        + NumCast
-        + Float
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
-    Out: Num
-        + NumCast
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
+    In : UnitBounds,
+    Out:BoundedBounds,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bounded`] [`Domain`].
@@ -187,16 +132,7 @@ where
 
 impl<In> Onto<Bool> for Unit<In>
 where
-    In: Num
-        + NumCast
-        + Float
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
+    In: UnitBounds,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bool`][`Domain`].
@@ -225,16 +161,7 @@ where
 
 impl<'a, In, const N: usize> Onto<Cat<'a, N>> for Unit<In>
 where
-    In: Num
-        + NumCast
-        + Float
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
+    In: UnitBounds,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Cat`][`Domain`].
@@ -273,6 +200,55 @@ where
             }
         } else {
             Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, self))))
+        }
+    }
+}
+
+impl<'a, In, const N :usize,T,U> Onto<BaseDom<'a,N,T,U>> for Unit<In>
+where
+    In:UnitBounds,
+    T:BoundedBounds,
+    U:UnitBounds,
+    f64: AsPrimitive<In>,
+    f64: AsPrimitive<T>,
+    f64: AsPrimitive<U>,
+{
+    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
+    ///
+    //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and (`onto`)[`Onto::onto`] of [`Self`].
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a,N,T,U>` - A borrowed targetted [`Domain`].
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError::OoB`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(&self, item: &In, target: &BaseDom<'a,N,T,U>) -> Result<<BaseDom<'a,N,T,U> as Domain>::TypeDom, DomainError> {
+        match target{
+            BaseDom::Bounded(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bounded(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+            BaseDom::Bool(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bool(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Cat(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Cat(i)),
+                    Err(e) => Err(e),
+                }
+            },
         }
     }
 }
