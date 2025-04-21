@@ -7,37 +7,32 @@ use crate::core::domain::sampler::uniform;
 use crate::core::domain::onto::Onto;
 use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
 
-use std::ops::RangeInclusive;
 use std::fmt;
+use std::ops::RangeInclusive;
 use num::cast::AsPrimitive;
-use num::Float;
 use rand::rngs::ThreadRng;
 
-pub trait UnitBounds : BoundedBounds + Float {}
-impl<T:BoundedBounds + Float> UnitBounds for T {}
-
-
-/// A [`Unit`] domain within `[0,1]`. The floating point type is inferred.
+/// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
 ///
-pub struct Unit<T:UnitBounds>
+pub struct Unit
 {
-    bounds: RangeInclusive<T>,
+    bounds: RangeInclusive<f64>,
 }
 
-impl<T:UnitBounds> Unit<T>
+impl Unit
 {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new() -> Unit<T> {
+    pub fn new() -> Unit {
         Unit {
-            bounds: RangeInclusive::new(T::from(0.0).unwrap(), T::from(1.0).unwrap()),
+            bounds: RangeInclusive::new(0.0, 1.0),
         }
     }
 }
 
-impl<T:UnitBounds> Domain for Unit<T>
+impl Domain for Unit
 {
-    type TypeDom = T;
+    type TypeDom = f64;
 
     /// Default sampler for [`Unit`].
     /// See [`uniform`].
@@ -50,37 +45,37 @@ impl<T:UnitBounds> Domain for Unit<T>
     }
 }
 
-impl<T:UnitBounds> DomainBounded for Unit<T>
+impl DomainBounded for Unit
 {
     fn lower(&self) -> Self::TypeDom {
-        T::from(0.0).unwrap()
+        0.0
     }
     fn upper(&self) -> Self::TypeDom {
-        T::from(1.0).unwrap()
+        1.0
     }
     fn mid(&self) -> Self::TypeDom {
-        Self::TypeDom::from(0.5).unwrap()
+        0.5
     }
     fn width(&self) -> Self::TypeDom {
-        T::from(1.0).unwrap()
+        1.0
     }
 }
 
-impl<T:UnitBounds> std::clone::Clone for Unit<T>
+impl std::clone::Clone for Unit
 {
     fn clone(&self) -> Self {
         Unit::new()
     }
 }
 
-impl<T:UnitBounds> fmt::Display for Unit<T>
+impl fmt::Display for Unit
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
-impl<T:UnitBounds> fmt::Debug for Unit<T>
+impl fmt::Debug for Unit
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -88,9 +83,8 @@ impl<T:UnitBounds> fmt::Debug for Unit<T>
 }
 
 
-impl<In, Out> Onto<Bounded<Out>> for Unit<In>
+impl<Out> Onto<Bounded<Out>> for Unit
 where
-    In : UnitBounds,
     Out:BoundedBounds,
     f64: AsPrimitive<Out>,
 {
@@ -113,9 +107,9 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Bounded<Out>) -> Result<Out, DomainError> {
+    fn onto(&self, item: &f64, target: &Bounded<Out>) -> Result<Out, DomainError> {
         if self.is_in(item) {
-            let a: f64 = (*item).as_();
+            let a: f64 = *item;
             let c: f64 = target.width().as_();
             let mapped: Out = (a * c).as_() + target.lower();
 
@@ -130,10 +124,9 @@ where
     }
 }
 
-impl<In> Onto<Bool> for Unit<In>
+impl Onto<Bool> for Unit
 where
-    In: UnitBounds,
-    f64: AsPrimitive<In>,
+    f64: AsPrimitive<f64>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bool`][`Domain`].
     ///
@@ -150,19 +143,18 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, _target: &Bool) -> Result<<Bool as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &f64, _target: &Bool) -> Result<<Bool as Domain>::TypeDom, DomainError> {
         if self.is_in(item) {
-            Ok(*item > In::from(0.5).unwrap())
+            Ok(*item > 0.5)
         } else {
             Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, self))))
         }
     }
 }
 
-impl<'a, In, const N: usize> Onto<Cat<'a, N>> for Unit<In>
+impl<'a, const N: usize> Onto<Cat<'a, N>> for Unit
 where
-    In: UnitBounds,
-    f64: AsPrimitive<In>,
+    f64: AsPrimitive<f64>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Cat`][`Domain`].
     ///
@@ -185,7 +177,7 @@ where
     ///
     fn onto(
         &self,
-        item: &In,
+        item: &f64,
         target: &Cat<'a, N>,
     ) -> Result<<Cat<'a, N> as Domain>::TypeDom, DomainError> {
         if self.is_in(item) {
@@ -204,14 +196,11 @@ where
     }
 }
 
-impl<'a, In, const N :usize,T,U> Onto<BaseDom<'a,N,T,U>> for Unit<In>
+impl<'a, const N :usize,T> Onto<BaseDom<'a,N,T>> for Unit
 where
-    In:UnitBounds,
     T:BoundedBounds,
-    U:UnitBounds,
-    f64: AsPrimitive<In>,
+    f64: AsPrimitive<f64>,
     f64: AsPrimitive<T>,
-    f64: AsPrimitive<U>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -220,7 +209,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T,U>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -228,27 +217,39 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &BaseDom<'a,N,T,U>) -> Result<<BaseDom<'a,N,T,U> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &f64, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
         match target{
             BaseDom::Bounded(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
             BaseDom::Bool(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bool(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bool(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Cat(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Cat(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Cat(i)),
                     Err(e) => Err(e),
                 }
             },
+        }
+    }
+}
+
+impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Unit
+where
+    T : BoundedBounds
+{
+    fn from(value: BaseDom<'a,N,T>) -> Self {
+        match value{
+            BaseDom::Unit(d)=>d,
+            _ => unreachable!("Can only From<BaseDom> with Unit.")
         }
     }
 }

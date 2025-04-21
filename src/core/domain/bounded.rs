@@ -1,7 +1,7 @@
 use crate::core::domain::Domain;
 use crate::core::domain::bool::Bool;
 use crate::core::domain::cat::Cat;
-use crate::core::domain::unit::{Unit,UnitBounds};
+use crate::core::domain::unit::Unit;
 use crate::core::domain::base::{BaseDom, BaseTypeDom};
 use crate::core::domain::sampler::uniform;
 use crate::core::domain::onto::Onto;
@@ -250,11 +250,9 @@ where
     }
 }
 
-impl<In, Out> Onto<Unit<Out>> for Bounded<In>
+impl<In> Onto<Unit> for Bounded<In>
 where
     In:BoundedBounds,
-    Out:UnitBounds,
-    f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Unit`][`Domain`].
     ///
@@ -275,11 +273,11 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Unit<Out>) -> Result<Out, DomainError> {
+    fn onto(&self, item: &In, target: &Unit) -> Result<f64, DomainError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
-            let mapped: Out = (a / b).as_();
+            let mapped:f64 = a / b;
 
             if target.is_in(&mapped) {
                 Ok(mapped)
@@ -292,14 +290,12 @@ where
     }
 }
 
-impl<'a, In, const N :usize,T,U> Onto<BaseDom<'a,N,T,U>> for Bounded<In>
+impl<'a, In, const N :usize,T> Onto<BaseDom<'a,N,T>> for Bounded<In>
 where
     In:BoundedBounds,
     T:BoundedBounds,
-    U:UnitBounds,
     f64: AsPrimitive<In>,
     f64: AsPrimitive<T>,
-    f64: AsPrimitive<U>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -308,7 +304,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T,U>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -316,32 +312,44 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &BaseDom<'a,N,T,U>) -> Result<<BaseDom<'a,N,T,U> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &In, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
         match target{
             BaseDom::Bounded(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Unit(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Unit(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Bool(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bool(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bool(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Cat(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Cat(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Cat(i)),
                     Err(e) => Err(e),
                 }
             },
+        }
+    }
+}
+
+impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Bounded<T>
+where
+    T : BoundedBounds
+{
+    fn from(value: BaseDom<'a,N,T>) -> Self {
+        match value{
+            BaseDom::Bounded(d)=>d,
+            _ => unreachable!("Can only use From<BaseDom> with Bounded.")
         }
     }
 }

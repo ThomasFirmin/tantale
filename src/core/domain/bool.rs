@@ -1,6 +1,6 @@
 use crate::core::domain::Domain;
 use crate::core::domain::bounded::{Bounded,DomainBounded, BoundedBounds};
-use crate::core::domain::unit::{Unit,UnitBounds};
+use crate::core::domain::unit::Unit;
 use crate::core::domain::base::{BaseDom,BaseTypeDom};
 use crate::core::domain::sampler::uniform_bool;
 use crate::core::domain::onto::Onto;
@@ -8,7 +8,7 @@ use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
 
 use std::fmt::{self, Debug, Display};
 use num::cast::AsPrimitive;
-use num::{Float, Num, NumCast};
+use num::{Num, NumCast};
 use rand::rngs::ThreadRng;
 use rand::distr::uniform::SampleUniform;
 
@@ -131,19 +131,7 @@ where
 }
 
 
-impl<Out> Onto<Unit<Out>> for Bool
-where
-    Out: Num
-        + NumCast
-        + Float
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
-    f64: AsPrimitive<Out>,
+impl Onto<Unit> for Bool
 {
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].
     ///
@@ -154,7 +142,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bounded`]`<Out>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -165,13 +153,13 @@ where
     fn onto(
         &self,
         item: &<Bool as Domain>::TypeDom,
-        target: &Unit<Out>,
-    ) -> Result<Out, DomainError> {
+        target: &Unit,
+    ) -> Result<f64, DomainError> {
         if self.is_in(item) {
             let mapped = if *item {
-                Out::from(1.0).unwrap()
+                1.0
             } else {
-                Out::from(0.0).unwrap()
+                0.0
             };
             if target.is_in(&mapped) {
                 Ok(mapped)
@@ -185,13 +173,10 @@ where
 }
 
 
-impl<'a, const N :usize,T,U> Onto<BaseDom<'a,N,T,U>> for Bool
+impl<'a, const N :usize,T> Onto<BaseDom<'a,N,T>> for Bool
 where
     T:BoundedBounds,
-    U:UnitBounds,
-
     f64: AsPrimitive<T>,
-    f64: AsPrimitive<U>,
 {
     /// [`Onto`] function between a [`Bool`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -200,7 +185,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T,U>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -208,20 +193,32 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &bool, target: &BaseDom<'a,N,T,U>) -> Result<<BaseDom<'a,N,T,U> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &bool, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
         match target{
             BaseDom::Bounded(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::<'a,N,T,U>::Unit(i)),
+                Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Unit(i)),
                 Err(e) => Err(e),
             },
             BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
             BaseDom::Cat(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+        }
+    }
+}
+
+impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Bool
+where
+    T : BoundedBounds
+{
+    fn from(value: BaseDom<'a,N,T>) -> Self {
+        match value{
+            BaseDom::Bool(d)=>d,
+            _ => unreachable!("Can only From<BaseDom> with Bool.")
         }
     }
 }
