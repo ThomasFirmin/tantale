@@ -114,56 +114,29 @@ mod check_bounds {
     }
     #[test]
     fn create_unit64() {
-        let unit: Unit<f64> = Unit::new();
-        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit<f64>.");
-        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit<f64>.");
+        let unit: Unit = Unit::new();
+        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit.");
+        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit.");
 
         assert!(
             unit.is_in(&0.0),
-            "Issue with is_in for lower bound of Unit<f64>."
+            "Issue with is_in for lower bound of Unit."
         );
         assert!(
             unit.is_in(&0.5),
-            "Issue with is_in for mid value from Unit<f64>."
+            "Issue with is_in for mid value from Unit."
         );
         assert!(
             unit.is_in(&1.0),
-            "Issue with is_in for upper bound of Unit<f64>."
+            "Issue with is_in for upper bound of Unit."
         );
         assert!(
             !unit.is_in(&-1.0),
-            "Issue with is_in with value < lower bound of Unit<f64>."
+            "Issue with is_in with value < lower bound of Unit."
         );
         assert!(
             !unit.is_in(&11.0),
-            "Issue with is_in with value > upper bound of Unit<f64>."
-        );
-    }
-    #[test]
-    fn create_unit32() {
-        let unit: Unit<f32> = Unit::new();
-        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit<f32>.");
-        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit<f32>.");
-
-        assert!(
-            unit.is_in(&0.0),
-            "Issue with is_in for lower bound of Unit<f32>."
-        );
-        assert!(
-            unit.is_in(&0.5),
-            "Issue with is_in for mid value from Unit<f32>."
-        );
-        assert!(
-            unit.is_in(&1.0),
-            "Issue with is_in for upper bound of Unit<f32>."
-        );
-        assert!(
-            !unit.is_in(&-1.0),
-            "Issue with is_in with value < lower bound of Unit<f32>."
-        );
-        assert!(
-            !unit.is_in(&11.0),
-            "Issue with is_in with value > upper bound of Unit<f32>."
+            "Issue with is_in with value > upper bound of Unit."
         );
     }
 }
@@ -198,12 +171,12 @@ mod check_mid {
     }
     #[test]
     fn mid_unit64() {
-        let unit: Unit<f64> = Unit::new();
+        let unit: Unit = Unit::new();
         assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<64>.");
     }
     #[test]
     fn mid_unit32() {
-        let unit: Unit<f64> = Unit::new();
+        let unit: Unit = Unit::new();
         assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<f32>.");
     }
 }
@@ -329,7 +302,6 @@ mod check_domtype {
     fn tests_unit_typedom() {
         trait IsFloat {}
         impl IsFloat for f64 {}
-        impl IsFloat for f32 {}
         fn check_type<T: Domain>() -> bool
         where
             T::TypeDom: IsFloat,
@@ -337,12 +309,8 @@ mod check_domtype {
             true
         }
         assert!(
-            check_type::<Unit<f32>>(),
-            "Unit<f32> does not have a f32 TypeDom"
-        );
-        assert!(
-            check_type::<Unit<f64>>(),
-            "Unit<f64> does not have a f64 TypeDom"
+            check_type::<Unit>(),
+            "Unit does not have a f64 TypeDom"
         );
     }
 }
@@ -404,18 +372,79 @@ mod check_default_sampler {
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1: Unit<f64> = Unit::new();
+        let unit_1: Unit = Unit::new();
         let sampler = unit_1.default_sampler();
         assert!(
             unit_1.is_in(&sampler(&unit_1, &mut rng)),
-            "Error while sampling with the default sampler of Unit<f64>"
+            "Error while sampling with the default sampler of Unit"
         );
+    }
+}
 
-        let unit_1: Unit<f32> = Unit::new();
+
+
+mod check_default_sampler_base {
+    use rand;
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit,BaseDom};
+    #[test]
+    fn sampler_real() {
+        let mut rng = rand::rng();
+        let real_1:BaseDom<'_, 0, f64> = BaseDom::Bounded(Real::new(0.0, 10.0));
+        let sampler = real_1.default_sampler();
+        assert!(
+            real_1.is_in(&sampler(&real_1, &mut rng)),
+            "Error while sampling with the default sampler of Real"
+        );
+    }
+    #[test]
+    fn sampler_nat() {
+        let mut rng = rand::rng();
+        let nat_1:BaseDom<'_, 0, u64> = BaseDom::Bounded(Nat::new(0, 10));
+        let sampler = nat_1.default_sampler();
+        assert!(
+            nat_1.is_in(&sampler(&nat_1, &mut rng)),
+            "Error while sampling with the default sampler of Real"
+        );
+    }
+    #[test]
+    fn sampler_int() {
+        let mut rng = rand::rng();
+        let int_1: BaseDom<'_, 0, i64> = BaseDom::Bounded(Int::new(0, 10));
+        let sampler = int_1.default_sampler();
+        assert!(
+            int_1.is_in(&sampler(&int_1, &mut rng)),
+            "Error while sampling with the default sampler of Int"
+        );
+    }
+    #[test]
+    fn sampler_bool() {
+        let mut rng = rand::rng();
+        let bool_1:BaseDom<'_, 0, u8> = BaseDom::Bool(Bool::new());
+        let sampler = bool_1.default_sampler();
+        assert!(
+            bool_1.is_in(&sampler(&bool_1, &mut rng)),
+            "Error while sampling with the default sampler of Real"
+        );
+    }
+    #[test]
+    fn sampler_cat() {
+        let mut rng = rand::rng();
+        let activation = ["relu", "tanh", "sigmoid"];
+        let cat_1:BaseDom<'_, 3, u8> = BaseDom::Cat(Cat::new(&activation));
+        let sampler = cat_1.default_sampler();
+        assert!(
+            cat_1.is_in(&sampler(&cat_1, &mut rng)),
+            "Error while sampling with the default sampler of Real"
+        );
+    }
+    #[test]
+    fn sampler_unit() {
+        let mut rng = rand::rng();
+        let unit_1:BaseDom<'_, 0, u8>  = BaseDom::Unit(Unit::new());
         let sampler = unit_1.default_sampler();
         assert!(
             unit_1.is_in(&sampler(&unit_1, &mut rng)),
-            "Error while sampling with the default sampler of Unit<f32>"
+            "Error while sampling with the default sampler of Unit"
         );
     }
 }

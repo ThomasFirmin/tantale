@@ -5,11 +5,9 @@ use tantale::core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uni
 use tantale::core::variable::Variable;
 use tantale::var;
 
-use std::rc::Rc;
-
 use paste::paste;
 
-fn _test_variable_assertion<'a, T: Variable<'a>>(item: Rc<T>) {
+fn _test_variable_assertion<'a, Var: Variable<'a>>(item: Var) {
     let mut rng = rand::rng();
     assert_eq!(item.name(), "a", "Error in variable name.");
 
