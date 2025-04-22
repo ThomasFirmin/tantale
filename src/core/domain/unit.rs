@@ -30,6 +30,12 @@ impl Unit
     }
 }
 
+impl PartialEq for Unit{
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 impl Domain for Unit
 {
     type TypeDom = f64;
@@ -152,9 +158,7 @@ where
     }
 }
 
-impl<'a, const N: usize> Onto<Cat<'a, N>> for Unit
-where
-    f64: AsPrimitive<f64>,
+impl<'a> Onto<Cat<'a>> for Unit
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Cat`][`Domain`].
     ///
@@ -178,8 +182,8 @@ where
     fn onto(
         &self,
         item: &f64,
-        target: &Cat<'a, N>,
-    ) -> Result<<Cat<'a, N> as Domain>::TypeDom, DomainError> {
+        target: &Cat<'a>,
+    ) -> Result<<Cat<'a> as Domain>::TypeDom, DomainError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
             let c: f64 = (target.values().len() - 1).as_();
@@ -196,11 +200,7 @@ where
     }
 }
 
-impl<'a, const N :usize,T> Onto<BaseDom<'a,N,T>> for Unit
-where
-    T:BoundedBounds,
-    f64: AsPrimitive<f64>,
-    f64: AsPrimitive<T>,
+impl<'a> Onto<BaseDom<'a>> for Unit
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -217,24 +217,36 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &f64, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &f64, target: &BaseDom<'a>) -> Result<<BaseDom<'a> as Domain>::TypeDom, DomainError> {
         match target{
-            BaseDom::Bounded(d) => {
+            BaseDom::Real(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::Real(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Nat(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Int(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Int(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
             BaseDom::Bool(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bool(i)),
+                    Ok(i) => Ok(BaseTypeDom::Bool(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Cat(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Cat(i)),
+                    Ok(i) => Ok(BaseTypeDom::Cat(i)),
                     Err(e) => Err(e),
                 }
             },
@@ -242,11 +254,29 @@ where
     }
 }
 
-impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Unit
-where
-    T : BoundedBounds
+impl Onto<Unit> for Unit
 {
-    fn from(value: BaseDom<'a,N,T>) -> Self {
+    /// [`Onto`] function between a [`Unit`] and another [`Unit`] [`Domain`].
+    ///
+    /// Returns its cloned input [`item`].
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Domain`].
+    ///
+    fn onto(
+        &self,
+        item: &<Unit as Domain>::TypeDom,
+        _target: &Unit,
+    ) -> Result<f64, DomainError> {
+        Ok(item.clone())
+    }
+}
+
+impl <'a> From<BaseDom<'a>> for Unit
+{
+    fn from(value: BaseDom<'a>) -> Self {
         match value{
             BaseDom::Unit(d)=>d,
             _ => unreachable!("Can only From<BaseDom> with Unit.")

@@ -3,7 +3,6 @@ use super::init_dom::*;
 use paste::paste;
 use tantale::core::domain::Domain;
 use tantale::core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
-use tantale::core::variable::Variable;
 use tantale::var;
 
 // BOTH DOMAINS ARE DEFINED

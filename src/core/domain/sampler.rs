@@ -91,13 +91,6 @@ where
     rng.random_bool(0.5)
 }
 
-fn _from_str_to_typedom<'a, const N: usize>(
-    _d: &Cat<'a, N>,
-    to_cast: &'a str,
-) -> <Cat<'a, N> as Domain>::TypeDom {
-    to_cast
-}
-
 /// Random choice for [`Cat`] [`Domain`].
 /// Uniformly sample a feature from [`Cat`]'s `values`.
 /// This is the default sampler for [`Cat`].
@@ -107,9 +100,9 @@ fn _from_str_to_typedom<'a, const N: usize>(
 /// * `domain` : `&`[`Cat`] - A borrowed [`Cat`] [`Domain`].
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
-pub fn uniform_cat<'a, const N: usize>(
-    domain: &Cat<'a, N>,
+pub fn uniform_cat<'a>(
+    domain: &Cat<'a>,
     rng: &mut ThreadRng,
-) -> <Cat<'a, N> as Domain>::TypeDom {
+) -> <Cat<'a> as Domain>::TypeDom {
     domain.values().iter().choose(rng).unwrap()
 }

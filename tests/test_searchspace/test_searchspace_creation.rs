@@ -4,26 +4,33 @@
 // use num::traits::float;
 // use tantale::core::searchspace::{Searchspace, SearchspaceMixed};
 // use tantale::{domain_obj, sp, var};
+// use tantale::core::variable::{VariableBasic, VariableSingle, VariableDouble};
 
 // #[test]
 // fn create_mixed_searchspace() {
 //     let features = ["relu", "sigmoid", "tanh"];
 
-//     let float_1 = Real::new(0.0,1.1);
-//     let nat_1 = Int::new(-100,100);
-//     let int_1 = Nat::new(0,100);
-//     let bool_1 = Bool::new();
-//     let cat_1 = Cat::new(&features);
+//     let float_1 : BaseDom = Real::new(0.0,1.1).into();
 
+//     let nat_1: BaseDom = Int::new(-100,100).into();
+//     let int_1: BaseDom = Nat::new(0,100).into();
+//     let bool_1: BaseDom = Bool::new().into();
+//     let cat_1: BaseDom = Cat::new(&features).into();
+    
 //     let float_2 = Real::new(10.0,200.0);
 //     let nat_2 = Int::new(-200,200);
 //     let int_2 = Nat::new(100,200);
 //     let bool_2 = Bool::new();
 //     let cat_2 = Cat::new(&features);
 
-//     let var_1 = var!("a"; obj | float_1 ; opt | float_2);
-//     let var_2 = var!("a"; obj | int_1 ; opt | int_2);
-//     let var_3 = var!("a"; obj | cat_1);
+//     let var_1 = VariableBasic::VS(VariableSingle::new("a", float_1, None, None));
+
+//     let sp = vec![float_1,nat_1,int_1,bool_1,cat_1];
+
+
+//     // let var_1 = var!("a"; obj | float_1 ; opt | float_2);
+//     // let var_2 = var!("a"; obj | int_1 ; opt | int_2);
+//     // let var_3 = var!("a"; obj | cat_1);
 
 
 //     // // Objective domains definition

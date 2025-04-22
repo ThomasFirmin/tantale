@@ -29,7 +29,7 @@ macro_rules! domain_opt {
 
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the `default_sampler` and `is_in` methods.
-pub trait Domain: Sized {
+pub trait Domain: Sized + PartialEq {
     type TypeDom: PartialEq + Clone + Copy + Display + Debug;
     /// Associated function to automatically return a default [`crate::core::sampler`]
     /// for the domain the trait is implemented.

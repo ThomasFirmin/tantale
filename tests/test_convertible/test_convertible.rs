@@ -44,7 +44,7 @@ macro_rules! make_test {
                         
                         let domain_2 = [<get_domain_ $dom2 _2>]();
                         let output = $out;
-
+                        
                         let mapped = domain_1
                             .onto(&input, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -90,6 +90,7 @@ macro_rules! make_test {
                             concat!("Mapping ",stringify!($name)," of ", stringify!($dom1)," to ",stringify!($dom2)," does not match.")
                         )
                     }
+
                 )+
             )+
         }
@@ -263,4 +264,140 @@ make_test!(
     mid ; 0.5 => "tanh",
     upper ; 1.0 => "sigmoid";
     unit => cat
+);
+
+
+macro_rules! make_test_same {
+    ($(
+        $(
+            $name:ident; $in:expr
+        ),*;
+        $dom1:ident
+    ),*
+    ) => {
+        paste!{
+            $(
+                $(
+                    #[test]
+                    fn [<$dom1 _into_same_ $name>]() {
+                        let domain_1 = [<get_domain_ $dom1>]();
+                        let domain_2 = [<get_domain_ $dom1>]();
+
+                        let point = $in;
+                        
+                        let mapped = domain_1
+                            .onto(&point, &domain_2)
+                            .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
+                        assert_eq!(
+                            mapped, $in,
+                            concat!("Mapping ",stringify!($name)," of ", stringify!($dom1)," to ",stringify!($dom2)," does not match.")
+                        )
+                    }
+
+                    #[test]
+                    fn [<base_ $dom1 _into_same_ $name>]() {
+                        let domain_1 = [<get_domain_ $dom1>]();
+                        let input = $in;
+                        let (domain_1,input) = [<get_domain_base_ $dom1>](domain_1,input);
+                        
+                        let domain_2 = [<get_domain_ $dom1>]();
+                        let output = $in;
+
+                        let mapped = domain_1
+                            .onto(&input, &domain_2)
+                            .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
+                        assert_eq!(
+                            mapped, output,
+                            concat!("Mapping ",stringify!($name)," of ", stringify!($dom1)," to ",stringify!($dom2)," does not match.")
+                        )
+                    }
+
+                    #[test]
+                    fn [<same_into_base_ $dom1 _ $name>]() {
+                        let domain_1 = [<get_domain_ $dom1>]();
+                        let input = $in;
+                        
+                        let domain_2 = [<get_domain_ $dom1>]();
+                        let output = $in;
+                        let (domain_2,output) = [<get_domain_base_ $dom1>](domain_2,output);
+
+                        let mapped = domain_1
+                            .onto(&input, &domain_2)
+                            .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
+                        assert_eq!(
+                            mapped, output,
+                            concat!("Mapping ",stringify!($name)," of ", stringify!($dom1)," to ",stringify!($dom2)," does not match.")
+                        )
+                    }
+
+                    #[test]
+                    fn [<same_base_ $dom1 _into_same_base_ $dom1 _ $name>]() {
+                        let domain_1 = [<get_domain_ $dom1>]();
+                        let input = $in;
+                        let (domain_1,input) = [<get_domain_base_ $dom1>](domain_1,input);
+
+                        let domain_2 = [<get_domain_ $dom1>]();
+                        let output = $in;
+                        let (domain_2,output) = [<get_domain_base_ $dom1>](domain_2,output);
+
+                        let mapped = domain_1
+                            .onto(&input, &domain_2)
+                            .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
+                        assert_eq!(
+                            mapped, output,
+                            concat!("Mapping ",stringify!($name)," of ", stringify!($dom1)," to ",stringify!($dom2)," does not match.")
+                        )
+                    }
+
+                )+
+            )+
+        }
+    };
+}
+
+// ___---___REAL___---___ //
+make_test_same!(
+    lower ; 0.0,
+    mid ; 5.0,
+    upper ; 10.0;
+    real
+);
+
+// ___---___NAT___---___ //
+make_test_same!(
+    lower ; 1,
+    mid ; 6,
+    upper ; 11;
+    nat
+);
+
+// ___---___INT___---___ //
+make_test_same!(
+    lower ; 0,
+    mid ; 5,
+    upper ; 10;
+    int
+);
+
+// ___---___BOOL___---___ //
+make_test_same!(
+    lower ; false,
+    upper ; true;
+    bool
+);
+
+// ___---___CAT___---___ //
+make_test_same!(
+    lower ; "relu",
+    mid ; "tanh",
+    upper ; "sigmoid";
+    cat
+);
+
+// ___---___UNIT___---___ //
+make_test_same!(
+    lower ; 0.0 ,
+    mid ; 0.5,
+    upper ; 1.0;
+    unit
 );

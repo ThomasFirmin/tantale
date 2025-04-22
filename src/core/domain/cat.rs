@@ -1,5 +1,5 @@
 use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Bounded,DomainBounded,BoundedBounds};
+use crate::core::domain::bounded::{Bounded,DomainBounded};
 use crate::core::domain::unit::Unit;
 use crate::core::domain::base::{BaseDom,BaseTypeDom};
 use crate::core::domain::sampler::uniform_cat;
@@ -39,25 +39,32 @@ use rand::distr::uniform::SampleUniform;
 /// assert_eq!(dom.values(), &check);
 /// ```
 #[derive(Clone, Copy)]
-pub struct Cat<'a, const N: usize> {
-    values: &'a [&'a str; N],
+pub struct Cat<'a> {
+    values: &'a [&'a str],
 }
-impl<'a, const N: usize> Cat<'a, N> {
+impl<'a> Cat<'a> {
     /// Fabric for a [`Cat`].
     ///
     /// # Attributes
     ///
     ///  * `values` : `[&'a str; N]` - An array of the features defining the categorical [`Domain`].
     ///
-    pub fn new(values: &'a [&'a str; N]) -> Cat<'a, N> {
+    pub fn new(values: &'a [&'a str]) -> Cat<'a> {
         Cat { values }
     }
     /// Getter for values
-    pub fn values(&self) -> &'a [&'a str; N] {
+    pub fn values(&self) -> &'a [&'a str] {
         self.values
     }
 }
-impl<'a, const N: usize> Domain for Cat<'a, N> {
+
+impl<'a> PartialEq for Cat<'a>{
+    fn eq(&self, other: &Self) -> bool {
+        self.values() == other.values()
+    }
+}
+
+impl<'a> Domain for Cat<'a> {
     /// The type of a point within the domain is a `&'a str`, i.e. a pointer to a `str` from the `values`.
     type TypeDom = &'a str;
 
@@ -91,7 +98,7 @@ impl<'a, const N: usize> Domain for Cat<'a, N> {
     }
 }
 
-impl<'a, const N: usize> fmt::Display for Cat<'a, N> {
+impl<'a> fmt::Display for Cat<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let vsize = self.values.len() - 1;
         write!(f, "{{")?;
@@ -102,7 +109,7 @@ impl<'a, const N: usize> fmt::Display for Cat<'a, N> {
     }
 }
 
-impl<'a, const N: usize> fmt::Debug for Cat<'a, N> {
+impl<'a> fmt::Debug for Cat<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let vsize = self.values.len() - 1;
         write!(f, "{{")?;
@@ -114,7 +121,7 @@ impl<'a, const N: usize> fmt::Debug for Cat<'a, N> {
 }
 
 
-impl<'a, const N: usize, Out> Onto<Bounded<Out>> for Cat<'a, N>
+impl<'a,Out> Onto<Bounded<Out>> for Cat<'a>
 where
     Out: Num
         + NumCast
@@ -150,7 +157,7 @@ where
     ///
     fn onto(
         &self,
-        item: &<Cat<'a, N> as Domain>::TypeDom,
+        item: &<Cat<'a> as Domain>::TypeDom,
         target: &Bounded<Out>,
     ) -> Result<Out, DomainError> {
         let idx = self.values().iter().position(|n| n == item);
@@ -175,7 +182,7 @@ where
     }
 }
 
-impl<'a, const N: usize> Onto<Unit> for Cat<'a, N>
+impl<'a> Onto<Unit> for Cat<'a>
 {
     /// [`Onto`] function between a [`Cat`] and a [`Unit`] [`Domain`].
     ///
@@ -196,7 +203,7 @@ impl<'a, const N: usize> Onto<Unit> for Cat<'a, N>
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &<Cat<'a, N> as Domain>::TypeDom, target: &Unit) -> Result<f64, DomainError> {
+    fn onto(&self, item: &<Cat<'a> as Domain>::TypeDom, target: &Unit) -> Result<f64, DomainError> {
         let idx = self.values().iter().position(|n| n == item);
 
         match idx {
@@ -218,10 +225,29 @@ impl<'a, const N: usize> Onto<Unit> for Cat<'a, N>
     }
 }
 
-impl<'a, const N :usize, const M :usize,T> Onto<BaseDom<'a,N,T>> for Cat<'a,M>
-where
-    T:BoundedBounds,
-    f64: AsPrimitive<T>,
+impl<'a> Onto<Cat<'a>> for Cat<'a>
+{
+    /// [`Onto`] function between a [`Cat`] and a [`Cat`] [`Domain`].
+    ///
+    /// If the target is equal to [`Self`], then returns the input `item`.
+    /// Otherwise panic.
+    ///
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Domain`].
+    ///
+    fn onto(&self, item: &<Cat<'a> as Domain>::TypeDom, target: &Cat<'a>) -> Result<&'a str, DomainError> {
+        if self == target{
+            Ok(item)
+        }
+        else{
+            unreachable!("Onto function is not implemented between two different Cat domains.")
+        }
+    }
+}
+
+impl<'a> Onto<BaseDom<'a>> for Cat<'a>
 {
     /// [`Onto`] function between a [`Cat`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -238,16 +264,28 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &<Cat<'a,M> as Domain>::TypeDom, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &<Cat<'a> as Domain>::TypeDom, target: &BaseDom<'a>) -> Result<<BaseDom<'a> as Domain>::TypeDom, DomainError> {
         match target{
-            BaseDom::Bounded(d) => {
+            BaseDom::Real(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::Real(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Nat(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Int(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Int(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Unit(i)),
+                Ok(i) => Ok(BaseTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
             BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
@@ -256,11 +294,9 @@ where
     }
 }
 
-impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Cat<'a,N>
-where
-    T : BoundedBounds
+impl <'a> From<BaseDom<'a>> for Cat<'a>
 {
-    fn from(value: BaseDom<'a,N,T>) -> Self {
+    fn from(value: BaseDom<'a>) -> Self {
         match value{
             BaseDom::Cat(d)=>d,
             _ => unreachable!("Can only From<BaseDom> with Cat.")

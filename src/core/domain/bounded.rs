@@ -77,6 +77,12 @@ impl<T: BoundedBounds> Bounded<T>
     }
 }
 
+impl<T: BoundedBounds> PartialEq for Bounded<T>{
+    fn eq(&self, other: &Self) -> bool {
+        (self.lower() == other.lower()) && (self.upper() == other.upper())
+    }
+}
+
 impl<T:BoundedBounds> Domain for Bounded<T>
 {
     type TypeDom = T;
@@ -203,7 +209,7 @@ where
     }
 }
 
-impl<'a, In, const N: usize> Onto<Cat<'a, N>> for Bounded<In>
+impl<'a, In> Onto<Cat<'a>> for Bounded<In>
 where
     In : BoundedBounds,
     f64: AsPrimitive<In>,
@@ -220,7 +226,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`]<'a, N> - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`Cat`]<'a> - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -231,8 +237,8 @@ where
     fn onto(
         &self,
         item: &In,
-        target: &Cat<'a, N>,
-    ) -> Result<<Cat<'a, N> as Domain>::TypeDom, DomainError> {
+        target: &Cat<'a>,
+    ) -> Result<<Cat<'a> as Domain>::TypeDom, DomainError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -290,12 +296,10 @@ where
     }
 }
 
-impl<'a, In, const N :usize,T> Onto<BaseDom<'a,N,T>> for Bounded<In>
+impl<'a, In> Onto<BaseDom<'a>> for Bounded<In>
 where
     In:BoundedBounds,
-    T:BoundedBounds,
     f64: AsPrimitive<In>,
-    f64: AsPrimitive<T>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
@@ -304,7 +308,7 @@ where
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<'a>` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -312,29 +316,41 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &BaseDom<'a,N,T>) -> Result<<BaseDom<'a,N,T> as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &In, target: &BaseDom<'a>) -> Result<<BaseDom<'a> as Domain>::TypeDom, DomainError> {
         match target{
-            BaseDom::Bounded(d) => {
+            BaseDom::Real(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bounded(i)),
+                    Ok(i) => Ok(BaseTypeDom::Real(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Nat(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                    Err(e) => Err(e),
+                }
+            },
+            BaseDom::Int(d) => {
+                match self.onto(item, d) {
+                    Ok(i) => Ok(BaseTypeDom::Int(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Unit(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Unit(i)),
+                    Ok(i) => Ok(BaseTypeDom::Unit(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Bool(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Bool(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a>::Bool(i)),
                     Err(e) => Err(e),
                 }
             },
             BaseDom::Cat(d) => {
                 match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::<'a,N,T>::Cat(i)),
+                    Ok(i) => Ok(BaseTypeDom::<'a>::Cat(i)),
                     Err(e) => Err(e),
                 }
             },
@@ -342,18 +358,33 @@ where
     }
 }
 
-impl <'a,const N:usize,T> From<BaseDom<'a,N,T>> for Bounded<T>
-where
-    T : BoundedBounds
+impl <'a> From<BaseDom<'a>> for Real
 {
-    fn from(value: BaseDom<'a,N,T>) -> Self {
+    fn from(value: BaseDom<'a>) -> Self {
         match value{
-            BaseDom::Bounded(d)=>d,
+            BaseDom::Real(d)=>d,
             _ => unreachable!("Can only use From<BaseDom> with Bounded.")
         }
     }
 }
-
+impl <'a> From<BaseDom<'a>> for Nat
+{
+    fn from(value: BaseDom<'a>) -> Self {
+        match value{
+            BaseDom::Nat(d)=>d,
+            _ => unreachable!("Can only use From<BaseDom> with Bounded.")
+        }
+    }
+}
+impl <'a> From<BaseDom<'a>> for Int
+{
+    fn from(value: BaseDom<'a>) -> Self {
+        match value{
+            BaseDom::Int(d)=>d,
+            _ => unreachable!("Can only use From<BaseDom> with Bounded.")
+        }
+    }
+}
 /// [`Bounded`] alias for a continuous `f64` [`Domain`] bounded by a lower and upper bounds.
 ///
 /// # Attributes

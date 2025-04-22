@@ -20,7 +20,7 @@ pub use crate::core::objective::Objective;
 pub mod optimizer;
 pub use crate::core::optimizer::Optimizer;
 pub mod variable;
-pub use crate::core::variable::Variable;
+// pub use crate::core::variable::Variable;
 pub mod element;
 pub mod solution;
 // pub use crate::core::solution::Solution;

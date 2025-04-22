@@ -11,18 +11,72 @@ use crate::core::optimizer::Optimizer;
 /// that variable within the [`Objective`] function, and the input type of the [`Optimizer`].
 ///
 use crate::core::domain::Domain;
+use crate::core::domain::bounded::{Bounded,BoundedBounds};
+use crate::core::domain::bool::Bool;
+use crate::core::domain::cat::Cat;
+use crate::core::domain::unit::Unit;
+use crate::core::domain::base::{BaseDom,BaseTypeDom};
 use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
 use crate::core::domain::onto::Onto;
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
-use std::rc::Rc;
 
-pub trait Variable<'a> {
-    type TypeObj: Domain + Clone + Display + Debug;
-    type TypeOpt: Domain + Clone + Display + Debug;
+/// Describes a [`Variable`] where the [`Objective`] [`Domain`] **is different** from the [`Optimizer`] [`Domain`].
+///
+#[derive(Clone)]
+pub struct Variable<'a, Obj, Opt=Obj>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+{
+    name: &'a str,
+    domain_obj: Obj,
+    domain_opt: Opt,
+    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
+    sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
+}
 
-    /// Creates a new instance of a [`VariableDouble`].
+
+impl<'a,Obj,Opt> Variable<'a, Obj, Opt>
+where
+    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
+    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
+{
+    //// Creates a new instance of a [`Variable`] when only the [`Objective`] [`Domain`] is defined.
+    ///
+    /// # Parameters
+    ///
+    /// * `name` : `&'a str` - Accessible via the method [`name()`](Variable::name) .
+    /// The name of the variable, mostly used for saving, or pass a point as a keyword.
+    /// * `domobj` : `Obj` - Accessible via the method [`domain_obj()`](Variable::domain_obj).
+    /// The [`Domain`] of the [`Objective`] [`Domain`].
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Objective`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// An optional sampler function for the [`Optimizer`] [`Domain`].
+    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
+    ///
+    pub fn new_single(
+        name: &'a str,
+        domobj: Obj,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
+        sampopt: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
+    ) -> Variable<'a, Obj> 
+    {
+        let samplerobj_selected = sampobj.unwrap_or_else(|| domobj.default_sampler());
+        let sampleropt_selected = sampopt.unwrap_or_else(|| domobj.default_sampler());
+
+        Variable {
+            name: name,
+            domain_obj: domobj.clone(),
+            domain_opt: domobj,
+            sampler_obj: samplerobj_selected,
+            sampler_opt: sampleropt_selected,
+        }
+    }
+    //// Creates a new instance of a [`Variable`] when the [`Objective`] and [`Optimizer`] [`Domain`]s are defined.
     ///
     /// # Parameters
     ///
@@ -39,21 +93,40 @@ pub trait Variable<'a> {
     /// An optional sampler function for the [`Optimizer`] [`Domain`].
     /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
-    fn new(
+    pub fn new_double(
         name: &'a str,
-        domobj: Rc<Self::TypeObj>,
-        domopt: Option<Rc<Self::TypeOpt>>,
-        sampobj: Option<fn(&Self::TypeObj, &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom>,
-        sampopt: Option<fn(&Self::TypeOpt, &mut ThreadRng) -> <Self::TypeOpt as Domain>::TypeDom>,
-    ) -> Self;
+        domobj: Obj,
+        domopt: Opt,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
+        sampopt: Option<fn(&Opt, &mut ThreadRng) -> <Opt as Domain>::TypeDom>,
+    ) -> Variable<'a, Obj, Opt> 
+    {
+        let samplerobj_selected = sampobj.unwrap_or_else(|| domobj.default_sampler());
+        let sampleropt_selected = sampopt.unwrap_or_else(|| domopt.default_sampler());
+
+        Variable {
+            name: name,
+            domain_obj: domobj,
+            domain_opt: domopt,
+            sampler_obj: samplerobj_selected,
+            sampler_opt: sampleropt_selected,
+        }
+    }
+
     /// Returns the name of the [`Variable`].
-    fn name(&self) -> &'a str;
+    pub fn name(&self) -> &'a str {
+        self.name
+    }
 
     /// Returns the domain of the [`Objective`] function.
-    fn domain_obj(&self) -> Rc<Self::TypeObj>;
+    pub fn domain_obj(&self) -> Obj {
+        self.domain_obj.clone()
+    }
 
     /// Returns the domain of the [`Optimizer`] algorithm.
-    fn domain_opt(&self) -> Rc<Self::TypeOpt>;
+    pub fn domain_opt(&self) -> Opt {
+        self.domain_opt.clone()
+    }
 
     /// Samples a point from the [`Objective`] `domobj` [`Domain`].
     ///
@@ -65,7 +138,9 @@ pub trait Variable<'a> {
     ///
     /// * `Obj::`[`TypeDom`](Domain::TypeDom) : A random point within the `Obj` [`Domain`].
     ///
-    fn sample_obj(&self, rng: &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom;
+    pub fn sample_obj(&self, rng: &mut ThreadRng) -> Obj::TypeDom {
+        (self.sampler_obj)(&self.domain_obj, rng)
+    }
 
     /// Samples a point from the [`Optimizer`] `domopt` [`Domain`].
     ///
@@ -77,7 +152,9 @@ pub trait Variable<'a> {
     ///
     /// * `Opt::`[`TypeDom`](Domain::TypeDom) : A random point within the `Opt` [`Domain`].
     ///
-    fn sample_opt(&self, rng: &mut ThreadRng) -> <Self::TypeOpt as Domain>::TypeDom;
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> Opt::TypeDom {
+        (self.sampler_opt)(&self.domain_opt, rng)
+    }
 
     /// Replicates a given [`Variable`] to create a new one with a given name.
     ///
@@ -90,7 +167,17 @@ pub trait Variable<'a> {
     ///
     /// * [`Variable`]`<'b, Obj, Opt>`
     ///
-    fn replicate(&self, name: &'a str) -> Self;
+    pub fn replicate(&self, name: &'a str) -> Self {
+        let domobj = self.domain_obj.clone();
+        let domopt = self.domain_opt.clone();
+        Variable{
+            name : name,
+            domain_obj : domobj,
+            domain_opt : domopt,
+            sampler_obj : self.sampler_obj,
+            sampler_opt : self.sampler_opt,
+        }
+    }
 
     /// Maps an input point from the [`Objective`] `domopt` [`Domain`] to the [`Optimizer`]
     /// `domopt` [`Domain`].
@@ -117,10 +204,9 @@ pub trait Variable<'a> {
     /// If the `item` is not into the `Obj` [`Domain`],
     /// or if the mapped `item` is not into the `Obj` [`Domain`].
     ///
-    fn onto_opt(
-        &self,
-        item: &<Self::TypeObj as Domain>::TypeDom,
-    ) -> Result<<Self::TypeOpt as Domain>::TypeDom, DomainError>;
+    pub fn onto_opt(&self, item: &Obj::TypeDom) -> Result<Opt::TypeDom, DomainError> {
+        self.domain_obj.onto(item, &self.domain_opt)
+    }
 
     /// Maps an input point from the [`Optimizer`] `domopt` [`Domain`] to the [`Objective`]
     /// `domobj` [`Domain`].
@@ -147,195 +233,9 @@ pub trait Variable<'a> {
     /// If the `item` is not into the `Opt` [`Domain`],
     /// or if the mapped `item` is not into the `Obj` [`Domain`].
     ///
-    fn onto_obj(
-        &self,
-        item: &<Self::TypeOpt as Domain>::TypeDom,
-    ) -> Result<<Self::TypeObj as Domain>::TypeDom, DomainError>;
-}
-
-/// Describes a [`Variable`] where the [`Objective`] [`Domain`] **is different** from the [`Optimizer`] [`Domain`].
-///
-#[derive(Clone)]
-pub struct VariableDouble<'a, Obj, Opt>
-where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
-{
-    name: &'a str,
-    domain_obj: Rc<Obj>,
-    domain_opt: Rc<Opt>,
-    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-    sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
-}
-
-impl<'a, Obj, Opt> Variable<'a> for VariableDouble<'a, Obj, Opt>
-where
-    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
-    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
-{
-    type TypeObj = Obj;
-    type TypeOpt = Opt;
-
-    /// Creates a new instance of a [`VariableDouble`].
-    ///
-    /// # Parameters
-    ///
-    /// * `name` : `&'a str` - The name of the variable, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : `Obj` - The [`Domain`] of the [`Objective`] function.
-    /// * `domopt` : `Opt` - The [`Domain`] of the [`Optimizer`] algorithm.
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Objective`] [`Domain`].
-    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Optimizer`] [`Domain`].
-    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    ///
-    fn new(
-        name: &'a str,
-        domobj: Rc<Self::TypeObj>,
-        domopt: Option<Rc<Self::TypeOpt>>,
-        sampobj: Option<fn(&Self::TypeObj, &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom>,
-        sampopt: Option<fn(&Self::TypeOpt, &mut ThreadRng) -> <Self::TypeOpt as Domain>::TypeDom>,
-    ) -> VariableDouble<'a, Self::TypeObj, Self::TypeOpt> {
-        let dopt = domopt.expect("For VariableDouble, domain`domopt` cannot be None");
-        let samplerobj_selected = sampobj.unwrap_or_else(|| domobj.default_sampler());
-        let sampleropt_selected = sampopt.unwrap_or_else(|| dopt.default_sampler());
-
-        VariableDouble {
-            name: name,
-            domain_obj: domobj,
-            domain_opt: dopt,
-            sampler_obj: samplerobj_selected,
-            sampler_opt: sampleropt_selected,
-        }
-    }
-    fn name(&self) -> &'a str {
-        self.name
-    }
-    fn domain_obj(&self) -> Rc<Self::TypeObj> {
-        self.domain_obj.clone()
-    }
-    fn domain_opt(&self) -> Rc<Self::TypeOpt> {
-        self.domain_opt.clone()
-    }
-    fn sample_obj(&self, rng: &mut ThreadRng) -> Obj::TypeDom {
-        (self.sampler_obj)(&self.domain_obj, rng)
-    }
-    fn sample_opt(&self, rng: &mut ThreadRng) -> Opt::TypeDom {
-        (self.sampler_opt)(&self.domain_opt, rng)
-    }
-    fn replicate(&self, name: &'a str) -> VariableDouble<'a, Obj, Opt> {
-        let domobj = Rc::clone(&self.domain_obj);
-        let domopt = Rc::clone(&self.domain_opt);
-        <Self as Variable>::new(
-            name,
-            domobj,
-            Some(domopt),
-            Some(self.sampler_obj),
-            Some(self.sampler_opt),
-        )
-    }
-    fn onto_opt(&self, item: &Obj::TypeDom) -> Result<Opt::TypeDom, DomainError> {
-        self.domain_obj.onto(item, &self.domain_opt)
-    }
-    fn onto_obj(&self, item: &Opt::TypeDom) -> Result<Obj::TypeDom, DomainError> {
+    pub fn onto_obj(&self, item: &Opt::TypeDom) -> Result<Obj::TypeDom, DomainError> {
         self.domain_opt.onto(item, &self.domain_obj)
     }
-}
-
-/// Describes a [`Variable`] where the [`Objective`] [`Domain`] **is the same** as the [`Optimizer`] [`Domain`].
-///
-#[derive(Clone)]
-pub struct VariableSingle<'a, Obj>
-where
-    Obj: Domain + Clone + Display + Debug,
-{
-    name: &'a str,
-    domain_obj: Rc<Obj>,
-    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-    sampler_opt: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-}
-
-impl<'a, Obj> Variable<'a> for VariableSingle<'a, Obj>
-where
-    Obj: Domain + Clone + Display + Debug,
-{
-    type TypeObj = Obj;
-    type TypeOpt = Obj;
-    /// Creates a new instance of a [`VariableSingle`].
-    ///
-    /// # Parameters
-    ///
-    /// * `name` : `&'a str` - The name of the variable, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : `Obj` - A single-[`Variable`] [`Domain`] of the [`Objective`] [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Objective`] [`Domain`].
-    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    /// * sampopt : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Optimizer`] [`Domain`].
-    /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
-    ///
-    fn new(
-        name: &'a str,
-        domobj: Rc<Self::TypeObj>,
-        domopt: Option<Rc<Self::TypeObj>>,
-        sampobj: Option<fn(&Self::TypeObj, &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom>,
-        sampopt: Option<fn(&Self::TypeObj, &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom>,
-    ) -> VariableSingle<'a, Self::TypeObj> {
-        match domopt {
-            Some(_e) => panic!("For VariableSingle, `domopt` sould be None"),
-            None => {
-                let samplerobj_selected = sampobj.unwrap_or_else(|| domobj.default_sampler());
-                let sampleropt_selected = sampopt.unwrap_or_else(|| domobj.default_sampler());
-
-                VariableSingle {
-                    name: name,
-                    domain_obj: domobj,
-                    sampler_obj: samplerobj_selected,
-                    sampler_opt: sampleropt_selected,
-                }
-            }
-        }
-    }
-    fn name(&self) -> &'a str {
-        self.name
-    }
-    fn domain_obj(&self) -> Rc<Self::TypeObj> {
-        self.domain_obj.clone()
-    }
-    fn domain_opt(&self) -> Rc<Self::TypeOpt> {
-        self.domain_obj.clone()
-    }
-    fn sample_obj(&self, rng: &mut ThreadRng) -> Obj::TypeDom {
-        (self.sampler_obj)(&self.domain_obj, rng)
-    }
-    fn sample_opt(&self, rng: &mut ThreadRng) -> Obj::TypeDom {
-        (self.sampler_opt)(&self.domain_obj, rng)
-    }
-    fn replicate(&self, name: &'a str) -> VariableSingle<'a, Obj> {
-        let domobj = Rc::clone(&self.domain_obj);
-        <Self as Variable>::new(
-            name,
-            domobj,
-            None,
-            Some(self.sampler_obj),
-            Some(self.sampler_opt),
-        )
-    }
-    fn onto_opt(&self, item: &Obj::TypeDom) -> Result<Obj::TypeDom, DomainError> {
-        if self.domain_obj.is_in(&item) {
-            Ok(item.clone())
-        } else {
-            Err(DomainError::OoB(DomainOoBError(format!("{} not in {}", item, self.domain_obj))))
-    }
-}
-    fn onto_obj(&self, item: &Obj::TypeDom) -> Result<Obj::TypeDom, DomainError> {
-        if self.domain_obj.is_in(&item) {
-            Ok(item.clone())
-        } else {
-            Err(DomainError::OoB(DomainOoBError(format!("{} not in {}", item, self.domain_obj))))
-    }
-}
 }
 
 /// Creates a [`Variable`] containing the arguments.
@@ -502,82 +402,113 @@ macro_rules! var {
     // Defining both objective and optimizer domains
     // Defining both samplers
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
-        use $crate::core::variable::Variable;
-        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
+        $crate::core::variable::Variable::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            Some(std::rc::Rc::new($domopt)),
+            $domobj,
+            $domopt,
             Some($sampobj),
             Some($sampopt),
-        ))
+        )
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr) => {{
-        use $crate::core::variable::Variable;
-        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
+        $crate::core::variable::Variable::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            Some(std::rc::Rc::new($domopt)),
+            $domobj,
+            $domopt,
             Some($sampobj),
             None,
-        ))
+        )
     }};
     // Solely defining optimizer sampler
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
-        use $crate::core::variable::Variable;
-        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
+        $crate::core::variable::Variable::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            Some(std::rc::Rc::new($domopt)),
+            $domobj,
+            $domopt,
             None,
             Some($sampopt),
-        ))
+        )
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr) => {{
-        use $crate::core::variable::Variable;
-        std::rc::Rc::new($crate::core::variable::VariableDouble::new(
+        $crate::core::variable::Variable::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            Some(std::rc::Rc::new($domopt)),
+            $domobj,
+            $domopt,
             None,
             None,
-        ))
+        )
     }};
 
     // Solely defining objective domain
     // Defining both samplers
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | => $sampopt:expr) => {{
-        use $crate::core::variable::Variable;
-        let domobj = std::rc::Rc::new($domobj);
-        let domopt = std::rc::Rc::clone(&domobj);
-        std::rc::Rc::new($crate::core::variable::VariableSingle::new(
+        $crate::core::variable::Variable::new_single(
             $name,
-            domobj,
-            None,
+            $domobj,
             Some($sampobj),
             Some($sampopt),
-        ))
+        )
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr) => {{
-        use $crate::core::variable::Variable;
-        let domobj = std::rc::Rc::new($domobj);
-        let domopt = std::rc::Rc::clone(&domobj);
-        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, Some($sampobj), None))
+        $crate::core::variable::Variable::new_single(
+            $name, 
+            $domobj,
+            Some($sampobj),
+            None,
+        )
     }};
     // Solely defining optimizer sampler
     ($name:literal ;  obj | $domobj:expr ; opt | => $sampopt:expr) => {{
-        use $crate::core::variable::Variable;
-        let domobj = std::rc::Rc::new($domobj);
-        let domopt = std::rc::Rc::clone(&domobj);
-        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, None, Some($sampopt)))
+        $crate::core::variable::Variable::new_single(
+            $name,
+            $domobj,
+            None,
+            Some($sampopt),
+        )
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr) => {{
-        use $crate::core::variable::Variable;
-        let domobj = std::rc::Rc::new($domobj);
-        let domopt = std::rc::Rc::clone(&domobj);
-        std::rc::Rc::new($crate::core::variable::VariableSingle::new($name, domobj, None, None, None))
+        $crate::core::variable::Variable::new_single(
+            $name,
+            $domobj,
+            None, 
+            None,
+        )
     }};
 }
+
+
+
+// pub trait IntoBase<'a, const N:usize,T>:Variable<'a>
+// where
+//     T: BoundedBounds,
+// {
+//     fn from_obj(self)->Self;
+//     fn from_opt(self)->Self;
+// }
+
+// impl <'a, const N:usize,T> IntoBase<'a, N,T> for VariableSingle<'a, Bounded<T>>
+// where
+//     T: BoundedBounds,
+// {
+//     fn from_obj(self)-> VariableSingle<'a, BaseDom<'a, N,T>> {
+//         let base_domobj:BaseDom<'a, N,T> = self.domain_obj.into();
+
+//         let sampler_obj = base_domobj.wrap_bounded_sampler(self.sampler_obj);
+//         let sampler_opt = base_domobj.wrap_bounded_sampler(self.sampler_opt);
+
+//         VariableSingle{
+//             name: self.name,
+//             domain_obj: base_domobj,
+//             sampler_obj: sampler_obj,
+//             sampler_opt: sampler_opt, 
+//         }
+//     }
+    
+//     fn from_opt(self)->Self {
+//         self
+//     }
+// }

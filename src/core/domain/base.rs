@@ -1,66 +1,54 @@
 use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Bounded,BoundedBounds};
+use crate::core::domain::bounded::{Real, Nat, Int};
 use crate::core::domain::unit::Unit;
 use crate::core::domain::bool::Bool;
 use crate::core::domain::cat::Cat;
 use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
 use crate::core::domain::onto::Onto;
 
-use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 
 // -_-_-_-_-_-_-_-
 // Grouped domains
 
-/// A [`enum`] [`BaseDom`] [`Domain`], made of the 4 basic domains [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-/// Used for mixed [`Element`] and [`Solution`]. The (`TypeDom`)[`Domain::TypeDom`] is an [`enum`] [`BaseTypeDom`].
+/// A [`enum`] [`BaseDom`] [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
+/// and [`Unit`]. Used for mixed [`Element`] and [`Solution`].
+/// The (`TypeDom`)[`Domain::TypeDom`] is an [`enum`] [`BaseTypeDom`].
 ///
-pub enum BaseDom<'a,const N : usize,T=u8>
-where
-    T: BoundedBounds,
+#[derive(Clone,PartialEq)]
+pub enum BaseDom<'a>
 {
-    Bounded(Bounded<T>),
+    Real(Real),
+    Nat(Nat),
+    Int(Int),
     Bool(Bool),
-    Cat(Cat<'a,N>),
+    Cat(Cat<'a>),
     Unit(Unit),
 }
 
-/// Basic (`TypeDom`)[`Domain::TypeDom`] of [`BaseDom`].
-/// 
-#[derive(Copy,Clone,PartialEq)]
-pub enum BaseTypeDom<'a, const N : usize,T=u8>
-where
-    T: BoundedBounds,
-{
-    Bounded(<Bounded<T> as Domain>::TypeDom),
-    Bool(<Bool as Domain>::TypeDom),
-    Cat(<Cat<'a,N> as Domain>::TypeDom),
-    Unit(<Unit as Domain>::TypeDom),
-}
-
-impl<'a, const N:usize, T> Display for BaseTypeDom<'a, N, T>
-where
-    T : BoundedBounds,
+impl<'a> Display for BaseDom<'a>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 
         match self {
-            Self::Bounded(d) => std::fmt::Display::fmt(&d, f),
+            Self::Real(d) => std::fmt::Display::fmt(&d, f),
+            Self::Nat(d) => std::fmt::Display::fmt(&d, f),
+            Self::Int(d) => std::fmt::Display::fmt(&d, f),
             Self::Unit(d) => std::fmt::Display::fmt(&d, f),
             Self::Bool(d) => std::fmt::Display::fmt(&d, f),
             Self::Cat(d) => std::fmt::Display::fmt(&d, f),
         }
     }
 }
-impl<'a, const N:usize,T> Debug for BaseTypeDom<'a, N,T>
-where
-    T: BoundedBounds,
+impl<'a> Debug for BaseDom<'a>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 
         match self {
-            Self::Bounded(d) => std::fmt::Debug::fmt(&d, f),
+            Self::Real(d) => std::fmt::Debug::fmt(&d, f),
+            Self::Nat(d) => std::fmt::Debug::fmt(&d, f),
+            Self::Int(d) => std::fmt::Debug::fmt(&d, f),
             Self::Unit(d) => std::fmt::Debug::fmt(&d, f),
             Self::Bool(d) => std::fmt::Debug::fmt(&d, f),
             Self::Cat(d) => std::fmt::Debug::fmt(&d, f),
@@ -68,23 +56,72 @@ where
     }
 }
 
-impl <'a,const N:usize,T> BaseDom<'a,N,T>
-where
-    T : BoundedBounds,
+/// Basic (`TypeDom`)[`Domain::TypeDom`] of [`BaseDom`].
+/// 
+#[derive(Debug,Copy,Clone,PartialEq)]
+pub enum BaseTypeDom<'a>
 {
-    pub fn wrap_bounded_sampler<Obj,F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    Real(<Real as Domain>::TypeDom),
+    Nat(<Nat as Domain>::TypeDom),
+    Int(<Int as Domain>::TypeDom),
+    Bool(<Bool as Domain>::TypeDom),
+    Cat(<Cat<'a> as Domain>::TypeDom),
+    Unit(<Unit as Domain>::TypeDom),
+}
+impl<'a> Display for BaseTypeDom<'a>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+
+        match self {
+            Self::Real(d) => std::fmt::Display::fmt(&d, f),
+            Self::Nat(d) => std::fmt::Display::fmt(&d, f),
+            Self::Int(d) => std::fmt::Display::fmt(&d, f),
+            Self::Unit(d) => std::fmt::Display::fmt(&d, f),
+            Self::Bool(d) => std::fmt::Display::fmt(&d, f),
+            Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+        }
+    }
+}
+
+impl <'a> BaseDom<'a>
+{
+    pub fn wrap_real_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
     where
-        F : Fn(&Bounded<T>, &mut ThreadRng) -> <Bounded<T> as Domain>::TypeDom,
+        F : Fn(&Real, &mut ThreadRng) -> <Real as Domain>::TypeDom,
     {
         move |domain,rng|{
             match domain{
-                BaseDom::Bounded(d) => BaseTypeDom::Bounded(sampler(d,rng)),
-                _ => unreachable!("Can only wrap bounded sampler with wrap_bounded_sampler."),
+                BaseDom::Real(d) => BaseTypeDom::Real(sampler(d,rng)),
+                _ => unreachable!("Can only wrap real sampler with wrap_real_sampler."),
             }
         }
         
     }
-    pub fn wrap_bool_sampler<Obj,F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    pub fn wrap_nat_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    where
+        F : Fn(&Nat, &mut ThreadRng) -> <Nat as Domain>::TypeDom,
+    {
+        move |domain,rng|{
+            match domain{
+                BaseDom::Nat(d) => BaseTypeDom::Nat(sampler(d,rng)),
+                _ => unreachable!("Can only wrap nat sampler with wrap_nat_sampler."),
+            }
+        }
+        
+    }
+    pub fn wrap_int_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    where
+        F : Fn(&Int, &mut ThreadRng) -> <Int as Domain>::TypeDom,
+    {
+        move |domain,rng|{
+            match domain{
+                BaseDom::Int(d) => BaseTypeDom::Int(sampler(d,rng)),
+                _ => unreachable!("Can only wrap int sampler with wrap_int_sampler."),
+            }
+        }
+        
+    }
+    pub fn wrap_bool_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
     where
         F : Fn(&Bool, &mut ThreadRng) -> <Bool as Domain>::TypeDom,
     {
@@ -96,9 +133,9 @@ where
         }
         
     }
-    pub fn wrap_cat_sampler<Obj,F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    pub fn wrap_cat_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
     where
-        F : Fn(&Cat<'a,N>, &mut ThreadRng) -> <Cat<'a,N> as Domain>::TypeDom,
+        F : Fn(&Cat<'a>, &mut ThreadRng) -> <Cat<'a> as Domain>::TypeDom,
     {
         move |domain,rng|{
             match domain{
@@ -107,7 +144,7 @@ where
             }
         }
     }
-    pub fn wrap_unit_sampler<Obj,F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
+    pub fn wrap_unit_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
     where
         F : Fn(&Unit, &mut ThreadRng) -> <Unit as Domain>::TypeDom,
     {
@@ -120,15 +157,15 @@ where
     }
 }
 
-impl <'a, const N : usize,T> Domain for BaseDom<'a, N,T>
-where
-    T : BoundedBounds,
+impl <'a> Domain for BaseDom<'a>
 {
-    type TypeDom = BaseTypeDom<'a,N,T>;
+    type TypeDom = BaseTypeDom<'a>;
     fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
         
         |d,rng|  match d{
-            Self::Bounded(e) => BaseTypeDom::Bounded(e.default_sampler()(e,rng)),
+            Self::Real(e) => BaseTypeDom::Real(e.default_sampler()(e,rng)),
+            Self::Nat(e) => BaseTypeDom::Nat(e.default_sampler()(e,rng)),
+            Self::Int(e) => BaseTypeDom::Int(e.default_sampler()(e,rng)),
             Self::Bool(e) => BaseTypeDom::Bool(e.default_sampler()(e,rng)),
             Self::Cat(e) => BaseTypeDom::Cat(e.default_sampler()(e,rng)),
             Self::Unit(e) => BaseTypeDom::Unit(e.default_sampler()(e,rng)),
@@ -137,8 +174,16 @@ where
 
     fn is_in(&self, item: &Self::TypeDom) -> bool {
         match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.is_in(i),
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.is_in(i),
+                _ => false,
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.is_in(i),
+                _ => false,
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.is_in(i),
                 _ => false,
             },
             Self::Unit(d) => match item{
@@ -157,20 +202,16 @@ where
     }
 }
 
-impl<'a, const N: usize, T, Out> Onto<Bounded<Out>> for BaseDom<'a, N, T>
-where
-    T : BoundedBounds,
-    Out: BoundedBounds,
-    f64: AsPrimitive<Out>
+impl<'a> Onto<Real> for BaseDom<'a>
 {
-    /// [`Onto`] function between a [`BaseDom`] and a [`Bounded`] [`Domain`].
+    /// [`Onto`] function between a [`BaseDom`] and a [`Real`] [`Domain`].
     ///
-    /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Bounded`].
+    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
+    /// onto a [`Real`].
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bounded`]`<Out>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`Real`] - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -180,12 +221,20 @@ where
     ///
     fn onto(
         &self,
-        item: &<BaseDom<'a, N, T> as Domain>::TypeDom,
-        target: &Bounded<Out>,
-    ) -> Result<Out, DomainError> {
+        item: &<BaseDom<'a> as Domain>::TypeDom,
+        target: &Real,
+    ) -> Result<<Real as Domain>::TypeDom, DomainError> {
         match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.onto(i,target),
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
             Self::Unit(d) => match item{
@@ -204,10 +253,109 @@ where
     }
 }
 
+impl<'a> Onto<Nat> for BaseDom<'a>
+{
+    /// [`Onto`] function between a [`BaseDom`] and a [`Nat`] [`Domain`].
+    ///
+    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
+    /// onto a [`Nat`].
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`Nat`] - A borrowed targetted [`Domain`].
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError::OoB`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(
+        &self,
+        item: &<BaseDom<'a> as Domain>::TypeDom,
+        target: &Nat,
+    ) -> Result<<Nat as Domain>::TypeDom, DomainError> {
+        match self {
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Unit(d) => match item{
+                Self::TypeDom::Unit(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Bool(d) => match item{
+                Self::TypeDom::Bool(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Cat(d) => match item{
+                Self::TypeDom::Cat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+        }
+    }
+}
 
-impl<'a, const N: usize, T> Onto<Unit> for BaseDom<'a, N, T>
-where
-    T : BoundedBounds,
+impl<'a> Onto<Int> for BaseDom<'a>
+{
+    /// [`Onto`] function between a [`BaseDom`] and a [`Int`] [`Domain`].
+    ///
+    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
+    /// onto a [`Int`].
+    /// # Parameters
+    ///
+    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` : `&`[`Int`] - A borrowed targetted [`Domain`].
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`DomainError::OoB`]
+    ///     * if input `item` to be mapped is not into [`Self`] domain.
+    ///     * if resulting mapped `item` is not into the `target` domain.
+    ///
+    fn onto(
+        &self,
+        item: &<BaseDom<'a> as Domain>::TypeDom,
+        target: &Int,
+    ) -> Result<<Int as Domain>::TypeDom, DomainError> {
+        match self {
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Unit(d) => match item{
+                Self::TypeDom::Unit(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Bool(d) => match item{
+                Self::TypeDom::Bool(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Cat(d) => match item{
+                Self::TypeDom::Cat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+        }
+    }
+}
+
+impl<'a> Onto<Unit> for BaseDom<'a>
 {
     /// [`Onto`] function between a [`BaseDom`] and a [`Unit`] [`Domain`].
     ///
@@ -227,12 +375,20 @@ where
     ///
     fn onto(
         &self,
-        item: &<BaseDom<'a, N, T> as Domain>::TypeDom,
+        item: &<BaseDom<'a> as Domain>::TypeDom,
         target: &Unit,
     ) -> Result<f64, DomainError> {
         match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.onto(i,target),
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
             Self::Unit(d) => match item{
@@ -251,10 +407,7 @@ where
     }
 }
 
-impl<'a, const N: usize,T> Onto<Bool> for BaseDom<'a, N, T>
-where
-    T : BoundedBounds,
-    f64: AsPrimitive<T>,
+impl<'a> Onto<Bool> for BaseDom<'a>
 {
     /// [`Onto`] function between a [`BaseDom`] and a [`Bool`] [`Domain`].
     ///
@@ -274,12 +427,20 @@ where
     ///
     fn onto(
         &self,
-        item: &<BaseDom<'a, N, T> as Domain>::TypeDom,
+        item: &<BaseDom<'a> as Domain>::TypeDom,
         target: &Bool,
     ) -> Result<<Bool as Domain>::TypeDom, DomainError> {
         match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.onto(i,target),
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
             Self::Unit(d) => match item{
@@ -299,10 +460,7 @@ where
 }
 
 
-impl<'a, const N: usize, const M: usize,T> Onto<Cat<'a, N>> for BaseDom<'a, M, T>
-where
-    T : BoundedBounds,
-    f64: AsPrimitive<T>,
+impl<'a> Onto<Cat<'a>> for BaseDom<'a>
 {
     /// [`Onto`] function between a [`BaseDom`] and a [`Cat`] [`Domain`].
     ///
@@ -322,12 +480,20 @@ where
     ///
     fn onto(
         &self,
-        item: &<BaseDom<'a, M, T> as Domain>::TypeDom,
-        target: &Cat<'a,N>,
-    ) -> Result<<Cat<'a,N> as Domain>::TypeDom, DomainError> {
+        item: &<BaseDom<'a> as Domain>::TypeDom,
+        target: &Cat<'a>,
+    ) -> Result<<Cat<'a> as Domain>::TypeDom, DomainError> {
         match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.onto(i,target),
+            Self::Real(d) => match item{
+                Self::TypeDom::Real(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Nat(d) => match item{
+                Self::TypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+            },
+            Self::Int(d) => match item{
+                Self::TypeDom::Int(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
             Self::Unit(d) => match item{
@@ -347,12 +513,7 @@ where
 }
 
 
-impl<'a, const N: usize, const M: usize,T,V> Onto<BaseDom<'a, N, V>> for BaseDom<'a, M, T>
-where
-    T : BoundedBounds,
-    V : BoundedBounds,
-    f64: AsPrimitive<T>,
-    f64: AsPrimitive<V>,
+impl<'a> Onto<BaseDom<'a>> for BaseDom<'a>
 {
     /// [`Onto`] function between a [`BaseDom`] and another [`BaseDom`] [`Domain`].
     ///
@@ -372,60 +533,76 @@ where
     ///
     fn onto(
         &self,
-        item: &<BaseDom<'a, M, T> as Domain>::TypeDom,
-        target: &BaseDom<'a, N, V>,
-    ) -> Result<<BaseDom<'a, N, V> as Domain>::TypeDom, DomainError> {
-        match self {
-            Self::Bounded(d) => match item{
-                Self::TypeDom::Bounded(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
-            Self::Unit(d) => match item{
-                Self::TypeDom::Unit(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
-            Self::Bool(d) => match item{
-                Self::TypeDom::Bool(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
-            Self::Cat(d) => match item{
-                Self::TypeDom::Cat(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
+        item: &<BaseDom<'a> as Domain>::TypeDom,
+        target: &BaseDom<'a>,
+    ) -> Result<<BaseDom<'a> as Domain>::TypeDom, DomainError> {
+        if self==target{
+            Ok(item.clone())
+        }
+        else{
+            match self {
+                Self::Real(d) => match item{
+                    Self::TypeDom::Real(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+                Self::Nat(d) => match item{
+                    Self::TypeDom::Nat(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+                Self::Int(d) => match item{
+                    Self::TypeDom::Int(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+                Self::Unit(d) => match item{
+                    Self::TypeDom::Unit(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+                Self::Bool(d) => match item{
+                    Self::TypeDom::Bool(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+                Self::Cat(d) => match item{
+                    Self::TypeDom::Cat(i) => d.onto(i,target),
+                    _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                },
+            }
         }
     }
 }
 
-impl <'a,const N:usize,T> From<Bounded<T>> for BaseDom<'a,N,T>
-where
-    T : BoundedBounds
+impl <'a> From<Real> for BaseDom<'a>
 {
-    fn from(value: Bounded<T>) -> Self {
-        BaseDom::Bounded(value)
+    fn from(value: Real) -> Self {
+        BaseDom::Real(value)
     }
 }
-
-impl <'a,const N:usize,T> From<Bool> for BaseDom<'a,N,T>
-where
-    T : BoundedBounds
+impl <'a> From<Nat> for BaseDom<'a>
+{
+    fn from(value: Nat) -> Self {
+        BaseDom::Nat(value)
+    }
+}
+impl <'a> From<Int> for BaseDom<'a>
+{
+    fn from(value: Int) -> Self {
+        BaseDom::Int(value)
+    }
+}
+impl <'a> From<Bool> for BaseDom<'a>
 {
     fn from(value: Bool) -> Self {
         BaseDom::Bool(value)
     }
 }
 
-impl <'a,const N:usize,T> From<Cat<'a,N>> for BaseDom<'a,N,T>
-where
-    T : BoundedBounds
+impl <'a> From<Cat<'a>> for BaseDom<'a>
 {
-    fn from(value: Cat<'a, N>) -> Self {
+    fn from(value: Cat<'a>) -> Self {
         BaseDom::Cat(value)
     }
 }
 
-impl <'a,const N:usize,T> From<Unit> for BaseDom<'a,N,T>
-where
-    T : BoundedBounds
+impl <'a> From<Unit> for BaseDom<'a>
 {
     fn from(value: Unit) -> Self {
         BaseDom::Unit(value)

@@ -296,7 +296,7 @@ mod check_domtype {
         {
             assert!(true, "Cat does not have a &str TypeDom.");
         }
-        check_type::<Cat<'_, 3>>();
+        check_type::<Cat<'_>>();
     }
     #[test]
     fn tests_unit_typedom() {
@@ -389,7 +389,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
-        let real_1:BaseDom<'_, 0, f64> = BaseDom::Bounded(Real::new(0.0, 10.0));
+        let real_1 = BaseDom::Real(Real::new(0.0, 10.0));
         let sampler = real_1.default_sampler();
         assert!(
             real_1.is_in(&sampler(&real_1, &mut rng)),
@@ -399,7 +399,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_nat() {
         let mut rng = rand::rng();
-        let nat_1:BaseDom<'_, 0, u64> = BaseDom::Bounded(Nat::new(0, 10));
+        let nat_1 = BaseDom::Nat(Nat::new(0, 10));
         let sampler = nat_1.default_sampler();
         assert!(
             nat_1.is_in(&sampler(&nat_1, &mut rng)),
@@ -409,7 +409,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_int() {
         let mut rng = rand::rng();
-        let int_1: BaseDom<'_, 0, i64> = BaseDom::Bounded(Int::new(0, 10));
+        let int_1 = BaseDom::Int(Int::new(0, 10));
         let sampler = int_1.default_sampler();
         assert!(
             int_1.is_in(&sampler(&int_1, &mut rng)),
@@ -419,7 +419,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_bool() {
         let mut rng = rand::rng();
-        let bool_1:BaseDom<'_, 0, u8> = BaseDom::Bool(Bool::new());
+        let bool_1 = BaseDom::Bool(Bool::new());
         let sampler = bool_1.default_sampler();
         assert!(
             bool_1.is_in(&sampler(&bool_1, &mut rng)),
@@ -430,7 +430,7 @@ mod check_default_sampler_base {
     fn sampler_cat() {
         let mut rng = rand::rng();
         let activation = ["relu", "tanh", "sigmoid"];
-        let cat_1:BaseDom<'_, 3, u8> = BaseDom::Cat(Cat::new(&activation));
+        let cat_1 = BaseDom::Cat(Cat::new(&activation));
         let sampler = cat_1.default_sampler();
         assert!(
             cat_1.is_in(&sampler(&cat_1, &mut rng)),
@@ -440,7 +440,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1:BaseDom<'_, 0, u8>  = BaseDom::Unit(Unit::new());
+        let unit_1  = BaseDom::Unit(Unit::new());
         let sampler = unit_1.default_sampler();
         assert!(
             unit_1.is_in(&sampler(&unit_1, &mut rng)),

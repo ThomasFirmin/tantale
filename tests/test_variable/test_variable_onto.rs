@@ -1,7 +1,6 @@
 use super::init_dom::*;
 
 use paste::paste;
-use tantale::core::variable::Variable;
 use tantale::var;
 
 // BOTH DOMAINS ARE DEFINED
