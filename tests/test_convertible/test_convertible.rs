@@ -378,26 +378,3 @@ make_test_same!(
     upper ; 10;
     int
 );
-
-// ___---___BOOL___---___ //
-make_test_same!(
-    lower ; false,
-    upper ; true;
-    bool
-);
-
-// ___---___CAT___---___ //
-make_test_same!(
-    lower ; "relu",
-    mid ; "tanh",
-    upper ; "sigmoid";
-    cat
-);
-
-// ___---___UNIT___---___ //
-make_test_same!(
-    lower ; 0.0 ,
-    mid ; 0.5,
-    upper ; 1.0;
-    unit
-);

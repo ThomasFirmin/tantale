@@ -1,10 +1,12 @@
-use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Real, Nat, Int};
-use crate::core::domain::unit::Unit;
-use crate::core::domain::bool::Bool;
-use crate::core::domain::cat::Cat;
-use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
-use crate::core::domain::onto::Onto;
+use crate::core::domain::{
+    Domain,
+    bounded::{Real, Nat, Int},
+    unit::Unit,
+    bool::Bool,
+    cat::Cat,
+    errors_domain::{DomainError,DomainOoBError},
+    onto::Onto,
+};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
@@ -79,80 +81,6 @@ impl<'a> Display for BaseTypeDom<'a>
             Self::Unit(d) => std::fmt::Display::fmt(&d, f),
             Self::Bool(d) => std::fmt::Display::fmt(&d, f),
             Self::Cat(d) => std::fmt::Display::fmt(&d, f),
-        }
-    }
-}
-
-impl <'a> BaseDom<'a>
-{
-    pub fn wrap_real_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Real, &mut ThreadRng) -> <Real as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Real(d) => BaseTypeDom::Real(sampler(d,rng)),
-                _ => unreachable!("Can only wrap real sampler with wrap_real_sampler."),
-            }
-        }
-        
-    }
-    pub fn wrap_nat_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Nat, &mut ThreadRng) -> <Nat as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Nat(d) => BaseTypeDom::Nat(sampler(d,rng)),
-                _ => unreachable!("Can only wrap nat sampler with wrap_nat_sampler."),
-            }
-        }
-        
-    }
-    pub fn wrap_int_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Int, &mut ThreadRng) -> <Int as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Int(d) => BaseTypeDom::Int(sampler(d,rng)),
-                _ => unreachable!("Can only wrap int sampler with wrap_int_sampler."),
-            }
-        }
-        
-    }
-    pub fn wrap_bool_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Bool, &mut ThreadRng) -> <Bool as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Bool(d) => BaseTypeDom::Bool(sampler(d,rng)),
-                _ => unreachable!("Can only wrap bool sampler with wrap_bounded_sampler."),
-            }
-        }
-        
-    }
-    pub fn wrap_cat_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Cat<'a>, &mut ThreadRng) -> <Cat<'a> as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Cat(d) => BaseTypeDom::Cat(sampler(d,rng)),
-                _ => unreachable!("Can only wrap bool sampler with wrap_bounded_sampler."),
-            }
-        }
-    }
-    pub fn wrap_unit_sampler<F>(&self, sampler:F) -> impl Fn(&Self, &mut ThreadRng) -> <Self as Domain>::TypeDom
-    where
-        F : Fn(&Unit, &mut ThreadRng) -> <Unit as Domain>::TypeDom,
-    {
-        move |domain,rng|{
-            match domain{
-                BaseDom::Unit(d) => BaseTypeDom::Unit(sampler(d,rng)),
-                _ => unreachable!("Can only wrap bool sampler with wrap_bounded_sampler."),
-            }
         }
     }
 }
@@ -391,10 +319,7 @@ impl<'a> Onto<Unit> for BaseDom<'a>
                 Self::TypeDom::Int(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
-            Self::Unit(d) => match item{
-                Self::TypeDom::Unit(_i) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
+            Self::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
             Self::Bool(d) => match item{
                 Self::TypeDom::Bool(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
@@ -447,10 +372,7 @@ impl<'a> Onto<Bool> for BaseDom<'a>
                 Self::TypeDom::Unit(i) => d.onto(i,target),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
-            Self::Bool(d) => match item{
-                Self::TypeDom::Bool(_i) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
+            Self::Bool(_d) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
             Self::Cat(d) => match item{
                 Self::TypeDom::Cat(_i) => unreachable!("Converting a value from Cat onto Bool is not implemented, and it should not occur."),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
@@ -504,10 +426,7 @@ impl<'a> Onto<Cat<'a>> for BaseDom<'a>
                 Self::TypeDom::Bool(_i) => unreachable!("Converting a value from Bool onto Cat is not implemented, and it should not occur."),
                 _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
             },
-            Self::Cat(d) => match item{
-                Self::TypeDom::Cat(_i) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
-            },
+            Self::Cat(_d) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
         }
     }
 }

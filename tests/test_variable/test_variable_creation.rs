@@ -14,35 +14,41 @@ where
     Opt:Domain + Clone + Display + Debug + Onto<Obj>,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.name(), "a", "Error in variable name.");
+    assert_eq!(item.name, "a", "Error in variable name.");
 
-    let random_obj = item.sample_obj(&mut rng);
+    let random_obj = (item.sampler_obj)(&item.domain_obj,&mut rng);
     assert!(
-        item.domain_obj().is_in(&random_obj),
+        item.domain_obj.is_in(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = item.sample_opt(&mut rng);
+    let random_opt = (item.sampler_opt)(&item.domain_opt,&mut rng);
     assert!(
-        item.domain_opt().is_in(&random_opt),
+        item.domain_opt.is_in(&random_opt),
         "Error in `is_in` for optimizer."
     );
+}
 
-    let replicated = item.replicate("b");
-    assert_eq!(replicated.name(), "b", "Error in replicated name.");
+fn _test_variable_assertion_single<'a, Obj>(item: Variable<'a, Obj>) 
+where
+    Obj:Domain + Clone + Display + Debug,
+{
+    let mut rng = rand::rng();
+    assert_eq!(item.name, "a", "Error in variable name.");
 
-    let random_obj = replicated.sample_obj(&mut rng);
+    let random_obj = (item.sampler_obj)(&item.domain_obj,&mut rng);
     assert!(
-        replicated.domain_obj().is_in(&random_obj),
-        "Error in `is_in` for replicated objective."
+        item.domain_obj.is_in(&random_obj),
+        "Error in `is_in` for objective."
     );
 
-    let random_opt = replicated.sample_opt(&mut rng);
+    let random_opt = (item.sampler_opt)(&item.domain_opt,&mut rng);
     assert!(
-        replicated.domain_opt().is_in(&random_opt),
-        "Error in `is_in` for replicated optimizer."
+        item.domain_opt.is_in(&random_opt),
+        "Error in `is_in` for optimizer."
     );
 }
+
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {
@@ -122,7 +128,7 @@ macro_rules! get_variable_single_dom {
             fn [<$dom1 _single>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let variable = var!("a" ; obj | domobj);
-                _test_variable_assertion(variable)
+                _test_variable_assertion_single(variable)
             }
 
             #[test]
@@ -130,7 +136,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj);
-                _test_variable_assertion(variable)
+                _test_variable_assertion_single(variable)
             }
 
             #[test]
@@ -138,7 +144,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj ; opt | => sopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion_single(variable)
             }
 
             #[test]
@@ -147,7 +153,7 @@ macro_rules! get_variable_single_dom {
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion_single(variable)
             }
 
         }

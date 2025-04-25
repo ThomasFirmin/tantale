@@ -1,15 +1,16 @@
-use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Bounded,DomainBounded};
-use crate::core::domain::unit::Unit;
-use crate::core::domain::base::{BaseDom,BaseTypeDom};
-use crate::core::domain::sampler::uniform_bool;
-use crate::core::domain::onto::Onto;
-use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
+use crate::core::domain::{
+    Domain,
+    bounded::{Bounded,DomainBounded},
+    unit::Unit,
+    base::{BaseDom,BaseTypeDom},
+    onto::Onto,
+    errors_domain::{DomainError,DomainOoBError},
+    sampler::uniform_bool,
+};
 
 use std::fmt::{self, Debug, Display};
 use num::cast::AsPrimitive;
 use num::{Num, NumCast};
-use rand::rngs::ThreadRng;
 use rand::distr::uniform::SampleUniform;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
@@ -48,9 +49,10 @@ impl Domain for Bool {
 
     /// Default sampler for [`Bool`].
     /// See [`uniform_bool`].
-    fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
+    fn default_sampler(&self) -> fn(&Self, &mut rand::prelude::ThreadRng) -> Self::TypeDom {
         uniform_bool
     }
+
     /// Method to check if a given point is in the domain.
     ///
     /// # Attributes
@@ -73,6 +75,7 @@ impl Domain for Bool {
     fn is_in(&self, _point: &Self::TypeDom) -> bool {
         true
     }
+    
 }
 impl fmt::Display for Bool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -179,26 +182,6 @@ impl Onto<Unit> for Bool
     }
 }
 
-impl Onto<Bool> for Bool
-{
-    /// [`Onto`] function between a [`Bool`] and another [`Bool`] [`Domain`].
-    ///
-    /// Returns its cloned input [`item`].
-    ///
-    /// # Parameters
-    ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Domain`].
-    ///
-    fn onto(
-        &self,
-        item: &<Bool as Domain>::TypeDom,
-        _target: &Bool,
-    ) -> Result<bool, DomainError> {
-        Ok(item.clone())
-    }
-}
-
 impl<'a> Onto<BaseDom<'a>> for Bool
 {
     /// [`Onto`] function between a [`Bool`] [`Domain`] and a [`BaseDom`][`Domain`].
@@ -240,7 +223,7 @@ impl<'a> Onto<BaseDom<'a>> for Bool
                 Ok(i) => Ok(BaseTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+            BaseDom::Bool(_d) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
             BaseDom::Cat(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
         }
     }

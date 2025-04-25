@@ -1,16 +1,17 @@
-use crate::core::domain::Domain;
-use crate::core::domain::bounded::{DomainBounded, Bounded,BoundedBounds};
-use crate::core::domain::bool::Bool;
-use crate::core::domain::cat::Cat;
-use crate::core::domain::base::{BaseDom,BaseTypeDom};
-use crate::core::domain::sampler::uniform;
-use crate::core::domain::onto::Onto;
-use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
+use crate::core::domain::{
+    Domain,
+    bounded::{DomainBounded, Bounded,BoundedBounds},
+    bool::Bool,
+    cat::Cat,
+    base::{BaseDom,BaseTypeDom},
+    onto::Onto,
+    errors_domain::{DomainError,DomainOoBError},
+    sampler::uniform,
+};
 
-use std::fmt;
-use std::ops::RangeInclusive;
+use std::{fmt, ops::RangeInclusive};
 use num::cast::AsPrimitive;
-use rand::rngs::ThreadRng;
+
 
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
@@ -42,13 +43,15 @@ impl Domain for Unit
 
     /// Default sampler for [`Unit`].
     /// See [`uniform`].
-    fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
-        |s, rng| uniform(&s.bounds, rng)
+    fn default_sampler(&self) -> fn(&Self, &mut rand::prelude::ThreadRng) -> Self::TypeDom {
+        |d,rng|uniform(&d.bounds, rng)
     }
+    
 
     fn is_in(&self, item: &Self::TypeDom) -> bool {
         self.bounds.contains(item)
     }
+    
 }
 
 impl DomainBounded for Unit
@@ -251,26 +254,6 @@ impl<'a> Onto<BaseDom<'a>> for Unit
                 }
             },
         }
-    }
-}
-
-impl Onto<Unit> for Unit
-{
-    /// [`Onto`] function between a [`Unit`] and another [`Unit`] [`Domain`].
-    ///
-    /// Returns its cloned input [`item`].
-    ///
-    /// # Parameters
-    ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Domain`].
-    ///
-    fn onto(
-        &self,
-        item: &<Unit as Domain>::TypeDom,
-        _target: &Unit,
-    ) -> Result<f64, DomainError> {
-        Ok(item.clone())
     }
 }
 

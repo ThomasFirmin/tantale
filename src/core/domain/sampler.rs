@@ -1,4 +1,4 @@
-use crate::core::domain::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real};
+use crate::core::domain::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real,Unit};
 
 use rand::{
     distr::uniform::SampleUniform,
@@ -24,7 +24,7 @@ pub fn uniform<T: PartialOrd + SampleUniform + Clone>(
 }
 
 /// Uniform distribution for [`Real`] [`Domain`].
-/// Uniformly sample a real within \[lower,upper\].
+/// Uniformly sample a real within $[\texttt{lower},\texttt{upper}]$.
 /// This is the default sampler for [`Real`].
 ///
 /// $$\sim \mathcal{U}\[\texttt{lower},\texttt{upper}\]$$
@@ -35,14 +35,12 @@ pub fn uniform<T: PartialOrd + SampleUniform + Clone>(
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_real(domain: &Real, rng: &mut ThreadRng) -> <Real as Domain>::TypeDom
-where
-    Real: Domain,
 {
     rng.random_range(domain.lower()..domain.upper())
 }
 
 /// Discrete uniform ditribution for [`Nat`] [`Domain`].
-/// Uniformly sample a real within \[lower,upper\].
+/// Uniformly sample a real within $[\texttt{lower},\texttt{upper}]$.
 /// This is the default sampler for [`Nat`].
 ///
 /// $$\sim \mathcal{U}\\{\texttt{lower},\texttt{upper}\\}$$
@@ -53,14 +51,12 @@ where
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_nat(domain: &Nat, rng: &mut ThreadRng) -> <Nat as Domain>::TypeDom
-where
-    Nat: Domain,
 {
     rng.random_range(domain.lower()..domain.upper())
 }
 
 /// Discrete uniform ditribution for [`Int`] [`Domain`].
-/// Uniformly sample a real within \[lower,upper\].
+/// Uniformly sample a real within $[\texttt{lower},\texttt{upper}]$.
 /// This is the default sampler for [`Int`].
 ///
 /// $$\sim \mathcal{U}\\{\texttt{lower},\texttt{upper}\\}$$
@@ -71,8 +67,6 @@ where
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_int(domain: &Int, rng: &mut ThreadRng) -> <Int as Domain>::TypeDom
-where
-    Int: Domain,
 {
     rng.random_range(domain.lower()..domain.upper())
 }
@@ -85,8 +79,6 @@ where
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_bool(_domain: &Bool, rng: &mut ThreadRng) -> <Bool as Domain>::TypeDom
-where
-    Bool: Domain,
 {
     rng.random_bool(0.5)
 }
@@ -105,4 +97,21 @@ pub fn uniform_cat<'a>(
     rng: &mut ThreadRng,
 ) -> <Cat<'a> as Domain>::TypeDom {
     domain.values().iter().choose(rng).unwrap()
+}
+
+
+/// Uniform distribution for [`Unit`] [`Domain`].
+/// Uniformly sample a real within $[0.0,1.0]$.
+/// This is the default sampler for [`Unit`].
+///
+/// $$\sim \mathcal{U}\[\texttt{lower},\texttt{upper}\]$$
+///
+/// # Arguments
+///
+/// * `domain` : `&`[`Unit`] - A borrowed [`Unit`] [`Domain`].
+/// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
+///
+pub fn uniform_unit(_domain: &Unit, rng: &mut ThreadRng) -> <Unit as Domain>::TypeDom
+{
+    rng.random()
 }

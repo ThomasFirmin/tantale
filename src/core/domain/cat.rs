@@ -1,16 +1,15 @@
-use crate::core::domain::Domain;
-use crate::core::domain::bounded::{Bounded,DomainBounded};
-use crate::core::domain::unit::Unit;
-use crate::core::domain::base::{BaseDom,BaseTypeDom};
-use crate::core::domain::sampler::uniform_cat;
-use crate::core::domain::onto::Onto;
-use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
+use crate::core::domain::{
+    Domain,
+    bounded::{Bounded,DomainBounded, BoundedBounds},
+    unit::Unit,
+    base::{BaseDom,BaseTypeDom},
+    onto::Onto,
+    errors_domain::{DomainError,DomainOoBError},
+    sampler::uniform_cat,
+};
 
-use std::fmt::{self, Debug, Display};
+use std::fmt;
 use num::cast::AsPrimitive;
-use num::{Num, NumCast};
-use rand::rngs::ThreadRng;
-use rand::distr::uniform::SampleUniform;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
@@ -40,7 +39,7 @@ use rand::distr::uniform::SampleUniform;
 /// ```
 #[derive(Clone, Copy)]
 pub struct Cat<'a> {
-    values: &'a [&'a str],
+    pub values: &'a [&'a str],
 }
 impl<'a> Cat<'a> {
     /// Fabric for a [`Cat`].
@@ -70,9 +69,10 @@ impl<'a> Domain for Cat<'a> {
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
     /// See [`uniform_cat`].
-    fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
+    fn default_sampler(&self) -> fn(&Self, &mut rand::prelude::ThreadRng) -> Self::TypeDom {
         uniform_cat
     }
+    
 
     /// Method to check if a given point is in the domain.
     ///
@@ -96,6 +96,7 @@ impl<'a> Domain for Cat<'a> {
     fn is_in(&self, point: &Self::TypeDom) -> bool {
         self.values.contains(point)
     }
+    
 }
 
 impl<'a> fmt::Display for Cat<'a> {
@@ -123,15 +124,7 @@ impl<'a> fmt::Debug for Cat<'a> {
 
 impl<'a,Out> Onto<Bounded<Out>> for Cat<'a>
 where
-    Out: Num
-        + NumCast
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
+    Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Cat`] and a [`Bounded`] [`Domain`].
@@ -225,28 +218,6 @@ impl<'a> Onto<Unit> for Cat<'a>
     }
 }
 
-impl<'a> Onto<Cat<'a>> for Cat<'a>
-{
-    /// [`Onto`] function between a [`Cat`] and a [`Cat`] [`Domain`].
-    ///
-    /// If the target is equal to [`Self`], then returns the input `item`.
-    /// Otherwise panic.
-    ///
-    /// # Parameters
-    ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Domain`].
-    ///
-    fn onto(&self, item: &<Cat<'a> as Domain>::TypeDom, target: &Cat<'a>) -> Result<&'a str, DomainError> {
-        if self == target{
-            Ok(item)
-        }
-        else{
-            unreachable!("Onto function is not implemented between two different Cat domains.")
-        }
-    }
-}
-
 impl<'a> Onto<BaseDom<'a>> for Cat<'a>
 {
     /// [`Onto`] function between a [`Cat`] [`Domain`] and a [`BaseDom`][`Domain`].
@@ -289,7 +260,7 @@ impl<'a> Onto<BaseDom<'a>> for Cat<'a>
                 Err(e) => Err(e),
             },
             BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
-            BaseDom::Cat(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+            BaseDom::Cat(_d) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
         }
     }
 }

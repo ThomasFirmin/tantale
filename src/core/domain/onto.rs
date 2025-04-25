@@ -1,8 +1,10 @@
 use crate::core::domain::Domain;
-use crate::core::domain::DomainError;
-pub trait Onto<Out: Domain>: Domain {
+use crate::core::domain::errors_domain::DomainError;
+pub trait Onto<Tgt:Domain>: Domain
+{
     /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].
     /// If [`Self`] is equal to the targetted domain, then the input `item` should be cloned.
+    /// By default if the input and targetted domain are the same (same pointer), returns a clone of `item`.
     /// 
     /// # Parameters
     ///
@@ -15,5 +17,5 @@ pub trait Onto<Out: Domain>: Domain {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, _item: &Self::TypeDom, _target: &Out) -> Result<Out::TypeDom, DomainError>;
+    fn onto(&self, _item: &Self::TypeDom, _target: &Tgt) -> Result<Tgt::TypeDom, DomainError>;
 }

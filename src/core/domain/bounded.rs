@@ -1,17 +1,16 @@
-use crate::core::domain::Domain;
-use crate::core::domain::bool::Bool;
-use crate::core::domain::cat::Cat;
-use crate::core::domain::unit::Unit;
-use crate::core::domain::base::{BaseDom, BaseTypeDom};
-use crate::core::domain::sampler::uniform;
-use crate::core::domain::onto::Onto;
-use crate::core::domain::errors_domain::{DomainError,DomainOoBError};
+use crate::core::domain::{
+    Domain,
+    bool::Bool,
+    cat::Cat,
+    unit::Unit,
+    base::{BaseDom, BaseTypeDom},
+    onto::Onto,
+    errors_domain::{DomainError,DomainOoBError},
+    sampler::uniform
+};
 
-use std::ops::RangeInclusive;
-use std::fmt::{self, Debug, Display};
-use num::cast::AsPrimitive;
-use num::{Num, NumCast};
-use rand::rngs::ThreadRng;
+use std::{ops::RangeInclusive, fmt::{self, Debug, Display}};
+use num::{Num, NumCast, cast::AsPrimitive};
 use rand::distr::uniform::SampleUniform;
 
 
@@ -46,9 +45,9 @@ pub trait DomainBounded: Domain {
 ///
 pub struct Bounded<T:BoundedBounds>
 {
-    bounds: RangeInclusive<T>,
-    mid: T,
-    width: T,
+    pub bounds: RangeInclusive<T>,
+    pub mid: T,
+    pub width: T,
 }
 
 impl<T: BoundedBounds> Bounded<T>
@@ -89,8 +88,8 @@ impl<T:BoundedBounds> Domain for Bounded<T>
 
     /// Default sampler for [`Bounded`].
     /// See [`uniform`].
-    fn default_sampler(&self) -> fn(&Self, &mut ThreadRng) -> Self::TypeDom {
-        |d, rng| uniform(&d.bounds, rng)
+    fn default_sampler(&self) -> fn(&Self, &mut rand::prelude::ThreadRng) -> Self::TypeDom {
+        |d,rng| uniform(&d.bounds,rng)
     }
 
     fn is_in(&self, item: &T) -> bool {
@@ -389,12 +388,6 @@ impl <'a> From<BaseDom<'a>> for Int
 ///
 /// # Attributes
 ///
-/// For safety, the attributes are private and can only be accessed via getter methods
-/// `.lower()`, `.upper()`, `.mid()` and `.width()`.
-/// It prevents any modification of the [`Domain`] during the optimization process.
-/// Some algorithms might modify the [`Domain`], for example *divide-and-conquer* approaches.
-/// In that case, the algorithm should create a new [`Domain`].
-///
 /// * `lower`: `f64` - Lower bound of the [`Real`] [`Domain`].
 /// * `upper`: `f64` - Upper bound of the [`Real`] [`Domain`].
 /// * `mid`: `f64` - Middle point of the [`Real`] [`Domain`].
@@ -420,12 +413,6 @@ pub type Real = Bounded<f64>;
 ///
 /// # Attributes
 ///
-/// For safety, the attributes are private and can only be accessed via getter methods
-/// `.lower()`, `.upper()`, `.mid()` and `.width()`.
-/// It prevents any modification of the [`Domain`] during the optimization process.
-/// Some algorithms might modify the [`Domain`], for example *divide-and-conquer* approaches.
-/// In that case, the algorithm should create a new [`Domain`].
-///
 /// * `lower`: `u64` - Lower bound of the [`Nat`] [`Domain`].
 /// * `upper`: `u64` - Upper bound of the [`Nat`] [`Domain`].
 /// * `mid`: `u64` - Middle point of the [`Nat`] [`Domain`].
@@ -450,12 +437,6 @@ pub type Nat = Bounded<u64>;
 /// [`Bounded`] alias for an integer `i64` [`Domain`] bounded by a lower and upper bounds.
 ///
 /// # Attributes
-///
-/// For safety, the attributes are private and can only be accessed via getter methods
-/// `.lower()`, `.upper()`, `.mid()` and `.width()`.
-/// It prevents any modification of the [`Domain`] during the optimization process.
-/// Some algorithms might modify the [`Domain`], for example *divide-and-conquer* approaches.
-/// In that case, the algorithm should create a new [`Domain`].
 ///
 /// * `lower`: `i64` - Lower bound of the [`Int`] [`Domain`].
 /// * `upper`: `i64` - Upper bound of the [`Int`] [`Domain`].

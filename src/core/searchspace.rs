@@ -1,10 +1,26 @@
-pub struct SearchspaceMixed<T>(pub T);
-pub trait Searchspace {
-    type TypeSolObj;
-    type TypeSolOpt;
-    // fn sample_sol_obj(&self, rng: &mut ThreadRng) -> <Self::TypeObj as Domain>::TypeDom;
-    // fn sample_sol_opt(&self, rng: &mut ThreadRng) -> <Self::TypeOpt as Domain>::TypeDom;
-    // fn replicate(&self, name: &'a str) -> Self;
+use crate::core::domain::Domain;
+use crate::core::variable::Variable;
+use crate::core::solution::Solution;
+
+use std::fmt::{Display,Debug};
+
+pub trait Searchspace<Obj,Opt>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+{
+    fn get_variables(&self)->Vec<Variable<Obj,Opt>>;
+    fn onto_obj(&self,item:Solution<Obj>)->Solution<Opt>;
+    fn onto_opt(&self,item:Solution<Opt>)->Solution<Obj>;
+    fn sample_obj(&self)->Solution<Obj>;
+    fn sample_opt(&self)->Solution<Opt>;
+}
+
+pub struct SearchspaceSingle<'a,Obj>
+where
+    Obj: Domain + Clone + Display + Debug,
+{
+    pub variables : Variable<'a, Obj>,
 }
 
 #[macro_export]
