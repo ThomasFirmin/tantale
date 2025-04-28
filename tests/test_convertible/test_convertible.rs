@@ -6,7 +6,7 @@ use paste::paste;
 // mid ; 0.5 => 110,
 // upper ; 1.0 => 120;
 // real        => int,
-// 
+//
 // ...
 // )
 macro_rules! make_test {
@@ -26,7 +26,7 @@ macro_rules! make_test {
                         let domain_2 = [<get_domain_ $dom2 _2>]();
 
                         let point = $in;
-                        
+
                         let mapped = domain_1
                             .onto(&point, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -41,10 +41,10 @@ macro_rules! make_test {
                         let domain_1 = [<get_domain_ $dom1>]();
                         let input = $in;
                         let (domain_1,input) = [<get_domain_base_ $dom1>](domain_1,input);
-                        
+
                         let domain_2 = [<get_domain_ $dom2 _2>]();
                         let output = $out;
-                        
+
                         let mapped = domain_1
                             .onto(&input, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -58,11 +58,11 @@ macro_rules! make_test {
                     fn [<$dom1 _into_base_ $dom2 _ $name>]() {
                         let domain_1 = [<get_domain_ $dom1>]();
                         let input = $in;
-                        
+
                         let domain_2 = [<get_domain_ $dom2 _2>]();
                         let output = $out;
                         let (domain_2,output) = [<get_domain_base_ $dom2>](domain_2,output);
-                        
+
                         let mapped = domain_1
                             .onto(&input, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -77,11 +77,11 @@ macro_rules! make_test {
                         let domain_1 = [<get_domain_ $dom1>]();
                         let input = $in;
                         let (domain_1,input) = [<get_domain_base_ $dom1>](domain_1,input);
-                        
+
                         let domain_2 = [<get_domain_ $dom2 _2>]();
                         let output = $out;
                         let (domain_2,output) = [<get_domain_base_ $dom2>](domain_2,output);
-                        
+
                         let mapped = domain_1
                             .onto(&input, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -160,7 +160,7 @@ make_test!(
     lower ; 1 => 0.0,
     mid ; 6 => 0.5,
     upper ; 11 => 1.0;
-    nat      => unit 
+    nat      => unit
 );
 
 // ___---___INT___---___ //
@@ -266,7 +266,6 @@ make_test!(
     unit => cat
 );
 
-
 macro_rules! make_test_same {
     ($(
         $(
@@ -284,7 +283,7 @@ macro_rules! make_test_same {
                         let domain_2 = [<get_domain_ $dom1>]();
 
                         let point = $in;
-                        
+
                         let mapped = domain_1
                             .onto(&point, &domain_2)
                             .expect(concat!("Error in mapping ",stringify!($name)," from ", stringify!($dom1)," to ",stringify!($dom2),"."));
@@ -299,7 +298,7 @@ macro_rules! make_test_same {
                         let domain_1 = [<get_domain_ $dom1>]();
                         let input = $in;
                         let (domain_1,input) = [<get_domain_base_ $dom1>](domain_1,input);
-                        
+
                         let domain_2 = [<get_domain_ $dom1>]();
                         let output = $in;
 
@@ -316,7 +315,7 @@ macro_rules! make_test_same {
                     fn [<same_into_base_ $dom1 _ $name>]() {
                         let domain_1 = [<get_domain_ $dom1>]();
                         let input = $in;
-                        
+
                         let domain_2 = [<get_domain_ $dom1>]();
                         let output = $in;
                         let (domain_2,output) = [<get_domain_base_ $dom1>](domain_2,output);

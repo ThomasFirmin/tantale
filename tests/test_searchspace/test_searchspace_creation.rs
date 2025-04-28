@@ -16,7 +16,7 @@
 //     let int_1: BaseDom = Nat::new(0,100).into();
 //     let bool_1: BaseDom = Bool::new().into();
 //     let cat_1: BaseDom = Cat::new(&features).into();
-    
+
 //     let float_2 = Real::new(10.0,200.0);
 //     let nat_2 = Int::new(-200,200);
 //     let int_2 = Nat::new(100,200);
@@ -27,11 +27,9 @@
 
 //     let sp = vec![float_1,nat_1,int_1,bool_1,cat_1];
 
-
 //     // let var_1 = var!("a"; obj | float_1 ; opt | float_2);
 //     // let var_2 = var!("a"; obj | int_1 ; opt | int_2);
 //     // let var_3 = var!("a"; obj | cat_1);
-
 
 //     // // Objective domains definition
 //     // let float_1 = get_domain_real();

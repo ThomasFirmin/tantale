@@ -1,12 +1,12 @@
-pub use tantale::core::domain::Domain;
+pub use tantale::core::domain::base::{BaseDom, BaseTypeDom};
 pub use tantale::core::domain::bool::Bool;
+pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
 pub use tantale::core::domain::cat::Cat;
-pub use tantale::core::domain::bounded::{Int,Nat,Real,Bounded,BoundedBounds};
-pub use tantale::core::domain::unit::Unit;
-pub use tantale::core::domain::base::{BaseDom,BaseTypeDom};
 pub use tantale::core::domain::onto::Onto;
+pub use tantale::core::domain::unit::Unit;
+pub use tantale::core::domain::Domain;
 
-const ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
+static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
 pub fn get_domain_real() -> Real {
     return Real::new(0.0, 10.0);
@@ -24,14 +24,13 @@ pub fn get_domain_bool() -> Bool {
     return Bool::new();
 }
 
-pub fn get_domain_cat<'a>() -> Cat<'a> {
+pub fn get_domain_cat() -> Cat {
     return Cat::new(&ACTIVATION);
 }
 
 pub fn get_domain_unit() -> Unit {
     return Unit::new();
 }
-
 
 pub fn get_domain_real_2() -> Real {
     return Real::new(80.0, 100.0);
@@ -49,37 +48,34 @@ pub fn get_domain_bool_2() -> Bool {
     return Bool::new();
 }
 
-pub fn get_domain_cat_2<'a>() -> Cat<'a> {
+pub fn get_domain_cat_2() -> Cat {
     return Cat::new(&ACTIVATION);
 }
 
-pub fn get_domain_unit_2() -> Unit{
+pub fn get_domain_unit_2() -> Unit {
     return Unit::new();
 }
 
-
-
-
-pub fn get_domain_base_real<'a>(domain:Real,input:f64) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Real(domain),BaseTypeDom::Real(input));
+pub fn get_domain_base_real(domain: Real, input: f64) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Real(domain), BaseTypeDom::Real(input));
 }
 
-pub fn get_domain_base_nat<'a>(domain:Nat,input:u64) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Nat(domain),BaseTypeDom::Nat(input));
+pub fn get_domain_base_nat(domain: Nat, input: u64) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Nat(domain), BaseTypeDom::Nat(input));
 }
 
-pub fn get_domain_base_int<'a>(domain:Int,input:i64) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Int(domain),BaseTypeDom::Int(input));
+pub fn get_domain_base_int(domain: Int, input: i64) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Int(domain), BaseTypeDom::Int(input));
 }
 
-pub fn get_domain_base_bool<'a>(domain:Bool,input:bool) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Bool(domain),BaseTypeDom::Bool(input));
+pub fn get_domain_base_bool(domain: Bool, input: bool) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Bool(domain), BaseTypeDom::Bool(input));
 }
 
-pub fn get_domain_base_cat<'a>(domain:Cat<'a>,input:&'a str) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Cat(domain),BaseTypeDom::Cat(input));
+pub fn get_domain_base_cat(domain: Cat, input: &'static str) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Cat(domain), BaseTypeDom::Cat(input));
 }
 
-pub fn get_domain_base_unit<'a>(domain:Unit,input:f64) -> (BaseDom<'a>,BaseTypeDom<'a>) {
-    return (BaseDom::Unit(domain),BaseTypeDom::Unit(input));
+pub fn get_domain_base_unit(domain: Unit, input: f64) -> (BaseDom, BaseTypeDom) {
+    return (BaseDom::Unit(domain), BaseTypeDom::Unit(input));
 }

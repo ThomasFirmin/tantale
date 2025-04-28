@@ -90,9 +90,9 @@ mod check_bounds {
     }
     #[test]
     fn create_cat() {
-        let activation = ["relu", "tanh", "sigmoid"];
+        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
         let check = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&activation);
+        let cat_1 = Cat::new(&ACTIVATION);
         assert_eq!(cat_1.values(), &check, "Issue with content of Cat.");
 
         assert!(
@@ -288,15 +288,15 @@ mod check_domtype {
 
     #[test]
     fn isstr() {
-        trait IsStrRef<'a> {}
-        impl IsStrRef<'_> for &'_ str {}
+        trait IsStrRef {}
+        impl IsStrRef for &str {}
         fn check_type<T: Domain>()
         where
-            T::TypeDom: for<'b> IsStrRef<'b>,
+            T::TypeDom: for<'b> IsStrRef,
         {
             assert!(true, "Cat does not have a &str TypeDom.");
         }
-        check_type::<Cat<'_>>();
+        check_type::<Cat>();
     }
     #[test]
     fn tests_unit_typedom() {
@@ -308,10 +308,7 @@ mod check_domtype {
         {
             true
         }
-        assert!(
-            check_type::<Unit>(),
-            "Unit does not have a f64 TypeDom"
-        );
+        assert!(check_type::<Unit>(), "Unit does not have a f64 TypeDom");
     }
 }
 
@@ -322,9 +319,8 @@ mod check_default_sampler {
     fn sampler_real() {
         let mut rng = rand::rng();
         let real_1 = Real::new(0.0, 10.0);
-        let sampler = real_1.default_sampler();
         assert!(
-            real_1.is_in(&sampler(&real_1, &mut rng)),
+            real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -332,9 +328,8 @@ mod check_default_sampler {
     fn sampler_nat() {
         let mut rng = rand::rng();
         let nat_1 = Nat::new(0, 10);
-        let sampler = nat_1.default_sampler();
         assert!(
-            nat_1.is_in(&sampler(&nat_1, &mut rng)),
+            nat_1.is_in(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -342,9 +337,8 @@ mod check_default_sampler {
     fn sampler_int() {
         let mut rng = rand::rng();
         let int_1 = Int::new(0, 10);
-        let sampler = int_1.default_sampler();
         assert!(
-            int_1.is_in(&sampler(&int_1, &mut rng)),
+            int_1.is_in(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
         );
     }
@@ -352,20 +346,18 @@ mod check_default_sampler {
     fn sampler_bool() {
         let mut rng = rand::rng();
         let bool_1 = Bool::new();
-        let sampler = bool_1.default_sampler();
         assert!(
-            bool_1.is_in(&sampler(&bool_1, &mut rng)),
+            bool_1.is_in(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        let activation = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&activation);
-        let sampler = cat_1.default_sampler();
+        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+        let cat_1 = Cat::new(&ACTIVATION);
         assert!(
-            cat_1.is_in(&sampler(&cat_1, &mut rng)),
+            cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -373,26 +365,22 @@ mod check_default_sampler {
     fn sampler_unit() {
         let mut rng = rand::rng();
         let unit_1: Unit = Unit::new();
-        let sampler = unit_1.default_sampler();
         assert!(
-            unit_1.is_in(&sampler(&unit_1, &mut rng)),
+            unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
         );
     }
 }
 
-
-
 mod check_default_sampler_base {
     use rand;
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit,BaseDom};
+    use tantale::core::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
         let real_1 = BaseDom::Real(Real::new(0.0, 10.0));
-        let sampler = real_1.default_sampler();
         assert!(
-            real_1.is_in(&sampler(&real_1, &mut rng)),
+            real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -400,9 +388,8 @@ mod check_default_sampler_base {
     fn sampler_nat() {
         let mut rng = rand::rng();
         let nat_1 = BaseDom::Nat(Nat::new(0, 10));
-        let sampler = nat_1.default_sampler();
         assert!(
-            nat_1.is_in(&sampler(&nat_1, &mut rng)),
+            nat_1.is_in(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -410,9 +397,8 @@ mod check_default_sampler_base {
     fn sampler_int() {
         let mut rng = rand::rng();
         let int_1 = BaseDom::Int(Int::new(0, 10));
-        let sampler = int_1.default_sampler();
         assert!(
-            int_1.is_in(&sampler(&int_1, &mut rng)),
+            int_1.is_in(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
         );
     }
@@ -420,30 +406,27 @@ mod check_default_sampler_base {
     fn sampler_bool() {
         let mut rng = rand::rng();
         let bool_1 = BaseDom::Bool(Bool::new());
-        let sampler = bool_1.default_sampler();
         assert!(
-            bool_1.is_in(&sampler(&bool_1, &mut rng)),
+            bool_1.is_in(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        let activation = ["relu", "tanh", "sigmoid"];
-        let cat_1 = BaseDom::Cat(Cat::new(&activation));
-        let sampler = cat_1.default_sampler();
+        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+        let cat_1 = BaseDom::Cat(Cat::new(&ACTIVATION));
         assert!(
-            cat_1.is_in(&sampler(&cat_1, &mut rng)),
+            cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1  = BaseDom::Unit(Unit::new());
-        let sampler = unit_1.default_sampler();
+        let unit_1 = BaseDom::Unit(Unit::new());
         assert!(
-            unit_1.is_in(&sampler(&unit_1, &mut rng)),
+            unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
         );
     }

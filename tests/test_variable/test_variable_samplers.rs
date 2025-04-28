@@ -1,9 +1,11 @@
 use super::init_dom::*;
 
 use paste::paste;
+use tantale::core::domain::sampler::{
+    uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
+};
 use tantale::core::domain::Domain;
-use tantale::core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
-use tantale::var;
+use tantale::core::var;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {

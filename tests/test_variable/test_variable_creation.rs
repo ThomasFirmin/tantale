@@ -1,54 +1,55 @@
 use super::init_dom::*;
 
+use tantale::core::domain::sampler::{
+    uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
+};
 use tantale::core::domain::Domain;
-use tantale::core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
 use tantale::core::variable::Variable;
-use tantale::var;
+use tantale::core::var;
 
-use std::fmt::{Display,Debug};
 use paste::paste;
+use std::fmt::{Debug, Display};
 
-fn _test_variable_assertion<'a, Obj, Opt>(item: Variable<'a, Obj,Opt>) 
+fn _test_variable_assertion<'a, Obj, Opt>(item: Variable<'a, Obj, Opt>)
 where
-    Obj:Domain + Clone + Display + Debug + Onto<Opt>,
-    Opt:Domain + Clone + Display + Debug + Onto<Obj>,
+    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
+    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
 {
     let mut rng = rand::rng();
     assert_eq!(item.name, "a", "Error in variable name.");
 
-    let random_obj = (item.sampler_obj)(&item.domain_obj,&mut rng);
+    let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
     assert!(
         item.domain_obj.is_in(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.sampler_opt)(&item.domain_opt,&mut rng);
+    let random_opt = (item.sampler_opt)(&item.domain_opt, &mut rng);
     assert!(
         item.domain_opt.is_in(&random_opt),
         "Error in `is_in` for optimizer."
     );
 }
 
-fn _test_variable_assertion_single<'a, Obj>(item: Variable<'a, Obj>) 
+fn _test_variable_assertion_single<'a, Obj>(item: Variable<'a, Obj>)
 where
-    Obj:Domain + Clone + Display + Debug,
+    Obj: Domain + Clone + Display + Debug,
 {
     let mut rng = rand::rng();
     assert_eq!(item.name, "a", "Error in variable name.");
 
-    let random_obj = (item.sampler_obj)(&item.domain_obj,&mut rng);
+    let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
     assert!(
         item.domain_obj.is_in(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.sampler_opt)(&item.domain_opt,&mut rng);
+    let random_opt = (item.sampler_opt)(&item.domain_opt, &mut rng);
     assert!(
         item.domain_opt.is_in(&random_opt),
         "Error in `is_in` for optimizer."
     );
 }
-
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {
