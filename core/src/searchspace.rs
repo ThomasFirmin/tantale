@@ -1,6 +1,6 @@
 use crate::domain::Domain;
 use crate::solution::Solution;
-use crate::variable::Variable;
+use crate::variable::Var;
 
 use std::fmt::{Debug, Display};
 
@@ -9,7 +9,7 @@ where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
-    fn get_variables(&self) -> Vec<Variable<Obj, Opt>>;
+    fn get_variables(&self) -> Vec<Var<Obj, Opt>>;
     fn onto_obj(&self, item: Solution<Obj>) -> Solution<Opt>;
     fn onto_opt(&self, item: Solution<Opt>) -> Solution<Obj>;
     fn sample_obj(&self) -> Solution<Obj>;
@@ -20,7 +20,7 @@ pub struct SearchspaceSingle<'a, Obj>
 where
     Obj: Domain + Clone + Display + Debug,
 {
-    pub variables: Variable<'a, Obj>,
+    pub variables: Var<'a, Obj>,
 }
 
 #[macro_export]

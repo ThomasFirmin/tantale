@@ -1,4 +1,4 @@
-use crate::domain::errors_domain::DomainError;
+use crate::domain::derrors::DomainError;
 use crate::domain::Domain;
 pub trait Onto<Tgt: Domain>: Domain {
     /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].

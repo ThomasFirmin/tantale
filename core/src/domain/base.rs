@@ -2,7 +2,7 @@ use crate::domain::{
     bool::Bool,
     bounded::{Int, Nat, Real},
     cat::Cat,
-    errors_domain::{DomainError, DomainOoBError},
+    derrors::{DomainError, DomainOoBError},
     onto::Onto,
     unit::Unit,
     Domain,

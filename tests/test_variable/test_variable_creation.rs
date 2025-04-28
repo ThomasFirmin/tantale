@@ -4,13 +4,13 @@ use tantale::core::domain::sampler::{
     uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
 };
 use tantale::core::domain::Domain;
-use tantale::core::variable::Variable;
+use tantale::core::variable::Var;
 use tantale::core::var;
 
 use paste::paste;
 use std::fmt::{Debug, Display};
 
-fn _test_variable_assertion<'a, Obj, Opt>(item: Variable<'a, Obj, Opt>)
+fn _test_variable_assertion<'a, Obj, Opt>(item: Var<'a, Obj, Opt>)
 where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
@@ -31,7 +31,7 @@ where
     );
 }
 
-fn _test_variable_assertion_single<'a, Obj>(item: Variable<'a, Obj>)
+fn _test_variable_assertion_single<'a, Obj>(item: Var<'a, Obj>)
 where
     Obj: Domain + Clone + Display + Debug,
 {

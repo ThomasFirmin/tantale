@@ -2,7 +2,7 @@ use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bool::Bool,
     cat::Cat,
-    errors_domain::{DomainError, DomainOoBError},
+    derrors::{DomainError, DomainOoBError},
     onto::Onto,
     sampler::uniform,
     unit::Unit,

@@ -1,7 +1,7 @@
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bounded::{Bounded, BoundedBounds, DomainBounded},
-    errors_domain::{DomainError, DomainOoBError},
+    derrors::{DomainError, DomainOoBError},
     onto::Onto,
     sampler::uniform_cat,
     unit::Unit,

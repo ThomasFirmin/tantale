@@ -3,7 +3,7 @@ use crate::domain::{
     bool::Bool,
     bounded::{Bounded, BoundedBounds, DomainBounded},
     cat::Cat,
-    errors_domain::{DomainError, DomainOoBError},
+    derrors::{DomainError, DomainOoBError},
     onto::Onto,
     sampler::uniform,
     Domain,
