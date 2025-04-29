@@ -374,7 +374,19 @@ mod check_default_sampler {
 
 mod check_default_sampler_base {
     use rand;
-    use tantale::core::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::Mixed;
+
+    #[derive(Mixed,PartialEq)]
+    pub enum BaseDom{
+        Real(Real),
+        Int(Int),
+        Nat(Nat),
+        Bool(Bool),
+        Cat(Cat),
+        Unit(Unit),
+    }
+
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();

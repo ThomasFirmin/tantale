@@ -5,6 +5,7 @@
 
 pub use tantale_core as core;
 pub use tantale_macros as macros;
+pub use macros::Mixed;
 
 // // Re-exports
 // #[doc(hidden)]
