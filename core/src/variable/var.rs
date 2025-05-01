@@ -33,8 +33,8 @@ where
     pub domain_opt: Rc<Opt>,
     pub sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
     pub sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
-    _onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
-    _onto_opt_fn: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
+    pub _onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
+    pub _onto_opt_fn: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
 }
 
 /// Onto function when only the [`Objective`] [`Domain`] is define.

@@ -6,18 +6,13 @@ fn searchspace_test(){
     use tantale_core::domain::{Real,Int,Nat,Bool,Cat,Unit};
     use tantale_core::domain::sampler::{uniform_real,uniform_nat};
 
-    let v1 = Real::new(0.0,1.0);
-    let v2 = Int::new(0,1);
-    let v3 = Nat::new(0,1);
-    let v4 = Bool::new();
     static ACTIVATION: [&str;3] = ["relu","tanh","sigmoid"];
-    let v5 = Cat::new(&ACTIVATION);
-    let v6 = Unit::new();
 
     sp!(
-        a | Real:v1 => uniform_real | Int:v2         ;
-        b | Nat:v3                  | => uniform_nat ;
-        c | Bool:v4                 |                ;
+        a | Real(0.0,1.0) => uniform_real | Int(0,1)       ;
+        b | Nat(0,1)                      | => uniform_nat ;
+        c | Bool()                        |                ;
     )
 
+    
 }
