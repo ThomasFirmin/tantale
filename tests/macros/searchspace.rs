@@ -15,8 +15,9 @@ fn searchspace_test(){
     let v6 = Unit::new();
 
     sp!(
-        a | v1 => uniform_real | v2 ;
-        b | v3                 | => uniform_nat;
-        c | v4                 | ;
+        a | Real:v1 => uniform_real | Int:v2         ;
+        b | Nat:v3                  | => uniform_nat ;
+        c | Bool:v4                 |                ;
     )
+
 }
