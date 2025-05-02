@@ -40,7 +40,7 @@ where
 /// Onto function when only the [`Objective`] [`Domain`] is define.
 /// In that case, there is no need to map an input to the [`Optimizer`] [`Domain`].
 ///
-fn _single_onto<T>(_input: &T, item: &T::TypeDom, _output: &T) -> Result<T::TypeDom, DomainError>
+pub fn _single_onto<T>(_input: &T, item: &T::TypeDom, _output: &T) -> Result<T::TypeDom, DomainError>
 where
     T: Domain + Clone + Display + Debug,
 {
@@ -51,7 +51,7 @@ impl<'a, Obj> Var<'a, Obj>
 where
     Obj: Domain + Clone + Display + Debug,
 {
-    //// Creates a new instance of a [`Var`] when only the [`Objective`] [`Domain`] is defined.
+    /// Creates a new instance of a [`Var`] when only the [`Objective`] [`Domain`] is defined.
     ///
     /// # Parameters
     ///
@@ -92,7 +92,7 @@ where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
 {
-    //// Creates a new instance of a [`Var`] when the [`Objective`] and [`Optimizer`] [`Domain`]s are defined.
+    /// Creates a new instance of a [`Var`] when the [`Objective`] and [`Optimizer`] [`Domain`]s are defined.
     ///
     /// # Parameters
     ///
@@ -149,67 +149,3 @@ where
         (self.sampler_opt)(&self.domain_opt, rng)
     }
 }
-
-// pub trait IntoBase<'a, Obj, Opt=Obj>
-// where
-//     Obj : Domain + Clone + Display + Debug + Into<BaseDom>,
-//     Opt : Domain + Clone + Display + Debug + Into<BaseDom>,
-// {
-//     fn into_obj_base(self)->Var<'a, BaseDom, Opt>;
-//     fn into_opt_base(self)->Var<'a, Obj, BaseDom>;
-//     fn into_single_base(self)->Var<'a, BaseDom>;
-// }
-
-// impl IntoBase for Var<'a, Real>
-// {
-//     fn into_single_base(self, wrapped:)->Var<'a, BaseDom> {
-//         let domobj = *self.domain_obj;
-//         let domobj:BaseDom = domobj.into();
-//         let domobj = Rc::new(domobj);
-
-//         Var{
-//                     name:self.name,
-//                     domain_obj:domobj.clone(),
-//                     domain_opt:domobj,
-//                     sampler_obj: self.sampler_obj,
-//                     sampler_opt: self.sampler_opt,
-//                     onto_obj_fn: Opt::onto,
-//                     onto_opt_fn:Obj::onto,
-//                     _single_dom:true,
-//                 }
-//     }
-// }
-
-// impl<'a,Opt> Var<'a, Real, Opt>
-// where
-//     Opt: Domain + Clone + Display + Debug,
-// {
-//     pub fn into_obj_base(self)->Var<'a, BaseDom, Opt>{
-//         let domobj = *self.domain_obj;
-//         let domobj:BaseDom = domobj.into();
-//         let sampler_obj = self.sampler_obj;
-//         let sampler_obj = |domain,rng|{
-//             match domain{
-//                 BaseDom::Real(d) => BaseTypeDom::Real(sampler_obj(&d,rng)),
-//                 _ => unreachable!("Can only wrap real sampler with wrap_real_sampler."),
-//             }
-//         };
-
-//         if self._single_dom{
-//             Var{
-//                 name:self.name,
-//                 domain_obj:domobj.clone(),
-//                 domain_opt:self.domain_opt ,
-//                 sampler_obj: ,
-//                 sampler_opt: self.sampler_opt,
-//                 onto_obj_fn: Opt::onto,
-//                 onto_opt_fn:Obj::onto,
-//                 _single_dom:true,
-//             }
-//         }
-//         else{
-
-//         }
-
-//     }
-// }

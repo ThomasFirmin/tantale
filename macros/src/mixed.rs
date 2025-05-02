@@ -89,6 +89,10 @@ pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
                 }
             }
         }
+
+        // IMPL MIXED
+        impl #egenerics tantale_core::Mixed for #eident #egenerics #ewhere {}
+
     }.into()
 
 

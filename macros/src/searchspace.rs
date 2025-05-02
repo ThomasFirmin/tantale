@@ -1,9 +1,13 @@
 extern crate proc_macro;
 
+
+use tantale_core::{domain::sampler, variable::Var};
+
 use std::collections::HashSet;
 
 use proc_macro::TokenStream;
-use syn::{parse::Parse, parse2, spanned::Spanned, token::Token, Expr, ExprTuple, Ident, Token};
+use proc_macro2::Span;
+use syn::{parse::Parse, parse2, spanned::Spanned, Expr, ExprTuple, Ident, Token};
 use quote::{quote, ToTokens};
 
 
@@ -146,7 +150,7 @@ fn token_to_domain(input:TokenStream)->syn::Result<(Ident, DomainStream, Option<
     }
 }
 
-fn wrap_sampler_mixed(mixed:Ident, mixedt:Ident, simple:Ident, sampler:Ident)-> proc_macro2::TokenStream{
+fn wrap_sampler_mixed(mixed:Ident, mixedt:Ident, simple:Ident, sampler:proc_macro2::TokenStream)-> proc_macro2::TokenStream{
     quote! {
         |dom : & #mixed, rng| match dom{
             #mixed :: #simple (d) => #mixedt :: #simple (#sampler (d, rng)),
@@ -180,12 +184,43 @@ fn wrap_simple_onto_mixed(mixed:Ident, mixedt:Ident, simple:Ident)-> proc_macro2
                     Err(e) => Err(e),
                 }
             },
-            _ => unreachable!("An error occured while mapping an item from a domain to a mixed domain. The input output domain is of the wrong type.")
+            _ => unreachable!("An error occured while mapping an item from a domain to a mixed domain. The output domain is of the wrong type.")
         }
     }
 }
 
-// fn wrap_onto_mixed_mixed()->TokenStream{}
+fn wrap_mixed_onto_mixed(
+    mixed_in:Ident,
+    mixedt_in:Ident,
+    simple_in:Ident,
+    mixed_out:Ident,
+    mixedt_out:Ident,
+    simple_out:Ident)->proc_macro2::TokenStream
+{
+    quote!{
+        |indom : & #mixed_in, sample, outdom : & #mixed_out| 
+        match indom{
+            #mixed_in :: #simple_in (i) => {
+                match outdom{
+                    #mixed_out :: #simple_out (o) =>{
+                        match item{
+                            #mixedt_in :: #simple_in(s) =>{
+                                let mapped = #simple_in :: onto (i, s, o);
+                                match mapped{
+                                    Ok(m) => Ok(#mixedt_out :: #simple_out (m)),
+                                    Err(e) => Err(e),
+                                }
+                            },
+                            _ => unreachable!("An error occured while mapping an item between mixed domains. The input sample is of the wrong type.")        
+                        }
+                    },
+                    _ => unreachable!("An error occured while mapping an item between mixed domains. The output domain is of the wrong type.")
+                }
+            },
+            _ => unreachable!("An error occured while mapping an item from a domain to a mixed domain. The input domain is of the wrong type.")
+        }
+    }
+}
 
 pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
     let input = input.to_string();
@@ -198,16 +233,22 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
 
     let mut var_name = Vec::new();
     
-    let mut obj = Vec::new();
+    // OBJ
+    let mut aobj = Vec::new();
     let mut tobj = Vec::new();
     let mut sampobj = Vec::new();
+    let mut ontoopt = Vec::new();
 
-    let mut opt = Vec::new();
+    // OPT
+    let mut aopt = Vec::new();
     let mut topt = Vec::new();
     let mut sampopt = Vec::new();
+    let mut ontoobj = Vec::new();
 
+    // IF ONLY OBJ IS DEFINED
     let mut is_single = Vec::new();
 
+    // UNIQUE DOMAIN TYPES
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
 
@@ -235,18 +276,12 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
         }
 
         let obj_ty = objstream.ty.unwrap();
-        let obj_samp = objstream.sampler;
+        let obj_samp = match objstream.sampler{
+            Some(s) => s.to_token_stream(),
+            None => quote! {#obj_ty ::sample},
+        };
         
         // Extract Opt domain information
-        let opt_args = match &optstream{
-            Some(s) => s.args.clone(),
-            None => None,
-        };
-        // If None then clone obj
-        let opt_args = match opt_args {
-            Some(a) => {is_single.push(false); a},
-            None => {is_single.push(true); obj_args.clone()},
-        };
         
         let opt_ty = match &optstream{
             Some(s) => s.ty.clone(),
@@ -257,10 +292,36 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
             Some(a) => a,
             None => obj_ty.clone(),
         };
+        
+        let opt_args = match &optstream{
+            Some(s) => s.args.clone(),
+            None => None,
+        };
+        // If None then clone obj
+        let opt_args = match opt_args {
+            Some(a) => {
+                is_single.push(false);
+                ontoopt.push(quote! {#obj_ty :: onto});
+                ontoobj.push(quote! {#opt_ty :: onto});
+                a},
+            None => {
+                is_single.push(true);
+                let onto = quote! {tantale_core::variable::var::_single_onto};
+                ontoopt.push(onto.clone());
+                ontoobj.push(onto);
+                obj_args.clone()
+            },
+        };
+        
 
         let opt_samp = match &optstream{
-            Some(s) => s.sampler.clone(),
-            None => None,
+            Some(stream) => {
+                match stream.sampler.clone(){
+                    Some(s) => s.to_token_stream(),
+                    None => quote! {#::sample},
+                }
+            },
+            None => quote! {#opt_ty ::sample},
         };
         
         
@@ -281,22 +342,22 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
         tobj_unique.insert(obj_ty.clone());
         topt_unique.insert(opt_ty.clone());
 
-        obj.push(obj_args);
-        tobj.push(obj_ty);
-        sampobj.push((obj_ty,obj_samp));
+        aobj.push(obj_args);
+        tobj.push(obj_ty.clone());
+        sampobj.push(obj_samp);
 
-        opt.push(opt_args);
-        topt.push(opt_ty);
-        sampopt.push((opt_ty, opt_samp));
+        aopt.push(opt_args);
+        topt.push(opt_ty.clone());
+        sampopt.push(opt_samp);
     }
     
-    for i in 0..obj.len(){
-        let d1 = &obj[i];
+    for i in 0..aobj.len(){
+        let d1 = &aobj[i];
         let t1 = &tobj[i];
-        let (_,s1) = &sampobj[i];
-        let d2 = &opt[i];
+        let s1 = &sampobj[i];
+        let d2 = &aopt[i];
         let t2 = &topt[i];
-        let (_,s2) = &sampopt[i];
+        let s2 = &sampopt[i];
 
         println!(
             "{}{}=>{} | {}{}=>{}",
@@ -309,46 +370,53 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
         );
     }
 
-    let iter_tobj_unique  = tobj_unique.iter();
-    let mixed_obj: proc_macro2::TokenStream;
-    let wrapped_sampobj: Vec<proc_macro2::TokenStream> ;
+
+    // Create Mixed Obj if needed.
+    // If type of domains is not unique, use Mixed domain of Obj
+    //
+    // Create Mixed Opt if needed.
+    // If HashSet of Obj == Hashet of Opt
+    // use Mixed domain of Obj
+    // else create Mixed domain of Opt
+    
+    let iter_tobj_unique  = tobj_unique.iter(); // UNIQUE Obj domains iter
+
+    let mixed_obj: proc_macro2::TokenStream; // Tokens of the Mixed Obj domain to create the enum
+    let mut is_mixedobj = false; // True if Obj searchspace is Mixed
+
+    let mixed_opt: proc_macro2::TokenStream; // Tokens of the Mixed Opt domain to create the enum
+    let mut is_mixedopt = false; // True if Opt searchspace is Mixed
+
+    let ident_mixed_obj_str;
+    let ident_mixedt_obj_str;
+    let ident_mixed_opt_str;
+    let ident_mixedt_opt_str;
+
+    // Determine if Obj is Mixed or not
     if tobj_unique.len()>1{
+        is_mixedobj = true;
         mixed_obj = quote! {
             #[derive(tantale_macros::Mixed,PartialEq)]
             pub enum _TantaleMixedObj{
                 #( #iter_tobj_unique ( #iter_tobj_unique ) ),*
             }
         };
-
-        wrapped_sampobj = sampobj.iter().map(
-            |(ty, sampler,)| 
-            match sampler {
-                Some(s) => wrap_sampler_mixed(
-                            Ident::new("_TantaleMixedObj", proc_macro2::Span::call_site()),
-                            Ident::new("_TantaleMixedObjTypeDom", proc_macro2::Span::call_site()),
-                            ty.clone(),
-                            s.clone(),
-                        ),
-                None => quote! {},
-            }
-        ).collect()
+        ident_mixed_obj_str = "_TantaleMixedObj";
+        ident_mixedt_obj_str = "_TantaleMixedObjTypeDom";
 
     }else {
-        mixed_obj=quote! {}.into();
-        wrapped_sampobj = vec![quote! {}.into()];
+        ident_mixed_obj_str = "";
+        ident_mixedt_obj_str = "";
+        mixed_obj=quote! {}.into(); // Non need to create a Mixed enum
+        
     }
-    
-    // Create Mixed Opt if needed.
-    // If HashSet of Obj == Hashet of Opt
-    // use Mixed domain of Obj
-    // else create Mixed domain of Opt
-    let mixed_opt: proc_macro2::TokenStream;
-    let wrapped_sampopt: Vec<proc_macro2::TokenStream> ;
-    if topt_unique.len() > 1{
-        let mixed;
-        let mixedt;
 
+    // Determine if Opt is Mixed or not
+    if topt_unique.len() > 1{        
+        // If the set of Opt domains is != set of Obj domain
+        // Then create a Mixed domain for Opt.
         if topt_unique != tobj_unique{
+            is_mixedopt = true;
             let iter_topt_unique  = topt_unique.iter();
             mixed_opt = quote! {
                 #[derive(tantale_macros::Mixed,PartialEq)]
@@ -356,51 +424,215 @@ pub fn sp(input:TokenStream)-> syn::Result<TokenStream>{
                     #( #iter_topt_unique ( #iter_topt_unique ) ),*
                 }
             };
-            mixed = "_TantaleMixedOpt";
-            mixedt = "_TantaleMixedOptTypeDom";
+            ident_mixed_opt_str = "_TantaleMixedOpt";
+            ident_mixedt_opt_str = "_TantaleMixedOptTypeDom";
         }else{
-            mixed = "_TantaleMixedObj";
-            mixedt = "_TantaleMixedObjTypeDom";
+            ident_mixed_opt_str = "_TantaleMixedObj";
+            ident_mixedt_opt_str = "_TantaleMixedObjTypeDom";
             mixed_opt = quote! {};
         }
-        wrapped_sampopt = sampopt.iter().map(
-            |(ty, sampler,)| 
-            match sampler {
-                Some(s) => wrap_sampler_mixed(
-                            Ident::new(mixed, proc_macro2::Span::call_site()),
-                            Ident::new(mixedt, proc_macro2::Span::call_site()),
-                            ty.clone(),
-                            s.clone(),
-                        ),
-                None => quote! {},
-            }
-        ).collect()
 
     }else {
+        ident_mixed_opt_str = "";
+        ident_mixedt_opt_str = "";
         mixed_opt = quote! {};
-        wrapped_sampopt = vec![quote! {}];
     }
 
-    let let_statements = var_name.iter().zip(tobj).zip(obj).map(
-        |((n,t),e)|{
-            quote! {
-                let #n = #t ::new #e;
-            }
+    
+    // OBJ
+    let ident_mixed_obj = Ident::new(ident_mixed_obj_str, Span::call_site());
+    let ident_mixedt_obj = Ident::new(ident_mixedt_obj_str, Span::call_site());
+
+    let mut wrapped_domobj = Vec::new(); // Obj domains wrapped in Mixed if required, else Obj
+    let mut wrapped_sampobj = Vec::new(); // Obj samplers wrapped in Mixed if required, else sampler
+    let mut wrapped_onto_opt = Vec::new(); // Wrapped Mixed onto Opt function if required, else Obj.onto
+    
+    // OPT
+    let ident_mixed_opt = Ident::new(ident_mixed_opt_str, Span::call_site());
+    let ident_mixedt_opt = Ident::new(ident_mixedt_opt_str, Span::call_site());
+    
+    let mut wrapped_domopt = Vec::new() ; // Opt domains wrapped in Mixed if required, else Opt or Obj if Obj=Opt
+    let mut wrapped_sampopt = Vec::new() ; // Opt samplers wrapped in Mixed if required, else sampler
+    let mut wrapped_onto_obj = Vec::new(); // Wrapped Mixed onto Obj function
+
+    for i in 0..tobj.len(){
+
+        // OBJ PART
+        let ty_obj = &tobj[i];
+        let args_obj = &aobj[i];
+        let sampler_obj = &sampobj[i];
+        let onto_opt = &ontoopt[i];
+        
+        if is_mixedobj{
+            wrapped_domobj.push(quote! {#ident_mixed_obj :: #ty_obj ( #ty_obj :: new #args_obj )});
+            wrapped_sampobj.push(wrap_sampler_mixed(
+                ident_mixed_obj.clone(),
+                ident_mixedt_obj.clone(),
+                ty_obj.clone(),
+                sampler_obj.clone(),
+            ));
+        }else{
+            wrapped_domobj.push(quote! { #ty_obj :: new #args_obj });
+            wrapped_sampobj.push(sampler_obj.to_token_stream());
         }
-    );
+        
+        // OPT PART
+        let ty_opt = &topt[i];
+        let args_opt = &aopt[i];
+        let sampler_opt = &sampopt[i];
+        let onto_obj = &ontoobj[i];
+
+        if is_single[i]{
+            wrapped_domopt.push(quote! {});
+            wrapped_sampopt.push(sampler_opt.to_token_stream());
+            wrapped_onto_obj.push(onto_opt.clone());
+            wrapped_onto_obj.push(onto_obj.clone());
+        }
+        else
+        {
+            if is_mixedopt
+            {
+                wrapped_domopt.push(quote! {#ident_mixed_opt :: #ty_opt ( #ty_opt :: new #args_opt )});
+
+                if is_mixedobj
+                {
+                    // MIXED OBJ -> MIXED OPT
+                    wrapped_onto_opt.push(
+                        wrap_mixed_onto_mixed(
+                            ident_mixed_obj.clone(),
+                            ident_mixedt_obj.clone(),
+                            ty_obj.clone(),
+                            ident_mixed_opt.clone(),
+                            ident_mixedt_opt.clone(),
+                            ty_opt.clone(),
+                        )
+                    );
+                    // MIXED OPT -> MIXED OBJ
+                    wrapped_onto_obj.push(
+                        wrap_mixed_onto_mixed(
+                            ident_mixed_opt.clone(),
+                            ident_mixedt_opt.clone(),
+                            ty_opt.clone(),
+                            ident_mixed_obj.clone(),
+                            ident_mixedt_obj.clone(),
+                            ty_obj.clone(),
+                        )
+                    );
+                }
+                else
+                {
+                    // SINGLE OBJ -> MIXED OPT
+                    wrapped_onto_opt.push(
+                        wrap_simple_onto_mixed(
+                            ident_mixed_opt.clone(), 
+                            ident_mixedt_opt.clone(), 
+                            ty_obj.clone(),
+                        )
+                    );
+                    // MIXED OPT -> SINGLE OBJ
+                    wrapped_onto_obj.push(
+                        wrap_mixed_onto_simple(
+                            ident_mixed_opt.clone(), 
+                            ident_mixedt_opt.clone(), 
+                            ty_obj.clone(),
+                        )
+                    );
+                }
+            }
+            else
+            {
+                wrapped_domopt.push(quote! { #ty_opt :: new #args_opt });
+
+                if is_mixedobj{
+                    // MIXED OBJ -> SINGLE OPT
+                    wrapped_onto_opt.push(
+                        wrap_simple_onto_mixed(
+                            ident_mixed_obj.clone(), 
+                            ident_mixedt_obj.clone(), 
+                            ty_opt.clone(),
+                        )
+                    );
+                    // SINGLE OPT -> MIXED OBJ
+                    wrapped_onto_obj.push(
+                        wrap_mixed_onto_simple(
+                            ident_mixed_obj.clone(), 
+                            ident_mixedt_obj.clone(), 
+                            ty_opt.clone(),
+                        )
+                    );
+                }
+                else {
+                    wrapped_onto_obj.push(onto_opt.clone());
+                    wrapped_onto_obj.push(onto_obj.clone());
+                }
+
+            }
+            wrapped_sampopt.push(wrap_sampler_mixed(
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_opt.clone(),
+                sampler_opt.clone(),
+            ));
+        }
+    }
+
+    let mut push_statements = Vec::new();
+    push_statements.push(quote! {let variables = Vec::new();});
+
+    for i in 0..aobj.len(){
+        
+        let name = &var_name[i];
+        let domobj = &wrapped_domobj[i];
+        let sampler_obj= &wrapped_sampobj[i];
+        let sampler_opt= &wrapped_sampopt[i];
+        let onto_obj= &wrapped_onto_obj[i];
+        let onto_opt= &wrapped_onto_opt[i];
+        
+        if is_single[i]{
+            push_statements.push(
+                quote! {
+                    let domobj_rc = std::rc::Rc::new( #domobj );
+                    variables.push(
+                        Var{
+                            name : #name ,
+                            domain_obj : domobj_rc.clone(),
+                            domain_opt : domobj_rc,
+                            sampler_obj : #sampler_obj ,
+                            sampler_opt : #sampler_opt ,
+                            _onto_obj_fn : #onto_obj,
+                            _onto_opt_fn : #onto_opt,
+                        }
+                    );
+                }
+            );
+        }else {
+            let domopt = &wrapped_domopt[i];
+            push_statements.push(
+                quote! {
+                    variables.push(
+                        Var{
+                            name : #name ,
+                            domain_obj : std::rc::Rc::new( #domobj ),
+                            domain_opt : std::rc::Rc::new( #domopt ),
+                            sampler_obj : #sampler_obj ,
+                            sampler_opt : #sampler_obj ,
+                            _onto_obj_fn : #onto_obj,
+                            _onto_opt_fn : #onto_opt,
+                        }
+                    );
+                }
+            );
+        }
+    }
 
     Ok(quote!{
-        {
-            #(#let_statements)*
-            
-            #mixed_obj
 
-            // #(#wrapped_sampobj)*
+        #mixed_obj
 
-            #mixed_opt
+        #mixed_opt
 
-            // #(#wrapped_sampopt)*
-        }
+        #(#push_statements)*
+
     }.into())
 
 }
