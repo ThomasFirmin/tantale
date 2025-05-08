@@ -377,8 +377,8 @@ mod check_default_sampler_base {
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale::Mixed;
 
-    #[derive(Mixed,PartialEq)]
-    pub enum BaseDom{
+    #[derive(Mixed, PartialEq)]
+    pub enum BaseDom {
         Real(Real),
         Int(Int),
         Nat(Nat),

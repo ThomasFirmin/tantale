@@ -1,20 +1,20 @@
 extern crate proc_macro;
 
-use syn::{parse_macro_input, Data::Enum, DeriveInput};
 use quote::{format_ident, quote};
+use syn::{parse_macro_input, Data::Enum, DeriveInput};
 
-pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
+pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // let input = proc_macro2::TokenStream::from(input);
 
-    let input= parse_macro_input!(input as DeriveInput);
-    
+    let input = parse_macro_input!(input as DeriveInput);
+
     let eident = input.ident;
-    let tident = format_ident!("{}{}",eident,"TypeDom");
+    let tident = format_ident!("{}{}", eident, "TypeDom");
 
     let egenerics = input.generics;
     let ewhere = &egenerics.where_clause;
 
-    let parsed_enum = match input.data{
+    let parsed_enum = match input.data {
         Enum(e) => Some(e),
         _ => None,
     };
@@ -22,21 +22,20 @@ pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
 
     let variants = parsed_enum.variants;
     let idents: Vec<_> = variants.iter().map(|v| v.ident.clone()).collect();
-    let fields: Vec<_> = variants.iter().map(
-        |var| var.fields.clone()
-    ).map(
-        |field| match field{
+    let fields: Vec<_> = variants
+        .iter()
+        .map(|var| var.fields.clone())
+        .map(|field| match field {
             syn::Fields::Unnamed(f) => f.unnamed.first().cloned(),
             _ => None,
-        }
-    ).map(
-        |field| field.unwrap()
-    ).collect();
-    
-    quote!{
+        })
+        .map(|field| field.unwrap())
+        .collect();
+
+    quote! {
 
         // DEFINITION OF MIXED DOMAIN
-        
+
         impl #egenerics std::fmt::Display for #eident #egenerics #ewhere{
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 match self {
@@ -52,7 +51,7 @@ pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
                 }
             }
         }
-        
+
         // DEFINITION OF MIXED DOMAIN TYPE
 
         #[derive(std::fmt::Debug, std::marker::Copy, std::clone::Clone, std::cmp::PartialEq)]
@@ -77,7 +76,7 @@ pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
                     #(Self::#idents(d) => #tident::#idents(d.sample(rng))),*
                 }
             }
-        
+
             fn is_in(&self, item: &Self::TypeDom) -> bool {
                 match self {
                     #(
@@ -93,7 +92,6 @@ pub fn proc_mixed(input:proc_macro::TokenStream)->proc_macro::TokenStream{
         // IMPL MIXED
         impl #egenerics tantale_core::domain::Mixed for #eident #egenerics #ewhere {}
 
-    }.into()
-
-
+    }
+    .into()
 }

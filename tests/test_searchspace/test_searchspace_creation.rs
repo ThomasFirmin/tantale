@@ -1,60 +1,55 @@
 use super::init_dom::*;
-use num::traits::float;
 use tantale::core::domain::sampler::uniform_real;
 use tantale::core::variable::Var;
-use tantale_core::domain;
 
 use std::rc::Rc;
 
 #[test]
 fn create_mixed_searchspace() {
-    static  FEATURES:[&str;3] = ["relu", "sigmoid", "tanh"];
+    static FEATURES: [&str; 3] = ["relu", "sigmoid", "tanh"];
 
-    let float_1:BaseDom = Real::new(0.0,1.1).into();
-    let nat_1 = Int::new(-100,100);
-    let int_1 = Nat::new(0,100);
+    let float_1: BaseDom = Real::new(0.0, 1.1).into();
+    let nat_1 = Int::new(-100, 100);
+    let int_1 = Nat::new(0, 100);
     let bool_1 = Bool::new();
     let cat_1 = Cat::new(&FEATURES);
 
-    let float_2 = Real::new(10.0,200.0);
-    let nat_2 = Int::new(-200,200);
-    let int_2 = Nat::new(100,200);
+    let float_2 = Real::new(10.0, 200.0);
+    let nat_2 = Int::new(-200, 200);
+    let int_2 = Nat::new(100, 200);
     let bool_2 = Bool::new();
     let cat_2 = Cat::new(&FEATURES);
 
-    let v = Var{
+    let v = Var {
         name: "a",
+        repeats:None,
         domain_obj: Rc::new(float_1),
         domain_opt: Rc::new(float_2),
         sampler_obj: |dom, rng| match dom {
             BaseDom::Real(d) => BaseTypeDom::Real(uniform_real(d, rng)),
-            _=> unreachable!("Prout"),
+            _ => unreachable!("Prout"),
         },
         sampler_opt: uniform_real,
 
-
-
-
-        _onto_obj_fn: |opt,item,obj| match obj{
+        _onto_obj_fn: |opt, item, obj| match obj {
             BaseDom::Real(d) => {
-                let mapped = Real::onto(opt,item,d);
-                match mapped{
+                let mapped = Real::onto(opt, item, d);
+                match mapped {
                     Ok(m) => Ok(BaseTypeDom::Real(m)),
                     Err(e) => Err(e),
                 }
-            },
+            }
             _ => unreachable!("Prout"),
         },
 
-        
-        _onto_opt_fn: |obj,item,opt| match obj{
+        _onto_opt_fn: |obj, item, opt| match obj {
             BaseDom::Real(d) => {
-                let i = match item{
-                    BaseTypeDom::Real(i)=>i,
+                let i = match item {
+                    BaseTypeDom::Real(i) => i,
                     _ => unreachable!("Prout"),
                 };
-                Real::onto(opt,i,d)
-            },
+                Real::onto(opt, i, d)
+            }
             _ => unreachable!("Prout"),
         },
     };

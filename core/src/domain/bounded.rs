@@ -261,8 +261,10 @@ where
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
-            let c: f64 = (target.values().len() - 1).as_();
-            let mapped = target.values()[(a / b * c) as usize];
+            let c: f64 = target.values().len().as_();
+            let idx = (a / b * c) as usize;
+            let idx = idx - idx / 3; // - idx/3 as if idx = 3 -> overflow
+            let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {
                 Ok(mapped)

@@ -4,8 +4,8 @@ use tantale::core::domain::sampler::{
     uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
 };
 use tantale::core::domain::Domain;
-use tantale::core::variable::Var;
 use tantale::core::var;
+use tantale::core::variable::Var;
 
 use paste::paste;
 use std::fmt::{Debug, Display};

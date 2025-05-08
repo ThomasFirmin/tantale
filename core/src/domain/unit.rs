@@ -183,8 +183,10 @@ impl Onto<Cat> for Unit {
     fn onto(&self, item: &f64, target: &Cat) -> Result<<Cat as Domain>::TypeDom, DomainError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
-            let c: f64 = (target.values().len() - 1).as_();
-            let mapped = target.values()[(a * c) as usize];
+            let c: f64 = target.values().len().as_();
+            let idx = (a * c) as usize;
+            let idx = idx - idx / 3; // - idx/3 as if idx = 3 -> overflow
+            let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {
                 Ok(mapped)

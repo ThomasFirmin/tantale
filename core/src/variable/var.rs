@@ -10,11 +10,7 @@ use crate::optimizer::Optimizer;
 /// [`Domains`] are use in [`Var`] to define the type of the Var for the input type of
 /// that Var within the [`Objective`] function, and the input type of the [`Optimizer`].
 ///
-use crate::domain::{
-    onto::Onto,
-    Domain,
-    derrors::DomainError
-};
+use crate::domain::{derrors::DomainError, onto::Onto, Domain};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
@@ -29,6 +25,7 @@ where
     Opt: Domain + Clone + Display + Debug,
 {
     pub name: &'a str,
+    pub repeats : Option<std::ops::Range<usize>>,
     pub domain_obj: Rc<Obj>,
     pub domain_opt: Rc<Opt>,
     pub sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
@@ -40,7 +37,11 @@ where
 /// Onto function when only the [`Objective`] [`Domain`] is define.
 /// In that case, there is no need to map an input to the [`Optimizer`] [`Domain`].
 ///
-pub fn _single_onto<T>(_input: &T, item: &T::TypeDom, _output: &T) -> Result<T::TypeDom, DomainError>
+pub fn _single_onto<T>(
+    _input: &T,
+    item: &T::TypeDom,
+    _output: &T,
+) -> Result<T::TypeDom, DomainError>
 where
     T: Domain + Clone + Display + Debug,
 {
@@ -77,6 +78,7 @@ where
 
         Var {
             name: name,
+            repeats:None,
             domain_obj: domobj.clone(),
             domain_opt: domobj,
             sampler_obj: samplerobj_selected,
@@ -121,6 +123,7 @@ where
 
         Var {
             name: name,
+            repeats:None,
             domain_obj: domobj,
             domain_opt: domopt,
             sampler_obj: samplerobj_selected,

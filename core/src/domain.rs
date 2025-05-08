@@ -51,7 +51,7 @@ where
 {
 }
 
-pub trait Mixed:Domain {}
+pub trait Mixed: Domain {}
 
 pub mod bounded;
 pub use bounded::{Bounded, DomainBounded, Int, Nat, Real};

@@ -155,8 +155,8 @@ where
 
         match idx {
             Some(i) => {
-                let a: f64 = (i).as_();
-                let b: f64 = (self.values().len() - 1).as_();
+                let a: f64 = (i + 1).as_();
+                let b: f64 = self.values().len().as_();
                 let c: f64 = target.width().as_();
                 let mapped: Out = (a / b * c).as_() + target.lower();
 
@@ -202,8 +202,8 @@ impl<'a> Onto<Unit> for Cat {
 
         match idx {
             Some(i) => {
-                let a: f64 = (i).as_();
-                let b: f64 = (self.values().len() - 1).as_();
+                let a: f64 = (i + 1).as_();
+                let b: f64 = self.values().len().as_();
                 let mapped: f64 = a / b;
 
                 if target.is_in(&mapped) {

@@ -213,21 +213,11 @@ macro_rules! var {
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr) => {{
-        $crate::variable::Var::new_single(
-            $name,
-            std::rc::Rc::new($domobj),
-            Some($sampobj),
-            None,
-        )
+        $crate::variable::Var::new_single($name, std::rc::Rc::new($domobj), Some($sampobj), None)
     }};
     // Solely defining optimizer sampler
     ($name:literal ;  obj | $domobj:expr ; opt | => $sampopt:expr) => {{
-        $crate::variable::Var::new_single(
-            $name,
-            std::rc::Rc::new($domobj),
-            None,
-            Some($sampopt),
-        )
+        $crate::variable::Var::new_single($name, std::rc::Rc::new($domobj), None, Some($sampopt))
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr) => {{

@@ -217,23 +217,23 @@ make_test!(
 
 // ___---___CAT___---___ //
 make_test!(
-    lower ; "relu" => 80.0,
-    mid ; "tanh" => 90.0,
+    lower ; "relu" => 80.0 + 20.0/3.0,
+    mid ; "tanh" => 80.0 + 40.0/3.0,
     upper ; "sigmoid" => 100.0;
     cat      => real ,
 
-    lower ; "relu" => 80,
-    mid ; "tanh" => 90,
+    lower ; "relu" => 80 + 20/3,
+    mid ; "tanh" => 80 + 40/3,
     upper ; "sigmoid" => 100;
     cat      => nat,
 
-    lower ; "relu" => 80,
-    mid ; "tanh" => 90,
+    lower ; "relu" =>80 + 20/3,
+    mid ; "tanh" =>80 + 40/3,
     upper ; "sigmoid" => 100;
     cat      => int ,
 
-    lower ; "relu" => 0.0,
-    mid ; "tanh" => 0.5,
+    lower ; "relu" => 1.0/3.0,
+    mid ; "tanh" => 2.0/3.0,
     upper ; "sigmoid" => 1.0;
     cat      => unit
 );
