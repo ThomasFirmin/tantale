@@ -21,8 +21,7 @@ fn create_mixed_searchspace() {
     let cat_2 = Cat::new(&FEATURES);
 
     let v = Var {
-        name: "a",
-        repeats:None,
+        name: ("a", None),
         domain_obj: Rc::new(float_1),
         domain_opt: Rc::new(float_2),
         sampler_obj: |dom, rng| match dom {

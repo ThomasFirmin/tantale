@@ -319,7 +319,7 @@ struct VarInfo {
 }
 struct WrappedVarInfo {
     name: String,
-    range: proc_macro2::TokenStream,
+    range: Option<proc_macro2::TokenStream>,
     wrapped_domobj: proc_macro2::TokenStream, // Obj domains wrapped in Mixed if required, else Obj
     token_sampobj: proc_macro2::TokenStream, // Obj samplers wrapped in Mixed if required, else sampler
     token_onto_opt: proc_macro2::TokenStream, // Wrapped Mixed onto Opt function if required, else Obj.onto
@@ -676,9 +676,10 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
 
         let range = match vinf.range{
-            Some(r) => quote! {Some( #r )},
-            None => quote! {None},
+            Some(expr)=> Some(expr.to_token_stream()),
+            None => None,
         };
+
         // WRAP EVERYTHING
         let wrapvarinfo = WrappedVarInfo {
             name: vinf.name.to_string(),
@@ -697,7 +698,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     let mut push_statements = Vec::new();
     push_statements.push(
         quote! {
-            let mut variables : Vec<tantale_core::variable::var::Var<'a,#ident_mixed_obj,#ident_mixed_opt>> = Vec::new();
+            let mut variables : Vec<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
         }
     );
 
@@ -749,57 +750,57 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let single = wrapped.single;
 
         // If domain only defined on left : name | Obj | ;
-        if single {
-            // If right domains form a group of mixed domains :
-            // -> name | Obj (D1) | (D1);
-            // -> name | Obj      | Opt (D2) ;
-            if is_mixedopt {
-                push_statements.push(quote! {
-                    variables.push(
-                        tantale_core::variable::var::Var{
-                            name : #name ,
-                            repeats : #repeats,
-                            domain_obj : std::rc::Rc::new( #domobj ),
-                            domain_opt : std::rc::Rc::new( #domopt ),
-                            sampler_obj : #sampler_obj ,
-                            sampler_opt : #sampler_opt ,
-                            _onto_obj_fn : #onto_obj,
-                            _onto_opt_fn : #onto_opt,
-                        }
-                    );
-                });
-            } else {
-                push_statements.push(quote! {
-                    let domobj_rc = std::rc::Rc::new( #domobj );
-                    variables.push(
-                        tantale_core::variable::var::Var{
-                            name : #name ,
-                            repeats : #repeats,
-                            domain_obj : domobj_rc.clone(),
-                            domain_opt : domobj_rc,
-                            sampler_obj : #sampler_obj ,
-                            sampler_opt : #sampler_opt ,
-                            _onto_obj_fn : #onto_obj,
-                            _onto_opt_fn : #onto_opt,
-                        }
-                    );
-                });
-            }
-        } else {
-            push_statements.push(quote! {
-                variables.push(
-                    tantale_core::variable::var::Var{
-                        name : #name ,
-                        repeats : #repeats,
-                        domain_obj : std::rc::Rc::new( #domobj ),
-                        domain_opt : std::rc::Rc::new( #domopt ),
-                        sampler_obj : #sampler_obj ,
-                        sampler_opt : #sampler_opt ,
-                        _onto_obj_fn : #onto_obj,
-                        _onto_opt_fn : #onto_opt,
+        if single && !is_mixedopt{
+            let var_statement = quote! {
+                let domobj_rc = std::rc::Rc::new( #domobj );
+                let var = tantale_core::variable::var::Var{
+                    name : (#name , None),
+                    domain_obj : domobj_rc.clone(),
+                    domain_opt : domobj_rc,
+                    sampler_obj : #sampler_obj ,
+                    sampler_opt : #sampler_opt ,
+                    _onto_obj_fn : #onto_obj,
+                    _onto_opt_fn : #onto_opt,
+                };
+                var
+            };
+            push_statements.push(
+                match repeats{
+                    None => quote! {
+                        variables.push({ #var_statement });
+                    },
+                    Some(r) => quote!{
+                        let mut replicates = { #var_statement }.replicate(#r);
+                        variables.append(&mut replicates);
                     }
-                );
-            });
+                }
+            );
+        }
+        else 
+        {
+            let var_statement = quote! {
+                let var = tantale_core::variable::var::Var{
+                    name : (#name , None),
+                    domain_obj : std::rc::Rc::new( #domobj ),
+                    domain_opt : std::rc::Rc::new( #domopt ),
+                    sampler_obj : #sampler_obj ,
+                    sampler_opt : #sampler_opt ,
+                    _onto_obj_fn : #onto_obj,
+                    _onto_opt_fn : #onto_opt,
+                };
+                var
+            };
+            push_statements.push(
+                match repeats{
+                    None => quote! {
+                        variables.push({ #var_statement });
+                    },
+                    Some(r) => quote!{
+                        let mut replicates = { #var_statement }.replicate(#r);
+                        variables.append(&mut replicates);
+                    }
+                }
+            );
         }
     }
 
@@ -843,7 +844,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         #(#onto_functions)*
 
-        pub fn get_searchpace<'a>()->Vec<tantale_core::variable::var::Var<'a,#ident_mixed_obj,#ident_mixed_opt>>
+        pub fn get_searchpace()->Vec<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>
         {
             pub use tantale_core::domain::{Onto,Domain};
 

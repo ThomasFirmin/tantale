@@ -55,7 +55,7 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // DEFINITION OF MIXED DOMAIN TYPE
 
         #[derive(std::fmt::Debug, std::marker::Copy, std::clone::Clone, std::cmp::PartialEq)]
-        pub enum #egenerics #tident #egenerics #ewhere {
+        pub enum #tident #egenerics #ewhere {
             #(#idents(<#fields as tantale_core::Domain>::TypeDom)),*
         }
 

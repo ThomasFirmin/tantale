@@ -16,11 +16,11 @@ where
     fn sample_opt(&self) -> Solution<Opt>;
 }
 
-pub struct SearchspaceSingle<'a, Obj>
+pub struct SearchspaceSingle<Obj>
 where
     Obj: Domain + Clone + Display + Debug,
 {
-    pub variables: Var<'a, Obj>,
+    pub variables: Var<Obj>,
 }
 
 #[macro_export]

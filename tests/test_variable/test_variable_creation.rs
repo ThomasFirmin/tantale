@@ -10,13 +10,13 @@ use tantale::core::variable::Var;
 use paste::paste;
 use std::fmt::{Debug, Display};
 
-fn _test_variable_assertion<'a, Obj, Opt>(item: Var<'a, Obj, Opt>)
+fn _test_variable_assertion<'a, Obj, Opt>(item: &'a Var<Obj, Opt>)
 where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.name, "a", "Error in variable name.");
+    assert_eq!(item.name, ("a", None), "Error in variable name.");
 
     let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
     assert!(
@@ -31,12 +31,12 @@ where
     );
 }
 
-fn _test_variable_assertion_single<'a, Obj>(item: Var<'a, Obj>)
+fn _test_variable_assertion_single<'a, Obj>(item: &'a Var<Obj>)
 where
     Obj: Domain + Clone + Display + Debug,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.name, "a", "Error in variable name.");
+    assert_eq!(item.name, ("a", None), "Error in variable name.");
 
     let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
     assert!(
@@ -60,7 +60,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = var!("a" ; obj | domobj ; opt | domopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion(&variable)
             }
 
             #[test]
@@ -69,7 +69,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion(&variable)
             }
 
             #[test]
@@ -78,7 +78,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sopt = [<uniform_$dom2>];
                 let variable = var!("a" ; obj | domobj ; opt | domopt => sopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion(&variable)
             }
 
             #[test]
@@ -88,7 +88,7 @@ macro_rules! get_variable {
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom2>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt => sopt);
-                _test_variable_assertion(variable)
+                _test_variable_assertion(&variable)
             }
         }
     };
@@ -129,7 +129,7 @@ macro_rules! get_variable_single_dom {
             fn [<$dom1 _single>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let variable = var!("a" ; obj | domobj);
-                _test_variable_assertion_single(variable)
+                _test_variable_assertion_single(&variable)
             }
 
             #[test]
@@ -137,7 +137,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj);
-                _test_variable_assertion_single(variable)
+                _test_variable_assertion_single(&variable)
             }
 
             #[test]
@@ -145,7 +145,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj ; opt | => sopt);
-                _test_variable_assertion_single(variable)
+                _test_variable_assertion_single(&variable)
             }
 
             #[test]
@@ -154,7 +154,7 @@ macro_rules! get_variable_single_dom {
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom1>];
                 let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
-                _test_variable_assertion_single(variable)
+                _test_variable_assertion_single(&variable)
             }
 
         }

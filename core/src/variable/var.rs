@@ -19,13 +19,12 @@ use std::rc::Rc;
 /// Describes a [`Var`] with an [`Objective`] [`Domain`]  and an [`Optimizer`] [`Domain`].
 ///
 #[derive(Clone)]
-pub struct Var<'a, Obj, Opt = Obj>
+pub struct Var<Obj, Opt = Obj>
 where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
-    pub name: &'a str,
-    pub repeats : Option<std::ops::Range<usize>>,
+    pub name: (&'static str, Option<usize>), // NAME + SUFFIX
     pub domain_obj: Rc<Obj>,
     pub domain_opt: Rc<Opt>,
     pub sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
@@ -48,7 +47,7 @@ where
     Ok(item.clone())
 }
 
-impl<'a, Obj> Var<'a, Obj>
+impl<'a, Obj> Var<Obj>
 where
     Obj: Domain + Clone + Display + Debug,
 {
@@ -68,17 +67,16 @@ where
     /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
     pub fn new_single(
-        name: &'a str,
+        name: &'static str,
         domobj: Rc<Obj>,
         sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
         sampopt: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
-    ) -> Var<'a, Obj> {
+    ) -> Var<Obj> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Obj::sample);
 
         Var {
-            name: name,
-            repeats:None,
+            name: (name, None),
             domain_obj: domobj.clone(),
             domain_opt: domobj,
             sampler_obj: samplerobj_selected,
@@ -89,7 +87,7 @@ where
     }
 }
 
-impl<'a, Obj, Opt> Var<'a, Obj, Opt>
+impl<'a, Obj, Opt> Var<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
@@ -112,29 +110,28 @@ where
     /// By default uses the [`default_sampler`](Domain::default_sampler) of the [`Domain`].
     ///
     pub fn new_double(
-        name: &'a str,
+        name: &'static str,
         domobj: Rc<Obj>,
         domopt: Rc<Opt>,
         sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
         sampopt: Option<fn(&Opt, &mut ThreadRng) -> <Opt as Domain>::TypeDom>,
-    ) -> Var<'a, Obj, Opt> {
+    ) -> Var<Obj, Opt> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Opt::sample);
 
         Var {
-            name: name,
-            repeats:None,
+            name: (name, None),
             domain_obj: domobj,
             domain_opt: domopt,
             sampler_obj: samplerobj_selected,
             sampler_opt: sampleropt_selected,
-            _onto_obj_fn: |obj, item, opt| Opt::onto(obj, item, opt),
+            _onto_obj_fn: Opt::onto,
             _onto_opt_fn: Obj::onto,
         }
     }
 }
 
-impl<'a, Obj, Opt> Var<'a, Obj, Opt>
+impl<Obj, Opt> Var<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
@@ -150,5 +147,29 @@ where
     }
     pub fn sample_opt(&self, rng: &mut ThreadRng) -> <Opt as Domain>::TypeDom {
         (self.sampler_opt)(&self.domain_opt, rng)
+    }
+    pub fn replicate(&self, range : std::ops::Range<usize>) -> Vec<Self>{
+        let mut vec = Vec::new();
+        for i in range{
+            let domain_obj = self.domain_obj.clone();
+            let domain_opt = self.domain_opt.clone();
+            let sampler_obj = self.sampler_obj;
+            let sampler_opt = self.sampler_opt;
+            let _onto_obj_fn = self._onto_obj_fn;
+            let _onto_opt_fn = self._onto_opt_fn;
+            
+            let var = Self{
+                name : (self.name.0, Some(i)),
+                domain_obj,
+                domain_opt,
+                sampler_obj,
+                sampler_opt,
+                _onto_obj_fn,
+                _onto_opt_fn,
+            };
+            vec.push(var);
+        }
+        vec
+
     }
 }

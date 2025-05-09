@@ -10,13 +10,13 @@ macro_rules! get_test {
                 let var = sp_ms_nosamp::get_searchpace();
                 let mut rng = rand::rng();
 
-                for v in var{
-                    let sample_obj = v.sample_obj(&mut rng);
+                for v in &var{
+                    let sample_obj = v.sample_obj(&mut rng).clone();
                     let converted_obj = v.onto_opt(&sample_obj).unwrap();
     
                     assert!(v.domain_obj.is_in(&sample_obj), "Objective sample is not in Obj domain.");
                     assert!(v.domain_opt.is_in(&converted_obj), "Converted objective sample is not in Opt domain.");
-    
+
                     let sample_opt = v.sample_opt(&mut rng);
                     let converted_opt = v.onto_obj(&sample_opt).unwrap();
     
