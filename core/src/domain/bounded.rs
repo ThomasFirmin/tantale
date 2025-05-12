@@ -1,3 +1,32 @@
+//! A [`Bounded`]`<T>` domain defines any domain that can be expressed
+//! by lower and upper bounds. The main struct is [`Bounded`], defined
+//! by a [`RangeInclusive`](std::ops::RangeInclusive). The trait
+//! [`DomainBounded`] allows a more general definition.
+//!
+//! There are 3 type alises :
+//! * [`Real`] for [`Bounded`]`<f64>`
+//!     * For example the learning rate of the gradient descent algorithm, $[0.001, 0.1]$.
+//! * [`Nat`] for [`Bounded`]`<u64>`
+//!     * For example the number of neurons within a layer, $[10, 1000]$.
+//! * [`Int`] for [`Bounded`]`<i64>`
+//!     * Integer hyperparameters (that can be negative) are less common in machine learning.
+//!     * For example, [padding](https://docs.jax.dev/en/latest/_autosummary/jax.lax.pad.html) in [Jax](https://docs.jax.dev/en/latest), $[-5,5]$.
+//! 
+//! # Examples
+//!
+//! ```
+//! use tantale::core::{Bounded, Domain, DomainBounded};
+//! let dom : Bounded<u8> = Bounded::new(0, 255);
+//!
+//! let mut rng = rand::rng();
+//! let sample = dom.sample(&mut rng);
+//! assert!(dom.is_in(&sample));
+//! assert_eq!(dom.lower(), 0);
+//! assert_eq!(dom.upper(), 255);
+//! assert_eq!(dom.mid(), 127);
+//! assert_eq!(dom.width(), 255);
+//! ```
+
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bool::Bool,
@@ -19,6 +48,8 @@ use std::{
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
 
+
+/// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
 pub trait BoundedBounds:
     Num
     + NumCast
@@ -59,7 +90,8 @@ pub trait DomainBounded: Domain {
     fn width(&self) -> Self::TypeDom;
 }
 
-/// A generic [`Bounded`] [`Domain`] with a numerical `lower` and `upper` bounds.
+/// A generic [`Bounded`] [`Domain`] with a numerical `lower` and `upper` bounds, modeled
+/// by a [`RangeInclusive`].
 ///
 /// # Attributes
 /// * `bounds`: [`RangeInclusive`]`<T>` - A [`RangeInclusive`] object of type `<T>`.
@@ -244,7 +276,11 @@ where
     /// The variable $x$ is the item to be mapped.
     /// The mapping is given by mapping item to an index of `values` in [`Cat`]:
     ///
-    /// $$ \texttt{Floor}\Biggl(\frac{x-l_{in}}{u_{in}-l_{in}} \times (\ell_{en}-1)\Biggl) $$
+    /// $$ i = \\left\\lfloor \frac{x-l_{in}}{u_{in}-l_{in}} \times \ell_{en} \\right\\rfloor $$
+    /// $$ \\texttt{index} = \\begin{cases}
+    ///    i & \\text{if } i < \ell_{en} \\\\
+    ///    i -1 & \\text{if } i = \ell_{en}
+    /// \\end{cases} $$
     ///
     /// # Parameters
     ///
@@ -263,7 +299,7 @@ where
             let b: f64 = self.width().as_();
             let c: f64 = target.values().len().as_();
             let idx = (a / b * c) as usize;
-            let idx = idx - idx / 3; // - idx/3 as if idx = 3 -> overflow
+            let idx = if idx == target.values().len(){idx-1}else{idx};
             let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {
@@ -423,8 +459,8 @@ impl From<BaseDom> for Int {
 /// let dom = Real::new(0.0, 10.0);
 ///
 /// let mut rng = rand::rng();
-/// let sampler = dom.default_sampler();
-/// assert!(dom.is_in(&sampler(&dom, &mut rng)));
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
 /// assert_eq!(dom.lower(), 0.0);
 /// assert_eq!(dom.upper(), 10.0);
 /// assert_eq!(dom.mid(), 5.0);
@@ -448,8 +484,8 @@ pub type Real = Bounded<f64>;
 /// let dom = Nat::new(0, 10);
 ///
 /// let mut rng = rand::rng();
-/// let sampler = dom.default_sampler();
-/// assert!(dom.is_in(&sampler(&dom, &mut rng)));
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
 /// assert_eq!(dom.lower(), 0);
 /// assert_eq!(dom.upper(), 10);
 /// assert_eq!(dom.mid(), 5);
@@ -474,8 +510,8 @@ pub type Nat = Bounded<u64>;
 /// let dom = Int::new(0, 10);
 ///
 /// let mut rng = rand::rng();
-/// let sampler = dom.default_sampler();
-/// assert!(dom.is_in(&sampler(&dom, &mut rng)));
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
 /// assert_eq!(dom.lower(), 0);
 /// assert_eq!(dom.upper(), 10);
 /// assert_eq!(dom.mid(), 5);

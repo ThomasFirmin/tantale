@@ -1,3 +1,21 @@
+//! A [`Unit`] domain defines a `f64` [`Domain`] within $[0.0, 1.0]$.
+//! It is similar to [`Bounded`] but with a simplified definition.
+//!
+//! # Examples
+//!
+//! ```
+//! use tantale::core::{Unit, Domain, DomainBounded};
+//! let dom = Unit::new();
+//!
+//! let mut rng = rand::rng();
+//! let sample = dom.sample(&mut rng);
+//! assert!(dom.is_in(&sample));
+//! assert_eq!(dom.lower(), 0.0);
+//! assert_eq!(dom.upper(), 1.0);
+//! assert_eq!(dom.mid(), 0.5);
+//! assert_eq!(dom.width(), 1.0);
+//! ```
+
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bool::Bool,
@@ -14,7 +32,7 @@ use rand::prelude::ThreadRng;
 use std::{fmt, ops::RangeInclusive};
 
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
-/// /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
+/// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
 ///
 pub struct Unit {
     bounds: RangeInclusive<f64>,
@@ -167,7 +185,11 @@ impl Onto<Cat> for Unit {
     /// The variable $x$ is the item to be mapped.
     /// The mapping is given by mapping item to an index of `values` in [`Cat`]:
     ///
-    /// $$ \texttt{Floor}\Biggl(x \times (\ell_{en}-1)\Biggl) $$
+    /// $$ i = \\left\\lfloor x \times \ell_{en} \\right\\rfloor $$
+    /// $$ \\texttt{index} = \\begin{cases}
+    ///    i & \\text{if } i < \ell_{en} \\\\
+    ///    i -1 & \\text{if } i = \ell_{en}
+    /// \\end{cases} $$
     ///
     /// # Parameters
     ///
@@ -185,7 +207,7 @@ impl Onto<Cat> for Unit {
             let a: f64 = item.as_();
             let c: f64 = target.values().len().as_();
             let idx = (a * c) as usize;
-            let idx = idx - idx / 3; // - idx/3 as if idx = 3 -> overflow
+            let idx = if idx == target.values().len(){idx-1}else{idx};
             let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {

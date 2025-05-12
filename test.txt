@@ -1,0 +1,744 @@
+#![feature(prelude_import)]
+#[prelude_import]
+use std::prelude::rust_2021::*;
+#[macro_use]
+extern crate std;
+#[path = "../init_dom.rs"]
+pub mod init_dom {
+    pub use tantale::core::domain::base::{BaseDom, BaseTypeDom};
+    pub use tantale::core::domain::bool::Bool;
+    pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
+    pub use tantale::core::domain::cat::Cat;
+    pub use tantale::core::domain::onto::Onto;
+    pub use tantale::core::domain::unit::Unit;
+    pub use tantale::core::domain::Domain;
+    static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    pub fn get_domain_real() -> Real {
+        return Real::new(0.0, 10.0);
+    }
+    pub fn get_domain_nat() -> Nat {
+        return Nat::new(1, 11);
+    }
+    pub fn get_domain_int() -> Int {
+        return Int::new(0, 10);
+    }
+    pub fn get_domain_bool() -> Bool {
+        return Bool::new();
+    }
+    pub fn get_domain_cat() -> Cat {
+        return Cat::new(&ACTIVATION);
+    }
+    pub fn get_domain_unit() -> Unit {
+        return Unit::new();
+    }
+    pub fn get_domain_real_2() -> Real {
+        return Real::new(80.0, 100.0);
+    }
+    pub fn get_domain_nat_2() -> Nat {
+        return Nat::new(80, 100);
+    }
+    pub fn get_domain_int_2() -> Int {
+        return Int::new(80, 100);
+    }
+    pub fn get_domain_bool_2() -> Bool {
+        return Bool::new();
+    }
+    pub fn get_domain_cat_2() -> Cat {
+        return Cat::new(&ACTIVATION);
+    }
+    pub fn get_domain_unit_2() -> Unit {
+        return Unit::new();
+    }
+    pub fn get_domain_base_real(domain: Real, input: f64) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Real(domain), BaseTypeDom::Real(input));
+    }
+    pub fn get_domain_base_nat(domain: Nat, input: u64) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Nat(domain), BaseTypeDom::Nat(input));
+    }
+    pub fn get_domain_base_int(domain: Int, input: i64) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Int(domain), BaseTypeDom::Int(input));
+    }
+    pub fn get_domain_base_bool(domain: Bool, input: bool) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Bool(domain), BaseTypeDom::Bool(input));
+    }
+    pub fn get_domain_base_cat(
+        domain: Cat,
+        input: &'static str,
+    ) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Cat(domain), BaseTypeDom::Cat(input));
+    }
+    pub fn get_domain_base_unit(domain: Unit, input: f64) -> (BaseDom, BaseTypeDom) {
+        return (BaseDom::Unit(domain), BaseTypeDom::Unit(input));
+    }
+}
+pub mod test_searchspace_creation {
+    mod searchspace {
+        use tantale_core::domain::{Bool, Cat, Nat, Real};
+        use tantale_core::domain::sampler::{uniform_real, uniform_nat, uniform_cat};
+        use tantale_macros::sp;
+        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+        use tantale_core::domain::{Domain, onto::Onto};
+        pub enum _TantaleMixedObj {
+            Cat(Cat),
+            Bool(Bool),
+            Nat(Nat),
+            Real(Real),
+        }
+        impl std::fmt::Display for _TantaleMixedObj {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Bool(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Nat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Real(d) => std::fmt::Display::fmt(&d, f),
+                }
+            }
+        }
+        impl std::fmt::Debug for _TantaleMixedObj {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Bool(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Nat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Real(d) => std::fmt::Display::fmt(&d, f),
+                }
+            }
+        }
+        pub enum _TantaleMixedObjTypeDom {
+            Cat(<Cat as tantale_core::Domain>::TypeDom),
+            Bool(<Bool as tantale_core::Domain>::TypeDom),
+            Nat(<Nat as tantale_core::Domain>::TypeDom),
+            Real(<Real as tantale_core::Domain>::TypeDom),
+        }
+        #[automatically_derived]
+        impl ::core::fmt::Debug for _TantaleMixedObjTypeDom {
+            #[inline]
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                match self {
+                    _TantaleMixedObjTypeDom::Cat(__self_0) => {
+                        ::core::fmt::Formatter::debug_tuple_field1_finish(
+                            f,
+                            "Cat",
+                            &__self_0,
+                        )
+                    }
+                    _TantaleMixedObjTypeDom::Bool(__self_0) => {
+                        ::core::fmt::Formatter::debug_tuple_field1_finish(
+                            f,
+                            "Bool",
+                            &__self_0,
+                        )
+                    }
+                    _TantaleMixedObjTypeDom::Nat(__self_0) => {
+                        ::core::fmt::Formatter::debug_tuple_field1_finish(
+                            f,
+                            "Nat",
+                            &__self_0,
+                        )
+                    }
+                    _TantaleMixedObjTypeDom::Real(__self_0) => {
+                        ::core::fmt::Formatter::debug_tuple_field1_finish(
+                            f,
+                            "Real",
+                            &__self_0,
+                        )
+                    }
+                }
+            }
+        }
+        #[automatically_derived]
+        impl ::core::marker::Copy for _TantaleMixedObjTypeDom {}
+        #[automatically_derived]
+        impl ::core::clone::Clone for _TantaleMixedObjTypeDom {
+            #[inline]
+            fn clone(&self) -> _TantaleMixedObjTypeDom {
+                let _: ::core::clone::AssertParamIsClone<
+                    <Cat as tantale_core::Domain>::TypeDom,
+                >;
+                let _: ::core::clone::AssertParamIsClone<
+                    <Bool as tantale_core::Domain>::TypeDom,
+                >;
+                let _: ::core::clone::AssertParamIsClone<
+                    <Nat as tantale_core::Domain>::TypeDom,
+                >;
+                let _: ::core::clone::AssertParamIsClone<
+                    <Real as tantale_core::Domain>::TypeDom,
+                >;
+                *self
+            }
+        }
+        #[automatically_derived]
+        impl ::core::marker::StructuralPartialEq for _TantaleMixedObjTypeDom {}
+        #[automatically_derived]
+        impl ::core::cmp::PartialEq for _TantaleMixedObjTypeDom {
+            #[inline]
+            fn eq(&self, other: &_TantaleMixedObjTypeDom) -> bool {
+                let __self_discr = ::core::intrinsics::discriminant_value(self);
+                let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+                __self_discr == __arg1_discr
+                    && match (self, other) {
+                        (
+                            _TantaleMixedObjTypeDom::Cat(__self_0),
+                            _TantaleMixedObjTypeDom::Cat(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObjTypeDom::Bool(__self_0),
+                            _TantaleMixedObjTypeDom::Bool(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObjTypeDom::Nat(__self_0),
+                            _TantaleMixedObjTypeDom::Nat(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObjTypeDom::Real(__self_0),
+                            _TantaleMixedObjTypeDom::Real(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        _ => unsafe { ::core::intrinsics::unreachable() }
+                    }
+            }
+        }
+        impl std::fmt::Display for _TantaleMixedObjTypeDom {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Bool(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Nat(d) => std::fmt::Display::fmt(&d, f),
+                    Self::Real(d) => std::fmt::Display::fmt(&d, f),
+                }
+            }
+        }
+        impl tantale_core::Domain for _TantaleMixedObj {
+            type TypeDom = _TantaleMixedObjTypeDom;
+            fn sample(&self, rng: &mut rand::prelude::ThreadRng) -> Self::TypeDom {
+                match self {
+                    Self::Cat(d) => _TantaleMixedObjTypeDom::Cat(d.sample(rng)),
+                    Self::Bool(d) => _TantaleMixedObjTypeDom::Bool(d.sample(rng)),
+                    Self::Nat(d) => _TantaleMixedObjTypeDom::Nat(d.sample(rng)),
+                    Self::Real(d) => _TantaleMixedObjTypeDom::Real(d.sample(rng)),
+                }
+            }
+            fn is_in(&self, item: &Self::TypeDom) -> bool {
+                match self {
+                    Self::Cat(d) => {
+                        match item {
+                            Self::TypeDom::Cat(i) => d.is_in(i),
+                            _ => false,
+                        }
+                    }
+                    Self::Bool(d) => {
+                        match item {
+                            Self::TypeDom::Bool(i) => d.is_in(i),
+                            _ => false,
+                        }
+                    }
+                    Self::Nat(d) => {
+                        match item {
+                            Self::TypeDom::Nat(i) => d.is_in(i),
+                            _ => false,
+                        }
+                    }
+                    Self::Real(d) => {
+                        match item {
+                            Self::TypeDom::Real(i) => d.is_in(i),
+                            _ => false,
+                        }
+                    }
+                }
+            }
+        }
+        impl tantale_core::domain::Mixed for _TantaleMixedObj {}
+        #[automatically_derived]
+        impl ::core::clone::Clone for _TantaleMixedObj {
+            #[inline]
+            fn clone(&self) -> _TantaleMixedObj {
+                match self {
+                    _TantaleMixedObj::Cat(__self_0) => {
+                        _TantaleMixedObj::Cat(::core::clone::Clone::clone(__self_0))
+                    }
+                    _TantaleMixedObj::Bool(__self_0) => {
+                        _TantaleMixedObj::Bool(::core::clone::Clone::clone(__self_0))
+                    }
+                    _TantaleMixedObj::Nat(__self_0) => {
+                        _TantaleMixedObj::Nat(::core::clone::Clone::clone(__self_0))
+                    }
+                    _TantaleMixedObj::Real(__self_0) => {
+                        _TantaleMixedObj::Real(::core::clone::Clone::clone(__self_0))
+                    }
+                }
+            }
+        }
+        #[automatically_derived]
+        impl ::core::marker::StructuralPartialEq for _TantaleMixedObj {}
+        #[automatically_derived]
+        impl ::core::cmp::PartialEq for _TantaleMixedObj {
+            #[inline]
+            fn eq(&self, other: &_TantaleMixedObj) -> bool {
+                let __self_discr = ::core::intrinsics::discriminant_value(self);
+                let __arg1_discr = ::core::intrinsics::discriminant_value(other);
+                __self_discr == __arg1_discr
+                    && match (self, other) {
+                        (
+                            _TantaleMixedObj::Cat(__self_0),
+                            _TantaleMixedObj::Cat(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObj::Bool(__self_0),
+                            _TantaleMixedObj::Bool(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObj::Nat(__self_0),
+                            _TantaleMixedObj::Nat(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        (
+                            _TantaleMixedObj::Real(__self_0),
+                            _TantaleMixedObj::Real(__arg1_0),
+                        ) => __self_0 == __arg1_0,
+                        _ => unsafe { ::core::intrinsics::unreachable() }
+                    }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Bool_default_samp(
+            dom: &_TantaleMixedObj,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom {
+            match dom {
+                _TantaleMixedObj::Bool(d) => {
+                    _TantaleMixedObjTypeDom::Bool(Bool::sample(d, rng))
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while sampling from a mixed domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Real_default_samp(
+            dom: &_TantaleMixedObj,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom {
+            match dom {
+                _TantaleMixedObj::Real(d) => {
+                    _TantaleMixedObjTypeDom::Real(Real::sample(d, rng))
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while sampling from a mixed domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale_Real_Real_uniform_real_samp(
+            dom: &Real,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <Real as tantale_core::domain::Domain>::TypeDom {
+            uniform_real(dom, rng)
+        }
+        pub fn _tantale__TantaleMixedObj_Nat_uniform_nat_samp(
+            dom: &_TantaleMixedObj,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom {
+            match dom {
+                _TantaleMixedObj::Nat(d) => {
+                    _TantaleMixedObjTypeDom::Nat(uniform_nat(d, rng))
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while sampling from a mixed domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Cat_uniform_cat_samp(
+            dom: &_TantaleMixedObj,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom {
+            match dom {
+                _TantaleMixedObj::Cat(d) => {
+                    _TantaleMixedObjTypeDom::Cat(uniform_cat(d, rng))
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while sampling from a mixed domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale_Real_Real_default_samp(
+            dom: &Real,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> <Real as tantale_core::domain::Domain>::TypeDom {
+            <Real as tantale_core::domain::Domain>::sample(dom, rng)
+        }
+        pub fn _tantale_Real_Real_onto__TantaleMixedObj_Bool(
+            indom: &Real,
+            sample: &<Real as tantale_core::domain::Domain>::TypeDom,
+            outdom: &_TantaleMixedObj,
+        ) -> Result<
+            <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match outdom {
+                _TantaleMixedObj::Bool(d) => {
+                    let mapped = Real::onto(indom, sample, d);
+                    match mapped {
+                        Ok(m) => Ok(_TantaleMixedObjTypeDom::Bool(m)),
+                        Err(e) => Err(e),
+                    }
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a domain to a mixed domain. The output domain is of the wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale_Real_Real_onto__TantaleMixedObj_Cat(
+            indom: &Real,
+            sample: &<Real as tantale_core::domain::Domain>::TypeDom,
+            outdom: &_TantaleMixedObj,
+        ) -> Result<
+            <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match outdom {
+                _TantaleMixedObj::Cat(d) => {
+                    let mapped = Real::onto(indom, sample, d);
+                    match mapped {
+                        Ok(m) => Ok(_TantaleMixedObjTypeDom::Cat(m)),
+                        Err(e) => Err(e),
+                    }
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a domain to a mixed domain. The output domain is of the wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Cat_onto_Real_Real(
+            indom: &_TantaleMixedObj,
+            sample: &<_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            outdom: &Real,
+        ) -> Result<
+            <Real as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match indom {
+                _TantaleMixedObj::Cat(d) => {
+                    let i = match sample {
+                        _TantaleMixedObjTypeDom::Cat(i) => i,
+                        _ => {
+                            ::core::panicking::panic_fmt(
+                                format_args!(
+                                    "internal error: entered unreachable code: {0}",
+                                    format_args!(
+                                        "An error occured while mapping an item from a mixed domain to a domain. The input item is of the wrong type.",
+                                    ),
+                                ),
+                            );
+                        }
+                    };
+                    Cat::onto(d, i, outdom)
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a mixed domain to a domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Bool_onto_Real_Real(
+            indom: &_TantaleMixedObj,
+            sample: &<_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            outdom: &Real,
+        ) -> Result<
+            <Real as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match indom {
+                _TantaleMixedObj::Bool(d) => {
+                    let i = match sample {
+                        _TantaleMixedObjTypeDom::Bool(i) => i,
+                        _ => {
+                            ::core::panicking::panic_fmt(
+                                format_args!(
+                                    "internal error: entered unreachable code: {0}",
+                                    format_args!(
+                                        "An error occured while mapping an item from a mixed domain to a domain. The input item is of the wrong type.",
+                                    ),
+                                ),
+                            );
+                        }
+                    };
+                    Bool::onto(d, i, outdom)
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a mixed domain to a domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Nat_onto_Real_Real(
+            indom: &_TantaleMixedObj,
+            sample: &<_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            outdom: &Real,
+        ) -> Result<
+            <Real as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match indom {
+                _TantaleMixedObj::Nat(d) => {
+                    let i = match sample {
+                        _TantaleMixedObjTypeDom::Nat(i) => i,
+                        _ => {
+                            ::core::panicking::panic_fmt(
+                                format_args!(
+                                    "internal error: entered unreachable code: {0}",
+                                    format_args!(
+                                        "An error occured while mapping an item from a mixed domain to a domain. The input item is of the wrong type.",
+                                    ),
+                                ),
+                            );
+                        }
+                    };
+                    Nat::onto(d, i, outdom)
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a mixed domain to a domain. The mixed variant is of wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale__TantaleMixedObj_Real_onto_Real_Real(
+            indom: &_TantaleMixedObj,
+            sample: &<_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            outdom: &Real,
+        ) -> Result<
+            <Real as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            let cloned = sample.clone();
+            match cloned {
+                Real::Real(s) => Ok(s),
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "The input sample is of the wrong type in a mixed onto mixed (single) function.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn _tantale_Real_Real_onto__TantaleMixedObj_Real(
+            indom: &Real,
+            sample: &<Real as tantale_core::domain::Domain>::TypeDom,
+            outdom: &_TantaleMixedObj,
+        ) -> Result<
+            <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            let cloned = sample.clone();
+            Ok(Real::Real(cloned))
+        }
+        pub fn _tantale_Real_Real_onto__TantaleMixedObj_Nat(
+            indom: &Real,
+            sample: &<Real as tantale_core::domain::Domain>::TypeDom,
+            outdom: &_TantaleMixedObj,
+        ) -> Result<
+            <_TantaleMixedObj as tantale_core::domain::Domain>::TypeDom,
+            tantale_core::domain::derrors::DomainError,
+        > {
+            match outdom {
+                _TantaleMixedObj::Nat(d) => {
+                    let mapped = Real::onto(indom, sample, d);
+                    match mapped {
+                        Ok(m) => Ok(_TantaleMixedObjTypeDom::Nat(m)),
+                        Err(e) => Err(e),
+                    }
+                }
+                _ => {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "internal error: entered unreachable code: {0}",
+                            format_args!(
+                                "An error occured while mapping an item from a domain to a mixed domain. The output domain is of the wrong type.",
+                            ),
+                        ),
+                    );
+                }
+            }
+        }
+        pub fn get_searchpace() -> Vec<
+            tantale_core::variable::var::Var<_TantaleMixedObj, Real>,
+        > {
+            pub use tantale_core::domain::{Onto, Domain};
+            let mut variables: Vec<
+                tantale_core::variable::var::Var<_TantaleMixedObj, Real>,
+            > = Vec::new();
+            variables
+                .push({
+                    let var = tantale_core::variable::var::Var {
+                        name: ("a", None),
+                        domain_obj: std::rc::Rc::new(
+                            _TantaleMixedObj::Real(Real::new(0.0, 1.0)),
+                        ),
+                        domain_opt: std::rc::Rc::new(Real::new(0.0, 1.0)),
+                        sampler_obj: _tantale__TantaleMixedObj_Real_default_samp,
+                        sampler_opt: _tantale_Real_Real_default_samp,
+                        onto_obj_fn: _tantale_Real_Real_onto__TantaleMixedObj_Real,
+                        onto_opt_fn: _tantale__TantaleMixedObj_Real_onto_Real_Real,
+                    };
+                    var
+                });
+            variables
+                .push({
+                    let var = tantale_core::variable::var::Var {
+                        name: ("b", None),
+                        domain_obj: std::rc::Rc::new(
+                            _TantaleMixedObj::Nat(Nat::new(0, 100)),
+                        ),
+                        domain_opt: std::rc::Rc::new(Real::new(0.0, 1.0)),
+                        sampler_obj: _tantale__TantaleMixedObj_Nat_uniform_nat_samp,
+                        sampler_opt: _tantale_Real_Real_uniform_real_samp,
+                        onto_obj_fn: _tantale_Real_Real_onto__TantaleMixedObj_Nat,
+                        onto_opt_fn: _tantale__TantaleMixedObj_Nat_onto_Real_Real,
+                    };
+                    var
+                });
+            variables
+                .push({
+                    let var = tantale_core::variable::var::Var {
+                        name: ("c", None),
+                        domain_obj: std::rc::Rc::new(
+                            _TantaleMixedObj::Cat(Cat::new(&ACTIVATION)),
+                        ),
+                        domain_opt: std::rc::Rc::new(Real::new(0.0, 1.0)),
+                        sampler_obj: _tantale__TantaleMixedObj_Cat_uniform_cat_samp,
+                        sampler_opt: _tantale_Real_Real_uniform_real_samp,
+                        onto_obj_fn: _tantale_Real_Real_onto__TantaleMixedObj_Cat,
+                        onto_opt_fn: _tantale__TantaleMixedObj_Cat_onto_Real_Real,
+                    };
+                    var
+                });
+            variables
+                .push({
+                    let var = tantale_core::variable::var::Var {
+                        name: ("d", None),
+                        domain_obj: std::rc::Rc::new(
+                            _TantaleMixedObj::Bool(Bool::new()),
+                        ),
+                        domain_opt: std::rc::Rc::new(Real::new(0.0, 1.0)),
+                        sampler_obj: _tantale__TantaleMixedObj_Bool_default_samp,
+                        sampler_opt: _tantale_Real_Real_default_samp,
+                        onto_obj_fn: _tantale_Real_Real_onto__TantaleMixedObj_Bool,
+                        onto_opt_fn: _tantale__TantaleMixedObj_Bool_onto_Real_Real,
+                    };
+                    var
+                });
+            variables
+        }
+    }
+    extern crate test;
+    #[cfg(test)]
+    #[rustc_test_marker = "test_searchspace_creation::create_mixed_searchspace"]
+    #[doc(hidden)]
+    pub const create_mixed_searchspace: test::TestDescAndFn = test::TestDescAndFn {
+        desc: test::TestDesc {
+            name: test::StaticTestName(
+                "test_searchspace_creation::create_mixed_searchspace",
+            ),
+            ignore: false,
+            ignore_message: ::core::option::Option::None,
+            source_file: "tests/test_searchspace/test_searchspace_creation.rs",
+            start_line: 17usize,
+            start_col: 4usize,
+            end_line: 17usize,
+            end_col: 28usize,
+            compile_fail: false,
+            no_run: false,
+            should_panic: test::ShouldPanic::No,
+            test_type: test::TestType::Unknown,
+        },
+        testfn: test::StaticTestFn(
+            #[coverage(off)]
+            || test::assert_test_result(create_mixed_searchspace()),
+        ),
+    };
+    fn create_mixed_searchspace() {
+        let var = searchspace::get_searchpace();
+        for v in var {
+            let mut rng = rand::rng();
+            let sample_obj = v.sample_obj(&mut rng);
+            let converted_obj = v.onto_opt(&sample_obj).unwrap();
+            {
+                ::std::io::_print(
+                    format_args!("OBJ {0} => OPT {1}\n", sample_obj, converted_obj),
+                );
+            };
+            let sample_opt = v.sample_opt(&mut rng);
+            let converted_opt = v.onto_obj(&sample_opt).unwrap();
+            {
+                ::std::io::_print(
+                    format_args!("OPT {0} => OBJ {1}\n\n", sample_opt, converted_opt),
+                );
+            };
+        }
+    }
+}
+#[rustc_main]
+#[coverage(off)]
+#[doc(hidden)]
+pub fn main() -> () {
+    extern crate test;
+    test::test_main_static(&[&create_mixed_searchspace])
+}

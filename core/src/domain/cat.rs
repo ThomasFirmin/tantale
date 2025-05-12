@@ -1,3 +1,23 @@
+//! A [`Cat`] domain defines a domain that is made of categorical
+//! and non ordinal features.
+//! For example, let's take the [activation function](https://en.wikipedia.org/w/index.php?title=Activation_function&oldid=1287429111),
+//! of a neural network, the features can be `["relu", "tanh", "sigmoid"]`.
+//! 
+//! # Examples
+//!
+//! ```
+//! use tantale::core::{Cat,Domain};
+//! 
+//! static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
+//!
+//! let mut rng = rand::rng();
+//! let check = ["relu", "tanh", "sigmoid"];
+//! let dom = Cat::new(&ACTIVATION);
+//!
+//! let sample = dom.sample(&mut rng);
+//! assert!(dom.is_in(&sample));
+//! assert_eq!(dom.values(), &check);
+
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bounded::{Bounded, BoundedBounds, DomainBounded},
@@ -16,27 +36,13 @@ use std::fmt;
 // Categorical domain
 
 /// Describes a non-ordinal categorical domain. It is made of features,
-/// described by the private attribute `values`, an [`array`] of strings.
+/// described by the private attribute `values`, an [`array`] of [`str`].
 /// Each elements describes a unique feature.
 /// The values can be accessed by the corresponding getter `values()`.
 ///
 /// # Attributes
 ///
-///  * `values` : `[&'a str; N]` - An array of the features defining the categorical [`Domain`].
-///
-/// # Examples
-///
-/// ```
-/// use tantale::core::{Cat,Domain};
-///
-/// let mut rng = rand::rng();
-/// let activation = ["relu", "tanh", "sigmoid"];
-/// let check = ["relu", "tanh", "sigmoid"];
-/// let dom = Cat::new(&activation);
-///
-/// let sampler = dom.default_sampler();
-/// assert!(dom.is_in(&sampler(&dom, &mut rng)));
-/// assert_eq!(dom.values(), &check);
+///  * `values` : `[&'static str; N]` - A static array of the features defining the categorical [`Domain`].
 /// ```
 #[derive(Clone, Copy)]
 pub struct Cat {
@@ -47,7 +53,7 @@ impl Cat {
     ///
     /// # Attributes
     ///
-    ///  * `values` : `[&'a str; N]` - An array of the features defining the categorical [`Domain`].
+    ///  * `values` : `[&'static str; N]` - A static array of the features defining the categorical [`Domain`].
     ///
     pub fn new(values: &'static [&'static str]) -> Cat {
         Cat { values }
@@ -58,14 +64,14 @@ impl Cat {
     }
 }
 
-impl<'a> PartialEq for Cat {
+impl PartialEq for Cat {
     fn eq(&self, other: &Self) -> bool {
         self.values() == other.values()
     }
 }
 
-impl<'a> Domain for Cat {
-    /// The type of a point within the domain is a `&'a str`, i.e. a pointer to a `str` from the `values`.
+impl Domain for Cat {
+    /// The type of a point within the domain is a `&'static str`, i.e. a pointer to a `str` from the `values`.
     type TypeDom = &'static str;
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
@@ -87,18 +93,22 @@ impl<'a> Domain for Cat {
     /// use tantale::core::{Cat,Domain};
     ///
     /// let mut rng = rand::rng();
-    /// let activation = ["relu", "tanh", "sigmoid"];
-    /// let cat_1 = Cat::new(&activation);
-    ///
-    /// let sampler = cat_1.default_sampler();
-    /// assert!(cat_1.is_in(&sampler(&cat_1, &mut rng)));
+    /// static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// 
+    /// let mut rng = rand::rng();
+    /// let check = ["relu", "tanh", "sigmoid"];
+    /// let dom = Cat::new(&ACTIVATION);
+    /// 
+    /// let sample = dom.sample(&mut rng);
+    /// assert!(dom.is_in(&sample));
+    /// assert_eq!(dom.values(), &check);
     ///
     fn is_in(&self, point: &Self::TypeDom) -> bool {
         self.values.contains(point)
     }
 }
 
-impl<'a> fmt::Display for Cat {
+impl fmt::Display for Cat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let vsize = self.values.len() - 1;
         write!(f, "{{")?;
@@ -109,7 +119,7 @@ impl<'a> fmt::Display for Cat {
     }
 }
 
-impl<'a> fmt::Debug for Cat {
+impl fmt::Debug for Cat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let vsize = self.values.len() - 1;
         write!(f, "{{")?;
@@ -120,7 +130,7 @@ impl<'a> fmt::Debug for Cat {
     }
 }
 
-impl<'a, Out> Onto<Bounded<Out>> for Cat
+impl<Out> Onto<Bounded<Out>> for Cat
 where
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
@@ -133,7 +143,7 @@ where
     ///
     /// The mapping is given by :
     ///
-    /// $$ \frac{i}{\ell_{en}-1} \time (u_{out}-l_{out}) + l_{out} $$
+    /// $$ \frac{i+1}{\ell_{en}} \time (u_{out}-l_{out}) + l_{out} $$
     ///
     /// # Parameters
     ///
@@ -177,14 +187,14 @@ where
     }
 }
 
-impl<'a> Onto<Unit> for Cat {
+impl Onto<Unit> for Cat {
     /// [`Onto`] function between a [`Cat`] and a [`Unit`] [`Domain`].
     ///
     /// Considering $i$ the index of the item within `values` of [`Cat`]
     /// and $\ell_{en}$ the length of `values` of the [`Cat`] [`Domain`].
     /// The mapping is given by :
     ///
-    /// $$ \frac{i}{\ell_{en}-1} $$
+    /// $$ \frac{i+1}{\ell_{en}} $$
     ///
     /// # Parameters
     ///
@@ -231,7 +241,7 @@ impl Onto<BaseDom> for Cat {
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
+    /// * `target` : `&`[`BaseDom`]`<N,T>` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///

@@ -2,6 +2,7 @@
 //!
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
+
 pub mod domain;
 pub use domain::Bool;
 pub use domain::Cat;
@@ -14,13 +15,21 @@ pub use domain::{Bounded, DomainBounded, Int, Nat, Real};
 pub use domain::{DomainBoundariesError, DomainError, DomainOoBError};
 
 pub mod errors;
+
+
 pub mod objective;
 pub use crate::objective::Objective;
+
+
 pub mod optimizer;
 pub use crate::optimizer::Optimizer;
+
+
 pub mod variable;
-// pub use crate::core::variable::Variable;
-pub mod element;
+pub use variable::var::Var;
+
+
 pub mod solution;
-// pub use crate::core::solution::Solution;
+
+
 pub mod searchspace;

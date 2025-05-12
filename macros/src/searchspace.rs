@@ -113,7 +113,6 @@ fn token_to_domain(input: TokenStream) -> syn::Result<(Ident, Option<ExprRange>,
     let parts: Vec<proc_macro2::TokenStream> = input_str
         .split("|")
         .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
         .map(|s| s.parse().unwrap())
         .collect();
 
@@ -148,34 +147,8 @@ fn token_to_domain(input: TokenStream) -> syn::Result<(Ident, Option<ExprRange>,
         let optstream: DomainStream = parse2(opt)?;
 
         Ok((ident, range, objstream, Some(optstream)))
-    } else if parts.len() == 2 {
-        let ident_part = parts[0].clone();
-
-        // PARSE IDENT AND OPTIONAL RANGE
-        let identifier:Identifier = parse2(ident_part)?;
-
-        let obj = parts[1].clone();
-        let objspan = obj.span();
-        
-        let ident = identifier.id;
-        let range = identifier.range;
-        let objstream: DomainStream = parse2(obj)?;
-
-        if objstream.args.is_none() {
-            return Err(syn::Error::new(objspan, "The Objective domain cannot be empty.\n\
-                Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
-                `name | Objective part | Optimizer part ;`\n\
-                with: \n\
-                the Objective part made of:\n\
-                `Type(args:expr) Optional(=> sampler:expr)`\n\
-                the Optimizer part made of:\n\
-                `Optional(Type(args:expr)) => sampler:expr)`\n\
-                where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
-                "));
-        }
-
-        Ok((ident, range, objstream, None))
-    } else {
+    } 
+    else {
         return Err(syn::Error::new(span, "A line cannot be empty.\n\
                 Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
                 `name | Objective part | Optimizer part ;`\n\
@@ -301,6 +274,12 @@ fn wrap_mixed_onto_simple_single(mixedt_in: Ident, simple: Ident) -> proc_macro2
             #mixedt_in :: #simple (s) => Ok(s),
             _ => unreachable!("The input sample is of the wrong type in a mixed onto mixed (single) function."),
         }
+    }
+}
+
+fn wrap_same_onto_same() -> proc_macro2::TokenStream {
+    quote! {
+        Ok(sample.clone())
     }
 }
 
@@ -505,6 +484,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     let ident_mixed_opt = Ident::new(&ident_mixed_opt_str, Span::call_site());
     let ident_mixedt_opt = Ident::new(&ident_mixedt_opt_str, Span::call_site());
 
+    let are_same = ident_mixed_obj == ident_mixed_opt;
+
     let mut wrappedvarinfo = Vec::new();
 
     let mut hashsamp = std::collections::HashMap::new();
@@ -542,125 +523,113 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             wrapped_sampobj = quote! {#sampler_obj (dom,rng)};
         }
 
-        // OPT PART
-        if single {
-            if is_mixedopt {
-                wrapped_domopt = quote! {#ident_mixed_opt :: #ty_opt ( #ty_opt :: new #args_opt )};
-                wrapped_sampopt = wrap_sampler_mixed(
-                    ident_mixed_opt.clone(),
-                    ident_mixedt_opt.clone(),
-                    ty_opt.clone(),
-                    sampler_opt.clone(),
-                );
-
-                if is_mixedobj {
-                    wrapped_onto_opt = wrap_mixed_onto_mixed_single(
-                        ident_mixedt_obj.clone(),
-                        ty_obj.clone(),
-                        ident_mixedt_opt.clone(),
-                    );
-                    wrapped_onto_obj = wrap_mixed_onto_mixed_single(
-                        ident_mixedt_opt.clone(),
-                        ty_obj.clone(),
-                        ident_mixedt_obj.clone(),
-                    );
-                } else {
-                    wrapped_onto_opt =
-                        wrap_simple_onto_mixed_single(ident_mixedt_opt.clone(), ty_obj.clone());
-                    wrapped_onto_obj =
-                        wrap_mixed_onto_simple_single(ident_mixedt_opt.clone(), ty_obj.clone());
-                }
-            } else {
-                wrapped_domopt = quote! {};
-                wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
-
-                wrapped_onto_opt = quote! {Ok(sample.clone())};
-                wrapped_onto_obj = quote! {Ok(sample.clone())};
-            }
+        if is_mixedopt {
+            wrapped_domopt = quote! {#ident_mixed_opt :: #ty_opt ( #ty_opt :: new #args_opt )};
+            wrapped_sampopt = wrap_sampler_mixed(
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_opt.clone(),
+                sampler_opt.clone(),
+            );
         } else {
-            if is_mixedopt {
-                wrapped_domopt = quote! {#ident_mixed_opt :: #ty_opt ( #ty_opt :: new #args_opt )};
-
-                if is_mixedobj {
-                    // MIXED OBJ -> MIXED OPT
-                    wrapped_onto_opt = wrap_mixed_onto_mixed(
-                        ident_mixed_obj.clone(),
-                        ident_mixedt_obj.clone(),
-                        ty_obj.clone(),
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_opt.clone(),
-                    );
-                    // MIXED OPT -> MIXED OBJ
-                    wrapped_onto_obj = wrap_mixed_onto_mixed(
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_opt.clone(),
-                        ident_mixed_obj.clone(),
-                        ident_mixedt_obj.clone(),
-                        ty_obj.clone(),
-                    );
-                    wrapped_sampopt = wrap_sampler_mixed(
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_opt.clone(),
-                        sampler_opt.clone(),
-                    );
-                } else {
-
-                    // SINGLE OBJ -> MIXED OPT
-                    wrapped_onto_opt = wrap_simple_onto_mixed(
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_obj.clone(),
-                        ty_opt.clone(),
-                    );
-                    // MIXED OPT -> SINGLE OBJ
-                    wrapped_onto_obj = wrap_mixed_onto_simple(
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_opt.clone(),
-                    );
-                    wrapped_sampopt = wrap_sampler_mixed(
-                        ident_mixed_opt.clone(),
-                        ident_mixedt_opt.clone(),
-                        ty_opt.clone(),
-                        sampler_opt.clone(),
-                    );
-                }
-            } else {
-                wrapped_domopt = quote! { #ty_opt :: new #args_opt };
-
-                if is_mixedobj {
-                    // MIXED OBJ -> SINGLE OPT
-                    wrapped_onto_opt = wrap_mixed_onto_simple(
-                        ident_mixed_obj.clone(),
-                        ident_mixedt_obj.clone(),
-                        ty_obj.clone(),
-                    );
-                    // SINGLE OPT -> MIXED OBJ
-                    wrapped_onto_obj = wrap_simple_onto_mixed(
-                        ident_mixed_obj.clone(),
-                        ident_mixedt_obj.clone(),
-                        ty_opt.clone(),
-                        ty_obj.clone(),
-                    );
-                    wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
-                } else {
-                    wrapped_onto_opt = quote! {#ty_obj ::onto (indom, sample, outdom)};
-                    wrapped_onto_obj = quote! {#ty_opt ::onto (indom, sample, outdom)};
-                    wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
-                }
-            }
+            wrapped_domopt = quote! { #ty_opt :: new #args_opt };
+            wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
         }
 
+        if are_same{
+            wrapped_onto_opt = wrap_same_onto_same();
+            wrapped_onto_obj = wrap_same_onto_same();
+        }
+        else if single 
+        {
+            if is_mixedobj && is_mixedopt {
+                wrapped_onto_opt = wrap_mixed_onto_mixed_single(
+                    ident_mixedt_obj.clone(),
+                    ty_obj.clone(),
+                    ident_mixedt_opt.clone(),
+                );
+                wrapped_onto_obj = wrap_mixed_onto_mixed_single(
+                    ident_mixedt_opt.clone(),
+                    ty_obj.clone(),
+                    ident_mixedt_obj.clone(),
+                );
+            } else if is_mixedobj{
+                // SINGLE OPT => MIXED OBJ
+                wrapped_onto_obj =
+                    wrap_simple_onto_mixed_single(ident_mixedt_obj.clone(), ty_obj.clone());
+                // MIXED OBJ => SINGLE OPT
+                wrapped_onto_opt =
+                    wrap_mixed_onto_simple_single(ident_mixedt_obj.clone(), ty_obj.clone());
+            }else{
+                wrapped_onto_opt =
+                    wrap_simple_onto_mixed_single(ident_mixedt_opt.clone(), ty_opt.clone());
+                wrapped_onto_obj =
+                    wrap_mixed_onto_simple_single(ident_mixedt_opt.clone(), ty_opt.clone());
+            }
+
+        } 
+        else if is_mixedopt && is_mixedobj {
+            // MIXED OBJ -> MIXED OPT
+            wrapped_onto_opt = wrap_mixed_onto_mixed(
+                ident_mixed_obj.clone(),
+                ident_mixedt_obj.clone(),
+                ty_obj.clone(),
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_opt.clone(),
+            );
+            // MIXED OPT -> MIXED OBJ
+            wrapped_onto_obj = wrap_mixed_onto_mixed(
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_opt.clone(),
+                ident_mixed_obj.clone(),
+                ident_mixedt_obj.clone(),
+                ty_obj.clone(),
+            );
+        } 
+        else if is_mixedobj{
+            // MIXED OBJ -> SINGLE OPT
+            wrapped_onto_opt = wrap_mixed_onto_simple(
+                ident_mixed_obj.clone(),
+                ident_mixedt_obj.clone(),
+                ty_obj.clone(),
+            );
+            // SINGLE OPT -> MIXED OBJ
+            wrapped_onto_obj = wrap_simple_onto_mixed(
+                ident_mixed_obj.clone(),
+                ident_mixedt_obj.clone(),
+                ty_opt.clone(),
+                ty_obj.clone(),
+            );
+        }
+        else if is_mixedopt {
+            // SINGLE OBJ -> MIXED OPT
+            wrapped_onto_opt = wrap_simple_onto_mixed(
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_obj.clone(),
+                ty_opt.clone(),
+            );
+            // MIXED OPT -> SINGLE OBJ
+            wrapped_onto_obj = wrap_mixed_onto_simple(
+                ident_mixed_opt.clone(),
+                ident_mixedt_opt.clone(),
+                ty_opt.clone(),
+            );
+        }
+        else
+        {        
+            wrapped_onto_opt = quote! {#ty_obj ::onto (indom, sample, outdom)};
+            wrapped_onto_obj = quote! {#ty_opt ::onto (indom, sample, outdom)};
+        }
 
         // OBJ SAMP-ONTO TOKENS
         let sampobj_name = format!("_tantale_{}_{}_{}_samp",ident_mixed_obj_str.to_string(), ty_obj, sampobj_name);
         let token_sampobj = proc_macro2::TokenStream::from_str(&sampobj_name).unwrap();
         hashsamp.insert(sampobj_name, (wrapped_sampobj,ident_mixed_obj.clone()));
 
-        let ontoopt_name = format!("_tantale_{}_{}_onto_{}_{}_samp",ident_mixed_obj_str.to_string(), ty_obj, ident_mixed_opt_str.to_string(), ty_opt);
+        let ontoopt_name = format!("_tantale_{}_{}_onto_{}_{}",ident_mixed_obj_str.to_string(), ty_obj, ident_mixed_opt_str.to_string(), ty_opt);
         let token_onto_opt = proc_macro2::TokenStream::from_str(&ontoopt_name).unwrap();
         hashonto.insert(ontoopt_name, (wrapped_onto_opt,ident_mixed_obj.clone(), ident_mixed_opt.clone()));
 
@@ -670,7 +639,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let token_sampopt = proc_macro2::TokenStream::from_str(&sampopt_name).unwrap();
         hashsamp.insert(sampopt_name, (wrapped_sampopt,ident_mixed_opt.clone()));
 
-        let ontoobj_name = format!("_tantale_{}_{}_onto_{}_{}_samp",ident_mixed_opt_str.to_string(),ty_opt, ident_mixed_obj_str.to_string(), ty_obj);
+        let ontoobj_name = format!("_tantale_{}_{}_onto_{}_{}",ident_mixed_opt_str.to_string(),ty_opt, ident_mixed_obj_str.to_string(), ty_obj);
         let token_onto_obj = proc_macro2::TokenStream::from_str(&ontoobj_name).unwrap();
         hashonto.insert(ontoobj_name, (wrapped_onto_obj,ident_mixed_opt.clone(), ident_mixed_obj.clone()));
 
@@ -702,42 +671,6 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         }
     );
 
-    // for wrapped in &wrappedvarinfo{
-
-    //     let name = wrapped.name.to_string();
-    //     let domobj = (&wrapped.wrapped_domobj).clone();
-    //     let domopt = (&wrapped.wrapped_domopt).clone();
-    //     let sampler_obj= (&wrapped.wrapped_sampobj).clone();
-    //     let sampler_opt= (&wrapped.wrapped_sampopt).clone();
-    //     let onto_obj= (&wrapped.wrapped_onto_obj).clone();
-    //     let onto_opt= (&wrapped.wrapped_onto_opt).clone();
-    //     let single = wrapped.single;
-
-    //     println!(
-    //         "name : {},
-    //         domobj : {},
-    //         domopt : {},
-    //         sampler_obj : {},
-    //         sampler_opt : {},
-    //         onto_opt : {},
-    //         onto_obj : {},
-    //         single : {},
-    //         is_mixedobj : {},
-    //         is_mixedopt : {}",
-    //         name,
-    //         domobj.to_string(),
-    //         domopt.to_string(),
-    //         sampler_obj.to_string(),
-    //         sampler_opt.to_string(),
-    //         onto_opt.to_string(),
-    //         onto_obj.to_string(),
-    //         single,
-    //         is_mixedobj,
-    //         is_mixedopt,
-    //     );
-
-    // }
-
     for wrapped in wrappedvarinfo {
         let name = wrapped.name.to_string();
         let repeats = wrapped.range;
@@ -750,7 +683,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let single = wrapped.single;
 
         // If domain only defined on left : name | Obj | ;
-        if single && !is_mixedopt{
+        if single && are_same{
             let var_statement = quote! {
                 let domobj_rc = std::rc::Rc::new( #domobj );
                 let var = tantale_core::variable::var::Var{
@@ -759,8 +692,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                     domain_opt : domobj_rc,
                     sampler_obj : #sampler_obj ,
                     sampler_opt : #sampler_opt ,
-                    _onto_obj_fn : #onto_obj,
-                    _onto_opt_fn : #onto_opt,
+                    onto_obj_fn : #onto_obj,
+                    onto_opt_fn : #onto_opt,
                 };
                 var
             };
@@ -785,8 +718,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                     domain_opt : std::rc::Rc::new( #domopt ),
                     sampler_obj : #sampler_obj ,
                     sampler_opt : #sampler_opt ,
-                    _onto_obj_fn : #onto_obj,
-                    _onto_opt_fn : #onto_opt,
+                    onto_obj_fn : #onto_obj,
+                    onto_opt_fn : #onto_opt,
                 };
                 var
             };

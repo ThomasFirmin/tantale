@@ -36,12 +36,12 @@
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
 /// use tantale::core::variable::Var;
-/// use tantale::var;
+/// use tantale::core::var;
 ///
 /// let domobj = Real::new(0.0, 10.0);
 /// let variable = var!("a" ; obj | domobj);
 ///
-/// assert_eq!(variable.name,"a");
+/// assert_eq!(variable.name,("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
@@ -66,13 +66,13 @@
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
 /// use tantale::core::variable::Var;
-/// use tantale::var;
+/// use tantale::core::var;
 ///
 /// let domobj = Real::new(80.0, 100.0);
 /// let domopt = Real::new(0.0, 1.0);
 /// let variable = var!("a" ; obj | domobj ; opt | domopt);
 ///
-/// assert_eq!(variable.name,"a");
+/// assert_eq!(variable.name,("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
@@ -98,12 +98,12 @@
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
 /// use tantale::core::variable::Var;
 /// use tantale::core::domain::sampler::uniform_real;
-/// use tantale::var;
+/// use tantale::core::var;
 ///
 /// let domobj = Real::new(80.0, 100.0);
 /// let variable = var!("a" ; obj | domobj => uniform_real);
 ///
-/// assert_eq!(variable.name,"a");
+/// assert_eq!(variable.name,("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
@@ -125,9 +125,9 @@
 /// - All possibilities
 /// ```
 /// use tantale::core::domain::{Real, Int, Domain, DomainBounded};
-/// /// use tantale::core::variable::Var;
+/// use tantale::core::variable::Var;
 /// use tantale::core::domain::sampler::{uniform_real,uniform_int};
-/// use tantale::var;
+/// use tantale::core::var;
 ///
 /// let domobj = Int::new(0, 100);
 /// let variable = var!("a" ; obj | domobj);

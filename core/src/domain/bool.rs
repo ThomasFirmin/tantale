@@ -1,3 +1,19 @@
+//! A [`Bounded`] domain defines a binary where values are in ${\texttt{false}, \texttt{true}}$.
+//! For example, the `amsgrad` parameter of the [Adam](https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html#torch.optim.Adam)
+//! optimizer in [Pytorch](https://pytorch.org/).
+//! 
+//! # Example
+//!
+//! ```
+//! use tantale::core::{Bool, Domain};
+//!
+//! let mut rng = rand::rng();
+//! let dom = Bool::new();
+//!
+//! let sample = dom.sample(&mut rng);
+//! assert!(dom.is_in(&sample));
+//! ```
+
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bounded::{Bounded, DomainBounded},
@@ -25,8 +41,8 @@ use std::fmt::{self, Debug, Display};
 /// let dom = Bool::new();
 ///
 /// let mut rng = rand::rng();
-/// let sampler = dom.default_sampler();
-/// assert!(dom.is_in(&sampler(&dom, &mut rng)));
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
 /// ```
 #[derive(Clone, Copy)]
 pub struct Bool;
@@ -68,8 +84,8 @@ impl Domain for Bool {
     /// let mut rng = rand::rng();
     /// let dom = Bool::new();
     ///
-    /// let sampler = dom.default_sampler();
-    /// assert!(dom.is_in(&sampler(&dom, &mut rng)));
+    /// let sample = dom.sample(&mut rng);
+    /// assert!(dom.is_in(&sample));
     /// ```
     ///
     fn is_in(&self, _point: &Self::TypeDom) -> bool {

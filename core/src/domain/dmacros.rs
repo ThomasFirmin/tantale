@@ -6,7 +6,7 @@ macro_rules! mixed_sampler {
             fn [<_tantale_wrapped_ $sampler>]<'a>(
                 domain: &$crate::domain::base::BaseDom,
                 rng: &mut rand::prelude::ThreadRng) ->
-                <$crate::domain::base::BaseDom as $crate::domain::Domain>::TypeDom<'a>
+                <$crate::domain::base::BaseDom as $crate::domain::Domain>::TypeDom
             {
                 if let $crate::domain::base::BaseDom::$type(d) = domain{
                     $crate::domain::base::BaseTypeDom::$type($sampler(&d,rng))

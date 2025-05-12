@@ -9,27 +9,38 @@ where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
-    fn get_variables(&self) -> Vec<Var<Obj, Opt>>;
     fn onto_obj(&self, item: Solution<Obj>) -> Solution<Opt>;
     fn onto_opt(&self, item: Solution<Opt>) -> Solution<Obj>;
     fn sample_obj(&self) -> Solution<Obj>;
     fn sample_opt(&self) -> Solution<Opt>;
 }
 
-pub struct SearchspaceSingle<Obj>
+pub struct Sp<Obj, Opt=Obj>
 where
     Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
 {
-    pub variables: Var<Obj>,
+    pub variables: Vec<Var<Obj, Opt>>,
 }
 
-#[macro_export]
-macro_rules! sp {
-    // Defining both objective and optimizer domains
-    // Defining both samplers
-    ($($x:expr),+) => {{
-        use $crate::core::searchspace::{SearchspaceMixed, Searchspace};
-        type sptype = ($($x),+)
-        SearchspaceMixed([$($x),+])
-    }};
+impl <Obj,Opt> Searchspace<Obj,Opt> for Sp<Obj,Opt>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+{
+    fn onto_obj(&self, item: Solution<Obj>) -> Solution<Opt> {
+        todo!()
+    }
+
+    fn onto_opt(&self, item: Solution<Opt>) -> Solution<Obj> {
+        todo!()
+    }
+
+    fn sample_obj(&self) -> Solution<Obj> {
+        todo!()
+    }
+
+    fn sample_opt(&self) -> Solution<Opt> {
+        todo!()
+    }
 }

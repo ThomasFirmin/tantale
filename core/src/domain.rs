@@ -1,22 +1,45 @@
-#[doc(alias = "Domain")]
-/// # Domain
-/// This crate describes what a domain of a variable is.
-/// Most of the domains implements the [`Domain`] type trait [`TypeDom`].
-/// It gives the type of a point within this domain.
-/// Domains are use in [`crate::core::variable::Variable`] to define the type of the variable,
-/// its `TypeObjective` and `TypeOptimizer`, repectively the input type of that variable within
-/// the [`crate::core::objective:Objective`] function, and the input type of the
-/// [`crate::core::optimizer::Optimizer`].
-///
+//! # Domain
+//! This module describes what a domain of a variable is.
+//! Most of the domains implements the [`Domain`] type trait [`TypeDom`](Domain::TypeDom).
+//! It defines the type of a point sampled within this [`Domain`].
+//! [`Domains`](Domain) are used in [`Variable`](crate::variable::var::Var) to define the type of the variable for the
+//! [`Objective`](crate::objective::Objective) and the [`Optimizer`](crate::optimizer::Optimizer)
+//! [`Solutions`](crate::solution::Solution).
+//! Each [`Domain`] has an associated type [`TypeDom`](Domain::TypeDom), allowing to define the type of
+//! a single element from a [`Solution`](crate::solution::Solution). 
+
+#[cfg(doc)]
+use crate::objective::Objective;
+#[cfg(doc)]
+use crate::optimizer::Optimizer;
+#[cfg(doc)]
+use crate::variable::var::Var;
+#[cfg(doc)]
+use crate::solution::Solution;
+
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
-/// It must implement the `default_sampler` and `is_in` methods.
+/// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
+/// 
+/// # Notes
+/// 
+/// A [`Domain`] should always have a [`::new(...)->Self`] method.
+/// This method is used in the [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
 pub trait Domain: Sized + PartialEq {
+
+    /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
+    /// from the [`Domain`]. This is one of the main component defining
+    /// most of the typing within the library.
     type TypeDom: PartialEq + Clone + Copy + Display + Debug;
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
+    /// 
+    /// # Parameters
+    /// 
+    /// * `rng` : `&mut`[`ThreadRng`](rand::prelude::ThreadRng) - The RNG from [`rand`].
+    /// 
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom;
     /// Returns `true` if a given borrowed `point` is in the domain. Otherwise returns `false`.
     ///
@@ -27,31 +50,11 @@ pub trait Domain: Sized + PartialEq {
     fn is_in(&self, point: &Self::TypeDom) -> bool;
 }
 
-/// Empty function to statically check [`Onto`] trait between [`Domains`](Domain).
-/// It is applied, before they are wrapped into a [`BaseDom`], where relationships can be lost.
-/// For example, mapping a [`Cat`] -> [`Cat`], is not relevant (see Notes). And this statically verified
-/// property can be lost when two [`Cat`] are wrapped into a [`BaseDom`].
-///
-/// # Notes
-///
-/// Some mapping can be irrelevant.
-/// If the [`Objective`] requires a [`Cat`], and the [`Optimizer`] can handle [`Cat`],
-/// then no mapping should be required.
-/// Mapping `["a", "b", "c"]` ([`Objective`]) to `["d", "e", "f"] ([`Optimizer`]),
-/// is no relevant. If the [`Optimizer`] can handle a [`Cat`] defined by `["a", "b", "c"]`,
-/// it should also be able to handle a [`Cat`] defined by `["d", "e", "f"]`.
-/// The same goes for [`Bool`]. There is no need to map a [`Bool`] onto another [`Bool`].
-/// Or mapping a [`Cat`] onto a [`Bool`], as defining a mapping between a nominal and bool is not
-/// straightforward.
-///
-pub fn _check_onto<Obj, Opt>(_obj: &Obj, _opt: &Opt)
-where
-    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
-    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
-{
-}
-
+/// [`Mixed`] trait defines a [`Domain`] which can be made of other [`Domains`](Domain).
+/// For example an `enum` of [`Domains`](Domain).
+/// This trait is mainly used by the derive macro [`#[derive(Mixed)]`](../../../tantale/derive.Mixed.html).
 pub trait Mixed: Domain {}
+
 
 pub mod bounded;
 pub use bounded::{Bounded, DomainBounded, Int, Nat, Real};

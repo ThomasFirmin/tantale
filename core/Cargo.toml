@@ -10,3 +10,6 @@ rand = "0.9.0"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
+
+[dev-dependencies]
+tantale = { path = "../", package = "tantale" }
