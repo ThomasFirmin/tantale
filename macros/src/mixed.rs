@@ -31,7 +31,8 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         })
         .map(|field| field.unwrap())
         .collect();
-
+    let def_field = fields.first().unwrap();
+    
     quote! {
 
         // DEFINITION OF MIXED DOMAIN
@@ -57,6 +58,11 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[derive(std::fmt::Debug, std::marker::Copy, std::clone::Clone, std::cmp::PartialEq)]
         pub enum #tident #egenerics #ewhere {
             #(#idents(<#fields as tantale_core::Domain>::TypeDom)),*
+        }
+        impl #egenerics std::default::Default for #tident #egenerics #ewhere{
+            fn default() -> Self {
+                #tident::#def_field(<#def_field as tantale_core::Domain>::TypeDom::default())
+            }
         }
 
         impl #egenerics std::fmt::Display for #tident #egenerics #ewhere{

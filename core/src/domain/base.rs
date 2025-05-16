@@ -76,6 +76,12 @@ impl Display for BaseTypeDom {
         }
     }
 }
+impl Default for BaseTypeDom{
+    fn default() -> Self {
+        BaseTypeDom::Real(<Real as Domain>::TypeDom::default())
+    }
+}
+
 
 impl Domain for BaseDom {
     type TypeDom = BaseTypeDom;

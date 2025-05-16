@@ -1,0 +1,14 @@
+[package]
+name = "tantale_test_suite"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tantale = { path = "../", features=["par"]}
+tantale_core = { path = "../core", features=["par"]}
+tantale_macros = { path = "../macros"}
+paste = "1.0.15"
+rand = "0.9.0"
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", "katex-header.html"]

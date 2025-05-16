@@ -14,7 +14,7 @@ fn mixed_derive(){
         Cat(Cat),
         Unit(Unit),
     }
-
+    
     let v1 = Real::new(0.0,1.0);
     let v2 = Int::new(0,1);
     let v3 = Nat::new(0,1);

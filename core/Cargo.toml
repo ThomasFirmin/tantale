@@ -7,6 +7,10 @@ edition = "2021"
 num = "0.4.3"
 paste = "1.0.15"
 rand = "0.9.0"
+rayon = {version = "1.10.0", optional=true}
+
+[features]
+par = ["dep:rayon"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]

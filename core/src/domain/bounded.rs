@@ -61,6 +61,7 @@ pub trait BoundedBounds:
     + AsPrimitive<f64>
     + Display
     + Debug
+    + Default
 {
 }
 impl<T> BoundedBounds for T where
@@ -74,6 +75,7 @@ impl<T> BoundedBounds for T where
         + AsPrimitive<f64>
         + Display
         + Debug
+        + Default
 {
 }
 

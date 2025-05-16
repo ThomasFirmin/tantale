@@ -26,10 +26,10 @@
 //!        },
 //!     variable::var::Var,
 //! };
-//! use std::rc::Rc;
+//! use std::sync::Arc;
 //! 
-//! let dom_obj = Rc::new(Real::new(0.0,100.0));
-//! let dom_opt = Rc::new(Unit::new());
+//! let dom_obj = Arc::new(Real::new(0.0,100.0));
+//! let dom_opt = Arc::new(Unit::new());
 //! let v = Var{
 //!     name : ("a", None),
 //!     domain_obj : dom_obj,
@@ -68,7 +68,7 @@ use crate::domain::{derrors::DomainError, onto::Onto, Domain};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Describes a [`Var`] with an [`Objective`] [`Domain`]  and an [`Optimizer`] [`Domain`].
 ///
@@ -79,8 +79,8 @@ where
     Opt: Domain + Clone + Display + Debug,
 {
     pub name: (&'static str, Option<usize>), // NAME + SUFFIX
-    pub domain_obj: Rc<Obj>,
-    pub domain_opt: Rc<Opt>,
+    pub domain_obj: Arc<Obj>,
+    pub domain_opt: Arc<Opt>,
     pub sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
     pub sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
     pub onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
@@ -111,7 +111,7 @@ where
     ///
     /// * `name` : `&'a str` - Name of the Var.
     /// The name of the Var, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : [`Rc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
+    /// * `domobj` : [`Arc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
     /// The [`Domain`] of the [`Objective`] [`Domain`].
     /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
     /// An optional sampler function for the [`Objective`] [`Domain`].
@@ -122,7 +122,7 @@ where
     ///
     pub fn new_single(
         name: &'static str,
-        domobj: Rc<Obj>,
+        domobj: Arc<Obj>,
         sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
         sampopt: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
     ) -> Var<Obj> {
@@ -152,9 +152,9 @@ where
     ///
     /// * `name` : `&'a str` - Name of the Var.
     /// The name of the Var, mostly used for saving, or pass a point as a keyword.
-    /// * `domobj` : [`Rc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
+    /// * `domobj` : [`Arc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
     /// The [`Domain`] of the [`Objective`] [`Domain`].
-    /// * `domopt` : [`Rc`]`<Opt>` - Accessible via the method [`domain_opt()`](Var::domain_opt).
+    /// * `domopt` : [`Arc`]`<Opt>` - Accessible via the method [`domain_opt()`](Var::domain_opt).
     /// The [`Domain`] of the [`Optimizer`] [`Domain`].
     /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
     /// An optional sampler function for the [`Objective`] [`Domain`].
@@ -165,8 +165,8 @@ where
     ///
     pub fn new_double(
         name: &'static str,
-        domobj: Rc<Obj>,
-        domopt: Rc<Opt>,
+        domobj: Arc<Obj>,
+        domopt: Arc<Opt>,
         sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
         sampopt: Option<fn(&Opt, &mut ThreadRng) -> <Opt as Domain>::TypeDom>,
     ) -> Var<Obj, Opt> {

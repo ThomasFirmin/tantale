@@ -685,7 +685,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         // If domain only defined on left : name | Obj | ;
         if single && are_same{
             let var_statement = quote! {
-                let domobj_rc = std::rc::Rc::new( #domobj );
+                let domobj_rc = std::sync::Arc::new( #domobj );
                 let var = tantale_core::variable::var::Var{
                     name : (#name , None),
                     domain_obj : domobj_rc.clone(),
@@ -714,8 +714,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             let var_statement = quote! {
                 let var = tantale_core::variable::var::Var{
                     name : (#name , None),
-                    domain_obj : std::rc::Rc::new( #domobj ),
-                    domain_opt : std::rc::Rc::new( #domopt ),
+                    domain_obj : std::sync::Arc::new( #domobj ),
+                    domain_opt : std::sync::Arc::new( #domopt ),
                     sampler_obj : #sampler_obj ,
                     sampler_opt : #sampler_opt ,
                     onto_obj_fn : #onto_obj,

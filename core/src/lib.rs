@@ -30,6 +30,6 @@ pub use variable::var::Var;
 
 
 pub mod solution;
-
+pub use solution::Solution;
 
 pub mod searchspace;

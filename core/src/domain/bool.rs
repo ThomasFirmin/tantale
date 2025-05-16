@@ -16,7 +16,7 @@
 
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
-    bounded::{Bounded, DomainBounded},
+    bounded::{Bounded, DomainBounded, BoundedBounds},
     derrors::{DomainError, DomainOoBError},
     onto::Onto,
     sampler::uniform_bool,
@@ -25,9 +25,8 @@ use crate::domain::{
 };
 
 use num::cast::AsPrimitive;
-use num::{Num, NumCast};
-use rand::{distr::uniform::SampleUniform, rngs::ThreadRng};
-use std::fmt::{self, Debug, Display};
+use rand::rngs::ThreadRng;
+use std::fmt;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
@@ -105,15 +104,7 @@ impl fmt::Debug for Bool {
 
 impl<Out> Onto<Bounded<Out>> for Bool
 where
-    Out: Num
-        + NumCast
-        + PartialEq
-        + PartialOrd
-        + Clone
-        + SampleUniform
-        + AsPrimitive<f64>
-        + Display
-        + Debug,
+    Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].

@@ -164,8 +164,8 @@ macro_rules! var {
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            std::rc::Rc::new($domopt),
+            std::sync::Arc::new($domobj),
+            std::sync::Arc::new($domopt),
             Some($sampobj),
             Some($sampopt),
         )
@@ -174,8 +174,8 @@ macro_rules! var {
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            std::rc::Rc::new($domopt),
+            std::sync::Arc::new($domobj),
+            std::sync::Arc::new($domopt),
             Some($sampobj),
             None,
         )
@@ -184,8 +184,8 @@ macro_rules! var {
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            std::rc::Rc::new($domopt),
+            std::sync::Arc::new($domobj),
+            std::sync::Arc::new($domopt),
             None,
             Some($sampopt),
         )
@@ -194,8 +194,8 @@ macro_rules! var {
     ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
-            std::rc::Rc::new($domobj),
-            std::rc::Rc::new($domopt),
+            std::sync::Arc::new($domobj),
+            std::sync::Arc::new($domopt),
             None,
             None,
         )
@@ -206,21 +206,21 @@ macro_rules! var {
     ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | => $sampopt:expr) => {{
         $crate::variable::Var::new_single(
             $name,
-            std::rc::Rc::new($domobj),
+            std::sync::Arc::new($domobj),
             Some($sampobj),
             Some($sampopt),
         )
     }};
     // Solely defining objective sampler
     ($name:literal ; obj | $domobj:expr => $sampobj:expr) => {{
-        $crate::variable::Var::new_single($name, std::rc::Rc::new($domobj), Some($sampobj), None)
+        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), Some($sampobj), None)
     }};
     // Solely defining optimizer sampler
     ($name:literal ;  obj | $domobj:expr ; opt | => $sampopt:expr) => {{
-        $crate::variable::Var::new_single($name, std::rc::Rc::new($domobj), None, Some($sampopt))
+        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, Some($sampopt))
     }};
     // No sampler
     ($name:literal ; obj | $domobj:expr) => {{
-        $crate::variable::Var::new_single($name, std::rc::Rc::new($domobj), None, None)
+        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, None)
     }};
 }
