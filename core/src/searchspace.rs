@@ -2,7 +2,6 @@ use crate::domain::Domain;
 use crate::solution::Solution;
 use crate::variable::Var;
 
-use std::sync::Arc;
 use std::fmt::{Debug, Display};
 use rand::prelude::ThreadRng;
 
@@ -42,7 +41,7 @@ where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
-    pub variables: Vec<Arc<Var<Obj, Opt>>>,
+    pub variables: Vec<Var<Obj, Opt>>,
 }
 
 impl <const N : usize, Obj,Opt> Searchspace<N, Obj,Opt> for Sp<N, Obj,Opt>

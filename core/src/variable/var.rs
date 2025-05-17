@@ -245,7 +245,7 @@ where
     pub fn sample_opt(&self, rng: &mut ThreadRng) -> <Opt as Domain>::TypeDom {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
-    pub fn replicate(&self, range: std::ops::Range<usize>) -> Vec<Arc<Self>> {
+    pub fn replicate(&self, range: std::ops::Range<usize>) -> Vec<Self> {
         let mut vec = Vec::new();
         for i in range {
             let var = Self::_new_full_private(
@@ -256,7 +256,7 @@ where
                 self.sampler_opt,
                 self.onto_obj_fn,
                 self.onto_opt_fn);
-            vec.push(Arc::new(var));
+            vec.push(var);
         }
         vec
     }

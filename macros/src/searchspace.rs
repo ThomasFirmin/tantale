@@ -706,7 +706,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     let mut push_statements = Vec::new();
     push_statements.push(
         quote! {
-            let mut variables : Vec<std::sync::Arc<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >>> = Vec::new();
+            let mut variables : Vec<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
         }
     );
 
@@ -731,7 +731,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 let sampler_opt = #sampler_opt;
                 let onto_obj = #onto_obj;
                 let onto_opt = #onto_opt;
-                let var = std::sync::Arc::new(tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt));
+                let var = tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
                 var
             };
             push_statements.push(match repeats {
@@ -752,7 +752,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 let sampler_opt = #sampler_opt;
                 let onto_obj = #onto_obj;
                 let onto_opt = #onto_opt;
-                let var = std::sync::Arc::new(tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt));
+                let var = tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
                 var
             };
             push_statements.push(match repeats {
@@ -805,7 +805,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         #(#onto_functions)*
 
-        pub fn get_searchpace()->Vec<std::sync::Arc<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>>
+        pub fn get_searchpace()->Vec<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>
         {
             pub use tantale_core::domain::{Onto,Domain};
 
