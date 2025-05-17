@@ -6,40 +6,39 @@
 //! [`Objective`](crate::objective::Objective) and the [`Optimizer`](crate::optimizer::Optimizer)
 //! [`Solutions`](crate::solution::Solution).
 //! Each [`Domain`] has an associated type [`TypeDom`](Domain::TypeDom), allowing to define the type of
-//! a single element from a [`Solution`](crate::solution::Solution). 
+//! a single element from a [`Solution`](crate::solution::Solution).
 
 #[cfg(doc)]
 use crate::objective::Objective;
 #[cfg(doc)]
 use crate::optimizer::Optimizer;
 #[cfg(doc)]
-use crate::variable::var::Var;
-#[cfg(doc)]
 use crate::solution::Solution;
+#[cfg(doc)]
+use crate::variable::var::Var;
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
-/// 
+///
 /// # Notes
-/// 
+///
 /// A [`Domain`] should always have a [`::new(...)->Self`] method.
 /// This method is used in the [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
 pub trait Domain: Sized + PartialEq {
-
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
     type TypeDom: PartialEq + Clone + Copy + Display + Debug + Default;
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// * `rng` : `&mut`[`ThreadRng`](rand::prelude::ThreadRng) - The RNG from [`rand`].
-    /// 
+    ///
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom;
     /// Returns `true` if a given borrowed `point` is in the domain. Otherwise returns `false`.
     ///
@@ -54,7 +53,6 @@ pub trait Domain: Sized + PartialEq {
 /// For example an `enum` of [`Domains`](Domain).
 /// This trait is mainly used by the derive macro [`#[derive(Mixed)]`](../../../tantale/derive.Mixed.html).
 pub trait Mixed: Domain {}
-
 
 pub mod bounded;
 pub use bounded::{Bounded, DomainBounded, Int, Nat, Real};

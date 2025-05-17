@@ -1,16 +1,16 @@
 //! This module defines some basic samplers for [`Domains`](Domain) following this template:
 //! ```rust,ignore
 //! fn(&D, &mut ThreadRng) -> D::TypeDom
-//! where 
-    //! D: Domain + Clone + Display + Debug
+//! where
+//! D: Domain + Clone + Display + Debug
 //! ```
-//! 
+//!
 //! # Examples
 //!
 //! ```
 //! use tantale::core::{Real, Domain};
 //! use tantale::core::uniform_real;
-//! 
+//!
 //! let dom = Real::new(0.0, 10.0);
 //!
 //! let mut rng = rand::rng();

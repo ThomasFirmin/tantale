@@ -32,7 +32,7 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|field| field.unwrap())
         .collect();
     let def_field = fields.first().unwrap();
-    
+
     quote! {
 
         // DEFINITION OF MIXED DOMAIN

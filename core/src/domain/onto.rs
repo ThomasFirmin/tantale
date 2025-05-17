@@ -2,7 +2,7 @@
 //! onto an output [`Domain`]. For example, mapping $0.5 \in [0.0, 1.0]$ to $[0.0,100.0]$, $f(0.5)=50.0$.
 //! Or mapping an [`Int`](crate::domain::Int) sample onto a [`Cat`](crate::domain::Cat) value, $1 \in [0,2]$ to `["relu", "tanh", "sigmoid"]`,
 //! $f(1) = \texttt{"tanh"}$.
-//! 
+//!
 //! # Examples
 //!
 //! ```

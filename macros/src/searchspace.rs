@@ -83,30 +83,29 @@ impl Parse for Identifier {
         };
 
         let range;
-        if input.peek(syn::token::Brace){
+        if input.peek(syn::token::Brace) {
             let rcontent;
             braced!(rcontent in input);
             range = match rcontent.parse::<ExprRange>() {
                 Ok(expr) => Some(expr),
                 _ => return Err(syn::Error::new(span,"Unknown expression. In sp!, a line should start be the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
             };
-        }
-        else
-        {
+        } else {
             range = None;
         }
-        
 
         Ok(Identifier {
-            id:ident,
-            range:range,
+            id: ident,
+            range: range,
         })
     }
 }
 
 // Parse a line name | Type(args) => sampler | Type(args) => sampler
 // into an Ident, DomainStream(Obj), DomainStram(Opt)
-fn token_to_domain(input: TokenStream) -> syn::Result<(Ident, Option<ExprRange>, DomainStream, Option<DomainStream>)> {
+fn token_to_domain(
+    input: TokenStream,
+) -> syn::Result<(Ident, Option<ExprRange>, DomainStream, Option<DomainStream>)> {
     let input_str = input.to_string();
     let span = input_str.span();
 
@@ -120,7 +119,7 @@ fn token_to_domain(input: TokenStream) -> syn::Result<(Ident, Option<ExprRange>,
         let ident_part = parts[0].clone();
 
         // PARSE IDENT AND OPTIONAL RANGE
-        let identifier:Identifier = parse2(ident_part)?;
+        let identifier: Identifier = parse2(ident_part)?;
 
         let obj = parts[1].clone();
         let objspan = obj.span();
@@ -147,8 +146,7 @@ fn token_to_domain(input: TokenStream) -> syn::Result<(Ident, Option<ExprRange>,
         let optstream: DomainStream = parse2(opt)?;
 
         Ok((ident, range, objstream, Some(optstream)))
-    } 
-    else {
+    } else {
         return Err(syn::Error::new(span, "A line cannot be empty.\n\
                 Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
                 `name | Objective part | Optimizer part ;`\n\
@@ -289,11 +287,11 @@ struct VarInfo {
     ty_obj: Ident,
     args_obj: Expr,
     sampler_obj: proc_macro2::TokenStream,
-    sampobj_name :String,
+    sampobj_name: String,
     ty_opt: Ident,
     args_opt: Expr,
     sampler_opt: proc_macro2::TokenStream,
-    sampopt_name :String,
+    sampopt_name: String,
     single: bool,
 }
 struct WrappedVarInfo {
@@ -346,10 +344,16 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         }
 
         let obj_ty = objstream.ty.unwrap();
-        let obj_samp_name:String;
+        let obj_samp_name: String;
         let obj_samp = match objstream.sampler {
-            Some(s) => {obj_samp_name=s.to_string() ; s.to_token_stream()},
-            None => {obj_samp_name=String::from("default") ; quote! {#obj_ty ::sample}},
+            Some(s) => {
+                obj_samp_name = s.to_string();
+                s.to_token_stream()
+            }
+            None => {
+                obj_samp_name = String::from("default");
+                quote! {#obj_ty ::sample}
+            }
         };
 
         // Extract Opt domain information
@@ -384,10 +388,19 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let opt_samp_name;
         let opt_samp = match &optstream {
             Some(stream) => match stream.sampler.clone() {
-                Some(s) => {opt_samp_name=s.to_string() ; s.to_token_stream()},
-                None => {opt_samp_name=String::from("default") ; quote! {< #opt_ty as tantale_core::domain::Domain>::sample}},
+                Some(s) => {
+                    opt_samp_name = s.to_string();
+                    s.to_token_stream()
+                }
+                None => {
+                    opt_samp_name = String::from("default");
+                    quote! {< #opt_ty as tantale_core::domain::Domain>::sample}
+                }
             },
-            None => {opt_samp_name=String::from("default") ; quote! {< #opt_ty as tantale_core::domain::Domain>::sample}},
+            None => {
+                opt_samp_name = String::from("default");
+                quote! {< #opt_ty as tantale_core::domain::Domain>::sample}
+            }
         };
 
         // Push everything into vectors
@@ -404,7 +417,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             ty_opt: opt_ty,
             args_opt: opt_args,
             sampler_opt: opt_samp,
-            sampopt_name:opt_samp_name,
+            sampopt_name: opt_samp_name,
             single,
         };
         varinfo.push(varinfostruct);
@@ -536,12 +549,10 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
         }
 
-        if are_same{
+        if are_same {
             wrapped_onto_opt = wrap_same_onto_same();
             wrapped_onto_obj = wrap_same_onto_same();
-        }
-        else if single 
-        {
+        } else if single {
             if is_mixedobj && is_mixedopt {
                 wrapped_onto_opt = wrap_mixed_onto_mixed_single(
                     ident_mixedt_obj.clone(),
@@ -553,22 +564,20 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                     ty_obj.clone(),
                     ident_mixedt_obj.clone(),
                 );
-            } else if is_mixedobj{
+            } else if is_mixedobj {
                 // SINGLE OPT => MIXED OBJ
                 wrapped_onto_obj =
                     wrap_simple_onto_mixed_single(ident_mixedt_obj.clone(), ty_obj.clone());
                 // MIXED OBJ => SINGLE OPT
                 wrapped_onto_opt =
                     wrap_mixed_onto_simple_single(ident_mixedt_obj.clone(), ty_obj.clone());
-            }else{
+            } else {
                 wrapped_onto_opt =
                     wrap_simple_onto_mixed_single(ident_mixedt_opt.clone(), ty_opt.clone());
                 wrapped_onto_obj =
                     wrap_mixed_onto_simple_single(ident_mixedt_opt.clone(), ty_opt.clone());
             }
-
-        } 
-        else if is_mixedopt && is_mixedobj {
+        } else if is_mixedopt && is_mixedobj {
             // MIXED OBJ -> MIXED OPT
             wrapped_onto_opt = wrap_mixed_onto_mixed(
                 ident_mixed_obj.clone(),
@@ -587,8 +596,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 ident_mixedt_obj.clone(),
                 ty_obj.clone(),
             );
-        } 
-        else if is_mixedobj{
+        } else if is_mixedobj {
             // MIXED OBJ -> SINGLE OPT
             wrapped_onto_opt = wrap_mixed_onto_simple(
                 ident_mixed_obj.clone(),
@@ -602,8 +610,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 ty_opt.clone(),
                 ty_obj.clone(),
             );
-        }
-        else if is_mixedopt {
+        } else if is_mixedopt {
             // SINGLE OBJ -> MIXED OPT
             wrapped_onto_opt = wrap_simple_onto_mixed(
                 ident_mixed_opt.clone(),
@@ -617,42 +624,74 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 ident_mixedt_opt.clone(),
                 ty_opt.clone(),
             );
-        }
-        else
-        {        
+        } else {
             wrapped_onto_opt = quote! {#ty_obj ::onto (indom, sample, outdom)};
             wrapped_onto_obj = quote! {#ty_opt ::onto (indom, sample, outdom)};
         }
 
         // OBJ SAMP-ONTO TOKENS
-        let sampobj_name = format!("_tantale_{}_{}_{}_samp",ident_mixed_obj_str.to_string(), ty_obj, sampobj_name);
+        let sampobj_name = format!(
+            "_tantale_{}_{}_{}_samp",
+            ident_mixed_obj_str.to_string(),
+            ty_obj,
+            sampobj_name
+        );
         let token_sampobj = proc_macro2::TokenStream::from_str(&sampobj_name).unwrap();
-        hashsamp.insert(sampobj_name, (wrapped_sampobj,ident_mixed_obj.clone()));
+        hashsamp.insert(sampobj_name, (wrapped_sampobj, ident_mixed_obj.clone()));
 
-        let ontoopt_name = format!("_tantale_{}_{}_onto_{}_{}",ident_mixed_obj_str.to_string(), ty_obj, ident_mixed_opt_str.to_string(), ty_opt);
+        let ontoopt_name = format!(
+            "_tantale_{}_{}_onto_{}_{}",
+            ident_mixed_obj_str.to_string(),
+            ty_obj,
+            ident_mixed_opt_str.to_string(),
+            ty_opt
+        );
         let token_onto_opt = proc_macro2::TokenStream::from_str(&ontoopt_name).unwrap();
-        hashonto.insert(ontoopt_name, (wrapped_onto_opt,ident_mixed_obj.clone(), ident_mixed_opt.clone()));
-
+        hashonto.insert(
+            ontoopt_name,
+            (
+                wrapped_onto_opt,
+                ident_mixed_obj.clone(),
+                ident_mixed_opt.clone(),
+            ),
+        );
 
         // OPT SAMP-ONTO TOKENS
-        let sampopt_name = format!("_tantale_{}_{}_{}_samp",ident_mixed_opt_str.to_string(), ty_opt, sampopt_name);
+        let sampopt_name = format!(
+            "_tantale_{}_{}_{}_samp",
+            ident_mixed_opt_str.to_string(),
+            ty_opt,
+            sampopt_name
+        );
         let token_sampopt = proc_macro2::TokenStream::from_str(&sampopt_name).unwrap();
-        hashsamp.insert(sampopt_name, (wrapped_sampopt,ident_mixed_opt.clone()));
+        hashsamp.insert(sampopt_name, (wrapped_sampopt, ident_mixed_opt.clone()));
 
-        let ontoobj_name = format!("_tantale_{}_{}_onto_{}_{}",ident_mixed_opt_str.to_string(),ty_opt, ident_mixed_obj_str.to_string(), ty_obj);
+        let ontoobj_name = format!(
+            "_tantale_{}_{}_onto_{}_{}",
+            ident_mixed_opt_str.to_string(),
+            ty_opt,
+            ident_mixed_obj_str.to_string(),
+            ty_obj
+        );
         let token_onto_obj = proc_macro2::TokenStream::from_str(&ontoobj_name).unwrap();
-        hashonto.insert(ontoobj_name, (wrapped_onto_obj,ident_mixed_opt.clone(), ident_mixed_obj.clone()));
+        hashonto.insert(
+            ontoobj_name,
+            (
+                wrapped_onto_obj,
+                ident_mixed_opt.clone(),
+                ident_mixed_obj.clone(),
+            ),
+        );
 
-
-        let range = match vinf.range{
-            Some(expr)=> Some(expr.to_token_stream()),
+        let range = match vinf.range {
+            Some(expr) => Some(expr.to_token_stream()),
             None => None,
         };
 
         // WRAP EVERYTHING
         let wrapvarinfo = WrappedVarInfo {
             name: vinf.name.to_string(),
-            range : range,
+            range: range,
             wrapped_domobj,
             token_sampobj,
             token_onto_opt,
@@ -667,7 +706,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     let mut push_statements = Vec::new();
     push_statements.push(
         quote! {
-            let mut variables : Vec<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
+            let mut variables : Vec<std::sync::Arc<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >>> = Vec::new();
         }
     );
 
@@ -683,62 +722,53 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let single = wrapped.single;
 
         // If domain only defined on left : name | Obj | ;
-        if single && are_same{
+        if single && are_same {
             let var_statement = quote! {
+                let name = (#name , None);
                 let domobj_rc = std::sync::Arc::new( #domobj );
-                let var = tantale_core::variable::var::Var{
-                    name : (#name , None),
-                    domain_obj : domobj_rc.clone(),
-                    domain_opt : domobj_rc,
-                    sampler_obj : #sampler_obj ,
-                    sampler_opt : #sampler_opt ,
-                    onto_obj_fn : #onto_obj,
-                    onto_opt_fn : #onto_opt,
-                };
+                let domopt_rc = domobj_rc.clone();
+                let sampler_obj = #sampler_obj;
+                let sampler_opt = #sampler_opt;
+                let onto_obj = #onto_obj;
+                let onto_opt = #onto_opt;
+                let var = std::sync::Arc::new(tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt));
                 var
             };
-            push_statements.push(
-                match repeats{
-                    None => quote! {
-                        variables.push({ #var_statement });
-                    },
-                    Some(r) => quote!{
-                        let mut replicates = { #var_statement }.replicate(#r);
-                        variables.append(&mut replicates);
-                    }
-                }
-            );
-        }
-        else 
-        {
+            push_statements.push(match repeats {
+                None => quote! {
+                    variables.push({ #var_statement });
+                },
+                Some(r) => quote! {
+                    let mut replicates = { #var_statement }.replicate(#r);
+                    variables.append(&mut replicates);
+                },
+            });
+        } else {
             let var_statement = quote! {
-                let var = tantale_core::variable::var::Var{
-                    name : (#name , None),
-                    domain_obj : std::sync::Arc::new( #domobj ),
-                    domain_opt : std::sync::Arc::new( #domopt ),
-                    sampler_obj : #sampler_obj ,
-                    sampler_opt : #sampler_opt ,
-                    onto_obj_fn : #onto_obj,
-                    onto_opt_fn : #onto_opt,
-                };
+                let name = (#name , None);
+                let domobj_rc = std::sync::Arc::new( #domobj );
+                let domopt_rc = std::sync::Arc::new( #domopt );
+                let sampler_obj = #sampler_obj;
+                let sampler_opt = #sampler_opt;
+                let onto_obj = #onto_obj;
+                let onto_opt = #onto_opt;
+                let var = std::sync::Arc::new(tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt));
                 var
             };
-            push_statements.push(
-                match repeats{
-                    None => quote! {
-                        variables.push({ #var_statement });
-                    },
-                    Some(r) => quote!{
-                        let mut replicates = { #var_statement }.replicate(#r);
-                        variables.append(&mut replicates);
-                    }
-                }
-            );
+            push_statements.push(match repeats {
+                None => quote! {
+                    variables.push({ #var_statement });
+                },
+                Some(r) => quote! {
+                    let mut replicates = { #var_statement }.replicate(#r);
+                    variables.append(&mut replicates);
+                },
+            });
         }
     }
 
     let mut sampler_functions = Vec::new();
-    for (name, (wrapped, ty)) in hashsamp{
+    for (name, (wrapped, ty)) in hashsamp {
         let token_name = Ident::new(name.as_str(), Span::call_site());
         sampler_functions.push(
             quote! {
@@ -751,7 +781,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     }
 
     let mut onto_functions = Vec::new();
-    for (name, (wrapped, ty_in, ty_out)) in hashonto{
+    for (name, (wrapped, ty_in, ty_out)) in hashonto {
         let token_name = Ident::new(name.as_str(), Span::call_site());
         onto_functions.push(
             quote! {
@@ -762,8 +792,6 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             }
         );
     }
-
-
 
     Ok(quote!{
 
@@ -777,7 +805,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         #(#onto_functions)*
 
-        pub fn get_searchpace()->Vec<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>
+        pub fn get_searchpace()->Vec<std::sync::Arc<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>>
         {
             pub use tantale_core::domain::{Onto,Domain};
 

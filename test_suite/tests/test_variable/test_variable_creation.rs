@@ -16,17 +16,17 @@ where
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.name, ("a", None), "Error in variable name.");
+    assert_eq!(item.get_name(), ("a", None), "Error in variable name.");
 
-    let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
+    let random_obj = (item.get_sampler_obj())(&item.get_domain_obj(), &mut rng);
     assert!(
-        item.domain_obj.is_in(&random_obj),
+        item.get_domain_obj().is_in(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.sampler_opt)(&item.domain_opt, &mut rng);
+    let random_opt = (item.get_sampler_opt())(&item.get_domain_opt(), &mut rng);
     assert!(
-        item.domain_opt.is_in(&random_opt),
+        item.get_domain_opt().is_in(&random_opt),
         "Error in `is_in` for optimizer."
     );
 }
@@ -36,17 +36,17 @@ where
     Obj: Domain + Clone + Display + Debug,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.name, ("a", None), "Error in variable name.");
+    assert_eq!(item.get_name(), ("a", None), "Error in variable name.");
 
-    let random_obj = (item.sampler_obj)(&item.domain_obj, &mut rng);
+    let random_obj = (item.get_sampler_obj())(&item.get_domain_obj(), &mut rng);
     assert!(
-        item.domain_obj.is_in(&random_obj),
+        item.get_domain_obj().is_in(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.sampler_opt)(&item.domain_opt, &mut rng);
+    let random_opt = (item.get_sampler_opt())(&item.get_domain_opt(), &mut rng);
     assert!(
-        item.domain_opt.is_in(&random_opt),
+        item.get_domain_opt().is_in(&random_opt),
         "Error in `is_in` for optimizer."
     );
 }

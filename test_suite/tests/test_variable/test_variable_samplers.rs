@@ -18,15 +18,15 @@ macro_rules! get_variable {
                 let variable = var!("a" ; obj | domobj ; opt | domopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -39,15 +39,15 @@ macro_rules! get_variable {
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -60,15 +60,15 @@ macro_rules! get_variable {
                 let variable = var!("a" ; obj | domobj ; opt | domopt => sopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -82,15 +82,15 @@ macro_rules! get_variable {
                 let variable = var!("a" ; obj | domobj => sobj ; opt | domopt => sopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -134,15 +134,15 @@ macro_rules! get_variable_single {
                 let variable = var!("a" ; obj | domobj);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -154,15 +154,15 @@ macro_rules! get_variable_single {
                 let variable = var!("a" ; obj | domobj => sobj);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -174,15 +174,15 @@ macro_rules! get_variable_single {
                 let variable = var!("a" ; obj | domobj ; opt | => sopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }
@@ -195,15 +195,15 @@ macro_rules! get_variable_single {
                 let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
 
                 let mut rng = rand::rng();
-                let sample_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
+                let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
                 assert!(
-                    variable.domain_obj.is_in(&sample_obj),
+                    variable.get_domain_obj().is_in(&sample_obj),
                     "Error while sampling with the default sampler of obj."
                 );
 
-                let sample_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
+                let sample_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
                 assert!(
-                    variable.domain_opt.is_in(&sample_opt),
+                    variable.get_domain_opt().is_in(&sample_opt),
                     "Error while sampling with the default sampler of opt."
                 );
             }

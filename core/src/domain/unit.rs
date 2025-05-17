@@ -207,7 +207,11 @@ impl Onto<Cat> for Unit {
             let a: f64 = item.as_();
             let c: f64 = target.values().len().as_();
             let idx = (a * c) as usize;
-            let idx = if idx == target.values().len(){idx-1}else{idx};
+            let idx = if idx == target.values().len() {
+                idx - 1
+            } else {
+                idx
+            };
             let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {

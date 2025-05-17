@@ -1,7 +1,7 @@
 //! A [`Bounded`] domain defines a binary where values are in ${\texttt{false}, \texttt{true}}$.
 //! For example, the `amsgrad` parameter of the [Adam](https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html#torch.optim.Adam)
 //! optimizer in [Pytorch](https://pytorch.org/).
-//! 
+//!
 //! # Example
 //!
 //! ```
@@ -16,7 +16,7 @@
 
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
-    bounded::{Bounded, DomainBounded, BoundedBounds},
+    bounded::{Bounded, BoundedBounds, DomainBounded},
     derrors::{DomainError, DomainOoBError},
     onto::Onto,
     sampler::uniform_bool,

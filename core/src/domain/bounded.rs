@@ -11,7 +11,7 @@
 //! * [`Int`] for [`Bounded`]`<i64>`
 //!     * Integer hyperparameters (that can be negative) are less common in machine learning.
 //!     * For example, [padding](https://docs.jax.dev/en/latest/_autosummary/jax.lax.pad.html) in [Jax](https://docs.jax.dev/en/latest), $[-5,5]$.
-//! 
+//!
 //! # Examples
 //!
 //! ```
@@ -47,7 +47,6 @@ use std::{
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
-
 
 /// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
 pub trait BoundedBounds:
@@ -101,9 +100,9 @@ pub trait DomainBounded: Domain {
 /// * `width`: `T` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
 ///
 pub struct Bounded<T: BoundedBounds> {
-    pub bounds: RangeInclusive<T>,
-    pub mid: T,
-    pub width: T,
+    bounds: RangeInclusive<T>,
+    mid: T,
+    width: T,
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -301,7 +300,11 @@ where
             let b: f64 = self.width().as_();
             let c: f64 = target.values().len().as_();
             let idx = (a / b * c) as usize;
-            let idx = if idx == target.values().len(){idx-1}else{idx};
+            let idx = if idx == target.values().len() {
+                idx - 1
+            } else {
+                idx
+            };
             let mapped = target.values()[idx];
 
             if target.is_in(&mapped) {

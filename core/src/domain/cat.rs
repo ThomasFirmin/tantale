@@ -2,12 +2,12 @@
 //! and non ordinal features.
 //! For example, let's take the [activation function](https://en.wikipedia.org/w/index.php?title=Activation_function&oldid=1287429111),
 //! of a neural network, the features can be `["relu", "tanh", "sigmoid"]`.
-//! 
+//!
 //! # Examples
 //!
 //! ```
 //! use tantale::core::{Cat,Domain};
-//! 
+//!
 //! static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!
 //! let mut rng = rand::rng();
@@ -46,7 +46,7 @@ use std::fmt;
 /// ```
 #[derive(Clone, Copy)]
 pub struct Cat {
-    pub values: &'static [&'static str],
+    values: &'static [&'static str],
 }
 impl Cat {
     /// Fabric for a [`Cat`].
@@ -94,11 +94,11 @@ impl Domain for Cat {
     ///
     /// let mut rng = rand::rng();
     /// static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
-    /// 
+    ///
     /// let mut rng = rand::rng();
     /// let check = ["relu", "tanh", "sigmoid"];
     /// let dom = Cat::new(&ACTIVATION);
-    /// 
+    ///
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.is_in(&sample));
     /// assert_eq!(dom.values(), &check);

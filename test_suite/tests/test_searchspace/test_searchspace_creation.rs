@@ -1,6 +1,6 @@
-mod searchspace{
+mod searchspace {
+    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_core::domain::sampler::{uniform_real, uniform_nat, uniform_cat};
     use tantale_macros::sp;
 
     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
@@ -15,11 +15,9 @@ mod searchspace{
 
 #[test]
 fn create_mixed_searchspace() {
-
     let var = searchspace::get_searchpace();
 
-    for v in var{
-
+    for v in var {
         let mut rng = rand::rng();
         let sample_obj = v.sample_obj(&mut rng);
         let converted_obj = v.onto_opt(&sample_obj).unwrap();
@@ -30,6 +28,5 @@ fn create_mixed_searchspace() {
         let converted_opt = v.onto_obj(&sample_opt).unwrap();
 
         println!("OPT {} => OBJ {}\n", sample_opt, converted_opt);
-
     }
 }

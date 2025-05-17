@@ -7,16 +7,16 @@
 //! First, one can define custom [`sampler`](crate::core::domain::sampler) functions and link it to a [`Domains`](crate::core::domain::Domain).
 //! Moreover, one can also define custom [`Onto`](crate::core::onto::Onto) functions to map `Opt` onto `Obj`, and conversely.
 //! A [`Var`] is named via a [`static`] [`str`], that will be used within the save files.
-//! 
+//!
 //! A helper macro [`var!`](crate::core::variable::vmacros::var) with a custom syntax, can be used to help
 //! creating a single variable. But be careful, it does not replace the procedural macro [`sp!`](../../../tantale/macros/macro.sp.html).
 //! Indeed, [`sp!`](../../../tantale/macros/macro.sp.html) is able to handle [`Mixed`](crate::core::domain::Mixed) domains,
 //! by automatically creating different `enum` structures,
 //! and by wrapping [`sampler`](crate::core::domain::sampler) and [`Onto`](crate::core::onto::Onto) functions
 //! into new functions.
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```
 //! use tantale::core::{
 //!     domain::{
@@ -27,44 +27,44 @@
 //!     variable::var::Var,
 //! };
 //! use std::sync::Arc;
-//! 
+//!
 //! let dom_obj = Arc::new(Real::new(0.0,100.0));
 //! let dom_opt = Arc::new(Unit::new());
 //! let v = Var{
 //!     name : ("a", None),
 //!     domain_obj : dom_obj,
 //!     domain_opt : dom_opt,
-//!     sampler_obj : uniform_real, 
+//!     sampler_obj : uniform_real,
 //!     sampler_opt : uniform_unit,
 //!     onto_obj_fn : Unit::onto, // Unit -> Real
 //!     onto_opt_fn : Real::onto, // Real -> Unit
 //! };
-//! 
+//!
 //! let mut rng = rand::rng();
 //! let sample_obj = v.sample_obj(&mut rng);
 //! let sample_opt = v.sample_opt(&mut rng);
 //! let mapped_to_obj = v.onto_obj(&sample_opt);
 //! let mapped_to_opt = v.onto_opt(&sample_obj);
-//! 
+//!
 //! println!(" OBJ : {} => OPT {}", sample_obj, mapped_to_opt.unwrap());
 //! println!(" OPT : {} => OBJ {}", sample_opt, mapped_to_obj.unwrap());
-//! 
+//!
 //! // A var can be replicated using a Range (which changes the index in name.1)
-//! 
+//!
 //! let replicated = v.replicate(1..10);
-//! 
+//!
 //! for r in replicated{
 //!     println!("({},{})",r.name.0, r.name.1.unwrap());
 //! }
-//! 
+//!
 //! ```
 
+use crate::domain::{derrors::DomainError, onto::Onto, Domain};
 #[doc(alias = "Variable")]
 #[cfg(doc)]
 use crate::objective::Objective;
 #[cfg(doc)]
 use crate::optimizer::Optimizer;
-use crate::domain::{derrors::DomainError, onto::Onto, Domain};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
@@ -78,13 +78,13 @@ where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
-    pub name: (&'static str, Option<usize>), // NAME + SUFFIX
-    pub domain_obj: Arc<Obj>,
-    pub domain_opt: Arc<Opt>,
-    pub sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-    pub sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
-    pub onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
-    pub onto_opt_fn: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
+    name: (&'static str, Option<usize>), // NAME + SUFFIX
+    domain_obj: Arc<Obj>,
+    domain_opt: Arc<Opt>,
+    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
+    sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
+    onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
+    onto_opt_fn: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
 }
 
 /// Onto function when only the [`Objective`] [`Domain`] is define.
@@ -190,6 +190,49 @@ where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
 {
+
+    #[doc(hidden)]
+    pub fn _new_full_private(
+        name: (&'static str, Option<usize>),
+        domobj: Arc<Obj>,
+        domopt: Arc<Opt>,
+        sampobj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
+        sampopt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
+        ontoobj: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
+        ontoopt: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
+    ) -> Var<Obj,Opt> {
+        Var {
+            name,
+            domain_obj: domobj,
+            domain_opt: domopt,
+            sampler_obj: sampobj,
+            sampler_opt: sampopt,
+            onto_obj_fn: ontoobj,
+            onto_opt_fn: ontoopt,
+        }
+    }
+
+    pub fn get_name(&self)->(&'static str, Option<usize>){
+        self.name
+    }
+    pub fn get_domain_obj(&self)->Arc<Obj>{
+        self.domain_obj.clone()
+    }
+    pub fn get_domain_opt(&self)->Arc<Opt>{
+        self.domain_opt.clone()
+    }
+    pub fn get_sampler_obj(&self) -> fn(&Obj, &mut ThreadRng) -> Obj::TypeDom{
+        self.sampler_obj
+    }
+    pub fn get_sampler_opt(&self) -> fn(&Opt, &mut ThreadRng) -> Opt::TypeDom{
+        self.sampler_opt
+    }
+    pub fn get_onto_obj_fn(&self) -> fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>{
+        self.onto_obj_fn
+    }
+    pub fn get_onto_opt_fn(&self) -> fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>{
+        self.onto_opt_fn
+    }
     pub fn onto_obj(&self, item: &Opt::TypeDom) -> Result<<Obj as Domain>::TypeDom, DomainError> {
         (self.onto_obj_fn)(&self.domain_opt, &item, &self.domain_obj)
     }
@@ -202,22 +245,19 @@ where
     pub fn sample_opt(&self, rng: &mut ThreadRng) -> <Opt as Domain>::TypeDom {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
-    pub fn replicate(&self, range : std::ops::Range<usize>) -> Vec<Self>{
+    pub fn replicate(&self, range: std::ops::Range<usize>) -> Vec<Arc<Self>> {
         let mut vec = Vec::new();
-        for i in range{
-
-            let var = Self{
-                name : (self.name.0, Some(i)),
-                domain_obj : self.domain_obj.clone(),
-                domain_opt : self.domain_opt.clone(),
-                sampler_obj : self.sampler_obj,
-                sampler_opt : self.sampler_opt,
-                onto_obj_fn : self.onto_obj_fn,
-                onto_opt_fn : self.onto_opt_fn,
-            };
-            vec.push(var);
+        for i in range {
+            let var = Self::_new_full_private(
+                (self.name.0, Some(i)),
+                self.domain_obj.clone(),
+                self.domain_opt.clone(),
+                self.sampler_obj,
+                self.sampler_opt,
+                self.onto_obj_fn,
+                self.onto_opt_fn);
+            vec.push(Arc::new(var));
         }
         vec
-
     }
 }
