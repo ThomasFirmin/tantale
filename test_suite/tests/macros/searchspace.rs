@@ -7,10 +7,11 @@ macro_rules! get_test {
             paste!{
             #[test]
             fn [<$name>]() {
-                let var = sp_ms_nosamp::get_searchpace();
+                let sp = sp_ms_nosamp::get_searchspace();
+                let var = &sp.variables;
                 let mut rng = rand::rng();
 
-                for v in &var{
+                for v in var{
                     let sample_obj = v.sample_obj(&mut rng).clone();
                     let converted_obj = v.onto_opt(&sample_obj).unwrap();
 
@@ -1439,8 +1440,28 @@ pub mod sp_repeats {
 
     sp!(
         a_{1..3} | Real(0.0,1.0)                  |                                  ;
-        b | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
-        c | Real(0.0,1.0) => uniform_real  | Cat(&ACTIVATION) => uniform_cat  ;
-        d | Real(0.0,1.0)                  | Bool()                           ;
+        b        | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
+        c        | Real(0.0,1.0) => uniform_real  | Cat(&ACTIVATION) => uniform_cat  ;
+        d        | Real(0.0,1.0)                  | Bool()                           ;
     );
 }
+
+mod sp_one_missing_to_single {
+    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
+    use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_macros::sp;
+    
+    static ACTIVATION: [&str; 4] = ["relu", "tanh", "sigmoid","tomato"];
+
+    sp!(
+        a | Real(0.0,1.0)                   |                               ;
+        b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+        c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+        d | Bool()                          | Real(0.0,1.0)                 ;
+    );
+}
+
+get_test!(
+    sp_repeats,
+    sp_one_missing_to_single
+);

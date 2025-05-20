@@ -59,7 +59,7 @@ macro_rules! get_variable {
             fn [<$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 _test_variable_assertion(&variable)
             }
 
@@ -68,7 +68,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | domopt);
+                let variable = var!("a" ; domobj => sobj ; domopt);
                 _test_variable_assertion(&variable)
             }
 
@@ -77,7 +77,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; obj | domobj ; opt | domopt => sopt);
+                let variable = var!("a" ; domobj ; domopt => sopt);
                 _test_variable_assertion(&variable)
             }
 
@@ -87,7 +87,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | domopt => sopt);
+                let variable = var!("a" ; domobj => sobj ; domopt => sopt);
                 _test_variable_assertion(&variable)
             }
         }
@@ -128,7 +128,7 @@ macro_rules! get_variable_single_dom {
             #[test]
             fn [<$dom1 _single>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj);
+                let variable = var!("a" ; domobj);
                 _test_variable_assertion_single(&variable)
             }
 
@@ -136,7 +136,7 @@ macro_rules! get_variable_single_dom {
             fn [<$dom1 _single_sobj>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj);
+                let variable = var!("a" ; domobj => sobj);
                 _test_variable_assertion_single(&variable)
             }
 
@@ -144,7 +144,7 @@ macro_rules! get_variable_single_dom {
             fn [<$dom1 _single_sopt>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj ; opt | => sopt);
+                let variable = var!("a" ; domobj ; => sopt);
                 _test_variable_assertion_single(&variable)
             }
 
@@ -153,7 +153,7 @@ macro_rules! get_variable_single_dom {
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
+                let variable = var!("a" ; domobj => sobj ; => sopt);
                 _test_variable_assertion_single(&variable)
             }
 

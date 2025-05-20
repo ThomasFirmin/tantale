@@ -11,7 +11,7 @@ macro_rules! get_variable {
             fn [<$dom1 _and_ $dom2 _ $name>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
                 let input_2 = $input_2;
@@ -36,7 +36,7 @@ macro_rules! get_variable {
             fn [<$dom2 _and_ $dom1 _ $name _bis>](){
                 let domobj = [<get_domain_ $dom2 _2>]();
                 let domopt = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
                 let input_2 = $input_2;
@@ -115,7 +115,7 @@ macro_rules! get_variable_panic {
             fn [<panic_ $dom1 _and_ $dom2 _ $name _io1>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
 
@@ -132,7 +132,7 @@ macro_rules! get_variable_panic {
             fn [<panic_ $dom1 _and_ $dom2 _ $name _io2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_2 = $input_2;
                 let output_2 = $output_2;
 
@@ -149,7 +149,7 @@ macro_rules! get_variable_panic {
             fn [<panic_ $dom2 _and_ $dom1 _ $name _io1_r>](){
                 let domobj = [<get_domain_ $dom2 _2>]();
                 let domopt = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_2 = $input_2;
                 let output_2 = $output_2;
 
@@ -166,7 +166,7 @@ macro_rules! get_variable_panic {
             fn [<panic_ $dom2 _and_ $dom1 _ $name _io2_r>](){
                 let domobj = [<get_domain_ $dom2 _2>]();
                 let domopt = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
 
@@ -207,7 +207,7 @@ macro_rules! get_variable_single {
             #[test]
             fn [<single_ $dom1 _ $name>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj);
+                let variable = var!("a" ; domobj);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
                 let input_2 = $input_2;
@@ -259,7 +259,7 @@ macro_rules! get_variable_single_panic {
             #[should_panic]
             fn [<panic_single_ $dom1 _ $name _io1>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj);
+                let variable = var!("a" ; domobj);
                 let input_1 = $input_1;
                 let output_1 = $output_1;
 
@@ -275,7 +275,7 @@ macro_rules! get_variable_single_panic {
             #[should_panic]
             fn [<panic_single_ $dom1 _ $name _io2>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj);
+                let variable = var!("a" ; domobj);
                 let input_2 = $input_2;
                 let output_2 = $output_2;
 

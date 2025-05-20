@@ -315,6 +315,9 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         .map(|s| s.parse().unwrap())
         .collect();
 
+    // Number of variables
+    let sp_size = lines.len();
+
     // OBJ + OPT
     let mut varinfo = Vec::new();
 
@@ -448,7 +451,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     if tobj_unique.len() > 1 {
         is_mixedobj = true;
         mixed_obj = quote! {
-            #[derive(tantale_macros::Mixed, Clone, PartialEq)]
+            #[derive(tantale::Mixed, Clone, PartialEq)]
             pub enum _TantaleMixedObj{
                 #( #iter_tobj_unique ( #iter_tobj_unique ) ),*
             }
@@ -470,7 +473,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         if topt_unique != tobj_unique {
             let iter_topt_unique = topt_unique.iter();
             mixed_opt = quote! {
-                #[derive(tantale_macros::Mixed,Clone,PartialEq)]
+                #[derive(tantale::Mixed,Clone,PartialEq)]
                 pub enum _TantaleMixedOpt{
                     #( #iter_topt_unique ( #iter_topt_unique ) ),*
                 }
@@ -731,7 +734,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 let sampler_opt = #sampler_opt;
                 let onto_obj = #onto_obj;
                 let onto_opt = #onto_opt;
-                let var = tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
+                let var = tantale_core::variable::var::Var::_new(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
                 var
             };
             push_statements.push(match repeats {
@@ -752,7 +755,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 let sampler_opt = #sampler_opt;
                 let onto_obj = #onto_obj;
                 let onto_opt = #onto_opt;
-                let var = tantale_core::variable::var::Var::_new_full_private(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
+                let var = tantale_core::variable::var::Var::_new(name ,domobj_rc ,domopt_rc ,sampler_obj ,sampler_opt ,onto_obj ,onto_opt);
                 var
             };
             push_statements.push(match repeats {
@@ -805,13 +808,15 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         #(#onto_functions)*
 
-        pub fn get_searchpace()->Vec<tantale_core::variable::var::Var<#ident_mixed_obj,#ident_mixed_opt>>
+        pub fn get_searchspace()-> tantale_core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt,#sp_size>
         {
             pub use tantale_core::domain::{Onto,Domain};
 
             #(#push_statements)*
 
-            variables
+            tantale_core::searchspace::Sp{
+                variables : variables.into_boxed_slice(),
+            }
         }
     }.into())
 }

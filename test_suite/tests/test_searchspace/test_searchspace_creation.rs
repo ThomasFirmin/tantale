@@ -15,7 +15,8 @@ mod searchspace {
 
 #[test]
 fn create_mixed_searchspace() {
-    let var = searchspace::get_searchpace();
+    let sp = searchspace::get_searchspace();
+    let var = &sp.variables;
 
     for v in var {
         let mut rng = rand::rng();

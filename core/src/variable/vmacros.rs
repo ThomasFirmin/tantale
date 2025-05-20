@@ -1,37 +1,39 @@
-/// Creates a [`Var`] containing the arguments.
+/// Creates a [`Var`](tantale::core::Var) containing the arguments.
 ///
-/// `var!` simplifies the definition of a [`Var`] hiding optional parameters.
-/// The full syntax to define a [`Var`] with `var!` is as follows :
+/// `var!` simplifies the definition of a [`Var`](tantale::core::Var) hiding optional parameters.
+/// The full syntax to define a [`Var`](tantale::core::Var) with `var!` is as follows :
 ///
-/// - `var!("NAME" ; obj | DOMAIN_1 => SAMPLER_1 ; opt | DOMAIN_2 => SAMPLER_2)`
+/// - `var!("NAME" ; DOMAIN_1 => SAMPLER_1 ; DOMAIN_2 => SAMPLER_2)`
 ///
-/// with `obj` describing the part concerning the [`Domain`] of the [`Objective`] function,
-/// and `opt` describing the part concerning the [`Domain`] of the [`Optimizer`] algorithm.
+/// with `obj` describing the part concerning the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective) function,
+/// and `opt` describing the part concerning the [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Optimizer) algorithm.
 ///
 /// # Parameters
 ///
 /// * `NAME` : `&'a str` - the  name of the variable. Used for saving.
-/// * `DOMAIN_1` : `Obj` - [`Domain`] of the [`Objective`].
-/// * `SAMPLER_1` : `fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)` - Optional sampler function for the [`Domain`] of the [`Objective`].
-/// If ignored the default sampler of the [`Domain`] is used.
-/// * `DOMAIN_2` : `Opt` - Optional [`Domain`] of the [`Optimizer`].
+/// * `DOMAIN_1` : `Obj` - [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
+/// * `SAMPLER_1` : `fn(&Obj, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Obj::`[`TypeDom`](Domain::TypeDom) - 
+/// Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
+/// If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
+/// * `DOMAIN_2` : `Opt` - Optional [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Domain).
 /// If ignored within the macros `DOMAIN_1` is cloned to fill `DOMAIN_2`.
-/// * `SAMPLER_2` : `fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom) - Optional sampler function for the [`Domain`] of the [`Optimizer`].
-/// If ignored the default sampler of the [`Domain`] is used.
+/// * `SAMPLER_2` : `fn(&Opt, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Opt::`[`TypeDom`](Domain::TypeDom) -
+/// Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Optimizer).
+/// If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
 ///
 /// # Types
 ///
-/// * Opt : [`Domain`]` + `[`Clone`]
-/// * Obj : [`Domain`]` + `[`Clone`]
+/// * Opt : [`Domain`](tantale::core::Domain)` + `[`Clone`]
+/// * Obj : [`Domain`](tantale::core::Domain)` + `[`Clone`]
 ///  
 /// # Notes
 ///
 /// **The name is mandatory**.
-/// The samplers and the [`Optimizer`]'s [`Domain`] are optionals.
+/// The samplers and the [`Optimizer`](tantale::core::Optimizer)'s [`Domain`](tantale::core::Domain) are optionals.
 ///
 /// # Examples
 ///
-/// - Create a [`Var`] with only the [`Domain`] of the [`Objective`] function
+/// - Create a [`Var`](tantale::core::Var) with only the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective) function
 ///
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
@@ -39,25 +41,25 @@
 /// use tantale::core::var;
 ///
 /// let domobj = Real::new(0.0, 10.0);
-/// let variable = var!("a" ; obj | domobj);
+/// let variable = var!("a" ; domobj);
 ///
-/// assert_eq!(variable.name,("a", None));
+/// assert_eq!(variable.get_name(),("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
 /// // Objective part (Defined above)
-/// assert_eq!(variable.domain_obj.lower(),0.0);
-/// assert_eq!(variable.domain_obj.upper(),10.0);
+/// assert_eq!(variable.get_domain_obj().lower(),0.0);
+/// assert_eq!(variable.get_domain_obj().upper(),10.0);
 /// // Using default sampler for objective's domain.
-/// let random_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
-/// assert!(variable.domain_obj.is_in(&random_obj));
+/// let random_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(), &mut rng);
+/// assert!(variable.get_domain_obj().is_in(&random_obj));
 ///
 /// // Default Optimizer part (Clone of domain_obj)
-/// assert_eq!(variable.domain_opt.lower(),0.0);
-/// assert_eq!(variable.domain_opt.upper(),10.0);
+/// assert_eq!(variable.get_domain_opt().lower(),0.0);
+/// assert_eq!(variable.get_domain_opt().upper(),10.0);
 /// // Using default sampler for optimizer's domain.
-/// let random_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
-/// assert!(variable.domain_opt.is_in(&random_opt));
+/// let random_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
+/// assert!(variable.get_domain_opt().is_in(&random_opt));
 /// ```
 ///
 /// - Create a [`Var`] with the [`Domain`] of the [`Objective`] function
@@ -70,25 +72,25 @@
 ///
 /// let domobj = Real::new(80.0, 100.0);
 /// let domopt = Real::new(0.0, 1.0);
-/// let variable = var!("a" ; obj | domobj ; opt | domopt);
+/// let variable = var!("a" ; domobj ; domopt);
 ///
-/// assert_eq!(variable.name,("a", None));
+/// assert_eq!(variable.get_name(),("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
 /// // Objective part (Defined above)
-/// assert_eq!(variable.domain_obj.lower(),80.0);
-/// assert_eq!(variable.domain_obj.upper(),100.0);
+/// assert_eq!(variable.get_domain_obj().lower(),80.0);
+/// assert_eq!(variable.get_domain_obj().upper(),100.0);
 /// // Using default sampler for objective's domain.
-/// let random_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
-/// assert!(variable.domain_obj.is_in(&random_obj));
+/// let random_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
+/// assert!(variable.get_domain_obj().is_in(&random_obj));
 ///
 /// // Optimizer part (Defined above)
-/// assert_eq!(variable.domain_opt.lower(),0.0);
-/// assert_eq!(variable.domain_opt.upper(),1.0);
+/// assert_eq!(variable.get_domain_opt().lower(),0.0);
+/// assert_eq!(variable.get_domain_opt().upper(),1.0);
 /// // Using default sampler for optimizer's domain.
-/// let random_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
-/// assert!(variable.domain_opt.is_in(&random_opt));
+/// let random_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
+/// assert!(variable.get_domain_opt().is_in(&random_opt));
 /// ```
 ///
 /// - Create a [`Var`] with the [`Domain`] of the [`Objective`] function
@@ -101,25 +103,25 @@
 /// use tantale::core::var;
 ///
 /// let domobj = Real::new(80.0, 100.0);
-/// let variable = var!("a" ; obj | domobj => uniform_real);
+/// let variable = var!("a" ; domobj => uniform_real);
 ///
-/// assert_eq!(variable.name,("a", None));
+/// assert_eq!(variable.get_name(),("a", None));
 ///
 /// let mut rng = rand::rng();
 ///
 /// // Objective part (Defined above)
-/// assert_eq!(variable.domain_obj.lower(),80.0);
-/// assert_eq!(variable.domain_obj.upper(),100.0);
+/// assert_eq!(variable.get_domain_obj().lower(),80.0);
+/// assert_eq!(variable.get_domain_obj().upper(),100.0);
 /// // Using given sampler for objective's domain.
-/// let random_obj = (variable.sampler_obj)(&variable.domain_obj,&mut rng);
-/// assert!(variable.domain_obj.is_in(&random_obj));
+/// let random_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
+/// assert!(variable.get_domain_obj().is_in(&random_obj));
 ///
 /// // Default Optimizer part (Clone of domain_obj)
-/// assert_eq!(variable.domain_opt.lower(),80.0);
-/// assert_eq!(variable.domain_opt.upper(),100.0);
+/// assert_eq!(variable.get_domain_opt().lower(),80.0);
+/// assert_eq!(variable.get_domain_opt().upper(),100.0);
 /// // Using default sampler for optimizer's domain.
-/// let random_opt = (variable.sampler_opt)(&variable.domain_opt,&mut rng);
-/// assert!(variable.domain_opt.is_in(&random_opt));
+/// let random_opt = (variable.get_sampler_opt())(&variable.get_domain_opt(),&mut rng);
+/// assert!(variable.get_domain_opt().is_in(&random_opt));
 /// ```
 ///
 /// - All possibilities
@@ -130,38 +132,38 @@
 /// use tantale::core::var;
 ///
 /// let domobj = Int::new(0, 100);
-/// let variable = var!("a" ; obj | domobj);
+/// let variable = var!("a" ; domobj);
 ///
 /// let domobj = Int::new(0, 100);
-/// let variable = var!("a" ; obj | domobj => uniform_int);
+/// let variable = var!("a" ; domobj => uniform_int);
 ///
 /// let domobj = Int::new(0, 100);
-/// let variable = var!("a" ; obj | domobj => uniform_int ; opt | => uniform_int);
+/// let variable = var!("a" ; domobj => uniform_int ; => uniform_int);
 ///
 /// let domobj = Int::new(0, 100);
-/// let variable = var!("a" ; obj | domobj ; opt | => uniform_int);
-///
-/// let domobj = Int::new(0, 100);
-/// let domopt = Real::new(0.0, 1.0);
-/// let variable = var!("a" ; obj | domobj ; opt | domopt);
+/// let variable = var!("a" ; domobj ; => uniform_int);
 ///
 /// let domobj = Int::new(0, 100);
 /// let domopt = Real::new(0.0, 1.0);
-/// let variable = var!("a" ; obj | domobj => uniform_int ; opt | domopt => uniform_real);
+/// let variable = var!("a" ; domobj ; domopt);
 ///
 /// let domobj = Int::new(0, 100);
 /// let domopt = Real::new(0.0, 1.0);
-/// let variable = var!("a" ; obj | domobj => uniform_int ; opt | domopt);
+/// let variable = var!("a" ; domobj => uniform_int ; domopt => uniform_real);
 ///
 /// let domobj = Int::new(0, 100);
 /// let domopt = Real::new(0.0, 1.0);
-/// let variable = var!("a" ; obj | domobj ; opt | domopt => uniform_real);
+/// let variable = var!("a" ; domobj => uniform_int ; domopt);
+///
+/// let domobj = Int::new(0, 100);
+/// let domopt = Real::new(0.0, 1.0);
+/// let variable = var!("a" ; domobj ; domopt => uniform_real);
 /// ```
 #[macro_export]
 macro_rules! var {
     // Defining both objective and optimizer domains
     // Defining both samplers
-    ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
+    ($name:literal ; $domobj:expr => $sampobj:expr ; $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
             std::sync::Arc::new($domobj),
@@ -171,7 +173,7 @@ macro_rules! var {
         )
     }};
     // Solely defining objective sampler
-    ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | $domopt:expr) => {{
+    ($name:literal ; $domobj:expr => $sampobj:expr ; $domopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
             std::sync::Arc::new($domobj),
@@ -181,7 +183,7 @@ macro_rules! var {
         )
     }};
     // Solely defining optimizer sampler
-    ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr => $sampopt:expr) => {{
+    ($name:literal ; $domobj:expr ; $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
             std::sync::Arc::new($domobj),
@@ -191,7 +193,7 @@ macro_rules! var {
         )
     }};
     // No sampler
-    ($name:literal ; obj | $domobj:expr ; opt | $domopt:expr) => {{
+    ($name:literal ; $domobj:expr ; $domopt:expr) => {{
         $crate::variable::Var::new_double(
             $name,
             std::sync::Arc::new($domobj),
@@ -203,7 +205,7 @@ macro_rules! var {
 
     // Solely defining objective domain
     // Defining both samplers
-    ($name:literal ; obj | $domobj:expr => $sampobj:expr ; opt | => $sampopt:expr) => {{
+    ($name:literal ; $domobj:expr => $sampobj:expr ; => $sampopt:expr) => {{
         $crate::variable::Var::new_single(
             $name,
             std::sync::Arc::new($domobj),
@@ -212,15 +214,15 @@ macro_rules! var {
         )
     }};
     // Solely defining objective sampler
-    ($name:literal ; obj | $domobj:expr => $sampobj:expr) => {{
+    ($name:literal ; $domobj:expr => $sampobj:expr) => {{
         $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), Some($sampobj), None)
     }};
     // Solely defining optimizer sampler
-    ($name:literal ;  obj | $domobj:expr ; opt | => $sampopt:expr) => {{
+    ($name:literal ;  $domobj:expr ; => $sampopt:expr) => {{
         $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, Some($sampopt))
     }};
     // No sampler
-    ($name:literal ; obj | $domobj:expr) => {{
+    ($name:literal ; $domobj:expr) => {{
         $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, None)
     }};
 }

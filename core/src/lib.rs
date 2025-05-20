@@ -28,3 +28,7 @@ pub mod solution;
 pub use solution::Solution;
 
 pub mod searchspace;
+pub use searchspace::{Sp,Searchspace};
+#[cfg(feature="par")]
+pub use searchspace::ParSearchspace;
+

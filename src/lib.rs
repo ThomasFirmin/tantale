@@ -4,11 +4,13 @@
 //!
 
 #[doc(inline)]
+pub use tantale_macros as macros;
+#[doc(inline)]
 pub use macros::Mixed;
 #[doc(inline)]
-pub use tantale_core as core;
+pub use macros::sp;
 #[doc(inline)]
-pub use tantale_macros as macros;
+pub use tantale_core as core;
 
 // // Re-exports
 // #[doc(hidden)]

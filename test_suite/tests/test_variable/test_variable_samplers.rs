@@ -15,7 +15,7 @@ macro_rules! get_variable {
             fn [<is_in_ $dom1 _and_ $dom2 _default_obj>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; obj | domobj ; opt | domopt);
+                let variable = var!("a" ; domobj ; domopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -36,7 +36,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | domopt);
+                let variable = var!("a" ; domobj => sobj ; domopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -57,7 +57,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; obj | domobj ; opt | domopt => sopt);
+                let variable = var!("a" ; domobj ; domopt => sopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -79,7 +79,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | domopt => sopt);
+                let variable = var!("a" ; domobj => sobj ; domopt => sopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -131,7 +131,7 @@ macro_rules! get_variable_single {
             #[test]
             fn [<single_is_in_ $dom1 _default_obj>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; obj | domobj);
+                let variable = var!("a" ; domobj);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -151,7 +151,7 @@ macro_rules! get_variable_single {
             fn [<single_is_in_ $dom1 _sobj>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj);
+                let variable = var!("a" ; domobj => sobj);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -171,7 +171,7 @@ macro_rules! get_variable_single {
             fn [<single_is_in_ $dom1 _sopt>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj ; opt | => sopt);
+                let variable = var!("a" ; domobj ; => sopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
@@ -192,7 +192,7 @@ macro_rules! get_variable_single {
                 let domobj = [<get_domain_ $dom1>]();
                 let sobj = [<uniform_$dom1>];
                 let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; obj | domobj => sobj ; opt | => sopt);
+                let variable = var!("a" ; domobj => sobj ; => sopt);
 
                 let mut rng = rand::rng();
                 let sample_obj = (variable.get_sampler_obj())(&variable.get_domain_obj(),&mut rng);
