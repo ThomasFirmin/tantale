@@ -1,16 +1,16 @@
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit, TypeDom};
 use tantale::core::Solution;
 
 use std::fmt::{Debug, Display};
 use std::collections::HashSet;
 use std::process;
 
-fn _test_solution_assertion<'a, D: Domain, const S: usize>(
-    sol: &'a Solution<D, S>,
+fn _test_solution_assertion<D, const S: usize>(
+    sol: &Solution<D, S>,
     id: (usize, u32),
 ) where
     D: Domain + Clone + Display + Debug,
-    D::TypeDom: Sync + Send,
+    TypeDom<D>: Sync + Send,
 {
     assert_eq!(
         sol.x,

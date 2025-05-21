@@ -21,6 +21,8 @@
 use crate::domain::derrors::DomainError;
 use crate::domain::Domain;
 
+pub type OntoOutput<Tgt> = Result<<Tgt as Domain>::TypeDom, DomainError>;
+
 pub trait Onto<Tgt: Domain>: Domain {
     /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].
     /// If [`Self`] is equal to the targetted domain, then the input `item` should be cloned.
@@ -37,5 +39,5 @@ pub trait Onto<Tgt: Domain>: Domain {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, _item: &Self::TypeDom, _target: &Tgt) -> Result<Tgt::TypeDom, DomainError>;
+    fn onto(&self, _item: &Self::TypeDom, _target: &Tgt) -> OntoOutput<Tgt>;
 }

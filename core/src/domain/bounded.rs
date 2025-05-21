@@ -35,7 +35,7 @@ use crate::domain::{
     onto::Onto,
     sampler::uniform,
     unit::Unit,
-    Domain,
+    Domain,TypeDom,
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
@@ -117,8 +117,8 @@ impl<T: BoundedBounds> Bounded<T> {
     ///
     pub fn new(lower: T, upper: T) -> Bounded<T> {
         if lower < upper {
-            let mid = (upper.clone() + lower.clone()) / T::from(2).unwrap();
-            let width = upper.clone() - lower.clone();
+            let mid = (upper + lower) / T::from(2).unwrap();
+            let width = upper - lower;
             Bounded {
                 bounds: std::ops::RangeInclusive::new(lower, upper),
                 mid,
@@ -152,22 +152,22 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
 
 impl<T: BoundedBounds> DomainBounded for Bounded<T> {
     fn lower(&self) -> Self::TypeDom {
-        self.bounds.start().clone()
+        *self.bounds.start()
     }
     fn upper(&self) -> Self::TypeDom {
-        self.bounds.end().clone()
+        *self.bounds.end()
     }
     fn mid(&self) -> Self::TypeDom {
-        self.mid.clone()
+        self.mid
     }
     fn width(&self) -> Self::TypeDom {
-        self.width.clone()
+        self.width
     }
 }
 
 impl<T: BoundedBounds> std::clone::Clone for Bounded<T> {
     fn clone(&self) -> Self {
-        Bounded::new(self.bounds.start().clone(), self.bounds.end().clone())
+        Bounded::new(*self.bounds.start(), *self.bounds.end())
     }
 }
 
@@ -253,7 +253,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, _target: &Bool) -> Result<<Bool as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &In, _target: &Bool) -> Result<TypeDom<Bool>, DomainError> {
         if self.is_in(item) {
             Ok(*item > self.mid())
         } else {
@@ -265,7 +265,7 @@ where
     }
 }
 
-impl<'a, In> Onto<Cat> for Bounded<In>
+impl<In> Onto<Cat> for Bounded<In>
 where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
@@ -294,7 +294,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Cat) -> Result<<Cat as Domain>::TypeDom, DomainError> {
+    fn onto(&self, item: &In, target: &Cat) -> Result<TypeDom<Cat>, DomainError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -370,7 +370,7 @@ where
     }
 }
 
-impl<'a, In> Onto<BaseDom> for Bounded<In>
+impl<In> Onto<BaseDom> for Bounded<In>
 where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
@@ -394,7 +394,7 @@ where
         &self,
         item: &In,
         target: &BaseDom,
-    ) -> Result<<BaseDom as Domain>::TypeDom, DomainError> {
+    ) -> Result<TypeDom<BaseDom>, DomainError> {
         match target {
             BaseDom::Real(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Real(i)),

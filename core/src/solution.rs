@@ -16,7 +16,7 @@
 //! The unique `id` of a solution is computed according to a static atomic variable `SOL_ID`, and the `pid` of the process creating that solution.
 //!
 
-use crate::domain::Domain;
+use crate::domain::{Domain, TypeDom};
 
 use std::{
     fmt::{Debug, Display},
@@ -37,16 +37,16 @@ static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub struct Solution<D, const N: usize>
 where
     D: Domain + Clone + Display + Debug,
-    D::TypeDom: Default + Copy + Clone + Display + Debug,
+    TypeDom<D>: Default + Copy + Clone + Display + Debug,
 {
     pub id: (usize, u32), // ID + PID for parallel algorithms.
-    pub x: Box<[D::TypeDom]>,
+    pub x: Box<[TypeDom<D>]>,
 }
 
 impl<D, const N: usize> Solution<D, N>
 where
     D: Domain + Clone + Display + Debug,
-    D::TypeDom: Default + Copy + Clone + Display + Debug,
+    TypeDom<D>: Default + Copy + Clone + Display + Debug,
 {
     /// Creates a new solution with a boxed slice.
     /// 
@@ -63,7 +63,7 @@ where
     /// }
     /// 
     /// ```
-    pub fn new(pid: u32, x: Box<[D::TypeDom]>) -> Self {
+    pub fn new(pid: u32, x: Box<[TypeDom<D>]>) -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         Solution { id: (id, pid), x }
     }
@@ -72,8 +72,8 @@ where
         Self::new(pid, Self::default_x())
     }
 
-    pub fn default_x() -> Box<[D::TypeDom]> {
-        vec![D::TypeDom::default();N].into_boxed_slice()
+    pub fn default_x() -> Box<[TypeDom<D>]> {
+        vec![TypeDom::<D>::default();N].into_boxed_slice()
     }
     
     pub fn new_vec(size:usize) -> Vec<Self> {
@@ -90,7 +90,7 @@ where
         v
     }
 
-    pub fn new_fill_vec(pid:u32, size:usize, x: Box<[D::TypeDom]>)-> Vec<Self>{
+    pub fn new_fill_vec(pid:u32, size:usize, x: Box<[TypeDom<D>]>)-> Vec<Self>{
         let mut v = Self::new_vec(size);
         for _ in 0..size{
             v.push(Self::new(pid, x.clone()));
@@ -98,10 +98,10 @@ where
         v
     }
 
-    pub fn twin<B>(&self, x: Box<[B::TypeDom]>) -> Solution<B, N> 
+    pub fn twin<B>(&self, x: Box<[TypeDom<B>]>) -> Solution<B, N> 
     where
         B: Domain + Clone + Display + Debug,
-        B::TypeDom: Default + Copy + Clone + Display + Debug,
+        TypeDom<B>: Default + Copy + Clone + Display + Debug,
     {
         Solution { id: self.id, x }
     }
@@ -111,7 +111,7 @@ where
 impl<D, const N: usize> Solution<D, N>
 where
     D: Domain + Clone + Display + Debug,
-    D::TypeDom: Default + Copy + Clone + Display + Debug + Send + Sync,
+    TypeDom<D>: Default + Copy + Clone + Display + Debug + Send + Sync,
 {
     pub fn par_new_default_vec(pid:u32, size:usize)-> Vec<Self>{
         (0..size).into_par_iter().map(|_| Self::new_default(pid)).collect()

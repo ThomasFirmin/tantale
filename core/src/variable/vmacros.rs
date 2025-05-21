@@ -13,13 +13,13 @@
 /// * `NAME` : `&'a str` - the  name of the variable. Used for saving.
 /// * `DOMAIN_1` : `Obj` - [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
 /// * `SAMPLER_1` : `fn(&Obj, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Obj::`[`TypeDom`](Domain::TypeDom) - 
-/// Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
-/// If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
+///   Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
+///   If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
 /// * `DOMAIN_2` : `Opt` - Optional [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Domain).
-/// If ignored within the macros `DOMAIN_1` is cloned to fill `DOMAIN_2`.
+///   If ignored within the macros `DOMAIN_1` is cloned to fill `DOMAIN_2`.
 /// * `SAMPLER_2` : `fn(&Opt, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Opt::`[`TypeDom`](Domain::TypeDom) -
-/// Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Optimizer).
-/// If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
+///   Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Optimizer).
+///   If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
 ///
 /// # Types
 ///
@@ -63,7 +63,7 @@
 /// ```
 ///
 /// - Create a [`Var`] with the [`Domain`] of the [`Objective`] function
-/// and the [`Domain`] of the [`Optimizer`] algorithm
+///   and the [`Domain`] of the [`Optimizer`] algorithm
 ///
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};
@@ -94,7 +94,7 @@
 /// ```
 ///
 /// - Create a [`Var`] with the [`Domain`] of the [`Objective`] function
-/// and a sampler.
+///   and a sampler.
 ///
 /// ```
 /// use tantale::core::domain::{Real, Domain, DomainBounded};

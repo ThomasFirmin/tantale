@@ -20,6 +20,9 @@ use crate::variable::var::Var;
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 
+/// Type alias to for [Domain::TypeDom]
+pub type TypeDom<D> = <D as Domain>::TypeDom;
+
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
 ///
@@ -39,14 +42,14 @@ pub trait Domain: Sized + PartialEq {
     ///
     /// * `rng` : `&mut`[`ThreadRng`](rand::prelude::ThreadRng) - The RNG from [`rand`].
     ///
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom;
+    fn sample(&self, rng: &mut ThreadRng) -> TypeDom<Self>;
     /// Returns `true` if a given borrowed `point` is in the domain. Otherwise returns `false`.
     ///
     /// # Parameters
     ///
     /// * `point` : `&`[`Self`]`::`[`TypeDom`](Domain::TypeDom) - a borrowed point from the [`Domain`].
     ///
-    fn is_in(&self, point: &Self::TypeDom) -> bool;
+    fn is_in(&self, point: &TypeDom<Self>) -> bool;
 }
 
 /// [`Mixed`] trait defines a [`Domain`] which can be made of other [`Domains`](Domain).

@@ -1,5 +1,4 @@
 mod check_sampler {
-    use rand;
     use tantale::core::domain::sampler::*;
     use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real};
 
@@ -52,7 +51,6 @@ mod check_sampler {
 }
 
 mod check_sampler_base {
-    use rand;
     use tantale::core::domain::sampler::*;
     use tantale::core::domain::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale::core::mixed_sampler;

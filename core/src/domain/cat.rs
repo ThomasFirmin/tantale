@@ -25,12 +25,14 @@ use crate::domain::{
     onto::Onto,
     sampler::uniform_cat,
     unit::Unit,
-    Domain,
+    Domain,TypeDom
 };
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::fmt;
+
+use super::onto::OntoOutput;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
@@ -76,7 +78,7 @@ impl Domain for Cat {
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
     /// See [`uniform_cat`].
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
+    fn sample(&self, rng: &mut ThreadRng) -> TypeDom<Self> {
         uniform_cat(self, rng)
     }
 
@@ -85,7 +87,7 @@ impl Domain for Cat {
     /// # Attributes
     ///
     /// * `point` : `&`[`Self`]`::`[`TypeDom`](Domain::TypeDom) :
-    /// a point of the same type as the type of the domain.
+    ///   a point of the same type as the type of the domain.
     ///
     /// # Example
     ///
@@ -103,7 +105,7 @@ impl Domain for Cat {
     /// assert!(dom.is_in(&sample));
     /// assert_eq!(dom.values(), &check);
     ///
-    fn is_in(&self, point: &Self::TypeDom) -> bool {
+    fn is_in(&self, point: &TypeDom<Self>) -> bool {
         self.values.contains(point)
     }
 }
@@ -158,7 +160,7 @@ where
     ///
     fn onto(
         &self,
-        item: &<Cat as Domain>::TypeDom,
+        item: &TypeDom<Cat>,
         target: &Bounded<Out>,
     ) -> Result<Out, DomainError> {
         let idx = self.values().iter().position(|n| n == item);
@@ -207,7 +209,7 @@ impl Onto<Unit> for Cat {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &<Cat as Domain>::TypeDom, target: &Unit) -> Result<f64, DomainError> {
+    fn onto(&self, item: &TypeDom<Cat>, target: &Unit) -> Result<f64, DomainError> {
         let idx = self.values().iter().position(|n| n == item);
 
         match idx {
@@ -251,9 +253,9 @@ impl Onto<BaseDom> for Cat {
     ///
     fn onto(
         &self,
-        item: &<Cat as Domain>::TypeDom,
+        item: &TypeDom<Cat>,
         target: &BaseDom,
-    ) -> Result<<BaseDom as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<BaseDom> {
         match target{
             BaseDom::Real(d) => {
                 match self.onto(item, d) {

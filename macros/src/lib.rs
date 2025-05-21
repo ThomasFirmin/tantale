@@ -12,5 +12,4 @@ pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub fn sp(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     searchspace::sp(input)
         .unwrap_or_else(|e| e.to_compile_error().into())
-        .into()
 }

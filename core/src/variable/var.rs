@@ -1,11 +1,90 @@
-use crate::domain::{derrors::DomainError, onto::Onto, Domain};
+//! A [`Var`] is used to tie together two related [`Domains`](crate::core::domain::Domain).
+//! The one of the [`Objective`](crate::core::objective::Objective) [`Domain`](crate::core::domain::Domain) (`Obj`) function, and the one
+//! of the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`](crate::core::domain::Domain) (`Opt`).
+//! The  [`Var`] struct describes the flexible nature of the relationship.
+//! First, one can define custom [`sampler`](crate::core::domain::sampler) function and link it to a [`Domain`](crate::core::domain::Domain).
+//! Moreover, one can also define custom [`Onto`](crate::core::onto::Onto) functions to map `Opt` onto `Obj`, and conversely.
+//! A [`Var`] is named via a tuple made of a `static` [`str`] and a [`usize`] used as a suffix for replications of a same [`Var`].
+//!
+//! A helper macro [`var!`](crate::core::variable::vmacros::var) with a custom syntax, can be used to help
+//! creating a single variable. Be careful, it does not replace the procedural macro [`sp!`](../../../tantale/macros/macro.sp.html).
+//! Indeed, [`sp!`](../../../tantale/macros/macro.sp.html) is able to handle [`Mixed`](crate::core::domain::Mixed) domains,
+//! by automatically creating different `enum` structures.
+//! If needed, the [`sp!`](../../../tantale/macros/macro.sp.html) macro also automatically wraps [`sampler`](crate::core::domain::sampler) and [`Onto`](crate::core::onto::Onto) functions,
+//! into adapter functions between possibly [`Mixed`](crate::core::domain::Mixed) [`Domains`](crate::core::domain::Domain).
+//!
+//! # Example
+//!
+//! ```
+//! use tantale::core::{
+//!     domain::{
+//!         {Real, Unit, Domain},
+//!         onto::Onto,
+//!         sampler::{uniform_real, uniform_unit} // mostly used for examples},
+//!        },
+//!     variable::var::Var,
+//! };
+//! use std::sync::Arc;
+//!
+//! let dom_obj = Arc::new(Real::new(0.0,100.0));
+//! let dom_opt = Arc::new(Unit::new());
+//! // Attributes of a Var are private, once created it cannot be modified.
+//! let v = Var::_new(
+//!     ("a", None),
+//!     dom_obj,
+//!     dom_opt,
+//!     uniform_real,
+//!     uniform_unit,
+//!     Unit::onto, // Unit -> Real
+//!     Real::onto, // Real -> Unit
+//! );
+//!
+//! let mut rng = rand::rng();
+//! let sample_obj = v.sample_obj(&mut rng);
+//! let sample_opt = v.sample_opt(&mut rng);
+//! let mapped_to_obj = v.onto_obj(&sample_opt);
+//! let mapped_to_opt = v.onto_opt(&sample_obj);
+//!
+//! println!(" OBJ : {} => OPT {}", sample_obj, mapped_to_opt.unwrap());
+//! println!(" OPT : {} => OBJ {}", sample_opt, mapped_to_obj.unwrap());
+//!
+//! let replicated = v.replicate(1..10);
+//!
+//! for r in replicated{
+//!     println!("({},{})",r.get_name().0, r.get_name().1.unwrap());
+//! }
+//!
+//! ```
+//! 
+//! ## Note
+//!
+//! In the following examples and for readability, a helper macro `init_var_example!()` is used 
+//! to create a variable made of a `Obj` [`Real`](tantale::core::Real) and a  `Opt` [`Unit`](tantale::core::Unit) [`Domains`](tantale::core::Domain).
+//! 
+//! 
+use crate::domain::{onto::{Onto, OntoOutput}, Domain,TypeDom};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! init_var_example {
+    () => {
+            use tantale::core::{
+                domain::{Real, Unit, Domain},
+                var,
+            };
+            
+            let domobj = Real::new(0.0,100.0);
+            let domopt = Unit::new();
+    };
+}
+
+
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-///
 #[derive(Clone)]
 pub struct Var<Obj, Opt = Obj>
 where
@@ -15,10 +94,10 @@ where
     name: (&'static str, Option<usize>), // NAME + SUFFIX
     domain_obj: Arc<Obj>,
     domain_opt: Arc<Opt>,
-    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-    sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
-    onto_obj_fn: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
-    onto_opt_fn: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
+    sampler_obj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
+    sampler_opt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
+    onto_obj_fn: fn(&Opt, &TypeDom<Opt>, &Obj) -> OntoOutput<Obj>,
+    onto_opt_fn: fn(&Obj, &TypeDom<Obj>, &Opt) -> OntoOutput<Opt>,
 }
 
 /// Onto function when only the [`Objective`](crate::core::objective::Objective) [`Domain`] is define.
@@ -26,16 +105,16 @@ where
 ///
 pub fn _single_onto<T>(
     _input: &T,
-    item: &T::TypeDom,
+    item: &TypeDom<T>,
     _output: &T,
-) -> Result<T::TypeDom, DomainError>
+) -> OntoOutput<T>
 where
     T: Domain + Clone + Display + Debug,
 {
-    Ok(item.clone())
+    Ok(*item)
 }
 
-impl<'a, Obj> Var<Obj>
+impl<Obj> Var<Obj>
 where
     Obj: Domain + Clone + Display + Debug,
 {
@@ -44,21 +123,21 @@ where
     /// # Parameters
     ///
     /// * `name` : `&'a `[`str`] - Name of the Var.
-    /// The name of the Var, mostly used for saving, or pass a point as a keyword.
+    ///   The name of the Var, mostly used for saving, or pass a point as a keyword.
     /// * `domobj` : [`Arc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
-    /// The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    ///   The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
     /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    /// By default uses the [`sampler`](Domain::sample) of the [`Domain`].
+    ///   An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    /// By default uses the [`sampler`](Domain::sample) of the [`Domain`].
+    ///   An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
+    ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     ///
     pub fn new_single(
         name: &'static str,
         domobj: Arc<Obj>,
-        sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
-        sampopt: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
+        sampopt: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
     ) -> Var<Obj> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Obj::sample);
@@ -75,7 +154,7 @@ where
     }
 }
 
-impl<'a, Obj, Opt> Var<Obj, Opt>
+impl<Obj, Opt> Var<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
@@ -85,24 +164,24 @@ where
     /// # Parameters
     ///
     /// * `name` : `&'a `[`str`] - Name of the Var.
-    /// The name of the Var, mostly used for saving, or pass a point as a keyword.
+    ///   The name of the Var, mostly used for saving, or pass a point as a keyword.
     /// * `domobj` : [`Arc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
-    /// The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    ///   The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
     /// * `domopt` : [`Arc`]`<Opt>` - Accessible via the method [`domain_opt()`](Var::domain_opt).
-    /// The [`Domain`] of the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
+    ///   The [`Domain`] of the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    /// By default uses the [`sampler`](Domain::sample) of the [`Domain`].
+    ///   An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
-    /// An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    /// By default uses the [`sampler`](Domain::sample) of the [`Domain`].
+    ///   An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
+    ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     ///
     pub fn new_double(
         name: &'static str,
         domobj: Arc<Obj>,
         domopt: Arc<Opt>,
-        sampobj: Option<fn(&Obj, &mut ThreadRng) -> <Obj as Domain>::TypeDom>,
-        sampopt: Option<fn(&Opt, &mut ThreadRng) -> <Opt as Domain>::TypeDom>,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
+        sampopt: Option<fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>>,
     ) -> Var<Obj, Opt> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Opt::sample);
@@ -129,10 +208,10 @@ where
         name: (&'static str, Option<usize>),
         domobj: Arc<Obj>,
         domopt: Arc<Opt>,
-        sampobj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
-        sampopt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
-        ontoobj: fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>,
-        ontoopt: fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>,
+        sampobj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
+        sampopt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
+        ontoobj: fn(&Opt, &TypeDom<Opt>, &Obj) -> OntoOutput<Obj>,
+        ontoopt: fn(&Obj, &TypeDom<Obj>, &Opt) -> OntoOutput<Opt>,
     ) -> Var<Obj,Opt> {
         Var {
             name,
@@ -158,21 +237,21 @@ where
         self.domain_opt.clone()
     }
     /// Getter method for the `sampler_obj` attribute of the [`Var`].
-    pub fn get_sampler_obj(&self) -> fn(&Obj, &mut ThreadRng) -> Obj::TypeDom{
+    pub fn get_sampler_obj(&self) -> fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>{
         self.sampler_obj
     }
     /// Getter method for the `sampler_opt` attribute of the [`Var`].
-    pub fn get_sampler_opt(&self) -> fn(&Opt, &mut ThreadRng) -> Opt::TypeDom{
+    pub fn get_sampler_opt(&self) -> fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>{
         self.sampler_opt
     }
     /// Getter method for the `onto_obj_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    pub fn get_onto_obj_fn(&self) -> fn(&Opt, &Opt::TypeDom, &Obj) -> Result<Obj::TypeDom, DomainError>{
+    pub fn get_onto_obj_fn(&self) -> fn(&Opt, &TypeDom<Opt>, &Obj) -> OntoOutput<Obj>{
         self.onto_obj_fn
     }
     /// Getter method for the `onto_opt_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Objective`](crate::core::objective::Objective) [`Domain`] onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    pub fn get_onto_opt_fn(&self) -> fn(&Obj, &Obj::TypeDom, &Opt) -> Result<Opt::TypeDom, DomainError>{
+    pub fn get_onto_opt_fn(&self) -> fn(&Obj, &TypeDom<Obj>, &Opt) -> OntoOutput<Opt>{
         self.onto_opt_fn
     }
 
@@ -183,18 +262,12 @@ where
     /// # Parameters
     /// 
     /// * `item` : `&Opt::`[`TypeDom`](Domain::TypeDom) - A reference to point sampled within the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] to be
-    /// mapped onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    ///   mapped onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
     /// 
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{
-    ///     domain::{Real, Unit, Domain},
-    ///     var,
-    /// };
-    ///
-    /// let domobj = Real::new(0.0,100.0);
-    /// let domopt = Unit::new();
+    /// init_var_example!();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_opt = 0.9;
@@ -204,8 +277,8 @@ where
     ///
     /// ```
     /// 
-    pub fn onto_obj(&self, item: &Opt::TypeDom) -> Result<<Obj as Domain>::TypeDom, DomainError> {
-        (self.onto_obj_fn)(&self.domain_opt, &item, &self.domain_obj)
+    pub fn onto_obj(&self, item: &TypeDom<Opt>) -> OntoOutput<Obj> {
+        (self.onto_obj_fn)(&self.domain_opt, item, &self.domain_obj)
     }
     /// Function to map an `item` from the [`Objective`](crate::core::objective::Objective) [`Domain`] onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     /// The function uses the given `onto_opt_fn` attribute. By default it uses the corresponding [`Onto`] function.
@@ -213,19 +286,13 @@ where
     /// 
     /// # Parameters
     /// 
-    /// * `item` : `&Obj::`[`TypeDom`](Domain::TypeDom) - A reference to point sampled within the [`Objective`](crate::core::objective::Objective) [`Domain`] to be
-    /// mapped onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
+    /// * `item` : `Obj::`[`TypeDom`](Domain::TypeDom) - A reference to point sampled within the [`Objective`](crate::core::objective::Objective) [`Domain`] to be
+    ///   mapped onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     /// 
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{
-    ///     domain::{Real, Unit, Domain},
-    ///     var,
-    /// };
-    ///
-    /// let domobj = Real::new(0.0,100.0);
-    /// let domopt = Unit::new();
+    /// init_var_example!();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_obj = 50.0;
@@ -234,8 +301,8 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn onto_opt(&self, item: &Obj::TypeDom) -> Result<<Opt as Domain>::TypeDom, DomainError> {
-        (self.onto_opt_fn)(&self.domain_obj, &item, &self.domain_opt)
+    pub fn onto_opt(&self, item: &TypeDom<Obj>) -> OntoOutput<Opt> {
+        (self.onto_opt_fn)(&self.domain_obj, item, &self.domain_opt)
     }
     /// Function to sample a point from the [`Objective`](crate::core::objective::Objective) [`Domain`].
     /// 
@@ -246,15 +313,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{
-    ///     domain::{Real, Unit, Domain},
-    ///     var,
-    /// };
-    ///
-    /// let mut rng = rand::rng();
-    /// 
-    /// let domobj = Real::new(0.0,100.0);
-    /// let domopt = Unit::new();
+    /// init_var_example!();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_obj = v.sample_obj(&mut rng);
@@ -263,7 +322,7 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_obj(&self, rng: &mut ThreadRng) -> <Obj as Domain>::TypeDom {
+    pub fn sample_obj(&self, rng: &mut ThreadRng) -> TypeDom<Obj> {
         (self.sampler_obj)(&self.domain_obj, rng)
     }
     /// Function to sample a point from the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -275,15 +334,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{
-    ///     domain::{Real, Unit, Domain},
-    ///     var,
-    /// };
-    ///
-    /// let mut rng = rand::rng();
-    /// 
-    /// let domobj = Real::new(0.0,100.0);
-    /// let domopt = Unit::new();
+    /// init_var_example!();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_opt = v.sample_opt(&mut rng);
@@ -293,7 +344,7 @@ where
     ///
     /// ```
     /// 
-    pub fn sample_opt(&self, rng: &mut ThreadRng) -> <Opt as Domain>::TypeDom {
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> TypeDom<Opt> {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
     /// Function to replicate a variable a certain number of times by using a [`Range`](std::ops::Range).
@@ -311,16 +362,10 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{
-    ///     domain::{Real, Unit, Domain},
-    ///     var,
-    /// };
-    ///
-    /// let mut rng = rand::rng();
-    /// 
-    /// let domobj = Real::new(0.0,100.0);
-    /// let domopt = Unit::new();
+    /// init_var_example!();
     /// let v = var!("a" ; domobj ; domopt);
+    /// 
+    /// let mut rng = rand::rng();
     /// let vec_v = v.replicate(0..10);
     /// 
     /// for var in vec_v{
@@ -346,4 +391,47 @@ where
         }
         vec
     }
+
+    /// Check if an `item` is in the `Obj` [`Domain`] of the [`Var`].
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// init_var_example!();
+    /// let v = var!("a" ; domobj ; domopt);
+    ///
+    /// let mut rng = rand::rng();
+    /// let point_obj = v.sample_obj(&mut rng);
+    /// let mapped_to_opt = v.onto_opt(&point_obj);
+    ///
+    /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
+    ///
+    /// ```
+    pub fn is_in_obj(&self, item: &TypeDom<Obj>) -> bool {
+        self.domain_obj.is_in(item)
+    }
+    
+    /// Function to sample a point from the [`Objective`](crate::core::objective::Objective) [`Domain`].
+    /// 
+    /// # Parameters
+    /// 
+    /// * `rng` : `&mut `[`ThreadRng`](rand::prelude::ThreadRng) - A RNG thread.
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// init_var_example!();
+    /// let v = var!("a" ; domobj ; domopt);
+    ///
+    /// let mut rng = rand::rng();
+    /// let point_obj = v.sample_obj(&mut rng);
+    /// let mapped_to_opt = v.onto_opt(&point_obj);
+    ///
+    /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
+    ///
+    /// ```
+    pub fn is_in_opt(&self, item: &TypeDom<Opt>) -> bool {
+        self.domain_opt.is_in(item)
+    }
+
 }

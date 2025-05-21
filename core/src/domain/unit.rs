@@ -47,6 +47,12 @@ impl Unit {
     }
 }
 
+impl Default for Unit{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PartialEq for Unit {
     fn eq(&self, _other: &Self) -> bool {
         true

@@ -233,7 +233,6 @@ mod check_width {
 }
 
 mod check_default_sampler {
-    use rand;
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
     #[test]
     fn sampler_real() {
@@ -293,7 +292,6 @@ mod check_default_sampler {
 }
 
 mod check_default_sampler_base {
-    use rand;
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale::Mixed;
 

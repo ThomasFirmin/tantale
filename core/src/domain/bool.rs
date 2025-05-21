@@ -28,6 +28,8 @@ use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;
 use std::fmt;
 
+use super::{onto::OntoOutput, TypeDom};
+
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
 
@@ -43,7 +45,7 @@ use std::fmt;
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Bool;
 impl Bool {
     /// Fabric for a [`Bool`].
@@ -73,7 +75,7 @@ impl Domain for Bool {
     /// # Attributes
     ///
     /// * `point` : `&`[`Self`]`::`[`TypeDom`](Domain::TypeDom) :
-    /// a point of the same type as the type of the domain.
+    ///   a point of the same type as the type of the domain.
     ///
     /// # Example
     ///
@@ -126,9 +128,9 @@ where
     ///
     fn onto(
         &self,
-        item: &<Bool as Domain>::TypeDom,
+        item: &TypeDom<Bool>,
         target: &Bounded<Out>,
-    ) -> Result<Out, DomainError> {
+    ) -> OntoOutput<Bounded<Out>> {
         if self.is_in(item) {
             let mapped = if *item {
                 target.upper()
@@ -170,7 +172,7 @@ impl Onto<Unit> for Bool {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &<Bool as Domain>::TypeDom, target: &Unit) -> Result<f64, DomainError> {
+    fn onto(&self, item: &TypeDom<Bool>, target: &Unit) -> OntoOutput<Unit> {
         if self.is_in(item) {
             let mapped = if *item { 1.0 } else { 0.0 };
             if target.is_in(&mapped) {
@@ -210,7 +212,7 @@ impl Onto<BaseDom> for Bool {
         &self,
         item: &bool,
         target: &BaseDom,
-    ) -> Result<<BaseDom as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<BaseDom> {
         match target{
             BaseDom::Real(d) => {
                 match self.onto(item, d) {

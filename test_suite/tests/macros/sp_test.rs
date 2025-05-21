@@ -14,5 +14,5 @@ pub mod searchspace{
 }
 #[test]
 fn searchspace_test(){
-    searchspace::get_searchpace();
+    let sp =searchspace::get_searchspace();
 }

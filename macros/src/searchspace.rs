@@ -19,10 +19,7 @@ impl Parse for DomainStream {
 
         // Match type
         let ty = input.parse::<Ident>();
-        let ty = match ty {
-            Ok(t) => Some(t),
-            Err(_) => None,
-        };
+        let ty = ty.ok();
 
         // Match domain args if type exists
         let args= match ty{
@@ -59,8 +56,8 @@ impl Parse for DomainStream {
         };
 
         Ok(DomainStream {
-            args: args,
-            ty: ty,
+            args,
+            ty,
             sampler: samp,
         })
     }
@@ -96,7 +93,7 @@ impl Parse for Identifier {
 
         Ok(Identifier {
             id: ident,
-            range: range,
+            range,
         })
     }
 }
@@ -147,7 +144,7 @@ fn token_to_domain(
 
         Ok((ident, range, objstream, Some(optstream)))
     } else {
-        return Err(syn::Error::new(span, "A line cannot be empty.\n\
+        Err(syn::Error::new(span, "A line cannot be empty.\n\
                 Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
                 `name | Objective part | Optimizer part ;`\n\
                 with: \n\
@@ -156,7 +153,7 @@ fn token_to_domain(
                 the Optimizer part made of:\n\
                 `Optional(Type(args:expr)) => sampler:expr)`\n\
                 where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
-                "));
+                "))
     }
 }
 
@@ -330,8 +327,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let (name, range, objstream, optstream) = token_to_domain(line.clone())?;
 
         // Extract Obj domain information
-        let obj_args: Expr;
-        if objstream.args.is_none() {
+        let obj_args: Expr = if objstream.args.is_none() {
             return Err(syn::Error::new(line.to_string().span(), "The Objective domain cannot be empty.\n\
                 Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
                 `name | Objective part | Optimizer part ;`\n\
@@ -343,8 +339,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
                 where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
                 "));
         } else {
-            obj_args = objstream.args.unwrap();
-        }
+            objstream.args.unwrap()
+        };
 
         let obj_ty = objstream.ty.unwrap();
         let obj_samp_name: String;
@@ -462,7 +458,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         let unique_type = tobj_unique.iter().next().unwrap().to_string();
         ident_mixed_obj_str = unique_type.clone();
         ident_mixedt_obj_str = unique_type.clone();
-        mixed_obj = quote! {}.into(); // Non need to create a Mixed enum
+        mixed_obj = quote! {}; // Non need to create a Mixed enum
     }
 
     // Determine if Opt is Mixed or not
@@ -635,7 +631,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         // OBJ SAMP-ONTO TOKENS
         let sampobj_name = format!(
             "_tantale_{}_{}_{}_samp",
-            ident_mixed_obj_str.to_string(),
+            ident_mixed_obj_str,
             ty_obj,
             sampobj_name
         );
@@ -644,9 +640,9 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         let ontoopt_name = format!(
             "_tantale_{}_{}_onto_{}_{}",
-            ident_mixed_obj_str.to_string(),
+            ident_mixed_obj_str,
             ty_obj,
-            ident_mixed_opt_str.to_string(),
+            ident_mixed_opt_str,
             ty_opt
         );
         let token_onto_opt = proc_macro2::TokenStream::from_str(&ontoopt_name).unwrap();
@@ -662,7 +658,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         // OPT SAMP-ONTO TOKENS
         let sampopt_name = format!(
             "_tantale_{}_{}_{}_samp",
-            ident_mixed_opt_str.to_string(),
+            ident_mixed_opt_str,
             ty_opt,
             sampopt_name
         );
@@ -671,9 +667,9 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
 
         let ontoobj_name = format!(
             "_tantale_{}_{}_onto_{}_{}",
-            ident_mixed_opt_str.to_string(),
+            ident_mixed_opt_str,
             ty_opt,
-            ident_mixed_obj_str.to_string(),
+            ident_mixed_obj_str,
             ty_obj
         );
         let token_onto_obj = proc_macro2::TokenStream::from_str(&ontoobj_name).unwrap();
@@ -686,15 +682,12 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             ),
         );
 
-        let range = match vinf.range {
-            Some(expr) => Some(expr.to_token_stream()),
-            None => None,
-        };
+        let range = vinf.range.map(|expr| expr.to_token_stream());
 
         // WRAP EVERYTHING
         let wrapvarinfo = WrappedVarInfo {
             name: vinf.name.to_string(),
-            range: range,
+            range,
             wrapped_domobj,
             token_sampobj,
             token_onto_opt,

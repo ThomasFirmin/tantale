@@ -13,14 +13,6 @@ pub use domain::{BaseDom, BaseTypeDom};
 pub use domain::{Bounded, DomainBounded, Int, Nat, Real};
 pub use domain::{DomainBoundariesError, DomainError, DomainOoBError};
 
-pub mod errors;
-
-pub mod objective;
-pub use crate::objective::Objective;
-
-pub mod optimizer;
-pub use crate::optimizer::Optimizer;
-
 pub mod variable;
 pub use variable::var::Var;
 
@@ -31,4 +23,15 @@ pub mod searchspace;
 pub use searchspace::{Sp,Searchspace};
 #[cfg(feature="par")]
 pub use searchspace::ParSearchspace;
+
+pub mod errors;
+
+pub mod objective;
+pub use crate::objective::Objective;
+
+pub mod optimizer;
+pub use crate::optimizer::Optimizer;
+
+pub mod stop;
+pub use stop::Stop;
 

@@ -3,9 +3,9 @@ use crate::domain::{
     bounded::{Int, Nat, Real},
     cat::Cat,
     derrors::{DomainError, DomainOoBError},
-    onto::Onto,
+    onto::{Onto, OntoOutput},
     unit::Unit,
-    Domain,
+    Domain, TypeDom,
 };
 
 use rand::prelude::ThreadRng;
@@ -57,12 +57,12 @@ impl Debug for BaseDom {
 ///
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BaseTypeDom {
-    Real(<Real as Domain>::TypeDom),
-    Nat(<Nat as Domain>::TypeDom),
-    Int(<Int as Domain>::TypeDom),
-    Bool(<Bool as Domain>::TypeDom),
-    Cat(<Cat as Domain>::TypeDom),
-    Unit(<Unit as Domain>::TypeDom),
+    Real(TypeDom<Real>),
+    Nat(TypeDom<Nat>),
+    Int(TypeDom<Int>),
+    Bool(TypeDom<Bool>),
+    Cat(TypeDom<Cat>),
+    Unit(TypeDom<Unit>),
 }
 impl Display for BaseTypeDom {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -78,7 +78,7 @@ impl Display for BaseTypeDom {
 }
 impl Default for BaseTypeDom {
     fn default() -> Self {
-        BaseTypeDom::Real(<Real as Domain>::TypeDom::default())
+        BaseTypeDom::Real(TypeDom::<Real>::default())
     }
 }
 
@@ -135,17 +135,12 @@ impl Onto<Real> for BaseDom {
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
     /// * `target` : `&`[`Real`] - A borrowed targetted [`Domain`].
     ///
-    /// # Errors
-    ///
-    /// * Returns a [`DomainError::OoB`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &Real,
-    ) -> Result<<Real as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<Real>{
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -211,9 +206,9 @@ impl Onto<Nat> for BaseDom {
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &Nat,
-    ) -> Result<<Nat as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<Nat> {
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -279,9 +274,9 @@ impl Onto<Int> for BaseDom {
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &Int,
-    ) -> Result<<Int as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<Int> {
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -346,7 +341,7 @@ impl Onto<Unit> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &<BaseDom as Domain>::TypeDom, target: &Unit) -> Result<f64, DomainError> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Unit) -> OntoOutput<Unit> {
         match self {
             Self::Real(d) => match item{
                 Self::TypeDom::Real(i) => d.onto(i,target),
@@ -392,9 +387,9 @@ impl Onto<Bool> for BaseDom {
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &Bool,
-    ) -> Result<<Bool as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<Bool> {
         match self {
             Self::Real(d) => match item{
                 Self::TypeDom::Real(i) => d.onto(i,target),
@@ -440,9 +435,9 @@ impl Onto<Cat> for BaseDom {
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &Cat,
-    ) -> Result<<Cat as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<Cat> {
         match self {
             Self::Real(d) => match item{
                 Self::TypeDom::Real(i) => d.onto(i,target),
@@ -488,11 +483,11 @@ impl Onto<BaseDom> for BaseDom {
     ///
     fn onto(
         &self,
-        item: &<BaseDom as Domain>::TypeDom,
+        item: &TypeDom<BaseDom>,
         target: &BaseDom,
-    ) -> Result<<BaseDom as Domain>::TypeDom, DomainError> {
+    ) -> OntoOutput<BaseDom> {
         if self == target {
-            Ok(item.clone())
+            Ok(*item)
         } else {
             match self {
                 Self::Real(d) => match item {

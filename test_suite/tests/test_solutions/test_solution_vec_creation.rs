@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
 
-fn _test_solution_assertion<'a, D: Domain, const S: usize>(
+fn _test_solution_assertion<D, const S: usize>(
     sol: &Vec<Solution<D, S>>, pid : u32,
 ) where
     D: Domain + Clone + Display + Debug,
@@ -28,7 +28,7 @@ macro_rules! get_default_vec {
         fn $name (){
             let mut idsol = Vec::new();
             $(
-                let v = Solution::<$dom,$size>::new_default_vec($pid);
+                let v = Solution::<$dom,$size>::new_default_vec($pid, 7);
                 _test_solution_assertion(&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.id.0));
             )*

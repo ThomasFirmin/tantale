@@ -10,7 +10,7 @@ use tantale::core::variable::Var;
 use paste::paste;
 use std::fmt::{Debug, Display};
 
-fn _test_variable_assertion<'a, Obj, Opt>(item: &'a Var<Obj, Opt>)
+fn _test_variable_assertion<Obj, Opt>(item: &Var<Obj, Opt>)
 where
     Obj: Domain + Clone + Display + Debug + Onto<Opt>,
     Opt: Domain + Clone + Display + Debug + Onto<Obj>,
@@ -31,7 +31,7 @@ where
     );
 }
 
-fn _test_variable_assertion_single<'a, Obj>(item: &'a Var<Obj>)
+fn _test_variable_assertion_single<Obj>(item: &Var<Obj>)
 where
     Obj: Domain + Clone + Display + Debug,
 {

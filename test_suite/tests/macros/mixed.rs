@@ -25,8 +25,8 @@ fn mixed_derive() {
     let b1 = Base::Real(v1.clone());
     let b2 = Base::Int(v2.clone());
     let b3 = Base::Nat(v3.clone());
-    let b4 = Base::Bool(v4.clone());
-    let b5 = Base::Cat(v5.clone());
+    let b4 = Base::Bool(v4);
+    let b5 = Base::Cat(v5);
     let b6 = Base::Unit(v6.clone());
 
     assert_eq!(
