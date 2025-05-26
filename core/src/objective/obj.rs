@@ -1,34 +1,25 @@
 
-use crate::{domain::Domain, Solution};
-use crate::objective::criteria::Criteria;
+use crate::domain::Domain;
+use crate::objective::Codomain;
 
-use std::{collections::HashMap, fmt::{Debug, Display}};
+use std::fmt::{Debug, Display};
 
-pub struct Codomain<'a, D, const DIM: usize, const CRIT : usize>
-where
-    D: Domain + Clone + Display + Debug,
-{
-    pub sol : &'a Solution<D,DIM>,
-    pub out : [f64;CRIT],
-}
-
-pub trait Objective<Obj, const DIM: usize, const CRIT: usize>
+pub trait Objective<Obj, C, Out, const DIM: usize>
 where
     Obj: Domain + Clone + Display + Debug,
+    C : Codomain,
+    Out : Outcome,
 {
-    fn compute(&self, x:&Solution<Obj,DIM>) -> HashMap<&str,f64>;
+    fn compute(&self, x:&[Obj]) -> (C,Out);
 }
 
-pub struct SliceObjective<Obj, const DIM: usize, const CRIT: usize>
+pub struct SimpleObjective<Obj, C, Out, const DIM: usize>
 where
     Obj: Domain + Clone + Display + Debug,
+    C : Codomain,
+    Out : Outcome,
 {   
-    pub criteria : [Box<dyn Criteria>; CRIT],
-    pub function : fn(&[Obj]) -> HashMap<&str,f64>,
+    pub codomain : C,
+    pub function : fn(&[Obj]) -> Out,
 }
-
-pub struct HashMapObjective{}
-
-pub struct PyKwargsObjective{}
-
 

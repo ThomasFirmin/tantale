@@ -54,34 +54,13 @@
 //!     println!("({},{})",r.get_name().0, r.get_name().1.unwrap());
 //! }
 //!
-//! ```
-//! 
-//! ## Note
-//!
-//! In the following examples and for readability, a helper macro `init_var_example!()` is used 
-//! to create a variable made of a `Obj` [`Real`](tantale::core::Real) and a  `Opt` [`Unit`](tantale::core::Unit) [`Domains`](tantale::core::Domain).
-//! 
-//! 
+//! ``` 
+
 use crate::domain::{onto::{Onto, OntoOutput}, Domain,TypeDom};
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
-
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! init_var_example {
-    () => {
-            use tantale::core::{
-                domain::{Real, Unit, Domain},
-                var,
-            };
-            
-            let domobj = Real::new(0.0,100.0);
-            let domopt = Unit::new();
-    };
-}
 
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -267,7 +246,13 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_opt = 0.9;
@@ -292,7 +277,13 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let point_obj = 50.0;
@@ -313,9 +304,16 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     ///
+    /// let mut rng = rand::rng();
     /// let point_obj = v.sample_obj(&mut rng);
     /// let mapped_to_opt = v.onto_opt(&point_obj);
     ///
@@ -334,9 +332,16 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     ///
+    /// let mut rng = rand::rng();
     /// let point_opt = v.sample_opt(&mut rng);
     /// let mapped_to_obj = v.onto_obj(&point_opt);
     ///
@@ -362,7 +367,13 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     /// 
     /// let mut rng = rand::rng();
@@ -397,8 +408,14 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
-    /// let v = var!("a" ; domobj ; domopt);
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
+    /// let v = tantale::core::var!("a" ; domobj ; domopt);
     ///
     /// let mut rng = rand::rng();
     /// let point_obj = v.sample_obj(&mut rng);
@@ -420,7 +437,13 @@ where
     /// # Example
     ///
     /// ```
-    /// init_var_example!();
+    /// use tantale::core::{
+    ///     domain::{Real, Unit, Domain},
+    ///     var,
+    /// };
+    /// 
+    /// let domobj = Real::new(0.0,100.0);
+    /// let domopt = Unit::new();
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let mut rng = rand::rng();

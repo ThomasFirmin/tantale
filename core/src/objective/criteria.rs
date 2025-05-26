@@ -30,6 +30,9 @@ impl Criteria for Max {
     }
 }
 
+/// Selects and returns an element from an [`Outcome`](tantale::core::objective::outcome::Outcome).
+pub type Select = Max;
+
 /// A [`Criteria`] describing the extracted value as something to be minimized.
 /// $$f(x) = -x$$
 pub struct Min{
