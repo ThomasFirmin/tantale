@@ -1,3 +1,17 @@
+//! The [`Codomain`](tantale::core::Codomain) describes which elements from the [`Output`](tantale::core::Outcome) from the
+//! [`Objective`](tantale::core::Objective) function should be used within the [`Optimizer`](tanta::core::Optimizer).
+//! It allows to extract from the [`Output`](tantale::core::Outcome) the [`Single`](tantale::core::Single) objective to minimize, $f(x)=y$.
+//! Moreover, a [`Codomain`](tantale::core::Codomain) can express more complex behaviors, like [`Constrained`](tantale::core::Constrained),
+//! [`Multi`](tantale::core::Multi)-objective, or multi-[`Fidelity`](tantale::core::Fidelity) optimization. 
+//! The extracted elements from [`Outcome`](tantale::core::Outcome) form the [`TypeCodom`](tantale::core::Codomain::TypeCodom), a type
+//! associated to a [`Codomain`](tantale::core::Codomain).
+//! 
+//! # Notes
+//! 
+//!   * For now, all extracted elements from the [`Outcome`](tantale::core::Outcome) should be [`f64`].
+//!   * To extract elements from an [`Outcome`](tantale::core::Outcome), most of the [`Codomain`](tantale::core::Codomain) uses
+//!     a user defined function called [`Criteria`](tantale::core::Criteria).
+
 use crate::objective::outcome::Outcome;
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation of the [`Objective`] function
@@ -22,7 +36,7 @@ pub trait Single<Out:Outcome> : Codomain<Out>
 /// Defines a mono-objective [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$
 pub trait Multi<Out:Outcome> : Codomain<Out>
 {
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]>;
+    fn get_criteria(&self) -> &[Criteria<Out>];
     fn get_y(&self, o:&Out)-> Box<[f64]>{
         let criterias = self.get_criteria();
         criterias.iter().map(|c | c(o)).collect()
@@ -32,7 +46,7 @@ pub trait Multi<Out:Outcome> : Codomain<Out>
 /// Defines a [`Codomain`] constrained by equalities or inequalities depending on [`ConsType`].
 pub trait Constrained<Out:Outcome, ConsType> : Codomain<Out>
 {
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]>;
+    fn get_criteria(&self) -> &[Criteria<Out>];
     fn get_constraints(&self, o:&Out)-> Box<[f64]>{
         self.get_criteria().iter().map(|c | c(o)).collect()
     }
@@ -151,7 +165,7 @@ impl <Out:Outcome> Single<Out> for ConstrainedCodomain<Out>
 
 impl <Out:Outcome> Constrained<Out,ConsType> for ConstrainedCodomain<Out>
 {
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
@@ -192,7 +206,7 @@ impl <Out:Outcome> Fidelity<Out> for FidelConstCodomain<Out>{
     }
 }
 impl <Out:Outcome> Constrained<Out,ConsType> for FidelConstCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
@@ -217,7 +231,7 @@ impl <Out:Outcome> Codomain<Out> for MultiCodomain<Out>{
 }
 
 impl <Out:Outcome> Multi<Out> for MultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
@@ -245,7 +259,7 @@ impl <Out:Outcome> Codomain<Out> for FidelMultiCodomain<Out>{
     }
 }
 impl <Out:Outcome> Multi<Out> for FidelMultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
@@ -279,12 +293,12 @@ impl <Out:Outcome> Codomain<Out> for ConstMultiCodomain<Out>{
 }
 
 impl <Out:Outcome> Multi<Out> for ConstMultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
 impl <Out:Outcome> Constrained<Out,ConsType> for ConstMultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
@@ -315,7 +329,7 @@ impl <Out:Outcome> Codomain<Out> for FidelConstMultiCodomain<Out>{
     }
 }
 impl <Out:Outcome> Multi<Out> for FidelConstMultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
@@ -327,7 +341,7 @@ impl <Out:Outcome> Fidelity<Out> for FidelConstMultiCodomain<Out> {
 }
 
 impl <Out:Outcome> Constrained<Out,ConsType> for FidelConstMultiCodomain<Out>{
-    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+    fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }

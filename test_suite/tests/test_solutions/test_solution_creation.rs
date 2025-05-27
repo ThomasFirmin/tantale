@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display};
 use std::collections::HashSet;
 use std::process;
 
-fn _test_solution_assertion<D, const S: usize>(
-    sol: &Solution<D, S>,
+fn _test_solution_assertion<D, Cod, Out, const S: usize>(
+    sol: &Solution<Dom, Cod, Out, S>,
     id: (usize, u32),
 ) where
     D: Domain + Clone + Display + Debug,

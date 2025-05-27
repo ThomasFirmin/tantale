@@ -21,6 +21,7 @@
 
 use crate::domain::{Domain, TypeDom};
 use crate::objective::codomain::Codomain;
+use crate::objective::Outcome;
 
 use std::{
     fmt::{Debug, Display},
@@ -37,25 +38,27 @@ static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Attributes
 /// * `id` : `(usize, u32)` - Contains the ID of the solution combined with the PID of the process.
-/// * `x` : [`Vec`]`<D::`[`TypeDom`](Domain::TypeDom)`>` - A vector of [`TypeDom`](Domain::TypeDom)
+/// * `x` : [`Vec`]`<Dom::`[`TypeDom`](Domain::TypeDom)`>` - A vector of [`TypeDom`](Domain::TypeDom)
 /// * `y` : [`Arc`]`<`[`Option`]`<C>` - State of the evaluation of a solution. It is an optional [`Codomain`](tantale::core::objective::comdomain::Codomain), if the [`Solution`] was not yet evaluated, then it is `None`.
 ///
-pub struct Solution<D, C, const N: usize>
+pub struct Solution<Dom, Cod, Out, const N: usize>
 where
-    D: Domain + Clone + Display + Debug,
-    C: Codomain,
-    TypeDom<D>: Default + Copy + Clone + Display + Debug,
+    Dom: Domain + Clone + Display + Debug,
+    Cod: Codomain<Out>,
+    Out : Outcome,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
     pub id: (usize, u32), // ID + PID for parallel algorithms.
-    pub x: Box<[TypeDom<D>]>,
-    pub y: Arc<Option<C>>,
+    pub x: Box<[TypeDom<Dom>]>,
+    pub y: Arc<Option<Cod::TypeCodom>>,
 }
 
-impl<D, C, const N: usize> Solution<D, C, N>
+impl<Dom, Cod, Out, const N: usize> Solution<Dom, Cod, Out, N>
 where
-    D: Domain + Clone + Display + Debug,
-    C: Codomain,
-    TypeDom<D>: Default + Copy + Clone + Display + Debug,
+    Dom: Domain + Clone + Display + Debug,
+    Cod: Codomain<Out>,
+    Out : Outcome,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
     /// Creates a new solution from a boxed slice.
     /// 
@@ -72,7 +75,7 @@ where
     /// }
     /// 
     /// ```
-    pub fn new(pid: u32, x: Box<[TypeDom<D>]>, y: Arc<Option<C>>) -> Self {
+    pub fn new(pid: u32, x: Box<[TypeDom<Dom>]>, y: Arc<Option<Cod::TypeCodom>>) -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         Solution { id: (id, pid), x, y}
     }
@@ -108,8 +111,8 @@ where
     /// }
     /// 
     /// ```
-    pub fn default_x() -> Box<[TypeDom<D>]> {
-        vec![TypeDom::<D>::default();N].into_boxed_slice()
+    pub fn default_x() -> Box<[TypeDom<Dom>]> {
+        vec![TypeDom::<Dom>::default();N].into_boxed_slice()
     }
     /// Creates an empty [`Vec`] of [`Solutions`](Solution) with reserved capacity
     /// with `size`.
@@ -186,7 +189,7 @@ where
     /// }
     /// 
     /// ```
-    pub fn new_fill_vec(pid:u32, size:usize, x: Box<[TypeDom<D>]>)-> Vec<Self>{
+    pub fn new_fill_vec(pid:u32, size:usize, x: Box<[TypeDom<Dom>]>)-> Vec<Self>{
         let mut v = Self::new_vec(size);
         for _ in 0..size{
             v.push(Self::new(pid, x.clone(), Arc::new(None)));
@@ -218,7 +221,7 @@ where
     /// }
     /// 
     /// ```
-    pub fn twin<B>(&self, x: Box<[TypeDom<B>]>) -> Solution<B,C,N> 
+    pub fn twin<B>(&self, x: Box<[TypeDom<B>]>) -> Solution<B,Cod,Out,N> 
     where
         B: Domain + Clone + Display + Debug,
         TypeDom<B>: Default + Copy + Clone + Display + Debug,
@@ -228,11 +231,13 @@ where
 }
 
 #[cfg(feature="par")]
-impl<D,C,const N: usize> Solution<D,C,N>
+impl<Dom,Cod,Out,const N: usize> Solution<Dom,Cod,Out,N>
 where
-    D: Domain + Clone + Display + Debug,
-    TypeDom<D>: Default + Copy + Clone + Display + Debug + Send + Sync,
-    C : Codomain + Send + Sync,
+    Dom: Domain + Clone + Display + Debug,
+    Cod : Codomain<Out> + Send + Sync,
+    Out : Outcome + Send + Sync,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug + Send + Sync,
+    Cod::TypeCodom : Send + Sync,
 {
     /// Parallel version of [`new_default_vec`](Solution::new_default_vec) using [`rayon`].
     pub fn par_new_default_vec(pid:u32, size:usize)-> Vec<Self>{

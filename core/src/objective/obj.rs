@@ -5,22 +5,34 @@ use crate::objective::Codomain;
 
 use std::fmt::{Debug, Display};
 
-pub trait Objective<Obj, Cod, Out, const DIM: usize>
+pub trait Objective<Obj, Cod, Out>
 where
     Obj: Domain + Clone + Display + Debug,
     Out : Outcome,
     Cod : Codomain<Out>
 {
-    fn compute(&self, x:&[Obj]) -> (Cod,Out);
+    fn compute(&self, x:&[Obj::TypeDom]) -> (Cod::TypeCodom,Out);
 }
 
-pub struct SimpleObjective<Obj, C, Out, const DIM: usize>
+pub struct SimpleObjective<Obj, Cod, Out>
 where
     Obj: Domain + Clone + Display + Debug,
-    C : Codomain,
+    Cod : Codomain<Out>,
     Out : Outcome,
 {   
-    pub codomain : C,
-    pub function : fn(&[Obj]) -> Out,
+    pub codomain : Cod  ,
+    pub function : fn(&[Obj::TypeDom]) -> Out,
+}
+
+impl <Obj, Cod, Out> Objective<Obj, Cod, Out> for SimpleObjective<Obj, Cod, Out>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Out : Outcome,
+    Cod : Codomain<Out>
+{
+    fn compute(&self, x:&[Obj::TypeDom]) -> (Cod::TypeCodom,Out) {
+        let out = (self.function)(x);
+        (self.codomain.get_elem(&out),out)
+    }
 }
 
