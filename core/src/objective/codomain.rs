@@ -1,41 +1,40 @@
 use crate::objective::outcome::Outcome;
-use crate::objective::criteria::Criteria;
+
+/// A criteria defines a function taking the [`Outcome`] of the evaluation of the [`Objective`] function
+pub type Criteria<Out> = fn(&Out)->f64;
 
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
-pub trait Codomain{}
+/// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
+pub trait Codomain<Out:Outcome>{
+    type TypeCodom;
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom;
+}
 
 /// Defines a mono-objective [`Codomain`], i.e. $f(x)=y$
-pub trait Single<Out, C> : Codomain
-where
-    Out : Outcome,
-    C : Criteria,
+pub trait Single<Out:Outcome> : Codomain<Out>
 {
-    fn get_criteria(&self) -> C;
-    fn get_y(&self, o:Out)-> f64{
-        self.get_criteria().extract(o)
+    fn get_criteria(&self) -> Criteria<Out>;
+    fn get_y(&self, o:&Out)-> f64{
+        (self.get_criteria())(o)
     }
 }
 
 /// Defines a mono-objective [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$
-pub trait Multi<Out> : Codomain
-where
-    Out : Outcome,
+pub trait Multi<Out:Outcome> : Codomain<Out>
 {
-    fn get_criteria(&self) -> Vec<Box<dyn Criteria>>;
-    fn get_y(&self, o:Out)-> Box<[f64]>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]>;
+    fn get_y(&self, o:&Out)-> Box<[f64]>{
         let criterias = self.get_criteria();
-        criterias.iter().map(|c | c.extract(o)).collect()
+        criterias.iter().map(|c | c(o)).collect()
     }
 }
 
 /// Defines a [`Codomain`] constrained by equalities or inequalities depending on [`ConsType`].
-pub trait Constrained<Out, ConsType> : Codomain
-where
-    Out : Outcome,
+pub trait Constrained<Out:Outcome, ConsType> : Codomain<Out>
 {
-    fn get_criteria(&self) -> Vec<Box<dyn Criteria>>;
-    fn get_constraints(&self, o:Out)-> Box<[f64]>{
-        self.get_criteria().iter().map(|c | c.extract(o)).collect()
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]>;
+    fn get_constraints(&self, o:&Out)-> Box<[f64]>{
+        self.get_criteria().iter().map(|c | c(o)).collect()
     }
 }
 
@@ -51,171 +50,286 @@ pub enum ConsType {
     Both,
 }
 
-
-pub trait Fidelity<Out,C> : Codomain
-where
-    Out : Outcome,
-    C : Criteria,
+pub trait Fidelity<Out:Outcome> : Codomain<Out>
 {
-    fn get_criteria(&self) -> C;
-    fn get_fidelity(&self, o:Out)-> f64{
-        self.get_criteria().extract(o)
+    fn get_criteria(&self) -> Criteria<Out>;
+    fn get_fidelity(&self, o:&Out)-> f64{
+        (self.get_criteria())(o)
     }
 }
-
 
 
 // MONO OBJECTIVE CODOMAINS
 
 /// A single [`Criteria`] [`Codomain`] made of a single value `y`.
-pub struct SingleCodomain<C:Criteria>
+pub struct SingleCodomain<Out:Outcome>
 {
-    pub criteria : C,
-    pub y : f64,
+    pub y_criteria : Criteria<Out>,
 }
 
-impl <C:Criteria> Codomain for SingleCodomain<C>{}
-
-impl <Out,C> Single<Out,C> for SingleCodomain<C>
-where
-    Out : Outcome,
-    C : Criteria,
-{
-    fn get_criteria(&self) -> C {
-        self.criteria
-    }
+impl <Out:Outcome> Codomain<Out> for SingleCodomain<Out>{
+    type TypeCodom = f64;
+    
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        self.get_y(o)
+    }   
 }
 
-/// A [`Single`] and [`Fidelity`] [`Codomain`], i.e. $f(x) = y, \tau $, with $\tau$ the fidelity.
-pub struct FidelCodomain<C:Criteria>
+impl <Out:Outcome> Single<Out> for SingleCodomain<Out>
 {
-    pub criteria : C,
-    pub y : f64,
-    pub fidelity : f64,
-}
-impl <C:Criteria> Codomain for FidelCodomain<C>{}
-
-impl <Out,C> Single<Out,C> for FidelCodomain<C>
-where
-    Out : Outcome,
-    C : Criteria,
-{
-    fn get_criteria(&self) -> C {
-        self.criteria
-    }
-}
-impl <Out,C> Fidelity<Out,C> for FidelCodomain<C>
-where
-    Out : Outcome,
-    C : Criteria,
-{
-    fn get_criteria(&self) -> C {
-        self.criteria
-    }
-}
-
-/// A [`Single`], [`Constrained`], and [`Fidelity`] [`Codomain`], i.e. $f(x) = y, \tau $, with $\tau$ the fidelity.
-pub struct ConstrainedCodomain<C:Criteria>
-{
-    pub y_criteria : C,
-    pub y : f64,
-    pub c_criteria : Vec<Box<dyn Criteria>>,
-    pub constraints : Box<[f64]>,
-}
-
-impl <C:Criteria> Codomain for ConstrainedCodomain<C>{}
-impl <Out,C> Single<Out,C> for ConstrainedCodomain<C>
-where
-    Out : Outcome,
-    C : Criteria,
-{
-    fn get_criteria(&self) -> C {
+    fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl <Out, C> Constrained<Out,ConsType> for ConstrainedCodomain<C>
-where
-    Out : Outcome,
-    C : Criteria,
+
+/// A [`Single`] and [`Fidelity`] [`Codomain`].
+pub struct FidelCodomain<Out:Outcome>
 {
-    fn get_criteria(&self) -> Vec<Box<dyn Criteria>> {
-        self.c_criteria
+    pub y_criteria : Criteria<Out>,
+    pub f_criteria : Criteria<Out>,
+}
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
+pub struct ElemFidelCodomain
+{
+    pub y : f64,
+    pub fidelity : f64,
+}
+
+impl <Out:Outcome> Codomain<Out> for FidelCodomain<Out>{
+    type TypeCodom = ElemFidelCodomain;
+
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemFidelCodomain{
+            y: self.get_y(o),
+            fidelity: self.get_fidelity(o),
+        }
     }
 }
 
-
-pub struct FidelConstCodomain<Out>
-where
-    Out : Outcome,
+impl <Out:Outcome> Single<Out> for FidelCodomain<Out>
 {
-
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.y_criteria
+    }
 }
-impl Codomain for FidelConstCodomain{
-
-}
-impl Single for FidelConstCodomain{
-
-}
-impl Fidelity for FidelConstCodomain{
-
-}
-impl Constrained for FidelConstCodomain{
-
+impl <Out:Outcome> Fidelity<Out> for FidelCodomain<Out>
+{
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.f_criteria
+    }
 }
 
-pub type ConstFidelCodomain = FidelConstCodomain;
+/// A [`Single`] and [`Constrained`] [`Codomain`].
+pub struct ConstrainedCodomain<Out:Outcome>
+{
+    pub y_criteria : Criteria<Out>,
+    pub c_criteria : Box<[Criteria<Out>]>,
+}
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`]
+pub struct ElemConstrainedCodomain
+{
+    pub y : f64,
+    pub constraints : Box<[f64]>,
+}
+
+impl <Out:Outcome> Codomain<Out> for ConstrainedCodomain<Out>{
+    type TypeCodom=ElemConstrainedCodomain;
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemConstrainedCodomain{
+            y: self.get_y(o),
+            constraints: self.get_constraints(o),
+        }
+    }
+}
+
+impl <Out:Outcome> Single<Out> for ConstrainedCodomain<Out>
+{
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.y_criteria
+    }
+}
+
+impl <Out:Outcome> Constrained<Out,ConsType> for ConstrainedCodomain<Out>
+{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.c_criteria
+    }
+}
+
+/// A [`Single`], [`Constrained`], and [`Fidelity`] [`Codomain`].
+pub struct FidelConstCodomain<Out:Outcome>
+{
+    pub y_criteria : Criteria<Out>,
+    pub f_criteria : Criteria<Out>,
+    pub c_criteria : Box<[Criteria<Out>]>,
+}
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+pub struct ElemFidelConstCodomain{
+    pub y : f64,
+    pub fidelity : f64,
+    pub constraints : Box<[f64]>,
+}
+
+impl <Out:Outcome> Codomain<Out> for FidelConstCodomain<Out>{
+    type TypeCodom=ElemFidelConstCodomain;
+
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemFidelConstCodomain{
+            y: self.get_y(o),
+            fidelity: self.get_fidelity(o),
+            constraints: self.get_constraints(o),
+        }
+    }
+}
+impl <Out:Outcome> Single<Out> for FidelConstCodomain<Out>{
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.y_criteria
+    }
+}
+impl <Out:Outcome> Fidelity<Out> for FidelConstCodomain<Out>{
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.f_criteria
+    }
+}
+impl <Out:Outcome> Constrained<Out,ConsType> for FidelConstCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.c_criteria
+    }
+}
+
+pub type ConstFidelCodomain<Out> = FidelConstCodomain<Out>;
 
 
 // MULTI OBJECTIVE CODOMAINS
 
-pub struct MultiCodomain<Out>
-where
-    Out : Outcome,
-{}
-impl Codomain for MultiCodomain{
-
+/// A [`Multi`] objective [`Codomain`].
+pub struct MultiCodomain<Out:Outcome>
+{
+    pub y_criteria : Box<[Criteria<Out>]>,
 }
 
-pub struct FidelMultiCodomain<Out>
-where
-    Out : Outcome,
-{}
-impl Codomain for FidelMultiCodomain{
+impl <Out:Outcome> Codomain<Out> for MultiCodomain<Out>{
+    type TypeCodom = Box<[f64]>;
 
-}
-impl Multi for MultiCodomain{
-
-}
-impl Fidelity for FidelMultiCodomain {
-    
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        self.get_y(o)
+    }
 }
 
-pub struct ConstMultiCodomain<Out>
-where
-    Out : Outcome,
-{}
-impl Codomain for ConstMultiCodomain{
-
-}
-impl Multi for ConstMultiCodomain{
-
-}
-impl Constrained for ConstMultiCodomain{
-
+impl <Out:Outcome> Multi<Out> for MultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.y_criteria
+    }
 }
 
-pub struct FidelConstMultiCodomain<Out>
-where
-    Out : Outcome,
-{}
-impl Codomain for FidelConstMultiCodomain{
-
+/// A [`Multi`] objective and [`Fidelity`] [`Codomain`].
+pub struct FidelMultiCodomain<Out:Outcome>
+{
+    pub y_criteria : Box<[Criteria<Out>]>,
+    pub f_criteria : Criteria<Out>,
 }
-impl Multi for FidelConstMultiCodomain{
-
-}
-impl Constrained for FidelConstMultiCodomain{
-    
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+pub struct ElemFidelMultiCodomain{
+    pub y : Box<[f64]>,
+    pub fidelity : f64,
 }
 
-pub type ConstFidelMultiCodomain = FidelConstMultiCodomain;
+impl <Out:Outcome> Codomain<Out> for FidelMultiCodomain<Out>{
+    type TypeCodom=ElemFidelMultiCodomain;
+
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemFidelMultiCodomain{
+            y: self.get_y(o),
+            fidelity: self.get_fidelity(o),
+        }
+    }
+}
+impl <Out:Outcome> Multi<Out> for FidelMultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.y_criteria
+    }
+}
+impl <Out:Outcome> Fidelity<Out> for FidelMultiCodomain<Out> {
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.f_criteria
+    }
+}
+
+/// A [`Multi`] objective and [`Constrained`] [`Codomain`].
+pub struct ConstMultiCodomain<Out:Outcome>
+{
+    pub y_criteria : Box<[Criteria<Out>]>,
+    pub c_criteria : Box<[Criteria<Out>]>,
+}
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+pub struct ElemConstMultiCodomain{
+    pub y : Box<[f64]>,
+    pub constraint : Box<[f64]>,
+}
+
+impl <Out:Outcome> Codomain<Out> for ConstMultiCodomain<Out>{
+    type TypeCodom=ElemConstMultiCodomain;
+
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemConstMultiCodomain{
+            y: self.get_y(o),
+            constraint: self.get_constraints(o),
+        }
+    }
+}
+
+impl <Out:Outcome> Multi<Out> for ConstMultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.y_criteria
+    }
+}
+impl <Out:Outcome> Constrained<Out,ConsType> for ConstMultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.c_criteria
+    }
+}
+
+/// A [`Multi`] objective, [`Constrained`], and [`Fidelity`] [`Codomain`].
+pub struct FidelConstMultiCodomain<Out:Outcome>
+{
+    pub y_criteria : Box<[Criteria<Out>]>,
+    pub f_criteria : Criteria<Out>,
+    pub c_criteria : Box<[Criteria<Out>]>,
+}
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+pub struct ElemFidelConstMultiCodomain{
+    pub y : Box<[f64]>,
+    pub fidelity : f64,
+    pub constraints : Box<[f64]>,
+}
+
+impl <Out:Outcome> Codomain<Out> for FidelConstMultiCodomain<Out>{
+    type TypeCodom=ElemFidelConstMultiCodomain;
+
+    fn get_elem(&self, o:&Out)-> Self::TypeCodom {
+        ElemFidelConstMultiCodomain{
+            y: self.get_y(o),
+            fidelity: self.get_fidelity(o),
+            constraints: self.get_constraints(o),
+        }
+    }
+}
+impl <Out:Outcome> Multi<Out> for FidelConstMultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.y_criteria
+    }
+}
+
+impl <Out:Outcome> Fidelity<Out> for FidelConstMultiCodomain<Out> {
+    fn get_criteria(&self) -> Criteria<Out> {
+        self.f_criteria
+    }
+}
+
+impl <Out:Outcome> Constrained<Out,ConsType> for FidelConstMultiCodomain<Out>{
+    fn get_criteria(&self) -> &Box<[Criteria<Out>]> {
+        &self.c_criteria
+    }
+}
+
+pub type ConstFidelMultiCodomain<Out> = FidelConstMultiCodomain<Out>;
