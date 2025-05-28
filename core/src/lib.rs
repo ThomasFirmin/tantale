@@ -27,7 +27,26 @@ pub use searchspace::ParSearchspace;
 pub mod errors;
 
 pub mod objective;
-pub use crate::objective::{Objective, SimpleObjective,Criteria, Codomain, Single, Multi, Constrained, Fidelity, Outcome, HashOut};
+pub use crate::objective::{
+    Objective,
+    SimpleObjective,
+    Criteria,
+    Codomain,
+    Single,
+    Multi,
+    Constrained,
+    Fidelity,
+    Outcome,
+    HashOut,
+    SingleCodomain,
+    FidelCodomain,
+    ConstCodomain,
+    FidelConstCodomain,
+    MultiCodomain,
+    FidelMultiCodomain,
+    ConstMultiCodomain,
+    FidelConstMultiCodomain,
+};
 
 pub mod optimizer;
 pub use crate::optimizer::Optimizer;

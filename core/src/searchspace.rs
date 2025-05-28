@@ -7,7 +7,9 @@
 //! ```
 //!
 //! use tantale::core::{uniform_cat, uniform_nat, uniform_real,
-//!                     Bool, Cat, Nat, Real, Searchspace};
+//!                     Bool, Cat, Nat, Real, Searchspace,
+//!                     Solution, SingleCodomain, HashOut,
+//!                     };
 //! use tantale::macros::sp;
 //! 
 //! static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
@@ -24,7 +26,7 @@
 //! 
 //! let sp = get_searchspace();
 //! 
-//! let obj = sp.sample_obj(&mut rng, std::process::id());
+//! let obj : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_obj(&mut rng, std::process::id());
 //! let opt = sp.onto_opt(&obj); // Map obj => opt
 //! 
 //! // Paired solutions have the same ID
@@ -35,7 +37,9 @@
 //! ## Note
 //! 
 //! In the following examples and for readability, a helper macro `init_sp_example!()` is used
-//! to create the searchspace contained in a module named `sp`.
+//! to create the searchspace contained in a module named `sp`. Moreover, the [`Codomain`] and
+//! [`Output`] types are enforced, in the examples. But, once the optimization pipeline is fully defined
+//! by the user, no such thing are necessary.
 //! 
 
 #[macro_export]
@@ -87,7 +91,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -95,7 +99,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let obj = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_obj(&mut rng, std::process::id());
     /// let opt = sp.onto_opt(&obj); // Map obj => opt
     /// 
     /// for (i,o) in obj.x.into_iter().zip(&opt.x){
@@ -111,7 +115,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -119,7 +123,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let opt = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_opt(&mut rng, std::process::id());
     /// let obj = sp.onto_obj(&opt);
     /// 
     /// for (i,o) in opt.x.into_iter().zip(obj.x){
@@ -135,7 +139,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -143,7 +147,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let obj = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_obj(&mut rng, std::process::id());
     /// 
     /// for i in obj.x.into_iter(){
     ///     println!("{}", i);
@@ -158,7 +162,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -166,7 +170,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let opt = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_opt(&mut rng, std::process::id());
     /// 
     /// for i in opt.x.into_iter(){
     ///     println!("{}", i);
@@ -179,7 +183,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -187,7 +191,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let obj = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_obj(&mut rng, std::process::id());
     /// 
     /// sp.is_in_obj(&obj);
     /// 
@@ -198,7 +202,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -206,7 +210,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let opt = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : Solution<_, SingleCodomain<HashOut>,HashOut,4> = sp.sample_opt(&mut rng, std::process::id());
     /// 
     /// sp.is_in_opt(&opt);
     /// 
@@ -219,15 +223,15 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
-    /// let mut rng =rand::rng();
+    /// let mut rng = rand::rng();
     /// 
-    /// let sp = sp::get_searchspace();
+    /// let sp :  = sp::get_searchspace();
     /// 
-    /// let vec_obj = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
+    /// let vec_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
     /// let vec_opt = sp.vec_onto_opt(&vec_obj); // Map obj => opt
     /// 
     /// for (obj,opt) in vec_obj.iter().zip(vec_opt){
@@ -247,7 +251,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -255,7 +259,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let vec_opt = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
+    /// let vec_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
     /// let vec_obj = sp.vec_onto_obj(&vec_opt);
     /// 
     /// for (opt,obj) in vec_opt.iter().zip(vec_obj){
@@ -275,7 +279,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -283,7 +287,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let vec_obj = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
+    /// let vec_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
     /// 
     /// for obj in vec_obj{
     ///     println!("[");
@@ -302,14 +306,14 @@ where
     /// 
     /// ```
     /// tantale::core::init_sp_example!();
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// 
     /// let mut rng =rand::rng();
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let vec_opt = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
+    /// let vec_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
     /// 
     /// for opt in vec_opt{
     ///     println!("[");
@@ -326,7 +330,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -334,7 +338,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let vobj = sp.vec_sample_obj(&mut rng, std::process::id(),10);
+    /// let vobj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_obj(&mut rng, std::process::id(),10);
     /// 
     /// sp.vec_is_in_obj(&vobj);
     /// 
@@ -345,7 +349,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::Searchspace;
+    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut};
     /// 
     /// tantale::core::init_sp_example!();
     /// 
@@ -353,7 +357,7 @@ where
     /// 
     /// let sp = sp::get_searchspace();
     /// 
-    /// let vopt = sp.vec_sample_opt(&mut rng, std::process::id(),10);
+    /// let vopt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_opt(&mut rng, std::process::id(),10);
     /// 
     /// sp.vec_is_in_opt(&vopt);
     /// 
@@ -521,7 +525,7 @@ where
             |rng,var|
             var.sample_obj(rng)
         ).collect();
-        Solution::new(pid, outx, std::sync::Arc::new(None))
+        Solution::new(pid, outx, None)
     }
     
     fn par_sample_opt(&self, pid:u32) -> Solution<Opt, Cod, Out, N> {
@@ -531,7 +535,7 @@ where
             |rng,var|
             var.sample_opt(rng)
         ).collect();
-        Solution::new(pid, outx, std::sync::Arc::new(None))
+        Solution::new(pid, outx, None)
     }
     
     fn par_vec_onto_obj(&self, inp: &[Solution<Opt, Cod, Out, N>]) -> Vec<Solution<Obj, Cod, Out, N>> {

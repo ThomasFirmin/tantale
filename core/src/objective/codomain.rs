@@ -81,11 +81,22 @@ pub struct SingleCodomain<Out:Outcome>
     pub y_criteria : Criteria<Out>,
 }
 
+impl <Out:Outcome> SingleCodomain<Out>{
+    pub fn new(crit:Criteria<Out>)-> Self{
+        SingleCodomain { y_criteria: crit }
+    }
+}
+
+pub struct ElemSingleCodomain
+{
+    pub value: f64,
+}
+
 impl <Out:Outcome> Codomain<Out> for SingleCodomain<Out>{
-    type TypeCodom = f64;
+    type TypeCodom = ElemSingleCodomain;
     
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
-        self.get_y(o)
+        ElemSingleCodomain{value:self.get_y(o)}
     }   
 }
 
@@ -102,10 +113,17 @@ pub struct FidelCodomain<Out:Outcome>
     pub y_criteria : Criteria<Out>,
     pub f_criteria : Criteria<Out>,
 }
+
+impl <Out:Outcome> FidelCodomain<Out>{
+    pub fn new(crit:Criteria<Out>, fid:Criteria<Out>)-> Self{
+        FidelCodomain { y_criteria: crit, f_criteria: fid }
+    }
+}
+
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
 pub struct ElemFidelCodomain
 {
-    pub y : f64,
+    pub value: f64,
     pub fidelity : f64,
 }
 
@@ -114,7 +132,7 @@ impl <Out:Outcome> Codomain<Out> for FidelCodomain<Out>{
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
         ElemFidelCodomain{
-            y: self.get_y(o),
+            value: self.get_y(o),
             fidelity: self.get_fidelity(o),
         }
     }
@@ -134,36 +152,43 @@ impl <Out:Outcome> Fidelity<Out> for FidelCodomain<Out>
 }
 
 /// A [`Single`] and [`Constrained`] [`Codomain`].
-pub struct ConstrainedCodomain<Out:Outcome>
+pub struct ConstCodomain<Out:Outcome>
 {
     pub y_criteria : Criteria<Out>,
     pub c_criteria : Box<[Criteria<Out>]>,
 }
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`]
-pub struct ElemConstrainedCodomain
+
+impl <Out:Outcome> ConstCodomain<Out>{
+    pub fn new(crit:Criteria<Out>, con:Box<[Criteria<Out>]>)-> Self{
+        ConstCodomain { y_criteria: crit, c_criteria: con }
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
+pub struct ElemConstCodomain
 {
-    pub y : f64,
+    pub value: f64,
     pub constraints : Box<[f64]>,
 }
 
-impl <Out:Outcome> Codomain<Out> for ConstrainedCodomain<Out>{
-    type TypeCodom=ElemConstrainedCodomain;
+impl <Out:Outcome> Codomain<Out> for ConstCodomain<Out>{
+    type TypeCodom=ElemConstCodomain;
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
-        ElemConstrainedCodomain{
-            y: self.get_y(o),
+        ElemConstCodomain{
+            value: self.get_y(o),
             constraints: self.get_constraints(o),
         }
     }
 }
 
-impl <Out:Outcome> Single<Out> for ConstrainedCodomain<Out>
+impl <Out:Outcome> Single<Out> for ConstCodomain<Out>
 {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
 
-impl <Out:Outcome> Constrained<Out,ConsType> for ConstrainedCodomain<Out>
+impl <Out:Outcome> Constrained<Out,ConsType> for ConstCodomain<Out>
 {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
@@ -177,9 +202,16 @@ pub struct FidelConstCodomain<Out:Outcome>
     pub f_criteria : Criteria<Out>,
     pub c_criteria : Box<[Criteria<Out>]>,
 }
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+
+impl <Out:Outcome> FidelConstCodomain<Out>{
+    pub fn new(crit:Criteria<Out>, fid : Criteria<Out>, con:Box<[Criteria<Out>]>)-> Self{
+        FidelConstCodomain { y_criteria: crit,  f_criteria: fid, c_criteria: con }
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
 pub struct ElemFidelConstCodomain{
-    pub y : f64,
+    pub value: f64,
     pub fidelity : f64,
     pub constraints : Box<[f64]>,
 }
@@ -189,7 +221,7 @@ impl <Out:Outcome> Codomain<Out> for FidelConstCodomain<Out>{
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
         ElemFidelConstCodomain{
-            y: self.get_y(o),
+            value: self.get_y(o),
             fidelity: self.get_fidelity(o),
             constraints: self.get_constraints(o),
         }
@@ -222,11 +254,22 @@ pub struct MultiCodomain<Out:Outcome>
     pub y_criteria : Box<[Criteria<Out>]>,
 }
 
+impl <Out:Outcome> MultiCodomain<Out>{
+    pub fn new(crit:Box<[Criteria<Out>]>)-> Self{
+        MultiCodomain { y_criteria: crit}
+    }
+}
+
+pub struct ElemMultiCodomain
+{
+    pub value: Box<[f64]>,
+}
+
 impl <Out:Outcome> Codomain<Out> for MultiCodomain<Out>{
-    type TypeCodom = Box<[f64]>;
+    type TypeCodom = ElemMultiCodomain;
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
-        self.get_y(o)
+        ElemMultiCodomain{value:self.get_y(o)}
     }
 }
 
@@ -242,9 +285,16 @@ pub struct FidelMultiCodomain<Out:Outcome>
     pub y_criteria : Box<[Criteria<Out>]>,
     pub f_criteria : Criteria<Out>,
 }
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+
+impl <Out:Outcome> FidelMultiCodomain<Out>{
+    pub fn new(crit:Box<[Criteria<Out>]>, fid:Criteria<Out>)-> Self{
+        FidelMultiCodomain { y_criteria: crit, f_criteria: fid }
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
 pub struct ElemFidelMultiCodomain{
-    pub y : Box<[f64]>,
+    pub value: Box<[f64]>,
     pub fidelity : f64,
 }
 
@@ -253,7 +303,7 @@ impl <Out:Outcome> Codomain<Out> for FidelMultiCodomain<Out>{
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
         ElemFidelMultiCodomain{
-            y: self.get_y(o),
+            value: self.get_y(o),
             fidelity: self.get_fidelity(o),
         }
     }
@@ -275,10 +325,17 @@ pub struct ConstMultiCodomain<Out:Outcome>
     pub y_criteria : Box<[Criteria<Out>]>,
     pub c_criteria : Box<[Criteria<Out>]>,
 }
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+
+impl <Out:Outcome> ConstMultiCodomain<Out>{
+    pub fn new(crit:Box<[Criteria<Out>]>, con:Box<[Criteria<Out>]>)-> Self{
+        ConstMultiCodomain { y_criteria: crit, c_criteria: con }
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
 pub struct ElemConstMultiCodomain{
-    pub y : Box<[f64]>,
-    pub constraint : Box<[f64]>,
+    pub value: Box<[f64]>,
+    pub constraints : Box<[f64]>,
 }
 
 impl <Out:Outcome> Codomain<Out> for ConstMultiCodomain<Out>{
@@ -286,8 +343,8 @@ impl <Out:Outcome> Codomain<Out> for ConstMultiCodomain<Out>{
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
         ElemConstMultiCodomain{
-            y: self.get_y(o),
-            constraint: self.get_constraints(o),
+            value: self.get_y(o),
+            constraints: self.get_constraints(o),
         }
     }
 }
@@ -310,9 +367,16 @@ pub struct FidelConstMultiCodomain<Out:Outcome>
     pub f_criteria : Criteria<Out>,
     pub c_criteria : Box<[Criteria<Out>]>,
 }
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstrainedCodomain`].
+
+impl <Out:Outcome> FidelConstMultiCodomain<Out>{
+    pub fn new(crit:Box<[Criteria<Out>]>, fid:Criteria<Out>, con:Box<[Criteria<Out>]>)-> Self{
+        FidelConstMultiCodomain { y_criteria: crit, f_criteria:fid, c_criteria: con }
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
 pub struct ElemFidelConstMultiCodomain{
-    pub y : Box<[f64]>,
+    pub value: Box<[f64]>,
     pub fidelity : f64,
     pub constraints : Box<[f64]>,
 }
@@ -322,7 +386,7 @@ impl <Out:Outcome> Codomain<Out> for FidelConstMultiCodomain<Out>{
 
     fn get_elem(&self, o:&Out)-> Self::TypeCodom {
         ElemFidelConstMultiCodomain{
-            y: self.get_y(o),
+            value: self.get_y(o),
             fidelity: self.get_fidelity(o),
             constraints: self.get_constraints(o),
         }

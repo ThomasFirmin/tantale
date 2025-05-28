@@ -11,7 +11,7 @@
 //! A [`Solution`] is made of a [`Box`]`<[`[`TypeDom`](tantale::core::Domain::TypeDom)`]>` of length `N`.
 //! [`Solutions`](Solution) are strongly bounded to [`Searchspace`](tantale::core::Searchspace), from which
 //! most of them will be created via simplified methods.
-//! The type [`Solution`]`<D, const N: usize>`, is then used to statically constrain
+//! The types of [`Solution`], are then used to statically constrain
 //! the [`Objective`](tantale::core::Objective) and [`Optimizer`](tantale::core::Optimizer) inputs.
 //! 
 //! The outcome of the evaluation of a [`Solution`] is stored in `y`.
@@ -38,10 +38,10 @@ static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Attributes
 /// * `id` : `(usize, u32)` - Contains the ID of the solution combined with the PID of the process.
-/// * `x` : [`Vec`]`<Dom::`[`TypeDom`](Domain::TypeDom)`>` - A vector of [`TypeDom`](Domain::TypeDom)
-/// * `y` : [`Arc`]`<`[`Option`]`<C>` - State of the evaluation of a solution. It is an optional [`Codomain`](tantale::core::objective::comdomain::Codomain), if the [`Solution`] was not yet evaluated, then it is `None`.
-///
-pub struct Solution<Dom, Cod, Out, const N: usize>
+/// * `x` : [`Box`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom)
+/// * `y` : [`Option`]`<`[`Arc`]`<Cod<Out>>` - State of the evaluation of a solution. It is an optional [`TypeCodom`](tantale::core::objective::comdomain::Codomain::TypeCodom), 
+///   if the [`Solution`] was not yet evaluated, then it is `None`.
+pub struct Solution<Dom, Cod, Out, const N:usize>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
@@ -50,7 +50,7 @@ where
 {
     pub id: (usize, u32), // ID + PID for parallel algorithms.
     pub x: Box<[TypeDom<Dom>]>,
-    pub y: Arc<Option<Cod::TypeCodom>>,
+    pub y: Option<Arc<Cod::TypeCodom>>,
 }
 
 impl<Dom, Cod, Out, const N: usize> Solution<Dom, Cod, Out, N>
@@ -65,28 +65,30 @@ where
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
+    /// use std::sync::Arc;
     /// 
     /// let x = vec![0.0;5].into_boxed_slice();
-    /// let real_sol : Solution<Real,5> = Solution::new(std::process::id(),x);
+    /// let real_sol : Solution<Real,SingleCodomain<HashOut>,HashOut,5> = Solution::new(std::process::id(),x, None);
     /// 
     /// for elem in &real_sol.x{
     ///     println!("{},", elem);
     /// }
     /// 
     /// ```
-    pub fn new(pid: u32, x: Box<[TypeDom<Dom>]>, y: Arc<Option<Cod::TypeCodom>>) -> Self {
+    pub fn new(pid: u32, x: Box<[TypeDom<Dom>]>, y: Option<Arc<Cod::TypeCodom>>) -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         Solution { id: (id, pid), x, y}
     }
+    
     /// Creates a new solution containing default value of the domain.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
     /// 
-    /// let real_sol : Solution<Real,5> = Solution::new_default(std::process::id());
+    /// let real_sol : Solution<Real,SingleCodomain<HashOut>,HashOut,5> = Solution::new_default(std::process::id());
     /// 
     /// for elem in &real_sol.x{
     ///     println!("{},", elem);
@@ -94,17 +96,19 @@ where
     /// 
     /// ```
     pub fn new_default(pid: u32) -> Self {
-        Self::new(pid, Self::default_x(), Arc::new(None))
+        Self::new(pid, Self::default_x(), None)
     }
+
     /// Creates the default array of a [`Solution`].
     /// 
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
+    /// use std::sync::Arc;
     /// 
-    /// let x = Solution::<Real,5>::default_x();
-    /// let real_sol : Solution<Real,5> = Solution::new(std::process::id(),x);
+    /// let x = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::default_x();
+    /// let real_sol : Solution<Real,SingleCodomain<HashOut>,HashOut,5> = Solution::new(std::process::id(),x, None);
     /// 
     /// for elem in &real_sol.x{
     ///     println!("{},", elem);
@@ -114,15 +118,16 @@ where
     pub fn default_x() -> Box<[TypeDom<Dom>]> {
         vec![TypeDom::<Dom>::default();N].into_boxed_slice()
     }
+
     /// Creates an empty [`Vec`] of [`Solutions`](Solution) with reserved capacity
     /// with `size`.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
     /// 
-    /// let mut vec_sol = Solution::<Real,5>::new_vec(10);
+    /// let mut vec_sol = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::new_vec(10);
     /// 
     /// for _ in 0..10{
     ///     vec_sol.push(Solution::new_default(std::process::id()));
@@ -148,9 +153,9 @@ where
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
     /// 
-    /// let vec_sol = Solution::<Real,5>::new_default_vec(std::process::id(), 10);
+    /// let vec_sol = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::new_default_vec(std::process::id(), 10);
     /// 
     /// for sol in &vec_sol{
     ///     println!("[");
@@ -174,11 +179,11 @@ where
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real};
+    /// use tantale::core::{Solution,Real,SingleCodomain,HashOut};
     /// 
     /// 
     /// let x = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
-    /// let vec_sol = Solution::<Real,5>::new_fill_vec(std::process::id(), 10, x);
+    /// let vec_sol = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::new_fill_vec(std::process::id(), 10, x);
     /// 
     /// for sol in &vec_sol{
     ///     println!("[");
@@ -192,7 +197,7 @@ where
     pub fn new_fill_vec(pid:u32, size:usize, x: Box<[TypeDom<Dom>]>)-> Vec<Self>{
         let mut v = Self::new_vec(size);
         for _ in 0..size{
-            v.push(Self::new(pid, x.clone(), Arc::new(None)));
+            v.push(Self::new(pid, x.clone(), None));
         }
         v
     }
@@ -205,13 +210,13 @@ where
     /// # Example
     /// 
     /// ```
-    /// use tantale::core::{Solution,Real,Int};
-    /// 
+    /// use tantale::core::{Solution,Real,Int,SingleCodomain,HashOut};
+    /// use std::sync::Arc;
     /// 
     /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
     /// let x_2 = vec![5,6,7,8].into_boxed_slice();
-    /// let real_sol = Solution::<Real,5>::new(std::process::id(),x_1);
-    /// let int_sol = Solution::<Int,5>::new(std::process::id(),x_2);
+    /// let real_sol = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::new(std::process::id(), x_1, None);
+    /// let int_sol : Solution<Int,SingleCodomain<HashOut>,HashOut,5> = real_sol.twin(x_2);
     /// 
     /// println!("REAL ID : {},{}", real_sol.id.0,real_sol.id.1);
     /// println!("INT ID : {},{}", int_sol.id.0,int_sol.id.1);
@@ -227,6 +232,36 @@ where
         TypeDom<B>: Default + Copy + Clone + Display + Debug,
     {
         Solution { id: self.id, x, y:self.y.clone()}
+    }
+
+    /// Updates a [`Solution`] with an optional and related [`TypeCodom`](Codom::TypeCodom) from an [`Outcome`].
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use tantale::core::{Solution,Real,Int,HashOut,Codomain,SingleCodomain};
+    /// use std::sync::Arc;
+    /// 
+    /// let codom = SingleCodomain::new(
+    ///     |h : &HashOut| *h.get("y").unwrap()
+    /// );
+    /// 
+    /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
+    /// let mut real_sol = Solution::<Real,SingleCodomain<HashOut>,HashOut,5>::new(std::process::id(),x_1, None);
+    /// 
+    /// // Obtain some outcomes from the objective function.
+    /// let outcome = HashOut::from([("y", 1.0), ("other", 2.0)]);
+    /// 
+    /// let y_elem = Arc::new(codom.get_elem(&outcome));
+    /// 
+    /// real_sol.update(Some(y_elem.clone()));
+    /// 
+    /// assert_eq!(real_sol.y.unwrap().value, 1.0);
+    /// 
+    /// ```
+    pub fn update(&mut self, y: Option<Arc<Cod::TypeCodom>>)
+    {
+        self.y = y.clone();
     }
 }
 

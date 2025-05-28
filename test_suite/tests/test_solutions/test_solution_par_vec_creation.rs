@@ -1,20 +1,25 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::Solution;
+use tantale_core::domain::TypeDom;
+use tantale_core::{Codomain, Outcome, SingleCodomain, HashOut};
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
 
-fn _test_solution_assertion<D, const S: usize>(
-    sol: &Vec<Solution<D, S>>, pid:u32,
+fn _test_solution_assertion<Dom, Cod, Out, const S: usize>(
+    sol: &[Solution<Dom, Cod, Out, S>],
+    pid: u32,
 ) where
-    D: Domain + Clone + Display + Debug,
-    D::TypeDom: Sync + Send,
+    Dom : Domain + Clone + Display + Debug,
+    Cod : Codomain<Out>,
+    Out : Outcome,
+    TypeDom<Dom> : Sync + Send,
 {
     for s in sol{
         assert_eq!(
             s.x,
-            vec![D::TypeDom::default(); S].into_boxed_slice(),
+            vec![Dom::TypeDom::default(); S].into_boxed_slice(),
             "Solution `x` mismatch."
         );
         assert_eq!(s.id.1, pid, "Solution `pid` mismatch.");
@@ -28,7 +33,7 @@ macro_rules! get_default_vec {
         fn $name (){
             let mut idsol = Vec::new();
             $(
-                let v = Solution::<$dom,$size>::par_new_default_vec($pid,7);
+                let v = Solution::<$dom, SingleCodomain<HashOut>, HashOut,$size>::par_new_default_vec($pid,7);
                 _test_solution_assertion(&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.id.0));
             )*
