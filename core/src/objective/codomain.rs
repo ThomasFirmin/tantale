@@ -6,11 +6,144 @@
 //! The extracted elements from [`Outcome`](tantale::core::Outcome) form the [`TypeCodom`](tantale::core::Codomain::TypeCodom), a type
 //! associated to a [`Codomain`](tantale::core::Codomain).
 //! 
+//! # Example
+//! 
+//! ## HashOut example
+//! 
+//! The following examples uses a [`HashOut`](tantale::core::HashOut) as the [`Outcome`](tantale::core::Outcome)
+//! of the function.
+//! 
+//! ```
+//!  // An example of a multi-objective, constrained and multi-fidelity codomain.
+//! use tantale::core::{Codomain, FidelConstMultiCodomain, HashOut};
+//! 
+//! let outcome = HashOut::from([
+//!         ("mul1", 1.0),
+//!         ("mul2", 2.0),
+//!         ("mul3", 3.0),
+//!         ("mul4", 4.0),
+//!         ("fid5", 5.0),
+//!         ("con6", 6.0),
+//!         ("con7", 7.0),
+//!         ("con8", 8.0),
+//!         ("more", 9.0),
+//!         ("info", 10.0),
+//!     ]
+//! );
+//! 
+//! let codom = FidelConstMultiCodomain::new(
+//!         // Define multi-objective
+//!         vec![
+//!             |h : &HashOut| *h.get("mul1").unwrap(),
+//!             |h : &HashOut| *h.get("mul2").unwrap(),
+//!             |h : &HashOut| *h.get("mul3").unwrap(),
+//!             |h : &HashOut| *h.get("mul4").unwrap(),
+//!         ].into_boxed_slice(),
+//!         // Define fidelity
+//!         |h : &HashOut| *h.get("fid5").unwrap(),
+//!         // Define constraints
+//!         vec![
+//!             |h : &HashOut| *h.get("con6").unwrap(),
+//!             |h : &HashOut| *h.get("con7").unwrap(),
+//!             |h : &HashOut| *h.get("con8").unwrap(),
+//!             ].into_boxed_slice(),
+//!     );
+//! 
+//! let elem = codom.get_elem(&outcome);
+//! 
+//! assert_eq!(elem.value.len(),4);
+//! assert_eq!(elem.value[0]       , 1.0);
+//! assert_eq!(elem.value[1]       , 2.0);
+//! assert_eq!(elem.value[2]       , 3.0);
+//! assert_eq!(elem.value[3]       , 4.0);
+//! 
+//! assert_eq!(elem.fidelity       , 5.0);
+//! 
+//! assert_eq!(elem.constraints.len(),3);
+//! assert_eq!(elem.constraints[0] , 6.0);
+//! assert_eq!(elem.constraints[1] , 7.0);
+//! assert_eq!(elem.constraints[2] , 8.0);
+//! 
+//! ```
+//! 
+//! ## Specific struct example
+//! 
+//! The following examples uses a specific `struct` as the [`Outcome`](tantale::core::Outcome) of the function.
+//! 
+//! ```
+//! // An example of a multi-objective, constrained and multi-fidelity codomain.
+//! use tantale::core::{Codomain, FidelConstMultiCodomain};
+//! use tantale::macros::Outcome;
+//! 
+//! // Define a specific struct as the output of the function
+//! #[derive(Outcome)]
+//! pub struct  OutExample{
+//!     pub mul1 : f64,
+//!     pub mul2 : f64,
+//!     pub mul3 : f64,
+//!     pub mul4 : f64,
+//!     pub fid5 : f64,
+//!     pub con6 : f64,
+//!     pub con7 : f64,
+//!     pub con8 : f64,
+//!     pub more : f64,
+//!     pub info : f64,
+//! }
+//! 
+//! let outcome = OutExample{
+//!         mul1: 1.0,
+//!         mul2: 2.0,
+//!         mul3: 3.0,
+//!         mul4: 4.0,
+//!         fid5: 5.0,
+//!         con6: 6.0,
+//!         con7: 7.0,
+//!         con8: 8.0,
+//!         more: 9.0,
+//!         info: 10.0,
+//!     };
+//! 
+//! let codom = FidelConstMultiCodomain::new(
+//!         // Define multi-objective
+//!         vec![
+//!             |h : &OutExample| h.mul1,
+//!             |h : &OutExample| h.mul2,
+//!             |h : &OutExample| h.mul3,
+//!             |h : &OutExample| h.mul4,
+//!         ].into_boxed_slice(),
+//!         // Define fidelity
+//!         |h : &OutExample| h.fid5,
+//!         // Define constraints
+//!         vec![
+//!             |h : &OutExample| h.con6,
+//!             |h : &OutExample| h.con7,
+//!             |h : &OutExample| h.con8,
+//!             ].into_boxed_slice(),
+//!     );
+//! 
+//! let elem = codom.get_elem(&outcome);
+//! 
+//! assert_eq!(elem.value.len(),4);
+//! assert_eq!(elem.value[0]       , 1.0);
+//! assert_eq!(elem.value[1]       , 2.0);
+//! assert_eq!(elem.value[2]       , 3.0);
+//! assert_eq!(elem.value[3]       , 4.0);
+//! 
+//! assert_eq!(elem.fidelity       , 5.0);
+//! 
+//! assert_eq!(elem.constraints.len(),3);
+//! assert_eq!(elem.constraints[0] , 6.0);
+//! assert_eq!(elem.constraints[1] , 7.0);
+//! assert_eq!(elem.constraints[2] , 8.0);
+//! 
+//! ```
+//! 
 //! # Notes
 //! 
 //!   * For now, all extracted elements from the [`Outcome`](tantale::core::Outcome) should be [`f64`].
 //!   * To extract elements from an [`Outcome`](tantale::core::Outcome), most of the [`Codomain`](tantale::core::Codomain) uses
 //!     a user defined function called [`Criteria`](tantale::core::Criteria).
+//! 
 
 use crate::objective::outcome::Outcome;
 

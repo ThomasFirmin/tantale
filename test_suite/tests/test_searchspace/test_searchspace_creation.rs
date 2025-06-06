@@ -67,10 +67,10 @@ macro_rules! get_test {
 
                 let pid = std::process::id();
 
-                let vec_sample_obj = sp.par_vec_sample_obj(pid, 3);
+                let vec_sample_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.par_vec_sample_obj(pid, 3);
                 let vec_converted_opt = sp.par_vec_onto_opt(&vec_sample_obj);
 
-                let vec_sample_opt = sp.par_vec_sample_opt(pid, 3);
+                let vec_sample_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.par_vec_sample_opt(pid, 3);
                 let vec_converted_obj = sp.par_vec_onto_obj(&vec_sample_opt);
 
                 assert!(sp.par_vec_is_in_obj(&vec_sample_obj));

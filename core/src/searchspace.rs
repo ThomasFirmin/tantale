@@ -229,7 +229,7 @@ where
     /// 
     /// let mut rng = rand::rng();
     /// 
-    /// let sp :  = sp::get_searchspace();
+    /// let sp = sp::get_searchspace();
     /// 
     /// let vec_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,4>> = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
     /// let vec_opt = sp.vec_onto_opt(&vec_obj); // Map obj => opt
