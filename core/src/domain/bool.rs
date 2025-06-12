@@ -126,11 +126,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<Bool>,
-        target: &Bounded<Out>,
-    ) -> OntoOutput<Bounded<Out>> {
+    fn onto(&self, item: &TypeDom<Bool>, target: &Bounded<Out>) -> OntoOutput<Bounded<Out>> {
         if self.is_in(item) {
             let mapped = if *item {
                 target.upper()
@@ -208,11 +204,7 @@ impl Onto<BaseDom> for Bool {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &bool,
-        target: &BaseDom,
-    ) -> OntoOutput<BaseDom> {
+    fn onto(&self, item: &bool, target: &BaseDom) -> OntoOutput<BaseDom> {
         match target{
             BaseDom::Real(d) => {
                 match self.onto(item, d) {

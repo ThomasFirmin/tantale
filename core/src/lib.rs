@@ -20,37 +20,26 @@ pub mod solution;
 pub use solution::Solution;
 
 pub mod searchspace;
-pub use searchspace::{Sp,Searchspace};
-#[cfg(feature="par")]
+#[cfg(feature = "par")]
 pub use searchspace::ParSearchspace;
+pub use searchspace::{Searchspace, Sp};
 
 pub mod errors;
 
 pub mod objective;
 pub use crate::objective::{
-    Objective,
-    SimpleObjective,
-    Criteria,
-    Codomain,
-    Single,
-    Multi,
-    Constrained,
-    Fidelity,
-    Outcome,
-    HashOut,
-    SingleCodomain,
-    FidelCodomain,
-    ConstCodomain,
-    FidelConstCodomain,
-    MultiCodomain,
-    FidelMultiCodomain,
-    ConstMultiCodomain,
-    FidelConstMultiCodomain,
+    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
+    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut, Multi,
+    MultiCodomain, Objective, Outcome, SimpleObjective, Single, SingleCodomain,
 };
 
 pub mod optimizer;
-pub use crate::optimizer::Optimizer;
+pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer, SolInfo};
 
 pub mod stop;
 pub use stop::Stop;
 
+pub mod experience;
+pub use experience::Experiment;
+
+pub mod saver;

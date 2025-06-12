@@ -1,14 +1,14 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::Solution;
 use tantale_core::domain::TypeDom;
-use tantale_core::{Codomain, Outcome, SingleCodomain, HashOut};
+use tantale_core::{Codomain, Outcome, SingleCodomain, HashOut, EmptyInfo};
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
 
 fn _test_solution_assertion<Dom, Cod, Out, const S: usize>(
-    sol: &[Solution<Dom, Cod, Out, S>],
+    sol: &[Solution<Dom, Cod, Out, EmptyInfo, S>],
     pid: u32,
 ) where
     Dom : Domain + Clone + Display + Debug,
@@ -33,7 +33,7 @@ macro_rules! get_default_vec {
         fn $name (){
             let mut idsol = Vec::new();
             $(
-                let v = Solution::<$dom, SingleCodomain<HashOut>, HashOut,$size>::par_new_default_vec($pid,7);
+                let v = Solution::<$dom, SingleCodomain<HashOut>, HashOut, EmptyInfo, $size>::par_new_default_vec($pid,7);
                 _test_solution_assertion(&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.id.0));
             )*

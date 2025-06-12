@@ -136,11 +136,7 @@ impl Onto<Real> for BaseDom {
     /// * `target` : `&`[`Real`] - A borrowed targetted [`Domain`].
     ///
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &Real,
-    ) -> OntoOutput<Real>{
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Real) -> OntoOutput<Real> {
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -204,11 +200,7 @@ impl Onto<Nat> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &Nat,
-    ) -> OntoOutput<Nat> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Nat) -> OntoOutput<Nat> {
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -272,11 +264,7 @@ impl Onto<Int> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &Int,
-    ) -> OntoOutput<Int> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Int) -> OntoOutput<Int> {
         match self {
             Self::Real(d) => match item {
                 Self::TypeDom::Real(i) => d.onto(i, target),
@@ -385,11 +373,7 @@ impl Onto<Bool> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &Bool,
-    ) -> OntoOutput<Bool> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Bool) -> OntoOutput<Bool> {
         match self {
             Self::Real(d) => match item{
                 Self::TypeDom::Real(i) => d.onto(i,target),
@@ -433,11 +417,7 @@ impl Onto<Cat> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &Cat,
-    ) -> OntoOutput<Cat> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &Cat) -> OntoOutput<Cat> {
         match self {
             Self::Real(d) => match item{
                 Self::TypeDom::Real(i) => d.onto(i,target),
@@ -481,11 +461,7 @@ impl Onto<BaseDom> for BaseDom {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<BaseDom>,
-        target: &BaseDom,
-    ) -> OntoOutput<BaseDom> {
+    fn onto(&self, item: &TypeDom<BaseDom>, target: &BaseDom) -> OntoOutput<BaseDom> {
         if self == target {
             Ok(*item)
         } else {

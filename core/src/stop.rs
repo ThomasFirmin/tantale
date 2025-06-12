@@ -1,3 +1,3 @@
-pub trait Stop{
+pub trait Stop {
     fn stop(&self) -> bool;
 }

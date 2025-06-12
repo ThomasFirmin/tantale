@@ -35,7 +35,7 @@ use crate::domain::{
     onto::Onto,
     sampler::uniform,
     unit::Unit,
-    Domain,TypeDom,
+    Domain, TypeDom,
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
@@ -390,11 +390,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &In,
-        target: &BaseDom,
-    ) -> Result<TypeDom<BaseDom>, DomainError> {
+    fn onto(&self, item: &In, target: &BaseDom) -> Result<TypeDom<BaseDom>, DomainError> {
         match target {
             BaseDom::Real(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Real(i)),

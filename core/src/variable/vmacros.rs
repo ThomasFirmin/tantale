@@ -12,7 +12,7 @@
 ///
 /// * `NAME` : `&'a str` - the  name of the variable. Used for saving.
 /// * `DOMAIN_1` : `Obj` - [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
-/// * `SAMPLER_1` : `fn(&Obj, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Obj::`[`TypeDom`](Domain::TypeDom) - 
+/// * `SAMPLER_1` : `fn(&Obj, &mut `[`ThreadRng`](rand::prelude::ThreadRng)`) -> Obj::`[`TypeDom`](Domain::TypeDom) -
 ///   Optional sampler function for the [`Domain`](tantale::core::Domain) of the [`Objective`](tantale::core::Objective).
 ///   If ignored the default sampler of the [`Domain`](tantale::core::Domain) is used.
 /// * `DOMAIN_2` : `Opt` - Optional [`Domain`](tantale::core::Domain) of the [`Optimizer`](tantale::core::Domain).

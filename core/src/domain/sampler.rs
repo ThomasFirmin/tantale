@@ -18,7 +18,7 @@
 //! assert!(dom.is_in(&sample));
 //! ```
 
-use crate::domain::{Bool, Cat, DomainBounded, Int, Nat, Real, Unit, TypeDom};
+use crate::domain::{Bool, Cat, DomainBounded, Int, Nat, Real, TypeDom, Unit};
 
 use rand::{
     distr::uniform::SampleUniform,

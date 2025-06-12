@@ -47,7 +47,7 @@ impl Unit {
     }
 }
 
-impl Default for Unit{
+impl Default for Unit {
     fn default() -> Self {
         Self::new()
     }

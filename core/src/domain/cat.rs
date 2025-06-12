@@ -25,7 +25,7 @@ use crate::domain::{
     onto::Onto,
     sampler::uniform_cat,
     unit::Unit,
-    Domain,TypeDom
+    Domain, TypeDom,
 };
 
 use num::cast::AsPrimitive;
@@ -158,11 +158,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<Cat>,
-        target: &Bounded<Out>,
-    ) -> Result<Out, DomainError> {
+    fn onto(&self, item: &TypeDom<Cat>, target: &Bounded<Out>) -> Result<Out, DomainError> {
         let idx = self.values().iter().position(|n| n == item);
 
         match idx {
@@ -251,11 +247,7 @@ impl Onto<BaseDom> for Cat {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(
-        &self,
-        item: &TypeDom<Cat>,
-        target: &BaseDom,
-    ) -> OntoOutput<BaseDom> {
+    fn onto(&self, item: &TypeDom<Cat>, target: &BaseDom) -> OntoOutput<BaseDom> {
         match target{
             BaseDom::Real(d) => {
                 match self.onto(item, d) {
