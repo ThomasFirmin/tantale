@@ -1,5 +1,5 @@
 [package]
-name = "tantale_core"
+name = "tantale_algos"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,16 +7,13 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
+tantale_core = {path="../core"}
 num = "0.4.3"
-paste = "1.0.15"
 rand = "0.9.0"
 rayon = {version = "1.10.0", optional=true}
 
 [features]
-par = ["dep:rayon"]
+par = ["dep:rayon", "tantale_core/par"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
-
-[dev-dependencies]
-tantale = { path = "../", package = "tantale" }

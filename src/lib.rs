@@ -11,9 +11,5 @@ pub use macros::Mixed;
 pub use macros::sp;
 #[doc(inline)]
 pub use tantale_core as core;
-
-// // Re-exports
-// #[doc(hidden)]
-// pub use quote::ToTokens;
-// #[doc(hidden)]
-// pub use syn;
+#[doc(inline)]
+pub use tantale_algos as algos;
