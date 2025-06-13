@@ -1,21 +1,25 @@
 use crate::{
     domain::Domain,
-    objective::{Codomain, Objective, Outcome},
-    optimizer::{OptInfo, Optimizer, SolInfo, OptState},
+    objective::{Codomain, Outcome},
+    optimizer::{OptInfo, SolInfo, OptState},
     searchspace::Searchspace,
     solution::Solution,
 };
 use std::fmt::{Display,Debug};
 
-pub trait Saver<State, Dom, Cod, Out, Info, const N:usize>
+pub trait Saver<State, Obj, Opt, Cod, Out, Info, SInfo, Sp, const N:usize>
 where
     State: OptState,
-    Dom: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
     Out : Outcome,
-    Info : SolInfo,
+    Info:OptInfo,
+    SInfo : SolInfo,
+    Sp:Searchspace<Obj, Opt, Cod, Out, SInfo, N>,
 {
     fn save_init(&self);
-    fn save_sol(&self, sol: &[Solution<Dom, Cod, Out, Info, N>]);
+    fn save_obj(&self, sol: &[Solution<Obj, Cod, Out, SInfo, N>], sp : Sp, info : Info);
+    fn save_opt(&self, sol: &[Solution<Opt, Cod, Out, SInfo, N>], sp : Sp, info : Info);
     fn save_state(&self, state:&State);
 }

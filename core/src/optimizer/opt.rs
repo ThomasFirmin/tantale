@@ -2,34 +2,67 @@ use crate::{
     objective::{Codomain, Outcome},
     Domain, Searchspace, Solution,
 };
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, sync::Arc};
 
-pub trait OptInfo
+/// Return type of [`Solution`] from an [`Optimizer`].
+pub type ArcSol<Dom, Cod, Out, SInfo, const DIM:usize> = Arc<[Solution<Dom, Cod, Out, SInfo, DIM>]>;
+
+/// Output of an [`Optimizer`].
+pub struct OptOutput<Obj, Opt, Cod, Out, Info, SInfo, const DIM:usize>
+(
+    ArcSol<Obj, Cod, Out, SInfo, DIM>,
+    ArcSol<Opt, Cod, Out, SInfo, DIM>,
+    Info,
+)
 where
-    Self: Sized,
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    Info: OptInfo,
+    SInfo: SolInfo;
+
+impl <Obj, Opt, Cod, Out, Info, SInfo, const DIM:usize> OptOutput<Obj, Opt, Cod, Out, Info, SInfo, DIM>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    Info: OptInfo,
+    SInfo: SolInfo
 {
-    fn get_opt_info(&self) -> Self;
+    pub fn new(
+        sol_obj:ArcSol<Obj, Cod, Out, SInfo, DIM>,
+        sol_opt:ArcSol<Opt, Cod, Out, SInfo, DIM>,
+        info:Info,
+    )->Self
+    {
+        OptOutput(sol_obj, sol_opt, info)
+    }
 }
 
-pub trait SolInfo {
-    fn get_sol_info(&self) -> Self;
-}
+/// Describes information linked to a group of [`Solutions`](Solution)
+/// obtained  after each iteration of the [`Optimizer`].
+pub trait OptInfo{}
+
+/// Describes single-[`Solution`] information
+/// obtained after each iteration of the [`Optimizer`].
+pub trait SolInfo {}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
 pub struct EmptyInfo {}
-impl SolInfo for EmptyInfo {
-    fn get_sol_info(&self) -> Self {
-        EmptyInfo {}
-    }
-}
-impl OptInfo for EmptyInfo {
-    fn get_opt_info(&self) -> Self {
-        EmptyInfo {}
-    }
-}
+impl SolInfo for EmptyInfo {}
+impl OptInfo for EmptyInfo {}
 
+/// Describes the current state of the [`Optimizer`].
+/// At each iteration an [`Optimizer`] uses the previous
+/// [`OptState`] to update the current one.
+/// It is mostly used for checkpointing.
 pub trait OptState{}
 
+/// The [`Optimizer`] is one of the elemental software brick of the library.
+/// It describes how to sample [`Solutions`](Solution) in order to **maximize**
+/// the [`Objective`] function.
 pub trait Optimizer<Obj, Opt, Cod, Out, Sp, Info, SInfo, State, const DIM: usize>
 where
     Obj: Domain + Clone + Display + Debug,
@@ -45,11 +78,12 @@ where
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     fn step(
         &mut self,
-        x: &[Solution<Opt, Cod, Out, SInfo, DIM>],
+        x: ArcSol<Opt, Cod, Out, SInfo, DIM>,
         sp: &Sp,
-        state:&State,
-    ) -> (&[Solution<Opt, Cod, Out, SInfo, DIM>], Info);
-    fn iteration(&self) -> usize;
+        state:&mut State,
+        pid:u32,
+    ) -> OptOutput<Obj, Opt, Cod, Out, Info, SInfo, DIM>;
+
 }
 
 #[cfg(feature = "par")]
@@ -61,8 +95,9 @@ pub trait ParallelOptimizer<
     Sp,
     Info,
     SInfo,
+    State:OptState,
     const DIM: usize,
->: Optimizer<Obj, Opt, Cod, Out, Sp, Info, SInfo, DIM> where
+>: Optimizer<Obj, Opt, Cod, Out, Sp, Info, SInfo, State, DIM> where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
