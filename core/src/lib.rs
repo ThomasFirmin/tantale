@@ -17,7 +17,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::Solution;
+pub use solution::{Solution,PartialSol,ComputedSol};
 
 pub mod searchspace;
 #[cfg(feature = "par")]

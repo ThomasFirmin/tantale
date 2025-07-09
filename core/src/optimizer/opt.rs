@@ -1,11 +1,10 @@
 use crate::{
-    objective::{Codomain, Outcome},
-    Domain, Searchspace, Solution,
+    objective::{Codomain, Outcome}, solution::ComputedSol, Domain, Searchspace
 };
 use std::{fmt::{Debug, Display}, sync::Arc};
 
 /// Return type of [`Solution`] from an [`Optimizer`].
-pub type ArcSol<Dom, Cod, Out, SInfo, const DIM:usize> = Arc<[Solution<Dom, Cod, Out, SInfo, DIM>]>;
+pub type ArcSol<Dom, Cod, Out, SInfo, const DIM:usize> = Arc<[ComputedSol<Dom, Cod, Out, SInfo, DIM>]>;
 
 /// Output of an [`Optimizer`].
 pub struct OptOutput<Obj, Opt, Cod, Out, Info, SInfo, const DIM:usize>

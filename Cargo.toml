@@ -22,6 +22,10 @@ tantale_macros = { path = "macros" }
 tantale_algos = { path = "algorithms" }
 tantale_test_suite = { path = "test_suite" }
 
+[[bin]]
+name = "user_test"
+path = "src/main.rs"
+
 [dependencies]
 tantale_core.workspace = true
 tantale_macros.workspace = true
