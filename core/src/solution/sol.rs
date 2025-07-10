@@ -41,40 +41,23 @@ where
     Info : SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
-    fn get_id(&self)->(usize, u32);
+    /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
+    /// This `id` can be shared with a twin [`Solution`].
+    fn get_id(&self)->(u32, usize);
     
+    /// Returns the actual sampled point from the set of [`Domains`](Domain).
     fn get_x(&self)->Arc<[TypeDom<Dom>]>;
     
+    /// Returns the [`SolInfo`] bounded to this [`Solution`].
     fn get_info(&self)->Arc<Info>;
     
+    #[doc(hidden)]
     fn _get_new_id()->usize{
         let idsol = SOL_ID.fetch_add(1, Ordering::Relaxed);
         idsol
     }
-
-    /// Creates a new [`Solution`] from a given `pid` of the process it is being created,
-    /// a single `id`, a concrete sample `x` from the set of [`Domains`](Domain), and a [`SolInfo`].
-    fn build(pid:u32, id:usize, x : Arc<[TypeDom<Dom>]>, info : Arc<Info>) -> Self;
-
-    /// Creates a new [`Solution`] from a given `pid` of the process it is being created,
-    /// a concrete sample `x` from the set of [`Domains`](Domain), and a [`SolInfo`].
-    fn new(pid:u32, x : Arc<[TypeDom<Dom>]>, info : Arc<Info>) -> Self
-    {
-        let id = Self::_get_new_id();
-        Self::build(pid, id, x, info)
-    }
-    
-    /// Creates a twin [`Solution`] of [`Domain`] type `B` from
-    /// the [`Self`] [`Solution`] of [`Domain`] type `Dom`.
-    /// The twins are linked by the same `id`.
-    fn twin<Twin,B,T>(&self, x: T) -> Twin
-    where 
-        B: Domain + Clone + Display + Debug,
-        TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Twin:Solution<B,Info>,
-        T : AsRef<[TypeDom<B>]>;
-
     /// Checks if two [`Solutions`](Solution) are twins.
+    /// Twins [`Solutions`](Solution) share equal ids.
     fn is_twin<Twin,B>(&self, solb: Twin) -> bool
     where 
         B: Domain + Clone + Display + Debug,

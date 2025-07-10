@@ -1,44 +1,10 @@
 use crate::{
-    objective::{Codomain, Outcome}, solution::ComputedSol, Domain, Searchspace
+    objective::{Codomain, Outcome},
+    solution::{Computed,Partial},
+    domain::Domain,
+    searchspace::Searchspace,
 };
 use std::{fmt::{Debug, Display}, sync::Arc};
-
-/// Return type of [`Solution`] from an [`Optimizer`].
-pub type ArcSol<Dom, Cod, Out, SInfo, const DIM:usize> = Arc<[ComputedSol<Dom, Cod, Out, SInfo, DIM>]>;
-
-/// Output of an [`Optimizer`].
-pub struct OptOutput<Obj, Opt, Cod, Out, Info, SInfo, const DIM:usize>
-(
-    ArcSol<Obj, Cod, Out, SInfo, DIM>,
-    ArcSol<Opt, Cod, Out, SInfo, DIM>,
-    Info,
-)
-where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
-    Out: Outcome,
-    Cod: Codomain<Out>,
-    Info: OptInfo,
-    SInfo: SolInfo;
-
-impl <Obj, Opt, Cod, Out, Info, SInfo, const DIM:usize> OptOutput<Obj, Opt, Cod, Out, Info, SInfo, DIM>
-where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
-    Out: Outcome,
-    Cod: Codomain<Out>,
-    Info: OptInfo,
-    SInfo: SolInfo
-{
-    pub fn new(
-        sol_obj:ArcSol<Obj, Cod, Out, SInfo, DIM>,
-        sol_opt:ArcSol<Opt, Cod, Out, SInfo, DIM>,
-        info:Info,
-    )->Self
-    {
-        OptOutput(sol_obj, sol_opt, info)
-    }
-}
 
 /// Describes information linked to a group of [`Solutions`](Solution)
 /// obtained  after each iteration of the [`Optimizer`].

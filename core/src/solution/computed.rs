@@ -1,14 +1,35 @@
-use crate::objective::codomain::Codomain;
-use crate::objective::Outcome;
+use crate::domain::{Domain, TypeDom};
+use crate::solution::{Partial, PartialSol, Solution};
+use crate::objective::{Codomain,Outcome};
+use crate::optimizer::SolInfo;
 
-pub trait Computed<Dom, Info, Cod, Out>
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc,
+};
+
+pub trait Computed<P, Dom, Info, Cod, Out>
 where
     Dom: Domain + Clone + Display + Debug,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
+    Info: SolInfo,
+    P: Partial<Dom,Info>,
     Cod: Codomain<Out>,
     Out : Outcome,
-    Info: SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
+    /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+    /// 
+    /// # Notes
+    /// 
+    /// When created, consumes the [`Partial`].
+    fn new(sol: P, y: Arc<Cod::TypeCodom>) -> Self;
+
+    /// Returns the [`Partial`] [`Solution`].
+    fn get_sol(&self)->Arc<P>;
+
+    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
+    fn get_y(&self)->Arc<Cod::TypeCodom>;
+
     /// Given a [`Computed`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`, 
     /// creates the twin [`Computed`] of type [`B`].
     /// A twin, has the same `id` as [`Self`], but has a diffferent type.
@@ -34,12 +55,19 @@ where
     /// }
     /// 
     /// ```
-    fn twin<Twin,B,T>(&self, x: T) -> Twin
+    fn twin<Twin,B,T,Pb>(&self, x: T) -> Twin
     where 
         B: Domain + Clone + Display + Debug,
         TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Twin:Computed<B,Info,Cod,Out>,
-        T : AsRef<[TypeDom<B>]>;
+        Pb: Partial<B,Info>,
+        Twin:Computed<Pb,B,Info,Cod,Out>,
+        T : AsRef<[TypeDom<B>]>
+    {
+        let id = self.get_sol().get_id();
+        let info = self.get_sol().get_info();
+        let partial = Pb::build(id.0, id.1, x, info);
+        Twin::new(partial, self.get_y())
+    }
 }
 
 /// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer) [`Domains`](Domain).
@@ -56,26 +84,13 @@ where
 pub struct ComputedSol<Dom, Cod, Out, Info, const N:usize>
 where
     Dom: Domain + Clone + Display + Debug,
-    Cod: Codomain<Out>,
-    Out : Outcome,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     Info : SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-{
-    pub sol : PartialSol<Dom,Info,N>,
-    pub y: Arc<Cod::TypeCodom>,
-}
-
-impl<Dom, Cod, Out, Info, const N: usize> ComputedSol<Dom, Cod, Out, Info, N>
-where
-    Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
     Out : Outcome,
-    Info: SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
-    fn new(sol: PartialSol<Dom,Info,N>, y: Arc<Cod::TypeCodom>) -> Self {
-        ComputedSol {sol,y}
-    }
+    pub sol : Arc<PartialSol<Dom,Info,N>>,
+    pub y: Arc<Cod::TypeCodom>,
 }
 
 impl <Dom,Cod,Out,Info,const N:usize> Solution<Dom,Info> for ComputedSol<Dom, Cod, Out, Info, N>
@@ -86,7 +101,7 @@ where
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
-    fn get_id(&self)->(usize, u32) {
+    fn get_id(&self)->(u32,usize) {
         self.sol.get_id()
     }
 
@@ -97,4 +112,26 @@ where
     fn get_info(&self)->Arc<Info> {
         self.sol.get_info()
     }
+}
+
+impl <Dom,Info,Cod,Out,const N:usize> Computed<PartialSol<Dom,Info,N>,Dom,Info,Cod,Out> for ComputedSol<Dom, Cod, Out, Info, N>
+where
+    Dom: Domain + Clone + Display + Debug,
+    Cod: Codomain<Out>,
+    Out : Outcome,
+    Info: SolInfo,
+    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
+{
+    fn new(sol: PartialSol<Dom,Info,N>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+        let solarc = Arc::new(sol);
+        ComputedSol{ sol: solarc, y }
+    }
+
+    fn get_sol(&self)->Arc<PartialSol<Dom,Info,N>>{
+        self.sol.clone()
+    }
+
+    fn get_y(&self)->Arc<<Cod as Codomain<Out>>::TypeCodom> {
+        self.y.clone()
+    }    
 }

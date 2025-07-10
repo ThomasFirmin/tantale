@@ -8,7 +8,7 @@
 //!
 //! use tantale::core::{uniform_cat, uniform_nat, uniform_real,
 //!                     Bool, Cat, Nat, Real, Searchspace,
-//!                     Solution, SingleCodomain, HashOut, EmptyInfo
+//!                     PartialSol, EmptyInfo
 //!                     };
 //! use tantale::macros::sp;
 //!
@@ -26,7 +26,7 @@
 //!
 //! let sp = get_searchspace();
 //!
-//! let obj : Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
+//! let obj : PartialSol<_, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
 //! let opt = sp.onto_opt(&obj); // Map obj => opt
 //!
 //! // Paired solutions have the same ID
@@ -34,12 +34,10 @@
 //!
 //! ```
 //!
-//! ## Note
+//! ## Notes
 //!
 //! In the following examples and for readability, a helper macro `init_sp_example!()` is used
-//! to create the searchspace contained in a module named `sp`. Moreover, the [`Codomain`] and
-//! [`Output`] types are enforced, in the examples. But, once the optimization pipeline is fully defined
-//! by the user, no such thing are necessary.
+//! to create the searchspace contained in a module named `sp`.
 //!
 
 #[macro_export]
@@ -67,8 +65,8 @@ use crate::{
     domain::Domain,
     objective::{Codomain, Outcome},
     optimizer::SolInfo,
-    solution::Solution,
-    variable::Var, PartialSol,
+    solution::{Computed, Partial},
+    variable::Var, Solution,
 };
 
 use rand::prelude::ThreadRng;
@@ -78,20 +76,22 @@ use std::fmt::{Debug, Display};
 use rayon::prelude::*;
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<Obj,Opt,SInfo>
+pub trait Searchspace<PObj,POpt,Obj,Opt,SInfo>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
     SInfo: SolInfo,
+    Obj: Domain + Clone + Display + Debug,
+    PObj: Partial<Obj,SInfo>,
+    Opt: Domain + Clone + Display + Debug,
+    POpt: Partial<Opt,SInfo>,
 {
-    /// Maps a [`Solution`]`<Obj,SInfo>` onto an [`Solution`]`<Opt,SInfo>`,
+    /// Maps a [`Partial`]`<Obj,SInfo>` onto an [`Partial`]`<Opt,SInfo>`,
     /// using the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -99,7 +99,7 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let obj : PartialSolution<_, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : PartialSol<_, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
     /// let opt = sp.onto_opt(&obj); // Map obj => opt
     ///
     /// for (i,o) in obj.x.into_iter().zip(&opt.x){
@@ -107,18 +107,15 @@ where
     /// }
     ///
     /// ```
-    fn onto_opt<SObj,SOpt>(&self,inp: &SObj) -> SOpt
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
-    /// Maps a [`PartialSolution`]`<Opt,SInfo,N>` onto an [`PartialSolution`]`<Obj,SInfo,N>`,
+    fn onto_opt(&self,inp: &PObj) -> POpt;
+    /// Maps a [`Partial`]`<Opt,SInfo,N>` onto an [`Partial`]`<Obj,SInfo,N>`,
     /// using the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -126,7 +123,7 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let opt : PartialSolution<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
     /// let obj = sp.onto_obj(&opt);
     ///
     /// for (i,o) in opt.x.into_iter().zip(obj.x){
@@ -134,18 +131,15 @@ where
     /// }
     ///
     /// ```
-    fn onto_obj<SObj,SOpt>(&self,inp: &SOpt) -> SObj
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
-    /// Sample a random [`PartialSolution`]`<Obj,SInfo,N>`
+    fn onto_obj(&self,inp: &POpt) -> PObj;
+    /// Sample a random [`Partial`]`<Obj,SInfo,N>`
     /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -153,24 +147,22 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let obj : PartialSolution<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : PartialSol<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
     ///
     /// for i in obj.x.into_iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
-    fn sample_obj<SObj>(&self, rng: &mut ThreadRng, pid: u32) -> SObj
-    where
-        SObj : Solution<Obj,SInfo>;
-    /// Sample a random [`PartialSolution`]`<Opt,SInfo,N>`
+    fn sample_obj(&self, rng: &mut ThreadRng, pid: u32) -> PObj;
+    /// Sample a random [`Partial`]`<Opt,SInfo,N>`
     /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -178,22 +170,20 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let opt : PartialSolution<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
     ///
     /// for i in opt.x.into_iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
-    fn sample_opt<SOpt>(&self, rng: &mut ThreadRng, pid: u32) -> SOpt
-    where
-        SOpt : Solution<Opt,SInfo>;
-    /// Check if a given `Obj` [`PartialSolution`] is in the [`Searchspace`].
+    fn sample_opt(&self, rng: &mut ThreadRng, pid: u32) -> POpt;
+    /// Check if a given `Obj` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -201,21 +191,18 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let obj : PartialSolution<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
+    /// let obj : PartialSol<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
     ///
     /// sp.is_in_obj(&obj);
     ///
     /// ```
-    fn is_in_obj<SObj>(&self, inp: &SObj) -> bool
-    where
-        SObj : Solution<Obj,SInfo>,    
-    ;
+    fn is_in_obj<SObj>(&self, inp: &SObj) -> bool;
     /// Check if a given `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -223,14 +210,12 @@ where
     ///
     /// let sp = sp::get_searchspace();
     ///
-    /// let opt : PartialSolution<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
+    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
     ///
     /// sp.is_in_opt(&opt);
     ///
     /// ```
-    fn is_in_opt<SOpt>(&self, inp: &SOpt) -> bool
-    where
-        SOpt : Solution<Opt,SInfo>;
+    fn is_in_opt<SOpt>(&self, inp: &SOpt) -> bool;
     /// Maps a [`Vec`] of [`Solution`]`<Obj, N>` onto a [`Vec`] [`Solution`]`<Opt, N>`,
     /// using the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -238,7 +223,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSolution,EmptyInfo};
+    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
     ///
     /// tantale::core::init_sp_example!();
     ///
@@ -258,13 +243,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_obj<SObj,SOpt>(
-        &self,
-        inp: &[SOpt],
-    ) -> Vec<SObj>
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn vec_onto_obj<T>(&self,inp: &[POpt]) -> Vec<PObj>;
     /// Maps a [`Solution`]`<Opt, N>` onto an [`Solution`]`<Obj, N>`,
     /// using the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -292,13 +271,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_opt<SObj,SOpt>(
-        &self,
-        inp: &[SObj],
-    ) -> Vec<SOpt>
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn vec_onto_opt(&self,inp: &[PObj]) -> Vec<POpt>;
     /// Sample a random [`Solution`]`<Obj, N>`
     /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -326,14 +299,7 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_obj<SObj>(
-        &self,
-        rng: &mut ThreadRng,
-        pid: u32,
-        size: usize,
-    ) -> Vec<SObj>
-    where
-        SObj : Solution<Obj,SInfo>;
+    fn vec_sample_obj(&self,rng: &mut ThreadRng,pid: u32,size: usize) -> Vec<PObj>;
     /// Sample a random [`Solution`]`<Opt, N>`
     /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -358,14 +324,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_sample_opt<SOpt>(
-        &self,
-        rng: &mut ThreadRng,
-        pid: u32,
-        size: usize,
-    ) -> Vec<SOpt>
-    where
-        SOpt : Solution<Opt,SInfo>;
+    fn vec_sample_opt(&self,rng: &mut ThreadRng,pid: u32,size: usize) -> Vec<POpt>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -411,60 +370,30 @@ where
 }
 
 #[cfg(feature = "par")]
-pub trait ParSearchspace<Obj,Opt,SInfo>:Searchspace<Obj,Opt,SInfo>
+pub trait ParSearchspace<PObj,POpt,Obj,Opt,SInfo>:Searchspace<PObj,POpt,Obj,Opt,SInfo>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
     SInfo: SolInfo,
+    Obj: Domain + Clone + Display + Debug,
+    PObj: Partial<Obj,SInfo>,
+    Opt: Domain + Clone + Display + Debug,
+    POpt: Partial<Opt,SInfo>,
 {
     /// Parallel version of [`onto_obj`](Searchspace::onto_obj) using [rayon].
-    fn par_onto_obj<SObj,SOpt>(
-        &self,
-        inp: &SOpt,
-    ) -> SObj
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn par_onto_obj(&self,inp: &POpt) -> PObj;
     /// Parallel version of [`onto_opt`](Searchspace::onto_opt) using [rayon].
-    fn par_onto_opt<SObj,SOpt>(
-        &self,
-        inp: &SObj,
-    ) -> SOpt
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn par_onto_opt(&self,inp: &PObj) -> POpt;
     /// Parallel version of [`sample_obj`](Searchspace::sample_obj) using [rayon].
-    fn par_sample_obj<SObj>(&self, pid: u32) -> SObj
-    where
-        SObj : Solution<Obj,SInfo>;
+    fn par_sample_obj(&self, pid: u32) -> PObj;
     /// Parallel version of [`sample_opt`](Searchspace::sample_opt) using [rayon].
-    fn par_sample_opt<SOpt>(&self, pid: u32) -> SOpt
-    where
-        SOpt : Solution<Opt,SInfo>;
+    fn par_sample_opt(&self, pid: u32) -> POpt;
     /// Parallel version of [`onto_vec_obj`](Searchspace::onto_vec_obj) using [rayon].
-    fn par_vec_onto_obj<SObj,SOpt>(
-        &self,
-        inp: &[SOpt],
-    ) -> Vec<SObj>
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn par_vec_onto_obj(&self,inp: &[POpt]) -> Vec<PObj>;
     /// Parallel version of [`onto_vec_opt`](Searchspace::onto_vec_opt) using [rayon].
-    fn par_vec_onto_opt<SObj,SOpt>(
-        &self,
-        inp: &[SObj],
-    ) -> Vec<SOpt>
-    where
-        SObj : Solution<Obj,SInfo>,
-        SOpt : Solution<Opt,SInfo>;
+    fn par_vec_onto_opt(&self,inp: &[PObj]) -> Vec<POpt>;
     /// Parallel version of [`sample_vec_obj`](Searchspace::sample_vec_obj) using [rayon].
-    fn par_vec_sample_obj<SObj>(&self, pid: u32, size: usize) -> Vec<SObj>
-    where
-        SObj : Solution<Obj,SInfo>;
+    fn par_vec_sample_obj(&self, pid: u32, size: usize) -> Vec<PObj>;
     /// Parallel version of [`sample_vec_opt`](Searchspace::sample_vec_opt) using [rayon].
-    fn par_vec_sample_opt<SOpt>(&self, pid: u32, size: usize) -> Vec<SOpt>
-    where
-        SOpt : Solution<Opt,SInfo>;
+    fn par_vec_sample_opt(&self, pid: u32, size: usize) -> Vec<POpt>;
     /// Parallel version of [`is_in_obj`](Searchspace::is_in_obj) using [rayon].
     fn par_is_in_obj<SObj>(&self, inp: &SObj) -> bool
     where
