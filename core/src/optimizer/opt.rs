@@ -28,48 +28,48 @@ pub trait OptState{}
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
-pub trait Optimizer<Obj, Opt, Cod, Out, Sp, Info, SInfo, State, const DIM: usize>
+pub trait Optimizer<PObj,CObj,POpt,COpt,Obj,Opt,SInfo,Cod,Out,Scp,Info,State>
 where
+    PObj:Partial<Obj,SInfo>,
+    CObj:Computed<PObj,Obj,SInfo,Cod,Out>,
+    POpt:Partial<Opt,SInfo>,
+    COpt:Computed<POpt,Opt,SInfo,Cod,Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
-    Out: Outcome,
-    Cod: Codomain<Out>,
-    Sp: Searchspace<Obj, Opt, Cod, Out, SInfo, DIM>,
-    Info: OptInfo,
     SInfo: SolInfo,
+    Cod:Codomain<Out>,
+    Out:Outcome,
+    Scp: Searchspace<PObj,POpt,Obj,Opt,SInfo>,
+    Info: OptInfo,
     State:OptState,
 {
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     fn step(
         &mut self,
-        x: ArcSol<Opt, Cod, Out, SInfo, DIM>,
-        sp: &Sp,
+        x: (Arc<Vec<Arc<CObj>>>,Arc<Vec<Arc<COpt>>>),
+        sp: &Scp,
         state:&mut State,
         pid:u32,
-    ) -> OptOutput<Obj, Opt, Cod, Out, Info, SInfo, DIM>;
+    ) -> (Arc<Vec<Arc<PObj>>>,Arc<Vec<Arc<POpt>>>,Info);
 
 }
 
 #[cfg(feature = "par")]
-pub trait ParallelOptimizer<
-    Obj,
-    Opt,
-    Cod,
-    Out,
-    Sp,
-    Info,
-    SInfo,
-    State:OptState,
-    const DIM: usize,
->: Optimizer<Obj, Opt, Cod, Out, Sp, Info, SInfo, State, DIM> where
+pub trait ParallelOptimizer<PObj,CObj,POpt,COpt,Obj,Opt,SInfo,Cod,Out,Scp,Info,State>:Optimizer<PObj,CObj,POpt,COpt,Obj,Opt,SInfo,Cod,Out,Scp,Info,State>
+where
+    PObj:Partial<Obj,SInfo>,
+    CObj:Computed<PObj,Obj,SInfo,Cod,Out>,
+    POpt:Partial<Opt,SInfo>,
+    COpt:Computed<POpt,Opt,SInfo,Cod,Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
-    Out: Outcome,
-    Cod: Codomain<Out>,
-    Sp: Searchspace<Obj, Opt, Cod, Out, SInfo, DIM>,
-    Info: OptInfo,
     SInfo: SolInfo,
+    Cod:Codomain<Out>,
+    Out:Outcome,
+    Scp: Searchspace<PObj,POpt,Obj,Opt,SInfo>,
+    Info: OptInfo,
+    State:OptState,
 {
     fn interact(&self);
     fn update(&self);

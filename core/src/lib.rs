@@ -30,7 +30,7 @@ pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
     FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut, Multi,
-    MultiCodomain, Objective, Outcome, SimpleObjective, Single, SingleCodomain,
+    MultiCodomain, Objective, Outcome, ObjBase, Single, SingleCodomain,
 };
 
 pub mod optimizer;
@@ -39,7 +39,7 @@ pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer, SolInfo};
 pub mod stop;
 pub use stop::Stop;
 
-pub mod experience;
-pub use experience::Experiment;
+pub mod experiment;
+pub use experiment::run;
 
 pub mod saver;

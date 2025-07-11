@@ -8,20 +8,29 @@ use crate::domain::Domain;
 use crate::objective::outcome::Outcome;
 use crate::objective::Codomain;
 
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, marker::PhantomData};
+
+
+pub trait ObjIn<Obj>
+where
+    Obj: Domain + Clone + Display + Debug,
+{
+
+}
 
 /// The trait [`Objective`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
 ///
-pub trait Objective<Obj, Cod, Out>
+pub trait Objective<In,Obj,Cod,Out>
 where
+    In:ObjIn<Obj>,
     Obj: Domain + Clone + Display + Debug,
     Out: Outcome,
     Cod: Codomain<Out>,
 {
     /// Compute the outputs of a function to maximize according to an input `x`.
-    fn compute(&self, x: &[Obj::TypeDom]) -> (Cod::TypeCodom, Out);
+    fn compute(&self, x: &In) -> (Cod::TypeCodom, Out);
 }
 
 /// A simple structure wrapping a user defined function to be maximized.
@@ -30,23 +39,26 @@ where
 ///
 /// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
 /// * `function` : `fn(&[Obj::TypeDom]) -> Out` - A function to be maximized.
-pub struct SimpleObjective<Obj, Cod, Out>
+pub struct ObjBase<In, Obj, Cod, Out>
 where
+    In:ObjIn<Obj>,
     Obj: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
     Out: Outcome,
 {
     pub codomain: Cod,
-    pub function: fn(&[Obj::TypeDom]) -> Out,
+    pub function: fn(&In) -> Out,
+    _obj: PhantomData<Obj>,
 }
 
-impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for SimpleObjective<Obj, Cod, Out>
+impl<In,Obj,Cod,Out> Objective<In,Obj,Cod,Out> for ObjBase<In,Obj,Cod,Out>
 where
+    In: ObjIn<Obj>,
     Obj: Domain + Clone + Display + Debug,
     Out: Outcome,
     Cod: Codomain<Out>,
 {
-    fn compute(&self, x: &[Obj::TypeDom]) -> (Cod::TypeCodom, Out) {
+    fn compute(&self, x: &In) -> (Cod::TypeCodom, Out) {
         let out = (self.function)(x);
         (self.codomain.get_elem(&out), out)
     }
