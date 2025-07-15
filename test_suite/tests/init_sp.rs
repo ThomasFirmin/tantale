@@ -7,7 +7,7 @@ pub mod sp_ms_nosamp {
     sp!(
         a | Int(0,100)                | Real(0.0,1.0)                 ;
         b | Nat(0,100)                | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION)   | Real(0.0,1.0)                 ;
         d | Bool()                    | Real(0.0,1.0)                 ;
     );
 }
@@ -20,7 +20,7 @@ pub mod sp_ms_onemsamp {
     sp!(
         a | Int(0,100) => uniform_int                | Real(0.0,1.0)                 ;
         b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0)                 ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -33,7 +33,7 @@ pub mod sp_ms_onemsamp_offset {
     sp!(
         a | Int(0,100)                               | Real(0.0,1.0)                 ;
         b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -46,7 +46,7 @@ pub mod sp_ms_multiplemsamp {
     sp!(
         a | Int(0,100)                               | Real(0.0,1.0)                 ;
         b | Nat(0,100)       => uniform_nat          | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -59,7 +59,7 @@ pub mod sp_ms_allmsamp {
     sp!(
         a | Int(0,100)       => uniform_int          | Real(0.0,1.0)                 ;
         b | Nat(0,100)       => uniform_nat          | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
         d | Bool()           => uniform_bool         | Real(0.0,1.0)                 ;
     );
 }
@@ -72,7 +72,7 @@ pub mod sp_ms_onemsamp_right {
     sp!(
         a | Int(0,100)                               | Real(0.0,1.0) => uniform_real ;
         b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0)                 ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -85,7 +85,7 @@ pub mod sp_ms_onemsamp_offset_right {
     sp!(
         a | Int(0,100)                               | Real(0.0,1.0)                 ;
         b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0) => uniform_real ;
+        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0) => uniform_real ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -98,7 +98,7 @@ pub mod sp_ms_multiplemsamp_right {
     sp!(
         a | Int(0,100)                               | Real(0.0,1.0)                 ;
         b | Nat(0,100)                               | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0) => uniform_real ;
+        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0) => uniform_real ;
         d | Bool()                                   | Real(0.0,1.0)                 ;
     );
 }
@@ -111,7 +111,7 @@ pub mod sp_ms_allmsamp_right {
     sp!(
         a | Int(0,100)                | Real(0.0,1.0) => uniform_real    ;
         b | Nat(0,100)                | Real(0.0,1.0) => uniform_real    ;
-        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0) => uniform_real    ;
+        c | Cat(&super::ACTIVATION)   | Real(0.0,1.0) => uniform_real    ;
         d | Bool()                    | Real(0.0,1.0) => uniform_real    ;
     );
 }
@@ -124,7 +124,7 @@ pub mod sp_ms_onemsamp_leftright {
     sp!(
         a | Int(0,100)       => uniform_int  | Real(0.0,1.0) => uniform_real ;
         b | Nat(0,100)                       | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                 | Real(0.0,1.0)                 ;
+        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0)                 ;
         d | Bool()                           | Real(0.0,1.0)                 ;
     );
 }
@@ -137,7 +137,7 @@ pub mod sp_ms_onemsamp_offset_leftright {
     sp!(
         a | Int(0,100)                              | Real(0.0,1.0)                 ;
         b | Nat(0,100)                              | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)        => uniform_cat  | Real(0.0,1.0) => uniform_real ;
+        c | Cat(&super::ACTIVATION) => uniform_cat  | Real(0.0,1.0) => uniform_real ;
         d | Bool()                                  | Real(0.0,1.0)                 ;
     );
 }
@@ -148,10 +148,10 @@ pub mod sp_ms_multiplemsamp_leftright {
     use tantale_macros::sp;
 
     sp!(
-        a | Int(0,100)                            | Real(0.0,1.0)                 ;
-        b | Nat(0,100)            => uniform_nat  | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION)      => uniform_cat  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                | Real(0.0,1.0)                 ;
+        a | Int(0,100)                              | Real(0.0,1.0)                 ;
+        b | Nat(0,100)              => uniform_nat  | Real(0.0,1.0) => uniform_real ;
+        c | Cat(&super::ACTIVATION) => uniform_cat  | Real(0.0,1.0) => uniform_real ;
+        d | Bool()                                  | Real(0.0,1.0)                 ;
     );
 }
 

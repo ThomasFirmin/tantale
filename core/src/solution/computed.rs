@@ -10,6 +10,7 @@ use std::{
 
 pub trait Computed<P, Dom, Info, Cod, Out>
 where
+    Self: Sized,
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     Info: SolInfo,
@@ -23,6 +24,16 @@ where
     /// 
     /// When created, consumes the [`Partial`].
     fn new(sol: P, y: Arc<Cod::TypeCodom>) -> Self;
+
+    /// Creates a vec of [`Computed`] from a vec of [`Partial`] and a vec of [`TypeCodom`](Codomain::TypeCodom).
+    /// 
+    /// # Notes
+    /// 
+    /// When created, consumes the [`Partial`].
+    fn new_vec<I,J>(sol: I, y: J) -> Vec<Self>
+    where
+        I: IntoIterator<Item = P>,
+        J: IntoIterator<Item = Arc<Cod::TypeCodom>>;
 
     /// Returns the [`Partial`] [`Solution`].
     fn get_sol(&self)->Arc<P>;
@@ -127,11 +138,21 @@ where
         ComputedSol{ sol: solarc, y }
     }
 
+    fn new_vec<I,J>(sol: I, y: J) -> Vec<Self>
+    where
+        I: IntoIterator<Item = PartialSol<Dom,Info,N>>,
+        J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>
+    {
+        sol.into_iter().zip(y).map(|(s,cod)| Self::new(s, cod)).collect()
+    }
+
     fn get_sol(&self)->Arc<PartialSol<Dom,Info,N>>{
         self.sol.clone()
     }
 
     fn get_y(&self)->Arc<<Cod as Codomain<Out>>::TypeCodom> {
         self.y.clone()
-    }    
+    }
+    
+    
 }

@@ -25,6 +25,8 @@ impl OptInfo for EmptyInfo {}
 /// It is mostly used for checkpointing.
 pub trait OptState{}
 
+type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
+
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
@@ -47,11 +49,11 @@ where
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     fn step(
         &mut self,
-        x: (Arc<Vec<Arc<CObj>>>,Arc<Vec<Arc<COpt>>>),
+        x: (ArcVecArc<CObj>,ArcVecArc<COpt>),
         sp: &Scp,
         state:&mut State,
         pid:u32,
-    ) -> (Arc<Vec<Arc<PObj>>>,Arc<Vec<Arc<POpt>>>,Info);
+    ) -> (ArcVecArc<PObj>,ArcVecArc<POpt>,Info);
 
 }
 

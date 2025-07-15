@@ -1,27 +1,30 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit, TypeDom};
-use tantale::core::Solution;
-use tantale::core::{Codomain, Outcome, SingleCodomain, HashOut,EmptyInfo};
+use tantale_core::solution::{Solution,PartialSol,Partial};
 
 use std::fmt::{Debug, Display};
 use std::collections::HashSet;
 use std::process;
 
-fn _test_solution_assertion<Dom, Cod, Out, const S: usize>(
-    sol: &Solution<Dom, Cod, Out, EmptyInfo, S>,
-    id: (usize, u32),
+use super::init_sinfo::{TestSInfo,get_sinfo};
+
+fn _test_solution_assertion<Dom, const N: usize>(
+    sol: &PartialSol<Dom,TestSInfo,N>,
+    id: (u32,usize),
 ) where
     Dom : Domain + Clone + Display + Debug,
-    Cod : Codomain<Out>,
-    Out : Outcome,
     TypeDom<Dom> : Sync + Send,
 {
     assert_eq!(
-        sol.x,
-        vec![Dom::TypeDom::default(); S].into_boxed_slice(),
+        sol.get_x(),
+        std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),
         "Solution `x` mismatch."
     );
-    // assert_eq!(sol.id.0, id.0, "Solution `id` mismatch.");
-    assert_eq!(sol.id.1, id.1, "Solution `pid` mismatch.");
+    assert_eq!(sol.get_id().0, id.0, "Solution PID mismatch.");
+    assert_eq!(
+        sol.get_info().info,
+        42.0,
+        "Wrong solution info from TestSInfo."
+    );
 }
 
 // BOTH DOMAINS ARE DEFINED
@@ -29,11 +32,12 @@ macro_rules! get_default_sol {
     ($name:ident ; ($($dom:ty),+) ; $size:expr ; ($($id:expr),+),$pid:expr) => {
         #[test]
         fn $name (){
+            let sinfo = std::sync::Arc::new(get_sinfo());
             let mut idsol = Vec::new();
             $(
-                let sol = Solution::<$dom, SingleCodomain<HashOut>, HashOut, EmptyInfo, $size>::new_default($pid);
-                _test_solution_assertion(&sol, ($id, $pid));
-                idsol.push(sol.id.0);
+                let sol = PartialSol::<$dom,TestSInfo,$size>::new_default($pid,sinfo.clone());
+                _test_solution_assertion(&sol, ($pid,$id));
+                idsol.push(sol.get_id().1);
             )*
             let mut unique = HashSet::new();
             idsol.iter().all(|x| unique.insert(x));

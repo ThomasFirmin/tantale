@@ -53,8 +53,7 @@ where
     
     #[doc(hidden)]
     fn _get_new_id()->usize{
-        let idsol = SOL_ID.fetch_add(1, Ordering::Relaxed);
-        idsol
+        SOL_ID.fetch_add(1, Ordering::Relaxed)
     }
     /// Checks if two [`Solutions`](Solution) are twins.
     /// Twins [`Solutions`](Solution) share equal ids.

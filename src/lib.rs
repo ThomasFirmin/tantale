@@ -11,5 +11,5 @@ pub use macros::Mixed;
 pub use macros::sp;
 #[doc(inline)]
 pub use tantale_core as core;
-#[doc(inline)]
-pub use tantale_algos as algos;
+// #[doc(inline)]
+// pub use tantale_algos as algos;

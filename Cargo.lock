@@ -245,20 +245,9 @@ dependencies = [
 name = "tantale"
 version = "0.1.0"
 dependencies = [
- "tantale_algos",
  "tantale_core",
  "tantale_macros",
  "tantale_test_suite",
-]
-
-[[package]]
-name = "tantale_algos"
-version = "0.1.0"
-dependencies = [
- "num",
- "rand",
- "rayon",
- "tantale_core",
 ]
 
 [[package]]

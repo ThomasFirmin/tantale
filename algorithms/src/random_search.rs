@@ -1,7 +1,9 @@
 use tantale_core::{
     domain::Domain, objective::{
-        codomain::Codomain, outcome::Outcome
-    }, optimizer::{opt::{ArcSol,OptOutput}, EmptyInfo, OptInfo, OptState, Optimizer}, searchspace::Searchspace
+        codomain::Codomain,
+        outcome::Outcome
+    }, optimizer::{EmptyInfo, OptInfo, OptState, Optimizer},
+    searchspace::Searchspace
 };
 
 use std::fmt::{Debug, Display};

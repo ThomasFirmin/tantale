@@ -8,9 +8,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature="par")]
-use rayon::prelude::*;
-
 pub trait Partial<Dom,Info>:Solution<Dom,Info>
 where
     Dom: Domain + Clone + Display + Debug,
@@ -314,18 +311,5 @@ where
             Ca::new(self, y.clone()),
             Cb::new(xb, y)
         )
-    }
-}
-
-#[cfg(feature="par")]
-impl<Dom,Info,const N: usize> PartialSol<Dom, Info, N>
-where
-    Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug + Send + Sync,
-    Info : SolInfo + Send + Sync,
-{
-    /// Parallel version of [`new_default_vec`](Solution::new_default_vec) using [`rayon`].
-    pub fn par_new_default_vec(pid:u32, info : Arc<Info>, size:usize)-> Vec<Self>{
-        (0..size).into_par_iter().map(|_| Self::new_default(pid, info.clone())).collect()
     }
 }

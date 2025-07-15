@@ -1,6 +1,6 @@
 use paste::paste;
 
-use tantale::core::{Searchspace, ParSearchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
+use tantale::core::{Searchspace, ParSearchspace,EmptyInfo};
 
 use super::init_sp::*;
 
@@ -11,14 +11,15 @@ macro_rules! get_test {
             #[test]
             fn [<$name _single>]() {
                 let sp = $name::get_searchspace();
+                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
                 let pid = std::process::id();
 
-                let sample_obj : Solution<_,SingleCodomain<HashOut>, HashOut,EmptyInfo,4> = sp.sample_obj(&mut rng, pid);
+                let sample_obj = sp.sample_obj(&mut rng,pid,sinfo.clone());
                 let converted_opt = sp.onto_opt(&sample_obj);
 
-                let sample_opt : Solution<_,SingleCodomain<HashOut>, HashOut,EmptyInfo,4> = sp.sample_opt(&mut rng, pid);
+                let sample_opt = sp.sample_opt(&mut rng, pid,sinfo.clone());
                 let converted_obj = sp.onto_obj(&sample_opt);
 
                 assert!(sp.is_in_obj(&sample_obj));
@@ -29,14 +30,15 @@ macro_rules! get_test {
             #[test]
             fn [<$name _vec>]() {
                 let sp = $name::get_searchspace();
+                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
                 let pid = std::process::id();
 
-                let vec_sample_obj : Vec<Solution<_,SingleCodomain<HashOut>, HashOut,EmptyInfo,4>> = sp.vec_sample_obj(&mut rng, pid, 3);
+                let vec_sample_obj = sp.vec_sample_obj(&mut rng,pid,3,sinfo.clone());
                 let vec_converted_opt = sp.vec_onto_opt(&vec_sample_obj);
 
-                let vec_sample_opt : Vec<Solution<_,SingleCodomain<HashOut>, HashOut,EmptyInfo,4>> = sp.vec_sample_opt(&mut rng, pid, 3);
+                let vec_sample_opt = sp.vec_sample_opt(&mut rng,pid,3,sinfo.clone());
                 let vec_converted_obj = sp.vec_onto_obj(&vec_sample_opt);
 
                 assert!(sp.vec_is_in_obj(&vec_sample_obj));
@@ -47,13 +49,14 @@ macro_rules! get_test {
             #[test]
             fn [<$name par_single>]() {
                 let sp = $name::get_searchspace();
+                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let pid = std::process::id();
 
-                let sample_obj : Solution<_,SingleCodomain<HashOut>, HashOut, EmptyInfo, 4> = sp.par_sample_obj(pid);
+                let sample_obj = sp.par_sample_obj(pid,sinfo.clone());
                 let converted_opt = sp.par_onto_opt(&sample_obj);
 
-                let sample_opt : Solution<_,SingleCodomain<HashOut>, HashOut, EmptyInfo, 4> = sp.par_sample_opt(pid);
+                let sample_opt = sp.par_sample_opt(pid,sinfo.clone());
                 let converted_obj = sp.par_onto_obj(&sample_opt);
 
                 assert!(sp.par_is_in_obj(&sample_obj));
@@ -64,13 +67,14 @@ macro_rules! get_test {
             #[test]
             fn [<$name par_vec>]() {
                 let sp = $name::get_searchspace();
+                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let pid = std::process::id();
 
-                let vec_sample_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,EmptyInfo,4>> = sp.par_vec_sample_obj(pid, 3);
+                let vec_sample_obj = sp.par_vec_sample_obj(pid,3,sinfo.clone());
                 let vec_converted_opt = sp.par_vec_onto_opt(&vec_sample_obj);
 
-                let vec_sample_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut,EmptyInfo,4>> = sp.par_vec_sample_opt(pid, 3);
+                let vec_sample_opt = sp.par_vec_sample_opt(pid,3,sinfo.clone());
                 let vec_converted_obj = sp.par_vec_onto_obj(&vec_sample_opt);
 
                 assert!(sp.par_vec_is_in_obj(&vec_sample_obj));
