@@ -1,8 +1,8 @@
 extern crate proc_macro;
 
 mod mixed;
-mod searchspace;
 mod outcome;
+mod searchspace;
 
 #[proc_macro_derive(Mixed)]
 pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -16,6 +16,5 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 #[proc_macro]
 pub fn sp(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    searchspace::sp(input)
-        .unwrap_or_else(|e| e.to_compile_error().into())
+    searchspace::sp(input).unwrap_or_else(|e| e.to_compile_error().into())
 }
