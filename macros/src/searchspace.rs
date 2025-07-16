@@ -91,10 +91,7 @@ impl Parse for Identifier {
             range = None;
         }
 
-        Ok(Identifier {
-            id: ident,
-            range,
-        })
+        Ok(Identifier { id: ident, range })
     }
 }
 
@@ -303,7 +300,19 @@ struct WrappedVarInfo {
     single: bool,
 }
 
-pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
+type ParsedSpOut = (
+    proc_macro2::TokenStream,
+    proc_macro2::TokenStream,
+    std::vec::Vec<proc_macro2::TokenStream>,
+    std::vec::Vec<proc_macro2::TokenStream>,
+    proc_macro2::Ident,
+    proc_macro2::Ident,
+    usize,
+    std::vec::Vec<proc_macro2::TokenStream>
+);
+
+pub fn parse_sp(input: TokenStream) -> Result<ParsedSpOut, syn::Error>
+{
     let input = input.to_string();
     let lines: Vec<TokenStream> = input
         .split(";")
@@ -631,19 +640,14 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         // OBJ SAMP-ONTO TOKENS
         let sampobj_name = format!(
             "_tantale_{}_{}_{}_samp",
-            ident_mixed_obj_str,
-            ty_obj,
-            sampobj_name
+            ident_mixed_obj_str, ty_obj, sampobj_name
         );
         let token_sampobj = proc_macro2::TokenStream::from_str(&sampobj_name).unwrap();
         hashsamp.insert(sampobj_name, (wrapped_sampobj, ident_mixed_obj.clone()));
 
         let ontoopt_name = format!(
             "_tantale_{}_{}_onto_{}_{}",
-            ident_mixed_obj_str,
-            ty_obj,
-            ident_mixed_opt_str,
-            ty_opt
+            ident_mixed_obj_str, ty_obj, ident_mixed_opt_str, ty_opt
         );
         let token_onto_opt = proc_macro2::TokenStream::from_str(&ontoopt_name).unwrap();
         hashonto.insert(
@@ -658,19 +662,14 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         // OPT SAMP-ONTO TOKENS
         let sampopt_name = format!(
             "_tantale_{}_{}_{}_samp",
-            ident_mixed_opt_str,
-            ty_opt,
-            sampopt_name
+            ident_mixed_opt_str, ty_opt, sampopt_name
         );
         let token_sampopt = proc_macro2::TokenStream::from_str(&sampopt_name).unwrap();
         hashsamp.insert(sampopt_name, (wrapped_sampopt, ident_mixed_opt.clone()));
 
         let ontoobj_name = format!(
             "_tantale_{}_{}_onto_{}_{}",
-            ident_mixed_opt_str,
-            ty_opt,
-            ident_mixed_obj_str,
-            ty_obj
+            ident_mixed_opt_str, ty_opt, ident_mixed_obj_str, ty_obj
         );
         let token_onto_obj = proc_macro2::TokenStream::from_str(&ontoobj_name).unwrap();
         hashonto.insert(
@@ -788,6 +787,12 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             }
         );
     }
+    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements))
+}
+
+pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
+    
+    let (mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements) = parse_sp(input)?;
 
     Ok(quote!{
 

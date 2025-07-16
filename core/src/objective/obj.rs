@@ -2,7 +2,7 @@
 //! the user wants to maximize. This function must output an [`Outcome`](tantale::core::Outcome)
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
 //! The [`Codomain`](tantale::core::Codomain)
-//!
+//! 
 
 use crate::domain::{Domain, TypeDom};
 use crate::objective::outcome::Outcome;

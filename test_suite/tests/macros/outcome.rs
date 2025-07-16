@@ -2,9 +2,8 @@ use tantale_macros::Outcome;
 
 #[test]
 fn mixed_derive() {
-    
+    use tantale::core::FidelConstMultiCodomain;
     use tantale_core::Codomain;
-    use tantale::core::{FidelConstMultiCodomain};
 
     #[derive(Outcome)]
     pub struct OutExample {
@@ -32,34 +31,59 @@ fn mixed_derive() {
     }
 
     let codom = FidelConstMultiCodomain::new(
-            // Define multi-objective
-            vec![
-                |h : &OutExample| h.mul6,
-                |h : &OutExample| h.mul7,
-                |h : &OutExample| h.mul8,
-                |h : &OutExample| h.mul9,
-            ].into_boxed_slice(),
-            // Define fidelity
-            |h : &OutExample| h.fid2,
-            // Define constraints
-            vec![
-                |h : &OutExample| h.con3,
-                |h : &OutExample| h.con4,
-                |h : &OutExample| h.con5,
-                ].into_boxed_slice(),
-        );
+        // Define multi-objective
+        vec![
+            |h: &OutExample| h.mul6,
+            |h: &OutExample| h.mul7,
+            |h: &OutExample| h.mul8,
+            |h: &OutExample| h.mul9,
+        ]
+        .into_boxed_slice(),
+        // Define fidelity
+        |h: &OutExample| h.fid2,
+        // Define constraints
+        vec![
+            |h: &OutExample| h.con3,
+            |h: &OutExample| h.con4,
+            |h: &OutExample| h.con5,
+        ]
+        .into_boxed_slice(),
+    );
     let out = get_struct();
     let extracted = codom.get_elem(&out);
 
-    assert_eq!(extracted.value[0],6.0,"Wrong extraction of mul6 in derive Outcome.");
-    assert_eq!(extracted.value[1],7.0,"Wrong extraction of mul7 in derive Outcome.");
-    assert_eq!(extracted.value[2],8.0,"Wrong extraction of mul8 in derive Outcome.");
-    assert_eq!(extracted.value[3],9.0,"Wrong extraction of mul9 in derive Outcome.");
+    assert_eq!(
+        extracted.value[0], 6.0,
+        "Wrong extraction of mul6 in derive Outcome."
+    );
+    assert_eq!(
+        extracted.value[1], 7.0,
+        "Wrong extraction of mul7 in derive Outcome."
+    );
+    assert_eq!(
+        extracted.value[2], 8.0,
+        "Wrong extraction of mul8 in derive Outcome."
+    );
+    assert_eq!(
+        extracted.value[3], 9.0,
+        "Wrong extraction of mul9 in derive Outcome."
+    );
 
-    assert_eq!(extracted.constraints[0],3.0,"Wrong extraction of con3 in derive Outcome.");
-    assert_eq!(extracted.constraints[1],4.0,"Wrong extraction of con4 in derive Outcome.");
-    assert_eq!(extracted.constraints[2],5.0,"Wrong extraction of con5 in derive Outcome.");
+    assert_eq!(
+        extracted.constraints[0], 3.0,
+        "Wrong extraction of con3 in derive Outcome."
+    );
+    assert_eq!(
+        extracted.constraints[1], 4.0,
+        "Wrong extraction of con4 in derive Outcome."
+    );
+    assert_eq!(
+        extracted.constraints[2], 5.0,
+        "Wrong extraction of con5 in derive Outcome."
+    );
 
-    assert_eq!(extracted.fidelity,2.0,"Wrong extraction of fid2 in derive Outcome.");
-
+    assert_eq!(
+        extracted.fidelity, 2.0,
+        "Wrong extraction of fid2 in derive Outcome."
+    );
 }
