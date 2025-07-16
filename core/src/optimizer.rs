@@ -1,2 +1,2 @@
 pub mod opt;
-pub use opt::{EmptyInfo, OptInfo, Optimizer, SolInfo,OptState};
+pub use opt::{EmptyInfo, OptInfo, OptState, Optimizer};

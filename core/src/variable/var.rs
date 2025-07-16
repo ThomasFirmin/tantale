@@ -62,8 +62,11 @@ use crate::domain::{
 };
 
 use rand::prelude::ThreadRng;
-use std::fmt::{Debug, Display};
 use std::sync::Arc;
+use std::{
+    fmt::{Debug, Display},
+    ops::RangeBounds,
+};
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 #[derive(Clone)]
@@ -349,7 +352,7 @@ where
     pub fn sample_opt(&self, rng: &mut ThreadRng) -> TypeDom<Opt> {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
-    /// Function to replicate a variable a certain number of times by using a [`Range`](std::ops::Range).
+    /// Function to replicate a variable a certain number of times by using a [`Range`](std::ops::Range) or [`RangeInclusive`](std::ops::RangeInclusive).
     /// A new [`Var`] struct is created by cloning the [`Arc`] references of the domain, and by incrementing the
     /// second part of the `name` tuple.
     ///
@@ -384,7 +387,10 @@ where
     ///
     /// ```
     ///
-    pub fn replicate(self, range: std::ops::Range<usize>) -> Vec<Self> {
+    pub fn replicate<R>(self, range: R) -> Vec<Self>
+    where
+        R: RangeBounds<usize> + IntoIterator<Item = usize>,
+    {
         let mut vec = Vec::new();
         for i in range {
             let var = Self::_new(

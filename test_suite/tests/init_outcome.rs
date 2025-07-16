@@ -1,4 +1,4 @@
-use tantale::core::{Outcome, HashOut};
+use tantale::core::{HashOut, Outcome};
 
 pub fn get_hash() -> HashOut {
     HashOut::from([
@@ -13,28 +13,27 @@ pub fn get_hash() -> HashOut {
         ("mul9", 9.0),
         ("more", 10.0),
         ("info", 11.0),
-    ]
-    )
+    ])
 }
 
-pub struct  OutExample{
-    pub obj1 : f64,
-    pub fid2 : f64,
-    pub con3 : f64,
-    pub con4 : f64,
-    pub con5 : f64,
-    pub mul6 : f64,
-    pub mul7 : f64,
-    pub mul8 : f64,
-    pub mul9 : f64,
-    pub more : f64,
-    pub info : f64,
+pub struct OutExample {
+    pub obj1: f64,
+    pub fid2: f64,
+    pub con3: f64,
+    pub con4: f64,
+    pub con5: f64,
+    pub mul6: f64,
+    pub mul7: f64,
+    pub mul8: f64,
+    pub mul9: f64,
+    pub more: f64,
+    pub info: f64,
 }
 
-impl Outcome for OutExample{}
+impl Outcome for OutExample {}
 
-pub fn get_struct()->OutExample{
-    OutExample{
+pub fn get_struct() -> OutExample {
+    OutExample {
         obj1: 1.0,
         fid2: 2.0,
         con3: 3.0,

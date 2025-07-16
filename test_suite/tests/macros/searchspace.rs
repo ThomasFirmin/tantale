@@ -1,5 +1,5 @@
-use tantale_core::domain::Domain;
 use paste::paste;
+use tantale_core::domain::Domain;
 
 use super::init_sp::*;
 
@@ -26,7 +26,6 @@ macro_rules! get_test {
                     assert!(v.get_domain_opt().is_in(&sample_opt), "Optimizer sample is not in Opt domain.");
                     assert!(v.get_domain_obj().is_in(&converted_opt), "Converted optimizer sample is not in Obj domain.");
                 }
-
             }
             }
         )+
@@ -121,5 +120,6 @@ get_test!(
     sp_sm_onemsamp_offset_leftright_holes,
     sp_sm_multiplemsamp_leftright_holes,
     sp_repeats,
+    sp_repeats_inc,
     sp_one_missing_to_single
 );

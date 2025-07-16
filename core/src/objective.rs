@@ -1,5 +1,5 @@
 pub mod obj;
-pub use obj::{ObjIn,Objective,ObjBase};
+pub use obj::{ObjBase, Objective};
 
 pub mod codomain;
 pub use codomain::{

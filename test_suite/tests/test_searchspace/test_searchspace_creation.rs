@@ -1,6 +1,6 @@
 use paste::paste;
 
-use tantale::core::{Searchspace, ParSearchspace,EmptyInfo};
+use tantale::core::{EmptyInfo, ParSearchspace, Searchspace, Solution};
 
 use super::init_sp::*;
 
@@ -11,16 +11,21 @@ macro_rules! get_test {
             #[test]
             fn [<$name _single>]() {
                 let sp = $name::get_searchspace();
+                let sp_size = $name::SP_SIZE;
                 let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
                 let pid = std::process::id();
 
                 let sample_obj = sp.sample_obj(&mut rng,pid,sinfo.clone());
+                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
                 let converted_opt = sp.onto_opt(&sample_obj);
+                assert_eq!(converted_opt.get_x().len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
 
                 let sample_opt = sp.sample_opt(&mut rng, pid,sinfo.clone());
+                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = sp.onto_obj(&sample_opt);
+                assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
                 assert!(sp.is_in_obj(&sample_obj));
                 assert!(sp.is_in_opt(&converted_opt));
@@ -175,5 +180,6 @@ get_test!(
     sp_sm_onemsamp_offset_leftright_holes,
     sp_sm_multiplemsamp_leftright_holes,
     sp_repeats,
+    sp_repeats_inc,
     sp_one_missing_to_single
 );

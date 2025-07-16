@@ -1,17 +1,10 @@
-use super::init_outcome::{get_hash,get_struct, OutExample};
+use super::init_outcome::{get_hash, get_struct, OutExample};
 
 use tantale::core::objective::codomain::{
-    Codomain,
-    SingleCodomain,
-    FidelCodomain,
-    ConstCodomain,
-    FidelConstCodomain,
-    MultiCodomain,
-    FidelMultiCodomain,
-    ConstMultiCodomain,
-    FidelConstMultiCodomain,
+    Codomain, ConstCodomain, ConstMultiCodomain, FidelCodomain, FidelConstCodomain,
+    FidelConstMultiCodomain, FidelMultiCodomain, MultiCodomain, SingleCodomain,
 };
-use tantale::core::objective::outcome::{HashOut};
+use tantale::core::objective::outcome::HashOut;
 
 use paste::paste;
 
@@ -129,8 +122,6 @@ test_const!(
     )
 );
 
-
-
 macro_rules! test_fid {
     ($object:ident | $($name : ident , $codom : expr);*) => {
         $(
@@ -227,7 +218,6 @@ test_fid!(
     )
 );
 
-
 macro_rules! test_single {
     ($object:ident | $($name : ident , $codom : expr);*) => {
         $(
@@ -303,10 +293,6 @@ test_single!(
 
     )
 );
-
-
-
-
 
 macro_rules! test_multi {
     ($object:ident | $($name : ident , $codom : expr);*) => {

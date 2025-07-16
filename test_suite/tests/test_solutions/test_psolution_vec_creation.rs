@@ -1,21 +1,19 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Solution,Partial,PartialSol};
+use tantale::core::{Partial, PartialSol, Solution};
 use tantale_core::domain::TypeDom;
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
 
-use super::init_sinfo::{TestSInfo,get_sinfo};
+use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom, const N: usize>(
-    sol: &[PartialSol<Dom,TestSInfo,N>],
-    pid: u32,
-) where
-    Dom : Domain + Clone + Display + Debug,
-    TypeDom<Dom> : Sync + Send,
+fn _test_solution_assertion<Dom, const N: usize>(sol: &[PartialSol<Dom, TestSInfo, N>], pid: u32)
+where
+    Dom: Domain + Clone + Display + Debug,
+    TypeDom<Dom>: Sync + Send,
 {
-    for s in sol{
+    for s in sol {
         assert_eq!(
             s.x,
             std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),

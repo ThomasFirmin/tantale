@@ -1,23 +1,23 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Solution,Partial,PartialSol,Computed,ComputedSol};
+use tantale::core::{Computed, ComputedSol, Partial, PartialSol, Solution};
 use tantale_core::domain::TypeDom;
-use tantale_core::{Codomain,SingleCodomain};
+use tantale_core::{Codomain, SingleCodomain};
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
 
-use super::init_sinfo::{get_sinfo,TestSInfo};
-use super::init_outcome::{get_struct,OutExample};
+use super::init_outcome::{get_struct, OutExample};
+use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom,const N: usize>(
-    sol: &[ComputedSol<Dom,SingleCodomain<OutExample>,OutExample,TestSInfo,N>],
+fn _test_solution_assertion<Dom, const N: usize>(
+    sol: &[ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo, N>],
     pid: u32,
 ) where
-    Dom : Domain + Clone + Display + Debug,
-    TypeDom<Dom> : Sync + Send,
+    Dom: Domain + Clone + Display + Debug,
+    TypeDom<Dom>: Sync + Send,
 {
-    for s in sol{
+    for s in sol {
         assert_eq!(
             s.get_sol().x,
             std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),
