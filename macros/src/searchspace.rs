@@ -311,16 +311,8 @@ type ParsedSpOut = (
     std::vec::Vec<proc_macro2::TokenStream>
 );
 
-pub fn parse_sp(input: TokenStream) -> Result<ParsedSpOut, syn::Error>
+pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
 {
-    let input = input.to_string();
-    let lines: Vec<TokenStream> = input
-        .split(";")
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.parse().unwrap())
-        .collect();
-
     // Number of variables
     let sp_size = lines.len();
 
@@ -792,7 +784,15 @@ pub fn parse_sp(input: TokenStream) -> Result<ParsedSpOut, syn::Error>
 
 pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
     
-    let (mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements) = parse_sp(input)?;
+    let input = input.to_string();
+    let lines: Vec<TokenStream> = input
+        .split(";")
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let (mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements) = parse_sp(lines)?;
 
     Ok(quote!{
 
