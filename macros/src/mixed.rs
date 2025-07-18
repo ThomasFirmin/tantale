@@ -59,12 +59,12 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         pub enum #tident #egenerics #ewhere {
             #(#idents(<#fields as tantale_core::Domain>::TypeDom)),*
         }
+
         impl #egenerics std::default::Default for #tident #egenerics #ewhere{
             fn default() -> Self {
                 #tident::#def_field(<#def_field as tantale_core::Domain>::TypeDom::default())
             }
         }
-
         impl #egenerics std::fmt::Display for #tident #egenerics #ewhere{
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 match self {

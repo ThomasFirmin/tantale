@@ -7,10 +7,10 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 use syn::{braced, parse::Parse, parse2, spanned::Spanned, Expr, ExprRange, Ident, Token};
 
-struct DomainStream {
-    args: Option<Expr>,
-    ty: Option<Ident>,
-    sampler: Option<Ident>,
+pub struct DomainStream {
+    pub args: Option<Expr>,
+    pub ty: Option<Ident>,
+    pub sampler: Option<Ident>,
 }
 
 impl Parse for DomainStream {
@@ -95,11 +95,14 @@ impl Parse for Identifier {
     }
 }
 
+pub type VarTokens = syn::Result<(Ident, Option<ExprRange>, DomainStream, Option<DomainStream>)>;
+pub type UWVarTokens = (Ident, Option<ExprRange>, DomainStream, Option<DomainStream>);
+
 // Parse a line name | Type(args) => sampler | Type(args) => sampler
 // into an Ident, DomainStream(Obj), DomainStram(Opt)
-fn token_to_domain(
+pub fn token_to_domain(
     input: TokenStream,
-) -> syn::Result<(Ident, Option<ExprRange>, DomainStream, Option<DomainStream>)> {
+) -> VarTokens {
     let input_str = input.to_string();
     let span = input_str.span();
 
@@ -308,13 +311,18 @@ type ParsedSpOut = (
     proc_macro2::Ident,
     proc_macro2::Ident,
     usize,
-    std::vec::Vec<proc_macro2::TokenStream>
+    std::vec::Vec<proc_macro2::TokenStream>,
+    Vec<proc_macro2::Ident>,
 );
 
-pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
+pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
 {
+
+    // Obj type vec
+    let mut tobj_vec:Vec<proc_macro2::Ident> = Vec::new();
+
     // Number of variables
-    let sp_size = lines.len();
+    let sp_size = vartokens.len();
 
     // OBJ + OPT
     let mut varinfo = Vec::new();
@@ -323,25 +331,12 @@ pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
 
-    for line in lines.iter() {
+    for vtok in vartokens {
         // Parse line
-        let (name, range, objstream, optstream) = token_to_domain(line.clone())?;
+        let (name, range, objstream, optstream) = vtok;
 
         // Extract Obj domain information
-        let obj_args: Expr = if objstream.args.is_none() {
-            return Err(syn::Error::new(line.to_string().span(), "The Objective domain cannot be empty.\n\
-                Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
-                `name | Objective part | Optimizer part ;`\n\
-                with: \n\
-                the Objective part made of:\n\
-                `Type(args:expr) Optional(=> sampler:expr)`\n\
-                the Optimizer part made of:\n\
-                `Optional(Type(args:expr)) => sampler:expr)`\n\
-                where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
-                "));
-        } else {
-            objstream.args.unwrap()
-        };
+        let obj_args: Expr = objstream.args.unwrap();
 
         let obj_ty = objstream.ty.unwrap();
         let obj_samp_name: String;
@@ -355,9 +350,9 @@ pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
                 quote! {#obj_ty ::sample}
             }
         };
-
+        
         // Extract Opt domain information
-
+        
         let opt_ty = match &optstream {
             Some(s) => s.ty.clone(),
             None => None,
@@ -410,7 +405,7 @@ pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
         let varinfostruct = VarInfo {
             name,
             range,
-            ty_obj: obj_ty,
+            ty_obj: obj_ty.clone(),
             args_obj: obj_args,
             sampler_obj: obj_samp,
             sampobj_name: obj_samp_name,
@@ -420,6 +415,7 @@ pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
             sampopt_name: opt_samp_name,
             single,
         };
+        tobj_vec.push(obj_ty);
         varinfo.push(varinfostruct);
     }
 
@@ -779,21 +775,19 @@ pub fn parse_sp(lines: Vec<TokenStream>) -> Result<ParsedSpOut, syn::Error>
             }
         );
     }
-    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements))
+    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements,tobj_vec))
 }
 
-pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
-    
-    let input = input.to_string();
-    let lines: Vec<TokenStream> = input
-        .split(";")
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.parse().unwrap())
-        .collect();
-
-    let (mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements) = parse_sp(lines)?;
-
+pub fn get_sp_tokens(
+    mixed_obj:proc_macro2::TokenStream,
+    mixed_opt:proc_macro2::TokenStream,
+    sampler_functions:Vec<proc_macro2::TokenStream>,
+    onto_functions:Vec<proc_macro2::TokenStream>,
+    ident_mixed_obj:proc_macro2::Ident,
+    ident_mixed_opt:proc_macro2::Ident,
+    sp_size:usize,
+    push_statements:Vec<proc_macro2::TokenStream>)->syn::Result<TokenStream>
+{
     Ok(quote!{
 
         use tantale_core::domain::{Domain,onto::Onto};
@@ -817,4 +811,28 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
             }
         }
     }.into())
+}
+
+pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
+    
+    let input = input.to_string();
+    let vtokens: syn::Result<Vec<UWVarTokens>> = input
+        .split(";")
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| token_to_domain(s.parse().unwrap()))
+        .collect();
+
+    let (
+        mixed_obj,
+        mixed_opt,
+        sampler_functions,
+        onto_functions,
+        ident_mixed_obj,
+        ident_mixed_opt,
+        sp_size,
+        push_statements,
+        _) = parse_sp(vtokens?)?;
+
+    get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, sp_size, push_statements)
 }
