@@ -9,8 +9,9 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom, const N: usize>(
-    sol: &ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo, N>,
+fn _test_solution_assertion<Dom>(
+    n:usize,
+    sol: &ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>,
     pid: u32,
 ) where
     Dom: Domain + Clone + Display + Debug,
@@ -18,7 +19,7 @@ fn _test_solution_assertion<Dom, const N: usize>(
 {
     assert_eq!(
         sol.get_x(),
-        std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),
+        std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
         "Solution `x` mismatch."
     );
     assert_eq!(sol.get_y().value, 1.0, "Wrong value from codomain.");
@@ -41,9 +42,9 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = PartialSol::<$dom,TestSInfo,$size>::new_default($pid,sinfo.clone());
-                let sol = ComputedSol::<_,SingleCodomain<OutExample>,_,_,$size>::new(psol,y.clone());
-                _test_solution_assertion(&sol, $pid);
+                let psol = PartialSol::<$dom,TestSInfo>::new_default($size,$pid,sinfo.clone());
+                let sol = ComputedSol::<_,SingleCodomain<OutExample>,_,_>::new(psol,y.clone());
+                _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().1);
             )*
             let mut unique = HashSet::new();

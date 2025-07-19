@@ -10,8 +10,9 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom, const N: usize>(
-    sol: &[ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo, N>],
+fn _test_solution_assertion<Dom>(
+    n:usize,
+    sol: &[ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>],
     pid: u32,
 ) where
     Dom: Domain + Clone + Display + Debug,
@@ -20,7 +21,7 @@ fn _test_solution_assertion<Dom, const N: usize>(
     for s in sol {
         assert_eq!(
             s.get_sol().x,
-            std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),
+            std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
             "Solution `x` mismatch."
         );
         assert_eq!(
@@ -43,10 +44,10 @@ macro_rules! get_default_vec {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = PartialSol::<$dom,TestSInfo,$size>::new_default_vec($pid,sinfo.clone(),7);
+                let psol = PartialSol::<$dom,TestSInfo>::new_default_vec($size,$pid,sinfo.clone(),7);
                 let vec_y = vec![y;7];
-                let v = ComputedSol::<_,SingleCodomain<OutExample>,_,_,$size>::new_vec(psol,vec_y);
-                _test_solution_assertion(&v, $pid);
+                let v = ComputedSol::<_,SingleCodomain<OutExample>,_,_>::new_vec(psol,vec_y);
+                _test_solution_assertion($size,&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.get_id().1));
             )*
             let mut unique = HashSet::new();

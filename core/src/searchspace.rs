@@ -25,41 +25,16 @@
 //! let mut rng =rand::rng();
 //!
 //! let sp = get_searchspace();
-//!
-//! let obj : PartialSol<_, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
+//! let info = std::sync::Arc::new(EmptyInfo{});
+//! 
+//! let obj = sp.sample_obj(&mut rng, std::process::id(), info.clone());
 //! let opt = sp.onto_opt(&obj); // Map obj => opt
 //!
 //! // Paired solutions have the same ID
 //! println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
 //!
 //! ```
-//!
-//! ## Notes
-//!
-//! In the following examples and for readability, a helper macro `init_sp_example!()` is used
-//! to create the searchspace contained in a module named `sp`.
-//!
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! init_sp_example {
-    () => {
-        mod sp{
-            use tantale::core::{uniform_cat, uniform_nat, uniform_real,
-                                Bool, Cat, Nat, Real, Searchspace};
-            use tantale::macros::sp;
-
-            static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
-            sp!(
-                a | Real(0.0,1.0)                   |                               ;
-                b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
-                c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
-                d | Bool()                          | Real(0.0,1.0)                 ;
-            );
-        }
-    };
-}
+//! 
 
 use crate::{
     domain::Domain,
@@ -79,114 +54,184 @@ where
     Opt: Domain + Clone + Display + Debug,
     POpt: Partial<Opt, SInfo>,
 {
-    /// Maps a [`Partial`]`<Obj,SInfo>` onto an [`Partial`]`<Opt,SInfo>`,
-    /// using the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
+    /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.
+    /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let obj : PartialSol<_, EmptyInfo, 4> = sp.sample_obj(&mut rng, std::process::id());
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let obj = sp.sample_obj(&mut rng, std::process::id(), info.clone());
     /// let opt = sp.onto_opt(&obj); // Map obj => opt
     ///
-    /// for (i,o) in obj.x.into_iter().zip(&opt.x){
+    /// for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
     ///     println!("Obj: {} => Opt: {}", i, o);
     /// }
     ///
     /// ```
     fn onto_opt(&self, inp: &PObj) -> POpt;
-    /// Maps a [`Partial`]`<Opt,SInfo,N>` onto an [`Partial`]`<Obj,SInfo,N>`,
-    /// using the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
+    /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
+    /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let opt = sp.sample_opt(&mut rng, std::process::id(), info.clone());
     /// let obj = sp.onto_obj(&opt);
     ///
-    /// for (i,o) in opt.x.into_iter().zip(obj.x){
+    /// for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
     ///     println!("Opt: {} => Obj: {}", i, o);
     /// }
     ///
     /// ```
     fn onto_obj(&self, inp: &POpt) -> PObj;
-    /// Sample a random [`Partial`]`<Obj,SInfo,N>`
-    /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
+    /// Sample a random [`Partial`] of type `Obj`.
+    /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let obj = sp.sample_obj(&mut rng, std::process::id(), info.clone());
     ///
-    /// let obj : PartialSol<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
-    ///
-    /// for i in obj.x.into_iter(){
+    /// for i in obj.get_x().iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
     fn sample_obj(&self, rng: &mut ThreadRng, pid: u32, info: Arc<SInfo>) -> PObj;
-    /// Sample a random [`Partial`]`<Opt,SInfo,N>`
-    /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
+    /// Sample a random [`Partial`] of type `Opt`.
+    /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let opt = sp.sample_opt(&mut rng, std::process::id(), info.clone());
     ///
-    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
-    ///
-    /// for i in opt.x.into_iter(){
+    /// for i in opt.get_x().iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
     fn sample_opt(&self, rng: &mut ThreadRng, pid: u32, info: Arc<SInfo>) -> POpt;
-    /// Check if a given `Obj` [`Solution`] is in the [`Searchspace`].
+    /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let obj : PartialSol<_,EmptyInfo,4> = sp.sample_obj(&mut rng, std::process::id());
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let obj = sp.sample_obj(&mut rng, std::process::id(), info.clone());
     ///
     /// sp.is_in_obj(&obj);
     ///
@@ -194,20 +239,34 @@ where
     fn is_in_obj<S>(&self, inp: &S) -> bool
     where
         S: Solution<Obj, SInfo>;
-    /// Check if a given `Opt` [`Solution`] is in the [`Searchspace`].
+    /// Check if a given `Opt` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let opt : PartialSol<_,EmptyInfo,4> = sp.sample_opt(&mut rng, std::process::id());
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let opt = sp.sample_opt(&mut rng, std::process::id(), info.clone());
     ///
     /// sp.is_in_opt(&opt);
     ///
@@ -215,27 +274,41 @@ where
     fn is_in_opt<S>(&self, inp: &S) -> bool
     where
         S: Solution<Opt, SInfo>;
-    /// Maps a [`Vec`] of [`Solution`]`<Obj, N>` onto a [`Vec`] [`Solution`]`<Opt, N>`,
-    /// using the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
+    /// Maps a [`Vec`] of [`Solution`] of type `Obj` onto a [`Vec`] [`Solution`] of type `Opt`.
+    /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace,PartialSol,EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let vec_obj : Vec<Solution<_,EmptyInfo,4>> = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let vec_obj = sp.vec_sample_obj(&mut rng, std::process::id(), 10, info.clone());
     /// let vec_opt = sp.vec_onto_opt(&vec_obj); // Map obj => opt
     ///
     /// for (obj,opt) in vec_obj.iter().zip(vec_opt){
     ///     println!("[");
-    ///     for (i,o) in obj.x.into_iter().zip(opt.x){
+    ///     for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
     ///         println!("Obj: {} => Opt: {}", i, o);
     ///     }
     ///     println!("]\n");
@@ -243,27 +316,41 @@ where
     ///
     /// ```
     fn vec_onto_obj(&self, inp: &[POpt]) -> Vec<PObj>;
-    /// Maps a [`Solution`]`<Opt, N>` onto an [`Solution`]`<Obj, N>`,
-    /// using the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
+    /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
+    /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let vec_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4>> = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let vec_opt = sp.vec_sample_opt(&mut rng, std::process::id(), 10, info.clone());
     /// let vec_obj = sp.vec_onto_obj(&vec_opt);
     ///
     /// for (opt,obj) in vec_opt.iter().zip(vec_obj){
     ///     println!("[");
-    ///     for (i,o) in opt.x.into_iter().zip(obj.x){
+    ///     for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
     ///         println!("Opt: {} => Obj: {}", i, o);
     ///     }
     ///     println!("]\n");
@@ -271,26 +358,40 @@ where
     ///
     /// ```
     fn vec_onto_opt(&self, inp: &[PObj]) -> Vec<POpt>;
-    /// Sample a random [`Solution`]`<Obj, N>`
-    /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
+    /// Sample a random [`Partial`] of type `Obj`.
+    /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
+    /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
-    /// let vec_obj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4>> = sp.vec_sample_obj(&mut rng, std::process::id(), 10);
+    /// let vec_obj = sp.vec_sample_obj(&mut rng, std::process::id(), 10, info.clone());
     ///
     /// for obj in vec_obj{
     ///     println!("[");
-    ///     for i in obj.x.into_iter(){
+    ///     for i in obj.get_x().iter(){
     ///         println!("Obj: {}", i);
     ///     }
     ///     println!("]\n");
@@ -305,24 +406,38 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<PObj>;
-    /// Sample a random [`Solution`]`<Opt, N>`
-    /// using the [`sampler_obj`](tantale::core::Var::sampler_obj) from
+    /// Sample a random [`Partial`] of type `Opt`.
+    /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
     /// ```
-    /// tantale::core::init_sp_example!();
-    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
-    ///
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
+    /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
-    /// let vec_opt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4>> = sp.vec_sample_opt(&mut rng, std::process::id(), 10);
+    /// let vec_opt = sp.vec_sample_opt(&mut rng, std::process::id(), 10, info.clone());
     ///
     /// for opt in vec_opt{
     ///     println!("[");
-    ///     for i in opt.x.into_iter(){
+    ///     for i in opt.get_x().iter(){
     ///         println!("Opt: {}", i);
     ///     }
     ///     println!("]\n");
@@ -341,15 +456,29 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let vobj : Vec<Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4>> = sp.vec_sample_obj(&mut rng, std::process::id(),10);
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let vobj = sp.vec_sample_obj(&mut rng, std::process::id(), 10, info.clone());
     ///
     /// sp.vec_is_in_obj(&vobj);
     ///
@@ -362,15 +491,29 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Searchspace, Solution, SingleCodomain, HashOut, EmptyInfo};
-    ///
-    /// tantale::core::init_sp_example!();
+    /// # mod sp{
+    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
+    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #        use tantale::macros::sp;
+    /// #
+    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+    /// #
+    /// #        sp!(
+    /// #            a | Real(0.0,1.0)                   |                               ;
+    /// #            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
+    /// #            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
+    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #        );
+    /// #    }
+    /// 
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
     ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    ///
-    /// let vopt : Vec<Solution<_, SingleCodomain<HashOut>,HashOut, EmptyInfo, 4>> = sp.vec_sample_opt(&mut rng, std::process::id(),10);
+    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// 
+    /// let vopt = sp.vec_sample_opt(&mut rng, std::process::id(), 10, info.clone());
     ///
     /// sp.vec_is_in_opt(&vopt);
     ///

@@ -12,6 +12,7 @@ macro_rules! get_test {
             fn [<$name _single>]() {
                 let sp = $name::get_searchspace();
                 let sp_size = $name::SP_SIZE;
+                assert_eq!(sp.variables.len(),sp_size,"Length of Variables is different from size of searchspace.");
                 let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();

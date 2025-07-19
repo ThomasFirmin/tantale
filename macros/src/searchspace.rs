@@ -310,7 +310,6 @@ type ParsedSpOut = (
     std::vec::Vec<proc_macro2::TokenStream>,
     proc_macro2::Ident,
     proc_macro2::Ident,
-    usize,
     std::vec::Vec<proc_macro2::TokenStream>,
     Vec<proc_macro2::Ident>,
 );
@@ -320,9 +319,6 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
 
     // Obj type vec
     let mut tobj_vec:Vec<proc_macro2::Ident> = Vec::new();
-
-    // Number of variables
-    let sp_size = vartokens.len();
 
     // OBJ + OPT
     let mut varinfo = Vec::new();
@@ -775,7 +771,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             }
         );
     }
-    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,sp_size,push_statements,tobj_vec))
+    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,push_statements,tobj_vec))
 }
 
 pub fn get_sp_tokens(
@@ -785,9 +781,9 @@ pub fn get_sp_tokens(
     onto_functions:Vec<proc_macro2::TokenStream>,
     ident_mixed_obj:proc_macro2::Ident,
     ident_mixed_opt:proc_macro2::Ident,
-    sp_size:usize,
     push_statements:Vec<proc_macro2::TokenStream>)->syn::Result<TokenStream>
 {
+
     Ok(quote!{
 
         use tantale_core::domain::{Domain,onto::Onto};
@@ -800,7 +796,7 @@ pub fn get_sp_tokens(
 
         #(#onto_functions)*
 
-        pub fn get_searchspace()-> tantale_core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt,#sp_size>
+        pub fn get_searchspace()-> tantale_core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
         {
             pub use tantale_core::domain::{Onto,Domain};
 
@@ -830,9 +826,8 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
-        sp_size,
         push_statements,
         _) = parse_sp(vtokens?)?;
 
-    get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, sp_size, push_statements)
+    get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, push_statements)
 }

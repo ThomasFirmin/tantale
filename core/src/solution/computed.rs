@@ -48,19 +48,26 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{ComputedSol,Real,Int,SingleCodomain,HashOut};
-    /// use std::sync::Arc;
+    /// use tantale::core::{Solution,Computed,Partial,PartialSol,ComputedSol,Real,Int,SingleCodomain,HashOut,EmptyInfo};
+    /// use tantale::core::objective::codomain::ElemSingleCodomain;
     ///
     /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
     /// let x_2 = vec![5,6,7,8].into_boxed_slice();
+    /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
-    /// let real_sol = ComputedSol::<Real,SingleCodomain<HashOut>,HashOut,5>::new(std::process::id(), x_1, None);
-    /// let int_sol : ComputedSol<Int,SingleCodomain<HashOut>,HashOut,5> = real_sol.twin(x_2);
+    /// let partial = PartialSol::new(std::process::id(),x_1,info);
+    /// let y = std::sync::Arc::new(ElemSingleCodomain{value:1.0});
+    /// 
+    /// let real_sol = ComputedSol::<Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
+    /// let int_sol : ComputedSol<Int,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
     ///
-    /// println!("REAL ID : {},{}", real_sol.id.0,real_sol.id.1);
-    /// println!("INT ID : {},{}", int_sol.id.0,int_sol.id.1);
+    /// let id_r = real_sol.get_id();
+    /// let id_i = int_sol.get_id();
+    /// 
+    /// println!("REAL ID : {},{}", id_r.0,id_r.1);
+    /// println!("INT ID : {},{}", id_i.0,id_i.1);
     ///
-    /// for (elem1, elem2) in real_sol.x.iter().zip(int_sol.x.iter()){
+    /// for (elem1, elem2) in real_sol.get_x().iter().zip(int_sol.get_x().iter()){
     ///     println!("{},{}", elem1, elem2);
     /// }
     ///
@@ -91,7 +98,7 @@ where
 ///
 /// A [`ComputedSol`] can only be created from a pair of [`PartialSol`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
-pub struct ComputedSol<Dom, Cod, Out, Info, const N: usize>
+pub struct ComputedSol<Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
@@ -99,12 +106,12 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    pub sol: Arc<PartialSol<Dom, Info, N>>,
+    pub sol: Arc<PartialSol<Dom, Info>>,
     pub y: Arc<Cod::TypeCodom>,
 }
 
-impl<Dom, Cod, Out, Info, const N: usize> Solution<Dom, Info>
-    for ComputedSol<Dom, Cod, Out, Info, N>
+impl<Dom, Cod, Out, Info> Solution<Dom, Info>
+    for ComputedSol<Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
@@ -125,8 +132,8 @@ where
     }
 }
 
-impl<Dom, Info, Cod, Out, const N: usize> Computed<PartialSol<Dom, Info, N>, Dom, Info, Cod, Out>
-    for ComputedSol<Dom, Cod, Out, Info, N>
+impl<Dom, Info, Cod, Out> Computed<PartialSol<Dom, Info>, Dom, Info, Cod, Out>
+    for ComputedSol<Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
@@ -134,14 +141,14 @@ where
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
 {
-    fn new(sol: PartialSol<Dom, Info, N>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+    fn new(sol: PartialSol<Dom, Info>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
         let solarc = Arc::new(sol);
         ComputedSol { sol: solarc, y }
     }
 
     fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where
-        I: IntoIterator<Item = PartialSol<Dom, Info, N>>,
+        I: IntoIterator<Item = PartialSol<Dom, Info>>,
         J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
     {
         sol.into_iter()
@@ -150,7 +157,7 @@ where
             .collect()
     }
 
-    fn get_sol(&self) -> Arc<PartialSol<Dom, Info, N>> {
+    fn get_sol(&self) -> Arc<PartialSol<Dom, Info>> {
         self.sol.clone()
     }
 

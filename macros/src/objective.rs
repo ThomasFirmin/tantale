@@ -154,7 +154,6 @@ pub fn obj(input:TokenStream) -> syn::Result<TokenStream>{
         onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
-        sp_size,
         push_statements,
         tobj_vec) = parse_sp(variables)?;
 

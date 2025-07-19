@@ -8,7 +8,7 @@ use std::process;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom, const N: usize>(sol: &[PartialSol<Dom, TestSInfo, N>], pid: u32)
+fn _test_solution_assertion<Dom>(n:usize,sol: &[PartialSol<Dom, TestSInfo>], pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
@@ -16,7 +16,7 @@ where
     for s in sol {
         assert_eq!(
             s.x,
-            std::sync::Arc::from(vec![Dom::TypeDom::default(); N]),
+            std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
             "Solution `x` mismatch."
         );
         assert_eq!(s.get_id().0, pid, "Solution `pid` mismatch.");
@@ -36,8 +36,8 @@ macro_rules! get_default_vec {
             let sinfo = std::sync::Arc::new(get_sinfo());
             let mut idsol = Vec::new();
             $(
-                let v = PartialSol::<$dom,TestSInfo,$size>::new_default_vec($pid,sinfo.clone(),7);
-                _test_solution_assertion(&v, $pid);
+                let v = PartialSol::<$dom,TestSInfo>::new_default_vec($size,$pid,sinfo.clone(),7);
+                _test_solution_assertion($size,&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.id.1));
             )*
             let mut unique = HashSet::new();
