@@ -99,7 +99,7 @@ fn simple_replacement(idx:usize,_mixed_ty:&proc_macro2::Ident,_ty:&proc_macro2::
 fn complex_replacement(idx:usize,mixed_ty:&proc_macro2::Ident,ty:&proc_macro2::Ident)->TokenStream{
     quote!{
         {
-            match tantale_in[ #idx ]{
+            match tantale_in[#idx]{
                 #mixed_ty :: #ty (value) => value,
                 _ => panic!("")
             }
@@ -107,9 +107,30 @@ fn complex_replacement(idx:usize,mixed_ty:&proc_macro2::Ident,ty:&proc_macro2::I
     }.into()
 }
 
-fn reconstruct_tokens(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:&proc_macro2::Ident, obj_ty:&Vec<proc_macro2::Ident>, replacement:fn(usize,&proc_macro2::Ident,&proc_macro2::Ident)->TokenStream){
+fn simple_vec_replacement(start:usize,end:usize,_mixed_ty:&proc_macro2::Ident,_ty:&proc_macro2::Ident)->TokenStream{
+    quote! {{tantale_in[#start .. #end]}}.into()
+}
+
+fn complex_vec_replacement(start:usize,end:usize,mixed_ty:&proc_macro2::Ident,ty:&proc_macro2::Ident)->TokenStream{
+    quote!{
+        {
+            let var_slice = tantale_in[#start..#end];
+            var_slice.iter().map(|v| {
+                match v {
+                    #mixed_ty :: #ty (value) => value,
+                    _ => panic!("")
+                }
+            }).collect::<#ty>()
+        }
+    }.into()
+}
+
+fn reconstruct_simple(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:&proc_macro2::Ident, obj_ty:&Vec<proc_macro2::Ident>,repeats:&Vec<usize>){
+    
+    let mut token_idx = 0;
     let mut var_idx = 0;
     let mut tokens = input.clone().into_iter();
+
     loop {
         let token = tokens.next();
         match token{
@@ -122,18 +143,80 @@ fn reconstruct_tokens(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:
                         if delimiter == Delimiter::Bracket{
                             let analysed = analyse_content(&content);
                             if analysed.is_var(){
-                                let ident = &obj_ty[var_idx];
-                                var_idx += 1;
-                                new_stream.extend([replacement(var_idx,mixed_ty,ident)]);
+                                let ident = &obj_ty[token_idx];
+                                if repeats[token_idx] > 1{
+                                    token_idx += 1;
+                                    let prev_var_idx = var_idx;
+                                    var_idx += repeats[token_idx];
+                                    new_stream.extend([simple_vec_replacement(prev_var_idx,var_idx,mixed_ty,ident)]);
+                                }
+                                else{
+                                    token_idx += 1;
+                                    let prev_var_idx = var_idx;
+                                    new_stream.extend([simple_replacement(prev_var_idx,mixed_ty,ident)]);
+                                    var_idx += 1;
+                                }
                             }
                             else{
-                                reconstruct_tokens(content, new_stream, mixed_ty, obj_ty, replacement)
+                                reconstruct_mixed(content, new_stream, mixed_ty, obj_ty, repeats)
                             }
                         }
                         else{new_stream.extend([input_replacement(mixed_ty)]);}
                     }
             _ => {},
         }
+    }
+}
+
+fn reconstruct_mixed(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:&proc_macro2::Ident, obj_ty:&Vec<proc_macro2::Ident>,repeats:&Vec<usize>){
+    
+    let mut token_idx = 0;
+    let mut var_idx = 0;
+    let mut tokens = input.clone().into_iter();
+
+    loop {
+        let token = tokens.next();
+        match token{
+            None => break,
+            Some(TokenTree::Group(group)) => {
+                        let delimiter = group.delimiter();
+                        let content = group.stream();
+                        let span = group.span();
+
+                        if delimiter == Delimiter::Bracket{
+                            let analysed = analyse_content(&content);
+                            if analysed.is_var(){
+                                let ident = &obj_ty[token_idx];
+                                if repeats[token_idx] > 1{
+                                    token_idx += 1;
+                                    let prev_var_idx = var_idx;
+                                    var_idx += repeats[token_idx];
+                                    new_stream.extend([complex_vec_replacement(prev_var_idx,var_idx,mixed_ty,ident)]);
+                                }
+                                else{
+                                    token_idx += 1;
+                                    let prev_var_idx = var_idx;
+                                    new_stream.extend([complex_replacement(prev_var_idx,mixed_ty,ident)]);
+                                    var_idx += 1;
+                                }
+                            }
+                            else{
+                                reconstruct_mixed(content, new_stream, mixed_ty, obj_ty, repeats)
+                            }
+                        }
+                        else{new_stream.extend([input_replacement(mixed_ty)]);}
+                    }
+            _ => {},
+        }
+    }
+}
+
+fn reconstruct_tokens(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:&proc_macro2::Ident, obj_ty:&Vec<proc_macro2::Ident>,repeats:Vec<usize>,is_mixed:bool){
+    if is_mixed{
+        reconstruct_mixed(input, new_stream, mixed_ty, obj_ty,&repeats)
+    }
+    else{
+        reconstruct_simple(input, new_stream, mixed_ty, obj_ty,&repeats);
     }
 }
 
@@ -155,12 +238,12 @@ pub fn obj(input:TokenStream) -> syn::Result<TokenStream>{
         ident_mixed_obj,
         ident_mixed_opt,
         push_statements,
-        tobj_vec) = parse_sp(variables)?;
+        tobj_vec,
+        repeats) = parse_sp(variables)?;
 
-    let replacement = if is_mixed {complex_replacement} else {simple_replacement} ;
     let mut new_stream = TokenStream::new();
 
-    reconstruct_tokens(content.into(), &mut new_stream, &ident_mixed_obj, &tobj_vec, replacement);
+    reconstruct_tokens(content.into(),&mut new_stream,&ident_mixed_obj,&tobj_vec,repeats,is_mixed);
 
 
     Ok(quote! {let x:usize = 1;}.into())
