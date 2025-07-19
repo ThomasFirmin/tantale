@@ -1355,7 +1355,7 @@ pub mod sp_repeats {
     pub const SP_SIZE: usize = 6;
 
     sp!(
-        a_{0..3} | Real(0.0,1.0)                  |                                  ;
+        a_{3} | Real(0.0,1.0)                  |                                  ;
         b        | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
         c        | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
         d        | Real(0.0,1.0)                  | Bool()                           ;
@@ -1370,7 +1370,7 @@ pub mod sp_repeats_inc {
     pub const SP_SIZE: usize = 6;
 
     sp!(
-        a_{1..=3} | Real(0.0,1.0)                  |                                  ;
+        a_{3} | Real(0.0,1.0)                  |                                  ;
         b        | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
         c        | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
         d        | Real(0.0,1.0)                  | Bool()                           ;

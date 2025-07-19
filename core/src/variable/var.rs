@@ -65,7 +65,6 @@ use rand::prelude::ThreadRng;
 use std::sync::Arc;
 use std::{
     fmt::{Debug, Display},
-    ops::RangeBounds,
 };
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -352,7 +351,7 @@ where
     pub fn sample_opt(&self, rng: &mut ThreadRng) -> TypeDom<Opt> {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
-    /// Function to replicate a variable a certain number of times by using a [`Range`](std::ops::Range) or [`RangeInclusive`](std::ops::RangeInclusive).
+    /// Function to replicate a variable a certain number of times .
     /// A new [`Var`] struct is created by cloning the [`Arc`] references of the domain, and by incrementing the
     /// second part of the `name` tuple.
     ///
@@ -362,7 +361,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `range` : `std::ops::Range<usize>` - A range used to replicate the [`Self`] [`Var`] a certain number of times.
+    /// * `repeats` : `usize` - Number of repetitions of the [`Var`].
     ///
     /// # Example
     ///
@@ -377,7 +376,7 @@ where
     /// let v = var!("a" ; domobj ; domopt);
     ///
     /// let mut rng = rand::rng();
-    /// let vec_v = v.replicate(0..10);
+    /// let vec_v = v.replicate(10);
     ///
     /// for var in vec_v{
     ///     let point_opt = var.sample_opt(&mut rng);
@@ -387,12 +386,10 @@ where
     ///
     /// ```
     ///
-    pub fn replicate<R>(self, range: R) -> Vec<Self>
-    where
-        R: RangeBounds<usize> + IntoIterator<Item = usize>,
+    pub fn replicate(self, repeats:usize) -> Vec<Self>
     {
         let mut vec = Vec::new();
-        for i in range {
+        for i in 0..repeats {
             let var = Self::_new(
                 (self.name.0, Some(i)),
                 self.domain_obj.clone(),

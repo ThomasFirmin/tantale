@@ -23,7 +23,7 @@ macro_rules! get_variable {
                 let mapped = variable.onto_obj(&input_2).unwrap();
                 assert_eq!(mapped,output_2,"Error in `onto_obj`.");
 
-                let replicated = variable.replicate(0..2);
+                let replicated = variable.replicate(2);
                 for r in replicated{
                     let mapped = r.onto_opt(&input_1).unwrap();
                     assert_eq!(mapped,output_1,"Error in `onto_opt` for replicated Variable.");
@@ -48,7 +48,7 @@ macro_rules! get_variable {
                 let mapped = variable.onto_obj(&input_1).unwrap();
                 assert_eq!(mapped,output_1,"Error in `onto_obj`.");
 
-                let replicated = variable.replicate(0..2);
+                let replicated = variable.replicate(2);
                 for r in replicated{
                     let mapped = r.onto_opt(&input_2).unwrap();
                     assert_eq!(mapped,output_2,"Error in `onto_opt` for replicated Variable.");
@@ -219,7 +219,7 @@ macro_rules! get_variable_single {
                 let mapped = variable.onto_obj(&input_2).unwrap();
                 assert_eq!(mapped,output_2,"Error in `onto_obj`.");
 
-                let replicated = variable.replicate(0..2);
+                let replicated = variable.replicate(2);
                 for r in replicated{
                     let mapped = r.onto_opt(&input_1).unwrap();
                     assert_eq!(mapped,output_1,"Error in `onto_opt` for replicated Variable.");

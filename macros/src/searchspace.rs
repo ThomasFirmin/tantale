@@ -5,7 +5,7 @@ use std::{collections::HashSet, str::FromStr};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote, ToTokens};
-use syn::{braced, parse::Parse, parse2, spanned::Spanned, Expr, ExprRange, Ident, Token};
+use syn::{braced, parse::Parse, parse2, spanned::Spanned, Expr, Ident, LitInt, Token};
 
 pub struct DomainStream {
     pub args: Option<Expr>,
@@ -65,7 +65,7 @@ impl Parse for DomainStream {
 
 struct Identifier {
     id: Ident,
-    range: Option<ExprRange>,
+    litint: Option<LitInt>,
 }
 
 impl Parse for Identifier {
@@ -76,27 +76,27 @@ impl Parse for Identifier {
         let ident = input.parse::<Ident>();
         let ident = match ident {
             Ok(id) => id,
-            _ => return Err(syn::Error::new(span,"Name missing. In sp!, a line should start be the identifier (name) of the variable by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
+            _ => return Err(syn::Error::new(span,"Name missing. In sp!, a line should start by the identifier (name) of the variable by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
         };
 
-        let range;
+        let litint;
         if input.peek(syn::token::Brace) {
             let rcontent;
             braced!(rcontent in input);
-            range = match rcontent.parse::<ExprRange>() {
+            litint = match rcontent.parse::<LitInt>() {
                 Ok(expr) => Some(expr),
-                _ => return Err(syn::Error::new(span,"Unknown expression. In sp!, a line should start be the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
+                _ => return Err(syn::Error::new(span,"Unknown expression. In sp!, a line should start by the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
             };
         } else {
-            range = None;
+            litint = None;
         }
 
-        Ok(Identifier { id: ident, range })
+        Ok(Identifier { id: ident, litint })
     }
 }
 
-pub type VarTokens = syn::Result<(Ident, Option<ExprRange>, DomainStream, Option<DomainStream>)>;
-pub type UWVarTokens = (Ident, Option<ExprRange>, DomainStream, Option<DomainStream>);
+pub type VarTokens = syn::Result<(Ident, Option<LitInt>, DomainStream, Option<DomainStream>)>;
+pub type UWVarTokens = (Ident, Option<LitInt>, DomainStream, Option<DomainStream>);
 
 // Parse a line name | Type(args) => sampler | Type(args) => sampler
 // into an Ident, DomainStream(Obj), DomainStram(Opt)
@@ -115,7 +115,7 @@ pub fn token_to_domain(
     if parts.len() == 3 {
         let ident_part = parts[0].clone();
 
-        // PARSE IDENT AND OPTIONAL RANGE
+        // PARSE IDENT AND OPTIONAL REPEATS
         let identifier: Identifier = parse2(ident_part)?;
 
         let obj = parts[1].clone();
@@ -124,7 +124,7 @@ pub fn token_to_domain(
         let opt = parts[2].clone();
 
         let ident = identifier.id;
-        let range = identifier.range;
+        let repeats = identifier.litint;
         let objstream: DomainStream = parse2(obj)?;
 
         if objstream.args.is_none() {
@@ -142,7 +142,7 @@ pub fn token_to_domain(
 
         let optstream: DomainStream = parse2(opt)?;
 
-        Ok((ident, range, objstream, Some(optstream)))
+        Ok((ident, repeats, objstream, Some(optstream)))
     } else {
         Err(syn::Error::new(span, "A line cannot be empty.\n\
                 Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
@@ -280,7 +280,7 @@ fn wrap_same_onto_same() -> proc_macro2::TokenStream {
 
 struct VarInfo {
     name: Ident,
-    range: Option<ExprRange>,
+    repeats: Option<LitInt>,
     ty_obj: Ident,
     args_obj: Expr,
     sampler_obj: proc_macro2::TokenStream,
@@ -293,7 +293,7 @@ struct VarInfo {
 }
 struct WrappedVarInfo {
     name: String,
-    range: Option<proc_macro2::TokenStream>,
+    repeats: Option<usize>,
     wrapped_domobj: proc_macro2::TokenStream, // Obj domains wrapped in Mixed if required, else Obj
     token_sampobj: proc_macro2::TokenStream, // Obj samplers wrapped in Mixed if required, else sampler
     token_onto_opt: proc_macro2::TokenStream, // Wrapped Mixed onto Opt function if required, else Obj.onto
@@ -312,6 +312,7 @@ type ParsedSpOut = (
     proc_macro2::Ident,
     std::vec::Vec<proc_macro2::TokenStream>,
     Vec<proc_macro2::Ident>,
+    Vec<usize>,
 );
 
 pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
@@ -329,7 +330,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
 
     for vtok in vartokens {
         // Parse line
-        let (name, range, objstream, optstream) = vtok;
+        let (name, repeats, objstream, optstream) = vtok;
 
         // Extract Obj domain information
         let obj_args: Expr = objstream.args.unwrap();
@@ -400,7 +401,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
 
         let varinfostruct = VarInfo {
             name,
-            range,
+            repeats,
             ty_obj: obj_ty.clone(),
             args_obj: obj_args,
             sampler_obj: obj_samp,
@@ -496,6 +497,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
     let mut hashsamp = std::collections::HashMap::new();
     let mut hashonto = std::collections::HashMap::new();
 
+    // vinf : vinfo
     for vinf in varinfo {
         let wrapped_domobj: proc_macro2::TokenStream;
         let wrapped_sampobj: proc_macro2::TokenStream;
@@ -665,12 +667,15 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             ),
         );
 
-        let range = vinf.range.map(|expr| expr.to_token_stream());
+        let repeats = match vinf.repeats{
+            Some(i) => Some(i.base10_parse::<usize>()?),
+            None => None,
+        };
 
         // WRAP EVERYTHING
         let wrapvarinfo = WrappedVarInfo {
             name: vinf.name.to_string(),
-            range,
+            repeats,
             wrapped_domobj,
             token_sampobj,
             token_onto_opt,
@@ -688,10 +693,11 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             let mut variables : Vec<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
         }
     );
-
+    let mut var_reps: Vec<usize> = Vec::new();
+    
     for wrapped in wrappedvarinfo {
         let name = wrapped.name.to_string();
-        let repeats = wrapped.range;
+        let repeats = wrapped.repeats;
         let domobj = wrapped.wrapped_domobj;
         let domopt = wrapped.wrapped_domopt;
         let sampler_obj = wrapped.token_sampobj;
@@ -714,13 +720,16 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
                 var
             };
             push_statements.push(match repeats {
-                None => quote! {
-                    variables.push({ #var_statement });
-                },
-                Some(r) => quote! {
-                    let mut replicates = { #var_statement }.replicate(#r);
-                    variables.append(&mut replicates);
-                },
+                None => {
+                    var_reps.push(1);
+                    quote! {variables.push({ #var_statement });
+                }},
+                Some(r) => {
+                    var_reps.push(r);
+                    quote! {
+                        let mut replicates = { #var_statement }.replicate(#r);
+                        variables.append(&mut replicates);
+                }},
             });
         } else {
             let var_statement = quote! {
@@ -735,12 +744,18 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
                 var
             };
             push_statements.push(match repeats {
-                None => quote! {
-                    variables.push({ #var_statement });
+                None => {
+                    var_reps.push(1);
+                    quote!{
+                        variables.push({ #var_statement });
+                    }
                 },
-                Some(r) => quote! {
-                    let mut replicates = { #var_statement }.replicate(#r);
-                    variables.append(&mut replicates);
+                Some(r) => {
+                    var_reps.push(r);
+                    quote! {
+                        let mut replicates = { #var_statement }.replicate(#r);
+                        variables.append(&mut replicates);
+                    }
                 },
             });
         }
@@ -771,7 +786,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             }
         );
     }
-    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,push_statements,tobj_vec))
+    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,push_statements,tobj_vec,var_reps))
 }
 
 pub fn get_sp_tokens(
@@ -827,6 +842,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         ident_mixed_obj,
         ident_mixed_opt,
         push_statements,
+        _,
         _) = parse_sp(vtokens?)?;
 
     get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, push_statements)
