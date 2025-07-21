@@ -310,6 +310,7 @@ type ParsedSpOut = (
     std::vec::Vec<proc_macro2::TokenStream>,
     proc_macro2::Ident,
     proc_macro2::Ident,
+    proc_macro2::Ident,
     std::vec::Vec<proc_macro2::TokenStream>,
     Vec<proc_macro2::Ident>,
     Vec<usize>,
@@ -325,13 +326,19 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
     let mut varinfo = Vec::new();
 
     // UNIQUE DOMAIN TYPES
+    let mut name_unique = HashSet::new();
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
 
     for vtok in vartokens {
         // Parse line
         let (name, repeats, objstream, optstream) = vtok;
-
+        if name_unique.contains(&name){
+            return Err(syn::Error::new(name.span(), format!("The name '{}' is given multiple times.",name)))
+        }
+        else{
+            name_unique.insert(name.clone());
+        }
         // Extract Obj domain information
         let obj_args: Expr = objstream.args.unwrap();
 
@@ -786,7 +793,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             }
         );
     }
-    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,push_statements,tobj_vec,var_reps))
+    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,ident_mixedt_opt,push_statements,tobj_vec,var_reps))
 }
 
 pub fn get_sp_tokens(
@@ -841,6 +848,7 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
+        _,
         push_statements,
         _,
         _) = parse_sp(vtokens?)?;
