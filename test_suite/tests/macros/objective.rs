@@ -16,24 +16,29 @@ fn obj_test(){
             pub intinfo: i64,
             pub boolinfo: bool,
             pub natinfo: u64,
+            pub catinfo: &'static str,
         }
         impl Outcome for OutExample {}
         impl std::fmt::Display for OutExample {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "Output : {}, {}, {}, {}, {}, {}, {}, {}",self.obj,self.fid,self.con,self.more,self.info,self.intinfo,self.boolinfo,self.natinfo)
+                write!(f, "Output : {}, {}, {}, {}, {}, {}, {}, {}, {}",self.obj,self.fid,self.con,self.more,self.info,self.intinfo,self.boolinfo,self.natinfo,self.catinfo)
             }
         }
 
         fn plus_one_int(x:i64)->i64{
             x+1
         }
+
+        const ACTIVATION: [&str;3] = ["relu","tanh","sigmoid"];
+
         objective!(
             pub fn example() -> OutExample {
                 let a = [! a | Real(0.0,5.0) | !];
                 let aa = [! aa_{10} | Real(-5.0,0.0) => uniform_real | Int(0,100) => uniform_int !];
                 let aaa = [! aaa | Real(100.0,200.0) | !];
-                // let some_bool = [! boolvar | Bool()   | !];
-                // let some_nat = [! natvar | Nat(0,10) | !];
+                let some_bool = [! boolvar | Bool()   | !];
+                let some_nat = [! natvar | Nat(0,10) | !];
+                let some_cat = [! catvar | Cat(&ACTIVATION) |!];
 
                 let some_int = plus_one_int([! intvar | Int(-10,0) | !]);
 
@@ -44,8 +49,9 @@ fn obj_test(){
                     more: *aa[2],
                     info: aaa,
                     intinfo: some_int,
-                    boolinfo: true,
-                    natinfo: 0,
+                    boolinfo: some_bool,
+                    natinfo: some_nat,
+                    catinfo: some_cat,
                 }
             }
         );

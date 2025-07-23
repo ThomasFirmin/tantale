@@ -1,31 +1,36 @@
 extern crate proc_macro;
 
-use crate::searchspace::{token_to_domain,UWVarTokens,parse_sp, get_sp_tokens};
+use crate::searchspace::{get_sp_tokens, parse_sp, LineStream};
 
-use proc_macro::{Delimiter, Group, Ident, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use quote::quote;
-use syn::{braced, parse::{self, Parse, ParseStream}, parse2, parse_quote, spanned::Spanned, Attribute, Signature, Stmt, Token, Visibility};
+use syn::{
+    braced,
+    parse::Parse,
+    parse_quote,
+    spanned::Spanned,
+    Attribute, Signature, Visibility,
+};
 
-pub struct CustomFunction{
+pub struct CustomFunction {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub sig: Signature,
     pub block: CustomBlock,
 }
 
-pub struct CustomBlock{
-    pub brace_token: syn::token::Brace,
-    pub stmts: proc_macro2::TokenStream
+pub struct CustomBlock {
+    pub stmts: proc_macro2::TokenStream,
 }
 
-impl Parse for CustomFunction{
+impl Parse for CustomFunction {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let vis: Visibility = input.parse()?;
         let sig: Signature = input.parse()?;
         let block: CustomBlock = input.parse()?;
 
-        Ok(CustomFunction{
+        Ok(CustomFunction {
             attrs,
             vis,
             sig,
@@ -37,74 +42,95 @@ impl Parse for CustomFunction{
 impl Parse for CustomBlock {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let content;
-        let brace_token = braced!(content in input);
-        let stmts : proc_macro2::TokenStream = content.parse()?;
+        braced!(content in input);
+        let stmts: proc_macro2::TokenStream = content.parse()?;
 
-        Ok(CustomBlock{ brace_token, stmts})
-
+        Ok(CustomBlock {stmts})
     }
 }
 
-fn extract_var(input:&TokenStream, variables:&mut Vec<UWVarTokens>, is_mixed:bool)->syn::Result<bool>{
-
+fn extract_var(
+    input: &TokenStream,
+    variables: &mut Vec<LineStream>,
+    is_mixed: bool,
+) -> syn::Result<bool> {
     let mut is_it_mixed = is_mixed;
     let mut tokens = input.clone().into_iter();
 
     loop {
         let token = tokens.next();
-        match token{
+        match token {
             None => break,
             Some(TokenTree::Group(group)) => {
-                        let delimiter = group.delimiter();
-                        let content = group.stream();
-                        let span = group.span();
+                let delimiter = group.delimiter();
+                let content = group.stream();
 
-                        if delimiter == Delimiter::Bracket{
-                            if is_var(&content){
-                                // Remove "!" to get the variable definition
-                                let mut clean_content: Vec<TokenTree> = content.clone().into_iter().skip(1).collect();
-                                clean_content.pop();
-                                let var_stream = TokenStream::from_iter(clean_content);
-                                let vartokens = token_to_domain(var_stream)?;
-                                variables.push(vartokens);
-                                let length = variables.len();
-                                if length > 1 && !is_mixed{
-                                    let prev_var = &variables[length-2];
-                                    let curr_var = &variables[length-1];
-                                    is_it_mixed = prev_var.2.ty != curr_var.2.ty;
-                                }
-                            }
+                if delimiter == Delimiter::Bracket {
+                    if is_var(&content) {
+                        // Remove "!" to get the variable definition
+                        let mut clean_content: Vec<TokenTree> =
+                            content.clone().into_iter().skip(1).collect();
+                        clean_content.pop();
+                        let var_stream = TokenStream::from_iter(clean_content);
+                        let vartokens: LineStream = syn::parse(var_stream)?;
+                        variables.push(vartokens);
+                        let length = variables.len();
+                        if length > 1 && !is_mixed {
+                            let prev_var = &variables[length - 2];
+                            let curr_var = &variables[length - 1];
+                            is_it_mixed = prev_var.name_part.id != curr_var.name_part.id;
                         }
-                        else{is_it_mixed = extract_var(&content,variables,is_it_mixed)?;}
                     }
-            _ => {},
+                } else {
+                    is_it_mixed = extract_var(&content, variables, is_it_mixed)?;
+                }
+            }
+            _ => {}
         }
     }
     Ok(is_it_mixed)
-    
 }
 
-fn simple_replacement(idx:usize,_mixed_ty:&proc_macro2::Ident,_ty:&proc_macro2::Ident)->TokenStream{
+fn simple_replacement(
+    idx: usize,
+    _mixed_ty: &proc_macro2::Ident,
+    _ty: &proc_macro2::Ident,
+) -> TokenStream {
     quote! {{tantale_in[#idx]}}.into()
 }
 
-fn complex_replacement(idx:usize,mixed_ty:&proc_macro2::Ident,ty:&proc_macro2::Ident)->TokenStream{
-    quote!{
+fn complex_replacement(
+    idx: usize,
+    mixed_ty: &proc_macro2::Ident,
+    ty: &proc_macro2::Ident,
+) -> TokenStream {
+    quote! {
         {
             match tantale_in[#idx]{
                 #mixed_ty :: #ty (value) => value,
                 _ => panic!("")
             }
         }
-    }.into()
+    }
+    .into()
 }
 
-fn simple_vec_replacement(start:usize,end:usize,_mixed_ty:&proc_macro2::Ident,_ty:&proc_macro2::Ident)->TokenStream{
+fn simple_vec_replacement(
+    start: usize,
+    end: usize,
+    _mixed_ty: &proc_macro2::Ident,
+    _ty: &proc_macro2::Ident,
+) -> TokenStream {
     quote! {{tantale_in[#start .. #end]}}.into()
 }
 
-fn complex_vec_replacement(start:usize,end:usize,mixed_ty:&proc_macro2::Ident,ty:&proc_macro2::Ident)->TokenStream{
-    quote!{
+fn complex_vec_replacement(
+    start: usize,
+    end: usize,
+    mixed_ty: &proc_macro2::Ident,
+    ty: &proc_macro2::Ident,
+) -> TokenStream {
+    quote! {
         {
             tantale_in[#start..#end].iter().map(|v| {
                 match v {
@@ -113,142 +139,166 @@ fn complex_vec_replacement(start:usize,end:usize,mixed_ty:&proc_macro2::Ident,ty
                 }
             }).collect::<Vec<&<#ty as Domain>::TypeDom>>()
         }
-    }.into()
+    }
+    .into()
 }
 
 fn reconstruct_simple(
-    input:TokenStream,
-    new_stream :&mut TokenStream,
-    mixed_ty:&proc_macro2::Ident,
-    obj_ty:&Vec<proc_macro2::Ident>,
-    repeats:&Vec<usize>,
-    n_token_idx:usize,
-    n_var_idx:usize
-){
-    
-    let mut token_idx= n_token_idx;
-    let mut var_idx= n_var_idx;
+    input: TokenStream,
+    new_stream: &mut TokenStream,
+    mixed_ty: &proc_macro2::Ident,
+    obj_ty: &Vec<proc_macro2::Ident>,
+    repeats: &Vec<usize>,
+    n_token_idx: usize,
+    n_var_idx: usize,
+) {
+    let mut token_idx = n_token_idx;
+    let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
 
     loop {
-        match tokens.next(){
-            None => break,
-            Some(TokenTree::Group(group)) => {
-                        let delimiter = group.delimiter();
-                        let content = group.stream();
-                        let span = group.span();
-
-                        if delimiter == Delimiter::Bracket{
-                            if is_var(&content){
-                                let ident = &obj_ty[token_idx];
-                                if repeats[token_idx] > 1{
-                                    let prev_var_idx = var_idx;
-                                    var_idx += repeats[token_idx];
-                                    new_stream.extend([simple_vec_replacement(prev_var_idx,var_idx,mixed_ty,ident)]);
-                                    token_idx += 1;
-                                }
-                                else{
-                                    let prev_var_idx = var_idx;
-                                    new_stream.extend([simple_replacement(prev_var_idx,mixed_ty,ident)]);
-                                    var_idx += 1;
-                                    token_idx += 1;
-                                }
-                            }
-                            else{
-                                new_stream.extend([TokenTree::Group(group)]);
-                            }
-                        }
-                        else{
-                            let mut nested_new_stream = TokenStream::new();
-                            reconstruct_simple(content, &mut nested_new_stream, mixed_ty, obj_ty, repeats, token_idx, var_idx);
-                            let new_group = Group::new(delimiter, nested_new_stream);
-                            new_stream.extend([TokenTree::Group(new_group)]);
-                        }
-                    }
-            Some(other) => {
-                new_stream.extend([other]);
-            },
-        }
-    }
-}
-
-fn reconstruct_mixed(
-    input:TokenStream,
-    new_stream :&mut TokenStream,
-    mixed_ty:&proc_macro2::Ident,
-    obj_ty:&Vec<proc_macro2::Ident>,
-    repeats:&Vec<usize>,
-    n_token_idx:usize,
-    n_var_idx:usize
-){
-    let mut token_idx= n_token_idx;
-    let mut var_idx= n_var_idx;
-    let mut tokens = input.clone().into_iter();
-
-    loop {
-        match tokens.next(){
+        match tokens.next() {
             None => break,
             Some(TokenTree::Group(group)) => {
                 let delimiter = group.delimiter();
                 let content = group.stream();
-                let span = group.span();
 
-                if delimiter == Delimiter::Bracket{
-                    if is_var(&content){
+                if delimiter == Delimiter::Bracket {
+                    if is_var(&content) {
                         let ident = &obj_ty[token_idx];
-                        if repeats[token_idx] > 1{
+                        if repeats[token_idx] > 1 {
                             let prev_var_idx = var_idx;
                             var_idx += repeats[token_idx];
-                            new_stream.extend([complex_vec_replacement(prev_var_idx,var_idx,mixed_ty,ident)]);
+                            new_stream.extend([simple_vec_replacement(
+                                prev_var_idx,
+                                var_idx,
+                                mixed_ty,
+                                ident,
+                            )]);
                             token_idx += 1;
-                        }
-                        else{
+                        } else {
                             let prev_var_idx = var_idx;
-                            new_stream.extend([complex_replacement(prev_var_idx,mixed_ty,ident)]);
+                            new_stream.extend([simple_replacement(prev_var_idx, mixed_ty, ident)]);
                             var_idx += 1;
                             token_idx += 1;
                         }
-                    }
-                    else{
+                    } else {
                         new_stream.extend([TokenTree::Group(group)]);
                     }
-                }
-                else{
+                } else {
                     let mut nested_new_stream = TokenStream::new();
-                    reconstruct_mixed(content, &mut nested_new_stream, mixed_ty, obj_ty, repeats, token_idx, var_idx);
+                    reconstruct_simple(
+                        content,
+                        &mut nested_new_stream,
+                        mixed_ty,
+                        obj_ty,
+                        repeats,
+                        token_idx,
+                        var_idx,
+                    );
                     let new_group = Group::new(delimiter, nested_new_stream);
                     new_stream.extend([TokenTree::Group(new_group)]);
                 }
             }
             Some(other) => {
                 new_stream.extend([other]);
-            },
+            }
         }
     }
 }
 
-fn reconstruct_tokens(input:TokenStream, new_stream :&mut TokenStream, mixed_ty:&proc_macro2::Ident, obj_ty:&Vec<proc_macro2::Ident>,repeats:Vec<usize>,is_mixed:bool){
+fn reconstruct_mixed(
+    input: TokenStream,
+    new_stream: &mut TokenStream,
+    mixed_ty: &proc_macro2::Ident,
+    obj_ty: &Vec<proc_macro2::Ident>,
+    repeats: &Vec<usize>,
+    n_token_idx: usize,
+    n_var_idx: usize,
+) {
+    let mut token_idx = n_token_idx;
+    let mut var_idx = n_var_idx;
+    let mut tokens = input.clone().into_iter();
 
-    if is_mixed{
-        reconstruct_mixed(input, new_stream, mixed_ty, obj_ty,&repeats,0,0);
-    }
-    else{
-        reconstruct_simple(input, new_stream, mixed_ty, obj_ty,&repeats,0,0);
+    loop {
+        match tokens.next() {
+            None => break,
+            Some(TokenTree::Group(group)) => {
+                let delimiter = group.delimiter();
+                let content = group.stream();
+
+                if delimiter == Delimiter::Bracket {
+                    if is_var(&content) {
+                        let ident = &obj_ty[token_idx];
+                        if repeats[token_idx] > 1 {
+                            let prev_var_idx = var_idx;
+                            var_idx += repeats[token_idx];
+                            new_stream.extend([complex_vec_replacement(
+                                prev_var_idx,
+                                var_idx,
+                                mixed_ty,
+                                ident,
+                            )]);
+                            token_idx += 1;
+                        } else {
+                            let prev_var_idx = var_idx;
+                            new_stream.extend([complex_replacement(prev_var_idx, mixed_ty, ident)]);
+                            var_idx += 1;
+                            token_idx += 1;
+                        }
+                    } else {
+                        new_stream.extend([TokenTree::Group(group)]);
+                    }
+                } else {
+                    let mut nested_new_stream = TokenStream::new();
+                    reconstruct_mixed(
+                        content,
+                        &mut nested_new_stream,
+                        mixed_ty,
+                        obj_ty,
+                        repeats,
+                        token_idx,
+                        var_idx,
+                    );
+                    let new_group = Group::new(delimiter, nested_new_stream);
+                    new_stream.extend([TokenTree::Group(new_group)]);
+                }
+            }
+            Some(other) => {
+                new_stream.extend([other]);
+            }
+        }
     }
 }
 
-pub fn obj(input:TokenStream) -> syn::Result<TokenStream>{
-
-    let mut fn_item : CustomFunction = syn::parse(input)?;
-    let params_span = fn_item.sig.inputs.span();
-    if !fn_item.sig.inputs.is_empty(){
-        return Err(syn::Error::new(params_span, "When defining the objective function, it should not have any parameters. These are filled automatically by the macro."))
+fn reconstruct_tokens(
+    input: TokenStream,
+    new_stream: &mut TokenStream,
+    mixed_ty: &proc_macro2::Ident,
+    obj_ty: &Vec<proc_macro2::Ident>,
+    repeats: Vec<usize>,
+    is_mixed: bool,
+) {
+    if is_mixed {
+        reconstruct_mixed(input, new_stream, mixed_ty, obj_ty, &repeats, 0, 0);
+    } else {
+        reconstruct_simple(input, new_stream, mixed_ty, obj_ty, &repeats, 0, 0);
     }
-    
-    let content  = fn_item.block.stmts;
+}
 
-    let mut variables: Vec<UWVarTokens> = Vec::new();
-    let is_mixed = extract_var(&content.clone().into(),&mut variables,false)?;
+pub fn obj(input: TokenStream) -> TokenStream {
+    let mut fn_item: CustomFunction = syn::parse(input).unwrap();
+    let params_span = fn_item.sig.inputs.span();
+    if !fn_item.sig.inputs.is_empty() {
+        syn::Error::new(params_span,
+             "When defining the objective function, it should not have any parameters. These are filled automatically by the macro."
+            ).to_compile_error();
+    }
+
+    let content = fn_item.block.stmts;
+
+    let mut variables: Vec<LineStream> = Vec::new();
+    let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
     let (
         mixed_obj,
@@ -260,52 +310,66 @@ pub fn obj(input:TokenStream) -> syn::Result<TokenStream>{
         ident_mixedt_opt,
         push_statements,
         tobj_vec,
-        repeats) = parse_sp(variables)?;
+        repeats,
+    ) = parse_sp(variables).unwrap();
 
-    let new_args: syn::FnArg = parse_quote!{tantale_in : std::sync::Arc::<[#ident_mixedt_opt]>};
+    let new_args: syn::FnArg = parse_quote! {tantale_in : std::sync::Arc::<[#ident_mixedt_opt]>};
     fn_item.sig.inputs.push(new_args);
 
     let mut new_stream = TokenStream::new();
-    
-    reconstruct_tokens(content.into(),&mut new_stream,&ident_mixedt_opt,&tobj_vec,repeats,is_mixed);
-    let new_stream : proc_macro2::TokenStream = new_stream.into();
-    
-    
+
+    reconstruct_tokens(
+        content.into(),
+        &mut new_stream,
+        &ident_mixedt_opt,
+        &tobj_vec,
+        repeats,
+        is_mixed,
+    );
+    let new_stream: proc_macro2::TokenStream = new_stream.into();
+
     let attrs = fn_item.attrs;
-    let vis  = fn_item.vis;
+    let vis = fn_item.vis;
     let sig = fn_item.sig;
-    
+
     let fn_tokens: TokenStream = quote! {
         #(#attrs)*
         #vis #sig{
             #new_stream
         }
-    }.into();
-    
-    let mut sp_tokens = get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, push_statements)?;
+    }
+    .into();
+
+    let mut sp_tokens = get_sp_tokens(
+        mixed_obj,
+        mixed_opt,
+        sampler_functions,
+        onto_functions,
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+    )
+    .unwrap();
     sp_tokens.extend([fn_tokens]);
 
-    Ok(sp_tokens)
-    // Ok(quote! {let x:usize=1;}.into())
-    
-
+    sp_tokens
 }
 
 // Inspired by paste! crate from dtolnay
-fn is_var(input:&TokenStream)->bool{
+fn is_var(input: &TokenStream) -> bool {
     let mut tokens = input.clone().into_iter();
-    match tokens.next(){
-        Some(TokenTree::Punct(punct)) if punct.as_char()=='!' => {},
-        _ => return false
+    match tokens.next() {
+        Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {}
+        _ => return false,
     }
-    
+
     let mut has_token = false;
-    loop{
-        match tokens.next(){
+    loop {
+        match tokens.next() {
             Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {
                 return has_token && tokens.next().is_none()
-            },
-            Some(_) => {has_token=true},
+            }
+            Some(_) => has_token = true,
             None => return false,
         }
     }

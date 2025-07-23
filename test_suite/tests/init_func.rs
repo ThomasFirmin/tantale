@@ -1,5 +1,31 @@
 static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
+use tantale_core::Outcome;
+pub struct OutExample {
+            pub obj: f64,
+            pub int_v: i64,
+            pub plus_one_int: i64,
+            pub nat_v: u64,
+            pub nat_plus_int: i64,
+            pub cat_v: &'static str,
+            pub bool_v: bool,
+            pub neuron: Neuron,
+        }
+impl Outcome for OutExample {}
+
+pub struct Neuron{
+    pub number: i64,
+    pub activation: &'static str,
+}
+
+pub fn plus_one_int(x:i64)->i64{
+            x+1
+}
+
+pub fn nat_plus_int(x:i64, y:u64)->i64{
+            x+(y as i64)
+}
+
 pub mod sp_ms_nosamp {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
     use tantale_macros::sp;
@@ -211,7 +237,7 @@ pub mod sp_sm_nosamp {
     sp!(
         a | Real(0.0,1.0) | Int(0,100)                ;
         b | Real(0.0,1.0) | Nat(0,100)                ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)          ;
+        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)   ;
         d | Real(0.0,1.0) | Bool()                    ;
     );
 }

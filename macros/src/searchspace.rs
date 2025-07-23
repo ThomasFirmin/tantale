@@ -5,69 +5,20 @@ use std::{collections::HashSet, str::FromStr};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote, ToTokens};
-use syn::{braced, parse::Parse, parse2, spanned::Spanned, Expr, Ident, LitInt, Token};
+use syn::{
+    braced,
+    parse::{self, Parse},
+    parse_macro_input,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Expr, Ident, LitInt, Token,
+};
 
-pub struct DomainStream {
-    pub args: Option<Expr>,
-    pub ty: Option<Ident>,
-    pub sampler: Option<Ident>,
+// Parse name_{usize}
+pub struct Identifier {
+    pub id: Ident,
+    pub litint: Option<LitInt>,
 }
-
-impl Parse for DomainStream {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let span = input.span();
-
-        // Match type
-        let ty = input.parse::<Ident>();
-        let ty = ty.ok();
-
-        // Match domain args if type exists
-        let args= match ty{
-            None => None,
-            Some(_) => {
-                match input.parse::<Expr>() {
-                Ok(p) => match p {
-                    Expr::Tuple(t) => Some(t.into()),
-                    Expr::Paren(t) => Some(t.into()),
-                    _ => return Err(syn::Error::new(span,"In sp!, a type should be followed by the `(args)` required by the builder of a domain.")),
-                    },
-                Err(_) => return Err(syn::Error::new(span,"In sp!, a type should be followed by the `(args)` required by the builder of a domain.")),
-                }
-            },
-        };
-
-        // Match sampler
-        let arrow = input.parse::<Token![=>]>();
-
-        let samp = match arrow {
-            Err(_) => None,
-            Ok(_) => {
-                let samp_ident = input.parse::<Ident>();
-                match samp_ident {
-                    Err(_) => {
-                        return Err(syn::Error::new(
-                            span,
-                            "In sp!, a sampler function must follow a `=>` token.",
-                        ))
-                    }
-                    Ok(ident) => Some(ident),
-                }
-            }
-        };
-
-        Ok(DomainStream {
-            args,
-            ty,
-            sampler: samp,
-        })
-    }
-}
-
-struct Identifier {
-    id: Ident,
-    litint: Option<LitInt>,
-}
-
 impl Parse for Identifier {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let span = input.span();
@@ -95,65 +46,129 @@ impl Parse for Identifier {
     }
 }
 
-pub type VarTokens = syn::Result<(Ident, Option<LitInt>, DomainStream, Option<DomainStream>)>;
-pub type UWVarTokens = (Ident, Option<LitInt>, DomainStream, Option<DomainStream>);
+// Parse => SAMPLER
+pub struct SamplerToken {
+    pub sampler: Option<Ident>,
+}
 
-// Parse a line name | Type(args) => sampler | Type(args) => sampler
-// into an Ident, DomainStream(Obj), DomainStram(Opt)
-pub fn token_to_domain(
-    input: TokenStream,
-) -> VarTokens {
-    let input_str = input.to_string();
-    let span = input_str.span();
+impl Parse for SamplerToken {
+    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
+        let arrow = input.parse::<Token![=>]>();
+        let sampler = match arrow {
+            Err(_) => None,
+            Ok(arr) => {
+                let samp_ident = input.parse::<Ident>();
+                match samp_ident {
+                    Err(_) => {
+                        return Err(syn::Error::new(
+                            arr.span(),
+                            "A `=>` should be followed by a sampler function.",
+                        ))
+                    }
+                    Ok(ident) => Some(ident),
+                }
+            }
+        };
+        Ok(SamplerToken { sampler })
+    }
+}
 
-    let parts: Vec<proc_macro2::TokenStream> = input_str
-        .split("|")
-        .map(|s| s.trim())
-        .map(|s| s.parse().unwrap())
-        .collect();
+// Parse DOMAIN(ARGS) => SAMPLER
+#[derive(Clone)]
+pub struct DomainToken {
+    pub args: Punctuated<Expr, syn::token::Comma>,
+    pub ty: Ident,
+}
 
-    if parts.len() == 3 {
-        let ident_part = parts[0].clone();
+pub enum DomainStream {
+    DomainToken(DomainToken),
+    None,
+}
 
-        // PARSE IDENT AND OPTIONAL REPEATS
-        let identifier: Identifier = parse2(ident_part)?;
-
-        let obj = parts[1].clone();
-        let objspan = obj.span();
-
-        let opt = parts[2].clone();
-
-        let ident = identifier.id;
-        let repeats = identifier.litint;
-        let objstream: DomainStream = parse2(obj)?;
-
-        if objstream.args.is_none() {
-            return Err(syn::Error::new(objspan, "The Objective domain cannot be empty.\n\
-                Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
-                `name | Objective part | Optimizer part ;`\n\
-                with: \n\
-                the Objective part made of:\n\
-                `Type(args:expr) Optional(=> sampler:expr)`\n\
-                the Optimizer part made of:\n\
-                `Optional(Type(args:expr)) => sampler:expr)`\n\
-                where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
-                "));
+impl Parse for DomainStream {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        if input.peek(Token![=>]) || input.peek(Token![;]) || input.is_empty() {
+            return Ok(DomainStream::None);
         }
+        let ty = input.parse::<Ident>()?;
+        let content;
+        syn::parenthesized!(content in input);
+        let args = content.parse_terminated(Expr::parse, Token![,])?;
+        Ok(DomainStream::DomainToken(DomainToken { args, ty }))
+    }
+}
 
-        let optstream: DomainStream = parse2(opt)?;
+pub struct FullDomainToken {
+    pub args: Punctuated<Expr, syn::token::Comma>,
+    pub ty: Ident,
+    pub samp: SamplerToken,
+    pub single: bool,
+}
 
-        Ok((ident, repeats, objstream, Some(optstream)))
-    } else {
-        Err(syn::Error::new(span, "A line cannot be empty.\n\
-                Each line of the searchspace within the `sp!` macro must be made of three '|'-separated parts:\n\
-                `name | Objective part | Optimizer part ;`\n\
-                with: \n\
-                the Objective part made of:\n\
-                `Type(args:expr) Optional(=> sampler:expr)`\n\
-                the Optimizer part made of:\n\
-                `Optional(Type(args:expr)) => sampler:expr)`\n\
-                where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
-                "))
+// Parse Identifier | DomainStream | DomainStream
+pub struct LineStream {
+    pub name_part: Identifier,
+    pub obj_part: FullDomainToken,
+    pub opt_part: FullDomainToken,
+}
+
+impl Parse for LineStream {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident: Identifier = input.parse()?;
+        let first_bar = input.parse::<Token![|]>()?;
+
+        let obj_domain = input.parse::<DomainStream>()?;
+        let obj_domain = match obj_domain{
+            DomainStream::DomainToken(tokens) => tokens,
+            DomainStream::None => return Err(syn::Error::new(first_bar.span(), 
+            "
+            The Objective domain cannot be empty.\n\
+            A single searchspace variable is defined by:\n\
+            `name | Objective part | Optimizer part ;`\n\
+            with: \n\
+            the Objective part made of:\n\
+            `Type(args:expr) Optional(=> sampler:expr)`\n\
+            the Optimizer part made of:\n\
+            `Optional(Type(args:expr) => sampler:expr)`\n\
+            where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.
+            ")),
+        };
+        let obj_sampler = input.parse::<SamplerToken>()?;
+
+        input.parse::<Token![|]>()?;
+
+        let opt_domain = input.parse::<DomainStream>()?;
+        let single: bool;
+        let opt_domain = match opt_domain {
+            DomainStream::DomainToken(dom) => {
+                single = false;
+                dom
+            }
+            DomainStream::None => {
+                single = true;
+                obj_domain.clone()
+            }
+        };
+        let opt_sampler = input.parse::<SamplerToken>()?;
+
+        let obj_tokens = FullDomainToken {
+            args: obj_domain.args,
+            ty: obj_domain.ty,
+            samp: obj_sampler,
+            single: false,
+        };
+        let opt_tokens = FullDomainToken {
+            args: opt_domain.args,
+            ty: opt_domain.ty,
+            samp: opt_sampler,
+            single,
+        };
+
+        Ok(LineStream {
+            name_part: ident,
+            obj_part: obj_tokens,
+            opt_part: opt_tokens,
+        })
     }
 }
 
@@ -165,7 +180,7 @@ fn wrap_sampler_mixed(
 ) -> proc_macro2::TokenStream {
     quote! {
         match dom{
-            #mixed :: #simple (d) => #mixedt :: #simple (#sampler (d, rng)),
+            #mixed::#simple(d) => #mixedt::#simple(#sampler(d,rng)),
             _ => unreachable!("An error occured while sampling from a mixed domain. The mixed variant is of wrong type."),
         }
     }
@@ -178,12 +193,12 @@ fn wrap_mixed_onto_simple(
 ) -> proc_macro2::TokenStream {
     quote! {
         match indom{
-            #mixed :: #simple_in (d) => {
+            #mixed::#simple_in(d) => {
                 let i = match sample{
-                    #mixedt :: #simple_in (i) => i,
+                    #mixedt::#simple_in (i) => i,
                     _ => unreachable!("An error occured while mapping an item from a mixed domain to a domain. The input item is of the wrong type.")
                 };
-                #simple_in :: onto(d,i,outdom)
+                #simple_in::onto(d,i,outdom)
             },
             _ => unreachable!("An error occured while mapping an item from a mixed domain to a domain. The mixed variant is of wrong type.")
         }
@@ -198,10 +213,10 @@ fn wrap_simple_onto_mixed(
 ) -> proc_macro2::TokenStream {
     quote! {
         match outdom{
-            #mixed :: #simple_out (d) => {
-                let mapped = #simple_in :: onto (indom, sample, d);
+            #mixed::#simple_out(d) => {
+                let mapped = #simple_in::onto(indom,sample,d);
                 match mapped{
-                    Ok(m) => Ok(#mixedt :: #simple_out (m)),
+                    Ok(m) => Ok(#mixedt::#simple_out(m)),
                     Err(e) => Err(e),
                 }
             },
@@ -220,14 +235,14 @@ fn wrap_mixed_onto_mixed(
 ) -> proc_macro2::TokenStream {
     quote! {
         match indom{
-            #mixed_in :: #simple_in (i) => {
+            #mixed_in::#simple_in(i) => {
                 match outdom{
-                    #mixed_out :: #simple_out (o) =>{
+                    #mixed_out::#simple_out(o) =>{
                         match sample{
-                            #mixedt_in :: #simple_in(s) =>{
-                                let mapped = #simple_in :: onto (i, s, o);
+                            #mixedt_in::#simple_in(s) =>{
+                                let mapped = #simple_in::onto(i,s,o);
                                 match mapped{
-                                    Ok(m) => Ok(#mixedt_out :: #simple_out (m)),
+                                    Ok(m) => Ok(#mixedt_out::#simple_out(m)),
                                     Err(e) => Err(e),
                                 }
                             },
@@ -249,7 +264,7 @@ fn wrap_mixed_onto_mixed_single(
 ) -> proc_macro2::TokenStream {
     quote! {
         match sample{
-            #mixedt_in :: #simple (s) => Ok( #mixedt_out :: #simple (s.clone())),
+            #mixedt_in::#simple(s) => Ok(#mixedt_out::#simple(s.clone())),
             _ => unreachable!("The input sample is of the wrong type in a mixed onto mixed (single) function."),
         }
     }
@@ -258,7 +273,7 @@ fn wrap_mixed_onto_mixed_single(
 fn wrap_simple_onto_mixed_single(mixedt_in: Ident, simple: Ident) -> proc_macro2::TokenStream {
     quote! {
         let cloned = sample.clone();
-        Ok(#mixedt_in :: #simple (cloned))
+        Ok(#mixedt_in::#simple(cloned))
     }
 }
 
@@ -266,7 +281,7 @@ fn wrap_mixed_onto_simple_single(mixedt_in: Ident, simple: Ident) -> proc_macro2
     quote! {
         let cloned = sample.clone();
         match cloned{
-            #mixedt_in :: #simple (s) => Ok(s),
+            #mixedt_in::#simple(s) => Ok(s),
             _ => unreachable!("The input sample is of the wrong type in a mixed onto mixed (single) function."),
         }
     }
@@ -282,11 +297,11 @@ struct VarInfo {
     name: Ident,
     repeats: Option<LitInt>,
     ty_obj: Ident,
-    args_obj: Expr,
+    args_obj: Punctuated<Expr, syn::token::Comma>,
     sampler_obj: proc_macro2::TokenStream,
     sampobj_name: String,
     ty_opt: Ident,
-    args_opt: Expr,
+    args_opt: Punctuated<Expr, syn::token::Comma>,
     sampler_opt: proc_macro2::TokenStream,
     sampopt_name: String,
     single: bool,
@@ -316,12 +331,9 @@ type ParsedSpOut = (
     Vec<usize>,
 );
 
-pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
-{
-
+pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     // Obj type vec
-    let mut tobj_vec:Vec<proc_macro2::Ident> = Vec::new();
-
+    let mut tobj_vec: Vec<proc_macro2::Ident> = Vec::new();
     // OBJ + OPT
     let mut varinfo = Vec::new();
 
@@ -330,85 +342,55 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
 
-    for vtok in vartokens {
-        // Parse line
-        let (name, repeats, objstream, optstream) = vtok;
-        if name_unique.contains(&name){
-            return Err(syn::Error::new(name.span(), format!("The name '{}' is given multiple times.",name)))
-        }
-        else{
-            name_unique.insert(name.clone());
+    for line in vartokens {
+        // Parse linestream
+        if name_unique.contains(&line.name_part.id) {
+            return Err(syn::Error::new(
+                line.name_part.id.span(),
+                format!("The name '{}' is given multiple times.", line.name_part.id),
+            ));
+        } else {
+            name_unique.insert(line.name_part.id.clone());
         }
         // Extract Obj domain information
-        let obj_args: Expr = objstream.args.unwrap();
-
-        let obj_ty = objstream.ty.unwrap();
-        let obj_samp_name: String;
-        let obj_samp = match objstream.sampler {
+        let obj_args = line.obj_part.args;
+        let obj_ty = line.obj_part.ty;
+        let obj_samp_name;
+        let obj_samp = match line.obj_part.samp.sampler {
             Some(s) => {
                 obj_samp_name = s.to_string();
                 s.to_token_stream()
             }
             None => {
                 obj_samp_name = String::from("default");
-                quote! {#obj_ty ::sample}
+                quote! {#obj_ty::sample}
             }
         };
-        
+
         // Extract Opt domain information
-        
-        let opt_ty = match &optstream {
-            Some(s) => s.ty.clone(),
-            None => None,
-        };
-        // If None then clone obj
-        let opt_ty = match opt_ty {
-            Some(a) => a,
-            None => obj_ty.clone(),
-        };
-
-        let opt_args = match &optstream {
-            Some(s) => s.args.clone(),
-            None => None,
-        };
-        // If None then clone obj
-        let single: bool;
-        let opt_args = match opt_args {
-            Some(a) => {
-                single = false;
-                a
-            }
-            None => {
-                single = true;
-                obj_args.clone()
-            }
-        };
-
+        // If None then copy Obj
+        let opt_args = line.opt_part.args;
+        let opt_ty = line.opt_part.ty;
         let opt_samp_name;
-        let opt_samp = match &optstream {
-            Some(stream) => match stream.sampler.clone() {
-                Some(s) => {
-                    opt_samp_name = s.to_string();
-                    s.to_token_stream()
-                }
-                None => {
-                    opt_samp_name = String::from("default");
-                    quote! {< #opt_ty as tantale_core::domain::Domain>::sample}
-                }
-            },
+        let opt_samp = match line.opt_part.samp.sampler {
+            Some(s) => {
+                opt_samp_name = s.to_string();
+                s.to_token_stream()
+            }
             None => {
                 opt_samp_name = String::from("default");
-                quote! {< #opt_ty as tantale_core::domain::Domain>::sample}
+                quote! {#opt_ty::sample}
             }
         };
+        let single = line.opt_part.single;
 
         // Push everything into vectors
         tobj_unique.insert(obj_ty.clone());
         topt_unique.insert(opt_ty.clone());
 
         let varinfostruct = VarInfo {
-            name,
-            repeats,
+            name: line.name_part.id,
+            repeats: line.name_part.litint,
             ty_obj: obj_ty.clone(),
             args_obj: obj_args,
             sampler_obj: obj_samp,
@@ -450,7 +432,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
         mixed_obj = quote! {
             #[derive(tantale::Mixed, Clone, PartialEq)]
             pub enum _TantaleMixedObj{
-                #( #iter_tobj_unique ( #iter_tobj_unique ) ),*
+                #(#iter_tobj_unique(#iter_tobj_unique)),*
             }
         };
         ident_mixed_obj_str = String::from("_TantaleMixedObj");
@@ -472,7 +454,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             mixed_opt = quote! {
                 #[derive(tantale::Mixed,Clone,PartialEq)]
                 pub enum _TantaleMixedOpt{
-                    #( #iter_topt_unique ( #iter_topt_unique ) ),*
+                    #(#iter_topt_unique(#iter_topt_unique)),*
                 }
             };
             ident_mixed_opt_str = String::from("_TantaleMixedOpt");
@@ -525,7 +507,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
 
         // OBJ PART
         if is_mixedobj {
-            wrapped_domobj = quote! {#ident_mixed_obj :: #ty_obj ( #ty_obj :: new #args_obj )};
+            wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::new(#args_obj))};
             wrapped_sampobj = wrap_sampler_mixed(
                 ident_mixed_obj.clone(),
                 ident_mixedt_obj.clone(),
@@ -533,12 +515,12 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
                 sampler_obj.clone(),
             );
         } else {
-            wrapped_domobj = quote! { #ty_obj :: new #args_obj };
-            wrapped_sampobj = quote! {#sampler_obj (dom,rng)};
+            wrapped_domobj = quote! {#ty_obj::new(#args_obj)};
+            wrapped_sampobj = quote! {#sampler_obj(dom,rng)};
         }
 
         if is_mixedopt {
-            wrapped_domopt = quote! {#ident_mixed_opt :: #ty_opt ( #ty_opt :: new #args_opt )};
+            wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
             wrapped_sampopt = wrap_sampler_mixed(
                 ident_mixed_opt.clone(),
                 ident_mixedt_opt.clone(),
@@ -546,8 +528,8 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
                 sampler_opt.clone(),
             );
         } else {
-            wrapped_domopt = quote! { #ty_opt :: new #args_opt };
-            wrapped_sampopt = quote! {#sampler_opt (dom,rng)};
+            wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
+            wrapped_sampopt = quote! {#sampler_opt(dom,rng)};
         }
 
         if are_same {
@@ -674,7 +656,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             ),
         );
 
-        let repeats = match vinf.repeats{
+        let repeats = match vinf.repeats {
             Some(i) => Some(i.base10_parse::<usize>()?),
             None => None,
         };
@@ -701,7 +683,7 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
         }
     );
     let mut var_reps: Vec<usize> = Vec::new();
-    
+
     for wrapped in wrappedvarinfo {
         let name = wrapped.name.to_string();
         let repeats = wrapped.repeats;
@@ -730,13 +712,15 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
                 None => {
                     var_reps.push(1);
                     quote! {variables.push({ #var_statement });
-                }},
+                    }
+                }
                 Some(r) => {
                     var_reps.push(r);
                     quote! {
-                        let mut replicates = { #var_statement }.replicate(#r);
-                        variables.append(&mut replicates);
-                }},
+                            let mut replicates = { #var_statement }.replicate(#r);
+                            variables.append(&mut replicates);
+                    }
+                }
             });
         } else {
             let var_statement = quote! {
@@ -753,17 +737,17 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             push_statements.push(match repeats {
                 None => {
                     var_reps.push(1);
-                    quote!{
+                    quote! {
                         variables.push({ #var_statement });
                     }
-                },
+                }
                 Some(r) => {
                     var_reps.push(r);
                     quote! {
                         let mut replicates = { #var_statement }.replicate(#r);
                         variables.append(&mut replicates);
                     }
-                },
+                }
             });
         }
     }
@@ -793,20 +777,30 @@ pub fn parse_sp(vartokens: Vec<UWVarTokens>) -> Result<ParsedSpOut, syn::Error>
             }
         );
     }
-    Ok((mixed_obj,mixed_opt,sampler_functions,onto_functions,ident_mixed_obj,ident_mixed_opt,ident_mixedt_opt,push_statements,tobj_vec,var_reps))
+    Ok((
+        mixed_obj,
+        mixed_opt,
+        sampler_functions,
+        onto_functions,
+        ident_mixed_obj,
+        ident_mixed_opt,
+        ident_mixedt_opt,
+        push_statements,
+        tobj_vec,
+        var_reps,
+    ))
 }
 
 pub fn get_sp_tokens(
-    mixed_obj:proc_macro2::TokenStream,
-    mixed_opt:proc_macro2::TokenStream,
-    sampler_functions:Vec<proc_macro2::TokenStream>,
-    onto_functions:Vec<proc_macro2::TokenStream>,
-    ident_mixed_obj:proc_macro2::Ident,
-    ident_mixed_opt:proc_macro2::Ident,
-    push_statements:Vec<proc_macro2::TokenStream>)->syn::Result<TokenStream>
-{
-
-    Ok(quote!{
+    mixed_obj: proc_macro2::TokenStream,
+    mixed_opt: proc_macro2::TokenStream,
+    sampler_functions: Vec<proc_macro2::TokenStream>,
+    onto_functions: Vec<proc_macro2::TokenStream>,
+    ident_mixed_obj: proc_macro2::Ident,
+    ident_mixed_opt: proc_macro2::Ident,
+    push_statements: Vec<proc_macro2::TokenStream>,
+) -> syn::Result<TokenStream> {
+    Ok(quote! {
 
         use tantale_core::domain::{Domain,onto::Onto};
 
@@ -828,18 +822,16 @@ pub fn get_sp_tokens(
                 variables : variables.into_boxed_slice(),
             }
         }
-    }.into())
+    }
+    .into())
 }
 
-pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
-    
-    let input = input.to_string();
-    let vtokens: syn::Result<Vec<UWVarTokens>> = input
-        .split(";")
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| token_to_domain(s.parse().unwrap()))
-        .collect();
+pub fn sp(input: TokenStream) -> TokenStream {
+    let lines = parse_macro_input!(
+        input with Punctuated::<LineStream,Token![;]>::parse_terminated
+    );
+
+    let lines: Vec<LineStream> = lines.into_iter().collect();
 
     let (
         mixed_obj,
@@ -851,7 +843,17 @@ pub fn sp(input: TokenStream) -> syn::Result<TokenStream> {
         _,
         push_statements,
         _,
-        _) = parse_sp(vtokens?)?;
+        _,
+    ) = parse_sp(lines).unwrap();
 
-    get_sp_tokens(mixed_obj, mixed_opt, sampler_functions, onto_functions, ident_mixed_obj, ident_mixed_opt, push_statements)
+    get_sp_tokens(
+        mixed_obj,
+        mixed_opt,
+        sampler_functions,
+        onto_functions,
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+    )
+    .unwrap()
 }
