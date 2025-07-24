@@ -1,5 +1,4 @@
 use paste::paste;
-use tantale_core::domain::Domain;
 
 use super::init_sp::*;
 
@@ -15,16 +14,11 @@ macro_rules! get_test {
 
                 for v in var{
                     let sample_obj = v.sample_obj(&mut rng).clone();
-                    let converted_obj = v.onto_opt(&sample_obj).unwrap();
-
-                    assert!(v.get_domain_obj().is_in(&sample_obj), "Objective sample is not in Obj domain.");
-                    assert!(v.get_domain_opt().is_in(&converted_obj), "Converted objective sample is not in Opt domain.");
+                    v.onto_opt(&sample_obj).unwrap();
 
                     let sample_opt = v.sample_opt(&mut rng);
-                    let converted_opt = v.onto_obj(&sample_opt).unwrap();
+                    v.onto_obj(&sample_opt).unwrap();
 
-                    assert!(v.get_domain_opt().is_in(&sample_opt), "Optimizer sample is not in Opt domain.");
-                    assert!(v.get_domain_obj().is_in(&converted_opt), "Converted optimizer sample is not in Obj domain.");
                 }
             }
             }

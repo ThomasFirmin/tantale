@@ -64,7 +64,6 @@ fn obj_test(){
     let mut rng = rand::rng();
 
     let sample = sp.sample_obj(&mut rng, std::process::id(),info);
-    let x = sample.get_x();
-    let out = searchspace::example(x);
+    searchspace::example(sample.get_x());
 
 }

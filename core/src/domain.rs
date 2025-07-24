@@ -29,7 +29,7 @@ pub type TypeDom<D> = <D as Domain>::TypeDom;
 /// # Notes
 ///
 /// A [`Domain`] should always have a [`::new(...)->Self`] method.
-/// This method is used in the [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
+/// This method is used in the [`objective!`](../../../tantale/macros/macro.objective.html) and [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
 pub trait Domain: Sized + PartialEq {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining

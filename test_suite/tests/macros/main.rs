@@ -7,4 +7,4 @@ pub mod mixed;
 pub mod outcome;
 pub mod searchspace;
 pub mod objective;
-// pub mod sp_test;
+pub mod sp_test;

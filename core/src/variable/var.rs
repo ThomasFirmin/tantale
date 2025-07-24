@@ -7,11 +7,11 @@
 //! A [`Var`] is named via a tuple made of a `static` [`str`] and a [`usize`] used as a suffix for replications of a same [`Var`].
 //!
 //! A helper macro [`var!`](crate::core::variable::vmacros::var) with a custom syntax, can be used to help
-//! creating a single variable. Be careful, it does not replace the procedural macro [`sp!`](../../../tantale/macros/macro.sp.html).
-//! Indeed, [`sp!`](../../../tantale/macros/macro.sp.html) is able to handle [`Mixed`](crate::core::domain::Mixed) domains,
+//! creating a single variable. It does not replace the procedural macros [`objective!`](../../../tantale/macros/macro.objective.html) nor [`sp!`](../../../tantale/macros/macro.sp.html).
+//! Indeed, [`objective!`](../../../tantale/macros/macro.objective.html) and  [`sp!`](../../../tantale/macros/macro.sp.html) are able to handle [`Mixed`](crate::core::domain::Mixed) domains,
 //! by automatically creating different `enum` structures.
-//! If needed, the [`sp!`](../../../tantale/macros/macro.sp.html) macro also automatically wraps [`sampler`](crate::core::domain::sampler) and [`Onto`](crate::core::onto::Onto) functions,
-//! into adapter functions between possibly [`Mixed`](crate::core::domain::Mixed) [`Domains`](crate::core::domain::Domain).
+//! If needed, these procedural macros automatically wraps [`sampler`](crate::core::domain::sampler) and [`Onto`](crate::core::onto::Onto) functions,
+//! into adapter functions between [`Mixed`](crate::core::domain::Mixed) [`Domains`](crate::core::domain::Domain) variants.
 //!
 //! # Example
 //!

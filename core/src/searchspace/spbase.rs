@@ -16,6 +16,7 @@ use rayon::prelude::*;
 #[cfg(feature = "par")]
 use crate::searchspace::ParSearchspace;
 
+/// A basic [`Searchspace`] made of a [`Box`] slice of [`Variable`].
 pub struct Sp<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug,
