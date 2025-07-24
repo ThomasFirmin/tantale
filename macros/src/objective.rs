@@ -78,7 +78,7 @@ fn extract_var(
                         if length > 1 && !is_mixed {
                             let prev_var = &variables[length - 2];
                             let curr_var = &variables[length - 1];
-                            is_it_mixed = prev_var.name_part.id != curr_var.name_part.id;
+                            is_it_mixed = prev_var.obj_part.ty != curr_var.obj_part.ty;
                         }
                     }
                 } else {
@@ -107,7 +107,7 @@ fn complex_replacement(
     quote! {
         {
             match tantale_in[#idx]{
-                #mixed_ty :: #ty (value) => value,
+                #mixed_ty::#ty(value) => value,
                 _ => panic!("")
             }
         }
@@ -119,9 +119,9 @@ fn simple_vec_replacement(
     start: usize,
     end: usize,
     _mixed_ty: &proc_macro2::Ident,
-    _ty: &proc_macro2::Ident,
+    ty: &proc_macro2::Ident,
 ) -> TokenStream {
-    quote! {{tantale_in[#start .. #end]}}.into()
+    quote! {{tantale_in[#start..#end].iter().collect::<Vec<&<#ty as Domain>::TypeDom>>()}}.into()
 }
 
 fn complex_vec_replacement(
@@ -134,7 +134,7 @@ fn complex_vec_replacement(
         {
             tantale_in[#start..#end].iter().map(|v| {
                 match v {
-                    #mixed_ty :: #ty (value) => value,
+                    #mixed_ty::#ty(value) => value,
                     _ => panic!("")
                 }
             }).collect::<Vec<&<#ty as Domain>::TypeDom>>()
@@ -151,7 +151,8 @@ fn reconstruct_simple(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-) {
+)  -> (usize,usize)
+{
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
@@ -187,7 +188,7 @@ fn reconstruct_simple(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    reconstruct_simple(
+                    (token_idx,var_idx) = reconstruct_simple(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -205,6 +206,7 @@ fn reconstruct_simple(
             }
         }
     }
+    (token_idx,var_idx)
 }
 
 fn reconstruct_mixed(
@@ -215,7 +217,8 @@ fn reconstruct_mixed(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-) {
+) -> (usize,usize)
+{
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
@@ -251,7 +254,7 @@ fn reconstruct_mixed(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    reconstruct_mixed(
+                    (token_idx,var_idx) = reconstruct_mixed(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -269,6 +272,7 @@ fn reconstruct_mixed(
             }
         }
     }
+    (token_idx,var_idx)
 }
 
 fn reconstruct_tokens(
@@ -307,13 +311,13 @@ pub fn obj(input: TokenStream) -> TokenStream {
         onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
-        ident_mixedt_opt,
+        ident_mixedt_obj,
         push_statements,
         tobj_vec,
         repeats,
     ) = parse_sp(variables).unwrap();
 
-    let new_args: syn::FnArg = parse_quote! {tantale_in : std::sync::Arc::<[#ident_mixedt_opt]>};
+    let new_args: syn::FnArg = parse_quote! {tantale_in : std::sync::Arc::<[<#ident_mixed_obj as Domain>::TypeDom]>};
     fn_item.sig.inputs.push(new_args);
 
     let mut new_stream = TokenStream::new();
@@ -321,7 +325,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     reconstruct_tokens(
         content.into(),
         &mut new_stream,
-        &ident_mixedt_opt,
+        &ident_mixedt_obj,
         &tobj_vec,
         repeats,
         is_mixed,
