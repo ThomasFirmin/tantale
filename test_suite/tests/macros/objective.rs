@@ -2,7 +2,7 @@
 fn obj_test(){
     mod searchspace{
         use tantale_core::domain::{Real,Bool, Cat, Int, Nat};
-        use tantale_core::domain::sampler::{uniform_int, uniform_nat, uniform_cat, uniform_bool, uniform_real};
+        use tantale_core::domain::sampler::{uniform_int, uniform_real};
         use tantale_core::Outcome;
 
         use tantale_macros::objective;
@@ -66,7 +66,5 @@ fn obj_test(){
     let sample = sp.sample_obj(&mut rng, std::process::id(),info);
     let x = sample.get_x();
     let out = searchspace::example(x);
-
-    println!("{}",out);
 
 }

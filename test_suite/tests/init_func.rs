@@ -4,1506 +4,332 @@ use tantale_core::Outcome;
 pub struct OutExample {
             pub obj: f64,
             pub int_v: i64,
-            pub plus_one_int: i64,
+            pub poi: (i64,i64),
             pub nat_v: u64,
-            pub nat_plus_int: i64,
+            pub ipn: (i64,u64,i64),
             pub cat_v: &'static str,
             pub bool_v: bool,
             pub neuron: Neuron,
+            pub vec: Vec<u64>,
         }
 impl Outcome for OutExample {}
+
+pub struct OutUnique {
+            pub obj: f64,
+            pub int_v: f64,
+            pub poi: (f64,f64),
+            pub nat_v: f64,
+            pub ipn: (f64,f64,f64),
+            pub cat_v: f64,
+            pub bool_v: f64,
+            pub point: Point,
+            pub vec: Vec<f64>,
+        }
+impl Outcome for OutUnique {}
+
+pub struct Point{
+    pub x: f64,
+    pub y: f64,
+}
 
 pub struct Neuron{
     pub number: i64,
     pub activation: &'static str,
 }
 
-pub fn plus_one_int(x:i64)->i64{
-            x+1
+pub fn plus_one_int(x:i64)->(i64,i64){
+            (x,x+1)
 }
 
-pub fn nat_plus_int(x:i64, y:u64)->i64{
-            x+(y as i64)
+pub fn int_plus_nat(x:i64, y:u64)->(i64,u64,i64){
+            (x,y,x+(y as i64))
+}
+
+
+pub fn plus_one_float(x:f64)->(f64,f64){
+            (x,x+1.0)
+}
+
+pub fn float_plus_float(x:f64, y:f64)->(f64,f64,f64){
+            (x,y,x+y)
 }
 
 pub mod sp_ms_nosamp {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)   | Real(0.0,1.0)                 ;
-        d | Bool()                    | Real(0.0,1.0)                 ;
+    use tantale_macros::objective;
+    use super::{OutExample,plus_one_int,int_plus_nat,Neuron};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutExample {
+            let a = [! a | Int(0,100)  | Real(0.0,1.0) !];
+            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let d = [! d | Bool() | Real(0.0,1.0) !];
+
+            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
+            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+
+            let layer = Neuron{
+                number: [! h | Int(0,100) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+            };
+
+            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
+            
+            OutExample{
+                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                neuron: layer,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+
+pub mod sp_ms_samp {
+    use tantale_core::{Bool, Cat, Int, Nat, Real, uniform_int, uniform_nat};
+    use tantale_macros::objective;
+    use super::{OutExample,plus_one_int,int_plus_nat,Neuron};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutExample {
+            let a = [! a | Int(0,100) => uniform_int  | Real(0.0,1.0) !];
+            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let d = [! d | Bool() | Real(0.0,1.0) !];
+
+            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
+            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+
+            let layer = Neuron{
+                number: [! h | Int(0,100) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+            };
+
+            let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
+            
+            OutExample{
+                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                neuron: layer,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+
+pub mod sp_ms_samp_right {
+    use tantale_core::{Bool, Cat, Int, Nat, Real, uniform_real};
+    use tantale_macros::objective;
+    use super::{OutExample,plus_one_int,int_plus_nat,Neuron};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutExample {
+            let a = [! a | Int(0,100) | Real(0.0,1.0) => uniform_real !];
+            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let d = [! d | Bool() | Real(0.0,1.0) !];
+
+            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
+            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+
+            let layer = Neuron{
+                number: [! h | Int(0,100) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+            };
+
+            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
+            
+            OutExample{
+                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                neuron: layer,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+
+pub mod sp_ms_noright {
+    use tantale_core::{Bool, Cat, Int, Nat, Real};
+    use tantale_macros::objective;
+    use super::{OutExample,plus_one_int,int_plus_nat,Neuron};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutExample {
+            let a = [! a | Int(0,100) | !];
+            let b = [! b | Nat(0,100) | !];
+            let c = [! c | Cat(&super::ACTIVATION) | !];
+            let d = [! d | Bool() | !];
+
+            let e = plus_one_int([! e | Int(0,100) | !]);
+            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+
+            let layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&super::ACTIVATION) | !],
+            };
+
+            let k = [! k_{4} | Nat(0,100) | !];
+            
+            OutExample{
+                obj: [! j | Real(1000.0,2000.0) | !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                neuron: layer,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+
+pub mod sp_ms_samp_noright {
+    use tantale_core::{Bool, Cat, Int, Nat, Real, uniform_int, uniform_nat};
+    use tantale_macros::objective;
+    use super::{OutExample,plus_one_int,int_plus_nat,Neuron};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutExample {
+            let a = [! a | Int(0,100) => uniform_int  | !];
+            let b = [! b | Nat(0,100) | !];
+            let c = [! c | Cat(&super::ACTIVATION) | !];
+            let d = [! d | Bool() | !];
+
+            let e = plus_one_int([! e | Int(0,100) | !]);
+            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) |!]);
+
+            let layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&super::ACTIVATION) | !],
+            };
+
+            let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
+            
+            OutExample{
+                obj: [! j | Real(1000.0,2000.0) | !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                neuron: layer,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+pub mod sp_sm_samp {
+    use tantale_core::{Bool, Cat, Int, Nat, Real, uniform_int, uniform_nat};
+    use tantale_macros::objective;
+
+    use super::{OutUnique,plus_one_float,float_plus_float,Point};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutUnique {
+            let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
+            let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
+            let c = [! c | Real(0.0,1.0) | Cat(&super::ACTIVATION) !];
+            let d = [! d | Real(0.0,1.0) | Bool() !];
+
+            let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
+            let f = float_plus_float([! f | Real(0.0,1.0) | Int(0,100) !], [! g | Real(0.0,1.0) | Nat(0,100) !]);
+
+            let p = Point{
+                x: [! h | Real(0.0,1.0) | Int(0,100) !],
+                y: [! i | Real(0.0,1.0) | Cat(&super::ACTIVATION) !],
+            };
+
+            let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
+            
+            OutUnique{
+                obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                point: p,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+pub mod sp_sm_samp_noright {
+    use tantale_core::{Real, uniform_real};
+    use tantale_macros::objective;
+
+    use super::{OutUnique,plus_one_float,float_plus_float,Point};
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutUnique {
+            let a = [! a | Real(0.0,1.0) | => uniform_real !];
+            let b = [! b | Real(0.0,1.0) => uniform_real | !];
+            let c = [! c | Real(0.0,1.0) |!];
+            let d = [! d | Real(0.0,1.0) |!];
+
+            let e = plus_one_float([! e | Real(0.0,1.0) | !]);
+            let f = float_plus_float([! f | Real(0.0,1.0) | !], [! g | Real(0.0,1.0) | !]);
+
+            let p = Point{
+                x: [! h | Real(0.0,1.0) | !],
+                y: [! i | Real(0.0,1.0) | !],
+            };
+
+            let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
+            
+            OutUnique{
+                obj: [! j | Real(0.0,1.0) | !],
+                int_v: a,
+                poi: e,
+                nat_v: b,
+                ipn: f,
+                cat_v: c,
+                bool_v: d,
+                point: p,
+                vec: k.iter().map(|i| **i).collect(),
+            }
+        }
     );
 }
 
-pub mod sp_ms_onemsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100) => uniform_int                | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)       => uniform_nat          | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int          | Real(0.0,1.0)                 ;
-        b | Nat(0,100)       => uniform_nat          | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat   | Real(0.0,1.0)                 ;
-        d | Bool()           => uniform_bool         | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0) => uniform_real ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                               | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION)                  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                | Real(0.0,1.0) => uniform_real    ;
-        b | Nat(0,100)                | Real(0.0,1.0) => uniform_real    ;
-        c | Cat(&super::ACTIVATION)   | Real(0.0,1.0) => uniform_real    ;
-        d | Bool()                    | Real(0.0,1.0) => uniform_real    ;
-    );
-}
-
-pub mod sp_ms_onemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int  | Real(0.0,1.0) => uniform_real ;
-        b | Nat(0,100)                       | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0)                 ;
-        d | Bool()                           | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_leftright {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                              | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                              | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                  | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                              | Real(0.0,1.0)                 ;
-        b | Nat(0,100)              => uniform_nat  | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION) => uniform_cat  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                  | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_leftright {
-    use tantale_core::domain::sampler::{
-        uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
-    };
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int  | Real(0.0,1.0) => uniform_real    ;
-        b | Nat(0,100)       => uniform_nat  | Real(0.0,1.0) => uniform_real    ;
-        c | Cat(&super::ACTIVATION) => uniform_cat  | Real(0.0,1.0) => uniform_real    ;
-        d | Bool()           => uniform_bool | Real(0.0,1.0) => uniform_real    ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-
-pub mod sp_sm_nosamp {
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100)                ;
-        b | Real(0.0,1.0) | Nat(0,100)                ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)   ;
-        d | Real(0.0,1.0) | Bool()                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100) => uniform_int                ;
-        b | Real(0.0,1.0) | Nat(0,100)                               ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)                         ;
-        d | Real(0.0,1.0) | Bool()                                   ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100)                               ;
-        b | Real(0.0,1.0) | Nat(0,100)                               ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION) => uniform_cat          ;
-        d | Real(0.0,1.0) | Bool()                                   ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100)                               ;
-        b | Real(0.0,1.0) | Nat(0,100)       => uniform_nat          ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION) => uniform_cat          ;
-        d | Real(0.0,1.0) | Bool()                                   ;
-    );
-}
-
-pub mod sp_sm_allmsamp {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100)       => uniform_int          ;
-        b | Real(0.0,1.0) | Nat(0,100)       => uniform_nat          ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION) => uniform_cat          ;
-        d | Real(0.0,1.0) | Bool()           => uniform_bool         ;
-    );
-}
-
-pub mod sp_sm_onemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)       ;
-        b | Real(0.0,1.0)                 | Nat(0,100)       ;
-        c | Real(0.0,1.0)                 | Cat(&super::ACTIVATION) ;
-        d | Real(0.0,1.0)                 | Bool()           ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100)       ;
-        b | Real(0.0,1.0)                 | Nat(0,100)       ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION) ;
-        d | Real(0.0,1.0)                 | Bool()           ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  | Int(0,100)       ;
-        b | Real(0.0,1.0) => uniform_real  | Nat(0,100)       ;
-        c | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) ;
-        d | Real(0.0,1.0)                  | Bool()           ;
-    );
-}
-
-pub mod sp_sm_allmsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)                ;
-        b | Real(0.0,1.0) => uniform_real | Nat(0,100)                ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION)          ;
-        d | Real(0.0,1.0) => uniform_real | Bool()                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)        => uniform_int ;
-        b | Real(0.0,1.0)                 | Nat(0,100)                        ;
-        c | Real(0.0,1.0)                 | Cat(&super::ACTIVATION)                  ;
-        d | Real(0.0,1.0)                 | Bool()                            ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_leftright {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100)                        ;
-        b | Real(0.0,1.0)                 | Nat(0,100)                        ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION)  => uniform_cat  ;
-        d | Real(0.0,1.0)                 | Bool()                            ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  | Int(0,100)                       ;
-        b | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
-        c | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
-        d | Real(0.0,1.0)                  | Bool()                           ;
-    );
-}
-
-pub mod sp_sm_allmsamp_leftright {
-    use tantale_core::domain::sampler::{
-        uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
-    };
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)        => uniform_int  ;
-        b | Real(0.0,1.0) => uniform_real | Nat(0,100)        => uniform_nat  ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION)  => uniform_cat  ;
-        d | Real(0.0,1.0) => uniform_real | Bool()            => uniform_bool ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-
-pub mod sp_m_equal_nosamp {
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       | ;
-        b | Nat(0,100)       | ;
-        c | Cat(&super::ACTIVATION) | ;
-        d | Bool()           | ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       | => uniform_int ;
-        b | Nat(0,100)       |                ;
-        c | Cat(&super::ACTIVATION) |                ;
-        d | Bool()           |                ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       |                         ;
-        b | Nat(0,100)       |                         ;
-        c | Cat(&super::ACTIVATION) | => uniform_cat   ;
-        d | Bool()           |                         ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       |                         ;
-        b | Nat(0,100)       | => uniform_nat          ;
-        c | Cat(&super::ACTIVATION) | => uniform_cat          ;
-        d | Bool()           |                         ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       | => uniform_int          ;
-        b | Nat(0,100)       | => uniform_nat          ;
-        c | Cat(&super::ACTIVATION) | => uniform_cat          ;
-        d | Bool()           | => uniform_bool         ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_left {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int | ;
-        b | Nat(0,100)                      | ;
-        c | Cat(&super::ACTIVATION)                | ;
-        d | Bool()                          | ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset_left {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                      | ;
-        b | Nat(0,100)                      | ;
-        c | Cat(&super::ACTIVATION) => uniform_cat | ;
-        d | Bool()                          | ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp_left {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                      | ;
-        b | Nat(0,100)       => uniform_nat | ;
-        c | Cat(&super::ACTIVATION) => uniform_cat | ;
-        d | Bool()                          | ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp_left {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int  | ;
-        b | Nat(0,100)       => uniform_nat  | ;
-        c | Cat(&super::ACTIVATION) => uniform_cat  | ;
-        d | Bool()           => uniform_bool | ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_leftright {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int | => uniform_int  ;
-        b | Nat(0,100)                      |                 ;
-        c | Cat(&super::ACTIVATION)                |                 ;
-        d | Bool()                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset_leftright {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                      |                 ;
-        b | Nat(0,100)                      |                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat | => uniform_cat  ;
-        d | Bool()                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                      |                 ;
-        b | Nat(0,100)       => uniform_nat | => uniform_nat  ;
-        c | Cat(&super::ACTIVATION) => uniform_cat | => uniform_cat  ;
-        d | Bool()                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int  | => uniform_int  ;
-        b | Nat(0,100)       => uniform_nat  | => uniform_nat  ;
-        c | Cat(&super::ACTIVATION) => uniform_cat  | => uniform_cat  ;
-        d | Bool()           => uniform_bool | => uniform_bool ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-
-pub mod sp_s_equal_nosamp {
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | ;
-        b | Real(0.0,1.0) | ;
-        c | Real(0.0,1.0) | ;
-        d | Real(0.0,1.0) | ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | => uniform_real;
-        b | Real(0.0,1.0) |                ;
-        c | Real(0.0,1.0) |                ;
-        d | Real(0.0,1.0) |                ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |                         ;
-        b | Real(0.0,1.0) |                         ;
-        c | Real(0.0,1.0) | => uniform_real         ;
-        d | Real(0.0,1.0) |                         ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |                         ;
-        b | Real(0.0,1.0) | => uniform_real         ;
-        c | Real(0.0,1.0) | => uniform_real         ;
-        d | Real(0.0,1.0) |                         ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | => uniform_real         ;
-        b | Real(0.0,1.0) | => uniform_real         ;
-        c | Real(0.0,1.0) | => uniform_real         ;
-        d | Real(0.0,1.0) | => uniform_real         ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)  => uniform_real | ;
-        b | Real(0.0,1.0)                  | ;
-        c | Real(0.0,1.0)                  | ;
-        d | Real(0.0,1.0)                  | ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  | ;
-        b | Real(0.0,1.0)                  | ;
-        c | Real(0.0,1.0)  => uniform_real | ;
-        d | Real(0.0,1.0)                  | ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  | ;
-        b | Real(0.0,1.0)  => uniform_real | ;
-        c | Real(0.0,1.0)  => uniform_real | ;
-        d | Real(0.0,1.0)                  | ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)  => uniform_real | ;
-        b | Real(0.0,1.0)  => uniform_real | ;
-        c | Real(0.0,1.0)  => uniform_real | ;
-        d | Real(0.0,1.0)  => uniform_real | ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_left_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        b | Real(0.0,1.0)                  |                 ;
-        c | Real(0.0,1.0)                  |                 ;
-        d | Real(0.0,1.0)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset_left_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  |                 ;
-        b | Real(0.0,1.0)                  |                 ;
-        c | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        d | Real(0.0,1.0)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp_left_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  |                 ;
-        b | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        c | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        d | Real(0.0,1.0)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp_left_right {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::Real;
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        b | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        c | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-        d | Real(0.0,1.0)  => uniform_real | => uniform_real ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-
-pub mod sp_ss_nosamp {
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100);
-        b | Real(0.0,1.0) | Int(0,100);
-        c | Real(0.0,1.0) | Int(0,100);
-        d | Real(0.0,1.0) | Int(0,100);
-    );
-}
-
-pub mod sp_ss_onemsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |  Int(0,100) => uniform_int;
-        b | Real(0.0,1.0) |  Int(0,100)                ;
-        c | Real(0.0,1.0) |  Int(0,100)                ;
-        d | Real(0.0,1.0) |  Int(0,100)                ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |  Int(0,100)                 ;
-        b | Real(0.0,1.0) |  Int(0,100)                 ;
-        c | Real(0.0,1.0) |  Int(0,100) => uniform_int  ;
-        d | Real(0.0,1.0) |  Int(0,100)                 ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |  Int(0,100)                         ;
-        b | Real(0.0,1.0) |  Int(0,100) => uniform_int          ;
-        c | Real(0.0,1.0) |  Int(0,100) => uniform_int          ;
-        d | Real(0.0,1.0) |  Int(0,100)                         ;
-    );
-}
-
-pub mod sp_ss_allmsamp {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |  Int(0,100) => uniform_int         ;
-        b | Real(0.0,1.0) |  Int(0,100) => uniform_int         ;
-        c | Real(0.0,1.0) |  Int(0,100) => uniform_int         ;
-        d | Real(0.0,1.0) |  Int(0,100) => uniform_int         ;
-    );
-}
-
-pub mod sp_ss_onemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        b | Real(0.0,1.0)                 | Int(0,100) ;
-        c | Real(0.0,1.0)                 | Int(0,100) ;
-        d | Real(0.0,1.0)                 | Int(0,100) ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100) ;
-        b | Real(0.0,1.0)                 | Int(0,100) ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        d | Real(0.0,1.0)                 | Int(0,100) ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100) ;
-        b | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        d | Real(0.0,1.0)                 | Int(0,100) ;
-    );
-}
-
-pub mod sp_ss_allmsamp_left {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        b | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-        d | Real(0.0,1.0) => uniform_real | Int(0,100) ;
-    );
-}
-
-pub mod sp_ss_onemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        b | Real(0.0,1.0)                 | Int(0,100)                 ;
-        c | Real(0.0,1.0)                 | Int(0,100)                 ;
-        d | Real(0.0,1.0)                 | Int(0,100)                 ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100)                 ;
-        b | Real(0.0,1.0)                 | Int(0,100)                 ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        d | Real(0.0,1.0)                 | Int(0,100)                 ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100)                 ;
-        b | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        d | Real(0.0,1.0)                 | Int(0,100)                 ;
-    );
-}
-
-pub mod sp_ss_allmsamp_leftright {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        b | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        c | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-        d | Real(0.0,1.0) => uniform_real | Int(0,100) => uniform_int ;
-    );
-}
-
-pub mod sp_ms_nosamp_holes {
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                |                               ;
-        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0)                 ;
-        d | Bool()                    | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_holes {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100) => uniform_int                |                               ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_holes {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          |                               ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0)                 ;
-        b | Nat(0,100)       => uniform_nat          |                               ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          |                               ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_holes {
-    use tantale_core::domain::sampler::{uniform_bool, uniform_cat, uniform_int, uniform_nat};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int          |                               ;
-        b | Nat(0,100)       => uniform_nat          | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION) => uniform_cat          | Real(0.0,1.0)                 ;
-        d | Bool()           => uniform_bool         |                               ;
-    );
-}
-
-pub mod sp_ms_onemsamp_right_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               | Real(0.0,1.0) => uniform_real ;
-        b | Nat(0,100)                               |                               ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0)                 ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_right_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               |                               ;
-        b | Nat(0,100)                               | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                   | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_right_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                               |                               ;
-        b | Nat(0,100)                               | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION)                         | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                   |                               ;
-    );
-}
-
-pub mod sp_ms_allmsamp_right_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                | Real(0.0,1.0) => uniform_real    ;
-        b | Nat(0,100)                | Real(0.0,1.0)                    ;
-        c | Cat(&super::ACTIVATION)          | Real(0.0,1.0)                    ;
-        d | Bool()                    | Real(0.0,1.0) => uniform_real    ;
-    );
-}
-
-pub mod sp_ms_onemsamp_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)       => uniform_int  | Real(0.0,1.0) => uniform_real ;
-        b | Nat(0,100)                       | Real(0.0,1.0)                 ;
-        c | Cat(&super::ACTIVATION)                 |                               ;
-        d | Bool()                           | Real(0.0,1.0)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                              |                               ;
-        b | Nat(0,100)                              |                               ;
-        c | Cat(&super::ACTIVATION)        => uniform_cat  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                  |                               ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Int(0,100)                            | Real(0.0,1.0)                 ;
-        b | Nat(0,100)            => uniform_nat  | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION)      => uniform_cat  | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                                |                               ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-
-pub mod sp_sm_nosamp_holes {
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |                           ;
-        b | Real(0.0,1.0) | Nat(0,100)                ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)          ;
-        d | Real(0.0,1.0) | Bool()                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_holes {
-    use tantale_core::domain::sampler::uniform_int;
-    use tantale_core::domain::{Bool, Cat, Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100) => uniform_int                ;
-        b | Real(0.0,1.0) |                                          ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION)                         ;
-        d | Real(0.0,1.0) | Bool()                                   ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_holes {
-    use tantale_core::domain::sampler::uniform_cat;
-    use tantale_core::domain::{Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) | Int(0,100)                               ;
-        b | Real(0.0,1.0) | Nat(0,100)                               ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION) => uniform_cat          ;
-        d | Real(0.0,1.0) |                                          ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat};
-    use tantale_core::domain::{Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) |                                          ;
-        b | Real(0.0,1.0) | Nat(0,100)       => uniform_nat          ;
-        c | Real(0.0,1.0) | Cat(&super::ACTIVATION) => uniform_cat          ;
-        d | Real(0.0,1.0) |                                          ;
-    );
-}
-
-pub mod sp_sm_onemsamp_left_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real |                  ;
-        b | Real(0.0,1.0)                 | Nat(0,100)       ;
-        c | Real(0.0,1.0)                 | Cat(&super::ACTIVATION) ;
-        d | Real(0.0,1.0)                 | Bool()           ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_left_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Cat, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 | Int(0,100)       ;
-        b | Real(0.0,1.0)                 | Nat(0,100)       ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION) ;
-        d | Real(0.0,1.0)                 |                  ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_left_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Int, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  | Int(0,100)       ;
-        b | Real(0.0,1.0) => uniform_real  | Nat(0,100)       ;
-        c | Real(0.0,1.0) => uniform_real  |                  ;
-        d | Real(0.0,1.0)                  | Bool()           ;
-    );
-}
-
-pub mod sp_sm_allmsamp_left_holes {
-    use tantale_core::domain::sampler::uniform_real;
-    use tantale_core::domain::{Bool, Cat, Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)                ;
-        b | Real(0.0,1.0) => uniform_real |                           ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION)          ;
-        d | Real(0.0,1.0) => uniform_real | Bool()                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_int, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Int, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0) => uniform_real | Int(0,100)        => uniform_int  ;
-        b | Real(0.0,1.0)                 |                                   ;
-        c | Real(0.0,1.0)                 | Cat(&super::ACTIVATION)                  ;
-        d | Real(0.0,1.0)                 | Bool()                            ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                 |                                   ;
-        b | Real(0.0,1.0)                 |                                   ;
-        c | Real(0.0,1.0) => uniform_real | Cat(&super::ACTIVATION)  => uniform_cat  ;
-        d | Real(0.0,1.0)                 | Bool()                            ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_leftright_holes {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                  |                                  ;
-        b | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
-        c | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
-        d | Real(0.0,1.0)                  | Bool()                           ;
-    );
-}
-
-pub mod sp_repeats {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 6;
-
-    sp!(
-        a_{3} | Real(0.0,1.0)                  |                                  ;
-        b        | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
-        c        | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
-        d        | Real(0.0,1.0)                  | Bool()                           ;
-    );
-}
-
-pub mod sp_repeats_inc {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 6;
-
-    sp!(
-        a_{3} | Real(0.0,1.0)                  |                                  ;
-        b        | Real(0.0,1.0) => uniform_real  | Nat(0,100)       => uniform_nat  ;
-        c        | Real(0.0,1.0) => uniform_real  | Cat(&super::ACTIVATION) => uniform_cat  ;
-        d        | Real(0.0,1.0)                  | Bool()                           ;
-    );
-}
-
-pub mod sp_one_missing_to_single {
-    use tantale_core::domain::sampler::{uniform_cat, uniform_nat, uniform_real};
-    use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_macros::sp;
-
-    pub const SP_SIZE: usize = 4;
-
-    sp!(
-        a | Real(0.0,1.0)                   |                               ;
-        b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
-        c | Cat(&super::ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
-        d | Bool()                          | Real(0.0,1.0)                 ;
-    );
-}
-
-// sp_ms_nosamp,
-// sp_ms_onemsamp,
-// sp_ms_onemsamp_offset,
-// sp_ms_multiplemsamp,
-// sp_ms_allmsamp,
-// sp_ms_onemsamp_right,
-// sp_ms_onemsamp_offset_right,
-// sp_ms_multiplemsamp_right,
-// sp_ms_allmsamp_right,
-// sp_ms_onemsamp_leftright,
-// sp_ms_onemsamp_offset_leftright,
-// sp_ms_multiplemsamp_leftright,
-// sp_ms_allmsamp_leftright,
-// sp_sm_nosamp,
-// sp_sm_onemsamp,
-// sp_sm_onemsamp_offset,
-// sp_sm_multiplemsamp,
-// sp_sm_allmsamp,
-// sp_sm_onemsamp_left,
-// sp_sm_onemsamp_offset_left,
-// sp_sm_multiplemsamp_left,
-// sp_sm_allmsamp_left,
-// sp_sm_onemsamp_leftright,
-// sp_sm_onemsamp_offset_leftright,
-// sp_sm_multiplemsamp_leftright,
-// sp_sm_allmsamp_leftright,
-// sp_m_equal_nosamp,
-// sp_m_equal_onemsamp,
-// sp_m_equal_onemsamp_offset,
-// sp_m_equal_multiplemsamp,
-// sp_m_equal_allmsamp,
-// sp_m_equal_onemsamp_left,
-// sp_m_equal_onemsamp_offset_left,
-// sp_m_equal_multiplemsamp_left,
-// sp_m_equal_allmsamp_left,
-// sp_m_equal_onemsamp_leftright,
-// sp_m_equal_onemsamp_offset_leftright,
-// sp_m_equal_multiplemsamp_leftright,
-// sp_m_equal_allmsamp_leftright,
-// sp_s_equal_nosamp,
-// sp_s_equal_onemsamp,
-// sp_s_equal_onemsamp_offset,
-// sp_s_equal_allmsamp,
-// sp_s_equal_onemsamp_left,
-// sp_s_equal_onemsamp_offset_left,
-// sp_s_equal_multiplemsamp_left,
-// sp_s_equal_allmsamp_left,
-// sp_s_equal_onemsamp_left_right,
-// sp_s_equal_onemsamp_offset_left_right,
-// sp_s_equal_multiplemsamp_left_right,
-// sp_s_equal_allmsamp_left_right,
-// sp_ss_nosamp,
-// sp_ss_onemsamp,
-// sp_ss_onemsamp_offset,
-// sp_ss_allmsamp,
-// sp_ss_onemsamp_left,
-// sp_ss_onemsamp_offset_left,
-// sp_ss_multiplemsamp_left,
-// sp_ss_allmsamp_left,
-// sp_ss_onemsamp_leftright,
-// sp_ss_onemsamp_offset_leftright,
-// sp_ss_multiplemsamp_leftright,
-// sp_ss_allmsamp_leftright,
-// sp_ms_nosamp_holes,
-// sp_ms_onemsamp_holes,
-// sp_ms_onemsamp_offset_holes,
-// sp_ms_multiplemsamp_holes,
-// sp_ms_allmsamp_holes,
-// sp_ms_onemsamp_right_holes,
-// sp_ms_onemsamp_offset_right_holes,
-// sp_ms_multiplemsamp_right_holes,
-// sp_ms_allmsamp_right_holes,
-// sp_ms_onemsamp_leftright_holes,
-// sp_ms_onemsamp_offset_leftright_holes,
-// sp_ms_multiplemsamp_leftright_holes,
-// sp_sm_nosamp_holes,
-// sp_sm_onemsamp_holes,
-// sp_sm_onemsamp_offset_holes,
-// sp_sm_multiplemsamp_holes,
-// sp_sm_onemsamp_left_holes,
-// sp_sm_onemsamp_offset_left_holes,
-// sp_sm_multiplemsamp_left_holes,
-// sp_sm_allmsamp_left_holes,
-// sp_sm_onemsamp_leftright_holes,
-// sp_sm_onemsamp_offset_leftright_holes,
-// sp_sm_multiplemsamp_leftright_holes,
-// sp_repeats,
-// sp_repeats_inc,
-// sp_one_missing_to_single
