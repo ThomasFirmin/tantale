@@ -69,6 +69,39 @@
 //! ```
 //! 
 //! # Example with [`objective!`](../../../tantale/macros/macro.objective.html).
+//! 
+//! ```
+//! mod searchspace{
+//!     use tantale_core::domain::{Real,Bool,Cat,Nat};
+//!     use tantale_core::domain::sampler::{uniform_nat, uniform_cat, uniform_real};
+//!     use tantale_macros::{objective,Outcome};
+//!
+//!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
+//!     #[derive(Outcome)]
+//!     pub struct OutStruct(f64);
+//!
+//!     objective!(
+//!         pub fn example() -> OutStruct {
+//!             let a = [! a | Real(0.0,1.0)                   |                               !];
+//!             let b = [! b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real !];
+//!             let c = [! c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real !];
+//!             let d = [! d | Bool()                          | Real(0.0,1.0)                 !];
+//!                
+//!             println!("a {}, b {}, c {}, d {}", a, b, c, d);
+//!             OutExample(42.0)
+//!         }
+//!     );
+//! }
+//! 
+//! use tantale_core::{EmptyInfo,Searchspace,Solution};
+//! let sp = searchspace::get_searchspace();
+//! let info = std::sync::Arc::new(EmptyInfo{});
+//! let mut rng = rand::rng();
+//!
+//! let sample = sp.sample_obj(&mut rng, std::process::id(),info);
+//! searchspace::example(sample.get_x());
+//! 
+//! ```
 
 use crate::{
     domain::Domain,
@@ -88,6 +121,8 @@ where
     Opt: Domain + Clone + Display + Debug,
     POpt: Partial<Opt, SInfo>,
 {
+    /// Initialize the [`Searchspace`].
+    fn init(&mut self);
     /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables).

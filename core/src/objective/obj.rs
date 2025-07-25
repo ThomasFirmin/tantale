@@ -21,8 +21,10 @@ pub trait Objective<Obj, Cod, Out>
 where
     Obj: Domain + Clone + Display + Debug,
     Out: Outcome,
-    Cod: Codomain<Out>,
+    Cod: Codomain<Out>
 {
+    /// Initialize the ['Objective'].
+    fn init(&mut self);
     /// Compute the outputs of a function to maximize according to an input `x`.
     fn compute(&self, x: &[TypeDom<Obj>]) -> (Cod::TypeCodom, Out);
 }
@@ -50,6 +52,7 @@ where
     Out: Outcome,
     Cod: Codomain<Out>,
 {
+    fn init(&mut self){}
     fn compute(&self, x: &[TypeDom<Obj>]) -> (Cod::TypeCodom, Out) {
         let out = (self.function)(x);
         (self.codomain.get_elem(&out), out)

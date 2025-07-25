@@ -108,7 +108,7 @@ fn complex_replacement(
         {
             match tantale_in[#idx]{
                 #mixed_ty::#ty(value) => value,
-                _ => panic!("")
+                _ => unreachable!("Trying to access a value of the wrong type from the objective input.")
             }
         }
     }
@@ -135,7 +135,7 @@ fn complex_vec_replacement(
             tantale_in[#start..#end].iter().map(|v| {
                 match v {
                     #mixed_ty::#ty(value) => value,
-                    _ => panic!("")
+                    _ => unreachable!("Trying to access a value of the wrong type from the objective input.")
                 }
             }).collect::<Vec<&<#ty as Domain>::TypeDom>>()
         }

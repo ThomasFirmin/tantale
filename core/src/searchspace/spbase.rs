@@ -33,6 +33,8 @@ where
     Opt: Domain + Clone + Display + Debug,
     SInfo: SolInfo,
 {
+    fn init(&mut self) {}
+    
     fn onto_obj(&self, inp: &PartialSol<Opt, SInfo>) -> PartialSol<Obj, SInfo> {
         let outx: Vec<TypeDom<Obj>> = inp
             .x
