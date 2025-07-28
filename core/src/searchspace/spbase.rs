@@ -1,8 +1,5 @@
 use crate::{
-    domain::{Domain, TypeDom},
-    searchspace::{Searchspace, SolInfo},
-    solution::{PartialSol, Solution,Partial},
-    variable::Var,
+    domain::{self, Domain, TypeDom}, saver::CSVWritable, searchspace::{Searchspace, SolInfo}, solution::{Partial, PartialSol, Solution}, variable::Var
 };
 
 use rand::prelude::ThreadRng;
@@ -143,6 +140,42 @@ where
         inp.iter().all(|sol| self.is_in_opt(sol))
     }
 }
+
+impl <Obj, Opt> CSVWritable for Sp<Obj, Opt>
+where
+    Obj: Domain + Clone + Display + Debug + CSVWritable,
+    Opt: Domain + Clone + Display + Debug,
+{
+    type Component = Arc<Obj::TypeDom>;
+
+    fn header(&self)->Vec<String> {
+        self.variables.iter().flat_map(|v| {
+            let (name,id) = v.get_name();
+            let name_str =  match id{
+                Some(i) => format!("{}_{}",name,i),
+                None => String::from(name),
+            };
+            
+            let dom_spec = v.get_domain_obj().header();
+            if dom_spec.len()>0{
+                dom_spec.iter().map(|head| format!("{}_{}",name_str,head)).collect()
+            }
+            else{
+                vec![name_str]
+            }
+        }).collect()
+    }
+
+    fn write(&self, comp : Self::Component)->Vec<String> {
+        self.variables.iter().zip(comp).map(
+            |(v,c)|
+            {
+                v.get_domain_obj()
+            }
+        )
+    }
+}
+
 
 #[cfg(feature = "par")]
 impl<Obj, Opt, SInfo>
