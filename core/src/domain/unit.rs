@@ -26,6 +26,8 @@ use crate::domain::{
     sampler::uniform,
     Domain,
 };
+use crate::saver::CSVWritable;
+
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
@@ -300,5 +302,16 @@ impl From<BaseDom> for Unit {
             BaseDom::Unit(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Unit."),
         }
+    }
+}
+
+impl CSVWritable<f64> for Unit
+{
+    fn header(&self)->Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self,comp : &f64)->Vec<String> {
+        Vec::from([comp.to_string()])
     }
 }

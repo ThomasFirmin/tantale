@@ -45,6 +45,9 @@ use std::{
     ops::RangeInclusive,
 };
 
+
+use crate::saver::CSVWritable;
+
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
 
@@ -519,3 +522,16 @@ pub type Nat = Bounded<u64>;
 /// assert_eq!(dom.width(), 10);
 /// ```
 pub type Int = Bounded<i64>;
+
+impl <T> CSVWritable<<Bounded<T> as Domain>::TypeDom> for Bounded<T>
+where
+    T : BoundedBounds,
+{
+    fn header(&self)->Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self,comp : &<Bounded<T> as Domain>::TypeDom)->Vec<String> {
+        Vec::from([comp.to_string()])
+    }
+}

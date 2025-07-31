@@ -107,18 +107,19 @@ pub fn run<
     Info: OptInfo,
     SInfo: SolInfo,
 {
-    initialize(&mut searchspace, &mut objective, &mut optimizer, &mut stop, &mut saver);
+    // initialize(&mut searchspace, &mut objective, &mut optimizer, &mut stop, &mut saver);
 
-    let pid = std::process::id();
+    // let pid = std::process::id();
 
-    let (obj_psol,opt_psol,info) = optimizer.first_step(&searchspace,pid);
-    while stop.stop(){
-        let (obj_psol,opt_psol,info) = optimizer.step(
-            x, 
-            &searchspace,
-            pid);
+    // let (obj_psol,opt_psol,info) = optimizer.first_step(&searchspace,pid);
+    // while stop.stop(){
+    //     let (obj_psol,opt_psol,info) = optimizer.step(
+    //         x, 
+    //         &searchspace,
+    //         pid);
 
-    }
+    // }
 
+    todo!()
 
 }

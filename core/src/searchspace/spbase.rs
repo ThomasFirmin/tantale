@@ -1,5 +1,9 @@
 use crate::{
-    domain::{self, Domain, TypeDom}, saver::CSVWritable, searchspace::{Searchspace, SolInfo}, solution::{Partial, PartialSol, Solution}, variable::Var
+    domain::{Domain, TypeDom},
+    saver::CSVLeftRight,
+    searchspace::{Searchspace, SolInfo},
+    solution::{Partial, PartialSol, Solution},
+    variable::Var
 };
 
 use rand::prelude::ThreadRng;
@@ -141,38 +145,30 @@ where
     }
 }
 
-impl <Obj, Opt> CSVWritable for Sp<Obj, Opt>
+impl <Obj, Opt> CSVLeftRight<Arc<[Obj::TypeDom]>,Arc<[Opt::TypeDom]>> for Sp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug + CSVWritable,
+    Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
+    Var<Obj,Opt>: CSVLeftRight<Obj::TypeDom,Opt::TypeDom>, 
 {
-    type Component = Arc<Obj::TypeDom>;
-
     fn header(&self)->Vec<String> {
-        self.variables.iter().flat_map(|v| {
-            let (name,id) = v.get_name();
-            let name_str =  match id{
-                Some(i) => format!("{}_{}",name,i),
-                None => String::from(name),
-            };
-            
-            let dom_spec = v.get_domain_obj().header();
-            if dom_spec.len()>0{
-                dom_spec.iter().map(|head| format!("{}_{}",name_str,head)).collect()
-            }
-            else{
-                vec![name_str]
-            }
-        }).collect()
+        self.variables.iter().flat_map(|v| v.header()).collect()
     }
-
-    fn write(&self, comp : Self::Component)->Vec<String> {
-        self.variables.iter().zip(comp).map(
-            |(v,c)|
-            {
-                v.get_domain_obj()
-            }
-        )
+    
+    fn write_left(&self, comp : &Arc<[Obj::TypeDom]>)->Vec<String> {
+        let var_iter = self.variables.iter();
+        comp.iter().zip(var_iter).flat_map(
+            |(c,v)|
+            v.write_left(c)
+        ).collect()
+    }
+    
+    fn write_right(&self, comp : &Arc<[Opt::TypeDom]>)->Vec<String> {
+        let var_iter = self.variables.iter();
+        comp.iter().zip(var_iter).flat_map(
+            |(c,v)|
+            v.write_right(c)
+        ).collect()
     }
 }
 

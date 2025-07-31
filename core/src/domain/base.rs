@@ -7,6 +7,7 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
+use crate::saver::CSVWritable;
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
@@ -543,5 +544,25 @@ impl From<Cat> for BaseDom {
 impl From<Unit> for BaseDom {
     fn from(value: Unit) -> Self {
         BaseDom::Unit(value)
+    }
+}
+
+
+impl CSVWritable<BaseTypeDom> for BaseDom
+{
+    fn header(&self)->Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self,comp:&BaseTypeDom)->Vec<String> 
+    {
+        match comp{
+            BaseTypeDom::Real(s) => Vec::from([s.to_string()]),
+            BaseTypeDom::Nat(s) => Vec::from([s.to_string()]),
+            BaseTypeDom::Int(s) => Vec::from([s.to_string()]),
+            BaseTypeDom::Bool(s) => Vec::from([s.to_string()]),
+            BaseTypeDom::Cat(s) => Vec::from([s.to_string()]),
+            BaseTypeDom::Unit(s) => Vec::from([s.to_string()]),
+        }
     }
 }

@@ -23,12 +23,13 @@ use crate::domain::{
     unit::Unit,
     Domain,
 };
+use super::{onto::OntoOutput, TypeDom};
+use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;
 use std::fmt;
 
-use super::{onto::OntoOutput, TypeDom};
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
@@ -240,5 +241,17 @@ impl From<BaseDom> for Bool {
             BaseDom::Bool(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Bool."),
         }
+    }
+}
+
+
+impl CSVWritable<bool> for Bool
+{
+    fn header(&self)->Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self,comp : &bool)->Vec<String> {
+        Vec::from([comp.to_string()])
     }
 }

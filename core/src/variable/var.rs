@@ -56,16 +56,18 @@
 //!
 //! ```
 
-use crate::domain::{
+use crate::{domain::{
     onto::{Onto, OntoOutput},
     Domain, TypeDom,
-};
+}, saver::CSVLeftRight};
 
 use rand::prelude::ThreadRng;
 use std::sync::Arc;
 use std::{
     fmt::{Debug, Display},
 };
+
+use crate::saver::CSVWritable;
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 #[derive(Clone)]
@@ -457,4 +459,33 @@ where
     pub fn is_in_opt(&self, item: &TypeDom<Opt>) -> bool {
         self.domain_opt.is_in(item)
     }
+}
+
+impl <Obj, Opt> CSVLeftRight<Obj::TypeDom,Opt::TypeDom> for Var<Obj, Opt>
+where
+    Obj: Domain + Clone + Display + Debug + CSVWritable<Obj::TypeDom>,
+    Opt : Domain + Clone + Display + Debug + CSVWritable<Opt::TypeDom>,
+{
+    fn header(&self)->Vec<String> {
+        let (name,id) = self.name;
+        let name_str =  match id{
+            Some(i) => format!("{}{}",name,i),
+            None => String::from(name),
+        };    
+        let dom_spec = self.domain_obj.header();
+        if dom_spec.is_empty(){
+            vec![name_str]
+        }
+        else{
+            dom_spec.iter().map(|head| format!("{}_{}",name_str,head)).collect()
+        }
+    }
+    
+    fn write_left(&self, comp : &Obj::TypeDom)->Vec<String> {
+        self.domain_obj.write(comp)
+    }
+    
+    fn write_right(&self, comp : &Opt::TypeDom)->Vec<String> {
+        self.domain_opt.write(comp)
+    }    
 }

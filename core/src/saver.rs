@@ -1,5 +1,5 @@
 pub mod csvsaver;
-pub use csvsaver::{CSVSaver,CSVWritable};
+pub use csvsaver::{CSVSaver,CSVWritable,CSVLeftRight};
 
 use crate::{
     domain::Domain,
@@ -25,9 +25,9 @@ where
     Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
 {
-    fn init(&self, scp: &Scp);
-    fn save_partial(&self, obj: &PObj, opt: &POpt, sp: Scp, info: Info);
-    fn save_codom(&self, obj: &CObj, sp: Scp, info: Info);
-    fn save_out(&self, id: (u32, usize), out: Out, sp: Scp, info: Info);
+    fn init(&self);
+    fn save_partial(&self, obj: &PObj, opt: &POpt, sp: &Scp, info: &Info);
+    fn save_codom(&self, obj: &CObj, sp: &Scp, info: &Info);
+    fn save_out(&self, id: (u32, usize), out: Out, sp: &Scp, info: &Info);
     fn save_state(&self, state: &Optim);
 }

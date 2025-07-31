@@ -27,12 +27,13 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
+use super::onto::OntoOutput;
+use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::fmt;
 
-use super::onto::OntoOutput;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
@@ -283,5 +284,16 @@ impl From<BaseDom> for Cat {
             BaseDom::Cat(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Cat."),
         }
+    }
+}
+
+impl CSVWritable<<Cat as Domain>::TypeDom> for Cat
+{
+    fn header(&self)->Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self,comp : &<Cat as Domain>::TypeDom)->Vec<String> {
+        Vec::from([comp.to_string()])
     }
 }
