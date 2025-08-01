@@ -1,8 +1,8 @@
 #[test]
-fn obj_test(){
-    mod searchspace{
-        use tantale_core::domain::{Real,Bool, Cat, Int, Nat};
+fn obj_test() {
+    mod searchspace {
         use tantale_core::domain::sampler::{uniform_int, uniform_real};
+        use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
         use tantale_core::Outcome;
 
         use tantale_macros::objective;
@@ -21,15 +21,27 @@ fn obj_test(){
         impl Outcome for OutExample {}
         impl std::fmt::Display for OutExample {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "Output : {}, {}, {}, {}, {}, {}, {}, {}, {}",self.obj,self.fid,self.con,self.more,self.info,self.intinfo,self.boolinfo,self.natinfo,self.catinfo)
+                write!(
+                    f,
+                    "Output : {}, {}, {}, {}, {}, {}, {}, {}, {}",
+                    self.obj,
+                    self.fid,
+                    self.con,
+                    self.more,
+                    self.info,
+                    self.intinfo,
+                    self.boolinfo,
+                    self.natinfo,
+                    self.catinfo
+                )
             }
         }
 
-        fn plus_one_int(x:i64)->i64{
-            x+1
+        fn plus_one_int(x: i64) -> i64 {
+            x + 1
         }
 
-        const ACTIVATION: [&str;3] = ["relu","tanh","sigmoid"];
+        const ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
         objective!(
             pub fn example() -> OutExample {
@@ -56,14 +68,13 @@ fn obj_test(){
             }
         );
     }
-    
-    use tantale_core::{EmptyInfo,Searchspace,Solution};
+
+    use tantale_core::{EmptyInfo, Searchspace, Solution};
     let sp = searchspace::get_searchspace();
-    let info = std::sync::Arc::new(EmptyInfo{});
+    let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
 
-    let sample = sp.sample_obj(&mut rng, std::process::id(),info);
+    let sample = sp.sample_obj(&mut rng, std::process::id(), info);
     searchspace::example(sample.get_x());
-
 }

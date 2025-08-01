@@ -477,7 +477,7 @@ where
             vec![name_str]
         }
         else{
-            dom_spec.iter().map(|head| format!("{}_{}",name_str,head)).collect()
+            dom_spec.iter().map(|head| format!("{}{}",name_str,head)).collect()
         }
     }
     

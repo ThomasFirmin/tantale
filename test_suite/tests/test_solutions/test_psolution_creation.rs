@@ -7,7 +7,7 @@ use std::process;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(n:usize,sol: &PartialSol<Dom, TestSInfo>, pid: u32)
+fn _test_solution_assertion<Dom>(n: usize, sol: &PartialSol<Dom, TestSInfo>, pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,

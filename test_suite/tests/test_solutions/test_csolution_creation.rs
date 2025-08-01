@@ -10,7 +10,7 @@ use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
 fn _test_solution_assertion<Dom>(
-    n:usize,
+    n: usize,
     sol: &ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>,
     pid: u32,
 ) where

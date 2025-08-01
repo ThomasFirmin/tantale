@@ -1,6 +1,6 @@
 use super::init_dom::*;
-use tantale::core::{var};
 use tantale::core::saver::CSVLeftRight;
+use tantale::core::var;
 
 use paste::paste;
 
@@ -23,7 +23,7 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = var!("a" ; domobj ; domopt);
                 let mut rng = rand::rng();
-                
+
                 let sample = variable.sample_obj(&mut rng);
                 let s_str = sample.to_string();
                 let s_csv = variable.write_left(&sample);
