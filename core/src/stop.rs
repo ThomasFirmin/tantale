@@ -1,14 +1,14 @@
 use crate::{
     domain::Domain,
     objective::{Codomain, Outcome},
-    optimizer::{Optimizer, OptInfo},
+    optimizer::{OptInfo, Optimizer},
     searchspace::Searchspace,
     solution::{Computed, Partial, SolInfo},
 };
 use std::fmt::{Debug, Display};
-pub trait Stop<Optim,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
+pub trait Stop<Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
 where
-    Optim: Optimizer<PObj,CObj,POpt,COpt,Obj,Opt,SInfo,Cod,Out,Scp,Info>,
+    Optim: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
     PObj: Partial<Obj, SInfo>,
     CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
     POpt: Partial<Opt, SInfo>,

@@ -57,13 +57,13 @@ where
     ///
     /// let partial = PartialSol::new(std::process::id(),x_1,info);
     /// let y = std::sync::Arc::new(ElemSingleCodomain{value:1.0});
-    /// 
+    ///
     /// let real_sol = ComputedSol::<Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
     /// let int_sol : ComputedSol<Int,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
     ///
     /// let id_r = real_sol.get_id();
     /// let id_i = int_sol.get_id();
-    /// 
+    ///
     /// println!("REAL ID : {},{}", id_r.0,id_r.1);
     /// println!("INT ID : {},{}", id_i.0,id_i.1);
     ///
@@ -110,8 +110,7 @@ where
     pub y: Arc<Cod::TypeCodom>,
 }
 
-impl<Dom, Cod, Out, Info> Solution<Dom, Info>
-    for ComputedSol<Dom, Cod, Out, Info>
+impl<Dom, Cod, Out, Info> Solution<Dom, Info> for ComputedSol<Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,

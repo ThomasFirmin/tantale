@@ -14,6 +14,7 @@
 //! assert!(dom.is_in(&sample));
 //! ```
 
+use super::{onto::OntoOutput, TypeDom};
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bounded::{Bounded, BoundedBounds, DomainBounded},
@@ -23,13 +24,11 @@ use crate::domain::{
     unit::Unit,
     Domain,
 };
-use super::{onto::OntoOutput, TypeDom};
 use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;
 use std::fmt;
-
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
@@ -244,14 +243,12 @@ impl From<BaseDom> for Bool {
     }
 }
 
-
-impl CSVWritable<bool> for Bool
-{
-    fn header(&self)->Vec<String> {
+impl CSVWritable<bool> for Bool {
+    fn header(&self) -> Vec<String> {
         Vec::new()
     }
 
-    fn write(&self,comp : &bool)->Vec<String> {
+    fn write(&self, comp: &bool) -> Vec<String> {
         Vec::from([comp.to_string()])
     }
 }

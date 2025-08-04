@@ -118,12 +118,12 @@ impl Parse for LineStream {
         let first_bar = input.parse::<Token![|]>()?;
 
         let obj_domain = input.parse::<DomainStream>()?;
-        let obj_domain = match obj_domain{
+        let obj_domain = match obj_domain {
             DomainStream::DomainToken(tokens) => tokens,
             DomainStream::None => {
                 let msg = "The Objective domain cannot be empty.\n A single searchspace variable is defined by:\n `name | Objective part | Optimizer part ;`\n with: \n\the Objective part made of:\n `Type(args:expr) Optional(=> sampler:expr)`\n the Optimizer part made of:\n `Optional(Type(args:expr) => sampler:expr)`\n where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.";
-                return Err(syn::Error::new(first_bar.span(),msg))
-        },
+                return Err(syn::Error::new(first_bar.span(), msg));
+            }
         };
         let obj_sampler = input.parse::<SamplerToken>()?;
 

@@ -18,6 +18,7 @@
 //! assert!(dom.is_in(&sample));
 //! assert_eq!(dom.values(), &check);
 
+use super::onto::OntoOutput;
 use crate::domain::{
     base::{BaseDom, BaseTypeDom},
     bounded::{Bounded, BoundedBounds, DomainBounded},
@@ -27,13 +28,11 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
-use super::onto::OntoOutput;
 use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::fmt;
-
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
@@ -287,13 +286,12 @@ impl From<BaseDom> for Cat {
     }
 }
 
-impl CSVWritable<<Cat as Domain>::TypeDom> for Cat
-{
-    fn header(&self)->Vec<String> {
+impl CSVWritable<<Cat as Domain>::TypeDom> for Cat {
+    fn header(&self) -> Vec<String> {
         Vec::new()
     }
 
-    fn write(&self,comp : &<Cat as Domain>::TypeDom)->Vec<String> {
+    fn write(&self, comp: &<Cat as Domain>::TypeDom) -> Vec<String> {
         Vec::from([comp.to_string()])
     }
 }

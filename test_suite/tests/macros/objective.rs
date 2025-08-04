@@ -74,7 +74,8 @@ fn obj_test() {
     let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
+    let rng = Some(&mut rng);
 
-    let sample = sp.sample_obj(&mut rng, std::process::id(), info);
+    let sample = sp.sample_obj(rng, std::process::id(), info);
     searchspace::example(sample.get_x());
 }

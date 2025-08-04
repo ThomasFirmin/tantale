@@ -16,8 +16,6 @@ pub mod solution;
 pub use solution::{Computed, ComputedSol, Partial, PartialSol, SolInfo, Solution};
 
 pub mod searchspace;
-#[cfg(feature = "par")]
-pub use searchspace::ParSearchspace;
 pub use searchspace::{Searchspace, Sp};
 
 pub mod errors;

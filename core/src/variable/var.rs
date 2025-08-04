@@ -56,16 +56,17 @@
 //!
 //! ```
 
-use crate::{domain::{
-    onto::{Onto, OntoOutput},
-    Domain, TypeDom,
-}, saver::CSVLeftRight};
+use crate::{
+    domain::{
+        onto::{Onto, OntoOutput},
+        Domain, TypeDom,
+    },
+    saver::CSVLeftRight,
+};
 
 use rand::prelude::ThreadRng;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
-use std::{
-    fmt::{Debug, Display},
-};
 
 use crate::saver::CSVWritable;
 
@@ -388,8 +389,7 @@ where
     ///
     /// ```
     ///
-    pub fn replicate(self, repeats:usize) -> Vec<Self>
-    {
+    pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::new();
         for i in 0..repeats {
             let var = Self::_new(
@@ -461,31 +461,33 @@ where
     }
 }
 
-impl <Obj, Opt> CSVLeftRight<Obj::TypeDom,Opt::TypeDom> for Var<Obj, Opt>
+impl<Obj, Opt> CSVLeftRight<Obj::TypeDom, Opt::TypeDom> for Var<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug + CSVWritable<Obj::TypeDom>,
-    Opt : Domain + Clone + Display + Debug + CSVWritable<Opt::TypeDom>,
+    Opt: Domain + Clone + Display + Debug + CSVWritable<Opt::TypeDom>,
 {
-    fn header(&self)->Vec<String> {
-        let (name,id) = self.name;
-        let name_str =  match id{
-            Some(i) => format!("{}{}",name,i),
+    fn header(&self) -> Vec<String> {
+        let (name, id) = self.name;
+        let name_str = match id {
+            Some(i) => format!("{}{}", name, i),
             None => String::from(name),
-        };    
+        };
         let dom_spec = self.domain_obj.header();
-        if dom_spec.is_empty(){
+        if dom_spec.is_empty() {
             vec![name_str]
-        }
-        else{
-            dom_spec.iter().map(|head| format!("{}{}",name_str,head)).collect()
+        } else {
+            dom_spec
+                .iter()
+                .map(|head| format!("{}{}", name_str, head))
+                .collect()
         }
     }
-    
-    fn write_left(&self, comp : &Obj::TypeDom)->Vec<String> {
+
+    fn write_left(&self, comp: &Obj::TypeDom) -> Vec<String> {
         self.domain_obj.write(comp)
     }
-    
-    fn write_right(&self, comp : &Opt::TypeDom)->Vec<String> {
+
+    fn write_right(&self, comp: &Opt::TypeDom) -> Vec<String> {
         self.domain_opt.write(comp)
-    }    
+    }
 }

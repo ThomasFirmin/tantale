@@ -2,9 +2,9 @@
 //! the function to be maximized. This output may contain the values
 //! to be optimized, constraints, fidelities, and other information
 //! linked to the evaluation (e.g. computation time).
-//! 
+//!
 //! # Example with a user-defined structure
-//! 
+//!
 //! ```
 //! use tantale::macros::Outcome;
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
@@ -20,7 +20,7 @@
 //!     pub mul8: f64,
 //!     pub mul9: f64,
 //! }
-//! 
+//!
 //! // An mock output of an objective function
 //! let out = OutExample {
 //!              fid2: 2.0,
@@ -32,8 +32,8 @@
 //!              mul8: 8.0,
 //!              mul9: 9.0,
 //!          };
-//! 
-//! 
+//!
+//!
 //! // Relation between Outcome and Codomain
 //! let codom = FidelConstMultiCodomain::new(
 //!        // Define multi-objective
@@ -67,12 +67,12 @@ use std::collections::HashMap;
 pub trait Outcome {}
 
 /// A concrete [`Outcome`] from a [`HashMap`] with `str` keys, and `f64` values.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use tantale::core::{Outcome,HashOut};
-/// 
+///
 /// let out = HashOut::from([
 ///              ("obj1", 1.0),
 ///              ("fid2", 2.0),
@@ -114,13 +114,12 @@ pub trait Outcome {}
 pub type HashOut = HashMap<&'static str, f64>;
 impl Outcome for HashOut {}
 
-
 /// [`ObjState`] is use to describe the state of functions that are evaluated by steps (several iterations with intermediate results).
-pub trait ObjState{}
+pub trait ObjState {}
 /// [`Stepped`] is a trait describing an [`Outcome`] containing the [`ObjState`] of a function.
-pub trait Stepped<S>:Outcome
+pub trait Stepped<S>: Outcome
 where
-    S: ObjState
+    S: ObjState,
 {
-    fn get_state(&self)-> S;
+    fn get_state(&self) -> S;
 }

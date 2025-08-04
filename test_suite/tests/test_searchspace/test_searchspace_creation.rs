@@ -1,6 +1,6 @@
 use paste::paste;
 
-use tantale::core::{EmptyInfo, ParSearchspace, Searchspace, Solution};
+use tantale::core::{EmptyInfo, Searchspace, Solution};
 
 use super::init_sp::*;
 
@@ -18,75 +18,39 @@ macro_rules! get_test {
                 let mut rng = rand::rng();
                 let pid = std::process::id();
 
-                let sample_obj = sp.sample_obj(&mut rng,pid,sinfo.clone());
+                let sample_obj = sp.sample_obj(Some(&mut rng),pid,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
                 let converted_opt = sp.onto_opt(&sample_obj);
                 assert_eq!(converted_opt.get_x().len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
 
-                let sample_opt = sp.sample_opt(&mut rng, pid,sinfo.clone());
+                let sample_opt = sp.sample_opt(Some(&mut rng), pid,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = sp.onto_obj(&sample_opt);
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                assert!(sp.is_in_obj(&sample_obj));
-                assert!(sp.is_in_opt(&converted_opt));
-                assert!(sp.is_in_opt(&sample_opt));
-                assert!(sp.is_in_obj(&converted_obj));
+                assert!(sp.is_in_obj(std::sync::Arc::new(sample_obj)));
+                assert!(sp.is_in_opt(std::sync::Arc::new(converted_opt)));
+                assert!(sp.is_in_opt(std::sync::Arc::new(sample_opt)));
+                assert!(sp.is_in_obj(std::sync::Arc::new(converted_obj)));
             }
             #[test]
             fn [<$name _vec>]() {
                 let sp = $name::get_searchspace();
                 let sinfo = std::sync::Arc::new(EmptyInfo{});
 
-                let mut rng = rand::rng();
+                let rng = Some(&mut rand::rng());
                 let pid = std::process::id();
 
-                let vec_sample_obj = sp.vec_sample_obj(&mut rng,pid,3,sinfo.clone());
+                let vec_sample_obj = sp.vec_sample_obj(rng,pid,3,sinfo.clone());
                 let vec_converted_opt = sp.vec_onto_opt(&vec_sample_obj);
 
-                let vec_sample_opt = sp.vec_sample_opt(&mut rng,pid,3,sinfo.clone());
+                let vec_sample_opt = sp.vec_sample_opt(rng,pid,3,sinfo.clone());
                 let vec_converted_obj = sp.vec_onto_obj(&vec_sample_opt);
 
-                assert!(sp.vec_is_in_obj(&vec_sample_obj));
-                assert!(sp.vec_is_in_opt(&vec_converted_opt));
-                assert!(sp.vec_is_in_opt(&vec_sample_opt));
-                assert!(sp.vec_is_in_obj(&vec_converted_obj));
-            }
-            #[test]
-            fn [<$name par_single>]() {
-                let sp = $name::get_searchspace();
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
-
-                let pid = std::process::id();
-
-                let sample_obj = sp.par_sample_obj(pid,sinfo.clone());
-                let converted_opt = sp.par_onto_opt(&sample_obj);
-
-                let sample_opt = sp.par_sample_opt(pid,sinfo.clone());
-                let converted_obj = sp.par_onto_obj(&sample_opt);
-
-                assert!(sp.par_is_in_obj(&sample_obj));
-                assert!(sp.par_is_in_opt(&converted_opt));
-                assert!(sp.par_is_in_opt(&sample_opt));
-                assert!(sp.par_is_in_obj(&converted_obj));
-            }
-            #[test]
-            fn [<$name par_vec>]() {
-                let sp = $name::get_searchspace();
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
-
-                let pid = std::process::id();
-
-                let vec_sample_obj = sp.par_vec_sample_obj(pid,3,sinfo.clone());
-                let vec_converted_opt = sp.par_vec_onto_opt(&vec_sample_obj);
-
-                let vec_sample_opt = sp.par_vec_sample_opt(pid,3,sinfo.clone());
-                let vec_converted_obj = sp.par_vec_onto_obj(&vec_sample_opt);
-
-                assert!(sp.par_vec_is_in_obj(&vec_sample_obj));
-                assert!(sp.par_vec_is_in_opt(&vec_converted_opt));
-                assert!(sp.par_vec_is_in_opt(&vec_sample_opt));
-                assert!(sp.par_vec_is_in_obj(&vec_converted_obj));
+                assert!(sp.vec_is_in_obj(std::sync::Arc::new(vec_sample_obj)));
+                assert!(sp.vec_is_in_opt(std::sync::Arc::new(vec_converted_opt)));
+                assert!(sp.vec_is_in_opt(std::sync::Arc::new(vec_sample_opt)));
+                assert!(sp.vec_is_in_obj(std::sync::Arc::new(vec_converted_obj)));
             }
             }
         )+

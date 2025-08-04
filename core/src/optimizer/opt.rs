@@ -41,11 +41,7 @@ where
     fn init(&mut self);
 
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(
-        &mut self,
-        sp: &Scp,
-        pid: u32
-    ) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, Info);
+    fn first_step(&mut self, sp: &Scp, pid: u32) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, Info);
 
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.

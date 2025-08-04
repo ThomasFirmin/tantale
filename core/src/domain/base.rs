@@ -547,16 +547,13 @@ impl From<Unit> for BaseDom {
     }
 }
 
-
-impl CSVWritable<BaseTypeDom> for BaseDom
-{
-    fn header(&self)->Vec<String> {
+impl CSVWritable<BaseTypeDom> for BaseDom {
+    fn header(&self) -> Vec<String> {
         Vec::new()
     }
 
-    fn write(&self,comp:&BaseTypeDom)->Vec<String> 
-    {
-        match comp{
+    fn write(&self, comp: &BaseTypeDom) -> Vec<String> {
+        match comp {
             BaseTypeDom::Real(s) => Vec::from([s.to_string()]),
             BaseTypeDom::Nat(s) => Vec::from([s.to_string()]),
             BaseTypeDom::Int(s) => Vec::from([s.to_string()]),

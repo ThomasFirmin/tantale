@@ -6,13 +6,13 @@ use crate::{
     optimizer::{OptInfo, Optimizer},
     saver::Saver,
     searchspace::Searchspace,
-    solution::{Computed, Partial,SolInfo},
+    solution::{Computed, Partial, SolInfo},
     stop::Stop,
 };
 
 use std::fmt::{Debug, Display};
 
-pub enum Parallel{
+pub enum Parallel {
     Sequential,
     MultiThread,
     MultiProcess,
@@ -37,8 +37,7 @@ pub fn initialize<
     Info,
     SInfo,
     State,
->
-(
+>(
     searchspace: &mut Scp,
     objective: &mut Ob,
     optimizer: &mut Op,
@@ -48,8 +47,8 @@ pub fn initialize<
     Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
     Op: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<Op,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<Op,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    St: Stop<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Sv: Saver<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
     PObj: Partial<Obj, SInfo>,
     POpt: Partial<Opt, SInfo>,
     CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
@@ -68,23 +67,7 @@ pub fn initialize<
     saver.init();
 }
 
-pub fn run<
-    Scp,
-    Ob,
-    Op,
-    St,
-    Sv,
-    PObj,
-    POpt,
-    CObj,
-    COpt,
-    Obj,
-    Opt,
-    Out,
-    Cod,
-    Info,
-    SInfo,
->(
+pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, CObj, COpt, Obj, Opt, Out, Cod, Info, SInfo>(
     mut searchspace: Scp,
     mut objective: Ob,
     mut optimizer: Op,
@@ -94,8 +77,8 @@ pub fn run<
     Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
     Op: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<Op,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<Op,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    St: Stop<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Sv: Saver<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
     PObj: Partial<Obj, SInfo>,
     POpt: Partial<Opt, SInfo>,
     CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
@@ -114,12 +97,11 @@ pub fn run<
     // let (obj_psol,opt_psol,info) = optimizer.first_step(&searchspace,pid);
     // while stop.stop(){
     //     let (obj_psol,opt_psol,info) = optimizer.step(
-    //         x, 
+    //         x,
     //         &searchspace,
     //         pid);
 
     // }
 
     todo!()
-
 }

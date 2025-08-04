@@ -21,7 +21,7 @@ mod test {
         let sp = get_searchspace();
         let info = std::sync::Arc::new(EmptyInfo {});
 
-        let obj = sp.sample_obj(&mut rng, std::process::id(), info.clone());
+        let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
         let opt = sp.onto_opt(&obj); // Map obj => opt
                                      // Paired solutions have the same ID
         println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
@@ -29,7 +29,9 @@ mod test {
         use tantale::macros::Outcome;
 
         #[derive(Outcome)]
-        pub struct OutStruct(f64);
+        pub struct OutStruct {
+            out: f64,
+        }
 
         // _TantaleMixedObj is automatically created by sp!
         fn compute_obj(tantale_in: Arc<[<_TantaleMixedObj as Domain>::TypeDom]>) -> OutStruct {
@@ -51,10 +53,10 @@ mod test {
             };
             println!("a {}, b {}, c {}, d {}", a, b, c, d);
 
-            OutStruct(42.0)
+            OutStruct { out: 42.0 }
         }
 
         let out = compute_obj(obj.get_x());
-        println!("OUT {}", out.0);
+        println!("OUT {}", out.out);
     }
 }

@@ -29,6 +29,3 @@ tantale_algos.workspace = true
 
 [dev-dependencies]
 tantale_test_suite.workspace = true
-
-[features]
-par = ["tantale_core/par", "tantale_algos/par"]

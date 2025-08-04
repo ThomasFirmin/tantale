@@ -4,13 +4,7 @@ use crate::searchspace::{get_sp_tokens, parse_sp, LineStream};
 
 use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use quote::quote;
-use syn::{
-    braced,
-    parse::Parse,
-    parse_quote,
-    spanned::Spanned,
-    Attribute, Signature, Visibility,
-};
+use syn::{braced, parse::Parse, parse_quote, spanned::Spanned, Attribute, Signature, Visibility};
 
 pub struct CustomFunction {
     pub attrs: Vec<Attribute>,
@@ -45,7 +39,7 @@ impl Parse for CustomBlock {
         braced!(content in input);
         let stmts: proc_macro2::TokenStream = content.parse()?;
 
-        Ok(CustomBlock {stmts})
+        Ok(CustomBlock { stmts })
     }
 }
 
@@ -151,8 +145,7 @@ fn reconstruct_simple(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-)  -> (usize,usize)
-{
+) -> (usize, usize) {
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
@@ -188,7 +181,7 @@ fn reconstruct_simple(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx,var_idx) = reconstruct_simple(
+                    (token_idx, var_idx) = reconstruct_simple(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -206,7 +199,7 @@ fn reconstruct_simple(
             }
         }
     }
-    (token_idx,var_idx)
+    (token_idx, var_idx)
 }
 
 fn reconstruct_mixed(
@@ -217,8 +210,7 @@ fn reconstruct_mixed(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-) -> (usize,usize)
-{
+) -> (usize, usize) {
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
@@ -254,7 +246,7 @@ fn reconstruct_mixed(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx,var_idx) = reconstruct_mixed(
+                    (token_idx, var_idx) = reconstruct_mixed(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -272,7 +264,7 @@ fn reconstruct_mixed(
             }
         }
     }
-    (token_idx,var_idx)
+    (token_idx, var_idx)
 }
 
 fn reconstruct_tokens(
@@ -317,7 +309,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
         repeats,
     ) = parse_sp(variables).unwrap();
 
-    let new_args: syn::FnArg = parse_quote! {tantale_in : std::sync::Arc::<[<#ident_mixed_obj as Domain>::TypeDom]>};
+    let new_args: syn::FnArg =
+        parse_quote! {tantale_in : std::sync::Arc::<[<#ident_mixed_obj as Domain>::TypeDom]>};
     fn_item.sig.inputs.push(new_args);
 
     let mut new_stream = TokenStream::new();

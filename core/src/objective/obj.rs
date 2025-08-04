@@ -2,7 +2,7 @@
 //! the user wants to maximize. This function must output an [`Outcome`](tantale::core::Outcome)
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
 //! The [`Codomain`](tantale::core::Codomain)
-//! 
+//!
 
 use crate::domain::{Domain, TypeDom};
 use crate::objective::outcome::Outcome;
@@ -21,7 +21,7 @@ pub trait Objective<Obj, Cod, Out>
 where
     Obj: Domain + Clone + Display + Debug,
     Out: Outcome,
-    Cod: Codomain<Out>
+    Cod: Codomain<Out>,
 {
     /// Initialize the ['Objective'].
     fn init(&mut self);
@@ -52,7 +52,7 @@ where
     Out: Outcome,
     Cod: Codomain<Out>,
 {
-    fn init(&mut self){}
+    fn init(&mut self) {}
     fn compute(&self, x: &[TypeDom<Obj>]) -> (Cod::TypeCodom, Out) {
         let out = (self.function)(x);
         (self.codomain.get_elem(&out), out)

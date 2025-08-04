@@ -24,12 +24,12 @@ macro_rules! get_test {
                 let mut rng = rand::rng();
                 let pid = std::process::id();
 
-                let sample_obj = sp.sample_obj(&mut rng,pid,sinfo.clone());
+                let sample_obj = sp.sample_obj(Some(&mut rng),pid,sinfo.clone());
                 let s_str : Vec<String> = sample_obj.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_left(&sample_obj.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
-                let sample_opt = sp.sample_opt(&mut rng,pid,sinfo.clone());
+                let sample_opt = sp.sample_opt(Some(&mut rng),pid,sinfo.clone());
                 let s_str : Vec<String> = sample_opt.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_right(&sample_opt.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Opt searchspace.");
@@ -127,6 +127,6 @@ get_test!(
     sp_sm_onemsamp_offset_leftright_holes;["a","b","c","d"],
     sp_sm_multiplemsamp_leftright_holes;["a","b","c","d"],
     sp_one_missing_to_single;["a","b","c","d"],
-    sp_repeats;["a0","a1","a2","b","c","d"],
-    sp_repeats_inc;["a0","a1","a2","b","c","d"]
+    sp_repeats;["a_0","a_1","a_2","b","c","d"],
+    sp_repeats_inc;["a_0","a_1","a_2","b","c","d"]
 );

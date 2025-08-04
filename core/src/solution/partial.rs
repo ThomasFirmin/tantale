@@ -39,7 +39,7 @@ where
     /// let x = std::sync::Arc::from(vec![0.0;5]);
     /// let pid = std::process::id();
     /// let info = std::sync::Arc::new(EmptyInfo{});
-    /// 
+    ///
     /// let real_sol = PartialSol::<Real,_>::new(pid,x,info);
     ///
     /// for elem in real_sol.get_x().iter(){
@@ -60,7 +60,7 @@ where
     /// let x = PartialSol::<Real,EmptyInfo>::default_x(5);
     /// let info = std::sync::Arc::new(EmptyInfo{});
     /// let pid = std::process::id();
-    /// 
+    ///
     /// let real_sol = PartialSol::<Real,_>::new(pid,x,info);
     ///
     /// for elem in real_sol.get_x().iter(){
@@ -68,7 +68,7 @@ where
     /// }
     ///
     /// ```
-    fn default_x(n:usize) -> Vec<TypeDom<Dom>>;
+    fn default_x(n: usize) -> Vec<TypeDom<Dom>>;
     /// Creates a default [`Partial`] of `n` elements.
     ///
     /// # Example
@@ -79,7 +79,7 @@ where
     /// let x = PartialSol::<Real,EmptyInfo>::default_x(5);
     /// let info = std::sync::Arc::new(EmptyInfo{});
     /// let pid = std::process::id();
-    /// 
+    ///
     /// let real_sol = PartialSol::<Real,_>::new_default(5,pid,info);
     ///
     /// for elem in real_sol.get_x().iter(){
@@ -87,7 +87,7 @@ where
     /// }
     ///
     /// ```
-    fn new_default(n:usize,pid: u32, info: Arc<Info>) -> Self;
+    fn new_default(n: usize, pid: u32, info: Arc<Info>) -> Self;
     /// Creates an empty slice of [`Partials`](Partial) with `size` reserved capacity.
     ///
     /// # Example
@@ -122,7 +122,7 @@ where
     ///
     /// let pid = std::process::id();
     /// let info = std::sync::Arc::new(EmptyInfo{});
-    /// 
+    ///
     /// let vec_sol = PartialSol::<Real,EmptyInfo>::new_default_vec(5,pid,info,10);
     ///
     /// for sol in &vec_sol{
@@ -134,7 +134,7 @@ where
     /// }
     ///
     /// ```
-    fn new_default_vec(n:usize,pid: u32, info: Arc<Info>, size: usize) -> Vec<Self>;
+    fn new_default_vec(n: usize, pid: u32, info: Arc<Info>, size: usize) -> Vec<Self>;
 
     /// Given a [`Partial`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
     /// creates the twin [`Partial`] of type `B`.
@@ -183,7 +183,7 @@ where
     ///
     /// let x = vec![0.0;5].into_boxed_slice();
     /// let info = std::sync::Arc::new(EmptyInfo{});
-    /// 
+    ///
     /// let real_sol = PartialSol::<Real,_>::new(std::process::id(),x,info);
     ///
     /// for elem in real_sol.get_x().iter(){
@@ -261,11 +261,11 @@ where
         Self::build(pid, solid, x, info)
     }
 
-    fn default_x(n:usize) -> Vec<TypeDom<Dom>> {
+    fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
         vec![TypeDom::<Dom>::default(); n]
     }
 
-    fn new_default(n:usize, pid: u32, info: Arc<Info>) -> Self {
+    fn new_default(n: usize, pid: u32, info: Arc<Info>) -> Self {
         Self::new(pid, Self::default_x(n), info)
     }
 
@@ -275,10 +275,10 @@ where
         v
     }
 
-    fn new_default_vec(n:usize, pid: u32, info: Arc<Info>, size: usize) -> Vec<Self> {
+    fn new_default_vec(n: usize, pid: u32, info: Arc<Info>, size: usize) -> Vec<Self> {
         let mut v = Self::new_vec(size);
         for _ in 0..size {
-            v.push(Self::new_default(n,pid, info.clone()));
+            v.push(Self::new_default(n, pid, info.clone()));
         }
         v
     }

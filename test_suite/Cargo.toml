@@ -7,8 +7,12 @@ edition = "2021"
 tantale = { path = "../", features=["par"]}
 tantale_core = { path = "../core", features=["par"]}
 tantale_macros = { path = "../macros"}
+num = "0.4.3"
 paste = "1.0.15"
 rand = "0.9.0"
+rayon = {version = "1.10.0"}
+csv = "1.1"
+serde = {version="1.0.219", features=["derive"]}
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]

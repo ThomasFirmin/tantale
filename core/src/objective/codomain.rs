@@ -67,7 +67,7 @@
 //!
 //! ```
 //!
-//! ## Specific struct example
+//! ## Custom struct example
 //!
 //! The following examples uses a specific `struct` as the [`Outcome`](tantale::core::Outcome) of the function.
 //!
@@ -147,7 +147,7 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::objective::outcome::Outcome;
+use crate::{objective::outcome::Outcome, saver::csvsaver::CSVWritable};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation of the [`Objective`] function
 pub type Criteria<Out> = fn(&Out) -> f64;
@@ -220,6 +220,16 @@ pub struct ElemSingleCodomain {
     pub value: f64,
 }
 
+impl CSVWritable<ElemSingleCodomain> for ElemSingleCodomain {
+    fn header(&self) -> Vec<String> {
+        Vec::from([String::from("y")])
+    }
+
+    fn write(&self, comp: &ElemSingleCodomain) -> Vec<String> {
+        Vec::from([comp.value.to_string()])
+    }
+}
+
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
 
@@ -255,6 +265,16 @@ impl<Out: Outcome> FidelCodomain<Out> {
 pub struct ElemFidelCodomain {
     pub value: f64,
     pub fidelity: f64,
+}
+
+impl CSVWritable<ElemFidelCodomain> for ElemFidelCodomain {
+    fn header(&self) -> Vec<String> {
+        Vec::from([String::from("y"), String::from("fidelity")])
+    }
+
+    fn write(&self, comp: &ElemFidelCodomain) -> Vec<String> {
+        Vec::from([comp.value.to_string(), comp.fidelity.to_string()])
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for FidelCodomain<Out> {
@@ -298,6 +318,25 @@ impl<Out: Outcome> ConstCodomain<Out> {
 pub struct ElemConstCodomain {
     pub value: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl CSVWritable<ElemConstCodomain> for ElemConstCodomain {
+    fn header(&self) -> Vec<String> {
+        let mut v = Vec::from([String::from("y")]);
+        v.extend(
+            self.constraints
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format!("c{}", idx)),
+        );
+        v
+    }
+
+    fn write(&self, comp: &ElemConstCodomain) -> Vec<String> {
+        let mut v = Vec::from([comp.value.to_string()]);
+        v.extend(comp.constraints.iter().map(|c| c.to_string()));
+        v
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
@@ -346,6 +385,25 @@ pub struct ElemFidelConstCodomain {
     pub constraints: Box<[f64]>,
 }
 
+impl CSVWritable<ElemFidelConstCodomain> for ElemFidelConstCodomain {
+    fn header(&self) -> Vec<String> {
+        let mut v = Vec::from([String::from("y"), String::from("fidelity")]);
+        v.extend(
+            self.constraints
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format!("c{}", idx)),
+        );
+        v
+    }
+
+    fn write(&self, comp: &ElemFidelConstCodomain) -> Vec<String> {
+        let mut v = Vec::from([comp.value.to_string(), comp.fidelity.to_string()]);
+        v.extend(comp.constraints.iter().map(|c| c.to_string()));
+        v
+    }
+}
+
 impl<Out: Outcome> Codomain<Out> for FidelConstCodomain<Out> {
     type TypeCodom = ElemFidelConstCodomain;
 
@@ -392,6 +450,20 @@ pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
 }
 
+impl CSVWritable<ElemMultiCodomain> for ElemMultiCodomain {
+    fn header(&self) -> Vec<String> {
+        self.value
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect()
+    }
+
+    fn write(&self, comp: &ElemMultiCodomain) -> Vec<String> {
+        comp.value.iter().map(|v| v.to_string()).collect()
+    }
+}
+
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
 
@@ -427,6 +499,25 @@ impl<Out: Outcome> FidelMultiCodomain<Out> {
 pub struct ElemFidelMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
+}
+
+impl CSVWritable<ElemFidelMultiCodomain> for ElemFidelMultiCodomain {
+    fn header(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .value
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.extend([String::from("fidelity")]);
+        v
+    }
+
+    fn write(&self, comp: &ElemFidelMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        v.extend([comp.fidelity.to_string()]);
+        v
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for FidelMultiCodomain<Out> {
@@ -469,6 +560,32 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
     pub constraints: Box<[f64]>,
+}
+
+impl CSVWritable<ElemConstMultiCodomain> for ElemConstMultiCodomain {
+    fn header(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .value
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        let c: Vec<String> = self
+            .constraints
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+
+    fn write(&self, comp: &ElemConstMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
+        v.extend(c);
+        v
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
@@ -515,6 +632,34 @@ pub struct ElemFidelConstMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl CSVWritable<ElemFidelConstMultiCodomain> for ElemFidelConstMultiCodomain {
+    fn header(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .value
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.extend([String::from("fidelity")]);
+        let c: Vec<String> = self
+            .constraints
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+
+    fn write(&self, comp: &ElemFidelConstMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        v.extend([comp.fidelity.to_string()]);
+        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
+        v.extend(c);
+        v
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for FidelConstMultiCodomain<Out> {

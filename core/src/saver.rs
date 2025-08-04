@@ -1,18 +1,19 @@
-pub mod csvsaver;
-pub use csvsaver::{CSVSaver,CSVWritable,CSVLeftRight};
-
 use crate::{
     domain::Domain,
     objective::{Codomain, Outcome},
-    optimizer::{Optimizer, OptInfo},
+    optimizer::{OptInfo, Optimizer, ArcVecArc},
     searchspace::Searchspace,
     solution::{Computed, Partial, SolInfo},
 };
 use std::fmt::{Debug, Display};
 
-pub trait Saver<Optim,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
+
+pub mod csvsaver;
+pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
+
+pub trait Saver<Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
 where
-    Optim: Optimizer<PObj,CObj,POpt,COpt,Obj,Opt,SInfo,Cod,Out,Scp,Info>,
+    Optim: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
     PObj: Partial<Obj, SInfo>,
     CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
     POpt: Partial<Opt, SInfo>,
@@ -26,8 +27,8 @@ where
     Info: OptInfo,
 {
     fn init(&self);
-    fn save_partial(&self, obj: &PObj, opt: &POpt, sp: &Scp, info: &Info);
-    fn save_codom(&self, obj: &CObj, sp: &Scp, info: &Info);
+    fn save_partial(&self, obj: ArcVecArc<PObj>, opt: ArcVecArc<POpt>, sp: &Scp, info: &Info);
+    fn save_codom(&self, obj: ArcVecArc<CObj>, sp: &Scp, info: &Info);
     fn save_out(&self, id: (u32, usize), out: Out, sp: &Scp, info: &Info);
     fn save_state(&self, state: &Optim);
 }

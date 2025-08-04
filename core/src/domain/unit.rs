@@ -28,7 +28,6 @@ use crate::domain::{
 };
 use crate::saver::CSVWritable;
 
-
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::{fmt, ops::RangeInclusive};
@@ -305,13 +304,12 @@ impl From<BaseDom> for Unit {
     }
 }
 
-impl CSVWritable<f64> for Unit
-{
-    fn header(&self)->Vec<String> {
+impl CSVWritable<f64> for Unit {
+    fn header(&self) -> Vec<String> {
         Vec::new()
     }
 
-    fn write(&self,comp : &f64)->Vec<String> {
+    fn write(&self, comp: &f64) -> Vec<String> {
         Vec::from([comp.to_string()])
     }
 }
