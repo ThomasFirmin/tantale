@@ -32,7 +32,7 @@ where
     /// Initialize the [`Searchspace`].
     fn init(&mut self){}
 
-    fn onto_obj(&self, inp: &PartialSol<Opt, SInfo>) -> PartialSol<Obj, SInfo> {
+    fn onto_obj(&self, inp: Arc<PartialSol<Opt, SInfo>>) -> Arc<PartialSol<Obj, SInfo>> {
         let outx: Vec<TypeDom<Obj>> = inp
             .x
             .iter()
@@ -40,10 +40,10 @@ where
             .map(|(i, v)| v.onto_obj(i).unwrap())
             .collect();
 
-        inp.twin(outx)
+        Arc::new(inp.twin(outx))
     }
 
-    fn onto_opt(&self, inp: &PartialSol<Obj, SInfo>) -> PartialSol<Opt, SInfo> {
+    fn onto_opt(&self, inp: Arc<PartialSol<Obj, SInfo>>) -> Arc<PartialSol<Opt, SInfo>> {
         let outx: Vec<TypeDom<Opt>> = inp
             .x
             .iter()
@@ -51,7 +51,7 @@ where
             .map(|(i, v)| v.onto_opt(i).unwrap())
             .collect();
 
-        inp.twin(outx)
+        Arc::new(inp.twin(outx))
     }
 
     fn sample_obj(
@@ -59,13 +59,13 @@ where
         rng: Option<&mut ThreadRng>,
         pid: u32,
         info: Arc<SInfo>,
-    ) -> PartialSol<Obj, SInfo> {
+    ) -> Arc<PartialSol<Obj, SInfo>> {
         let rn = match rng{
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Obj>> = self.variables.iter().map(|v| v.sample_obj(rn)).collect();
-        PartialSol::<Obj, SInfo>::new(pid, outx, info)
+        Arc::new(PartialSol::<Obj, SInfo>::new(pid, outx, info))
     }
 
     fn sample_opt(
@@ -73,21 +73,21 @@ where
         rng: Option<&mut ThreadRng>,
         pid: u32,
         info: Arc<SInfo>,
-    ) -> PartialSol<Opt, SInfo> {
+    ) -> Arc<PartialSol<Opt, SInfo>> {
         let rn = match rng{
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Opt>> = self.variables.iter().map(|v| v.sample_opt(rn)).collect();
-        PartialSol::<Opt, SInfo>::new(pid, outx, info)
+        Arc::new(PartialSol::<Opt, SInfo>::new(pid, outx, info))
     }
 
-    fn vec_onto_obj(&self, inp: &[PartialSol<Opt, SInfo>]) -> Vec<PartialSol<Obj, SInfo>> {
-        inp.iter().map(|i| self.onto_obj(i)).collect()
+    fn vec_onto_obj(&self, inp: ArcVecArc<PartialSol<Opt, SInfo>>) -> ArcVecArc<PartialSol<Obj, SInfo>> {
+        Arc::new(inp.iter().map(|i| self.onto_obj(i.clone())).collect())
     }
 
-    fn vec_onto_opt(&self, inp: &[PartialSol<Obj, SInfo>]) -> Vec<PartialSol<Opt, SInfo>> {
-        inp.iter().map(|i| self.onto_opt(i)).collect()
+    fn vec_onto_opt(&self, inp: ArcVecArc<PartialSol<Obj, SInfo>>) -> ArcVecArc<PartialSol<Opt, SInfo>> {
+        Arc::new(inp.iter().map(|i| self.onto_opt(i.clone())).collect())
     }
 
     fn vec_sample_obj(
@@ -96,14 +96,14 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PartialSol<Obj, SInfo>> {
+    ) -> ArcVecArc<PartialSol<Obj, SInfo>> {
         let rn = match rng{
             Some(r) => r,
             None => &mut rand::rng(),
         };
-        (0..size)
+        Arc::new((0..size)
             .map(|_| self.sample_obj(Some(rn), pid, info.clone()))
-            .collect()
+            .collect())
     }
 
     fn vec_sample_opt(
@@ -112,14 +112,14 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PartialSol<Opt, SInfo>> {
+    ) -> ArcVecArc<PartialSol<Opt, SInfo>> {
         let rn = match rng{
             Some(r) => r,
             None => &mut rand::rng(),
         };
-        (0..size)
+        Arc::new((0..size)
             .map(|_| self.sample_opt(Some(rn), pid, info.clone()))
-            .collect()
+            .collect())
     }
 
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool

@@ -22,7 +22,7 @@ mod test {
         let info = std::sync::Arc::new(EmptyInfo {});
 
         let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
-        let opt = sp.onto_opt(&obj); // Map obj => opt
+        let opt = sp.onto_opt(obj.clone()); // Map obj => opt
                                      // Paired solutions have the same ID
         println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
 

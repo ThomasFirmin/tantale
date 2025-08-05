@@ -8,7 +8,8 @@
 //! ```
 //! use tantale::macros::Outcome;
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
-//!  
+//! use std::fmt::Debug;
+//! 
 //! #[derive(Outcome)]
 //! pub struct OutExample {
 //!     pub fid2: f64,
@@ -55,8 +56,8 @@
 //!        .into_boxed_slice(),
 //!    );
 //! let extracted = codom.get_elem(&out);
-//! println!("MULTI : {}",extracted.value.iter().format(", "));
-//! println!("CONSTRAINT : {}",extracted.constraints.iter().format(", "));
+//! println!("MULTI : {:?}",extracted.value);
+//! println!("CONSTRAINT : {:?}",extracted.constraints);
 //! println!("FIDELITY : {}",extracted.fidelity);
 //! ```
 
@@ -71,8 +72,9 @@ pub trait Outcome {}
 /// # Example
 ///
 /// ```
-/// use tantale::core::{Outcome,HashOut};
-///
+/// use tantale::core::{Outcome,HashOut,Codomain,FidelConstMultiCodomain};
+/// use std::fmt::Debug;
+/// 
 /// let out = HashOut::from([
 ///              ("obj1", 1.0),
 ///              ("fid2", 2.0),
@@ -85,7 +87,7 @@ pub trait Outcome {}
 ///              ("mul9", 9.0),
 ///              ("more", 10.0),
 ///              ("info", 11.0),
-///          ])
+///          ]);
 /// // Relation between Outcome and Codomain
 /// let codom = FidelConstMultiCodomain::new(
 ///        // Define multi-objective
@@ -107,8 +109,8 @@ pub trait Outcome {}
 ///        .into_boxed_slice(),
 ///    );
 /// let extracted = codom.get_elem(&out);
-/// println!("MULTI : {}",extracted.value.iter().format(", "));
-/// println!("CONSTRAINT : {}",extracted.constraints.iter().format(", "));
+/// println!("MULTI : {:?}",extracted.value);
+/// println!("CONSTRAINT : {:?}",extracted.constraints);
 /// println!("FIDELITY : {}",extracted.fidelity);
 /// ```
 pub type HashOut = HashMap<&'static str, f64>;

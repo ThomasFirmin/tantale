@@ -54,7 +54,6 @@ where
     ) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, Info);
 }
 
-#[cfg(feature = "par")]
 pub trait ParallelOptimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>:
     Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
 where

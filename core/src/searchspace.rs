@@ -10,9 +10,8 @@
 //!
 //! ```
 //!     use tantale::core::{uniform_cat, uniform_nat, uniform_real,
-//!                     Bool, Cat, Nat, Real, Searchspace,
-//!                     EmptyInfo, Solution
-//!                     };
+//!                         Bool, Cat, Nat, Real, Searchspace,
+//!                         EmptyInfo, Solution};
 //!     use tantale::macros::sp;
 //!     use std::sync::Arc;
 //!
@@ -30,14 +29,14 @@
 //!     let info = std::sync::Arc::new(EmptyInfo{});
 //!
 //!     let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
-//!     let opt = sp.onto_opt(&obj); // Map obj => opt
+//!     let opt = sp.onto_opt(obj.clone()); // Map obj => opt
 //!     // Paired solutions have the same ID
 //!     println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
 //!
 //!     use tantale::macros::Outcome;
 //!
 //!     #[derive(Outcome)]
-//!     pub struct OutStruct(f64);
+//!     pub struct OutStruct{out:f64}
 //!
 //!     // _TantaleMixedObj is automatically created by sp!
 //!     fn compute_obj(tantale_in : Arc::<[<_TantaleMixedObj as Domain >::TypeDom]>) -> OutStruct{
@@ -59,12 +58,12 @@
 //!         };
 //!         println!("a {}, b {}, c {}, d {}", a, b, c, d);
 //!
-//!         OutStruct(42.0)
+//!         OutStruct{out:42.0}
 //!     }
 //!
-//!     let out = compute_obj(obj.get_x());
-//!     println!("OUT {}", out.0);
-//! }
+//!     let o = compute_obj(obj.get_x());
+//!     println!("OUT {}", o.out);
+//!
 //!
 //! ```
 //!
@@ -72,13 +71,13 @@
 //!
 //! ```
 //! mod searchspace{
-//!     use tantale_core::domain::{Real,Bool,Cat,Nat};
-//!     use tantale_core::domain::sampler::{uniform_nat, uniform_cat, uniform_real};
-//!     use tantale_macros::{objective,Outcome};
+//!     use tantale::core::domain::{Real,Bool,Cat,Nat};
+//!     use tantale::core::domain::sampler::{uniform_nat, uniform_cat, uniform_real};
+//!     use tantale::macros::{objective,Outcome};
 //!
 //!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!     #[derive(Outcome)]
-//!     pub struct OutStruct(f64);
+//!     pub struct OutStruct{out:f64}
 //!
 //!     objective!(
 //!         pub fn example() -> OutStruct {
@@ -88,7 +87,7 @@
 //!             let d = [! d | Bool()                          | Real(0.0,1.0)                 !];
 //!                
 //!             println!("a {}, b {}, c {}, d {}", a, b, c, d);
-//!             OutExample(42.0)
+//!             OutStruct{out:42.0}
 //!         }
 //!     );
 //! }
@@ -154,14 +153,14 @@ where
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
     /// let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
-    /// let opt = sp.onto_opt(&obj); // Map obj => opt
+    /// let opt = sp.onto_opt(obj.clone()); // Map obj => opt
     ///
     /// for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
     ///     println!("Obj: {} => Opt: {}", i, o);
     /// }
     ///
     /// ```
-    fn onto_opt(&self, inp: &PObj) -> POpt;
+    fn onto_opt(&self, inp: Arc<PObj>) -> Arc<POpt>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -192,14 +191,14 @@ where
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
     /// let opt = sp.sample_opt(Some(&mut rng), std::process::id(), info.clone());
-    /// let obj = sp.onto_obj(&opt);
+    /// let obj = sp.onto_obj(opt.clone());
     ///
     /// for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
     ///     println!("Opt: {} => Obj: {}", i, o);
     /// }
     ///
     /// ```
-    fn onto_obj(&self, inp: &POpt) -> PObj;
+    fn onto_obj(&self, inp: Arc<POpt>) -> Arc<PObj>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -236,7 +235,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> PObj;
+    fn sample_obj(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<PObj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -273,7 +272,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> POpt;
+    fn sample_opt(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<POpt>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -303,7 +302,7 @@ where
     ///
     /// let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
     ///
-    /// sp.is_in_obj(&obj);
+    /// sp.is_in_obj(obj.clone());
     ///
     /// ```
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
@@ -338,7 +337,7 @@ where
     ///
     /// let opt = sp.sample_opt(Some(&mut rng), std::process::id(), info.clone());
     ///
-    /// sp.is_in_opt(&opt);
+    /// sp.is_in_opt(opt.clone());
     ///
     /// ```
     fn is_in_opt<S>(&self, inp: Arc<S>) -> bool
@@ -374,9 +373,9 @@ where
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
     /// let vec_obj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
-    /// let vec_opt = sp.vec_onto_opt(&vec_obj); // Map obj => opt
+    /// let vec_opt = sp.vec_onto_opt(vec_obj.clone()); // Map obj => opt
     ///
-    /// for (obj,opt) in vec_obj.iter().zip(vec_opt){
+    /// for (obj,opt) in vec_obj.iter().zip(vec_opt.clone().iter()){
     ///     println!("[");
     ///     for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
     ///         println!("Obj: {} => Opt: {}", i, o);
@@ -385,7 +384,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_obj(&self, inp: &[POpt]) -> Vec<PObj>;
+    fn vec_onto_obj(&self, inp: ArcVecArc<POpt>) -> ArcVecArc<PObj>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -416,9 +415,9 @@ where
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
     /// let vec_opt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
-    /// let vec_obj = sp.vec_onto_obj(&vec_opt);
+    /// let vec_obj = sp.vec_onto_obj(vec_opt.clone());
     ///
-    /// for (opt,obj) in vec_opt.iter().zip(vec_obj){
+    /// for (opt,obj) in vec_opt.iter().zip(vec_obj.clone().iter()){
     ///     println!("[");
     ///     for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
     ///         println!("Opt: {} => Obj: {}", i, o);
@@ -427,7 +426,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_opt(&self, inp: &[PObj]) -> Vec<POpt>;
+    fn vec_onto_opt(&self, inp: ArcVecArc<PObj>) -> ArcVecArc<POpt>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -451,7 +450,8 @@ where
     /// #    }
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use std::fmt::Debug;
+    /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -459,12 +459,8 @@ where
     ///
     /// let vec_obj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
     ///
-    /// for obj in vec_obj{
-    ///     println!("[");
-    ///     for i in obj.get_x().iter(){
-    ///         println!("Obj: {}", i);
-    ///     }
-    ///     println!("]\n");
+    /// for obj in vec_obj.clone().iter(){
+    ///     println!("Obj: {:?}", obj.get_x());
     /// }
     ///
     /// ```
@@ -475,7 +471,7 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PObj>;
+    ) -> ArcVecArc<PObj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -505,12 +501,8 @@ where
     ///
     /// let vec_opt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
     ///
-    /// for opt in vec_opt{
-    ///     println!("[");
-    ///     for i in opt.get_x().iter(){
-    ///         println!("Opt: {}", i);
-    ///     }
-    ///     println!("]\n");
+    /// for obj in vec_opt.clone().iter(){
+    ///     println!("Obj: {:?}", obj.get_x());
     /// }
     ///
     /// ```
@@ -520,7 +512,7 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<POpt>;
+    ) -> ArcVecArc<POpt>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -550,7 +542,7 @@ where
     ///
     /// let vobj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
     ///
-    /// sp.vec_is_in_obj(&vobj);
+    /// sp.vec_is_in_obj(vobj.clone());
     ///
     /// ```
     fn vec_is_in_obj<S>(&self, inp: ArcVecArc<S>) -> bool
@@ -585,7 +577,7 @@ where
     ///
     /// let vopt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
     ///
-    /// sp.vec_is_in_opt(&vopt);
+    /// sp.vec_is_in_opt(vopt.clone());
     ///
     /// ```
     fn vec_is_in_opt<S>(&self, inp: ArcVecArc<S>) -> bool

@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tantale = { path = "../", features=["par"]}
-tantale_core = { path = "../core", features=["par"]}
+tantale = { path = "../"}
+tantale_core = { path = "../core"}
 tantale_macros = { path = "../macros"}
 num = "0.4.3"
 paste = "1.0.15"

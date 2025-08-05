@@ -36,7 +36,7 @@ where
     /// Initialize the [`Searchspace`].
     fn init(&mut self){}
 
-    fn onto_obj(&self, inp: &PartialSol<Opt, SInfo>) -> PartialSol<Obj, SInfo> {
+    fn onto_obj(&self, inp: Arc<PartialSol<Opt, SInfo>>) -> Arc<PartialSol<Obj, SInfo>> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = inp
             .x
@@ -44,10 +44,10 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_obj(i).unwrap())
             .collect();
-        inp.twin(outx)
+        Arc::new(inp.twin(outx))
     }
 
-    fn onto_opt(&self, inp: &PartialSol<Obj, SInfo>) -> PartialSol<Opt, SInfo> {
+    fn onto_opt(&self, inp: Arc<PartialSol<Obj, SInfo>>) -> Arc<PartialSol<Opt, SInfo>> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = inp
             .x
@@ -55,33 +55,33 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_opt(i).unwrap())
             .collect();
-        inp.twin(outx)
+        Arc::new(inp.twin(outx))
     }
 
     /// [`None`] should be used for `_rng`.
-    fn sample_obj(&self, _rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> PartialSol<Obj, SInfo> {
+    fn sample_obj(&self, _rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<PartialSol<Obj, SInfo>> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
             .collect();
-        PartialSol::<Obj, SInfo>::new(pid, outx, info)
+        Arc::new(PartialSol::<Obj, SInfo>::new(pid, outx, info))
     }
 
     /// [`None`] should be used for `_rng`.
-    fn sample_opt(&self, _rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> PartialSol<Opt, SInfo> {
+    fn sample_opt(&self, _rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<PartialSol<Opt, SInfo>> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
             .collect();
-        PartialSol::<Opt, SInfo>::new(pid, outx, info)
+        Arc::new(PartialSol::<Opt, SInfo>::new(pid, outx, info))
     }
 
-    fn vec_onto_obj(&self, inp: &[PartialSol<Opt, SInfo>]) -> Vec<PartialSol<Obj, SInfo>> {
-        inp.par_iter().map(|sol| self.onto_obj(sol)).collect()
+    fn vec_onto_obj(&self, inp: ArcVecArc<PartialSol<Opt, SInfo>>) -> ArcVecArc<PartialSol<Obj, SInfo>> {
+        Arc::new(inp.par_iter().map(|sol| self.onto_obj(sol.clone())).collect())
     }
 
-    fn vec_onto_opt(&self, inp: &[PartialSol<Obj, SInfo>]) -> Vec<PartialSol<Opt, SInfo>> {
-        inp.par_iter().map(|sol| self.onto_opt(sol)).collect()
+    fn vec_onto_opt(&self, inp: ArcVecArc<PartialSol<Obj, SInfo>>) -> ArcVecArc<PartialSol<Opt, SInfo>> {
+        Arc::new(inp.par_iter().map(|sol| self.onto_opt(sol.clone())).collect())
     }
 
     /// [`None`] should be used for `_rng`.
@@ -91,11 +91,11 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PartialSol<Obj, SInfo>> {
-        (0..size)
+    ) -> ArcVecArc<PartialSol<Obj, SInfo>> {
+        Arc::new((0..size)
             .into_par_iter()
             .map(|_| self.sample_obj(None,pid, info.clone()))
-            .collect()
+            .collect())
     }
 
     /// [`None`] should be used for `_rng`.
@@ -105,11 +105,11 @@ where
         pid: u32,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PartialSol<Opt, SInfo>> {
-        (0..size)
+    ) -> ArcVecArc<PartialSol<Opt, SInfo>> {
+        Arc::new((0..size)
             .into_par_iter()
             .map(|_| self.sample_opt(None, pid, info.clone()))
-            .collect()
+            .collect())
     }
 
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
