@@ -4,7 +4,7 @@ mod test {
         use std::sync::Arc;
         use tantale::core::{
             uniform_cat, uniform_nat, uniform_real, Bool, Cat, EmptyInfo, Nat, Real, Searchspace,
-            Solution,
+            Solution,SId,PartialSol
         };
         use tantale::macros::sp;
 
@@ -21,10 +21,10 @@ mod test {
         let sp = get_searchspace();
         let info = std::sync::Arc::new(EmptyInfo {});
 
-        let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
-        let opt = sp.onto_opt(obj.clone()); // Map obj => opt
+        let obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng), info.clone());
+        let opt : Arc<PartialSol<SId,_,_>> = sp.onto_opt(obj.clone()); // Map obj => opt
                                      // Paired solutions have the same ID
-        println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
+        println!("Obj ID : {} <=> Opt ID : {}", obj.id.id, opt.id.id);
 
         use tantale::macros::Outcome;
 

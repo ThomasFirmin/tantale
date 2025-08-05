@@ -4,17 +4,18 @@ use crate::{
     optimizer::{OptInfo, Optimizer,ArcVecArc},
     saver::Saver,
     searchspace::Searchspace,
-    solution::{Computed, Partial, SolInfo},
+    solution::{Computed, Partial, SolInfo, Id},
 };
 use csv::Writer;
 use std::{
+    sync::Arc,
     fmt::{Debug, Display},
     fs::{create_dir, create_dir_all},
     path::{Path, PathBuf},
     thread,
 };
 use serde::{Serialize,Deserialize};
-use rayon;
+use rayon::prelude::*;
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
 ///
@@ -37,7 +38,9 @@ pub struct CSVSaver {
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
     path_check: Option<PathBuf>,
-    _header_init: bool,
+    _header_init_partial: bool,
+    _header_init_codom: bool,
+    _header_init_out: bool,
 }
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
@@ -105,27 +108,31 @@ impl CSVSaver {
                 path_codom,
                 path_out,
                 path_check,
-                _header_init: false,
+                _header_init_partial: false,
+                _header_init_codom: false,
+                _header_init_out: false,
             }
         }
     }
 }
 
-impl<'de, Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
-    Saver<Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> for CSVSaver
+impl<'de, SolId, Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
+    Saver<SolId, Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> for CSVSaver
 where
-    Optim: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> + Serialize + Deserialize<'de>,
-    PObj: Partial<Obj, SInfo>,
-    CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
-    POpt: Partial<Opt, SInfo>,
-    COpt: Computed<POpt, Opt, SInfo, Cod, Out>,
+    Optim: Optimizer<SolId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> + Serialize + Deserialize<'de>,
+    PObj: Partial<SolId, Obj, SInfo> + Send + Sync + CSVWritable<PObj>,
+    CObj: Computed<PObj, SolId, Obj, SInfo, Cod, Out>,
+    POpt: Partial<SolId, Opt, SInfo> + Send + Sync + CSVWritable<()>,
+    COpt: Computed<POpt, SolId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
-    SInfo: SolInfo + CSVWritable<SInfo>,
+    SInfo: SolInfo + CSVWritable<()>,
     Cod: Codomain<Out>,
-    Out: Outcome,
-    Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
-    Info: OptInfo + CSVWritable<Info>,
+    Cod::TypeCodom: CSVWritable<()>,
+    Out: Outcome + CSVWritable<()>,
+    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo> + CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> + Send + Sync,
+    Info: OptInfo + CSVWritable<()> + Send + Sync,
+    SolId: Id + PartialEq + Copy + Clone,
 {
     fn init(&self) {
         create_dir_all(self.path.as_path()).unwrap();
@@ -147,17 +154,40 @@ where
         Writer::from_path(self.path_codom.as_path()).unwrap();
     }
     
-    fn save_partial(&self, obj: ArcVecArc<PObj>, opt: ArcVecArc<POpt>, sp: &Scp, info: &Info) {
+    fn save_partial(&self, obj: ArcVecArc<PObj>, opt: ArcVecArc<POpt>, sp: Arc<Scp>, info: Arc<Info>) {
         if self.save_obj{
-            
+            let sol: Vec<Vec<String>> = obj.par_iter().map(
+                |op|
+                {   
+                    let id = op.get_id();
+                    let sinfo = op.get_info();
+                    let mut pstr = sp.write_left(&op.get_x().clone());
+                    pstr.extend(sinfo.write(&()));
+                    pstr.extend(info.write(&()));
+                    pstr
+                }
+            ).collect();
+        }
+        if self.save_opt{
+            let sol: Vec<Vec<String>> = opt.par_iter().map(
+                |op|
+                {   
+                    let id = op.get_id();
+                    let sinfo = op.get_info();
+                    let mut pstr = sp.write_right(&op.get_x().clone());
+                    pstr.extend(sinfo.write(&()));
+                    pstr.extend(info.write(&()));
+                    pstr
+                }
+            ).collect();
         }
     }
     
-    fn save_codom(&self, obj: ArcVecArc<CObj>, sp: &Scp, info: &Info) {
+    fn save_codom(&self, obj: ArcVecArc<CObj>, sp: Arc<Scp>, info: Arc<Info>) {
         todo!()
     }
     
-    fn save_out(&self, id: (u32, usize), out: Out, sp: &Scp, info: &Info) {
+    fn save_out(&self, id: (u32, usize), out: Out, sp: Arc<Scp>, info: Arc<Info>) {
         todo!()
     }
     

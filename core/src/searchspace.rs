@@ -11,7 +11,7 @@
 //! ```
 //!     use tantale::core::{uniform_cat, uniform_nat, uniform_real,
 //!                         Bool, Cat, Nat, Real, Searchspace,
-//!                         EmptyInfo, Solution};
+//!                         EmptyInfo, Solution, SId};
 //!     use tantale::macros::sp;
 //!     use std::sync::Arc;
 //!
@@ -28,10 +28,12 @@
 //!     let sp = get_searchspace();
 //!     let info = std::sync::Arc::new(EmptyInfo{});
 //!
-//!     let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
+//!     let obj = sp.sample_obj(Some(&mut rng), info.clone());
 //!     let opt = sp.onto_opt(obj.clone()); // Map obj => opt
 //!     // Paired solutions have the same ID
-//!     println!("Obj ID : {} <=> Opt ID : {}", obj.id.0, opt.id.0);
+//!     let id1 : SId = obj.get_id();
+//!     let id2 : SId = opt.get_id();
+//!     println!("Obj ID : {} <=> Opt ID : {}", id1.id, id2.id);
 //!
 //!     use tantale::macros::Outcome;
 //!
@@ -77,7 +79,7 @@
 //!
 //!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!     #[derive(Outcome)]
-//!     pub struct OutStruct{out:f64}
+//!     pub struct OutStruct{pub out:f64}
 //!
 //!     objective!(
 //!         pub fn example() -> OutStruct {
@@ -92,19 +94,20 @@
 //!     );
 //! }
 //!
-//! use tantale_core::{EmptyInfo,Searchspace,Solution};
+//! use tantale::core::{EmptyInfo,Searchspace,Solution,SId};
 //! let sp = searchspace::get_searchspace();
 //! let info = std::sync::Arc::new(EmptyInfo{});
 //! let mut rng = rand::rng();
 //!
-//! let sample = sp.sample_obj(Some(&mut rng), std::process::id(),info);
-//! searchspace::example(sample.get_x());
-//!
+//! let sample = sp.sample_obj(Some(&mut rng),info);
+//! let id1: SId = sample.get_id();
+//! let out = searchspace::example(sample.get_x());
+//! println!("ID : {} -- Out {}",id1.id,out.out);
 //! ```
 
 use crate::{
     domain::Domain,
-    solution::{Partial, SolInfo, Solution},
+    solution::{Partial, SolInfo, Solution,Id},
     optimizer::ArcVecArc,
 };
 
@@ -113,13 +116,14 @@ use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<PObj, POpt, Obj, Opt, SInfo>
+pub trait Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>
 where
     SInfo: SolInfo,
     Obj: Domain + Clone + Display + Debug,
-    PObj: Partial<Obj, SInfo>,
+    PObj: Partial<SolId, Obj, SInfo>,
     Opt: Domain + Clone + Display + Debug,
-    POpt: Partial<Opt, SInfo>,
+    POpt: Partial<SolId, Opt, SInfo>,
+    SolId: Id + PartialEq + Clone + Copy,
 {
     /// Initialize the [`Searchspace`].
     fn init(&mut self);
@@ -145,15 +149,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
-    /// let opt = sp.onto_opt(obj.clone()); // Map obj => opt
+    /// let obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng), info.clone());
+    /// let opt : Arc<PartialSol<SId,_,_>> = sp.onto_opt(obj.clone()); // Map obj => opt
     ///
     /// for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
     ///     println!("Obj: {} => Opt: {}", i, o);
@@ -183,15 +188,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let opt = sp.sample_opt(Some(&mut rng), std::process::id(), info.clone());
-    /// let obj = sp.onto_obj(opt.clone());
+    /// let opt : Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng), info.clone());
+    /// let obj : Arc<PartialSol<SId,_,_>> = sp.onto_obj(opt.clone());
     ///
     /// for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
     ///     println!("Opt: {} => Obj: {}", i, o);
@@ -221,21 +227,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
+    /// let obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng), info.clone());
     ///
     /// for i in obj.get_x().iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<PObj>;
+    fn sample_obj(&self, rng:Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<PObj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -245,7 +252,7 @@ where
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
-    /// #                            Bool, Cat, Nat, Real, Searchspace};
+    /// #                            Bool, Cat, Nat, Real, Searchspace, SId};
     /// #        use tantale::macros::sp;
     /// #
     /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
@@ -258,21 +265,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let opt = sp.sample_opt(Some(&mut rng), std::process::id(), info.clone());
+    /// let opt : Arc<PartialSol<SId,_,_>>= sp.sample_opt(Some(&mut rng), info.clone());
     ///
     /// for i in opt.get_x().iter(){
     ///     println!("{}", i);
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng:Option<&mut ThreadRng>, pid: u32, info: Arc<SInfo>) -> Arc<POpt>;
+    fn sample_opt(&self, rng:Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<POpt>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -293,21 +301,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), std::process::id(), info.clone());
+    /// let obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng), info.clone());
     ///
     /// sp.is_in_obj(obj.clone());
     ///
     /// ```
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
     where
-        S: Solution<Obj, SInfo> + Send + Sync;
+        S: Solution<SolId, Obj, SInfo> + Send + Sync;
     /// Check if a given `Opt` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -328,21 +337,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let opt = sp.sample_opt(Some(&mut rng), std::process::id(), info.clone());
+    /// let opt : Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng), info.clone());
     ///
     /// sp.is_in_opt(opt.clone());
     ///
     /// ```
     fn is_in_opt<S>(&self, inp: Arc<S>) -> bool
     where
-        S: Solution<Opt, SInfo> + Send + Sync;
+        S: Solution<SolId, Opt, SInfo> + Send + Sync;
     /// Maps a [`Vec`] of [`Solution`] of type `Obj` onto a [`Vec`] [`Solution`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -365,15 +375,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_obj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
-    /// let vec_opt = sp.vec_onto_opt(vec_obj.clone()); // Map obj => opt
+    /// let vec_obj : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_opt : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_onto_opt(vec_obj.clone()); // Map obj => opt
     ///
     /// for (obj,opt) in vec_obj.iter().zip(vec_opt.clone().iter()){
     ///     println!("[");
@@ -407,15 +418,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_opt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
-    /// let vec_obj = sp.vec_onto_obj(vec_opt.clone());
+    /// let vec_opt : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_onto_obj(vec_opt.clone());
     ///
     /// for (opt,obj) in vec_opt.iter().zip(vec_obj.clone().iter()){
     ///     println!("[");
@@ -449,15 +461,15 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    /// use std::fmt::Debug;
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::{fmt::Debug, sync::Arc};
     /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_obj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
+    /// let vec_obj : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
     ///
     /// for obj in vec_obj.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -468,7 +480,6 @@ where
     fn vec_sample_obj(
         &self,
         rng: Option<&mut ThreadRng>,
-        pid: u32,
         size: usize,
         info: Arc<SInfo>,
     ) -> ArcVecArc<PObj>;
@@ -492,14 +503,15 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_opt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
+    /// let vec_opt : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
     ///
     /// for obj in vec_opt.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -509,7 +521,6 @@ where
     fn vec_sample_opt(
         &self,
         rng: Option<&mut ThreadRng>,
-        pid: u32,
         size: usize,
         info: Arc<SInfo>,
     ) -> ArcVecArc<POpt>;
@@ -533,21 +544,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vobj = sp.vec_sample_obj(Some(&mut rng), std::process::id(), 10, info.clone());
+    /// let vobj : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
     ///
     /// sp.vec_is_in_obj(vobj.clone());
     ///
     /// ```
     fn vec_is_in_obj<S>(&self, inp: ArcVecArc<S>) -> bool
     where
-        S: Solution<Obj, SInfo> + Send + Sync;
+        S: Solution<SolId, Obj, SInfo> + Send + Sync;
     /// Check if all [`Solution`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -568,21 +580,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo};
-    ///
+    /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
+    /// use std::sync::Arc;
+    /// 
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
+    /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vopt = sp.vec_sample_opt(Some(&mut rng), std::process::id(), 10, info.clone());
+    /// let vopt : ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
     ///
     /// sp.vec_is_in_opt(vopt.clone());
     ///
     /// ```
     fn vec_is_in_opt<S>(&self, inp: ArcVecArc<S>) -> bool
     where
-        S: Solution<Opt, SInfo> + Send + Sync;
+        S: Solution<SolId, Opt, SInfo> + Send + Sync;
 }
 
 pub mod spbase;

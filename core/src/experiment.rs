@@ -6,7 +6,7 @@ use crate::{
     optimizer::{OptInfo, Optimizer},
     saver::Saver,
     searchspace::Searchspace,
-    solution::{Computed, Partial, SolInfo},
+    solution::{Computed, Partial, SolInfo, Id, SId},
     stop::Stop,
 };
 
@@ -20,6 +20,7 @@ pub enum Parallel {
 }
 
 pub fn initialize<
+    SolId,
     Scp,
     Ob,
     Op,
@@ -44,21 +45,22 @@ pub fn initialize<
     stop: &mut St,
     saver: &mut Sv,
 ) where
-    Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
+    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    PObj: Partial<Obj, SInfo>,
-    POpt: Partial<Opt, SInfo>,
-    CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
-    COpt: Computed<POpt, Opt, SInfo, Cod, Out>,
+    Op: Optimizer<SolId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    St: Stop<SolId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Sv: Saver<SolId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    PObj: Partial<SolId, Obj, SInfo>,
+    POpt: Partial<SolId, Opt, SInfo>,
+    CObj: Computed<PObj, SolId, Obj, SInfo, Cod, Out>,
+    COpt: Computed<POpt, SolId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
     Cod: Codomain<Out>,
     Info: OptInfo,
     SInfo: SolInfo,
+    SolId: Id + PartialEq + Clone + Copy,
 {
     searchspace.init();
     optimizer.init();
@@ -74,15 +76,15 @@ pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, CObj, COpt, Obj, Opt, Out, Cod, Info
     mut stop: St,
     mut saver: Sv,
 ) where
-    Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
+    Scp: Searchspace<SId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    PObj: Partial<Obj, SInfo>,
-    POpt: Partial<Opt, SInfo>,
-    CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
-    COpt: Computed<POpt, Opt, SInfo, Cod, Out>,
+    Op: Optimizer<SId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    St: Stop<SId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Sv: Saver<SId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    PObj: Partial<SId, Obj, SInfo>,
+    POpt: Partial<SId, Opt, SInfo>,
+    CObj: Computed<PObj, SId, Obj, SInfo, Cod, Out>,
+    COpt: Computed<POpt, SId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,

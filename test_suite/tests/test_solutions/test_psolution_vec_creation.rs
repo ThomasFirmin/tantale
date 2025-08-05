@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Partial, PartialSol, Solution};
+use tantale::core::{Partial, PartialSol, Solution,ParSId};
 use tantale_core::domain::TypeDom;
 
 use std::collections::HashSet;
@@ -8,7 +8,7 @@ use std::process;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(n: usize, sol: &[PartialSol<Dom, TestSInfo>], pid: u32)
+fn _test_solution_assertion<Dom>(n: usize, sol: &[PartialSol<ParSId,Dom, TestSInfo>], pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
@@ -19,7 +19,7 @@ where
             std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
             "Solution `x` mismatch."
         );
-        assert_eq!(s.get_id().0, pid, "Solution `pid` mismatch.");
+        assert_eq!(s.get_id().pid, pid, "Solution `pid` mismatch.");
         assert_eq!(
             s.get_info().info,
             42.0,
@@ -36,9 +36,9 @@ macro_rules! get_default_vec {
             let sinfo = std::sync::Arc::new(get_sinfo());
             let mut idsol = Vec::new();
             $(
-                let v = PartialSol::<$dom,TestSInfo>::new_default_vec($size,$pid,sinfo.clone(),7);
+                let v = PartialSol::<ParSId,$dom,TestSInfo>::new_default_vec($size,sinfo.clone(),7);
                 _test_solution_assertion($size,&v, $pid);
-                v.iter().for_each(|x| idsol.push(x.id.1));
+                v.iter().for_each(|x| idsol.push(x.id.id));
             )*
             let mut unique = HashSet::new();
             idsol.iter().all(|x| unique.insert(x));

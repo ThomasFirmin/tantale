@@ -3,23 +3,24 @@ use crate::{
     objective::{Codomain, Outcome},
     optimizer::{OptInfo, Optimizer},
     searchspace::Searchspace,
-    solution::{Computed, Partial, SolInfo},
+    solution::{Computed, Partial, SolInfo,Id},
 };
 use std::fmt::{Debug, Display};
-pub trait Stop<Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
+pub trait Stop<SolId, Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
 where
-    Optim: Optimizer<PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    PObj: Partial<Obj, SInfo>,
-    CObj: Computed<PObj, Obj, SInfo, Cod, Out>,
-    POpt: Partial<Opt, SInfo>,
-    COpt: Computed<POpt, Opt, SInfo, Cod, Out>,
+    Optim: Optimizer<SolId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    PObj: Partial<SolId, Obj, SInfo>,
+    CObj: Computed<PObj,SolId, Obj, SInfo, Cod, Out>,
+    POpt: Partial<SolId, Opt, SInfo>,
+    COpt: Computed<POpt,SolId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<PObj, POpt, Obj, Opt, SInfo>,
+    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
+    SolId: Id + PartialEq + Clone+Copy,
 {
     fn init(&mut self);
     fn stop(&self) -> bool;

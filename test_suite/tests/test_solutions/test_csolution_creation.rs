@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{Codomain, Computed, ComputedSol, Partial, PartialSol, SingleCodomain};
+use tantale::core::{Codomain, Computed, ComputedSol, Partial, PartialSol, SingleCodomain,ParSId};
 use tantale_core::Solution;
 
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ use super::init_sinfo::{get_sinfo, TestSInfo};
 
 fn _test_solution_assertion<Dom>(
     n: usize,
-    sol: &ComputedSol<Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>,
+    sol: &ComputedSol<ParSId,Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>,
     pid: u32,
 ) where
     Dom: Domain + Clone + Display + Debug,
@@ -28,7 +28,7 @@ fn _test_solution_assertion<Dom>(
         42.0,
         "Wrong solution info from TestSInfo."
     );
-    assert_eq!(sol.get_id().0, pid, "Solution PID mismatch.");
+    assert_eq!(sol.get_id().pid, pid, "Solution PID mismatch.");
 }
 
 // BOTH DOMAINS ARE DEFINED
@@ -42,10 +42,10 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = PartialSol::<$dom,TestSInfo>::new_default($size,$pid,sinfo.clone());
-                let sol = ComputedSol::<_,SingleCodomain<OutExample>,_,_>::new(psol,y.clone());
+                let psol = PartialSol::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
+                let sol = ComputedSol::<ParSId,_,SingleCodomain<OutExample>,_,_>::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
-                idsol.push(sol.get_id().1);
+                idsol.push(sol.get_id().id);
             )*
             let mut unique = HashSet::new();
             idsol.iter().all(|x| unique.insert(x));

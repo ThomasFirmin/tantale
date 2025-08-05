@@ -13,7 +13,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{Computed, ComputedSol, Partial, PartialSol, SolInfo, Solution};
+pub use solution::{Computed, ComputedSol, Partial, PartialSol, SolInfo, Solution,Id,SId,ParSId};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};
@@ -28,7 +28,7 @@ pub use crate::objective::{
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer};
+pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer, ArcVecArc};
 
 pub mod stop;
 pub use stop::Stop;

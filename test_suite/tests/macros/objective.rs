@@ -1,10 +1,9 @@
 #[test]
 fn obj_test() {
     mod searchspace {
-        use tantale_core::domain::sampler::{uniform_int, uniform_real};
-        use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale_core::Outcome;
-
+        use tantale::core::domain::sampler::{uniform_int, uniform_real};
+        use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
+        use tantale::core::Outcome;
         use tantale_macros::objective;
 
         pub struct OutExample {
@@ -69,13 +68,14 @@ fn obj_test() {
         );
     }
 
-    use tantale_core::{EmptyInfo, Searchspace, Solution};
+    use tantale::core::{EmptyInfo, Searchspace, Solution, PartialSol,SId};
+    use std::sync::Arc;
     let sp = searchspace::get_searchspace();
     let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
     let rng = Some(&mut rng);
 
-    let sample = sp.sample_obj(rng, std::process::id(), info);
+    let sample: Arc<PartialSol<SId,_,_>> = sp.sample_obj(rng, info);
     searchspace::example(sample.get_x());
 }

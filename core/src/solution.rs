@@ -28,28 +28,34 @@ use crate::domain::{Domain, TypeDom};
 use std::{
     fmt::{Debug, Display},
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicUsize},
         Arc,
     },
 };
 
-static SOL_ID: AtomicUsize = AtomicUsize::new(0);
+pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
+
+/// Describes the [`Id`] of a [`Solution`]
+pub trait Id{
+    fn generate()->Self;
+}
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
 pub trait SolInfo {}
 
 /// An abstract [`Solution`] made of at least a [`Domain`] and a [`SolInfo`].
-pub trait Solution<Dom, Info>
+pub trait Solution<SolId, Dom, Info>
 where
     Self: Sized,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
+    SolId: Id + PartialEq,
 {
     /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
     /// This `id` can be shared with a twin [`Solution`].
-    fn get_id(&self) -> (u32, usize);
+    fn get_id(&self) -> SolId;
 
     /// Returns the actual sampled point from the set of [`Domains`](Domain).
     fn get_x(&self) -> Arc<[TypeDom<Dom>]>;
@@ -57,21 +63,15 @@ where
     /// Returns the [`SolInfo`] bounded to this [`Solution`].
     fn get_info(&self) -> Arc<Info>;
 
-    #[doc(hidden)]
-    fn _get_new_id() -> usize {
-        SOL_ID.fetch_add(1, Ordering::Relaxed)
-    }
     /// Checks if two [`Solutions`](Solution) are twins.
     /// Twins [`Solutions`](Solution) share equal ids.
     fn is_twin<Twin, B>(&self, solb: Twin) -> bool
     where
         B: Domain + Clone + Display + Debug,
         TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Twin: Solution<B, Info>,
+        Twin: Solution<SolId, B, Info>,
     {
-        let ida = self.get_id();
-        let idb = solb.get_id();
-        (ida.0 == idb.0) && (ida.1 == idb.1)
+        self.get_id() == solb.get_id()
     }
 }
 
@@ -80,3 +80,6 @@ pub use partial::{Partial, PartialSol};
 
 pub mod computed;
 pub use computed::{Computed, ComputedSol};
+
+pub mod id;
+pub use id::{SId,ParSId};
