@@ -1,5 +1,12 @@
-use crate::{saver::CSVWritable, solution::{Id, SOL_ID}};
-use std::sync::atomic::Ordering;
+use crate::{saver::CSVWritable};
+use std::sync::atomic::{AtomicUsize,Ordering};
+
+pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
+
+/// Describes the [`Id`] of a [`Solution`]
+pub trait Id{
+    fn generate()->Self;
+}
 
 #[cfg(feature = "mpi")]
 /// The [`Id`] of a [`Solution`] made of the `pid` of the process

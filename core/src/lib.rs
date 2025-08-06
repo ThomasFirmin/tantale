@@ -24,7 +24,7 @@ pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
     FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut, Multi,
-    MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
+    MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,LinkedOutcome,
 };
 
 pub mod optimizer;

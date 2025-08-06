@@ -27,18 +27,8 @@ use crate::domain::{Domain, TypeDom};
 
 use std::{
     fmt::{Debug, Display},
-    sync::{
-        atomic::{AtomicUsize},
-        Arc,
-    },
+    sync::Arc,
 };
-
-pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
-
-/// Describes the [`Id`] of a [`Solution`]
-pub trait Id{
-    fn generate()->Self;
-}
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
@@ -82,4 +72,4 @@ pub mod computed;
 pub use computed::{Computed, ComputedSol};
 
 pub mod id;
-pub use id::{SId,ParSId};
+pub use id::{Id,SId,ParSId};
