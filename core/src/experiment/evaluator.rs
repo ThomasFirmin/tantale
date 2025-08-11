@@ -9,12 +9,31 @@ use crate::{
     solution::{Id, Partial, SolInfo},
     stop::Stop,
 };
-use std::{fmt::{Debug, Display}, sync::Arc};
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 /// An evaluator describes how a batch of [`Partial`] should
 /// be evaluated to get a batch of [`Computed`].
-pub trait Evaluator<Scp, Ob, Op, Os, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, SolId, State>
-where
+pub trait Evaluator<
+    Scp,
+    Ob,
+    Op,
+    Os,
+    St,
+    Sv,
+    PObj,
+    POpt,
+    Obj,
+    Opt,
+    Out,
+    Cod,
+    Info,
+    SInfo,
+    SolId,
+    State,
+> where
     Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
     Op: Optimizer<SolId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
@@ -28,11 +47,11 @@ where
     Info: OptInfo,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
-    State:OptState,
+    State: OptState,
 {
     fn evaluate(
         &self,
-        stop:Arc<St>,
+        stop: Arc<St>,
         objsol: ArcVecArc<POpt>,
         optsol: ArcVecArc<PObj>,
         info: Info,

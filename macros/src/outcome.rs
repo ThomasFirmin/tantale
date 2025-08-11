@@ -54,13 +54,13 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     quote!{
         impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}
 
-        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<(u32,usize)> for #eident #egenerics #ewhere
+        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<()> for #eident #egenerics #ewhere
         {
             fn header(&self)->Vec<String>{
                 Vec::from([#(#to_header_stmts,)*])
             }
 
-            fn write(&self, comp : &(u32,usize))->Vec<String>{
+            fn write(&self, _comp : &())->Vec<String>{
                 Vec::from([#(#to_string_stmts,)*])
             }
         }

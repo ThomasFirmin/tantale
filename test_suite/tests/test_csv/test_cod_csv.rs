@@ -81,28 +81,28 @@ fn test_elemfidelconstmulti_header() {
 #[test]
 fn test_elemsingle_write() {
     let cod = get_elemsingle();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([1.1.to_string()]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
 fn test_elemfidel_write() {
     let cod = get_elemfidel();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
 fn test_elemconst_write() {
     let cod = get_elemconst();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
 fn test_elemfidelconst_write() {
     let cod = get_elemfidelconst();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([
         1.1.to_string(),
         2.2.to_string(),
@@ -114,21 +114,21 @@ fn test_elemfidelconst_write() {
 #[test]
 fn test_elemmulti_write() {
     let cod = get_elemmulti();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
 fn test_elemfidelmulti_write() {
     let cod = get_elemfidelmulti();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
 fn test_elemconstmulti_write() {
     let cod = get_elemconstmulti();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([
         1.1.to_string(),
         2.2.to_string(),
@@ -140,7 +140,7 @@ fn test_elemconstmulti_write() {
 #[test]
 fn test_elemfidelconstmulti_write() {
     let cod = get_elemfidelconstmulti();
-    let head = cod.write(&cod);
+    let head = cod.write(&());
     let str_true = Vec::from([
         1.1.to_string(),
         2.2.to_string(),

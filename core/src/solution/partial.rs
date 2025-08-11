@@ -1,5 +1,5 @@
 use crate::domain::{Domain, TypeDom};
-use crate::{solution::{Id, SolInfo, Solution}};
+use crate::solution::{Id, SolInfo, Solution};
 
 use std::{
     fmt::{Debug, Display},

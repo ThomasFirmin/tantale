@@ -1,7 +1,7 @@
 use crate::{
     domain::Domain,
     objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::{ArcVecArc, OptInfo, OptState, Optimizer},
+    optimizer::{ArcVecArc, OptInfo, OptState},
     saver::Saver,
     searchspace::Searchspace,
     solution::{Computed, Id, Partial, SolInfo, Solution},
@@ -119,7 +119,7 @@ impl<'de, SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
     Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State> for CSVSaver
 where
     State: OptState + Serialize + Deserialize<'de>,
-    St: Stop + CSVWritable<()>,
+    St: Stop + Serialize + Deserialize<'de>,
     PObj: Partial<SolId, Obj, SInfo> + Send + Sync,
     POpt: Partial<SolId, Opt, SInfo> + Send + Sync,
     Obj: Domain + Clone + Display + Debug + Send + Sync,

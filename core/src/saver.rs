@@ -27,7 +27,7 @@ where
     Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
     SolId: Id + PartialEq + Clone + Copy,
-    State:OptState,
+    State: OptState,
 {
     fn init(&mut self);
     fn save_partial(

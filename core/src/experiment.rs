@@ -57,7 +57,7 @@ pub fn initialize<
     Info: OptInfo,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
-    State:OptState
+    State: OptState,
 {
     searchspace.init();
     optimizer.init();
@@ -86,7 +86,7 @@ pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, Sta
     Cod: Codomain<Out>,
     Info: OptInfo,
     SInfo: SolInfo,
-    State:OptState,
+    State: OptState,
 {
     // initialize(&mut searchspace, &mut objective, &mut optimizer, &mut stop, &mut saver);
 

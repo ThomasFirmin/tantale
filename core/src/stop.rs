@@ -5,11 +5,10 @@ pub enum ExpStep {
     Never,
 }
 
-pub trait Stop
-{
+pub trait Stop {
     fn init(&mut self);
     fn stop(&self) -> bool;
-    fn update(&mut self, step:ExpStep);
+    fn update(&mut self, step: ExpStep);
 }
 
 pub mod calls;

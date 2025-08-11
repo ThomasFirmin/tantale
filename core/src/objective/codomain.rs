@@ -220,13 +220,13 @@ pub struct ElemSingleCodomain {
     pub value: f64,
 }
 
-impl CSVWritable<ElemSingleCodomain> for ElemSingleCodomain {
+impl CSVWritable<()> for ElemSingleCodomain {
     fn header(&self) -> Vec<String> {
         Vec::from([String::from("y")])
     }
 
-    fn write(&self, comp: &ElemSingleCodomain) -> Vec<String> {
-        Vec::from([comp.value.to_string()])
+    fn write(&self, __comp: &()) -> Vec<String> {
+        Vec::from([self.value.to_string()])
     }
 }
 
@@ -267,13 +267,13 @@ pub struct ElemFidelCodomain {
     pub fidelity: f64,
 }
 
-impl CSVWritable<ElemFidelCodomain> for ElemFidelCodomain {
+impl CSVWritable<()> for ElemFidelCodomain {
     fn header(&self) -> Vec<String> {
         Vec::from([String::from("y"), String::from("fidelity")])
     }
 
-    fn write(&self, comp: &ElemFidelCodomain) -> Vec<String> {
-        Vec::from([comp.value.to_string(), comp.fidelity.to_string()])
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([self.value.to_string(), self.fidelity.to_string()])
     }
 }
 
@@ -320,7 +320,7 @@ pub struct ElemConstCodomain {
     pub constraints: Box<[f64]>,
 }
 
-impl CSVWritable<ElemConstCodomain> for ElemConstCodomain {
+impl CSVWritable<()> for ElemConstCodomain {
     fn header(&self) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(
@@ -332,9 +332,9 @@ impl CSVWritable<ElemConstCodomain> for ElemConstCodomain {
         v
     }
 
-    fn write(&self, comp: &ElemConstCodomain) -> Vec<String> {
-        let mut v = Vec::from([comp.value.to_string()]);
-        v.extend(comp.constraints.iter().map(|c| c.to_string()));
+    fn write(&self, _comp: &()) -> Vec<String> {
+        let mut v = Vec::from([self.value.to_string()]);
+        v.extend(self.constraints.iter().map(|c| c.to_string()));
         v
     }
 }
@@ -385,7 +385,7 @@ pub struct ElemFidelConstCodomain {
     pub constraints: Box<[f64]>,
 }
 
-impl CSVWritable<ElemFidelConstCodomain> for ElemFidelConstCodomain {
+impl CSVWritable<()> for ElemFidelConstCodomain {
     fn header(&self) -> Vec<String> {
         let mut v = Vec::from([String::from("y"), String::from("fidelity")]);
         v.extend(
@@ -397,9 +397,9 @@ impl CSVWritable<ElemFidelConstCodomain> for ElemFidelConstCodomain {
         v
     }
 
-    fn write(&self, comp: &ElemFidelConstCodomain) -> Vec<String> {
-        let mut v = Vec::from([comp.value.to_string(), comp.fidelity.to_string()]);
-        v.extend(comp.constraints.iter().map(|c| c.to_string()));
+    fn write(&self, _comp: &()) -> Vec<String> {
+        let mut v = Vec::from([self.value.to_string(), self.fidelity.to_string()]);
+        v.extend(self.constraints.iter().map(|c| c.to_string()));
         v
     }
 }
@@ -450,7 +450,7 @@ pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
 }
 
-impl CSVWritable<ElemMultiCodomain> for ElemMultiCodomain {
+impl CSVWritable<()> for ElemMultiCodomain {
     fn header(&self) -> Vec<String> {
         self.value
             .iter()
@@ -459,8 +459,8 @@ impl CSVWritable<ElemMultiCodomain> for ElemMultiCodomain {
             .collect()
     }
 
-    fn write(&self, comp: &ElemMultiCodomain) -> Vec<String> {
-        comp.value.iter().map(|v| v.to_string()).collect()
+    fn write(&self, _comp: &()) -> Vec<String> {
+        self.value.iter().map(|v| v.to_string()).collect()
     }
 }
 
@@ -501,7 +501,7 @@ pub struct ElemFidelMultiCodomain {
     pub fidelity: f64,
 }
 
-impl CSVWritable<ElemFidelMultiCodomain> for ElemFidelMultiCodomain {
+impl CSVWritable<()> for ElemFidelMultiCodomain {
     fn header(&self) -> Vec<String> {
         let mut v: Vec<String> = self
             .value
@@ -513,9 +513,9 @@ impl CSVWritable<ElemFidelMultiCodomain> for ElemFidelMultiCodomain {
         v
     }
 
-    fn write(&self, comp: &ElemFidelMultiCodomain) -> Vec<String> {
-        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        v.extend([comp.fidelity.to_string()]);
+    fn write(&self, _comp: &()) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
+        v.extend([self.fidelity.to_string()]);
         v
     }
 }
@@ -562,7 +562,7 @@ pub struct ElemConstMultiCodomain {
     pub constraints: Box<[f64]>,
 }
 
-impl CSVWritable<ElemConstMultiCodomain> for ElemConstMultiCodomain {
+impl CSVWritable<()> for ElemConstMultiCodomain {
     fn header(&self) -> Vec<String> {
         let mut v: Vec<String> = self
             .value
@@ -580,9 +580,9 @@ impl CSVWritable<ElemConstMultiCodomain> for ElemConstMultiCodomain {
         v
     }
 
-    fn write(&self, comp: &ElemConstMultiCodomain) -> Vec<String> {
-        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
+    fn write(&self, _comp: &()) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
+        let c: Vec<String> = self.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
     }
@@ -634,7 +634,7 @@ pub struct ElemFidelConstMultiCodomain {
     pub constraints: Box<[f64]>,
 }
 
-impl CSVWritable<ElemFidelConstMultiCodomain> for ElemFidelConstMultiCodomain {
+impl CSVWritable<()> for ElemFidelConstMultiCodomain {
     fn header(&self) -> Vec<String> {
         let mut v: Vec<String> = self
             .value
@@ -653,10 +653,10 @@ impl CSVWritable<ElemFidelConstMultiCodomain> for ElemFidelConstMultiCodomain {
         v
     }
 
-    fn write(&self, comp: &ElemFidelConstMultiCodomain) -> Vec<String> {
-        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        v.extend([comp.fidelity.to_string()]);
-        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
+    fn write(&self, _comp: &()) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
+        v.extend([self.fidelity.to_string()]);
+        let c: Vec<String> = self.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
     }

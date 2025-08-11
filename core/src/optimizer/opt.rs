@@ -1,8 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Outcome},
-    searchspace::Searchspace,
-    solution::{Computed, Id, ParSId, Partial, SId, SolInfo},
+    domain::Domain, objective::{Codomain, Outcome}, saver::CSVWritable, searchspace::Searchspace, solution::{Computed, Id, ParSId, Partial, SId, SolInfo}
 };
 use std::{
     fmt::{Debug, Display},
@@ -21,12 +18,21 @@ pub trait OptState {}
 pub struct EmptyInfo {}
 impl SolInfo for EmptyInfo {}
 impl OptInfo for EmptyInfo {}
+impl CSVWritable<()> for EmptyInfo{
+    fn header(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::new()
+    }
+}
 
 pub type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
 
 pub type SolPairs<SolId, A, ADom, B, BDom, Cod, Out, SInfo> = (
     ArcVecArc<Computed<SolId, A, ADom, Cod, Out, SInfo>>,
-    ArcVecArc<Computed<SolId, B, BDom, Cod, Out, SInfo>>
+    ArcVecArc<Computed<SolId, B, BDom, Cod, Out, SInfo>>,
 );
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
@@ -44,7 +50,7 @@ where
     Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
     SolId: Id + PartialEq + Clone + Copy,
-    State:OptState,
+    State: OptState,
 {
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
@@ -78,7 +84,7 @@ where
     Out: Outcome,
     Scp: Searchspace<SId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
-    State:OptState,
+    State: OptState,
 {
 }
 
@@ -95,7 +101,7 @@ where
     Out: Outcome,
     Scp: Searchspace<ParSId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
-    State:OptState,
+    State: OptState,
 {
     fn interact(&self);
     fn update(&self);

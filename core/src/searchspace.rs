@@ -108,7 +108,8 @@
 use crate::{
     domain::Domain,
     optimizer::ArcVecArc,
-    solution::{Id, Partial, SolInfo, Solution, Computed}, Codomain, Outcome,
+    solution::{Computed, Id, Partial, SolInfo, Solution},
+    Codomain, Outcome,
 };
 
 use rand::prelude::ThreadRng;
@@ -604,19 +605,20 @@ where
 
     /// Creates a pair of [`Computed`] [`Solutions`](Solution) of [`Domain`] types `Dom` and `B`
     /// from a pair of [`twin`](Partial::twin) [`Partial`] of types `A` and `B`, and a shared [`Codomain`].
-    fn computed<Cod,Out>(
+    fn computed<Cod, Out>(
         &self,
         xa: Arc<PObj>,
         xb: Arc<POpt>,
         y: Arc<Cod::TypeCodom>,
     ) -> ComputedOut<SolId, PObj, Obj, POpt, Opt, Cod, Out, SInfo>
     where
-        Cod:Codomain<Out>,
-        Out:Outcome,
+        Cod: Codomain<Out>,
+        Out: Outcome,
     {
         (
             Arc::new(Computed::new(xa, y.clone())),
-            Arc::new(Computed::new(xb, y)))
+            Arc::new(Computed::new(xb, y)),
+        )
     }
 }
 
