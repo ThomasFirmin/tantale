@@ -1,2 +1,2 @@
 pub mod opt;
-pub use opt::{EmptyInfo, OptInfo, Optimizer, ArcVecArc};
+pub use opt::{ArcVecArc, EmptyInfo, OptInfo, Optimizer, OptState};

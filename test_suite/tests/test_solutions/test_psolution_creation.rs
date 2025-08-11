@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale_core::solution::{Partial, PartialSol, Solution,ParSId};
+use tantale_core::solution::{ParSId, Partial, PartialSol, Solution};
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};

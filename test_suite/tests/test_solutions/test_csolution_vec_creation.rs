@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Computed, ComputedSol, Partial, PartialSol, Solution, ParSId};
+use tantale::core::{Computed, ParSId, Partial, PartialSol, Solution};
 use tantale_core::domain::TypeDom;
 use tantale_core::{Codomain, SingleCodomain};
 
@@ -10,11 +10,11 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(
-    n: usize,
-    sol: &[ComputedSol<ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>],
-    pid: u32,
-) where
+type SlcArcComp<Dom> =
+    std::sync::Arc<Computed<ParSId, PartialSol::<ParSId,Dom,TestSInfo>, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>>;
+
+fn _test_solution_assertion<Dom>(n: usize, sol: &[SlcArcComp<Dom>], pid: u32)
+where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
 {
@@ -46,7 +46,7 @@ macro_rules! get_default_vec {
                 let y = std::sync::Arc::new(codom.get_elem(&out));
                 let psol = PartialSol::<ParSId,$dom,TestSInfo>::new_default_vec($size,sinfo.clone(),7);
                 let vec_y = vec![y;7];
-                let v = ComputedSol::<ParSId,_,SingleCodomain<OutExample>,_,_>::new_vec(psol,vec_y);
+                let v = Computed::new_vec(psol,vec_y);
                 _test_solution_assertion($size,&v, $pid);
                 v.iter().for_each(|x| idsol.push(x.get_id().id));
             )*

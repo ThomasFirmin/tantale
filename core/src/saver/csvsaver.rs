@@ -1,21 +1,21 @@
 use crate::{
     domain::Domain,
-    objective::{Codomain, Outcome,LinkedOutcome},
-    optimizer::{ArcVecArc, OptInfo, Optimizer},
+    objective::{Codomain, LinkedOutcome, Outcome},
+    optimizer::{ArcVecArc, OptInfo, OptState, Optimizer},
     saver::Saver,
     searchspace::Searchspace,
-    solution::{Computed, Id, Partial, SolInfo},
+    solution::{Computed, Id, Partial, SolInfo, Solution},
     stop::Stop,
 };
 use csv::Writer;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
-    sync::{Arc,Mutex},
     fmt::{Debug, Display},
     fs::{create_dir, create_dir_all},
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
-use serde::{Serialize,Deserialize};
-use rayon::prelude::*;
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
 ///
@@ -115,22 +115,23 @@ impl CSVSaver {
     }
 }
 
-impl<'de, SolId, Optim, St, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>
-    Saver<SolId, Optim, St, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> for CSVSaver
+impl<'de, SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+    Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State> for CSVSaver
 where
-    Optim: Optimizer<SolId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> + Serialize + Deserialize<'de>,
-    St: Stop<SolId, Optim, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info> + CSVWritable<()>,
-    PObj: Partial<SolId, Obj, SInfo> + CSVWritable<PObj> + Send + Sync,
-    CObj: Computed<PObj, SolId, Obj, SInfo, Cod, Out> + Send + Sync,
-    POpt: Partial<SolId, Opt, SInfo> + CSVWritable<()> + Send + Sync,
-    COpt: Computed<POpt, SolId, Opt, SInfo, Cod, Out> + Send + Sync,
+    State: OptState + Serialize + Deserialize<'de>,
+    St: Stop + CSVWritable<()>,
+    PObj: Partial<SolId, Obj, SInfo> + Send + Sync,
+    POpt: Partial<SolId, Opt, SInfo> + Send + Sync,
     Obj: Domain + Clone + Display + Debug + Send + Sync,
     Opt: Domain + Clone + Display + Debug + Send + Sync,
     SInfo: SolInfo + CSVWritable<()> + Send + Sync,
     Cod: Codomain<Out> + Send + Sync,
     Cod::TypeCodom: CSVWritable<()> + Send + Sync,
     Out: Outcome + CSVWritable<()> + Send + Sync,
-    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo> + CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> + Send + Sync,
+    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>
+        + CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     Info: OptInfo + CSVWritable<()> + Send + Sync,
     SolId: Id + PartialEq + Copy + Clone + CSVWritable<()> + Send + Sync,
 {
@@ -153,13 +154,18 @@ where
 
         Writer::from_path(self.path_codom.as_path()).unwrap();
     }
-    
-    fn save_partial(&mut self, obj: ArcVecArc<PObj>, opt: ArcVecArc<POpt>, sp: Arc<Scp>, info: Arc<Info>) {
+
+    fn save_partial(
+        &mut self,
+        obj: ArcVecArc<PObj>,
+        opt: ArcVecArc<POpt>,
+        sp: Arc<Scp>,
+        info: Arc<Info>,
+    ) {
         if let Some(ppobj) = &self.path_pobj {
-            
             let wrt = Arc::new(Mutex::new(Writer::from_path(ppobj.as_path()).unwrap()));
 
-            if !self._header_init_obj{
+            if !self._header_init_obj {
                 let op = &obj[0];
                 let id = op.get_id();
                 let sinfo = op.get_info();
@@ -169,30 +175,28 @@ where
                 idstr.extend(info.header());
                 let mut wrt_local = wrt.lock().unwrap();
                 wrt_local.write_record(idstr).unwrap();
+                wrt_local.flush().unwrap();
                 self._header_init_obj = true;
             }
-            
-            obj.par_iter().for_each(
-                |op|
-                {   
-                    let id = op.get_id();
-                    let sinfo = op.get_info();
-                    let mut idstr = id.write(&());
-                    idstr.extend(sp.write_left(&op.get_x().clone()));
-                    idstr.extend(sinfo.write(&()));
-                    idstr.extend(info.write(&()));
-                    {
-                        let mut wrt_local = wrt.lock().unwrap();
-                        wrt_local.write_record(&idstr).unwrap();
-                        wrt_local.flush().unwrap();
-                    }
+
+            obj.par_iter().for_each(|op| {
+                let id = op.get_id();
+                let sinfo = op.get_info();
+                let mut idstr = id.write(&());
+                idstr.extend(sp.write_left(&op.get_x().clone()));
+                idstr.extend(sinfo.write(&()));
+                idstr.extend(info.write(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
                 }
-            );
+            });
         }
         if let Some(ppopt) = &self.path_popt {
             let wrt = Arc::new(Mutex::new(Writer::from_path(ppopt.as_path()).unwrap()));
 
-            if !self._header_init_opt{
+            if !self._header_init_opt {
                 let op = &opt[0];
                 let id = op.get_id();
                 let sinfo = op.get_info();
@@ -202,69 +206,90 @@ where
                 idstr.extend(info.header());
                 let mut wrt_local = wrt.lock().unwrap();
                 wrt_local.write_record(idstr).unwrap();
+                wrt_local.flush().unwrap();
                 self._header_init_opt = true;
             }
 
-            opt.par_iter().for_each(
-                |op|
-                {   
-                    let id = op.get_id();
-                    let sinfo = op.get_info();
-                    let mut idstr = id.write(&());
-                    idstr.extend(sp.write_right(&op.get_x().clone()));
-                    idstr.extend(sinfo.write(&()));
-                    idstr.extend(info.write(&()));
-                    {
-                        let mut wrt_local = wrt.lock().unwrap();
-                        wrt_local.write_record(&idstr).unwrap();
-                        wrt_local.flush().unwrap();
-                    }
-                }
-            );
-        }
-    }
-    
-    fn save_codom(&mut self, obj: ArcVecArc<CObj>) {
-        let wrt = Arc::new(Mutex::new(Writer::from_path(self.path_codom.as_path()).unwrap()));
-        obj.par_iter().for_each(
-            |op|
-            {   
-                let id = op.get_sol().get_id();
-                let codom = op.get_y();
+            opt.par_iter().for_each(|op| {
+                let id = op.get_id();
+                let sinfo = op.get_info();
                 let mut idstr = id.write(&());
-                idstr.extend(codom.write(&()));
+                idstr.extend(sp.write_right(&op.get_x().clone()));
+                idstr.extend(sinfo.write(&()));
+                idstr.extend(info.write(&()));
                 {
                     let mut wrt_local = wrt.lock().unwrap();
                     wrt_local.write_record(&idstr).unwrap();
                     wrt_local.flush().unwrap();
                 }
-            }
-        );
-    }
-
-    fn save_out(&mut self, out: Vec<LinkedOutcome<Out,PObj,SolId,Obj,SInfo>>) {
-        if let Some(ppout) = &self.path_out {
-            let wrt = Arc::new(Mutex::new(Writer::from_path(ppout.as_path()).unwrap()));
-            out.par_iter().for_each(
-                |o|
-                {   
-                    let id = o.sol.get_id();
-                    let output = &o.out;
-                    let mut idstr = id.write(&());
-                    idstr.extend(output.write(&()));
-                    {
-                        let mut wrt_local = wrt.lock().unwrap();
-                        wrt_local.write_record(&idstr).unwrap();
-                        wrt_local.flush().unwrap();
-                    }
-                }
-            );
+            });
         }
     }
-    
-    fn save_state(&mut self, sp: Arc<Scp>, state: Arc<Optim>, stop:Arc<St>) {
+
+    fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>) {
+        let wrt: Arc<Mutex<Writer<std::fs::File>>> = Arc::new(Mutex::new(
+            Writer::from_path(self.path_codom.as_path()).unwrap(),
+        ));
+        if !self._header_init_codom {
+            let op = &obj[0];
+            let id = op.get_id();
+            let codom = op.get_y();
+            let mut idstr = id.header();
+            idstr.extend(codom.header());
+            {
+                let mut wrt_local = wrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+            self._header_init_codom = true;
+        }
+
+        obj.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let codom = op.get_y();
+            let mut idstr = id.write(&());
+            idstr.extend(codom.write(&()));
+            {
+                let mut wrt_local = wrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn save_out(&mut self, out: Vec<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>) {
+        if let Some(ppout) = &self.path_out {
+            let wrt = Arc::new(Mutex::new(Writer::from_path(ppout.as_path()).unwrap()));
+
+            if !self._header_init_out {
+                let o = &out[0];
+                let id = o.sol.get_id();
+                let output = &o.out;
+                let mut idstr = id.header();
+                idstr.extend(output.header());
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+                self._header_init_out = true;
+            }
+
+            out.par_iter().for_each(|o| {
+                let id = o.sol.get_id();
+                let output = &o.out;
+                let mut idstr = id.write(&());
+                idstr.extend(output.write(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+            });
+        }
+    }
+
+    fn save_state(&mut self, sp: Arc<Scp>, state: Arc<State>, stop: Arc<St>) {
         todo!()
     }
-    
-    
 }

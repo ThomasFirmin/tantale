@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{Codomain, Computed, ComputedSol, Partial, PartialSol, SingleCodomain,ParSId};
+use tantale::core::{Codomain, Computed, ParSId, Partial, PartialSol, SingleCodomain};
 use tantale_core::Solution;
 
 use std::collections::HashSet;
@@ -9,9 +9,11 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
+type TestComp<Dom> = Computed<ParSId, PartialSol::<ParSId,Dom,TestSInfo>,Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
+
 fn _test_solution_assertion<Dom>(
     n: usize,
-    sol: &ComputedSol<ParSId,Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>,
+    sol: &TestComp<Dom>,
     pid: u32,
 ) where
     Dom: Domain + Clone + Display + Debug,
@@ -42,8 +44,8 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = PartialSol::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
-                let sol = ComputedSol::<ParSId,_,SingleCodomain<OutExample>,_,_>::new(psol,y.clone());
+                let psol = std::sync::Arc::new(PartialSol::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone()));
+                let sol = Computed::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().id);
             )*

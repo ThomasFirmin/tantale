@@ -1,7 +1,7 @@
 use paste::paste;
 
-use tantale::core::{EmptyInfo, Searchspace, Solution,SId,PartialSol,ArcVecArc};
 use std::sync::Arc;
+use tantale::core::{ArcVecArc, EmptyInfo, PartialSol, SId, Searchspace, Solution};
 
 use super::init_sp::*;
 

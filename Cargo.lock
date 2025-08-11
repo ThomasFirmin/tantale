@@ -632,6 +632,8 @@ dependencies = [
  "num",
  "rand",
  "rayon",
+ "serde",
+ "serde_json",
  "tantale_core",
 ]
 
@@ -671,6 +673,7 @@ dependencies = [
  "rayon",
  "serde",
  "tantale",
+ "tantale_algos",
  "tantale_core",
  "tantale_macros",
 ]

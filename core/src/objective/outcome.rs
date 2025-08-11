@@ -9,7 +9,7 @@
 //! use tantale::macros::Outcome;
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
 //! use std::fmt::Debug;
-//! 
+//!
 //! #[derive(Outcome)]
 //! pub struct OutExample {
 //!     pub fid2: f64,
@@ -61,9 +61,17 @@
 //! println!("FIDELITY : {}",extracted.fidelity);
 //! ```
 
-use crate::{solution::{Partial,SolInfo,Id},domain::{Domain,TypeDom}};
+use crate::{
+    domain::{Domain, TypeDom},
+    solution::{Id, Partial, SolInfo},
+};
 
-use std::{collections::HashMap,fmt::{Debug, Display}, marker::PhantomData, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
@@ -76,7 +84,7 @@ pub trait Outcome {}
 /// ```
 /// use tantale::core::{Outcome,HashOut,Codomain,FidelConstMultiCodomain};
 /// use std::fmt::Debug;
-/// 
+///
 /// let out = HashOut::from([
 ///              ("obj1", 1.0),
 ///              ("fid2", 2.0),
@@ -128,36 +136,40 @@ where
     fn get_state(&self) -> S;
 }
 
-
-
 /// An [`Outcome`] linked to its [`Partial`], before the creation of a [`Computed`].
 #[derive(Debug)]
 pub struct LinkedOutcome<Out, Sol, SolId, Dom, Info>
 where
-    Sol: Partial<SolId,Dom,Info>,
+    Sol: Partial<SolId, Dom, Info>,
     Out: Outcome,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Copy + Clone,
 {
-    pub out : Out,
-    pub sol : Arc<Sol>,
-    _id : PhantomData<SolId>,
-    _dom : PhantomData<Dom>,
-    _info : PhantomData<Info>,
+    pub out: Out,
+    pub sol: Arc<Sol>,
+    _id: PhantomData<SolId>,
+    _dom: PhantomData<Dom>,
+    _info: PhantomData<Info>,
 }
 
-impl <Out, Sol, SolId, Dom, Info> LinkedOutcome<Out, Sol, SolId, Dom, Info>
+impl<Out, Sol, SolId, Dom, Info> LinkedOutcome<Out, Sol, SolId, Dom, Info>
 where
-    Sol: Partial<SolId,Dom,Info>,
+    Sol: Partial<SolId, Dom, Info>,
     Out: Outcome,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Copy + Clone,
 {
-    pub fn new(out:Out,sol:Arc<Sol>) -> Self{
-        LinkedOutcome { out, sol, _id: PhantomData, _dom: PhantomData, _info: PhantomData }
+    pub fn new(out: Out, sol: Arc<Sol>) -> Self {
+        LinkedOutcome {
+            out,
+            sol,
+            _id: PhantomData,
+            _dom: PhantomData,
+            _info: PhantomData,
+        }
     }
 }

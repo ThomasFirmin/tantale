@@ -1,10 +1,10 @@
 use crate::{
     domain::{Domain, TypeDom},
+    optimizer::ArcVecArc,
     saver::CSVLeftRight,
     searchspace::{Searchspace, SolInfo},
-    solution::{Partial, PartialSol, Solution, Id},
+    solution::{Id, Partial, PartialSol, Solution},
     variable::Var,
-    optimizer::ArcVecArc,
 };
 
 use rand::prelude::ThreadRng;
@@ -22,8 +22,15 @@ where
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
-impl<SolId, Obj, Opt, SInfo> Searchspace<SolId, PartialSol<SolId, Obj, SInfo>, PartialSol<SolId, Opt, SInfo>, Obj, Opt, SInfo>
-    for Sp<Obj, Opt>
+impl<SolId, Obj, Opt, SInfo>
+    Searchspace<
+        SolId,
+        PartialSol<SolId, Obj, SInfo>,
+        PartialSol<SolId, Opt, SInfo>,
+        Obj,
+        Opt,
+        SInfo,
+    > for Sp<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
@@ -31,9 +38,12 @@ where
     SolId: Id + PartialEq + Clone + Copy,
 {
     /// Initialize the [`Searchspace`].
-    fn init(&mut self){}
+    fn init(&mut self) {}
 
-    fn onto_obj(&self, inp: Arc<PartialSol<SolId, Opt, SInfo>>) -> Arc<PartialSol<SolId, Obj, SInfo>> {
+    fn onto_obj(
+        &self,
+        inp: Arc<PartialSol<SolId, Opt, SInfo>>,
+    ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
         let outx: Vec<TypeDom<Obj>> = inp
             .x
             .iter()
@@ -44,7 +54,10 @@ where
         Arc::new(inp.twin(outx))
     }
 
-    fn onto_opt(&self, inp: Arc<PartialSol<SolId, Obj, SInfo>>) -> Arc<PartialSol<SolId, Opt, SInfo>> {
+    fn onto_opt(
+        &self,
+        inp: Arc<PartialSol<SolId, Obj, SInfo>>,
+    ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
         let outx: Vec<TypeDom<Opt>> = inp
             .x
             .iter()
@@ -60,12 +73,16 @@ where
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
     ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
-        let rn = match rng{
+        let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Obj>> = self.variables.iter().map(|v| v.sample_obj(rn)).collect();
-        Arc::new(PartialSol::<SolId, Obj, SInfo>::new(SolId::generate(), outx, info))
+        Arc::new(PartialSol::<SolId, Obj, SInfo>::new(
+            SolId::generate(),
+            outx,
+            info,
+        ))
     }
 
     fn sample_opt(
@@ -73,19 +90,29 @@ where
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
     ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
-        let rn = match rng{
+        let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Opt>> = self.variables.iter().map(|v| v.sample_opt(rn)).collect();
-        Arc::new(PartialSol::<SolId, Opt, SInfo>::new(SolId::generate(), outx, info))
+        Arc::new(PartialSol::<SolId, Opt, SInfo>::new(
+            SolId::generate(),
+            outx,
+            info,
+        ))
     }
 
-    fn vec_onto_obj(&self, inp: ArcVecArc<PartialSol<SolId, Opt, SInfo>>) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
+    fn vec_onto_obj(
+        &self,
+        inp: ArcVecArc<PartialSol<SolId, Opt, SInfo>>,
+    ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
         Arc::new(inp.iter().map(|i| self.onto_obj(i.clone())).collect())
     }
 
-    fn vec_onto_opt(&self, inp: ArcVecArc<PartialSol<SolId, Obj, SInfo>>) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
+    fn vec_onto_opt(
+        &self,
+        inp: ArcVecArc<PartialSol<SolId, Obj, SInfo>>,
+    ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
         Arc::new(inp.iter().map(|i| self.onto_opt(i.clone())).collect())
     }
 
@@ -95,13 +122,15 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
-        let rn = match rng{
+        let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
-        Arc::new((0..size)
-            .map(|_| self.sample_obj(Some(rn), info.clone()))
-            .collect())
+        Arc::new(
+            (0..size)
+                .map(|_| self.sample_obj(Some(rn), info.clone()))
+                .collect(),
+        )
     }
 
     fn vec_sample_opt(
@@ -110,13 +139,15 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
-        let rn = match rng{
+        let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
-        Arc::new((0..size)
-            .map(|_| self.sample_opt(Some(rn), info.clone()))
-            .collect())
+        Arc::new(
+            (0..size)
+                .map(|_| self.sample_opt(Some(rn), info.clone()))
+                .collect(),
+        )
     }
 
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
@@ -152,7 +183,6 @@ where
     {
         inp.iter().all(|sol| self.is_in_opt(sol.clone()))
     }
-
 }
 
 impl<Obj, Opt> CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> for Sp<Obj, Opt>

@@ -1,9 +1,7 @@
 extern crate proc_macro;
 
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, ItemStruct,Type};
-
-
+use syn::{parse_macro_input, spanned::Spanned, ItemStruct, Type};
 
 fn is_vec_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if p.path.segments.last().unwrap().ident == "Vec")
@@ -16,7 +14,6 @@ fn is_numeric_type(ty: &Type) -> bool {
     })
 }
 
-
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
@@ -24,32 +21,35 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let egenerics = input.generics;
     let ewhere = &egenerics.where_clause;
 
-    let mut to_string_stmts : Vec<proc_macro2::TokenStream> = Vec::new();
-    let mut to_header_stmts : Vec<proc_macro2::TokenStream> = Vec::new();
+    let mut to_string_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
+    let mut to_header_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
 
-    input.fields.iter().for_each(
-        |field|
-        {
-            let fty = &field.ty;
-            let fident = match &field.ident {
-                Some(f) => f,
-                None => panic!("{:?}", syn::Error::new(field.span(), "Fields must have an identifier.")),
-            };
+    input.fields.iter().for_each(|field| {
+        let fty = &field.ty;
+        let fident = match &field.ident {
+            Some(f) => f,
+            None => panic!(
+                "{:?}",
+                syn::Error::new(field.span(), "Fields must have an identifier.")
+            ),
+        };
 
-            if is_vec_type(fty){
-                to_header_stmts.push(quote! {stringify!(#fident).to_string()});
-                to_string_stmts.push(quote! {format!{"{:?}", self.#fident}});
-            }
-            else if is_numeric_type(fty) {
-                to_header_stmts.push(quote! {stringify!(#fident).to_string()});
-                to_string_stmts.push(quote! {self.#fident.to_string()});
-            }
-            else{
-                panic!("{:?}", syn::Error::new(fty.span(), "Fields must be a numericals or a Vec of numericals"));
-            }
-
+        if is_vec_type(fty) {
+            to_header_stmts.push(quote! {stringify!(#fident).to_string()});
+            to_string_stmts.push(quote! {format!{"{:?}", self.#fident}});
+        } else if is_numeric_type(fty) {
+            to_header_stmts.push(quote! {stringify!(#fident).to_string()});
+            to_string_stmts.push(quote! {self.#fident.to_string()});
+        } else {
+            panic!(
+                "{:?}",
+                syn::Error::new(
+                    fty.span(),
+                    "Fields must be a numericals or a Vec of numericals"
+                )
+            );
         }
-    );
+    });
 
     quote!{
         impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}

@@ -1,9 +1,9 @@
 use super::init_sp::*;
 use tantale::core::saver::CSVLeftRight;
-use tantale::core::{EmptyInfo, Searchspace, Solution, PartialSol, SId};
+use tantale::core::{EmptyInfo, PartialSol, SId, Searchspace, Solution};
 
-use std::sync::Arc;
 use paste::paste;
+use std::sync::Arc;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_test {

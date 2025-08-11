@@ -107,13 +107,18 @@
 
 use crate::{
     domain::Domain,
-    solution::{Partial, SolInfo, Solution,Id},
     optimizer::ArcVecArc,
+    solution::{Id, Partial, SolInfo, Solution, Computed}, Codomain, Outcome,
 };
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
+
+type ComputedOut<SolId, A, ADom, B, BDom, Cod, Out, Info> = (
+    Arc<Computed<SolId, A, ADom, Cod, Out, Info>>,
+    Arc<Computed<SolId, B, BDom, Cod, Out, Info>>,
+);
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
 pub trait Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>
@@ -151,7 +156,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -190,7 +195,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -229,7 +234,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -242,7 +247,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng:Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<PObj>;
+    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<PObj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -267,7 +272,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -280,7 +285,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng:Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<POpt>;
+    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<POpt>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -303,7 +308,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -339,7 +344,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -377,7 +382,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng = rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -420,7 +425,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -463,7 +468,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::{fmt::Debug, sync::Arc};
-    /// 
+    ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -505,7 +510,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -546,7 +551,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -582,7 +587,7 @@ where
     ///
     /// use tantale::core::{Searchspace,Solution,PartialSol,EmptyInfo,SId,ArcVecArc};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let mut rng =rand::rng();
     ///
     /// let sp = sp::get_searchspace();
@@ -596,6 +601,23 @@ where
     fn vec_is_in_opt<S>(&self, inp: ArcVecArc<S>) -> bool
     where
         S: Solution<SolId, Opt, SInfo> + Send + Sync;
+
+    /// Creates a pair of [`Computed`] [`Solutions`](Solution) of [`Domain`] types `Dom` and `B`
+    /// from a pair of [`twin`](Partial::twin) [`Partial`] of types `A` and `B`, and a shared [`Codomain`].
+    fn computed<Cod,Out>(
+        &self,
+        xa: Arc<PObj>,
+        xb: Arc<POpt>,
+        y: Arc<Cod::TypeCodom>,
+    ) -> ComputedOut<SolId, PObj, Obj, POpt, Opt, Cod, Out, SInfo>
+    where
+        Cod:Codomain<Out>,
+        Out:Outcome,
+    {
+        (
+            Arc::new(Computed::new(xa, y.clone())),
+            Arc::new(Computed::new(xb, y)))
+    }
 }
 
 pub mod spbase;

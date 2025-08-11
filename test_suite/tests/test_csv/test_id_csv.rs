@@ -1,6 +1,9 @@
-use tantale::core::saver::csvsaver::CSVWritable;
-use tantale::core::solution::{Id,id::{SId,ParSId}};
 use paste::paste;
+use tantale::core::saver::csvsaver::CSVWritable;
+use tantale::core::solution::{
+    id::{ParSId, SId},
+    Id,
+};
 
 macro_rules! test_header {
     ($($name:ident, $idty:ident, $expected:expr);*) => {

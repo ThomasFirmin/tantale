@@ -54,7 +54,7 @@ fn out_header() {
 #[test]
 fn out_write() {
     let out = outcome::get_struct();
-    let wrote = out.write(&(1,0));
+    let wrote = out.write(&(1, 0));
     let str_true = Vec::from([
         String::from("2.2"),
         String::from("3.3"),

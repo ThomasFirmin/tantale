@@ -1,57 +1,84 @@
 use tantale_core::{
-    domain::Domain, objective::{
-        codomain::Codomain,
+    domain::Domain,
+    objective::{
+        codomain::SingleCodomain,
         outcome::Outcome
-    }, optimizer::{EmptyInfo, OptInfo, OptState, Optimizer},
-    searchspace::Searchspace
+    },
+    optimizer::{opt::SolPairs, EmptyInfo, OptInfo, OptState, Optimizer},
+    searchspace::Searchspace,
+    solution::{Partial, SId}, ArcVecArc,
 };
 
-use std::fmt::{Debug, Display};
-use rand::prelude::ThreadRng;
-
-pub struct RSState{
-    pub iteration : usize
-}
-impl OptState for RSState{}
-
+use std::{fmt::{Debug, Display}, sync::Arc};
+use rand::{prelude::ThreadRng};
+use serde::{Deserialize, Serialize};
 pub struct RSInfo{
     pub iteration : usize
 }
-
 impl OptInfo for RSInfo{}
 
+#[derive(Serialize,Deserialize)]
+pub struct RSState{
+    pub batch : usize,
+    pub iteration : usize,
+}
+impl OptState for RSState{}
 
-pub struct RandomSearch (usize, ThreadRng);
-impl RandomSearch{
-    pub fn new(batch:usize)->(Self,RSState)
+pub struct RandomSearch (RSState, ThreadRng);
+impl RandomSearch
+{
+    pub fn new(batch:usize)->Self
     {
         let rng = rand::rng();
-        (
-            RandomSearch(batch, rng),
-            RSState{iteration:0}
-        )
+        RandomSearch(RSState{batch,iteration:0}, rng)
     }
 }
 
-impl <Obj, Cod, Out, Sp, const DIM: usize> Optimizer<Obj, Obj, Cod, Out, Sp, RSInfo, EmptyInfo, RSState, DIM> for RandomSearch
+fn rs_iter<PObj, POpt, Obj, Opt, Scp>(opt:&mut RandomSearch, sp: Arc<Scp>) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo)
 where
+    PObj: Partial<SId,Obj, EmptyInfo>,
+    POpt: Partial<SId,Opt,EmptyInfo>,
     Obj: Domain + Clone + Display + Debug,
-    Out: Outcome,
-    Cod: Codomain<Out>,
-    Sp: Searchspace<Obj, Obj, Cod, Out, EmptyInfo, DIM>,
+    Opt: Domain + Clone + Display + Debug,
+    Scp: Searchspace<SId, PObj, POpt, Obj, Opt,EmptyInfo>,
 {
+    let samples = sp.vec_sample_obj(
+        Some(&mut opt.1),
+        opt.0.batch,
+        Arc::new(EmptyInfo{})
+    );
+    let opt_samples = sp.vec_onto_opt(samples.clone());
+    let info = RSInfo{ iteration: opt.0.iteration};
+    opt.0.iteration += 1;
+    (samples, opt_samples, info)
+}
+
+impl <PObj, POpt, Obj, Opt, Out, Scp> Optimizer<SId, PObj, POpt, Obj, Opt, EmptyInfo, SingleCodomain<Out>, Out, Scp, RSInfo, RSState> for RandomSearch
+where
+    PObj: Partial<SId,Obj, EmptyInfo>,
+    POpt: Partial<SId,Opt,EmptyInfo>,
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+    Out: Outcome,
+    Scp: Searchspace<SId, PObj, POpt, Obj, Opt,EmptyInfo>,
+{
+    fn init(&mut self) {
+        self.0.iteration = 0;
+    }
+
+    fn first_step(&mut self, sp: Arc<Scp>) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo) {
+        rs_iter::<PObj, POpt, Obj, Opt, Scp>(self, sp.clone())
+    }
+
     fn step(
         &mut self,
-        _x: tantale_core::optimizer::opt::ArcSol<Obj, Cod, Out, EmptyInfo, DIM>,
-        sp: &Sp,
-        state:&mut RSState,
-        pid:u32,
-    ) -> OptOutput<Obj, Obj, Cod, Out, RSInfo, EmptyInfo, DIM> {
-        state.iteration += 1;
-        let info = RSInfo{iteration:state.iteration};
-        let samples = sp.vec_sample_obj(&mut self.1, pid, self.0);
-        let sol_obj = ArcSol::from(samples);
-        let sol_opt = sol_obj.clone();
-        OptOutput::new(sol_obj, sol_opt, info)
+        _x: SolPairs<SId, PObj, Obj, POpt, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
+        sp: Arc<Scp>,
+    ) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo) {
+        rs_iter::<PObj, POpt, Obj, Opt, Scp>(self, sp.clone())
+    }
+    
+    fn get_state(&mut self) -> &RSState {
+        &self.0
     }
 }

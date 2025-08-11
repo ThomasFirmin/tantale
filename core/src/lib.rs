@@ -13,7 +13,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{Computed, ComputedSol, Partial, PartialSol, SolInfo, Solution,Id,SId,ParSId};
+pub use solution::{Computed, Id, ParSId, Partial, PartialSol, SId, SolInfo, Solution};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};
@@ -23,12 +23,12 @@ pub mod errors;
 pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
-    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut, Multi,
-    MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,LinkedOutcome,
+    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut,
+    LinkedOutcome, Multi, MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer, ArcVecArc};
+pub use crate::optimizer::{ArcVecArc, EmptyInfo, OptInfo, Optimizer};
 
 pub mod stop;
 pub use stop::Stop;

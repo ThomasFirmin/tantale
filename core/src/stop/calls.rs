@@ -1,0 +1,27 @@
+use crate::stop::{ExpStep, Stop};
+
+
+/// A [`Stop`] criterion, returning false when the number of
+/// evaluation during a run exceed a threshold.
+pub struct Calls(pub usize, usize);
+
+
+impl Stop for Calls{
+    fn init(&mut self) {
+        self.1 = 0
+    }
+
+    fn stop(&self) -> bool {
+        self.0 >= self.1
+    }
+
+    fn update(&mut self, step:ExpStep) {
+        if let ExpStep::Distribution = step { self.0 += 1 }
+    }
+}
+
+impl Calls{
+    pub fn new(max:usize)->Self{
+        Calls(0, max)
+    }
+}

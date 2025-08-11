@@ -1,13 +1,12 @@
 use crate::domain::{Domain, TypeDom};
-use crate::objective::{Codomain, Outcome};
-use crate::solution::{Computed, SolInfo, Solution,Id};
+use crate::{solution::{Id, SolInfo, Solution}};
 
 use std::{
     fmt::{Debug, Display},
     sync::Arc,
 };
 
-pub trait Partial<SolId,Dom,Info>: Solution<SolId,Dom,Info>
+pub trait Partial<SolId, Dom, Info>: Solution<SolId, Dom, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
@@ -36,7 +35,7 @@ where
     /// }
     ///
     /// ```
-    fn new<T>(id:SolId, x: T, info: Arc<Info>) -> Self
+    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
         T: AsRef<[TypeDom<Dom>]>;
     /// Creates the default slice of a [`Partial`] of `n` elements.
@@ -75,7 +74,7 @@ where
     ///
     /// ```
     fn new_default(n: usize, info: Arc<Info>) -> Self;
-    /// Creates an empty slice of [`Partials`](Partial) with `size` reserved capacity.
+    /// Creates an empty slice of [`Arc`][`<Partials>`](Partial) with `size` reserved capacity.
     ///
     /// # Example
     ///
@@ -86,7 +85,8 @@ where
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
     /// for _ in 0..10{
-    ///     vec_sol.push(PartialSol::new_default(5,info.clone()));
+    ///     let psol = PartialSol::new_default(5,info.clone());
+    ///     vec_sol.push(std::sync::Arc::new(psol));
     /// }
     ///
     /// for sol in &vec_sol{
@@ -98,8 +98,8 @@ where
     /// }
     ///
     /// ```
-    fn new_vec(size: usize) -> Vec<Self>;
-    /// Creates a [`Vec`] of [`Partials`](Partial) of `n` elements with default `x`.
+    fn new_vec(size: usize) -> Vec<Arc<Self>>;
+    /// Creates a [`Vec`] of [`Arc`][`<Partials>`](Partial) of `n` elements with default `x`.
     ///
     /// # Example
     ///
@@ -119,7 +119,7 @@ where
     /// }
     ///
     /// ```
-    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self>;
+    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>>;
 
     /// Given a [`Partial`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
     /// creates the twin [`Partial`] of type `B`.
@@ -150,60 +150,32 @@ where
     where
         B: Domain + Clone + Display + Debug,
         TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Twin: Partial<SolId,B,Info>,
+        Twin: Partial<SolId, B, Info>,
         T: AsRef<[TypeDom<B>]>,
     {
-        Twin::new (self.get_id(), x, self.get_info())
+        Twin::new(self.get_id(), x, self.get_info())
     }
-
-    /// Creates a pair of [`Computed`] [`Solutions`](Solution) of type [`Domain`] types `Dom` and `B`
-    /// from a pair of [`twin`](Partial::twin) [`Partial`] of type [`Self`] and `B`, and a shared [`Codomain`].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tantale::core::{Solution,Partial,PartialSol,Real,SingleCodomain,HashOut,EmptyInfo,SId,Id};
-    ///
-    /// let x = vec![0.0;5].into_boxed_slice();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
-    ///
-    /// let real_sol = PartialSol::<_,Real,_>::new(SId::generate(),x,info);
-    ///
-    /// for elem in real_sol.get_x().iter(){
-    ///     println!("{},", elem);
-    /// }
-    ///
-    /// ```
-    fn computed<B, BDom, Ca, Cb, Cod, Out>(self, xb: B, y: Arc<Cod::TypeCodom>) -> (Ca, Cb)
-    where
-        Ca: Computed<Self, SolId, Dom, Info, Cod, Out>,
-        Cb: Computed<B, SolId, BDom, Info, Cod, Out>,
-        B: Partial<SolId,BDom, Info>,
-        BDom: Domain + Clone + Display + Debug,
-        TypeDom<BDom>: Default + Copy + Clone + Display + Debug,
-        Cod: Codomain<Out>,
-        Out: Outcome;
 }
 
 /// A non-evaluated [`Solution`].
 ///
 /// # Attributes
-/// * `id` : `(usize, u32)` - Contains the ID of the solution combined with the PID of the process.
+/// * `id` : [`Id`] - The unique [`ID`] of the solution.
 /// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
 /// * `info` : `[`Arc`]`<Info>` - Information given by the [`Optimizer`] and linked to a specific [`Solution`].
-pub struct PartialSol<SolId,Dom, Info>
+pub struct PartialSol<SolId, Dom, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Clone + Copy,
 {
-    pub id: SolId, // ID + PID for parallel algorithms.
+    pub id: SolId,
     pub x: Arc<[TypeDom<Dom>]>,
     pub info: Arc<Info>,
 }
 
-impl<SolId,Dom, Info> Solution<SolId, Dom, Info> for PartialSol<SolId,Dom, Info>
+impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for PartialSol<SolId, Dom, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
@@ -223,19 +195,19 @@ where
     }
 }
 
-impl<SolId,Dom, Info> Partial<SolId, Dom, Info> for PartialSol<SolId,Dom, Info>
+impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for PartialSol<SolId, Dom, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-    SolId:Id + PartialEq + Clone + Copy,
+    SolId: Id + PartialEq + Clone + Copy,
 {
-    fn new<T>(id:SolId, x: T, info: Arc<Info>) -> Self
+    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
         T: AsRef<[TypeDom<Dom>]>,
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
-        PartialSol{id, x:xarc, info}
+        PartialSol { id, x: xarc, info }
     }
 
     fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
@@ -246,30 +218,17 @@ where
         Self::new(SolId::generate(), Self::default_x(n), info)
     }
 
-    fn new_vec(size: usize) -> Vec<Self> {
+    fn new_vec(size: usize) -> Vec<Arc<Self>> {
         let mut v = Vec::new();
         v.reserve_exact(size);
         v
     }
 
-    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self> {
+    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>> {
         let mut v = Self::new_vec(size);
         for _ in 0..size {
-            v.push(Self::new_default(n, info.clone()));
+            v.push(Arc::new(Self::new_default(n, info.clone())));
         }
         v
-    }
-
-    fn computed<B, BDom, Ca, Cb, Cod, Out>(self, xb: B, y: Arc<Cod::TypeCodom>) -> (Ca, Cb)
-    where
-        Ca: Computed<Self, SolId, Dom, Info, Cod, Out>,
-        Cb: Computed<B, SolId, BDom, Info, Cod, Out>,
-        B: Partial<SolId,BDom, Info>,
-        BDom: Domain + Clone + Display + Debug,
-        TypeDom<BDom>: Default + Copy + Clone + Display + Debug,
-        Cod: Codomain<Out>,
-        Out: Outcome,
-    {
-        (Ca::new(self, y.clone()), Cb::new(xb, y))
     }
 }

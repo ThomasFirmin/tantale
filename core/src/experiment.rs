@@ -3,10 +3,10 @@ pub mod evaluator;
 use crate::{
     domain::Domain,
     objective::{Codomain, Objective, Outcome},
-    optimizer::{OptInfo, Optimizer},
+    optimizer::{OptInfo, OptState, Optimizer},
     saver::Saver,
     searchspace::Searchspace,
-    solution::{Computed, Partial, SolInfo, Id, SId},
+    solution::{Id, Partial, SId, SolInfo},
     stop::Stop,
 };
 
@@ -29,8 +29,6 @@ pub fn initialize<
     Sv,
     PObj,
     POpt,
-    CObj,
-    COpt,
     Obj,
     Opt,
     Out,
@@ -47,13 +45,11 @@ pub fn initialize<
 ) where
     Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SolId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<SolId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<SolId, Op, St, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Op: Optimizer<SolId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    St: Stop,
+    Sv: Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     PObj: Partial<SolId, Obj, SInfo>,
     POpt: Partial<SolId, Opt, SInfo>,
-    CObj: Computed<PObj, SolId, Obj, SInfo, Cod, Out>,
-    COpt: Computed<POpt, SolId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
@@ -61,6 +57,7 @@ pub fn initialize<
     Info: OptInfo,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
+    State:OptState
 {
     searchspace.init();
     optimizer.init();
@@ -69,7 +66,7 @@ pub fn initialize<
     saver.init();
 }
 
-pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, CObj, COpt, Obj, Opt, Out, Cod, Info, SInfo>(
+pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, State>(
     mut searchspace: Scp,
     mut objective: Ob,
     mut optimizer: Op,
@@ -78,19 +75,18 @@ pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, CObj, COpt, Obj, Opt, Out, Cod, Info
 ) where
     Scp: Searchspace<SId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SId, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<SId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    Sv: Saver<SId, Op, St, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Op: Optimizer<SId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    St: Stop,
+    Sv: Saver<SId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     PObj: Partial<SId, Obj, SInfo>,
     POpt: Partial<SId, Opt, SInfo>,
-    CObj: Computed<PObj, SId, Obj, SInfo, Cod, Out>,
-    COpt: Computed<POpt, SId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
     Cod: Codomain<Out>,
     Info: OptInfo,
     SInfo: SolInfo,
+    State:OptState,
 {
     // initialize(&mut searchspace, &mut objective, &mut optimizer, &mut stop, &mut saver);
 

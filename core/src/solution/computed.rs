@@ -1,94 +1,15 @@
 use crate::domain::{Domain, TypeDom};
 use crate::objective::{Codomain, Outcome};
-use crate::solution::{Partial, PartialSol, SolInfo, Solution, Id};
+use crate::solution::{Id, Partial, SolInfo, Solution};
 
+use std::marker::PhantomData;
 use std::{
     fmt::{Debug, Display},
     sync::Arc,
 };
 
-pub trait Computed<P, SolId, Dom, Info, Cod, Out>
-where
-    Self: Sized,
-    Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-    Info: SolInfo,
-    P: Partial<SolId,Dom, Info>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SolId: Id + PartialEq + Clone + Copy,
-{
-    /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    ///
-    /// # Notes
-    ///
-    /// When created, consumes the [`Partial`].
-    fn new(sol: P, y: Arc<Cod::TypeCodom>) -> Self;
-
-    /// Creates a vec of [`Computed`] from a vec of [`Partial`] and a vec of [`TypeCodom`](Codomain::TypeCodom).
-    ///
-    /// # Notes
-    ///
-    /// When created, consumes the [`Partial`].
-    fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
-    where
-        I: IntoIterator<Item = P>,
-        J: IntoIterator<Item = Arc<Cod::TypeCodom>>;
-
-    /// Returns the [`Partial`] [`Solution`].
-    fn get_sol(&self) -> Arc<P>;
-
-    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    fn get_y(&self) -> Arc<Cod::TypeCodom>;
-
-    /// Given a [`Computed`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
-    /// creates the twin [`Computed`] of type [`B`].
-    /// A twin, has the same `id` as [`Self`], but has a diffferent type.
-    /// It is mostly used in [`onto_opt`](tantale::core::searchspace::onto_opt)
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tantale::core::{Solution,Computed,Partial,PartialSol,ComputedSol,Real,Int,SingleCodomain,HashOut,EmptyInfo,SId,Id};
-    /// use tantale::core::objective::codomain::ElemSingleCodomain;
-    ///
-    /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
-    /// let x_2 = vec![5,6,7,8].into_boxed_slice();
-    /// let info = std::sync::Arc::new(EmptyInfo{});
-    ///
-    /// let partial = PartialSol::new(SId::generate(),x_1,info);
-    /// let y = std::sync::Arc::new(ElemSingleCodomain{value:1.0});
-    ///
-    /// let real_sol = ComputedSol::<_,Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
-    /// let int_sol : ComputedSol<_,Int,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
-    ///
-    /// let id_r = real_sol.get_id();
-    /// let id_i = int_sol.get_id();
-    ///
-    /// println!("REAL ID : {}", id_r.id);
-    /// println!("INT ID : {}", id_i.id);
-    ///
-    /// for (elem1, elem2) in real_sol.get_x().iter().zip(int_sol.get_x().iter()){
-    ///     println!("{},{}", elem1, elem2);
-    /// }
-    ///
-    /// ```
-    fn twin<Twin, B, T, Pb>(&self, x: T) -> Twin
-    where
-        B: Domain + Clone + Display + Debug,
-        TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Pb: Partial<SolId,B, Info>,
-        Twin: Computed<Pb, SolId, B, Info, Cod, Out>,
-        T: AsRef<[TypeDom<B>]>,
-    {
-        let info = self.get_sol().get_info();
-        let partial = Pb::new(self.get_sol().get_id(), x, info);
-        Twin::new(partial, self.get_y())
-    }
-}
-
-/// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer) [`Domains`](Domain).
-/// The solution is mostly defined by an associated unique [`Domain`] and [`Codomain`].
+/// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer)
+/// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
 ///
 /// # Attributes
 /// * `sol` : [`PartialSol`]`<Dom,Info,N>` - An already created partial solution.
@@ -98,7 +19,7 @@ where
 ///
 /// A [`ComputedSol`] can only be created from a pair of [`PartialSol`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
-pub struct ComputedSol<SolId,Dom, Cod, Out, Info>
+pub struct Computed<SolId, P, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
@@ -106,12 +27,17 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id + PartialEq + Clone + Copy,
+    P: Partial<SolId, Dom, Info>,
 {
-    pub sol: Arc<PartialSol<SolId, Dom, Info>>,
+    pub sol: Arc<P>,
     pub y: Arc<Cod::TypeCodom>,
+    _id: PhantomData<SolId>,
+    _dom: PhantomData<Dom>,
+    _info: PhantomData<Info>,
 }
 
-impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info> for ComputedSol<SolId, Dom, Cod, Out, Info>
+impl<SolId, P, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
+    for Computed<SolId, P, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
@@ -119,6 +45,7 @@ where
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Clone + Copy,
+    P: Partial<SolId, Dom, Info>,
 {
     fn get_id(&self) -> SolId {
         self.sol.get_id()
@@ -133,8 +60,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info, Cod, Out> Computed<PartialSol<SolId, Dom, Info>,SolId, Dom, Info, Cod, Out>
-    for ComputedSol<SolId, Dom, Cod, Out, Info>
+impl<SolId, P, Dom, Info, Cod, Out> Computed<SolId, P, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
     Cod: Codomain<Out>,
@@ -142,28 +68,83 @@ where
     Info: SolInfo,
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Clone + Copy,
+    P: Partial<SolId, Dom, Info>,
 {
-    fn new(sol: PartialSol<SolId,Dom, Info>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
-        let solarc = Arc::new(sol);
-        ComputedSol { sol: solarc, y }
+    /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+    pub fn new(sol: Arc<P>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+        Computed {
+            sol,
+            y,
+            _id: PhantomData,
+            _dom: PhantomData,
+            _info: PhantomData,
+        }
     }
 
-    fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
+    /// Creates a vec of [`Computed`] from an iterator of [`Arc`] [`Partial`]
+    /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
+    pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Arc<Self>>
     where
-        I: IntoIterator<Item = PartialSol<SolId,Dom, Info>>,
+        I: IntoIterator<Item = Arc<P>>,
         J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
     {
         sol.into_iter()
             .zip(y)
-            .map(|(s, cod)| Self::new(s, cod))
+            .map(|(s, cod)| Arc::new(Self::new(s.clone(), cod)))
             .collect()
     }
 
-    fn get_sol(&self) -> Arc<PartialSol<SolId,Dom, Info>> {
+    /// Returns the [`Partial`] [`Solution`].
+    pub fn get_sol(&self) -> Arc<P> {
         self.sol.clone()
     }
 
-    fn get_y(&self) -> Arc<<Cod as Codomain<Out>>::TypeCodom> {
+    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
+    pub fn get_y(&self) -> Arc<<Cod as Codomain<Out>>::TypeCodom> {
         self.y.clone()
+    }
+
+    /// Given a [`Computed`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
+    /// creates the twin [`Computed`] of type [`B`].
+    /// A twin, has the same `id` as [`Self`], but has a diffferent type.
+    /// It is mostly used in [`onto_opt`](tantale::core::searchspace::onto_opt)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tantale::core::{Solution,Computed,Partial,PartialSol,Real,Int,SingleCodomain,HashOut,EmptyInfo,SId,Id};
+    /// use tantale::core::objective::codomain::ElemSingleCodomain;
+    /// use std::sync::Arc;
+    /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
+    /// let x_2 = vec![5,6,7,8].into_boxed_slice();
+    /// let info = Arc::new(EmptyInfo{});
+    ///
+    /// let partial = Arc::new(PartialSol::new(SId::generate(),x_1,info));
+    /// let y = Arc::new(ElemSingleCodomain{value:1.0});
+    ///
+    /// let real_sol = Computed::<_,_,Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
+    /// let int_sol : Computed<_,PartialSol<_,Int,_>,_,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
+    ///
+    /// let id_r = real_sol.get_id();
+    /// let id_i = int_sol.get_id();
+    ///
+    /// println!("REAL ID : {}", id_r.id);
+    /// println!("INT ID : {}", id_i.id);
+    ///
+    /// for (elem1, elem2) in real_sol.get_x().iter().zip(int_sol.get_x().iter()){
+    ///     println!("{},{}", elem1, elem2);
+    /// }
+    ///
+    /// ```
+    pub fn twin<B, T, Pb>(&self, x: T) -> Computed<SolId, Pb, B, Cod, Out, Info>
+    where
+        B: Domain + Clone + Display + Debug,
+        TypeDom<B>: Default + Copy + Clone + Display + Debug,
+        Pb: Partial<SolId, B, Info>,
+        T: AsRef<[TypeDom<B>]>,
+    {
+        let info = self.get_sol().get_info();
+        let partial = Arc::new(Pb::new(self.get_sol().get_id(), x, info));
+        Computed::new(partial, self.get_y())
     }
 }

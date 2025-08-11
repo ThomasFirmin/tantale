@@ -9,4 +9,4 @@ pub use codomain::{
 };
 
 pub mod outcome;
-pub use outcome::{HashOut,Outcome,LinkedOutcome};
+pub use outcome::{HashOut, LinkedOutcome, Outcome};

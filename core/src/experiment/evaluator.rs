@@ -1,42 +1,26 @@
 use crate::{
     domain::Domain,
     objective::{Codomain, Objective, Outcome},
-    optimizer::{opt::ArcVecArc, OptInfo, Optimizer},
+    optimizer::{
+        opt::{ArcVecArc, OptState, SolPairs},
+        OptInfo, Optimizer,
+    },
     searchspace::Searchspace,
-    solution::{Computed, Partial, SolInfo, Id},
+    solution::{Id, Partial, SolInfo},
     stop::Stop,
 };
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, sync::Arc};
 
 /// An evaluator describes how a batch of [`Partial`] should
 /// be evaluated to get a batch of [`Computed`].
-pub trait Evaluator<
-    Scp,
-    Ob,
-    Op,
-    Os,
-    St,
-    Sv,
-    PObj,
-    POpt,
-    CObj,
-    COpt,
-    Obj,
-    Opt,
-    Out,
-    Cod,
-    Info,
-    SInfo,
-    SolId,
-> where
+pub trait Evaluator<Scp, Ob, Op, Os, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, SolId, State>
+where
     Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SolId,PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
-    St: Stop<SolId, Op, PObj, CObj, POpt, COpt, Obj, Opt, SInfo, Cod, Out, Scp, Info>,
+    Op: Optimizer<SolId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    St: Stop,
     PObj: Partial<SolId, Obj, SInfo>,
     POpt: Partial<SolId, Opt, SInfo>,
-    CObj: Computed<PObj,SolId, Obj, SInfo, Cod, Out>,
-    COpt: Computed<POpt,SolId, Opt, SInfo, Cod, Out>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
@@ -44,11 +28,13 @@ pub trait Evaluator<
     Info: OptInfo,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
+    State:OptState,
 {
     fn evaluate(
         &self,
+        stop:Arc<St>,
         objsol: ArcVecArc<POpt>,
         optsol: ArcVecArc<PObj>,
         info: Info,
-    ) -> (ArcVecArc<CObj>, ArcVecArc<COpt>);
+    ) -> SolPairs<SolId, PObj, Obj, POpt, Opt, Cod, Out, SInfo>;
 }

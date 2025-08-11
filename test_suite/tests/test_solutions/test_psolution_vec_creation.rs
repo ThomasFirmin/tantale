@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Partial, PartialSol, Solution,ParSId};
+use tantale::core::{ParSId, Partial, PartialSol, Solution};
 use tantale_core::domain::TypeDom;
 
 use std::collections::HashSet;
@@ -8,8 +8,11 @@ use std::process;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(n: usize, sol: &[PartialSol<ParSId,Dom, TestSInfo>], pid: u32)
-where
+fn _test_solution_assertion<Dom>(
+    n: usize,
+    sol: &[std::sync::Arc<PartialSol<ParSId, Dom, TestSInfo>>],
+    pid: u32,
+) where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
 {
