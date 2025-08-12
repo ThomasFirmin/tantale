@@ -37,7 +37,7 @@ pub fn initialize<
     SInfo,
     State,
 >(
-    searchspace: &mut Scp,
+    searchspace: &Scp,
     objective: &mut Ob,
     optimizer: &mut Op,
     stop: &mut St,
@@ -59,7 +59,6 @@ pub fn initialize<
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
 {
-    searchspace.init();
     optimizer.init();
     objective.init();
     stop.init();

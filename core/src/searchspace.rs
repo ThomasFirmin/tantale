@@ -131,8 +131,6 @@ where
     POpt: Partial<SolId, Opt, SInfo>,
     SolId: Id + PartialEq + Clone + Copy,
 {
-    /// Initialize the [`Searchspace`].
-    fn init(&mut self);
     /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables).

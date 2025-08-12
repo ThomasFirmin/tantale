@@ -39,5 +39,6 @@ where
     );
     fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>);
     fn save_out(&mut self, obj: Vec<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>);
-    fn save_state(&mut self, sp: Arc<Scp>, state: Arc<State>, stop: Arc<St>);
+    fn save_state(&mut self, sp: Arc<Scp>, state: &State, stop: &St);
+    fn clean(&mut self);
 }

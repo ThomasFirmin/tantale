@@ -1,20 +1,18 @@
 use super::init_sp::sp_m_equal_allmsamp;
 
-use tantale::core::{EmptyInfo, Searchspace, PartialSol, SId,Optimizer, Codomain, SingleCodomain};
-use tantale_algos::random_search::RSState;
+use tantale::core::{Searchspace, PartialSol, SId,Optimizer, Codomain, SingleCodomain};
 use tantale_core::optimizer::OptState;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::Saver;
 use tantale_algos::RandomSearch;
-use tantale_core::ArcVecArc;
-use tantale_core::{Domain,OptInfo,Outcome,SolInfo};
+use tantale_core::LinkedOutcome;
+use tantale_core::{Domain,OptInfo,SolInfo};
 use tantale_core::stop::{Stop,Calls};
 
 use std::fmt::{Display,Debug};
 use std::sync::Arc;
 
 mod infos {
-    use tantale_core::{saver::CSVWritable, OptInfo, SolInfo};
     use tantale_macros::Outcome;
     #[derive(Outcome)]
     pub struct OutExample {
@@ -48,9 +46,9 @@ mod infos {
 use infos::OutExample;
 
 pub fn run_saver<Scp, Op, St, Sv, Obj, Opt, Info, SInfo, State>(
-    mut sp: Scp,
+    sp: Scp,
     mut opt: Op,
-    mut stop: St,
+    stop: St,
     mut saver: Sv,
 )
 where
@@ -65,30 +63,43 @@ where
     State:OptState,
 {
     saver.init();
-    let sp = Arc::new(sp);
 
-    let outcome = infos::get_out();
+    let sp = Arc::new(sp);
+    let stop = Arc::new(stop);
+
+    let outcome = Arc::new(infos::get_out());
     let cod  = SingleCodomain::new(|x:&OutExample| x.mul6);
     let codel = Arc::new(cod.get_elem(&outcome));
 
     let (sobj,sopt,infos) = opt.first_step(sp.clone());
     let infos = Arc::new(infos);
-    let computed: (Vec<_>, Vec<_>) = sobj.iter().zip(sopt.iter()).map(
+    let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj.iter().zip(sopt.iter()).map(
         |(a,b)|
-        sp.computed::<SingleCodomain<_>,OutExample>(a.clone(), b.clone(), codel.clone())
-    ).unzip();
+        {
+            let r = sp.computed::<SingleCodomain<_>,OutExample>(a.clone(), b.clone(), codel.clone());
+
+            let linked = LinkedOutcome::new(outcome.clone(), a.clone());
+            (r.0,r.1,linked)
+        }
+    ).collect();
 
     saver.save_partial(sobj.clone(), sopt.clone(), sp.clone() , infos.clone());
     saver.save_codom(Arc::new(computed.0));
+    saver.save_out(computed.2);
+    saver.save_state(sp.clone(), opt.get_state(), &stop);
+
+
+    
+    saver.clean();
 }
 
 
 #[test]
 fn test_csv(){
-    let mut sp = sp_m_equal_allmsamp::get_searchspace();
-    let mut rs = RandomSearch::new(3);
-    let mut stop = Calls::new(100);
-    let mut saver = CSVSaver::new("./test", true, true, true, 0);
+    let sp = sp_m_equal_allmsamp::get_searchspace();
+    let rs = RandomSearch::new(3);
+    let stop = Calls::new(100);
+    let saver = CSVSaver::new("tmp_test", true, true, true, 1);
 
     run_saver(sp,rs,stop,saver);
 }

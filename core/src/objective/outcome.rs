@@ -147,7 +147,7 @@ where
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Copy + Clone,
 {
-    pub out: Out,
+    pub out: Arc<Out>,
     pub sol: Arc<Sol>,
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
@@ -163,7 +163,7 @@ where
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Copy + Clone,
 {
-    pub fn new(out: Out, sol: Arc<Sol>) -> Self {
+    pub fn new(out: Arc<Out>, sol: Arc<Sol>) -> Self {
         LinkedOutcome {
             out,
             sol,

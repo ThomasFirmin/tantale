@@ -37,9 +37,6 @@ where
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
 {
-    /// Initialize the [`Searchspace`].
-    fn init(&mut self) {}
-
     fn onto_obj(
         &self,
         inp: Arc<PartialSol<SolId, Opt, SInfo>>,

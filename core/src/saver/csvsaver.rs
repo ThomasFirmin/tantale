@@ -7,14 +7,11 @@ use crate::{
     solution::{Computed, Id, Partial, SolInfo, Solution},
     stop::Stop,
 };
-use csv::Writer;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::{
-    fmt::{Debug, Display},
-    fs::{create_dir, create_dir_all},
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    fmt::{Debug, Display}, fs::{create_dir, create_dir_all, File}, path::{Path, PathBuf}, sync::{Arc, Mutex}
 };
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
@@ -31,12 +28,11 @@ pub struct CSVSaver {
     pub save_opt: bool,
     pub save_out: bool,
     pub checkpoint: usize,
-    path_evals: PathBuf,
     path_pobj: Option<PathBuf>,
     path_popt: Option<PathBuf>,
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
-    path_check: Option<PathBuf>,
+    path_check: Option<(PathBuf,PathBuf)>,
     _header_init_obj: bool,
     _header_init_opt: bool,
     _header_init_codom: bool,
@@ -65,6 +61,7 @@ impl CSVSaver {
         save_out: bool,
         checkpoint: usize,
     ) -> CSVSaver {
+
         let true_path = PathBuf::from(path);
         let does_exist = true_path.try_exists().unwrap();
         if does_exist {
@@ -73,34 +70,52 @@ impl CSVSaver {
             panic!("The given path cannot be pointing at a file, {}.", path)
         } else {
             let path_evals = true_path.join(Path::new("evals"));
+            create_dir_all(true_path.as_path()).unwrap();
+            create_dir(path_evals.as_path()).unwrap();
 
             let path_pobj = match save_obj {
-                true => Some(path_evals.join(Path::new("obj.csv"))),
+                true => {
+                    let path = path_evals.join(Path::new("obj.csv"));
+                    csv::Writer::from_path(path.as_path()).unwrap();
+                    Some(path)
+                },
                 false => None,
             };
             let path_popt = match save_opt {
-                true => Some(path_evals.join(Path::new("opt.csv"))),
+                true => {
+                    let path = path_evals.join(Path::new("opt.csv"));
+                    csv::Writer::from_path(path.as_path()).unwrap();
+                    Some(path)
+                },
                 false => None,
             };
             let path_out = match save_out {
-                true => Some(path_evals.join(Path::new("out.csv"))),
+                true => {
+                    let path = path_evals.join(Path::new("out.csv")) ;
+                    csv::Writer::from_path(path.as_path()).unwrap();
+                    Some(path)
+                },
                 false => None,
             };
 
             let path_check = if checkpoint > 0 {
-                Some(true_path.join(Path::new("check")))
+                let path = true_path.join(Path::new("check"));
+                create_dir(path.as_path()).unwrap();
+                let pste = path.join(Path::new("state_opt.json"));
+                let pstp = path.join(Path::new("state_stp.json"));
+                Some((pste,pstp))
             } else {
                 None
             };
             let path_codom = path_evals.join(Path::new("codom.csv"));
-
+            csv::Writer::from_path(path_codom.as_path()).unwrap();
+            
             CSVSaver {
                 path: true_path,
                 save_obj,
                 save_opt,
                 save_out,
                 checkpoint,
-                path_evals,
                 path_pobj,
                 path_popt,
                 path_codom,
@@ -135,25 +150,7 @@ where
     Info: OptInfo + CSVWritable<()> + Send + Sync,
     SolId: Id + PartialEq + Copy + Clone + CSVWritable<()> + Send + Sync,
 {
-    fn init(&mut self) {
-        create_dir_all(self.path.as_path()).unwrap();
-        create_dir(self.path_evals.as_path()).unwrap();
-
-        if let Some(ppobj) = &self.path_pobj {
-            Writer::from_path(ppobj.as_path()).unwrap();
-        }
-        if let Some(ppopt) = &self.path_popt {
-            Writer::from_path(ppopt.as_path()).unwrap();
-        }
-        if let Some(ppout) = &self.path_out {
-            Writer::from_path(ppout.as_path()).unwrap();
-        }
-        if let Some(ppcheck) = &self.path_check {
-            create_dir(ppcheck.as_path()).unwrap();
-        }
-
-        Writer::from_path(self.path_codom.as_path()).unwrap();
-    }
+    fn init(&mut self) {}
 
     fn save_partial(
         &mut self,
@@ -163,7 +160,7 @@ where
         info: Arc<Info>,
     ) {
         if let Some(ppobj) = &self.path_pobj {
-            let wrt = Arc::new(Mutex::new(Writer::from_path(ppobj.as_path()).unwrap()));
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppobj.as_path()).unwrap()));
 
             if !self._header_init_obj {
                 let op = &obj[0];
@@ -194,7 +191,7 @@ where
             });
         }
         if let Some(ppopt) = &self.path_popt {
-            let wrt = Arc::new(Mutex::new(Writer::from_path(ppopt.as_path()).unwrap()));
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppopt.as_path()).unwrap()));
 
             if !self._header_init_opt {
                 let op = &opt[0];
@@ -227,8 +224,8 @@ where
     }
 
     fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>) {
-        let wrt: Arc<Mutex<Writer<std::fs::File>>> = Arc::new(Mutex::new(
-            Writer::from_path(self.path_codom.as_path()).unwrap(),
+        let wrt: Arc<Mutex<csv::Writer<std::fs::File>>> = Arc::new(Mutex::new(
+            csv::Writer::from_path(self.path_codom.as_path()).unwrap(),
         ));
         if !self._header_init_codom {
             let op = &obj[0];
@@ -259,7 +256,7 @@ where
 
     fn save_out(&mut self, out: Vec<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>) {
         if let Some(ppout) = &self.path_out {
-            let wrt = Arc::new(Mutex::new(Writer::from_path(ppout.as_path()).unwrap()));
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppout.as_path()).unwrap()));
 
             if !self._header_init_out {
                 let o = &out[0];
@@ -289,7 +286,17 @@ where
         }
     }
 
-    fn save_state(&mut self, sp: Arc<Scp>, state: Arc<State>, stop: Arc<St>) {
-        todo!()
+    fn save_state(&mut self, _sp: Arc<Scp>, state: &State, stop: &St) {
+        if let Some(path) = &self.path_check{
+            let wrt = File::create(path.0.as_path()).unwrap();
+            serde_json::to_writer(wrt, state).unwrap();
+            let wrt = File::create(path.1.as_path()).unwrap();
+            serde_json::to_writer(wrt, stop).unwrap();
+        } 
+    }
+
+    fn clean(&mut self) {
+        println!("{:?}",&self.path);
+        std::fs::remove_dir_all(&self.path).unwrap();
     }
 }
