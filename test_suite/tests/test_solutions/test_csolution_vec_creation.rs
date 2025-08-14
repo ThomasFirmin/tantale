@@ -10,8 +10,16 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type SlcArcComp<Dom> =
-    std::sync::Arc<Computed<ParSId, PartialSol::<ParSId,Dom,TestSInfo>, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>>;
+type SlcArcComp<Dom> = std::sync::Arc<
+    Computed<
+        ParSId,
+        PartialSol<ParSId, Dom, TestSInfo>,
+        Dom,
+        SingleCodomain<OutExample>,
+        OutExample,
+        TestSInfo,
+    >,
+>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &[SlcArcComp<Dom>], pid: u32)
 where

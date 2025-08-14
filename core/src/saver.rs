@@ -14,8 +14,12 @@ use std::{
 pub mod csvsaver;
 pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
 
+pub mod serror;
+pub use serror::CheckpointError;
+
 pub trait Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
+    Self: Sized,
     St: Stop,
     PObj: Partial<SolId, Obj, SInfo>,
     POpt: Partial<SolId, Opt, SInfo>,
@@ -38,7 +42,8 @@ where
         info: Arc<Info>,
     );
     fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>);
-    fn save_out(&mut self, obj: Vec<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>);
+    fn save_out(&mut self, obj: ArcVecArc<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>);
     fn save_state(&mut self, sp: Arc<Scp>, state: &State, stop: &St);
-    fn clean(&mut self);
+    fn load(path: &str) -> Result<(Self, St, State), CheckpointError>;
+    fn clean(self);
 }

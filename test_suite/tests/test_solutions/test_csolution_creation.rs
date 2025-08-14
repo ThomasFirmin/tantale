@@ -9,13 +9,17 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type TestComp<Dom> = Computed<ParSId, PartialSol::<ParSId,Dom,TestSInfo>,Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
+type TestComp<Dom> = Computed<
+    ParSId,
+    PartialSol<ParSId, Dom, TestSInfo>,
+    Dom,
+    SingleCodomain<OutExample>,
+    OutExample,
+    TestSInfo,
+>;
 
-fn _test_solution_assertion<Dom>(
-    n: usize,
-    sol: &TestComp<Dom>,
-    pid: u32,
-) where
+fn _test_solution_assertion<Dom>(n: usize, sol: &TestComp<Dom>, pid: u32)
+where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
 {

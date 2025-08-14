@@ -80,9 +80,7 @@ where
     Out: Outcome,
     Scp: Searchspace<SId, PObj, POpt, Obj, Opt, EmptyInfo>,
 {
-    fn init(&mut self) {
-        self.0.iteration = 0;
-    }
+    fn init(&mut self) {}
 
     fn first_step(&mut self, sp: Arc<Scp>) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo) {
         rs_iter::<PObj, POpt, Obj, Opt, Scp>(self, sp.clone())

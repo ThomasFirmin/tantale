@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 /// A [`Stop`] criterion, returning false when the number of
 /// evaluation during a run exceed a threshold.
-#[derive(Serialize,Deserialize)]
-pub struct Calls(pub usize, usize);
+#[derive(Serialize, Deserialize)]
+pub struct Calls(pub usize, pub usize);
 
 impl Stop for Calls {
     fn init(&mut self) {

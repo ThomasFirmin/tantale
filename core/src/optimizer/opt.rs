@@ -1,5 +1,9 @@
 use crate::{
-    domain::Domain, objective::{Codomain, Outcome}, saver::CSVWritable, searchspace::Searchspace, solution::{Computed, Id, ParSId, Partial, SId, SolInfo}
+    domain::Domain,
+    objective::{Codomain, Outcome},
+    saver::CSVWritable,
+    searchspace::Searchspace,
+    solution::{Computed, Id, ParSId, Partial, SId, SolInfo},
 };
 use std::{
     fmt::{Debug, Display},
@@ -18,7 +22,7 @@ pub trait OptState {}
 pub struct EmptyInfo {}
 impl SolInfo for EmptyInfo {}
 impl OptInfo for EmptyInfo {}
-impl CSVWritable<()> for EmptyInfo{
+impl CSVWritable<()> for EmptyInfo {
     fn header(&self) -> Vec<String> {
         Vec::new()
     }

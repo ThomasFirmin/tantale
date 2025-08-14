@@ -12,8 +12,8 @@ pub mod init_cod;
 
 pub mod test_cod_csv;
 pub mod test_dom_csv;
+pub mod test_folder_csv;
+pub mod test_id_csv;
 pub mod test_out_csv;
 pub mod test_sp_csv;
 pub mod test_var_csv;
-pub mod test_id_csv;
-pub mod test_folder_csv;

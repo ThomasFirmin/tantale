@@ -2,16 +2,19 @@ use crate::{
     domain::Domain,
     objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, OptInfo, OptState},
-    saver::Saver,
+    saver::{CheckpointError, Saver},
     searchspace::Searchspace,
     solution::{Computed, Id, Partial, SolInfo, Solution},
     stop::Stop,
 };
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::{
-    fmt::{Debug, Display}, fs::{create_dir, create_dir_all, File}, path::{Path, PathBuf}, sync::{Arc, Mutex}
+    fmt::{Debug, Display},
+    fs::{create_dir, create_dir_all, File, OpenOptions},
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
@@ -21,7 +24,7 @@ use std::{
 /// * `path` : `&'static` [`str`]  - The path to where the folder should be created.
 ///   Creates all parents folder that might not  exist yet.
 /// * `sep` : [`char] - The separator between columns of the CSV files.
-///
+#[derive(Serialize, Deserialize)]
 pub struct CSVSaver {
     pub path: PathBuf,
     pub save_obj: bool,
@@ -32,7 +35,7 @@ pub struct CSVSaver {
     path_popt: Option<PathBuf>,
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
-    path_check: Option<(PathBuf,PathBuf)>,
+    path_check: Option<(PathBuf, PathBuf, PathBuf)>,
     _header_init_obj: bool,
     _header_init_opt: bool,
     _header_init_codom: bool,
@@ -61,7 +64,6 @@ impl CSVSaver {
         save_out: bool,
         checkpoint: usize,
     ) -> CSVSaver {
-
         let true_path = PathBuf::from(path);
         let does_exist = true_path.try_exists().unwrap();
         if does_exist {
@@ -69,7 +71,7 @@ impl CSVSaver {
         } else if true_path.is_file() {
             panic!("The given path cannot be pointing at a file, {}.", path)
         } else {
-            let path_evals = true_path.join(Path::new("evals"));
+            let path_evals = true_path.join(Path::new("evaluations"));
             create_dir_all(true_path.as_path()).unwrap();
             create_dir(path_evals.as_path()).unwrap();
 
@@ -78,7 +80,7 @@ impl CSVSaver {
                     let path = path_evals.join(Path::new("obj.csv"));
                     csv::Writer::from_path(path.as_path()).unwrap();
                     Some(path)
-                },
+                }
                 false => None,
             };
             let path_popt = match save_opt {
@@ -86,30 +88,31 @@ impl CSVSaver {
                     let path = path_evals.join(Path::new("opt.csv"));
                     csv::Writer::from_path(path.as_path()).unwrap();
                     Some(path)
-                },
+                }
                 false => None,
             };
             let path_out = match save_out {
                 true => {
-                    let path = path_evals.join(Path::new("out.csv")) ;
+                    let path = path_evals.join(Path::new("out.csv"));
                     csv::Writer::from_path(path.as_path()).unwrap();
                     Some(path)
-                },
+                }
                 false => None,
             };
 
             let path_check = if checkpoint > 0 {
-                let path = true_path.join(Path::new("check"));
+                let path = true_path.join(Path::new("checkpoint"));
                 create_dir(path.as_path()).unwrap();
                 let pste = path.join(Path::new("state_opt.json"));
                 let pstp = path.join(Path::new("state_stp.json"));
-                Some((pste,pstp))
+                let psav = path.join(Path::new("state_sav.json"));
+                Some((pste, pstp, psav))
             } else {
                 None
             };
-            let path_codom = path_evals.join(Path::new("codom.csv"));
+            let path_codom = path_evals.join(Path::new("cod.csv"));
             csv::Writer::from_path(path_codom.as_path()).unwrap();
-            
+
             CSVSaver {
                 path: true_path,
                 save_obj,
@@ -130,11 +133,11 @@ impl CSVSaver {
     }
 }
 
-impl<'de, SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+impl<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
     Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State> for CSVSaver
 where
-    State: OptState + Serialize + Deserialize<'de>,
-    St: Stop + Serialize + Deserialize<'de>,
+    State: OptState + Serialize + DeserializeOwned,
+    St: Stop + Serialize + DeserializeOwned,
     PObj: Partial<SolId, Obj, SInfo> + Send + Sync,
     POpt: Partial<SolId, Opt, SInfo> + Send + Sync,
     Obj: Domain + Clone + Display + Debug + Send + Sync,
@@ -160,7 +163,11 @@ where
         info: Arc<Info>,
     ) {
         if let Some(ppobj) = &self.path_pobj {
-            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppobj.as_path()).unwrap()));
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppobj.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
 
             if !self._header_init_obj {
                 let op = &obj[0];
@@ -191,7 +198,11 @@ where
             });
         }
         if let Some(ppopt) = &self.path_popt {
-            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppopt.as_path()).unwrap()));
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppopt.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
 
             if !self._header_init_opt {
                 let op = &opt[0];
@@ -224,9 +235,12 @@ where
     }
 
     fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>) {
-        let wrt: Arc<Mutex<csv::Writer<std::fs::File>>> = Arc::new(Mutex::new(
-            csv::Writer::from_path(self.path_codom.as_path()).unwrap(),
-        ));
+        let file = OpenOptions::new()
+            .append(true)
+            .open(self.path_codom.as_path())
+            .unwrap();
+        let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+
         if !self._header_init_codom {
             let op = &obj[0];
             let id = op.get_id();
@@ -254,9 +268,13 @@ where
         });
     }
 
-    fn save_out(&mut self, out: Vec<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>) {
+    fn save_out(&mut self, out: ArcVecArc<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>) {
         if let Some(ppout) = &self.path_out {
-            let wrt = Arc::new(Mutex::new(csv::Writer::from_path(ppout.as_path()).unwrap()));
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppout.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
 
             if !self._header_init_out {
                 let o = &out[0];
@@ -287,16 +305,45 @@ where
     }
 
     fn save_state(&mut self, _sp: Arc<Scp>, state: &State, stop: &St) {
-        if let Some(path) = &self.path_check{
+        if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
             let wrt = File::create(path.1.as_path()).unwrap();
             serde_json::to_writer(wrt, stop).unwrap();
-        } 
+            let wrt = File::create(path.2.as_path()).unwrap();
+            serde_json::to_writer(wrt, self).unwrap();
+        }
     }
 
-    fn clean(&mut self) {
-        println!("{:?}",&self.path);
+    fn clean(self) {
         std::fs::remove_dir_all(&self.path).unwrap();
+    }
+
+    fn load(path: &str) -> Result<(Self, St, State), CheckpointError> {
+        let path = Path::new(path);
+        let path_check = path.join(Path::new("checkpoint"));
+
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_sav = path.join(Path::new("state_sav.json"));
+            let path_opt = path.join(Path::new("state_opt.json"));
+            let path_stp = path.join(Path::new("state_stp.json"));
+            if path_sav.is_file() && path_opt.is_file() && path_stp.is_file() {
+                let rdrsav = File::open(path_sav).unwrap();
+                let rdrstp = File::open(path_opt).unwrap();
+                let rdropt = File::open(path_stp).unwrap();
+                Ok((
+                    serde_json::from_reader(rdrsav).unwrap(),
+                    serde_json::from_reader(rdrstp).unwrap(),
+                    serde_json::from_reader(rdropt).unwrap(),
+                ))
+            } else {
+                Err(CheckpointError(String::from("One state file does not exists among state_sav.json, state_opt.json, state_stp.json.")))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder.",
+            )))
+        }
     }
 }
