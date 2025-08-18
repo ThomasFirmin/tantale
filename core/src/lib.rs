@@ -34,7 +34,6 @@ pub mod stop;
 pub use stop::Stop;
 
 pub mod experiment;
-pub use experiment::run;
 
 pub mod saver;
 pub use saver::CSVSaver;

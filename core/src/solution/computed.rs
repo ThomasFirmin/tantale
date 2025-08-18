@@ -7,6 +7,7 @@ use std::{
     fmt::{Debug, Display},
     sync::Arc,
 };
+use serde::{Serialize,Deserialize};
 
 /// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer)
 /// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
@@ -19,6 +20,7 @@ use std::{
 ///
 /// A [`ComputedSol`] can only be created from a pair of [`PartialSol`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
+#[derive(Serialize,Deserialize)]
 pub struct Computed<SolId, P, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
@@ -28,6 +30,7 @@ where
     Out: Outcome,
     SolId: Id + PartialEq + Clone + Copy,
     P: Partial<SolId, Dom, Info>,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     pub sol: Arc<P>,
     pub y: Arc<Cod::TypeCodom>,
@@ -46,6 +49,7 @@ where
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Clone + Copy,
     P: Partial<SolId, Dom, Info>,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     fn get_id(&self) -> SolId {
         self.sol.get_id()
@@ -69,6 +73,7 @@ where
     TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq + Clone + Copy,
     P: Partial<SolId, Dom, Info>,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(sol: Arc<P>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {

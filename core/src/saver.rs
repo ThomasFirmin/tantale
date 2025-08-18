@@ -17,6 +17,8 @@ pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
 pub mod serror;
 pub use serror::CheckpointError;
 
+use serde::{Serialize,Deserialize};
+
 pub trait Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
     Self: Sized,
@@ -32,6 +34,7 @@ where
     Info: OptInfo,
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     fn init(&mut self);
     fn save_partial(

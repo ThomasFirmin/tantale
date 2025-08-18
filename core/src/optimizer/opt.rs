@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     domain::Domain,
     objective::{Codomain, Outcome},
@@ -55,6 +57,7 @@ where
     Info: OptInfo,
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
@@ -89,6 +92,7 @@ where
     Scp: Searchspace<SId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
     State: OptState,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
 }
 
@@ -106,6 +110,7 @@ where
     Scp: Searchspace<ParSId, PObj, POpt, Obj, Opt, SInfo>,
     Info: OptInfo,
     State: OptState,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     fn interact(&self);
     fn update(&self);

@@ -115,6 +115,7 @@ use crate::{
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
+use serde::{Serialize,Deserialize};
 
 type ComputedOut<SolId, A, ADom, B, BDom, Cod, Out, Info> = (
     Arc<Computed<SolId, A, ADom, Cod, Out, Info>>,
@@ -612,6 +613,7 @@ where
     where
         Cod: Codomain<Out>,
         Out: Outcome,
+        Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
     {
         (
             Arc::new(Computed::new(xa, y.clone())),

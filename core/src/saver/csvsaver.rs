@@ -152,6 +152,7 @@ where
         + Sync,
     Info: OptInfo + CSVWritable<()> + Send + Sync,
     SolId: Id + PartialEq + Copy + Clone + CSVWritable<()> + Send + Sync,
+    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     fn init(&mut self) {}
 
@@ -325,13 +326,13 @@ where
 
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_sav = path.join(Path::new("state_sav.json"));
-            let path_opt = path.join(Path::new("state_opt.json"));
-            let path_stp = path.join(Path::new("state_stp.json"));
+            let path_sav = path_check.join(Path::new("state_sav.json"));
+            let path_opt = path_check.join(Path::new("state_opt.json"));
+            let path_stp = path_check.join(Path::new("state_stp.json"));
             if path_sav.is_file() && path_opt.is_file() && path_stp.is_file() {
                 let rdrsav = File::open(path_sav).unwrap();
-                let rdrstp = File::open(path_opt).unwrap();
-                let rdropt = File::open(path_stp).unwrap();
+                let rdrstp = File::open(path_stp).unwrap();
+                let rdropt = File::open(path_opt).unwrap();
                 Ok((
                     serde_json::from_reader(rdrsav).unwrap(),
                     serde_json::from_reader(rdrstp).unwrap(),
@@ -342,7 +343,7 @@ where
             }
         } else {
             Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder.",
+                "The given path does not have any checkpoint folder",
             )))
         }
     }

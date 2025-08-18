@@ -148,6 +148,7 @@
 //!
 
 use crate::{objective::outcome::Outcome, saver::csvsaver::CSVWritable};
+use serde::{Serialize,Deserialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation of the [`Objective`] function
 pub type Criteria<Out> = fn(&Out) -> f64;
@@ -215,7 +216,7 @@ impl<Out: Outcome> SingleCodomain<Out> {
         SingleCodomain { y_criteria: crit }
     }
 }
-
+#[derive(Serialize,Deserialize)]
 pub struct ElemSingleCodomain {
     pub value: f64,
 }
@@ -262,6 +263,7 @@ impl<Out: Outcome> FidelCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
+#[derive(Serialize,Deserialize)]
 pub struct ElemFidelCodomain {
     pub value: f64,
     pub fidelity: f64,
@@ -315,6 +317,7 @@ impl<Out: Outcome> ConstCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
+#[derive(Serialize,Deserialize)]
 pub struct ElemConstCodomain {
     pub value: f64,
     pub constraints: Box<[f64]>,
@@ -379,6 +382,7 @@ impl<Out: Outcome> FidelConstCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
+#[derive(Serialize,Deserialize)]
 pub struct ElemFidelConstCodomain {
     pub value: f64,
     pub fidelity: f64,
@@ -445,7 +449,7 @@ impl<Out: Outcome> MultiCodomain<Out> {
         MultiCodomain { y_criteria: crit }
     }
 }
-
+#[derive(Serialize,Deserialize)]
 pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
 }
@@ -496,6 +500,7 @@ impl<Out: Outcome> FidelMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
+#[derive(Serialize,Deserialize)]
 pub struct ElemFidelMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
@@ -557,6 +562,7 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
+#[derive(Serialize,Deserialize)]
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
     pub constraints: Box<[f64]>,
@@ -628,6 +634,7 @@ impl<Out: Outcome> FidelConstMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
+#[derive(Serialize,Deserialize)]
 pub struct ElemFidelConstMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
