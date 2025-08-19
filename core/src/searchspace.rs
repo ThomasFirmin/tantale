@@ -12,8 +12,9 @@
 //!     use tantale::core::{uniform_cat, uniform_nat, uniform_real,
 //!                         Bool, Cat, Nat, Real, Searchspace,
 //!                         EmptyInfo, Solution, SId};
-//!     use tantale::macros::sp;
+//!     use tantale::macros::{sp,Outcome};
 //!     use std::sync::Arc;
+//!     use serde::{Serialize,Deserialize};
 //!
 //!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!     
@@ -35,10 +36,8 @@
 //!     let id2 : SId = opt.get_id();
 //!     println!("Obj ID : {} <=> Opt ID : {}", id1.id, id2.id);
 //!
-//!     use tantale::macros::Outcome;
-//!
-//!     #[derive(Outcome)]
-//!     pub struct OutStruct{out:f64}
+//!     #[derive(Outcome,Serialize,Deserialize)]
+//!     struct OutStruct{pub out:f64}
 //!
 //!     // _TantaleMixedObj is automatically created by sp!
 //!     fn compute_obj(tantale_in : Arc::<[<_TantaleMixedObj as Domain >::TypeDom]>) -> OutStruct{
@@ -76,9 +75,10 @@
 //!     use tantale::core::domain::{Real,Bool,Cat,Nat};
 //!     use tantale::core::domain::sampler::{uniform_nat, uniform_cat, uniform_real};
 //!     use tantale::macros::{objective,Outcome};
+//!     use serde::{Serialize,Deserialize};
 //!
 //!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-//!     #[derive(Outcome)]
+//!     #[derive(Outcome,Serialize,Deserialize)]
 //!     pub struct OutStruct{pub out:f64}
 //!
 //!     objective!(

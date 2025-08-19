@@ -1,11 +1,13 @@
 #[test]
 fn obj_test() {
     mod searchspace {
+        use serde::{Serialize,Deserialize};
         use tantale::core::domain::sampler::{uniform_int, uniform_real};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale::core::Outcome;
+        use tantale::macros::Outcome;
         use tantale_macros::objective;
 
+        #[derive(Outcome,Serialize,Deserialize)]
         pub struct OutExample {
             pub obj: f64,
             pub fid: f64,
@@ -17,7 +19,6 @@ fn obj_test() {
             pub natinfo: u64,
             pub catinfo: String,
         }
-        impl Outcome for OutExample {}
         impl std::fmt::Display for OutExample {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(

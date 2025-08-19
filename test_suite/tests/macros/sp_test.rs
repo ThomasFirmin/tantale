@@ -1,4 +1,6 @@
 mod test {
+    use serde::{Deserialize, Serialize};
+
     #[test]
     pub fn main() {
         use std::sync::Arc;
@@ -28,7 +30,7 @@ mod test {
 
         use tantale::macros::Outcome;
 
-        #[derive(Outcome)]
+        #[derive(Outcome,Serialize,Deserialize)]
         pub struct OutStruct {
             out: f64,
         }

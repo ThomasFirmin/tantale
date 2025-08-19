@@ -112,9 +112,16 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Solution,Computed,Partial,Real,Int,SingleCodomain,HashOut,EmptyInfo,SId,Id};
+    /// use tantale::core::{Solution,Computed,Partial,Real,Int,SingleCodomain,EmptyInfo,SId,Id};
     /// use tantale::core::objective::codomain::ElemSingleCodomain;
     /// use std::sync::Arc;
+    /// 
+    /// # use tantale::core::Outcome;
+    /// # use serde::{Serialize,Deserialize};
+    /// # #[derive(Serialize,Deserialize)]
+    /// # struct OutExample(i32);
+    /// # impl Outcome for OutExample{}
+    /// 
     /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
     /// let x_2 = vec![5,6,7,8].into_boxed_slice();
     /// let info = Arc::new(EmptyInfo{});
@@ -122,8 +129,8 @@ where
     /// let partial = Arc::new(Partial::new(SId::generate(),x_1,info));
     /// let y = Arc::new(ElemSingleCodomain{value:1.0});
     ///
-    /// let real_sol = Computed::<_,Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
-    /// let int_sol : Computed<_,Int,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
+    /// let real_sol = Computed::<_,Real,SingleCodomain<OutExample>,OutExample,_>::new(partial,y);
+    /// let int_sol : Computed<_,Int,SingleCodomain<OutExample>,OutExample,_> = real_sol.twin(x_2);
     ///
     /// let id_r = real_sol.get_id();
     /// let id_i = int_sol.get_id();

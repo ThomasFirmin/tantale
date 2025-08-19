@@ -23,7 +23,7 @@ pub mod errors;
 pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
-    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, HashOut,
+    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity,
     LinkedOutcome, Multi, MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
 };
 

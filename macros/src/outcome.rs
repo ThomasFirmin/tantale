@@ -10,7 +10,7 @@ fn is_vec_type(ty: &Type) -> bool {
 fn is_numeric_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if {
         let ident = &p.path.segments.last().unwrap().ident;
-        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64")
+        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64" | "String" | "bool")
     })
 }
 
@@ -45,14 +45,13 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 "{:?}",
                 syn::Error::new(
                     fty.span(),
-                    "Fields must be a numericals or a Vec of numericals"
+                    "Fields must must be primitive or a Vec of primitive from: [isize,i32,i64,f32,f64,usize,u32,u64,String,bool]"
                 )
             );
         }
     });
 
     quote!{
-        #[derive(serde::Serialize,serde::Deserialize)]
         impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}
 
         impl #egenerics tantale::core::saver::csvsaver::CSVWritable<()> for #eident #egenerics #ewhere

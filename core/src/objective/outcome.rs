@@ -9,8 +9,9 @@
 //! use tantale::macros::Outcome;
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
 //! use std::fmt::Debug;
-//!
-//! #[derive(Outcome)]
+//! use serde::{Serialize,Deserialize};
+//! 
+//! #[derive(Outcome,Serialize,Deserialize)]
 //! pub struct OutExample {
 //!     pub fid2: f64,
 //!     pub con3: f64,

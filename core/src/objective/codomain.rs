@@ -9,75 +9,16 @@
 //!
 //! # Example
 //!
-//! ## HashOut example
-//!
-//! The following examples uses a [`HashOut`](tantale::core::HashOut) as the [`Outcome`](tantale::core::Outcome)
-//! of the function.
-//!
-//! ```
-//!  // An example of a multi-objective, constrained and multi-fidelity codomain.
-//! use tantale::core::{Codomain, FidelConstMultiCodomain, HashOut};
-//!
-//! let outcome = HashOut::from([
-//!         ("mul1", 1.0),
-//!         ("mul2", 2.0),
-//!         ("mul3", 3.0),
-//!         ("mul4", 4.0),
-//!         ("fid5", 5.0),
-//!         ("con6", 6.0),
-//!         ("con7", 7.0),
-//!         ("con8", 8.0),
-//!         ("more", 9.0),
-//!         ("info", 10.0),
-//!     ]
-//! );
-//!
-//! let codom = FidelConstMultiCodomain::new(
-//!         // Define multi-objective
-//!         vec![
-//!             |h : &HashOut| *h.get("mul1").unwrap(),
-//!             |h : &HashOut| *h.get("mul2").unwrap(),
-//!             |h : &HashOut| *h.get("mul3").unwrap(),
-//!             |h : &HashOut| *h.get("mul4").unwrap(),
-//!         ].into_boxed_slice(),
-//!         // Define fidelity
-//!         |h : &HashOut| *h.get("fid5").unwrap(),
-//!         // Define constraints
-//!         vec![
-//!             |h : &HashOut| *h.get("con6").unwrap(),
-//!             |h : &HashOut| *h.get("con7").unwrap(),
-//!             |h : &HashOut| *h.get("con8").unwrap(),
-//!             ].into_boxed_slice(),
-//!     );
-//!
-//! let elem = codom.get_elem(&outcome);
-//!
-//! assert_eq!(elem.value.len(),4);
-//! assert_eq!(elem.value[0]       , 1.0);
-//! assert_eq!(elem.value[1]       , 2.0);
-//! assert_eq!(elem.value[2]       , 3.0);
-//! assert_eq!(elem.value[3]       , 4.0);
-//!
-//! assert_eq!(elem.fidelity       , 5.0);
-//!
-//! assert_eq!(elem.constraints.len(),3);
-//! assert_eq!(elem.constraints[0] , 6.0);
-//! assert_eq!(elem.constraints[1] , 7.0);
-//! assert_eq!(elem.constraints[2] , 8.0);
-//!
-//! ```
-//!
-//! ## Custom struct example
-//!
 //! The following examples uses a specific `struct` as the [`Outcome`](tantale::core::Outcome) of the function.
 //!
 //! ```
 //! // An example of a multi-objective, constrained and multi-fidelity codomain.
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
 //! use tantale::macros::Outcome;
-//!
+//! use serde::{Serialize,Deserialize};
+//! 
 //! // Define a specific struct as the output of the function
-//! #[derive(Outcome)]
+//! #[derive(Outcome,Serialize,Deserialize)]
 //! pub struct  OutExample{
 //!     pub mul1 : f64,
 //!     pub mul2 : f64,

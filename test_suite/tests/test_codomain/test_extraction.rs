@@ -1,10 +1,9 @@
-use super::init_outcome::{get_hash, get_struct, OutExample};
+use super::init_outcome::{get_struct, OutExample};
 
 use tantale::core::objective::codomain::{
     Codomain, ConstCodomain, ConstMultiCodomain, FidelCodomain, FidelConstCodomain,
     FidelConstMultiCodomain, FidelMultiCodomain, MultiCodomain, SingleCodomain,
 };
-use tantale::core::objective::outcome::HashOut;
 
 use paste::paste;
 
@@ -25,54 +24,6 @@ macro_rules! test_const {
         )*
     };
 }
-
-test_const!(
-    get_hash |
-    hash_constcodomain, ConstCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    );
-    hash_fidelconstcodomain, FidelConstCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    );
-    hash_constmulticodomain, ConstMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    );
-    hash_fidelconstmulticodomain, FidelConstMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    )
-);
 
 test_const!(
     get_struct |
@@ -139,46 +90,6 @@ macro_rules! test_fid {
 }
 
 test_fid!(
-    get_hash |
-    hash_fidelconstcodomain, FidelConstCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    );
-    hash_fidelconstmulticodomain, FidelConstMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-    );
-    hash_fidelcodomain , FidelCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-    );
-    hash_fidelmulticodomain , FidelMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-    )
-);
-
-test_fid!(
     get_struct |
     struct_fidelconstcodomain, FidelConstCodomain::new(
         |h : &OutExample| h.obj1,
@@ -235,36 +146,6 @@ macro_rules! test_single {
 }
 
 test_single!(
-    get_hash |
-    hash_singlecodomain, SingleCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap()
-    );
-    hash_fidelcodomain, FidelCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-    );
-    hash_constcodomain, ConstCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-
-    );
-    hash_fidelconstcodomain, FidelConstCodomain::new(
-        |h : &HashOut| *h.get("obj1").unwrap(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-
-    )
-);
-
-test_single!(
     get_struct |
     struct_singlecodomain, SingleCodomain::new(
         |h : &OutExample| h.obj1,
@@ -312,56 +193,6 @@ macro_rules! test_multi {
         )*
     };
 }
-
-test_multi!(
-    get_hash |
-    hash_multicodomain, MultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-    );
-    hash_fidelmulticodomain, FidelMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-    );
-    hash_constmulticodomain, ConstMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-
-    );
-    hash_fidelconstmulticodomain, FidelConstMultiCodomain::new(
-        vec![
-            |h : &HashOut| *h.get("mul6").unwrap(),
-            |h : &HashOut| *h.get("mul7").unwrap(),
-            |h : &HashOut| *h.get("mul8").unwrap(),
-            |h : &HashOut| *h.get("mul9").unwrap(),
-        ].into_boxed_slice(),
-        |h : &HashOut| *h.get("fid2").unwrap(),
-        vec![
-            |h : &HashOut| *h.get("con3").unwrap(),
-            |h : &HashOut| *h.get("con4").unwrap(),
-            |h : &HashOut| *h.get("con5").unwrap(),
-            ].into_boxed_slice(),
-
-    )
-);
 
 test_multi!(
     get_struct |

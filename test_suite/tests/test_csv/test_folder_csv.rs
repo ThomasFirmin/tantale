@@ -17,10 +17,10 @@ use tantale_core::{OptInfo, SolInfo};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-
 mod infos {
     use tantale_macros::Outcome;
-    #[derive(Outcome)]
+    use serde::{Serialize,Deserialize};
+    #[derive(Outcome,Serialize,Deserialize)]
     pub struct OutExample {
         pub fid2: usize,
         pub con3: i64,
