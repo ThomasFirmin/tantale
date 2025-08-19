@@ -10,6 +10,7 @@ use crate::domain::{
 use crate::saver::CSVWritable;
 
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
 // -_-_-_-_-_-_-_-
@@ -56,7 +57,7 @@ impl Debug for BaseDom {
 
 /// Basic (`TypeDom`)[`Domain::TypeDom`] of [`BaseDom`].
 ///
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug,Clone,PartialEq,Serialize,Deserialize)]
 pub enum BaseTypeDom {
     Real(TypeDom<Real>),
     Nat(TypeDom<Nat>),
@@ -464,7 +465,7 @@ impl Onto<BaseDom> for BaseDom {
     ///
     fn onto(&self, item: &TypeDom<BaseDom>, target: &BaseDom) -> OntoOutput<BaseDom> {
         if self == target {
-            Ok(*item)
+            Ok(item.clone())
         } else {
             match self {
                 Self::Real(d) => match item {

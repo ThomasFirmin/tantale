@@ -15,7 +15,7 @@ fn obj_test() {
             pub intinfo: i64,
             pub boolinfo: bool,
             pub natinfo: u64,
-            pub catinfo: &'static str,
+            pub catinfo: String,
         }
         impl Outcome for OutExample {}
         impl std::fmt::Display for OutExample {
@@ -40,24 +40,22 @@ fn obj_test() {
             x + 1
         }
 
-        const ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
         objective!(
-            pub fn example() -> OutExample {
+            pub fn example<'a>() -> OutExample {
                 let a = [! a | Real(0.0,5.0) | !];
                 let aa = [! aa_{10} | Real(-5.0,0.0) => uniform_real | Int(0,100) => uniform_int !];
                 let aaa = [! aaa | Real(100.0,200.0) | !];
                 let some_bool = [! boolvar | Bool()   | !];
                 let some_nat = [! natvar | Nat(0,10) | !];
-                let some_cat = [! catvar | Cat(&ACTIVATION) |!];
+                let some_cat = [! catvar | Cat(&["relu", "tanh", "sigmoid"]) |!];
 
                 let some_int = plus_one_int([! intvar | Int(-10,0) | !]);
 
                 OutExample{
                     obj: a,
-                    fid: *aa[0],
-                    con: *aa[1],
-                    more: *aa[2],
+                    fid: aa[0],
+                    con: aa[1],
+                    more: aa[2],
                     info: aaa,
                     intinfo: some_int,
                     boolinfo: some_bool,
@@ -69,13 +67,13 @@ fn obj_test() {
     }
 
     use std::sync::Arc;
-    use tantale::core::{EmptyInfo, PartialSol, SId, Searchspace, Solution};
+    use tantale::core::{EmptyInfo, Partial, SId, Searchspace, Solution};
     let sp = searchspace::get_searchspace();
     let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
     let rng = Some(&mut rng);
 
-    let sample: Arc<PartialSol<SId, _, _>> = sp.sample_obj(rng, info);
+    let sample: Arc<Partial<SId, _, _>> = sp.sample_obj(rng, info);
     searchspace::example(sample.get_x());
 }

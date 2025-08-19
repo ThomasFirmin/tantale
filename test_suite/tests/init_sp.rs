@@ -1392,6 +1392,94 @@ pub mod sp_one_missing_to_single {
     );
 }
 
+///////////////////////////////////////
+///////////////////////////////////////
+///////////////////////////////////////
+
+pub mod sp_only_real {
+    use tantale_core::domain::Real;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Real(0.0,1.0) | ;
+        b | Real(0.0,1.0) | ;
+        c | Real(0.0,1.0) | ;
+        d | Real(0.0,1.0) | ;
+    );
+}
+
+pub mod sp_only_int {
+    use tantale_core::domain::Int;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Int(-100,100) | ;
+        b | Int(-100,100) | ;
+        c | Int(-100,100) | ;
+        d | Int(-100,100) | ;
+    );
+}
+pub mod sp_only_nat {
+    use tantale_core::domain::Nat;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Nat(0,100) | ;
+        b | Nat(0,100) | ;
+        c | Nat(0,100) | ;
+        d | Nat(0,100) | ;
+    );
+}
+
+pub mod sp_only_unit {
+    use tantale_core::domain::Unit;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Unit() | ;
+        b | Unit() | ;
+        c | Unit() | ;
+        d | Unit() | ;
+    );
+}
+pub mod sp_only_bool {
+    use tantale_core::domain::Bool;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Bool() | ;
+        b | Bool() | ;
+        c | Bool() | ;
+        d | Bool() | ;
+    );
+}
+
+pub mod sp_only_cat {
+    use tantale_core::domain::Cat;
+    use tantale_macros::sp;
+
+    pub const SP_SIZE: usize = 4;
+
+    sp!(
+        a | Cat(&super::ACTIVATION) | ;
+        b | Cat(&super::ACTIVATION) | ;
+        c | Cat(&super::ACTIVATION) | ;
+        d | Cat(&super::ACTIVATION) | ;
+    );
+}
+
+
+
 // sp_ms_nosamp,
 // sp_ms_onemsamp,
 // sp_ms_onemsamp_offset,

@@ -35,7 +35,7 @@ pub fn _single_onto<T>(_input: &T, item: &TypeDom<T>, _output: &T) -> OntoOutput
 where
     T: Domain + Clone + Display + Debug,
 {
-    Ok(*item)
+    Ok(item.clone())
 }
 
 impl<Obj> Var<Obj>

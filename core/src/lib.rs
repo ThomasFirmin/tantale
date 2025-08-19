@@ -13,7 +13,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{Computed, Id, ParSId, Partial, PartialSol, SId, SolInfo, Solution};
+pub use solution::{Computed, Id, ParSId, Partial, SId, SolInfo, Solution};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};

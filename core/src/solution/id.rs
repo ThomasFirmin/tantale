@@ -1,10 +1,14 @@
 use crate::saver::CSVWritable;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use serde::{Serialize,Deserialize};
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Describes the [`Id`] of a [`Solution`]
-pub trait Id {
+pub trait Id
+where
+    Self: Sized + Serialize + for<'a> Deserialize<'a>
+{
     fn generate() -> Self;
 }
 
@@ -54,7 +58,7 @@ impl PartialEq for DistSId {
 /// The [`Id`] of a [`Solution`] made of the `pid` of the process
 /// from which the [`Solution`] was created, and a unique `id`
 /// corresponding to the number of [`Solution`] created from that process.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ParSId {
     pub pid: u32,
     pub id: usize,
@@ -88,7 +92,7 @@ impl PartialEq for ParSId {
 
 /// The [`Id`] of a [`Solution`] made of a unique `id`
 /// corresponding to the number of created [`Solution`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize,Deserialize)]
 pub struct SId {
     pub id: usize,
 }

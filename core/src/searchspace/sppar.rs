@@ -3,7 +3,7 @@ use crate::{
     optimizer::ArcVecArc,
     saver::CSVLeftRight,
     searchspace::{Searchspace, SolInfo},
-    solution::{Id, Partial, PartialSol, Solution},
+    solution::{Id, Partial, Solution},
     variable::Var,
 };
 
@@ -27,8 +27,6 @@ where
 impl<SolId, Obj, Opt, SInfo>
     Searchspace<
         SolId,
-        PartialSol<SolId, Obj, SInfo>,
-        PartialSol<SolId, Opt, SInfo>,
         Obj,
         Opt,
         SInfo,
@@ -36,15 +34,15 @@ impl<SolId, Obj, Opt, SInfo>
 where
     Obj: Domain + Clone + Display + Debug + Send + Sync,
     Opt: Domain + Clone + Display + Debug + Send + Sync,
-    Obj::TypeDom: Default + Copy + Clone + Display + Debug + Send + Sync,
-    Opt::TypeDom: Default + Copy + Clone + Display + Debug + Send + Sync,
+    TypeDom<Obj>: Send + Sync,
+    TypeDom<Opt>: Send + Sync,
     SInfo: SolInfo + Send + Sync,
     SolId: Id + PartialEq + Copy + Clone + Send + Sync,
 {
     fn onto_obj(
         &self,
-        inp: Arc<PartialSol<SolId, Opt, SInfo>>,
-    ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
+        inp: Arc<Partial<SolId, Opt, SInfo>>,
+    ) -> Arc<Partial<SolId, Obj, SInfo>> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = inp
             .x
@@ -57,8 +55,8 @@ where
 
     fn onto_opt(
         &self,
-        inp: Arc<PartialSol<SolId, Obj, SInfo>>,
-    ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
+        inp: Arc<Partial<SolId, Obj, SInfo>>,
+    ) -> Arc<Partial<SolId, Opt, SInfo>> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = inp
             .x
@@ -74,12 +72,12 @@ where
         &self,
         _rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
+    ) -> Arc<Partial<SolId, Obj, SInfo>> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
             .collect();
-        Arc::new(PartialSol::<SolId, Obj, SInfo>::new(
+        Arc::new(Partial::<SolId, Obj, SInfo>::new(
             SolId::generate(),
             outx,
             info,
@@ -91,12 +89,12 @@ where
         &self,
         _rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
+    ) -> Arc<Partial<SolId, Opt, SInfo>> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
             .collect();
-        Arc::new(PartialSol::<SolId, Opt, SInfo>::new(
+        Arc::new(Partial::<SolId, Opt, SInfo>::new(
             SolId::generate(),
             outx,
             info,
@@ -105,8 +103,8 @@ where
 
     fn vec_onto_obj(
         &self,
-        inp: ArcVecArc<PartialSol<SolId, Opt, SInfo>>,
-    ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
+        inp: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
         Arc::new(
             inp.par_iter()
                 .map(|sol| self.onto_obj(sol.clone()))
@@ -116,8 +114,8 @@ where
 
     fn vec_onto_opt(
         &self,
-        inp: ArcVecArc<PartialSol<SolId, Obj, SInfo>>,
-    ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
+        inp: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
         Arc::new(
             inp.par_iter()
                 .map(|sol| self.onto_opt(sol.clone()))
@@ -131,7 +129,7 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
+    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
         Arc::new(
             (0..size)
                 .into_par_iter()
@@ -146,7 +144,7 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
+    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
         Arc::new(
             (0..size)
                 .into_par_iter()

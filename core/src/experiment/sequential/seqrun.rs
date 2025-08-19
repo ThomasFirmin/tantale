@@ -1,5 +1,5 @@
 use crate::{
-    domain::Domain,
+    domain::{Domain,TypeDom},
     objective::{Codomain, Objective, Outcome},
     optimizer::{opt::SequentialOptimizer, OptInfo, OptState, Optimizer},
     saver::Saver,
@@ -19,8 +19,6 @@ pub fn initialize<
     Os,
     St,
     Sv,
-    PObj,
-    POpt,
     Obj,
     Opt,
     Out,
@@ -34,13 +32,11 @@ pub fn initialize<
     stop: &mut St,
     saver: &mut Sv,
 ) where
-    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
+    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SolId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    Op: Optimizer<SolId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     St: Stop,
-    Sv: Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
-    PObj: Partial<SolId, Obj, SInfo>,
-    POpt: Partial<SolId, Opt, SInfo>,
+    Sv: Saver<SolId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
@@ -49,7 +45,6 @@ pub fn initialize<
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     optimizer.init();
     objective.init();
@@ -57,20 +52,18 @@ pub fn initialize<
     saver.init();
 }
 
-pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, State>(
+pub fn run<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod, Info, SInfo, State>(
     mut searchspace: Scp,
     mut objective: Ob,
     mut optimizer: Op,
     mut stop: St,
     mut saver: Sv,
 ) where
-    Scp: Searchspace<SId, PObj, POpt, Obj, Opt, SInfo>,
-    Ob: Objective<Obj, Cod, Out> + SequentialOptimizer<PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
-    Op: Optimizer<SId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    Scp: Searchspace<SId, Obj, Opt, SInfo>,
+    Ob: Objective<Obj, Cod, Out> + SequentialOptimizer<Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    Op: Optimizer<SId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     St: Stop,
-    Sv: Saver<SId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
-    PObj: Partial<SId, Obj, SInfo>,
-    POpt: Partial<SId, Opt, SInfo>,
+    Sv: Saver<SId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
@@ -78,7 +71,6 @@ pub fn run<Scp, Ob, Op, St, Sv, PObj, POpt, Obj, Opt, Out, Cod, Info, SInfo, Sta
     Info: OptInfo,
     SInfo: SolInfo,
     State: OptState,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     todo!()
 }

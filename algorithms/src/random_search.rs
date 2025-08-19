@@ -1,11 +1,10 @@
 use tantale_core::{
     domain::Domain,
     objective::{codomain::SingleCodomain, outcome::Outcome},
-    optimizer::{opt::SolPairs, EmptyInfo, OptInfo, OptState, Optimizer},
+    optimizer::{opt::{OptOutput, SolPairs}, EmptyInfo, OptInfo, OptState, Optimizer},
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{Partial, SId},
-    ArcVecArc,
+    solution::{SId},
 };
 
 use rand::prelude::ThreadRng;
@@ -49,16 +48,14 @@ impl RandomSearch {
     }
 }
 
-fn rs_iter<PObj, POpt, Obj, Opt, Scp>(
+fn rs_iter<Obj, Opt, Scp>(
     opt: &mut RandomSearch,
     sp: Arc<Scp>,
-) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo)
+) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo>
 where
-    PObj: Partial<SId, Obj, EmptyInfo>,
-    POpt: Partial<SId, Opt, EmptyInfo>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
-    Scp: Searchspace<SId, PObj, POpt, Obj, Opt, EmptyInfo>,
+    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
     let opt_samples = sp.vec_onto_opt(samples.clone());
@@ -69,29 +66,27 @@ where
     (samples, opt_samples, info)
 }
 
-impl<PObj, POpt, Obj, Opt, Out, Scp>
-    Optimizer<SId, PObj, POpt, Obj, Opt, EmptyInfo, SingleCodomain<Out>, Out, Scp, RSInfo, RSState>
+impl<Obj, Opt, Out, Scp>
+    Optimizer<SId, Obj, Opt, EmptyInfo, SingleCodomain<Out>, Out, Scp, RSInfo, RSState>
     for RandomSearch
 where
-    PObj: Partial<SId, Obj, EmptyInfo>,
-    POpt: Partial<SId, Opt, EmptyInfo>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
-    Scp: Searchspace<SId, PObj, POpt, Obj, Opt, EmptyInfo>,
+    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {
     fn init(&mut self) {}
 
-    fn first_step(&mut self, sp: Arc<Scp>) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo) {
-        rs_iter::<PObj, POpt, Obj, Opt, Scp>(self, sp.clone())
+    fn first_step(&mut self, sp: Arc<Scp>) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
+        rs_iter::<Obj, Opt, Scp>(self, sp.clone())
     }
 
     fn step(
         &mut self,
-        _x: SolPairs<SId, PObj, Obj, POpt, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
+        _x: SolPairs<SId, Obj, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
         sp: Arc<Scp>,
-    ) -> (ArcVecArc<PObj>, ArcVecArc<POpt>, RSInfo) {
-        rs_iter::<PObj, POpt, Obj, Opt, Scp>(self, sp.clone())
+    ) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
+        rs_iter::<Obj, Opt, Scp>(self, sp.clone())
     }
 
     fn get_state(&mut self) -> &RSState {

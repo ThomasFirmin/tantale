@@ -13,43 +13,41 @@ use serde::{Serialize,Deserialize};
 /// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
 ///
 /// # Attributes
-/// * `sol` : [`PartialSol`]`<Dom,Info,N>` - An already created partial solution.
+/// * `sol` : [`Partial`]`<Dom,Info,N>` - An already created partial solution.
 /// * `y` : `[`Arc`]`<Cod<Out>>` - State of the evaluation of a solution. This a [`TypeCodom`](tantale::core::objective::comdomain::Codomain::TypeCodom),
 ///
 /// # Note
 ///
-/// A [`ComputedSol`] can only be created from a pair of [`PartialSol`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
+/// A [`ComputedSol`] can only be created from a pair of [`Partial`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
 #[derive(Serialize,Deserialize)]
-pub struct Computed<SolId, P, Dom, Cod, Out, Info>
+#[serde(bound(
+    serialize="Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
+    deserialize="Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
+))]
+pub struct Computed<SolId, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-    Info: SolInfo,
+    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
     Cod: Codomain<Out>,
-    Out: Outcome,
-    SolId: Id + PartialEq + Clone + Copy,
-    P: Partial<SolId, Dom, Info>,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
+    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
 {
-    pub sol: Arc<P>,
+    pub sol: Arc<Partial<SolId, Dom, Info>>,
     pub y: Arc<Cod::TypeCodom>,
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
     _info: PhantomData<Info>,
 }
 
-impl<SolId, P, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
-    for Computed<SolId, P, Dom, Cod, Out, Info>
+impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
+    for Computed<SolId, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
+    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
     Cod: Codomain<Out>,
-    Out: Outcome,
-    Info: SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-    SolId: Id + PartialEq + Clone + Copy,
-    P: Partial<SolId, Dom, Info>,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
+    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
 {
     fn get_id(&self) -> SolId {
         self.sol.get_id()
@@ -64,19 +62,16 @@ where
     }
 }
 
-impl<SolId, P, Dom, Info, Cod, Out> Computed<SolId, P, Dom, Cod, Out, Info>
+impl<SolId, Dom, Info, Cod, Out> Computed<SolId, Dom, Cod, Out, Info>
 where
     Dom: Domain + Clone + Display + Debug,
+    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
     Cod: Codomain<Out>,
-    Out: Outcome,
-    Info: SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
-    SolId: Id + PartialEq + Clone + Copy,
-    P: Partial<SolId, Dom, Info>,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
+    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(sol: Arc<P>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+    pub fn new(sol: Arc<Partial<SolId, Dom, Info>>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
         Computed {
             sol,
             y,
@@ -90,7 +85,7 @@ where
     /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Arc<Self>>
     where
-        I: IntoIterator<Item = Arc<P>>,
+        I: IntoIterator<Item = Arc<Partial<SolId, Dom, Info>>>,
         J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
     {
         sol.into_iter()
@@ -100,7 +95,7 @@ where
     }
 
     /// Returns the [`Partial`] [`Solution`].
-    pub fn get_sol(&self) -> Arc<P> {
+    pub fn get_sol(&self) -> Arc<Partial<SolId, Dom, Info>> {
         self.sol.clone()
     }
 
@@ -117,18 +112,18 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Solution,Computed,Partial,PartialSol,Real,Int,SingleCodomain,HashOut,EmptyInfo,SId,Id};
+    /// use tantale::core::{Solution,Computed,Partial,Real,Int,SingleCodomain,HashOut,EmptyInfo,SId,Id};
     /// use tantale::core::objective::codomain::ElemSingleCodomain;
     /// use std::sync::Arc;
     /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
     /// let x_2 = vec![5,6,7,8].into_boxed_slice();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let partial = Arc::new(PartialSol::new(SId::generate(),x_1,info));
+    /// let partial = Arc::new(Partial::new(SId::generate(),x_1,info));
     /// let y = Arc::new(ElemSingleCodomain{value:1.0});
     ///
-    /// let real_sol = Computed::<_,_,Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
-    /// let int_sol : Computed<_,PartialSol<_,Int,_>,_,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
+    /// let real_sol = Computed::<_,Real,SingleCodomain<HashOut>,HashOut,_>::new(partial,y);
+    /// let int_sol : Computed<_,Int,SingleCodomain<HashOut>,HashOut,_> = real_sol.twin(x_2);
     ///
     /// let id_r = real_sol.get_id();
     /// let id_i = int_sol.get_id();
@@ -141,15 +136,13 @@ where
     /// }
     ///
     /// ```
-    pub fn twin<B, T, Pb>(&self, x: T) -> Computed<SolId, Pb, B, Cod, Out, Info>
+    pub fn twin<B, T>(&self, x: T) -> Computed<SolId,B, Cod, Out, Info>
     where
         B: Domain + Clone + Display + Debug,
-        TypeDom<B>: Default + Copy + Clone + Display + Debug,
-        Pb: Partial<SolId, B, Info>,
         T: AsRef<[TypeDom<B>]>,
     {
         let info = self.get_sol().get_info();
-        let partial = Arc::new(Pb::new(self.get_sol().get_id(), x, info));
+        let partial = Arc::new(Partial::new(self.get_sol().get_id(), x, info));
         Computed::new(partial, self.get_y())
     }
 }

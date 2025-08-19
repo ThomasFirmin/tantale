@@ -1,9 +1,7 @@
-#![allow(clippy::some_lint)]
-
 use super::init_sp::sp_m_equal_allmsamp;
 
 use csv::StringRecord;
-use tantale::core::{Codomain, Computed, Optimizer, PartialSol, SId, Searchspace, SingleCodomain};
+use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
 use tantale_core::optimizer::OptState;
@@ -53,14 +51,13 @@ mod infos {
 use infos::OutExample;
 
 pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
-    hash_obj: &mut HashMap<usize, Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
-    hash_opt: &mut HashMap<usize, Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+    hash_obj: &mut HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+    hash_opt: &mut HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
     hash_out: &mut HashMap<
         usize,
         Arc<
             LinkedOutcome<
                 OutExample,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
                 SId,
                 sp_m_equal_allmsamp::_TantaleMixedObj,
                 SInfo,
@@ -72,7 +69,6 @@ pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
         Arc<
             Computed<
                 SId,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
                 sp_m_equal_allmsamp::_TantaleMixedObj,
                 SingleCodomain<OutExample>,
                 OutExample,
@@ -90,16 +86,12 @@ pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
 where
     Scp: Searchspace<
         SId,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         SInfo,
     >,
     Op: Optimizer<
         SId,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         SInfo,
@@ -113,8 +105,6 @@ where
     Sv: Saver<
         SId,
         St,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
-        PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         SInfo,
@@ -137,7 +127,7 @@ where
         .zip(sopt.iter())
         .map(|(a, b)| {
             let id = a.get_id().id;
-            let aelem = a.get_x()[0];
+            let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
                 sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
@@ -178,7 +168,7 @@ where
         .zip(sopt.iter())
         .map(|(a, b)| {
             let id = a.get_id().id;
-            let aelem = a.get_x()[0];
+            let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
                 sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
@@ -211,14 +201,13 @@ where
 
 pub fn run_reader<SInfo,Info>(
     path: &str,
-    hash_obj: &HashMap<usize, Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
-    hash_opt: &HashMap<usize, Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+    hash_obj: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+    hash_opt: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
     hash_out: &HashMap<
         usize,
         Arc<
             LinkedOutcome<
                 OutExample,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
                 SId,
                 sp_m_equal_allmsamp::_TantaleMixedObj,
                 SInfo,
@@ -230,7 +219,6 @@ pub fn run_reader<SInfo,Info>(
         Arc<
             Computed<
                 SId,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>,
                 sp_m_equal_allmsamp::_TantaleMixedObj,
                 SingleCodomain<OutExample>,
                 OutExample,
@@ -370,18 +358,17 @@ fn test_csv_func() {
 
     let mut hash_obj: HashMap<
         usize,
-        Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
+        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
     > = HashMap::new();
     let mut hash_opt: HashMap<
         usize,
-        Arc<PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
+        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
     > = HashMap::new();
     let mut hash_outcome: HashMap<
         usize,
         Arc<
             LinkedOutcome<
                 OutExample,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>,
                 _,
                 _,
                 _,
@@ -393,7 +380,6 @@ fn test_csv_func() {
         Arc<
             Computed<
                 _,
-                PartialSol<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>,
                 _,
                 SingleCodomain<OutExample>,
                 OutExample,

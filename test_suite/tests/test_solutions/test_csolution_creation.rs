@@ -1,17 +1,17 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{Codomain, Computed, ParSId, Partial, PartialSol, SingleCodomain};
+use tantale::core::{Codomain, Computed, ParSId, Partial, SingleCodomain};
 use tantale_core::Solution;
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
+use serde::{Serialize,Deserialize};
 
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
 type TestComp<Dom> = Computed<
     ParSId,
-    PartialSol<ParSId, Dom, TestSInfo>,
     Dom,
     SingleCodomain<OutExample>,
     OutExample,
@@ -22,6 +22,7 @@ fn _test_solution_assertion<Dom>(n: usize, sol: &TestComp<Dom>, pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
+    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     assert_eq!(
         sol.get_x(),
@@ -48,7 +49,7 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = std::sync::Arc::new(PartialSol::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone()));
+                let psol = std::sync::Arc::new(Partial::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone()));
                 let sol = Computed::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().id);

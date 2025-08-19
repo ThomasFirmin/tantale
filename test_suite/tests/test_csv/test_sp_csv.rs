@@ -1,6 +1,6 @@
 use super::init_sp::*;
 use tantale::core::saver::CSVLeftRight;
-use tantale::core::{EmptyInfo, PartialSol, SId, Searchspace, Solution};
+use tantale::core::{EmptyInfo, Partial, SId, Searchspace, Solution};
 
 use paste::paste;
 use std::sync::Arc;
@@ -24,12 +24,12 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj: Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj: Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 let s_str : Vec<String> = sample_obj.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_left(&sample_obj.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
-                let sample_opt: Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
+                let sample_opt: Arc<Partial<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
                 let s_str : Vec<String> = sample_opt.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_right(&sample_opt.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Opt searchspace.");

@@ -1,7 +1,7 @@
 use paste::paste;
 
 use std::sync::Arc;
-use tantale_core::{EmptyInfo, PartialSol, SId, Searchspace, Solution};
+use tantale_core::{EmptyInfo, Partial, SId, Searchspace, Solution};
 
 use super::init_func::*;
 
@@ -20,7 +20,7 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj : Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let out = func(sample_obj.get_x());
@@ -62,7 +62,7 @@ macro_rules! get_test {
 
 
 
-                let sample_opt : Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
+                let sample_opt : Arc<Partial<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = sp.onto_obj(sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
@@ -130,7 +130,7 @@ macro_rules! get_test_real {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj : Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let out = func(sample_obj.get_x());
@@ -169,7 +169,7 @@ macro_rules! get_test_real {
 
 
 
-                let sample_opt : Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
+                let sample_opt : Arc<Partial<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = sp.onto_obj(sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");

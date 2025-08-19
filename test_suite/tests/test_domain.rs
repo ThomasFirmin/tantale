@@ -90,25 +90,24 @@ mod check_bounds {
     }
     #[test]
     fn create_cat() {
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let check = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&ACTIVATION);
+        let check = vec![String::from("relu"), String::from("tanh"), String::from("sigmoid")];
+        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"]);
         assert_eq!(cat_1.values(), &check, "Issue with content of Cat.");
 
         assert!(
-            cat_1.is_in(&"relu"),
+            cat_1.is_in(&String::from("relu")),
             "Issue with is_in for the first element of Cat."
         );
         assert!(
-            cat_1.is_in(&"tanh"),
+            cat_1.is_in(&String::from("tanh")),
             "Issue with is_in for the second element of Cat."
         );
         assert!(
-            cat_1.is_in(&"sigmoid"),
+            cat_1.is_in(&String::from("sigmoid")),
             "Issue with is_in for the third element of Cat."
         );
         assert!(
-            !cat_1.is_in(&"a"),
+            !cat_1.is_in(&String::from("a")),
             "Issue with is_in with value not in values of Cat."
         );
     }
@@ -273,8 +272,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&ACTIVATION);
+        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"]);
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"

@@ -672,6 +672,7 @@ dependencies = [
  "rand",
  "rayon",
  "serde",
+ "serde_json",
  "tantale",
  "tantale_algos",
  "tantale_core",

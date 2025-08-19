@@ -1,10 +1,10 @@
 use crate::{
-    domain::Domain,
+    domain::{Domain,TypeDom},
     objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, OptInfo, OptState},
     saver::{CheckpointError, Saver},
     searchspace::Searchspace,
-    solution::{Computed, Id, Partial, SolInfo, Solution},
+    solution::{Partial, Computed, Id, SolInfo, Solution},
     stop::Stop,
 };
 use rayon::prelude::*;
@@ -133,33 +133,32 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
-    Saver<SolId, St, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State> for CSVSaver
+impl<SolId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+    Saver<SolId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State> for CSVSaver
 where
     State: OptState + Serialize + DeserializeOwned,
     St: Stop + Serialize + DeserializeOwned,
-    PObj: Partial<SolId, Obj, SInfo> + Send + Sync,
-    POpt: Partial<SolId, Opt, SInfo> + Send + Sync,
     Obj: Domain + Clone + Display + Debug + Send + Sync,
     Opt: Domain + Clone + Display + Debug + Send + Sync,
     SInfo: SolInfo + CSVWritable<()> + Send + Sync,
     Cod: Codomain<Out> + Send + Sync,
     Cod::TypeCodom: CSVWritable<()> + Send + Sync,
     Out: Outcome + CSVWritable<()> + Send + Sync,
-    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>
+    Scp: Searchspace<SolId, Obj, Opt, SInfo>
         + CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
         + Send
         + Sync,
     Info: OptInfo + CSVWritable<()> + Send + Sync,
     SolId: Id + PartialEq + Copy + Clone + CSVWritable<()> + Send + Sync,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
+    TypeDom<Obj>: Send + Sync,
+    TypeDom<Opt>: Send + Sync,
 {
     fn init(&mut self) {}
 
     fn save_partial(
         &mut self,
-        obj: ArcVecArc<PObj>,
-        opt: ArcVecArc<POpt>,
+        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
         sp: Arc<Scp>,
         info: Arc<Info>,
     ) {
@@ -235,7 +234,7 @@ where
         }
     }
 
-    fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, PObj, Obj, Cod, Out, SInfo>>) {
+    fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>) {
         let file = OpenOptions::new()
             .append(true)
             .open(self.path_codom.as_path())
@@ -269,7 +268,7 @@ where
         });
     }
 
-    fn save_out(&mut self, out: ArcVecArc<LinkedOutcome<Out, PObj, SolId, Obj, SInfo>>) {
+    fn save_out(&mut self, out: ArcVecArc<LinkedOutcome<Out, SolId, Obj, SInfo>>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)

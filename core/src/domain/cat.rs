@@ -8,11 +8,9 @@
 //! ```
 //! use tantale::core::{Cat,Domain};
 //!
-//! static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
-//!
 //! let mut rng = rand::rng();
 //! let check = ["relu", "tanh", "sigmoid"];
-//! let dom = Cat::new(&ACTIVATION);
+//! let dom = Cat::new(&["relu", "tanh", "sigmoid"]);
 //!
 //! let sample = dom.sample(&mut rng);
 //! assert!(dom.is_in(&sample));
@@ -33,7 +31,7 @@ use crate::saver::CSVWritable;
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::fmt;
-
+use serde::{Serialize,Deserialize};
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
 
@@ -44,25 +42,25 @@ use std::fmt;
 ///
 /// # Attributes
 ///
-///  * `values` : `[&'static str; N]` - A static array of the features defining the categorical [`Domain`].
+///  * `values` : `[Vec]<[String]>` - A static array of the features defining the categorical [`Domain`].
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Cat {
-    values: &'static [&'static str],
+    values: Vec<String>,
 }
 impl Cat {
     /// Fabric for a [`Cat`].
     ///
     /// # Attributes
     ///
-    ///  * `values` : `[&'static str; N]` - A static array of the features defining the categorical [`Domain`].
+    ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new(values: &'static [&'static str]) -> Cat {
-        Cat { values }
+    pub fn new<'a>(values: &'a [&'a str]) -> Cat {
+        Cat {values:values.iter().map(|s| String::from(*s)).collect()}
     }
     /// Getter for values
-    pub fn values(&self) -> &'static [&'static str] {
-        self.values
+    pub fn values(&self) -> &Vec<String> {
+        &self.values
     }
 }
 
@@ -73,8 +71,7 @@ impl PartialEq for Cat {
 }
 
 impl Domain for Cat {
-    /// The type of a point within the domain is a `&'static str`, i.e. a pointer to a `str` from the `values`.
-    type TypeDom = &'static str;
+    type TypeDom = String;
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
     /// See [`uniform_cat`].
@@ -134,7 +131,7 @@ impl fmt::Debug for Cat {
 
 impl<Out> Onto<Bounded<Out>> for Cat
 where
-    Out: BoundedBounds,
+    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Cat`] and a [`Bounded`] [`Domain`].

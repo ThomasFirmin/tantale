@@ -1,7 +1,7 @@
 use paste::paste;
 
 use std::sync::Arc;
-use tantale::core::{ArcVecArc, EmptyInfo, PartialSol, SId, Searchspace, Solution};
+use tantale::core::{ArcVecArc, EmptyInfo, Partial, SId, Searchspace, Solution};
 
 use super::init_sp::*;
 
@@ -18,12 +18,12 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj: Arc<PartialSol<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj: Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
                 let converted_opt = sp.onto_opt(sample_obj.clone());
                 assert_eq!(converted_opt.get_x().len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
 
-                let sample_opt: Arc<PartialSol<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
+                let sample_opt: Arc<Partial<SId,_,_>> = sp.sample_opt(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = sp.onto_obj(sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
@@ -40,10 +40,10 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng),3,sinfo.clone());
+                let vec_sample_obj: ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng),3,sinfo.clone());
                 let vec_converted_opt = sp.vec_onto_opt(vec_sample_obj.clone());
 
-                let vec_sample_opt: ArcVecArc<PartialSol<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng),3,sinfo.clone());
+                let vec_sample_opt: ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng),3,sinfo.clone());
                 let vec_converted_obj = sp.vec_onto_obj(vec_sample_opt.clone());
 
                 assert!(sp.vec_is_in_obj(vec_sample_obj.clone()));

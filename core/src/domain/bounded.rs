@@ -37,6 +37,7 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
+use crate::saver::CSVWritable;
 
 use num::{cast::AsPrimitive, Num, NumCast};
 use rand::{distr::uniform::SampleUniform, prelude::ThreadRng};
@@ -44,8 +45,8 @@ use std::{
     fmt::{self, Debug, Display},
     ops::RangeInclusive,
 };
+use serde::{Serialize,Deserialize};
 
-use crate::saver::CSVWritable;
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
@@ -132,13 +133,19 @@ impl<T: BoundedBounds> Bounded<T> {
     }
 }
 
-impl<T: BoundedBounds> PartialEq for Bounded<T> {
+impl<T> PartialEq for Bounded<T>
+where
+    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     fn eq(&self, other: &Self) -> bool {
         (self.lower() == other.lower()) && (self.upper() == other.upper())
     }
 }
 
-impl<T: BoundedBounds> Domain for Bounded<T> {
+impl<T> Domain for Bounded<T>
+where
+    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     type TypeDom = T;
 
     /// Default sampler for [`Bounded`].
@@ -152,7 +159,10 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
     }
 }
 
-impl<T: BoundedBounds> DomainBounded for Bounded<T> {
+impl<T> DomainBounded for Bounded<T>
+where
+    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     fn lower(&self) -> Self::TypeDom {
         *self.bounds.start()
     }
@@ -167,19 +177,28 @@ impl<T: BoundedBounds> DomainBounded for Bounded<T> {
     }
 }
 
-impl<T: BoundedBounds> std::clone::Clone for Bounded<T> {
+impl<T> std::clone::Clone for Bounded<T> 
+where
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     fn clone(&self) -> Self {
         Bounded::new(*self.bounds.start(), *self.bounds.end())
     }
 }
 
-impl<T: BoundedBounds> fmt::Display for Bounded<T> {
+impl<T> fmt::Display for Bounded<T> 
+where
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
-impl<T: BoundedBounds> fmt::Debug for Bounded<T> {
+impl<T> fmt::Debug for Bounded<T>
+where
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
@@ -187,8 +206,8 @@ impl<T: BoundedBounds> fmt::Debug for Bounded<T> {
 
 impl<In, Out> Onto<Bounded<Out>> for Bounded<In>
 where
-    In: BoundedBounds,
-    Out: BoundedBounds,
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between [`Bounded`] [`Domain`].
@@ -236,7 +255,7 @@ where
 
 impl<In> Onto<Bool> for Bounded<In>
 where
-    In: BoundedBounds,
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bool`][`Domain`].
@@ -269,7 +288,7 @@ where
 
 impl<In> Onto<Cat> for Bounded<In>
 where
-    In: BoundedBounds,
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Cat`][`Domain`].
@@ -307,16 +326,7 @@ where
             } else {
                 idx
             };
-            let mapped = target.values()[idx];
-
-            if target.is_in(&mapped) {
-                Ok(mapped)
-            } else {
-                Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} -> {} mapped input not in {}",
-                    item, mapped, target
-                ))))
-            }
+            Ok(target.values()[idx].clone())
         } else {
             Err(DomainError::OoB(DomainOoBError(format!(
                 "{} input not in {}",
@@ -328,7 +338,7 @@ where
 
 impl<In> Onto<Unit> for Bounded<In>
 where
-    In: BoundedBounds,
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Unit`][`Domain`].
     ///
@@ -374,7 +384,7 @@ where
 
 impl<In> Onto<BaseDom> for Bounded<In>
 where
-    In: BoundedBounds,
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
@@ -524,7 +534,7 @@ pub type Int = Bounded<i64>;
 
 impl<T> CSVWritable<<Bounded<T> as Domain>::TypeDom> for Bounded<T>
 where
-    T: BoundedBounds,
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn header(&self) -> Vec<String> {
         Vec::new()

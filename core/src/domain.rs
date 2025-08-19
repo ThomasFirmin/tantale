@@ -19,6 +19,7 @@ use crate::variable::var::Var;
 
 use rand::prelude::ThreadRng;
 use std::fmt::{Debug, Display};
+use serde::{Serialize,Deserialize};
 
 /// Type alias to for [Domain::TypeDom]
 pub type TypeDom<D> = <D as Domain>::TypeDom;
@@ -34,7 +35,7 @@ pub trait Domain: Sized + PartialEq {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
-    type TypeDom: PartialEq + Clone + Copy + Display + Debug + Default;
+    type TypeDom: PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>;
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
     ///

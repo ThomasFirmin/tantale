@@ -1,22 +1,26 @@
-use crate::{experiment::Evaluate, ArcVecArc, Codomain, Computed, Domain, Id, Outcome, Partial, PartialSol, SolInfo};
+use crate::{experiment::Evaluate, ArcVecArc, Codomain, Computed, Domain, Id, Outcome, SolInfo,Partial, domain::TypeDom};
 
-use std::{fmt::{Debug, Display}, marker::PhantomData};
+use std::{fmt::{Debug, Display}, marker::PhantomData, sync::Arc};
 use serde::{Serialize,Deserialize};
 
+type VecArc<T> = Vec<Arc<T>>;
+
 #[derive(Serialize,Deserialize)]
-pub struct Evaluator<P,SolId,Dom,Info,Cod,Out>
+#[serde(bound(
+    serialize="Dom::TypeDom: Serialize",
+    deserialize="Dom::TypeDom: for<'a> Deserialize<'a>",
+))]
+pub struct Evaluator<SolId,Dom,Info,Cod,Out>
 where
-    P: Partial<SolId,Dom,Info>,
     SolId: Id + PartialEq + Copy,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     Cod:Codomain<Out>,
     Out:Outcome,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
-    pub remaining : ArcVecArc<P>,
+    pub remaining : ArcVecArc<Partial<SolId, Dom, Info>>,
     pub computed_idx : Vec<usize>,
-    pub result : Vec<std::sync::Arc<Computed<SolId,P,Dom,Cod,Out,Info>>>,
+    pub result : VecArc<Computed<SolId,Dom,Cod,Out,Info>>,
     _id : PhantomData<SolId>,
     _dom:PhantomData<Dom>,
     _info:PhantomData<Info>,

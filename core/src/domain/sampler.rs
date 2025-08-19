@@ -109,7 +109,7 @@ pub fn uniform_bool(_domain: &Bool, rng: &mut ThreadRng) -> TypeDom<Bool> {
 /// * rng : `&mut `[`ThreadRng`] - A mutable reference to a thread-local generator.
 ///
 pub fn uniform_cat(domain: &Cat, rng: &mut ThreadRng) -> TypeDom<Cat> {
-    domain.values().iter().choose(rng).unwrap()
+    domain.values().iter().choose(rng).unwrap().clone()
 }
 
 /// Uniform distribution for [`Unit`] [`Domain`].

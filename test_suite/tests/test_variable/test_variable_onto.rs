@@ -75,9 +75,9 @@ get_variable!(up | real -> int ; 10.0 => 100 ; 100 => 10.0);
 get_variable!(low | real -> bool ; 2.0 => false ; false => 0.0);
 get_variable!(up | real -> bool ; 9.0 => true ; true => 10.0);
 
-get_variable!(low | real -> cat ; 0.0 => "relu" ; "relu" => 3.333333333333333);
-get_variable!(up | real -> cat ; 10.0 => "sigmoid" ; "sigmoid" => 10.0);
-get_variable!(mid | real -> cat ; 5.0 => "tanh" ; "tanh" => 6.666666666666666);
+get_variable!(low | real -> cat ; 0.0 => String::from("relu") ; String::from("relu") => 3.333333333333333);
+get_variable!(up | real -> cat ; 10.0 => String::from("sigmoid") ; String::from("sigmoid") => 10.0);
+get_variable!(mid | real -> cat ; 5.0 => String::from("tanh") ; String::from("tanh") => 6.666666666666666);
 
 get_variable!( mid | nat -> nat ; 6 => 90 ; 90 => 6);
 get_variable!( low | nat -> nat ; 1 => 80 ; 80 => 1);
@@ -90,9 +90,9 @@ get_variable!(up |  nat -> int; 11 => 100 ; 100 => 11);
 get_variable!(low | nat -> bool ; 3 => false ; false => 1);
 get_variable!(up | nat -> bool ; 10 => true ; true => 11);
 
-get_variable!(low | nat -> cat ; 1 => "relu" ; "relu" => 4);
-get_variable!(up | nat -> cat ; 11 => "sigmoid" ; "sigmoid" => 11);
-get_variable!(mid | nat -> cat ; 6 => "tanh" ; "tanh" => 7);
+get_variable!(low | nat -> cat ; 1 => String::from("relu") ; String::from("relu") => 4);
+get_variable!(up | nat -> cat ; 11 => String::from("sigmoid") ; String::from("sigmoid") => 11);
+get_variable!(mid | nat -> cat ; 6 => String::from("tanh") ; String::from("tanh") => 7);
 
 get_variable!(mid | int -> int; 5 => 90 ; 90 => 5);
 get_variable!(low | int -> int; 0 => 80 ; 80 => 0);
@@ -101,9 +101,9 @@ get_variable!(up |  int -> int; 10 => 100 ; 100 => 10);
 get_variable!(low | int -> bool ; 2 => false ; false => 0);
 get_variable!(up | int -> bool ; 9 => true ; true => 10);
 
-get_variable!(low | int -> cat ; 0 => "relu" ; "relu" => 3);
-get_variable!(up | int -> cat ; 10 => "sigmoid" ; "sigmoid" => 10);
-get_variable!(mid | int -> cat ; 5 => "tanh" ; "tanh" => 6);
+get_variable!(low | int -> cat ; 0 => String::from("relu") ; String::from("relu") => 3);
+get_variable!(up | int -> cat ; 10 => String::from("sigmoid") ; String::from("sigmoid") => 10);
+get_variable!(mid | int -> cat ; 5 => String::from("tanh") ; String::from("tanh") => 6);
 
 // BOTH DOMAIN SHOULD PANIC
 
@@ -188,17 +188,17 @@ get_variable_panic!(mid | real -> nat ; 11.0 => 100 ; 101 => 10.0);
 
 get_variable_panic!(mid | real -> int ; 11.0 => 100 ; 101 => 10.0);
 
-get_variable_panic!(low | real -> cat ; 11.0 => "tanh" ; "potato" => 10.0);
+get_variable_panic!(low | real -> cat ; 11.0 => String::from("tanh") ; String::from("potato") => 10.0);
 
 get_variable_panic!( mid | nat -> nat ; 12 => 100 ; 101 => 11);
 
 get_variable_panic!(mid | nat -> int; 12 => 100 ; 101 => 11);
 
-get_variable_panic!(low | nat -> cat ; 12 => "tanh" ; "asecondpotato" => 11);
+get_variable_panic!(low | nat -> cat ; 12 => String::from("tanh") ; String::from("potato") => 11);
 
 get_variable_panic!(mid | int -> int; 11 => 100 ; 101 => 10);
 
-get_variable_panic!(low | int -> cat ; 11 => "tanh" ; "athirdpotato" => 10);
+get_variable_panic!(low | int -> cat ; 11 => String::from("tanh") ; String::from("potato") => 10);
 
 // ONE DOMAIN ARE DEFINED
 macro_rules! get_variable_single {
@@ -246,9 +246,9 @@ get_variable_single!(up |  int ; 10 => 10 ; 10 => 10);
 get_variable_single!(low |  bool ; false => false ; false => false);
 get_variable_single!(up |  bool ; true => true ; true => true);
 
-get_variable_single!(low |  cat ; "relu" => "relu" ; "relu" => "relu");
-get_variable_single!(mid |  cat ; "sigmoid" => "sigmoid" ; "sigmoid" => "sigmoid");
-get_variable_single!(up |  cat ; "tanh" => "tanh" ; "tanh" => "tanh");
+get_variable_single!(low |  cat ; String::from("relu") => String::from("relu") ; String::from("relu") => String::from("relu"));
+get_variable_single!(mid |  cat ; String::from("sigmoid") => String::from("sigmoid") ; String::from("sigmoid") => String::from("sigmoid"));
+get_variable_single!(up |  cat ; String::from("tanh") => String::from("tanh") ; String::from("tanh") => String::from("tanh"));
 
 // BOTH DOMAIN SHOULD PANIC
 

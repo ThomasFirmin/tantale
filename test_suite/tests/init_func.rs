@@ -1,5 +1,3 @@
-static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
 use tantale_core::Outcome;
 pub struct OutExample {
     pub obj: f64,
@@ -7,7 +5,7 @@ pub struct OutExample {
     pub poi: (i64, i64),
     pub nat_v: u64,
     pub ipn: (i64, u64, i64),
-    pub cat_v: &'static str,
+    pub cat_v: String,
     pub bool_v: bool,
     pub neuron: Neuron,
     pub vec: Vec<u64>,
@@ -34,7 +32,7 @@ pub struct Point {
 
 pub struct Neuron {
     pub number: i64,
-    pub activation: &'static str,
+    pub activation: String,
 }
 
 pub fn plus_one_int(x: i64) -> (i64, i64) {
@@ -64,7 +62,7 @@ pub mod sp_ms_nosamp {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100)  | Real(0.0,1.0) !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
             let d = [! d | Bool() | Real(0.0,1.0) !];
 
             let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
@@ -72,7 +70,7 @@ pub mod sp_ms_nosamp {
 
             let layer = Neuron{
                 number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
             };
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
@@ -86,7 +84,7 @@ pub mod sp_ms_nosamp {
                 cat_v: c,
                 bool_v: d,
                 neuron: layer,
-                vec: k.iter().map(|i| **i).collect(),
+                vec: k.iter().map(|i| *i).collect(),
             }
         }
     );
@@ -103,7 +101,7 @@ pub mod sp_ms_samp {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100) => uniform_int  | Real(0.0,1.0) !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
             let d = [! d | Bool() | Real(0.0,1.0) !];
 
             let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
@@ -111,7 +109,7 @@ pub mod sp_ms_samp {
 
             let layer = Neuron{
                 number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
             };
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
@@ -125,7 +123,7 @@ pub mod sp_ms_samp {
                 cat_v: c,
                 bool_v: d,
                 neuron: layer,
-                vec: k.iter().map(|i| **i).collect(),
+                vec: k.iter().map(|i| *i).collect(),
             }
         }
     );
@@ -142,7 +140,7 @@ pub mod sp_ms_samp_right {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100) | Real(0.0,1.0) => uniform_real !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&super::ACTIVATION) | Real(0.0,1.0) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
             let d = [! d | Bool() | Real(0.0,1.0) !];
 
             let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
@@ -150,7 +148,7 @@ pub mod sp_ms_samp_right {
 
             let layer = Neuron{
                 number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&super::ACTIVATION) | Real(0.0,1.0) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
             };
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
@@ -164,7 +162,7 @@ pub mod sp_ms_samp_right {
                 cat_v: c,
                 bool_v: d,
                 neuron: layer,
-                vec: k.iter().map(|i| **i).collect(),
+                vec: k.iter().map(|i| *i).collect(),
             }
         }
     );
@@ -181,7 +179,7 @@ pub mod sp_ms_noright {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100) | !];
             let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&super::ACTIVATION) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
             let d = [! d | Bool() | !];
 
             let e = plus_one_int([! e | Int(0,100) | !]);
@@ -189,7 +187,7 @@ pub mod sp_ms_noright {
 
             let layer = Neuron{
                 number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&super::ACTIVATION) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
             };
 
             let k = [! k_{4} | Nat(0,100) | !];
@@ -203,7 +201,7 @@ pub mod sp_ms_noright {
                 cat_v: c,
                 bool_v: d,
                 neuron: layer,
-                vec: k.iter().map(|i| **i).collect(),
+                vec: k.iter().map(|i| *i).collect(),
             }
         }
     );
@@ -220,7 +218,7 @@ pub mod sp_ms_samp_noright {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100) => uniform_int  | !];
             let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&super::ACTIVATION) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
             let d = [! d | Bool() | !];
 
             let e = plus_one_int([! e | Int(0,100) | !]);
@@ -228,7 +226,7 @@ pub mod sp_ms_samp_noright {
 
             let layer = Neuron{
                 number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&super::ACTIVATION) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
             };
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
@@ -242,7 +240,7 @@ pub mod sp_ms_samp_noright {
                 cat_v: c,
                 bool_v: d,
                 neuron: layer,
-                vec: k.iter().map(|i| **i).collect(),
+                vec: k.iter().map(|i| *i).collect(),
             }
         }
     );
@@ -260,7 +258,7 @@ pub mod sp_sm_samp {
         pub fn example() -> OutUnique {
             let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
             let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
-            let c = [! c | Real(0.0,1.0) | Cat(&super::ACTIVATION) !];
+            let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
             let d = [! d | Real(0.0,1.0) | Bool() !];
 
             let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
@@ -268,7 +266,7 @@ pub mod sp_sm_samp {
 
             let p = Point{
                 x: [! h | Real(0.0,1.0) | Int(0,100) !],
-                y: [! i | Real(0.0,1.0) | Cat(&super::ACTIVATION) !],
+                y: [! i | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !],
             };
 
             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];

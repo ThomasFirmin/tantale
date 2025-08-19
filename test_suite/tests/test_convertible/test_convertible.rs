@@ -119,9 +119,9 @@ make_test!(
     upper ; 10.0 => true;
     real      => bool ,
 
-    lower ; 0.0 => "relu",
-    mid ; 5.0 => "tanh",
-    upper ; 10.0 => "sigmoid";
+    lower ; 0.0 => String::from("relu"),
+    mid ; 5.0 => String::from("tanh"),
+    upper ; 10.0 => String::from("sigmoid");
     real      => cat ,
 
     lower ; 0.0 => 0.0,
@@ -152,9 +152,9 @@ make_test!(
     upper ; 11 => true;
     nat      => bool ,
 
-    lower ; 1 => "relu",
-    mid ; 6 => "tanh",
-    upper ; 11 => "sigmoid";
+    lower ; 1 => String::from("relu"),
+    mid ; 6 => String::from("tanh"),
+    upper ; 11 => String::from("sigmoid");
     nat      => cat ,
 
     lower ; 1 => 0.0,
@@ -185,9 +185,9 @@ make_test!(
     upper ; 10 => true;
     int      => bool ,
 
-    lower ; 0 => "relu",
-    mid ; 5 => "tanh",
-    upper ; 10 => "sigmoid";
+    lower ; 0 => String::from("relu"),
+    mid ; 5 => String::from("tanh"),
+    upper ; 10 => String::from("sigmoid");
     int      => cat ,
 
     lower ; 0 => 0.0,
@@ -217,24 +217,24 @@ make_test!(
 
 // ___---___CAT___---___ //
 make_test!(
-    lower ; "relu" => 80.0 + 20.0/3.0,
-    mid ; "tanh" => 80.0 + 40.0/3.0,
-    upper ; "sigmoid" => 100.0;
+    lower ; String::from("relu") => 80.0 + 20.0/3.0,
+    mid ; String::from("tanh") => 80.0 + 40.0/3.0,
+    upper ; String::from("sigmoid") => 100.0;
     cat      => real ,
 
-    lower ; "relu" => 80 + 20/3,
-    mid ; "tanh" => 80 + 40/3,
-    upper ; "sigmoid" => 100;
+    lower ; String::from("relu") => 80 + 20/3,
+    mid ; String::from("tanh") => 80 + 40/3,
+    upper ; String::from("sigmoid") => 100;
     cat      => nat,
 
-    lower ; "relu" =>80 + 20/3,
-    mid ; "tanh" =>80 + 40/3,
-    upper ; "sigmoid" => 100;
+    lower ; String::from("relu") =>80 + 20/3,
+    mid ; String::from("tanh") =>80 + 40/3,
+    upper ; String::from("sigmoid") => 100;
     cat      => int ,
 
-    lower ; "relu" => 1.0/3.0,
-    mid ; "tanh" => 2.0/3.0,
-    upper ; "sigmoid" => 1.0;
+    lower ; String::from("relu") => 1.0/3.0,
+    mid ; String::from("tanh") => 2.0/3.0,
+    upper ; String::from("sigmoid") => 1.0;
     cat      => unit
 );
 
@@ -260,9 +260,9 @@ make_test!(
     upper ; 1.0 => true;
     unit      => bool ,
 
-    lower ; 0.0 => "relu",
-    mid ; 0.5 => "tanh",
-    upper ; 1.0 => "sigmoid";
+    lower ; 0.0 => String::from("relu"),
+    mid ; 0.5 => String::from("tanh"),
+    upper ; 1.0 => String::from("sigmoid");
     unit => cat
 );
 

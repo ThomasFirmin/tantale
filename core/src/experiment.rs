@@ -8,7 +8,7 @@ use crate::{
         OptInfo, Optimizer,
     },
     searchspace::Searchspace,
-    solution::{Id, Partial, SolInfo},
+    solution::{Id, SolInfo},
     stop::Stop,
 };
 use std::{
@@ -37,12 +37,10 @@ pub trait Evaluate<
     SolId,
     State,
 > where
-    Scp: Searchspace<SolId, PObj, POpt, Obj, Opt, SInfo>,
+    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SolId, PObj, POpt, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
+    Op: Optimizer<SolId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     St: Stop,
-    PObj: Partial<SolId, Obj, SInfo>,
-    POpt: Partial<SolId, Opt, SInfo>,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     Out: Outcome,
@@ -51,7 +49,6 @@ pub trait Evaluate<
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
-    Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
 {
     fn evaluate(
         &self,
@@ -59,6 +56,6 @@ pub trait Evaluate<
         objsol: ArcVecArc<POpt>,
         optsol: ArcVecArc<PObj>,
         info: Info,
-    ) -> SolPairs<SolId, PObj, Obj, POpt, Opt, Cod, Out, SInfo>;
+    ) -> SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>;
 }
 

@@ -29,10 +29,16 @@ use std::{
     fmt::{Debug, Display},
     sync::Arc,
 };
+use serde::{Serialize,Deserialize};
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
-pub trait SolInfo {}
+pub trait SolInfo
+where
+    Self: Serialize + for<'a> Deserialize<'a>
+{
+
+}
 
 /// An abstract [`Solution`] made of at least a [`Domain`] and a [`SolInfo`].
 pub trait Solution<SolId, Dom, Info>
@@ -40,7 +46,6 @@ where
     Self: Sized,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
-    TypeDom<Dom>: Default + Copy + Clone + Display + Debug,
     SolId: Id + PartialEq,
 {
     /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
@@ -58,7 +63,6 @@ where
     fn is_twin<Twin, B>(&self, solb: Twin) -> bool
     where
         B: Domain + Clone + Display + Debug,
-        TypeDom<B>: Default + Copy + Clone + Display + Debug,
         Twin: Solution<SolId, B, Info>,
     {
         self.get_id() == solb.get_id()
@@ -66,7 +70,7 @@ where
 }
 
 pub mod partial;
-pub use partial::{Partial, PartialSol};
+pub use partial::Partial;
 
 pub mod computed;
 pub use computed::Computed;

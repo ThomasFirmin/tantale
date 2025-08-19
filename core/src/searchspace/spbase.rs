@@ -3,7 +3,7 @@ use crate::{
     optimizer::ArcVecArc,
     saver::CSVLeftRight,
     searchspace::{Searchspace, SolInfo},
-    solution::{Id, Partial, PartialSol, Solution},
+    solution::{Id, Partial, Solution},
     variable::Var,
 };
 
@@ -25,8 +25,6 @@ where
 impl<SolId, Obj, Opt, SInfo>
     Searchspace<
         SolId,
-        PartialSol<SolId, Obj, SInfo>,
-        PartialSol<SolId, Opt, SInfo>,
         Obj,
         Opt,
         SInfo,
@@ -39,8 +37,8 @@ where
 {
     fn onto_obj(
         &self,
-        inp: Arc<PartialSol<SolId, Opt, SInfo>>,
-    ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
+        inp: Arc<Partial<SolId, Opt, SInfo>>,
+    ) -> Arc<Partial<SolId, Obj, SInfo>> {
         let outx: Vec<TypeDom<Obj>> = inp
             .x
             .iter()
@@ -53,8 +51,8 @@ where
 
     fn onto_opt(
         &self,
-        inp: Arc<PartialSol<SolId, Obj, SInfo>>,
-    ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
+        inp: Arc<Partial<SolId, Obj, SInfo>>,
+    ) -> Arc<Partial<SolId, Opt, SInfo>> {
         let outx: Vec<TypeDom<Opt>> = inp
             .x
             .iter()
@@ -69,13 +67,13 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PartialSol<SolId, Obj, SInfo>> {
+    ) -> Arc<Partial<SolId, Obj, SInfo>> {
         let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Obj>> = self.variables.iter().map(|v| v.sample_obj(rn)).collect();
-        Arc::new(PartialSol::<SolId, Obj, SInfo>::new(
+        Arc::new(Partial::<SolId, Obj, SInfo>::new(
             SolId::generate(),
             outx,
             info,
@@ -86,13 +84,13 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PartialSol<SolId, Opt, SInfo>> {
+    ) -> Arc<Partial<SolId, Opt, SInfo>> {
         let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
         };
         let outx: Vec<TypeDom<Opt>> = self.variables.iter().map(|v| v.sample_opt(rn)).collect();
-        Arc::new(PartialSol::<SolId, Opt, SInfo>::new(
+        Arc::new(Partial::<SolId, Opt, SInfo>::new(
             SolId::generate(),
             outx,
             info,
@@ -101,15 +99,15 @@ where
 
     fn vec_onto_obj(
         &self,
-        inp: ArcVecArc<PartialSol<SolId, Opt, SInfo>>,
-    ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
+        inp: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
         Arc::new(inp.iter().map(|i| self.onto_obj(i.clone())).collect())
     }
 
     fn vec_onto_opt(
         &self,
-        inp: ArcVecArc<PartialSol<SolId, Obj, SInfo>>,
-    ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
+        inp: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
         Arc::new(inp.iter().map(|i| self.onto_opt(i.clone())).collect())
     }
 
@@ -118,7 +116,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<PartialSol<SolId, Obj, SInfo>> {
+    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
         let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),
@@ -135,7 +133,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<PartialSol<SolId, Opt, SInfo>> {
+    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
         let rn = match rng {
             Some(r) => r,
             None => &mut rand::rng(),

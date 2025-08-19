@@ -18,15 +18,14 @@ fn mixed_derive() {
     let v2 = Int::new(0, 1);
     let v3 = Nat::new(0, 1);
     let v4 = Bool::new();
-    static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-    let v5 = Cat::new(&ACTIVATION);
+    let v5 = Cat::new(&["relu", "tanh", "sigmoid"]);
     let v6 = Unit::new();
 
     let b1 = Base::Real(v1.clone());
     let b2 = Base::Int(v2.clone());
     let b3 = Base::Nat(v3.clone());
     let b4 = Base::Bool(v4);
-    let b5 = Base::Cat(v5);
+    let b5 = Base::Cat(v5.clone());
     let b6 = Base::Unit(v6.clone());
 
     assert_eq!(

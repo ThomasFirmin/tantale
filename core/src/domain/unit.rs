@@ -31,6 +31,7 @@ use crate::saver::CSVWritable;
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
 use std::{fmt, ops::RangeInclusive};
+use serde::{Serialize,Deserialize};
 
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
@@ -109,7 +110,7 @@ impl fmt::Debug for Unit {
 
 impl<Out> Onto<Bounded<Out>> for Unit
 where
-    Out: BoundedBounds,
+    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bounded`] [`Domain`].
@@ -219,7 +220,7 @@ impl Onto<Cat> for Unit {
             } else {
                 idx
             };
-            let mapped = target.values()[idx];
+            let mapped = target.values()[idx].clone();
 
             if target.is_in(&mapped) {
                 Ok(mapped)

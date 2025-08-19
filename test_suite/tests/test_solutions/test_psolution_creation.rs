@@ -1,16 +1,17 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale_core::solution::{ParSId, Partial, PartialSol, Solution};
+use tantale_core::solution::{ParSId, Partial, Solution};
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
+use serde::{Serialize,Deserialize};
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(n: usize, sol: &PartialSol<ParSId, Dom, TestSInfo>, pid: u32)
+fn _test_solution_assertion<Dom>(n: usize, sol: &Partial<ParSId, Dom, TestSInfo>, pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Sync + Send,
+    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
 {
     assert_eq!(
         sol.get_x(),
@@ -33,7 +34,7 @@ macro_rules! get_default_sol {
             let sinfo = std::sync::Arc::new(get_sinfo());
             let mut idsol = Vec::new();
             $(
-                let sol = PartialSol::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
+                let sol = Partial::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
                 _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().id);
             )*

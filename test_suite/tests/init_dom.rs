@@ -72,7 +72,7 @@ pub fn get_domain_base_bool(domain: Bool, input: bool) -> (BaseDom, BaseTypeDom)
     (BaseDom::Bool(domain), BaseTypeDom::Bool(input))
 }
 
-pub fn get_domain_base_cat(domain: Cat, input: &'static str) -> (BaseDom, BaseTypeDom) {
+pub fn get_domain_base_cat(domain: Cat, input: String) -> (BaseDom, BaseTypeDom) {
     (BaseDom::Cat(domain), BaseTypeDom::Cat(input))
 }
 

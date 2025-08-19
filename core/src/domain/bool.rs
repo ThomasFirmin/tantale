@@ -29,6 +29,7 @@ use crate::saver::CSVWritable;
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;
 use std::fmt;
+use serde::{Serialize,Deserialize};
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
@@ -106,7 +107,7 @@ impl fmt::Debug for Bool {
 
 impl<Out> Onto<Bounded<Out>> for Bool
 where
-    Out: BoundedBounds,
+    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].

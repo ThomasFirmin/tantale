@@ -52,8 +52,8 @@ make_oob_test!(
     upper ; 11.0 => true;
     real      => bool,
 
-    lower ; -1.0 => "relu",
-    upper ; 11.0 => "sigmoid";
+    lower ; -1.0 => String::from("relu"),
+    upper ; 11.0 => String::from("sigmoid");
     real      => cat,
 
     lower ; -1.0 => 0.0,
@@ -79,8 +79,8 @@ make_oob_test!(
     upper ; 12 => true;
     nat      => bool,
 
-    lower ; 0 => "relu",
-    upper ; 12 => "sigmoid";
+    lower ; 0 => String::from("relu"),
+    upper ; 12 => String::from("sigmoid");
     nat      => cat,
 
     lower ; 0 => 0.0,
@@ -106,8 +106,8 @@ make_oob_test!(
     upper ; 11 => true;
     int      => bool,
 
-    lower ; -1 => "relu",
-    upper ; 11 => "sigmoid";
+    lower ; -1 => String::from("relu"),
+    upper ; 11 => String::from("sigmoid");
     int      => cat,
 
     lower ; -1 => 0.0,
@@ -117,16 +117,16 @@ make_oob_test!(
 
 // ___---___CAT___---___ //
 make_oob_test!(
-    lower ; "pineapple" => 80.0;
+    lower ; String::from("pineapple") => 80.0;
     cat      => real,
 
-    lower ; "pineapple" => 80;
+    lower ; String::from("pineapple") => 80;
     cat      => nat,
 
-    lower ; "pineapple" => 80;
+    lower ; String::from("pineapple") => 80;
     cat      => int,
 
-    lower ; "pineapple" => 0.0;
+    lower ; String::from("pineapple") => 0.0;
     cat      => unit
 );
 
@@ -148,8 +148,8 @@ make_oob_test!(
     upper ; 1.1 => true;
     unit      => bool,
 
-    lower ; -1.0 => "relu",
-    upper ; 1.1 => "sigmoid";
+    lower ; -1.0 => String::from("relu"),
+    upper ; 1.1 => String::from("sigmoid");
     unit      => cat
 
 );
