@@ -157,9 +157,15 @@ impl<Out: Outcome> SingleCodomain<Out> {
         SingleCodomain { y_criteria: crit }
     }
 }
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemSingleCodomain {
     pub value: f64,
+}
+
+impl PartialEq for ElemSingleCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
 }
 
 impl CSVWritable<()> for ElemSingleCodomain {
@@ -204,10 +210,16 @@ impl<Out: Outcome> FidelCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemFidelCodomain {
     pub value: f64,
     pub fidelity: f64,
+}
+
+impl PartialEq for ElemFidelCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.fidelity == other.fidelity
+    }
 }
 
 impl CSVWritable<()> for ElemFidelCodomain {
@@ -258,10 +270,16 @@ impl<Out: Outcome> ConstCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemConstCodomain {
     pub value: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemConstCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.constraints == other.constraints
+    }
 }
 
 impl CSVWritable<()> for ElemConstCodomain {
@@ -323,11 +341,17 @@ impl<Out: Outcome> FidelConstCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemFidelConstCodomain {
     pub value: f64,
     pub fidelity: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemFidelConstCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.fidelity == other.fidelity && self.constraints == other.constraints
+    }
 }
 
 impl CSVWritable<()> for ElemFidelConstCodomain {
@@ -390,9 +414,15 @@ impl<Out: Outcome> MultiCodomain<Out> {
         MultiCodomain { y_criteria: crit }
     }
 }
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
+}
+
+impl PartialEq for ElemMultiCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
 }
 
 impl CSVWritable<()> for ElemMultiCodomain {
@@ -441,10 +471,16 @@ impl<Out: Outcome> FidelMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemFidelMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
+}
+
+impl PartialEq for ElemFidelMultiCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.fidelity == other.fidelity
+    }
 }
 
 impl CSVWritable<()> for ElemFidelMultiCodomain {
@@ -503,10 +539,16 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
     pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemConstMultiCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.constraints == other.constraints
+    }
 }
 
 impl CSVWritable<()> for ElemConstMultiCodomain {
@@ -575,11 +617,17 @@ impl<Out: Outcome> FidelConstMultiCodomain<Out> {
 }
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
-#[derive(Serialize,Deserialize)]
+#[derive(Debug, Serialize,Deserialize)]
 pub struct ElemFidelConstMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemFidelConstMultiCodomain{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.fidelity == other.fidelity && self.constraints == other.constraints
+    }
 }
 
 impl CSVWritable<()> for ElemFidelConstMultiCodomain {
