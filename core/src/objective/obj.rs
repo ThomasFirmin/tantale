@@ -11,6 +11,7 @@ use crate::objective::Codomain;
 use std::{
     fmt::{Debug, Display},
     marker::PhantomData,
+    sync::Arc,
 };
 
 /// The trait [`Objective`] allows to define the minimal behavior of the wrapper.
@@ -26,7 +27,7 @@ where
     /// Initialize the ['Objective'].
     fn init(&mut self);
     /// Compute the outputs of a function to maximize according to an input `x`.
-    fn compute(&self, x: std::sync::Arc<[TypeDom<Obj>]>) -> (Cod::TypeCodom, Out);
+    fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>);
 }
 
 /// A simple structure wrapping a user defined function to be maximized.
@@ -42,7 +43,7 @@ where
     Out: Outcome,
 {
     pub codomain: Cod,
-    pub function: fn(std::sync::Arc<[TypeDom<Obj>]>) -> Out,
+    pub function: fn(Arc<[TypeDom<Obj>]>) -> Out,
     _obj: PhantomData<Obj>,
 }
 
@@ -53,8 +54,8 @@ where
     Cod: Codomain<Out>,
 {
     fn init(&mut self) {}
-    fn compute(&self, x: std::sync::Arc<[TypeDom<Obj>]>) -> (Cod::TypeCodom, Out) {
+    fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
         let out = (self.function)(x);
-        (self.codomain.get_elem(&out), out)
+        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
     }
 }

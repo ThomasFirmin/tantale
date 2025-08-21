@@ -9,7 +9,7 @@ use crate::{
     },
     searchspace::Searchspace,
     solution::{Id, SolInfo},
-    stop::Stop,
+    stop::Stop, Partial,
 };
 use std::{
     fmt::{Debug, Display},
@@ -22,12 +22,9 @@ use serde::{Serialize,Deserialize};
 pub trait Evaluate<
     Scp,
     Ob,
-    Op,
     Os,
     St,
     Sv,
-    PObj,
-    POpt,
     Obj,
     Opt,
     Out,
@@ -35,11 +32,9 @@ pub trait Evaluate<
     Info,
     SInfo,
     SolId,
-    State,
 > where
     Scp: Searchspace<SolId, Obj, Opt, SInfo>,
     Ob: Objective<Obj, Cod, Out>,
-    Op: Optimizer<SolId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>,
     St: Stop,
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
@@ -48,14 +43,14 @@ pub trait Evaluate<
     Info: OptInfo,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
-    State: OptState,
 {
+    fn init(&mut self);
     fn evaluate(
         &self,
-        stop: Arc<St>,
-        objsol: ArcVecArc<POpt>,
-        optsol: ArcVecArc<PObj>,
-        info: Info,
+        ob : Arc<Ob>,
+        stop: &mut St,
+        objsol: ArcVecArc<Partial<SolId,Obj,SInfo>>,
+        optsol: ArcVecArc<Partial<SolId,Opt,SInfo>>,
     ) -> SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>;
 }
 
