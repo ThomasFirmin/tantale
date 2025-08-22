@@ -35,7 +35,7 @@ use serde::{Serialize,Deserialize};
 /// obtained after each iteration of the [`Optimizer`].
 pub trait SolInfo
 where
-    Self: Serialize + for<'a> Deserialize<'a>
+    Self: Debug + Serialize + for<'a> Deserialize<'a>
 {
 
 }

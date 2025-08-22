@@ -30,7 +30,7 @@ mod test {
 
         use tantale::macros::Outcome;
 
-        #[derive(Outcome,Serialize,Deserialize)]
+        #[derive(Outcome,Debug,Serialize,Deserialize)]
         pub struct OutStruct {
             out: f64,
         }

@@ -11,7 +11,7 @@
 //! use std::fmt::Debug;
 //! use serde::{Serialize,Deserialize};
 //! 
-//! #[derive(Outcome,Serialize,Deserialize)]
+//! #[derive(Outcome,Debug,Serialize,Deserialize)]
 //! pub struct OutExample {
 //!     pub fid2: f64,
 //!     pub con3: f64,
@@ -79,7 +79,7 @@ use serde::{Serialize,Deserialize};
 /// It must contains the values needed for the optimization.
 pub trait Outcome
 where
-    Self: Sized + Serialize + for<'a> Deserialize<'a>
+    Self: Sized + Debug + Serialize + for<'a> Deserialize<'a>
 {
 
 }

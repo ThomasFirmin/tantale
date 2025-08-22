@@ -7,7 +7,7 @@ pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
-    Self: Sized + Serialize + for<'a> Deserialize<'a>
+    Self: Sized + PartialEq + Clone + Copy + std::fmt::Debug + Serialize + for<'a> Deserialize<'a>
 {
     fn generate() -> Self;
 }

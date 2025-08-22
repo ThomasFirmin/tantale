@@ -47,6 +47,25 @@ where
     _obj: PhantomData<Obj>,
 }
 
+impl<Obj, Cod, Out> ObjBase<Obj, Cod, Out>
+where
+    Obj: Domain + Clone + Display + Debug,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+{
+    /// Creates an new instance of [`ObjBase`].
+    /// 
+    /// # Parameters
+    /// 
+    /// * `cod`  :  `Cod` -  A [`Codomain`] of a corresponding [`Outcome`].
+    /// * `func` : The objective function to be optimized and defined by the user.
+    ///   It can be created side-by-side with the [`Searchspace`] using the 
+    ///   [`objective!`](tantale::macros:objective) macro.
+    /// 
+    pub fn new(cod:Cod,func:fn(Arc<[TypeDom<Obj>]>) -> Out)->Self{
+        Self { codomain: cod, function: func, _obj: PhantomData }
+    } 
+}
 impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for ObjBase<Obj, Cod, Out>
 where
     Obj: Domain + Clone + Display + Debug,

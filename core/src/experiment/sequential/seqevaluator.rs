@@ -1,6 +1,6 @@
-use crate::{experiment::Evaluate, optimizer::opt::{OptInfo, OptState, SolPairs}, saver::Saver, stop::{ExpStep, Stop}, ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, Optimizer, Outcome, Partial, Searchspace, SolInfo, Solution};
+use crate::{experiment::Evaluate, optimizer::opt::SolPairs, stop::{ExpStep,Stop}, ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, Outcome, Partial, Searchspace, SolInfo, Solution};
 
-use std::{fmt::{Debug, Display}, marker::PhantomData, sync::{Arc,Mutex}, thread};
+use std::{fmt::{Debug, Display}, marker::PhantomData, sync::{Arc,Mutex}};
 use rayon::prelude::*;
 use serde::{Serialize,Deserialize};
 
@@ -11,34 +11,54 @@ type VecArc<T> = Vec<Arc<T>>;
     serialize="Dom::TypeDom: Serialize",
     deserialize="Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct Evaluator<SolId,Dom,Info,Cod,Out>
+pub struct Evaluator<SolId,Obj,Opt,Info,Cod,Out>
+where
+    Obj: Domain + Clone + Display + Debug + Send + Sync,
+    Opt: Domain + Clone + Display + Debug + Send + Sync,
+    Out: Outcome + Send + Sync,
+    Cod: Codomain<Out> + Send + Sync,
+    SolId: Id + Send + Sync,
+    Info: SolInfo + Send + Sync,
+    Obj::TypeDom : Send + Sync,
+    Opt::TypeDom : Send + Sync,
+    Cod::TypeCodom : Send + Sync,
+{
+    pub in_obj : ArcVecArc<Partial<SolId, Obj, Info>>,
+    pub in_opt : ArcVecArc<Partial<SolId, Opt, Info>>,
+    remaining_idx : Arc<Mutex<Vec<usize>>>,
+    result_obj : Arc<Mutex<VecArc<Computed<SolId,Obj,Cod,Out,Info>>>>,
+    result_opt : Arc<Mutex<VecArc<Computed<SolId,Opt,Cod,Out,Info>>>>,
+    result_out : Arc<Mutex<Vec<LinkedOutcome<Out,SolId,Obj,Info>>>>,
+    _cod:PhantomData<Cod>,
+    _out:PhantomData<Out>,
+}
+
+impl<SolId,Dom,Info,Cod,Out> Evaluator<SolId,Dom,Info,Cod,Out>
 where
     SolId: Id + PartialEq + Copy,
     Dom: Domain + Clone + Display + Debug,
     Info: SolInfo,
     Cod:Codomain<Out>,
-    Out:Outcome,
+    Out:Outcome
 {
-    pub remaining : ArcVecArc<Partial<SolId, Dom, Info>>,
-    pub computed_idx : Vec<usize>,
-    pub result : VecArc<Computed<SolId,Dom,Cod,Out,Info>>,
-    _id : PhantomData<SolId>,
-    _dom:PhantomData<Dom>,
-    _info:PhantomData<Info>,
+    pub fn new(input: ArcVecArc<Partial<SolId, Dom, Info>>)-> Self{
+
+    }
 }
 
-impl <Scp,Ob,Os,St,Sv,Obj,Opt,Out,Cod,Info,SInfo,SolId> Evaluate<Scp,Ob,Os,St,Sv,Obj,Opt,Out,Cod,Info,SInfo,SolId> for Evaluator<SolId,Obj,SInfo,Cod,Out>
+impl <Ob,Os,St,Sv,Obj,Opt,Out,Cod,SInfo,SolId> Evaluate<Ob,Os,St,Sv,Obj,Opt,Out,Cod,SInfo,SolId> for Evaluator<SolId,Obj,SInfo,Cod,Out>
 where
-    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
-    Ob: Objective<Obj, Cod, Out>,
-    St: Stop,
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Ob: Objective<Obj, Cod, Out> + Send + Sync,
+    St: Stop + Send + Sync,
+    Obj: Domain + Clone + Display + Debug + Send + Sync,
+    Opt: Domain + Clone + Display + Debug + Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Codomain<Out>,
-    Info: OptInfo,
+    Cod: Codomain<Out> + Send + Sync,
+    SolId: Id + Send + Sync,
     SInfo: SolInfo + Send + Sync,
-    SolId: Id + PartialEq + Clone + Copy,
+    Obj::TypeDom : Send + Sync,
+    Opt::TypeDom : Send + Sync,
+    Cod::TypeCodom : Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
@@ -50,42 +70,27 @@ where
     ) -> (SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,Vec<LinkedOutcome<Out,SolId,Obj,SInfo>>)
     {
         
+        let mstop = Arc::new(Mutex::new(stop));
+
         // Evaluate Obj partial -- A rayon scope as par_iter, while_some, try_for_each... cannot stop distributing if stop.stop() is true
-        let mut computed_obj = Arc::new(Mutex::new(Vec::new()));
-        let mut computed_opt = Arc::new(Mutex::new(Vec::new()));
-        let mut linked = Arc::new(Mutex::new(Vec::new()));
-        let mut i = 0;
-
-
-        rayon::scope( |s|
-            while i < objsol.len() || !stop.stop(){
-                stop.update(ExpStep::Distribution);
-                let psol_obj = objsol[i];
-                let psol_opt = optsol[i];
-                i += 1;
-                s.spawn(|_|
-                    {
-                        let x = psol_obj.get_x();
-                        let (cod,out) = ob.clone().compute(x);
-                        {
-                            let mut computed_obj = computed_obj.lock().unwrap();
-                            computed_obj.push(Arc::new(Computed::new(psol_obj.clone(), cod.clone())));
-                        }
-                        {
-                            let mut computed_opt = computed_opt.lock().unwrap();
-                            computed_opt.push(Arc::new(Computed::new(psol_opt.clone(), cod.clone())));
-                        }
-                        {
-                            let mut linked = linked.lock().unwrap();
-                            linked.push(LinkedOutcome::new(out.clone(), psol_obj.clone()));
-                        }
-                    }
-                );
+        let computed_obj = Arc::new(Mutex::new(Vec::new()));
+        let computed_opt = Arc::new(Mutex::new(Vec::new()));
+        let linked = Arc::new(Mutex::new(Vec::new()));
+        objsol.par_iter().zip(optsol.par_iter()).for_each(
+            |(sbj,spt)|
+            {
+                mstop.lock().unwrap().update(ExpStep::Distribution);
+                let x = sbj.get_x();
+                let (cod,out) = ob.clone().compute(x);
+                computed_obj.lock().unwrap().push(Arc::new(Computed::new(sbj.clone(), cod.clone())));
+                computed_opt.lock().unwrap().push(Arc::new(Computed::new(spt.clone(), cod.clone())));
+                linked.lock().unwrap().push(LinkedOutcome::new(out.clone(), sbj.clone()));
             }
         );
-        let obj = Arc::new(*computed_obj.lock().unwrap());
-        let opt = Arc::new(*computed_opt.lock().unwrap());
-        ((obj,opt),*linked.lock().unwrap())
+        let obj = Arc::new(Arc::try_unwrap(computed_obj).unwrap().into_inner().unwrap());
+        let opt = Arc::new(Arc::try_unwrap(computed_opt).unwrap().into_inner().unwrap());
+        let lin = Arc::try_unwrap(linked).unwrap().into_inner().unwrap();
+        ((obj,opt),lin)
 
     }
     

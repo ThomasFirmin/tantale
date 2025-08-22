@@ -20,7 +20,7 @@ use serde::{Serialize,Deserialize};
 ///
 /// A [`ComputedSol`] can only be created from a pair of [`Partial`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Debug)]
 #[serde(bound(
     serialize="Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
     deserialize="Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",

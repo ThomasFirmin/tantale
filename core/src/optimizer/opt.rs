@@ -19,7 +19,7 @@ pub trait OptInfo {}
 pub trait OptState {}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,std::fmt::Debug)]
 pub struct EmptyInfo {}
 impl SolInfo for EmptyInfo {}
 impl OptInfo for EmptyInfo {}

@@ -7,7 +7,7 @@ fn obj_test() {
         use tantale::macros::Outcome;
         use tantale_macros::objective;
 
-        #[derive(Outcome,Serialize,Deserialize)]
+        #[derive(Outcome,Debug,Serialize,Deserialize)]
         pub struct OutExample {
             pub obj: f64,
             pub fid: f64,

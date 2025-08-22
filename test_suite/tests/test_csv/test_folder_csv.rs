@@ -20,7 +20,7 @@ use std::sync::Arc;
 mod infos {
     use tantale_macros::Outcome;
     use serde::{Serialize,Deserialize};
-    #[derive(Outcome,Serialize,Deserialize)]
+    #[derive(Outcome,Debug,Serialize,Deserialize)]
     pub struct OutExample {
         pub fid2: usize,
         pub con3: i64,

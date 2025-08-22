@@ -1,7 +1,7 @@
 use tantale_core::Outcome;
 use serde::{Serialize,Deserialize};
 
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct OutExample {
     pub obj: f64,
     pub int_v: i64,
@@ -15,7 +15,7 @@ pub struct OutExample {
 }
 impl Outcome for OutExample{}
 
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct OutUnique {
     pub obj: f64,
     pub int_v: f64,
@@ -29,13 +29,13 @@ pub struct OutUnique {
 }
 impl Outcome for OutUnique{}
 
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct Neuron {
     pub number: i64,
     pub activation: String,
@@ -327,6 +327,48 @@ pub mod sp_sm_samp_noright {
                 bool_v: d,
                 point: p,
                 vec: k.iter().map(|i| **i).collect(),
+            }
+        }
+    );
+}
+
+
+
+
+
+
+use tantale_macros::Outcome;
+#[derive(Outcome,Debug,Serialize,Deserialize)]
+pub struct OutEvaluator {
+    pub obj: f64,
+}
+
+pub mod sp_evaluator {
+    use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+    use tantale_core::{Bool, Cat, Int, Nat, Real};
+    use tantale_macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Int(0,100) | !];
+            let _b = [! b | Nat(0,100) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+            let _d = [! d | Bool() | !];
+
+            let _e = plus_one_int([! e | Int(0,100) | !]);
+            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100) | !];
+
+            OutEvaluator{
+                obj: [! j | Real(1000.0,2000.0) | !]
             }
         }
     );

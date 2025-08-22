@@ -96,8 +96,11 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
-pub trait Codomain<Out: Outcome> {
-    type TypeCodom : Serialize + for<'a> Deserialize<'a>;
+pub trait Codomain<Out: Outcome>
+where
+    Self: std::fmt::Debug
+{
+    type TypeCodom : std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;
 }
 
@@ -148,6 +151,7 @@ pub trait Fidelity<Out: Outcome>: Codomain<Out> {
 // MONO OBJECTIVE CODOMAINS
 
 /// A single [`Criteria`] [`Codomain`] made of a single value `y`.
+#[derive(Debug)]
 pub struct SingleCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
 }
@@ -195,6 +199,7 @@ impl<Out: Outcome> Single<Out> for SingleCodomain<Out> {
 }
 
 /// A [`Single`] and [`Fidelity`] [`Codomain`].
+#[derive(Debug)]
 pub struct FidelCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
     pub f_criteria: Criteria<Out>,
@@ -255,6 +260,7 @@ impl<Out: Outcome> Fidelity<Out> for FidelCodomain<Out> {
 }
 
 /// A [`Single`] and [`Constrained`] [`Codomain`].
+#[derive(Debug)]
 pub struct ConstCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
@@ -324,6 +330,7 @@ impl<Out: Outcome> Constrained<Out, ConsType> for ConstCodomain<Out> {
 }
 
 /// A [`Single`], [`Constrained`], and [`Fidelity`] [`Codomain`].
+#[derive(Debug)]
 pub struct FidelConstCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
     pub f_criteria: Criteria<Out>,
@@ -405,6 +412,7 @@ pub type ConstFidelCodomain<Out> = FidelConstCodomain<Out>;
 // MULTI OBJECTIVE CODOMAINS
 
 /// A [`Multi`] objective [`Codomain`].
+#[derive(Debug)]
 pub struct MultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
 }
@@ -456,6 +464,7 @@ impl<Out: Outcome> Multi<Out> for MultiCodomain<Out> {
 }
 
 /// A [`Multi`] objective and [`Fidelity`] [`Codomain`].
+#[derive(Debug)]
 pub struct FidelMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub f_criteria: Criteria<Out>,
@@ -524,6 +533,7 @@ impl<Out: Outcome> Fidelity<Out> for FidelMultiCodomain<Out> {
 }
 
 /// A [`Multi`] objective and [`Constrained`] [`Codomain`].
+#[derive(Debug)]
 pub struct ConstMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub c_criteria: Box<[Criteria<Out>]>,
@@ -600,6 +610,7 @@ impl<Out: Outcome> Constrained<Out, ConsType> for ConstMultiCodomain<Out> {
 }
 
 /// A [`Multi`] objective, [`Constrained`], and [`Fidelity`] [`Codomain`].
+#[derive(Debug)]
 pub struct FidelConstMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub f_criteria: Criteria<Out>,

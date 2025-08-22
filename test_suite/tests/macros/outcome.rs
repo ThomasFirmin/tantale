@@ -6,7 +6,7 @@ fn mixed_derive() {
     use tantale::core::FidelConstMultiCodomain;
     use tantale_core::Codomain;
 
-    #[derive(Outcome,Serialize,Deserialize)]
+    #[derive(Outcome,Debug,Serialize,Deserialize)]
     pub struct OutExample {
         pub fid2: f64,
         pub con3: f64,

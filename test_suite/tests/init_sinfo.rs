@@ -1,7 +1,7 @@
 use tantale::core::SolInfo;
 use serde::{Serialize,Deserialize};
 
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct TestSInfo {
     pub info: f64,
 }

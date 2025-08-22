@@ -1,7 +1,7 @@
 use tantale::macros::Outcome;
 use serde::{Serialize,Deserialize};
 
-#[derive(Outcome,Serialize,Deserialize)]
+#[derive(Outcome,Debug,Serialize,Deserialize)]
 pub struct OutExample {
     pub obj1: f64,
     pub fid2: f64,
