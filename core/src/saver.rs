@@ -6,10 +6,7 @@ use crate::{
     solution::{Partial, Computed, Id, SolInfo},
     stop::Stop,
 };
-use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 pub mod csvsaver;
 pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
@@ -21,17 +18,17 @@ pub trait Saver<SolId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
     Self: Sized,
     St: Stop,
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, SInfo>,
     Info: OptInfo,
-    SolId: Id + PartialEq + Clone + Copy,
+    SolId: Id,
     State: OptState,
 {
-    fn init(&mut self);
+    fn init(&mut self, sp: Arc<Scp>);
     fn save_partial(
         &mut self,
         obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
@@ -39,9 +36,9 @@ where
         sp: Arc<Scp>,
         info: Arc<Info>,
     );
-    fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>);
-    fn save_out(&mut self, obj: ArcVecArc<LinkedOutcome<Out, SolId, Obj, SInfo>>);
-    fn save_state(&mut self, sp: Arc<Scp>, state: &State, stop: &St);
+    fn save_codom(&self, obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>);
+    fn save_out(&self, lout: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>);
+    fn save_state(&self, sp: Arc<Scp>, state: &State, stop: &St);
     fn load(path: &str) -> Result<(Self, St, State), CheckpointError>;
     fn clean(self);
 }

@@ -7,7 +7,6 @@ use crate::{
 };
 
 use rand::prelude::ThreadRng;
-use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 use crate::saver::CSVWritable;
@@ -16,8 +15,8 @@ use crate::saver::CSVWritable;
 #[derive(Clone)]
 pub struct Var<Obj, Opt = Obj>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
 {
     name: (&'static str, Option<usize>), // NAME + SUFFIX
     domain_obj: Arc<Obj>,
@@ -33,14 +32,14 @@ where
 ///
 pub fn _single_onto<T>(_input: &T, item: &TypeDom<T>, _output: &T) -> OntoOutput<T>
 where
-    T: Domain + Clone + Display + Debug,
+    T: Domain,
 {
     Ok(item.clone())
 }
 
 impl<Obj> Var<Obj>
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
 {
     /// Creates a new instance of a [`Var`] when only the [`Objective`](crate::core::objective::Objective) [`Domain`] is defined.
     ///
@@ -80,8 +79,8 @@ where
 
 impl<Obj, Opt> Var<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
-    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
+    Obj: Domain + Onto<Opt>,
+    Opt: Domain + Onto<Obj>,
 {
     /// Creates a new instance of a [`Var`] when the [`Objective`](crate::core::objective::Objective) and [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`]s are defined.
     ///
@@ -124,8 +123,8 @@ where
 
 impl<Obj, Opt> Var<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
 {
     pub fn _new(
         name: (&'static str, Option<usize>),
@@ -405,8 +404,8 @@ where
 
 impl<Obj, Opt> CSVLeftRight<Obj::TypeDom, Opt::TypeDom> for Var<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug + CSVWritable<Obj::TypeDom>,
-    Opt: Domain + Clone + Display + Debug + CSVWritable<Opt::TypeDom>,
+    Obj: Domain + CSVWritable<Obj::TypeDom>,
+    Opt: Domain + CSVWritable<Opt::TypeDom>,
 {
     fn header(&self) -> Vec<String> {
         let (name, id) = self.name;

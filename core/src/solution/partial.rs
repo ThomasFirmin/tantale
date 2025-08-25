@@ -4,7 +4,7 @@ use crate::domain::{Domain, TypeDom};
 use crate::solution::{Id, SolInfo, Solution};
 
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -21,9 +21,9 @@ use std::{
 ))]
 pub struct Partial<SolId, Dom, Info>
 where
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
-    Dom: Domain + Clone + Display + Debug,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
+    SolId: Id,
+    Dom: Domain,
+    Info: SolInfo,
 {
     pub id: SolId,
     pub x: Arc<[TypeDom<Dom>]>,
@@ -32,9 +32,9 @@ where
 
 impl<SolId, Dom, Info> Partial<SolId, Dom, Info>
 where
-    Dom: Domain + Clone + Display + Debug,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
 {
         /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
     ///
@@ -189,7 +189,7 @@ where
     /// ```
     pub fn twin<B, T>(&self, x: T) -> Partial<SolId, B, Info>
     where
-        B: Domain + Clone + Display + Debug,
+        B: Domain,
         T: AsRef<[TypeDom<B>]>,
     {
         Partial::new(self.get_id(), x, self.get_info())
@@ -197,9 +197,9 @@ where
 }
 impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for Partial<SolId, Dom, Info>
 where
-    Dom: Domain + Clone + Display + Debug,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
 {
     fn get_id(&self) -> SolId {
         self.id

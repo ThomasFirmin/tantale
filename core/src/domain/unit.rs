@@ -305,7 +305,7 @@ impl From<BaseDom> for Unit {
     }
 }
 
-impl CSVWritable<f64> for Unit {
+impl CSVWritable<(),f64> for Unit {
     fn header(&self) -> Vec<String> {
         Vec::new()
     }

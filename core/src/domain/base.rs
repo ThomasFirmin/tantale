@@ -548,8 +548,9 @@ impl From<Unit> for BaseDom {
     }
 }
 
-impl CSVWritable<BaseTypeDom> for BaseDom {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(),BaseTypeDom> for BaseDom {
+    
+    fn header(_elem:&()) -> Vec<String> {
         Vec::new()
     }
 
@@ -563,4 +564,5 @@ impl CSVWritable<BaseTypeDom> for BaseDom {
             BaseTypeDom::Unit(s) => Vec::from([s.to_string()]),
         }
     }
+    
 }

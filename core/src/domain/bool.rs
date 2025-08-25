@@ -244,8 +244,8 @@ impl From<BaseDom> for Bool {
     }
 }
 
-impl CSVWritable<bool> for Bool {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(),bool> for Bool {
+    fn header(_elem:&()) -> Vec<String> {
         Vec::new()
     }
 

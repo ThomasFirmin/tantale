@@ -9,7 +9,6 @@ use crate::objective::outcome::Outcome;
 use crate::objective::Codomain;
 
 use std::{
-    fmt::{Debug, Display},
     marker::PhantomData,
     sync::Arc,
 };
@@ -20,7 +19,7 @@ use std::{
 ///
 pub trait Objective<Obj, Cod, Out>
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
 {
@@ -38,7 +37,7 @@ where
 /// * `function` : `fn(&[Obj::TypeDom]) -> Out` - A function to be maximized.
 pub struct ObjBase<Obj, Cod, Out>
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
     Cod: Codomain<Out>,
     Out: Outcome,
 {
@@ -49,7 +48,7 @@ where
 
 impl<Obj, Cod, Out> ObjBase<Obj, Cod, Out>
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
 {
@@ -68,7 +67,7 @@ where
 }
 impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for ObjBase<Obj, Cod, Out>
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
 {

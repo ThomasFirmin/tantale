@@ -6,7 +6,6 @@ use crate::{
     solution::{Partial, Computed, Id, ParSId, SId, SolInfo},
 };
 use std::{
-    fmt::{Debug, Display},
     sync::Arc,
 };
 use serde::{Serialize,Deserialize};
@@ -44,7 +43,7 @@ pub type SolPairs<SolId, ADom, BDom, Cod, Out, SInfo> = (
 pub type OptOutput<SolId, ADom, BDom, SInfo, Info> = (
     ArcVecArc<Partial<SolId, ADom, SInfo>>,
     ArcVecArc<Partial<SolId, BDom, SInfo>>,
-    Info
+    Arc<Info>
 );
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
@@ -52,8 +51,8 @@ pub type OptOutput<SolId, ADom, BDom, SInfo, Info> = (
 /// the [`Objective`] function.
 pub trait Optimizer<SolId,Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
@@ -85,8 +84,8 @@ where
 pub trait SequentialOptimizer<Obj, Opt, SInfo, Cod, Out, Scp, Info, State>:
     Optimizer<SId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
@@ -100,8 +99,8 @@ where
 pub trait ParallelOptimizer<Obj, Opt, SInfo, Cod, Out, Scp, Info, State>:
     Optimizer<ParSId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,

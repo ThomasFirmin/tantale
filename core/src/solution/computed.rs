@@ -27,11 +27,11 @@ use serde::{Serialize,Deserialize};
 ))]
 pub struct Computed<SolId, Dom, Cod, Out, Info>
 where
-    Dom: Domain + Clone + Display + Debug,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
+    Dom: Domain,
+    Info: SolInfo,
     Cod: Codomain<Out>,
-    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome,
+    SolId: Id,
 {
     pub sol: Arc<Partial<SolId, Dom, Info>>,
     pub y: Arc<Cod::TypeCodom>,
@@ -43,11 +43,11 @@ where
 impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
     for Computed<SolId, Dom, Cod, Out, Info>
 where
-    Dom: Domain + Clone + Display + Debug,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
+    Dom: Domain,
+    Info: SolInfo,
     Cod: Codomain<Out>,
-    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome,
+    SolId: Id,
 {
     fn get_id(&self) -> SolId {
         self.sol.get_id()
@@ -64,7 +64,7 @@ where
 
 impl<SolId, Dom, Info, Cod, Out> Computed<SolId, Dom, Cod, Out, Info>
 where
-    Dom: Domain + Clone + Display + Debug,
+    Dom: Domain,
     Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
     Cod: Codomain<Out>,
     Out: Outcome + Serialize + for<'a> Deserialize<'a>,

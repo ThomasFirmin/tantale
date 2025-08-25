@@ -2,19 +2,17 @@ pub mod sequential;
 
 use crate::{
     domain::Domain, objective::{Codomain, Objective, Outcome}, optimizer::{
-        opt::{ArcVecArc, SolPairs},
-    }, solution::{Id, SolInfo}, stop::Stop, LinkedOutcome, Partial
+        opt::SolPairs,
+    }, solution::{Id, SolInfo}, stop::Stop, LinkedOutcome, 
 };
-use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+use std::sync::{Arc,Mutex};
+
+pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo> = (SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>, Vec<LinkedOutcome<Out,SolId,Obj,SInfo>>);
 
 /// An evaluator describes how a batch of [`Partial`] should
 /// be evaluated to get a batch of [`Computed`].
 pub trait Evaluate<
     Ob,
-    Os,
     St,
     Sv,
     Obj,
@@ -26,20 +24,18 @@ pub trait Evaluate<
 > where
     Ob: Objective<Obj, Cod, Out>,
     St: Stop,
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
     SInfo: SolInfo,
-    SolId: Id + PartialEq + Clone + Copy,
+    SolId: Id,
 {
     fn init(&mut self);
     fn evaluate(
-        &self,
+        &mut self,
         ob : Arc<Ob>,
-        stop: &mut St,
-        objsol: ArcVecArc<Partial<SolId,Obj,SInfo>>,
-        optsol: ArcVecArc<Partial<SolId,Opt,SInfo>>,
-    ) -> (SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>, Vec<LinkedOutcome<Out,SolId,Obj,SInfo>>);
+        stop: Arc<Mutex<St>>,
+    ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo>;
 }
 

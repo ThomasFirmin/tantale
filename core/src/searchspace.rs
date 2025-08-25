@@ -113,7 +113,6 @@ use crate::{
 };
 
 use rand::prelude::ThreadRng;
-use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use serde::{Serialize,Deserialize};
 
@@ -126,9 +125,9 @@ type ComputedOut<SolId, ADom, BDom, Cod, Out, Info> = (
 pub trait Searchspace<SolId, Obj, Opt, SInfo>
 where
     SInfo: SolInfo,
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
-    SolId: Id + PartialEq + Clone + Copy,
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
 {
     /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from

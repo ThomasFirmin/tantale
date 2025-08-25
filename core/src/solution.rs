@@ -26,7 +26,7 @@
 use crate::domain::{Domain, TypeDom};
 
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::Arc,
 };
 use serde::{Serialize,Deserialize};
@@ -44,7 +44,7 @@ where
 pub trait Solution<SolId, Dom, Info>
 where
     Self: Sized,
-    Dom: Domain + Clone + Display + Debug,
+    Dom: Domain,
     Info: SolInfo,
     SolId: Id + PartialEq,
 {
@@ -62,7 +62,7 @@ where
     /// Twins [`Solutions`](Solution) share equal ids.
     fn is_twin<Twin, B>(&self, solb: Twin) -> bool
     where
-        B: Domain + Clone + Display + Debug,
+        B: Domain,
         Twin: Solution<SolId, B, Info>,
     {
         self.get_id() == solb.get_id()

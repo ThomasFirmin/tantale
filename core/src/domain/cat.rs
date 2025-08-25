@@ -283,8 +283,8 @@ impl From<BaseDom> for Cat {
     }
 }
 
-impl CSVWritable<<Cat as Domain>::TypeDom> for Cat {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(),<Cat as Domain>::TypeDom> for Cat {
+    fn header(_elem:&()) -> Vec<String> {
         Vec::new()
     }
 

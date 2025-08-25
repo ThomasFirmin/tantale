@@ -68,8 +68,7 @@ use crate::{
 };
 
 use std::{
-    fmt::{Debug, Display},
-    marker::PhantomData,
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -79,7 +78,7 @@ use serde::{Serialize,Deserialize};
 /// It must contains the values needed for the optimization.
 pub trait Outcome
 where
-    Self: Sized + Debug + Serialize + for<'a> Deserialize<'a>
+    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>
 {
 
 }
@@ -95,35 +94,33 @@ where
 }
 
 /// An [`Outcome`] linked to its [`Partial`], before the creation of a [`Computed`].
-#[derive(Debug)]
-pub struct LinkedOutcome<Out, SolId, Dom, Info>
+#[derive(Debug,Serialize,Deserialize)]
+#[serde(bound(
+    serialize="Dom::TypeDom: Serialize",
+    deserialize = "O: Outcome,SolId:Id, Dom::TypeDom: for<'a> Deserialize<'a>"
+))]
+pub struct LinkedOutcome<O, SolId, Dom, Info>
 where
-    Out: Outcome,
-    Dom: Domain + Clone + Display + Debug,
+    O: Outcome,
+    SolId: Id,
+    Dom: Domain,
     Info: SolInfo,
-    SolId: Id + PartialEq + Copy + Clone,
 {
-    pub out: Arc<Out>,
+    pub out: Arc<O>,
     pub sol: Arc<Partial<SolId, Dom, Info>>,
-    _id: PhantomData<SolId>,
-    _dom: PhantomData<Dom>,
-    _info: PhantomData<Info>,
 }
 
 impl<Out, SolId, Dom, Info> LinkedOutcome<Out, SolId, Dom, Info>
 where
     Out: Outcome,
-    Dom: Domain + Clone + Display + Debug,
+    Dom: Domain,
     Info: SolInfo,
-    SolId: Id + PartialEq + Copy + Clone,
+    SolId: Id,
 {
     pub fn new(out: Arc<Out>, sol: Arc<Partial<SolId, Dom, Info>>) -> Self {
         LinkedOutcome {
             out,
             sol,
-            _id: PhantomData,
-            _dom: PhantomData,
-            _info: PhantomData,
         }
     }
 }

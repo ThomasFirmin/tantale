@@ -532,11 +532,11 @@ pub type Nat = Bounded<u64>;
 /// ```
 pub type Int = Bounded<i64>;
 
-impl<T> CSVWritable<<Bounded<T> as Domain>::TypeDom> for Bounded<T>
+impl<T> CSVWritable<(),<Bounded<T> as Domain>::TypeDom> for Bounded<T>
 where
     T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
-    fn header(&self) -> Vec<String> {
+    fn header(_elem:&()) -> Vec<String> {
         Vec::new()
     }
 
