@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use tantale_core::Outcome;
-use serde::{Serialize,Deserialize};
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OutExample {
     pub obj: f64,
     pub int_v: i64,
@@ -13,9 +13,9 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
-impl Outcome for OutExample{}
+impl Outcome for OutExample {}
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OutUnique {
     pub obj: f64,
     pub int_v: f64,
@@ -27,15 +27,15 @@ pub struct OutUnique {
     pub point: Point,
     pub vec: Vec<f64>,
 }
-impl Outcome for OutUnique{}
+impl Outcome for OutUnique {}
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Neuron {
     pub number: i64,
     pub activation: String,
@@ -332,18 +332,13 @@ pub mod sp_sm_samp_noright {
     );
 }
 
-
-
-
-
-
 use tantale_macros::Outcome;
-#[derive(Outcome,Debug,Serialize,Deserialize)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutEvaluator {
     pub obj: f64,
 }
 
-impl PartialEq for OutEvaluator{
+impl PartialEq for OutEvaluator {
     fn eq(&self, other: &Self) -> bool {
         self.obj == other.obj
     }

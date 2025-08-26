@@ -3,28 +3,22 @@ use tantale::core::{Computed, ParSId, Partial, Solution};
 use tantale_core::domain::TypeDom;
 use tantale_core::{Codomain, SingleCodomain};
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
-use serde::{Serialize,Deserialize};
 
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type SlcArcComp<Dom> = std::sync::Arc<
-    Computed<
-        ParSId,
-        Dom,
-        SingleCodomain<OutExample>,
-        OutExample,
-        TestSInfo,
-    >,
->;
+type SlcArcComp<Dom> =
+    std::sync::Arc<Computed<ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &[SlcArcComp<Dom>], pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
+    TypeDom<Dom>:
+        Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
 {
     for s in sol {
         assert_eq!(

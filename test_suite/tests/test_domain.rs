@@ -90,7 +90,11 @@ mod check_bounds {
     }
     #[test]
     fn create_cat() {
-        let check = vec![String::from("relu"), String::from("tanh"), String::from("sigmoid")];
+        let check = vec![
+            String::from("relu"),
+            String::from("tanh"),
+            String::from("sigmoid"),
+        ];
         let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"]);
         assert_eq!(cat_1.values(), &check, "Issue with content of Cat.");
 

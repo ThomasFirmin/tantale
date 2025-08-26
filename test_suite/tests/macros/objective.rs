@@ -1,13 +1,13 @@
 #[test]
 fn obj_test() {
     mod searchspace {
-        use serde::{Serialize,Deserialize};
+        use serde::{Deserialize, Serialize};
         use tantale::core::domain::sampler::{uniform_int, uniform_real};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::Outcome;
         use tantale_macros::objective;
 
-        #[derive(Outcome,Debug,Serialize,Deserialize)]
+        #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutExample {
             pub obj: f64,
             pub fid: f64,

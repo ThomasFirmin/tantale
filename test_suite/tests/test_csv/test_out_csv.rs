@@ -1,10 +1,10 @@
 use tantale::core::saver::csvsaver::CSVWritable;
 
 mod outcome {
+    use serde::{Deserialize, Serialize};
     use tantale_macros::Outcome;
-    use serde::{Serialize,Deserialize};
-    
-    #[derive(Outcome,Debug,Serialize,Deserialize)]
+
+    #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         pub fid2: f64,
         pub con3: f64,

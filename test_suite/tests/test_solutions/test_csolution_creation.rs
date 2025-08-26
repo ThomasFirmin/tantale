@@ -2,21 +2,15 @@ use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{Codomain, Computed, ParSId, Partial, SingleCodomain};
 use tantale_core::Solution;
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
-use serde::{Serialize,Deserialize};
 
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type TestComp<Dom> = Computed<
-    ParSId,
-    Dom,
-    SingleCodomain<OutExample>,
-    OutExample,
-    TestSInfo,
->;
+type TestComp<Dom> = Computed<ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &TestComp<Dom>, pid: u32)
 where

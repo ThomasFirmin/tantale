@@ -1,17 +1,18 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale_core::solution::{ParSId, Partial, Solution};
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
-use serde::{Serialize,Deserialize};
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &Partial<ParSId, Dom, TestSInfo>, pid: u32)
 where
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
+    TypeDom<Dom>:
+        Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
 {
     assert_eq!(
         sol.get_x(),

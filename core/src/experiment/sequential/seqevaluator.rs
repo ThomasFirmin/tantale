@@ -45,8 +45,8 @@ where
     }
 }
 
-impl<Ob, St, Obj, Opt, Out, Cod, SInfo, SolId>
-    Evaluate<Ob, St, Obj, Opt, Out, Cod, SInfo, SolId> for Evaluator<SolId, Obj, Opt, SInfo>
+impl<Ob, St, Obj, Opt, Out, Cod, SInfo, SolId> Evaluate<Ob, St, Obj, Opt, Out, Cod, SInfo, SolId>
+    for Evaluator<SolId, Obj, Opt, SInfo>
 where
     Ob: Objective<Obj, Cod, Out> + Send + Sync,
     St: Stop + Send + Sync,

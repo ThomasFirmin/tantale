@@ -3,6 +3,7 @@ use super::init_sp::sp_m_equal_allmsamp;
 use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RSInfo;
+use tantale_algos::RSState;
 use tantale_algos::RandomSearch;
 use tantale_core::optimizer::OptState;
 use tantale_core::saver::CSVSaver;
@@ -18,9 +19,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 mod infos {
+    use serde::{Deserialize, Serialize};
     use tantale_macros::Outcome;
-    use serde::{Serialize,Deserialize};
-    #[derive(Outcome,Debug,Serialize,Deserialize)]
+    #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         pub fid2: usize,
         pub con3: i64,
@@ -55,14 +56,7 @@ pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
     hash_opt: &mut HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
     hash_out: &mut HashMap<
         usize,
-        Arc<
-            LinkedOutcome<
-                OutExample,
-                SId,
-                sp_m_equal_allmsamp::_TantaleMixedObj,
-                SInfo,
-            >,
-        >,
+        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>,
     >,
     hash_cod: &mut HashMap<
         usize,
@@ -76,13 +70,14 @@ pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
             >,
         >,
     >,
-    hash_inf: &mut HashMap<usize,Arc<Info>>,
+    hash_inf: &mut HashMap<usize, Arc<Info>>,
     sp: Arc<Scp>,
+    cod: Arc<SingleCodomain<OutExample>>,
     opt: &'a mut Op,
     stop: &mut St,
     saver: &mut Sv,
-    size:usize,
-) -> (Sv,St,&'a State, State)
+    size: usize,
+) -> (Sv, St, &'a State, State)
 where
     Scp: Searchspace<
         SId,
@@ -114,15 +109,12 @@ where
         Info,
         State,
     >,
-    Info: OptInfo + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
+    Info: OptInfo + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
     State: OptState,
 {
-    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
-    saver.init(sp.clone(),cod.clone());
-
     let (sobj, sopt, infos) = opt.first_step(sp.clone());
-    let (cobj,copt,vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
+    let (cobj, copt, vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
         .map(|(a, b)| {
@@ -142,11 +134,11 @@ where
             hash_opt.insert(id, b.clone());
             hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
             hash_cod.insert(id, r.0.clone());
-            hash_inf.insert(id,infos.clone());
+            hash_inf.insert(id, infos.clone());
             (r.0, r.1, linked)
         })
         .collect();
-    
+
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
@@ -154,13 +146,19 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
 
-    let (cobj,copt,vinfos) = (Arc::new(cobj),Arc::new(copt),vinfos);
-    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), cod.clone(), infos.clone());
-    saver.save_codom(cobj.clone(),sp.clone(),cod.clone());
-    saver.save_out(vinfos,sp.clone());
+    let (cobj, copt, vinfos) = (Arc::new(cobj), Arc::new(copt), vinfos);
+    saver.save_partial(
+        sobj.clone(),
+        sopt.clone(),
+        sp.clone(),
+        cod.clone(),
+        infos.clone(),
+    );
+    saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
+    saver.save_out(vinfos, sp.clone());
     saver.save_state(sp.clone(), opt.get_state(), stop);
 
-    let (sobj, sopt, infos) = opt.step(copt.clone(),sp.clone());
+    let (sobj, sopt, infos) = opt.step(copt.clone(), sp.clone());
     let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -182,35 +180,36 @@ where
             hash_opt.insert(id, b.clone());
             hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
             hash_cod.insert(id, r.0.clone());
-            hash_inf.insert(id,infos.clone());
+            hash_inf.insert(id, infos.clone());
             (r.0, r.1, linked)
         })
         .collect();
 
-    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), cod.clone(),infos.clone());
-    saver.save_codom(Arc::new(computed.0),sp.clone(),cod.clone());
-    saver.save_out(computed.2,sp.clone());
+    saver.save_partial(
+        sobj.clone(),
+        sopt.clone(),
+        sp.clone(),
+        cod.clone(),
+        infos.clone(),
+    );
+    saver.save_codom(Arc::new(computed.0), sp.clone(), cod.clone());
+    saver.save_out(computed.2, sp.clone());
     saver.save_state(sp.clone(), opt.get_state(), stop);
 
-    run_reader("tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size);
+    run_reader(
+        "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size,
+    );
     let res = Sv::load("tmp_test").unwrap();
     (res.0, res.1, opt.get_state(), res.2)
 }
 
-pub fn run_reader<SInfo,Info>(
+pub fn run_reader<SInfo, Info>(
     path: &str,
     hash_obj: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
     hash_opt: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
     hash_out: &HashMap<
         usize,
-        Arc<
-            LinkedOutcome<
-                OutExample,
-                SId,
-                sp_m_equal_allmsamp::_TantaleMixedObj,
-                SInfo,
-            >,
-        >,
+        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>,
     >,
     hash_cod: &HashMap<
         usize,
@@ -224,18 +223,13 @@ pub fn run_reader<SInfo,Info>(
             >,
         >,
     >,
-    hash_inf: &HashMap<usize,Arc<Info>>,
-    size:usize,
+    hash_inf: &HashMap<usize, Arc<Info>>,
+    size: usize,
 ) where
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info:OptInfo + CSVWritable<(),()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()>,
 {
-
     let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
-
-
-
-
 
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("evaluations"));
@@ -243,7 +237,6 @@ pub fn run_reader<SInfo,Info>(
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
     let path_cod = eval_path.join("cod.csv");
-    println!("{:?}",path_obj);
 
     let mut size_obj: usize = 0;
     let mut size_opt: usize = 0;
@@ -252,10 +245,9 @@ pub fn run_reader<SInfo,Info>(
 
     // Check `Obj`
     let mut rdr = csv::Reader::from_path(path_obj).unwrap();
-    let mut record = StringRecord::new();
-    while rdr.read_record(&mut record).unwrap() {
+    for line in rdr.records() {
+        let record = line.unwrap();
         size_obj += 1;
-
         let id: usize = record[0].parse().unwrap();
         let content = hash_obj.get(&id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.get_id().id)]);
@@ -321,8 +313,8 @@ pub fn run_reader<SInfo,Info>(
 
         let id: usize = record[0].parse().unwrap();
         let content = hash_out.get(&id).unwrap();
-        let con:i64 = record[2].parse().unwrap();
-        let true_con = match content.sol.get_x()[0]{
+        let con: i64 = record[2].parse().unwrap();
+        let true_con = match content.sol.get_x()[0] {
             sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
@@ -339,21 +331,52 @@ pub fn run_reader<SInfo,Info>(
             str_content, record_str,
             "True baseline and CSV record do not match."
         );
-        assert_eq!(con, true_con, "Record mismatch between 2nd element of Obj solutino and con2 Outcome.");
+        assert_eq!(
+            con, true_con,
+            "Record mismatch between 2nd element of Obj solutino and con2 Outcome."
+        );
     }
 
-    assert_eq!(size_obj, size,"Some solutions are missing within recorded obj save.");
-    assert_eq!(size_opt, size,"Some solutions are missing within recorded opt save.");
-    assert_eq!(size_cod, size,"Some solutions are missing within recorded cod save.");
-    assert_eq!(size_out, size,"Some solutions are missing within recorded out save.");
-
+    assert_eq!(
+        size_obj, size,
+        "Some solutions are missing within recorded obj save."
+    );
+    assert_eq!(
+        size_opt, size,
+        "Some solutions are missing within recorded opt save."
+    );
+    assert_eq!(
+        size_cod, size,
+        "Some solutions are missing within recorded cod save."
+    );
+    assert_eq!(
+        size_out, size,
+        "Some solutions are missing within recorded out save."
+    );
 }
 
 fn test_csv_func() {
     let sp = Arc::new(sp_m_equal_allmsamp::get_searchspace());
+    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
+
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
     let mut saver = CSVSaver::new("tmp_test", true, true, true, 1);
+    <CSVSaver as Saver<
+        SId,
+        Calls,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        EmptyInfo,
+        tantale_core::SingleCodomain<OutExample>,
+        OutExample,
+        tantale_core::Sp<
+            sp_m_equal_allmsamp::_TantaleMixedObj,
+            sp_m_equal_allmsamp::_TantaleMixedObj,
+        >,
+        RSInfo,
+        RSState,
+    >>::init(&mut saver, sp.clone(), cod.clone());
 
     let path = saver.path.clone();
     let save_obj = saver.save_obj;
@@ -369,31 +392,13 @@ fn test_csv_func() {
         usize,
         Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
     > = HashMap::new();
-    let mut hash_outcome: HashMap<
-        usize,
-        Arc<
-            LinkedOutcome<
-                OutExample,
-                _,
-                _,
-                _,
-            >,
-        >,
-    > = HashMap::new();
+    let mut hash_outcome: HashMap<usize, Arc<LinkedOutcome<OutExample, _, _, _>>> = HashMap::new();
     let mut hash_codom: HashMap<
         usize,
-        Arc<
-            Computed<
-                _,
-                _,
-                SingleCodomain<OutExample>,
-                OutExample,
-                _,
-            >,
-        >,
+        Arc<Computed<_, _, SingleCodomain<OutExample>, OutExample, _>>,
     > = HashMap::new();
 
-    let mut hash_info: HashMap<usize,Arc<RSInfo>> = HashMap::new();
+    let mut hash_info: HashMap<usize, Arc<RSInfo>> = HashMap::new();
 
     let (mut nsaver, mut nstop, rstate, nstate) = run_saver(
         &mut hash_obj,
@@ -401,21 +406,51 @@ fn test_csv_func() {
         &mut hash_outcome,
         &mut hash_codom,
         &mut hash_info,
-        sp.clone(), &mut rs, &mut stop, &mut saver, 6);
-    
-    assert_eq!(stop.0,nstop.0,"States of threshold in Calls are different after loading.");
-    assert_eq!(stop.1,nstop.1,"States of calls in Calls are different after loading.");
-    assert_eq!(stop.0,6,"Wrong number of Calls before loading");
-    assert_eq!(nstop.0,6,"Wrong number of Calls after loading");
+        sp.clone(),
+        cod.clone(),
+        &mut rs,
+        &mut stop,
+        &mut saver,
+        6,
+    );
 
-    assert_eq!(rstate.batch, nstate.batch, "Batch fields for RSState are different after loading.");
-    assert_eq!(rstate.iteration, nstate.iteration, "Iteration fields for RSState are different after loading.");
+    assert_eq!(
+        stop.0, nstop.0,
+        "States of threshold in Calls are different after loading."
+    );
+    assert_eq!(
+        stop.1, nstop.1,
+        "States of calls in Calls are different after loading."
+    );
+    assert_eq!(stop.0, 6, "Wrong number of Calls before loading");
+    assert_eq!(nstop.0, 6, "Wrong number of Calls after loading");
+
+    assert_eq!(
+        rstate.batch, nstate.batch,
+        "Batch fields for RSState are different after loading."
+    );
+    assert_eq!(
+        rstate.iteration, nstate.iteration,
+        "Iteration fields for RSState are different after loading."
+    );
 
     assert_eq!(nsaver.path, path, "Wrong path before and after loading.");
-    assert_eq!(nsaver.save_obj, save_obj, "Wrong save_obj state before and after loading.");
-    assert_eq!(nsaver.save_opt, save_opt, "Wrong save_opt state before and after loading.");
-    assert_eq!(nsaver.save_out, save_out, "Wrong save_out state before and after loading.");
-    assert_eq!(nsaver.checkpoint, checkpoint, "Wrong checkpoint state before and after loading.");
+    assert_eq!(
+        nsaver.save_obj, save_obj,
+        "Wrong save_obj state before and after loading."
+    );
+    assert_eq!(
+        nsaver.save_opt, save_opt,
+        "Wrong save_opt state before and after loading."
+    );
+    assert_eq!(
+        nsaver.save_out, save_out,
+        "Wrong save_out state before and after loading."
+    );
+    assert_eq!(
+        nsaver.checkpoint, checkpoint,
+        "Wrong checkpoint state before and after loading."
+    );
 
     let (nsaver, nnstop, rstate, nstate) = run_saver(
         &mut hash_obj,
@@ -423,30 +458,63 @@ fn test_csv_func() {
         &mut hash_outcome,
         &mut hash_codom,
         &mut hash_info,
-        sp.clone(), &mut rs, &mut nstop, &mut nsaver, 12);
-    assert_eq!(nstop.0,nnstop.0,"States of threshold in Calls are different after loading.");
-    assert_eq!(nstop.1,nnstop.1,"States of calls in Calls are different after loading.");
-    assert_eq!(nstop.0,12,"Wrong number of Calls before loading");
-    assert_eq!(nnstop.0,12,"Wrong number of Calls after loading");
+        sp.clone(),
+        cod.clone(),
+        &mut rs,
+        &mut nstop,
+        &mut nsaver,
+        12,
+    );
+    assert_eq!(
+        nstop.0, nnstop.0,
+        "States of threshold in Calls are different after loading."
+    );
+    assert_eq!(
+        nstop.1, nnstop.1,
+        "States of calls in Calls are different after loading."
+    );
+    assert_eq!(nstop.0, 12, "Wrong number of Calls before loading");
+    assert_eq!(nnstop.0, 12, "Wrong number of Calls after loading");
 
-    assert_eq!(rstate.batch, nstate.batch, "Batch fields for RSState are different after loading.");
-    assert_eq!(rstate.iteration, nstate.iteration, "Iteration fields for RSState are different after loading.");
+    assert_eq!(
+        rstate.batch, nstate.batch,
+        "Batch fields for RSState are different after loading."
+    );
+    assert_eq!(
+        rstate.iteration, nstate.iteration,
+        "Iteration fields for RSState are different after loading."
+    );
 
     assert_eq!(nsaver.path, path, "Wrong path before and after loading.");
-    assert_eq!(nsaver.save_obj, save_obj, "Wrong save_obj state before and after loading.");
-    assert_eq!(nsaver.save_opt, save_opt, "Wrong save_opt state before and after loading.");
-    assert_eq!(nsaver.save_out, save_out, "Wrong save_out state before and after loading.");
-    assert_eq!(nsaver.checkpoint, checkpoint, "Wrong checkpoint state before and after loading.");
+    assert_eq!(
+        nsaver.save_obj, save_obj,
+        "Wrong save_obj state before and after loading."
+    );
+    assert_eq!(
+        nsaver.save_opt, save_opt,
+        "Wrong save_opt state before and after loading."
+    );
+    assert_eq!(
+        nsaver.save_out, save_out,
+        "Wrong save_out state before and after loading."
+    );
+    assert_eq!(
+        nsaver.checkpoint, checkpoint,
+        "Wrong checkpoint state before and after loading."
+    );
+    drop(Cleaner{});
+}
+
+struct Cleaner;
+
+impl Drop for Cleaner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all("tmp_test");
+    }
 }
 
 #[test]
-fn test_csv(){
-    let result = std::panic::catch_unwind(|| {
-        test_csv_func();
-    });
-    let _ = std::panic::catch_unwind(|| {std::fs::remove_dir_all("tmp_test").unwrap()});
-    match result {
-        Ok(_) => {},
-        Err(_) =>result.unwrap(),
-    }
+fn test_csv() {
+    drop(Cleaner{});
+    test_csv_func();
 }
