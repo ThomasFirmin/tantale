@@ -54,9 +54,9 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     quote!{
         impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}
 
-        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<()> for #eident #egenerics #ewhere
+        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<() , ()> for #eident #egenerics #ewhere
         {
-            fn header(&self)->Vec<String>{
+            fn header(_elem:&())->Vec<String>{
                 Vec::from([#(#to_header_stmts,)*])
             }
 

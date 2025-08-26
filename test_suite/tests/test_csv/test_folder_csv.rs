@@ -114,14 +114,14 @@ where
         Info,
         State,
     >,
-    Info: OptInfo + CSVWritable<()>,
-    SInfo: SolInfo + CSVWritable<()>,
+    Info: OptInfo + CSVWritable<(),()>,
+    SInfo: SolInfo + CSVWritable<(),()>,
     State: OptState,
 {
-    saver.init();
+    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
+    saver.init(sp.clone(),cod.clone());
 
     let (sobj, sopt, infos) = opt.first_step(sp.clone());
-    let infos = Arc::new(infos);
     let (cobj,copt,vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -133,15 +133,14 @@ where
                 _ => panic!("Should be a Int."),
             };
             let outcome = Arc::new(infos::get_out(id, aelem));
-            let cod = SingleCodomain::new(|x: &OutExample| x.mul6);
             let mut codel = cod.get_elem(&outcome);
             codel.value = id as f64;
             let r =
                 sp.computed::<SingleCodomain<_>, OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let linked = Arc::new(LinkedOutcome::new(outcome.clone(), a.clone()));
+            let linked = LinkedOutcome::new(outcome.clone(), a.clone());
             hash_obj.insert(id, a.clone());
             hash_opt.insert(id, b.clone());
-            hash_out.insert(id, linked.clone());
+            hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
             hash_cod.insert(id, r.0.clone());
             hash_inf.insert(id,infos.clone());
             (r.0, r.1, linked)
@@ -155,14 +154,13 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
 
-    let (cobj,copt,vinfos) = (Arc::new(cobj),Arc::new(copt),Arc::new(vinfos));
-    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), infos.clone());
-    saver.save_codom(cobj.clone());
-    saver.save_out(vinfos.clone());
+    let (cobj,copt,vinfos) = (Arc::new(cobj),Arc::new(copt),vinfos);
+    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), cod.clone(), infos.clone());
+    saver.save_codom(cobj.clone(),sp.clone(),cod.clone());
+    saver.save_out(vinfos,sp.clone());
     saver.save_state(sp.clone(), opt.get_state(), stop);
 
-    let (sobj, sopt, infos) = opt.step((cobj.clone(),copt.clone()),sp.clone());
-    let infos = Arc::new(infos);
+    let (sobj, sopt, infos) = opt.step(copt.clone(),sp.clone());
     let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -179,19 +177,19 @@ where
             codel.value = id as f64;
             let r =
                 sp.computed::<SingleCodomain<_>, OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let linked = Arc::new(LinkedOutcome::new(outcome.clone(), a.clone()));
+            let linked = LinkedOutcome::new(outcome.clone(), a.clone());
             hash_obj.insert(id, a.clone());
             hash_opt.insert(id, b.clone());
-            hash_out.insert(id, linked.clone());
+            hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
             hash_cod.insert(id, r.0.clone());
             hash_inf.insert(id,infos.clone());
             (r.0, r.1, linked)
         })
         .collect();
 
-    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), infos.clone());
-    saver.save_codom(Arc::new(computed.0));
-    saver.save_out(Arc::new(computed.2));
+    saver.save_partial(sobj.clone(), sopt.clone(), sp.clone(), cod.clone(),infos.clone());
+    saver.save_codom(Arc::new(computed.0),sp.clone(),cod.clone());
+    saver.save_out(computed.2,sp.clone());
     saver.save_state(sp.clone(), opt.get_state(), stop);
 
     run_reader("tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size);
@@ -229,9 +227,16 @@ pub fn run_reader<SInfo,Info>(
     hash_inf: &HashMap<usize,Arc<Info>>,
     size:usize,
 ) where
-    SInfo: SolInfo + CSVWritable<()>,
-    Info:OptInfo + CSVWritable<()>,
+    SInfo: SolInfo + CSVWritable<(),()>,
+    Info:OptInfo + CSVWritable<(),()>,
 {
+
+    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
+
+
+
+
+
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("evaluations"));
     let path_obj = eval_path.join("obj.csv");
@@ -294,7 +299,7 @@ pub fn run_reader<SInfo,Info>(
         let id: usize = record[0].parse().unwrap();
         let content = hash_cod.get(&id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.get_id().id)]);
-        let cod_str: Vec<String> = content.get_y().write(&());
+        let cod_str: Vec<String> = cod.write(&content.get_y());
         str_content.extend(cod_str);
 
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();

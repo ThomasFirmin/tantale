@@ -16,7 +16,7 @@
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
 //! use tantale::macros::Outcome;
 //! use serde::{Serialize,Deserialize};
-//! 
+//!
 //! // Define a specific struct as the output of the function
 //! #[derive(Outcome,Serialize,Deserialize)]
 //! pub struct  OutExample{
@@ -89,7 +89,7 @@
 //!
 
 use crate::{objective::outcome::Outcome, saver::csvsaver::CSVWritable};
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation of the [`Objective`] function
 pub type Criteria<Out> = fn(&Out) -> f64;
@@ -98,9 +98,9 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>
 where
-    Self: std::fmt::Debug
+    Self: std::fmt::Debug,
 {
-    type TypeCodom : std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
+    type TypeCodom: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;
 }
 
@@ -161,24 +161,25 @@ impl<Out: Outcome> SingleCodomain<Out> {
         SingleCodomain { y_criteria: crit }
     }
 }
-#[derive(Debug, Serialize,Deserialize)]
+
+impl<Out: Outcome> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain> for SingleCodomain<Out> {
+    fn header(_elem: &SingleCodomain<Out>) -> Vec<String> {
+        Vec::from([String::from("y")])
+    }
+
+    fn write(&self, comp: &ElemSingleCodomain) -> Vec<String> {
+        Vec::from([comp.value.to_string()])
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ElemSingleCodomain {
     pub value: f64,
 }
 
-impl PartialEq for ElemSingleCodomain{
+impl PartialEq for ElemSingleCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
-    }
-}
-
-impl CSVWritable<()> for ElemSingleCodomain {
-    fn header(&self) -> Vec<String> {
-        Vec::from([String::from("y")])
-    }
-
-    fn write(&self, __comp: &()) -> Vec<String> {
-        Vec::from([self.value.to_string()])
     }
 }
 
@@ -214,26 +215,26 @@ impl<Out: Outcome> FidelCodomain<Out> {
     }
 }
 
+impl<Out: Outcome> CSVWritable<FidelCodomain<Out>, ElemFidelCodomain> for FidelCodomain<Out> {
+    fn header(_elem: &FidelCodomain<Out>) -> Vec<String> {
+        Vec::from([String::from("y"), String::from("fidelity")])
+    }
+
+    fn write(&self, comp: &ElemFidelCodomain) -> Vec<String> {
+        Vec::from([comp.value.to_string(), comp.fidelity.to_string()])
+    }
+}
+
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ElemFidelCodomain {
     pub value: f64,
     pub fidelity: f64,
 }
 
-impl PartialEq for ElemFidelCodomain{
+impl PartialEq for ElemFidelCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.fidelity == other.fidelity
-    }
-}
-
-impl CSVWritable<()> for ElemFidelCodomain {
-    fn header(&self) -> Vec<String> {
-        Vec::from([String::from("y"), String::from("fidelity")])
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.value.to_string(), self.fidelity.to_string()])
     }
 }
 
@@ -275,24 +276,11 @@ impl<Out: Outcome> ConstCodomain<Out> {
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
-#[derive(Debug, Serialize,Deserialize)]
-pub struct ElemConstCodomain {
-    pub value: f64,
-    pub constraints: Box<[f64]>,
-}
-
-impl PartialEq for ElemConstCodomain{
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.constraints == other.constraints
-    }
-}
-
-impl CSVWritable<()> for ElemConstCodomain {
-    fn header(&self) -> Vec<String> {
+impl<Out: Outcome> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstCodomain<Out> {
+    fn header(elem: &ConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(
-            self.constraints
+            elem.c_criteria
                 .iter()
                 .enumerate()
                 .map(|(idx, _)| format!("c{}", idx)),
@@ -300,10 +288,23 @@ impl CSVWritable<()> for ElemConstCodomain {
         v
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let mut v = Vec::from([self.value.to_string()]);
-        v.extend(self.constraints.iter().map(|c| c.to_string()));
+    fn write(&self, comp: &ElemConstCodomain) -> Vec<String> {
+        let mut v = Vec::from([comp.value.to_string()]);
+        v.extend(comp.constraints.iter().map(|c| c.to_string()));
         v
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ElemConstCodomain {
+    pub value: f64,
+    pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemConstCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.constraints == other.constraints
     }
 }
 
@@ -347,8 +348,29 @@ impl<Out: Outcome> FidelConstCodomain<Out> {
     }
 }
 
+impl<Out: Outcome> CSVWritable<FidelConstCodomain<Out>, ElemFidelConstCodomain>
+    for FidelConstCodomain<Out>
+{
+    fn header(elem: &FidelConstCodomain<Out>) -> Vec<String> {
+        let mut v = Vec::from([String::from("y"), String::from("fidelity")]);
+        v.extend(
+            elem.c_criteria
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format!("c{}", idx)),
+        );
+        v
+    }
+
+    fn write(&self, comp: &ElemFidelConstCodomain) -> Vec<String> {
+        let mut v = Vec::from([comp.value.to_string(), comp.fidelity.to_string()]);
+        v.extend(comp.constraints.iter().map(|c| c.to_string()));
+        v
+    }
+}
+
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ElemFidelConstCodomain {
     pub value: f64,
     pub fidelity: f64,
@@ -357,26 +379,9 @@ pub struct ElemFidelConstCodomain {
 
 impl PartialEq for ElemFidelConstCodomain {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity && self.constraints == other.constraints
-    }
-}
-
-impl CSVWritable<()> for ElemFidelConstCodomain {
-    fn header(&self) -> Vec<String> {
-        let mut v = Vec::from([String::from("y"), String::from("fidelity")]);
-        v.extend(
-            self.constraints
-                .iter()
-                .enumerate()
-                .map(|(idx, _)| format!("c{}", idx)),
-        );
-        v
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let mut v = Vec::from([self.value.to_string(), self.fidelity.to_string()]);
-        v.extend(self.constraints.iter().map(|c| c.to_string()));
-        v
+        self.value == other.value
+            && self.fidelity == other.fidelity
+            && self.constraints == other.constraints
     }
 }
 
@@ -422,28 +427,29 @@ impl<Out: Outcome> MultiCodomain<Out> {
         MultiCodomain { y_criteria: crit }
     }
 }
-#[derive(Debug, Serialize,Deserialize)]
-pub struct ElemMultiCodomain {
-    pub value: Box<[f64]>,
-}
 
-impl PartialEq for ElemMultiCodomain{
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
-
-impl CSVWritable<()> for ElemMultiCodomain {
-    fn header(&self) -> Vec<String> {
-        self.value
+impl<Out: Outcome> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain> for MultiCodomain<Out> {
+    fn header(elem: &MultiCodomain<Out>) -> Vec<String> {
+        elem.y_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("y{}", idx))
             .collect()
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        self.value.iter().map(|v| v.to_string()).collect()
+    fn write(&self, comp: &ElemMultiCodomain) -> Vec<String> {
+        comp.value.iter().map(|v| v.to_string()).collect()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ElemMultiCodomain {
+    pub value: Box<[f64]>,
+}
+
+impl PartialEq for ElemMultiCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
     }
 }
 
@@ -479,23 +485,12 @@ impl<Out: Outcome> FidelMultiCodomain<Out> {
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
-#[derive(Debug, Serialize,Deserialize)]
-pub struct ElemFidelMultiCodomain {
-    pub value: Box<[f64]>,
-    pub fidelity: f64,
-}
-
-impl PartialEq for ElemFidelMultiCodomain{
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity
-    }
-}
-
-impl CSVWritable<()> for ElemFidelMultiCodomain {
-    fn header(&self) -> Vec<String> {
-        let mut v: Vec<String> = self
-            .value
+impl<Out: Outcome> CSVWritable<FidelMultiCodomain<Out>, ElemFidelMultiCodomain>
+    for FidelMultiCodomain<Out>
+{
+    fn header(elem: &FidelMultiCodomain<Out>) -> Vec<String> {
+        let mut v: Vec<String> = elem
+            .y_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("y{}", idx))
@@ -504,10 +499,23 @@ impl CSVWritable<()> for ElemFidelMultiCodomain {
         v
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
-        v.extend([self.fidelity.to_string()]);
+    fn write(&self, comp: &ElemFidelMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        v.extend([comp.fidelity.to_string()]);
         v
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ElemFidelMultiCodomain {
+    pub value: Box<[f64]>,
+    pub fidelity: f64,
+}
+
+impl PartialEq for ElemFidelMultiCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.fidelity == other.fidelity
     }
 }
 
@@ -548,29 +556,18 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
-#[derive(Debug, Serialize,Deserialize)]
-pub struct ElemConstMultiCodomain {
-    pub value: Box<[f64]>,
-    pub constraints: Box<[f64]>,
-}
-
-impl PartialEq for ElemConstMultiCodomain{
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.constraints == other.constraints
-    }
-}
-
-impl CSVWritable<()> for ElemConstMultiCodomain {
-    fn header(&self) -> Vec<String> {
-        let mut v: Vec<String> = self
-            .value
+impl<Out: Outcome> CSVWritable<ConstMultiCodomain<Out>, ElemConstMultiCodomain>
+    for ConstMultiCodomain<Out>
+{
+    fn header(elem: &ConstMultiCodomain<Out>) -> Vec<String> {
+        let mut v: Vec<String> = elem
+            .y_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("y{}", idx))
             .collect();
-        let c: Vec<String> = self
-            .constraints
+        let c: Vec<String> = elem
+            .c_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("c{}", idx))
@@ -579,11 +576,24 @@ impl CSVWritable<()> for ElemConstMultiCodomain {
         v
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
-        let c: Vec<String> = self.constraints.iter().map(|c| c.to_string()).collect();
+    fn write(&self, comp: &ElemConstMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ElemConstMultiCodomain {
+    pub value: Box<[f64]>,
+    pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemConstMultiCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.constraints == other.constraints
     }
 }
 
@@ -627,31 +637,19 @@ impl<Out: Outcome> FidelConstMultiCodomain<Out> {
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
-#[derive(Debug, Serialize,Deserialize)]
-pub struct ElemFidelConstMultiCodomain {
-    pub value: Box<[f64]>,
-    pub fidelity: f64,
-    pub constraints: Box<[f64]>,
-}
-
-impl PartialEq for ElemFidelConstMultiCodomain{
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity && self.constraints == other.constraints
-    }
-}
-
-impl CSVWritable<()> for ElemFidelConstMultiCodomain {
-    fn header(&self) -> Vec<String> {
-        let mut v: Vec<String> = self
-            .value
+impl<Out: Outcome> CSVWritable<FidelConstMultiCodomain<Out>, ElemFidelConstMultiCodomain>
+    for FidelConstMultiCodomain<Out>
+{
+    fn header(elem: &FidelConstMultiCodomain<Out>) -> Vec<String> {
+        let mut v: Vec<String> = elem
+            .y_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("y{}", idx))
             .collect();
         v.extend([String::from("fidelity")]);
-        let c: Vec<String> = self
-            .constraints
+        let c: Vec<String> = elem
+            .c_criteria
             .iter()
             .enumerate()
             .map(|(idx, _)| format!("c{}", idx))
@@ -660,12 +658,28 @@ impl CSVWritable<()> for ElemFidelConstMultiCodomain {
         v
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let mut v: Vec<String> = self.value.iter().map(|v| v.to_string()).collect();
-        v.extend([self.fidelity.to_string()]);
-        let c: Vec<String> = self.constraints.iter().map(|c| c.to_string()).collect();
+    fn write(&self, comp: &ElemFidelConstMultiCodomain) -> Vec<String> {
+        let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
+        v.extend([comp.fidelity.to_string()]);
+        let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
+    }
+}
+
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ElemFidelConstMultiCodomain {
+    pub value: Box<[f64]>,
+    pub fidelity: f64,
+    pub constraints: Box<[f64]>,
+}
+
+impl PartialEq for ElemFidelConstMultiCodomain {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+            && self.fidelity == other.fidelity
+            && self.constraints == other.constraints
     }
 }
 

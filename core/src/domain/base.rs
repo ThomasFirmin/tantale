@@ -57,7 +57,7 @@ impl Debug for BaseDom {
 
 /// Basic (`TypeDom`)[`Domain::TypeDom`] of [`BaseDom`].
 ///
-#[derive(Debug,Clone,PartialEq,Serialize,Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BaseTypeDom {
     Real(TypeDom<Real>),
     Nat(TypeDom<Nat>),
@@ -548,9 +548,8 @@ impl From<Unit> for BaseDom {
     }
 }
 
-impl CSVWritable<(),BaseTypeDom> for BaseDom {
-    
-    fn header(_elem:&()) -> Vec<String> {
+impl CSVWritable<(), BaseTypeDom> for BaseDom {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 
@@ -564,5 +563,4 @@ impl CSVWritable<(),BaseTypeDom> for BaseDom {
             BaseTypeDom::Unit(s) => Vec::from([s.to_string()]),
         }
     }
-    
 }

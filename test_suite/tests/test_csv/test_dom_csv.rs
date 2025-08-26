@@ -3,13 +3,12 @@ use paste::paste;
 use tantale_core::saver::CSVWritable;
 
 macro_rules! get_test {
-    ($($dom_func : ident ; $name : ident ; $in : expr),+) => {
+    ($($dom_func : ident ; $name : ident ; $in : expr ; $dom : ident),+) => {
         $(
             paste!{
                 #[test]
                 fn [<header_of_$name>](){
-                    let dom = $dom_func();
-                    let head = dom.header();
+                    let head = $dom::header(&());
                     assert!(head.is_empty(), "Header of domain is not empty.");
                 }
 
@@ -25,12 +24,12 @@ macro_rules! get_test {
 }
 
 get_test!(
-    get_domain_real ; real ; 0.0,
-    get_domain_nat ; nat ; 0 ,
-    get_domain_int ; int ; 0 ,
-    get_domain_bool ; bool ; false ,
-    get_domain_cat ; cat ; String::from("tanh"),
-    get_domain_unit ; unit ; 0.5
+    get_domain_real ; real ; 0.0 ; Real,
+    get_domain_nat ; nat ; 0 ; Nat,
+    get_domain_int ; int ; 0 ; Int,
+    get_domain_bool ; bool ; false ; Bool,
+    get_domain_cat ; cat ; String::from("tanh") ; Cat,
+    get_domain_unit ; unit ; 0.5 ; Unit
 );
 
 macro_rules! get_base_test {
@@ -39,8 +38,7 @@ macro_rules! get_base_test {
             paste!{
                 #[test]
                 fn [<header_of_$name>](){
-                    let (dom,_) = $dom_func($dom,$in);
-                    let head = dom.header();
+                    let head = $domtype::header(&());
                     assert!(head.is_empty(), "Header of domain is not empty.");
                 }
 

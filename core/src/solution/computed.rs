@@ -2,12 +2,12 @@ use crate::domain::{Domain, TypeDom};
 use crate::objective::{Codomain, Outcome};
 use crate::solution::{Id, Partial, SolInfo, Solution};
 
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::{
     fmt::{Debug, Display},
     sync::Arc,
 };
-use serde::{Serialize,Deserialize};
 
 /// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer)
 /// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
@@ -20,10 +20,10 @@ use serde::{Serialize,Deserialize};
 ///
 /// A [`ComputedSol`] can only be created from a pair of [`Partial`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
 /// [`Domain`] type.
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
-    serialize="Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
-    deserialize="Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
+    serialize = "Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
+    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
 ))]
 pub struct Computed<SolId, Dom, Cod, Out, Info>
 where
@@ -40,8 +40,7 @@ where
     _info: PhantomData<Info>,
 }
 
-impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
-    for Computed<SolId, Dom, Cod, Out, Info>
+impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info> for Computed<SolId, Dom, Cod, Out, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -71,7 +70,10 @@ where
     SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(sol: Arc<Partial<SolId, Dom, Info>>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+    pub fn new(
+        sol: Arc<Partial<SolId, Dom, Info>>,
+        y: Arc<<Cod as Codomain<Out>>::TypeCodom>,
+    ) -> Self {
         Computed {
             sol,
             y,
@@ -115,13 +117,13 @@ where
     /// use tantale::core::{Solution,Computed,Partial,Real,Int,SingleCodomain,EmptyInfo,SId,Id};
     /// use tantale::core::objective::codomain::ElemSingleCodomain;
     /// use std::sync::Arc;
-    /// 
+    ///
     /// # use tantale::core::Outcome;
     /// # use serde::{Serialize,Deserialize};
     /// # #[derive(Serialize,Deserialize)]
     /// # struct OutExample(i32);
     /// # impl Outcome for OutExample{}
-    /// 
+    ///
     /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
     /// let x_2 = vec![5,6,7,8].into_boxed_slice();
     /// let info = Arc::new(EmptyInfo{});
@@ -143,7 +145,7 @@ where
     /// }
     ///
     /// ```
-    pub fn twin<B, T>(&self, x: T) -> Computed<SolId,B, Cod, Out, Info>
+    pub fn twin<B, T>(&self, x: T) -> Computed<SolId, B, Cod, Out, Info>
     where
         B: Domain + Clone + Display + Debug,
         T: AsRef<[TypeDom<B>]>,

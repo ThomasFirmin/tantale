@@ -30,8 +30,8 @@ use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use serde::{Serialize,Deserialize};
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Categorical domain
 
@@ -56,7 +56,9 @@ impl Cat {
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
     pub fn new<'a>(values: &'a [&'a str]) -> Cat {
-        Cat {values:values.iter().map(|s| String::from(*s)).collect()}
+        Cat {
+            values: values.iter().map(|s| String::from(*s)).collect(),
+        }
     }
     /// Getter for values
     pub fn values(&self) -> &Vec<String> {
@@ -283,8 +285,8 @@ impl From<BaseDom> for Cat {
     }
 }
 
-impl CSVWritable<(),<Cat as Domain>::TypeDom> for Cat {
-    fn header(_elem:&()) -> Vec<String> {
+impl CSVWritable<(), <Cat as Domain>::TypeDom> for Cat {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 

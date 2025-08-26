@@ -11,8 +11,7 @@ macro_rules! test_header {
             paste!{
                 #[test]
                 fn [<test_$name _header>](){
-                    let id = $idty::generate();
-                    let head = id.header();
+                    let head = $idty::header(&());
                     assert_eq!(head,$expected,"CSV Header does not match the baseline.")
                 }
             }

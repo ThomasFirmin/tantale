@@ -8,10 +8,7 @@ use crate::domain::{Domain, TypeDom};
 use crate::objective::outcome::Outcome;
 use crate::objective::Codomain;
 
-use std::{
-    marker::PhantomData,
-    sync::Arc,
-};
+use std::sync::Arc;
 
 /// The trait [`Objective`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
@@ -27,6 +24,8 @@ where
     fn init(&mut self);
     /// Compute the outputs of a function to maximize according to an input `x`.
     fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>);
+
+    fn get_codomain(&self) -> Arc<Cod>;
 }
 
 /// A simple structure wrapping a user defined function to be maximized.
@@ -41,9 +40,8 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    pub codomain: Cod,
+    pub codomain: Arc<Cod>,
     pub function: fn(Arc<[TypeDom<Obj>]>) -> Out,
-    _obj: PhantomData<Obj>,
 }
 
 impl<Obj, Cod, Out> ObjBase<Obj, Cod, Out>
@@ -53,17 +51,20 @@ where
     Cod: Codomain<Out>,
 {
     /// Creates an new instance of [`ObjBase`].
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// * `cod`  :  `Cod` -  A [`Codomain`] of a corresponding [`Outcome`].
     /// * `func` : The objective function to be optimized and defined by the user.
-    ///   It can be created side-by-side with the [`Searchspace`] using the 
+    ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`objective!`](tantale::macros:objective) macro.
-    /// 
-    pub fn new(cod:Cod,func:fn(Arc<[TypeDom<Obj>]>) -> Out)->Self{
-        Self { codomain: cod, function: func, _obj: PhantomData }
-    } 
+    ///
+    pub fn new(cod: Cod, func: fn(Arc<[TypeDom<Obj>]>) -> Out) -> Self {
+        Self {
+            codomain: Arc::new(cod),
+            function: func,
+        }
+    }
 }
 impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for ObjBase<Obj, Cod, Out>
 where
@@ -75,5 +76,9 @@ where
     fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
         let out = (self.function)(x);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
+    }
+
+    fn get_codomain(&self) -> Arc<Cod> {
+        self.codomain.clone()
     }
 }

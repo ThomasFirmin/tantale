@@ -343,6 +343,12 @@ pub struct OutEvaluator {
     pub obj: f64,
 }
 
+impl PartialEq for OutEvaluator{
+    fn eq(&self, other: &Self) -> bool {
+        self.obj == other.obj
+    }
+}
+
 pub mod sp_evaluator {
     use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
     use tantale_core::{Bool, Cat, Int, Nat, Real};

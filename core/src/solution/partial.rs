@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::domain::{Domain, TypeDom};
 use crate::solution::{Id, SolInfo, Solution};
 
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 /// A non-evaluated [`Solution`].
 ///
@@ -14,10 +11,10 @@ use std::{
 /// * `id` : [`Id`] - The unique [`ID`] of the solution.
 /// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
 /// * `info` : `[`Arc`]`<Info>` - Information given by the [`Optimizer`] and linked to a specific [`Solution`].
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
-    serialize="Dom::TypeDom: Serialize",
-    deserialize="Dom::TypeDom: for<'a> Deserialize<'a>",
+    serialize = "Dom::TypeDom: Serialize",
+    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
 pub struct Partial<SolId, Dom, Info>
 where
@@ -36,7 +33,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-        /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
+    /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
     ///
     /// # Attributes
     ///
@@ -60,7 +57,7 @@ where
     /// ```
     pub fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
-        T: AsRef<[TypeDom<Dom>]>
+        T: AsRef<[TypeDom<Dom>]>,
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
         Partial { id, x: xarc, info }
@@ -82,7 +79,7 @@ where
     /// }
     ///
     /// ```
-    pub fn default_x(n: usize) -> Vec<TypeDom<Dom>>{
+    pub fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
         vec![TypeDom::<Dom>::default(); n]
     }
     /// Creates a default [`Partial`] of `n` elements.
@@ -102,7 +99,7 @@ where
     /// }
     ///
     /// ```
-    pub fn new_default(n: usize, info: Arc<Info>) -> Self{
+    pub fn new_default(n: usize, info: Arc<Info>) -> Self {
         Self::new(SolId::generate(), Self::default_x(n), info)
     }
     /// Creates an empty slice of [`Arc`][`<Partials>`](Partial) with `size` reserved capacity.
@@ -129,7 +126,7 @@ where
     /// }
     ///
     /// ```
-    pub fn new_vec(size: usize) -> Vec<Arc<Self>>{
+    pub fn new_vec(size: usize) -> Vec<Arc<Self>> {
         let mut v = Vec::new();
         v.reserve_exact(size);
         v
@@ -154,7 +151,7 @@ where
     /// }
     ///
     /// ```
-    pub fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>>{
+    pub fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>> {
         let mut v = Self::new_vec(size);
         for _ in 0..size {
             v.push(Arc::new(Self::new_default(n, info.clone())));

@@ -3,12 +3,10 @@ use crate::{
     objective::{Codomain, Outcome},
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{Partial, Computed, Id, ParSId, SId, SolInfo},
+    solution::{Computed, Id, ParSId, Partial, SId, SolInfo},
 };
-use std::{
-    sync::Arc,
-};
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 /// Describes information linked to a group of [`Solutions`](Solution)
 /// obtained  after each iteration of the [`Optimizer`].
 pub trait OptInfo {}
@@ -18,12 +16,12 @@ pub trait OptInfo {}
 pub trait OptState {}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
-#[derive(Serialize,Deserialize,std::fmt::Debug)]
+#[derive(Serialize, Deserialize, std::fmt::Debug)]
 pub struct EmptyInfo {}
 impl SolInfo for EmptyInfo {}
 impl OptInfo for EmptyInfo {}
-impl CSVWritable<()> for EmptyInfo {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(), ()> for EmptyInfo {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 
@@ -43,20 +41,20 @@ pub type SolPairs<SolId, ADom, BDom, Cod, Out, SInfo> = (
 pub type OptOutput<SolId, ADom, BDom, SInfo, Info> = (
     ArcVecArc<Partial<SolId, ADom, SInfo>>,
     ArcVecArc<Partial<SolId, BDom, SInfo>>,
-    Arc<Info>
+    Arc<Info>,
 );
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
-pub trait Optimizer<SolId,Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+pub trait Optimizer<SolId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
 where
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<SolId,Obj, Opt, SInfo>,
+    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
     Info: OptInfo,
     SolId: Id + PartialEq + Clone + Copy,
     State: OptState,
@@ -72,7 +70,7 @@ where
     /// Requires previously [`Computed`] `x` [`Solution`].
     fn step(
         &mut self,
-        x: SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
+        x: ArcVecArc<Computed<SolId, Opt, Cod, Out, SInfo>>,
         sp: Arc<Scp>,
     ) -> OptOutput<SolId, Obj, Opt, SInfo, Info>;
 

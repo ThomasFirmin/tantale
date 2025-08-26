@@ -18,8 +18,8 @@ use crate::solution::Solution;
 use crate::variable::var::Var;
 
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
-use serde::{Serialize,Deserialize};
 
 /// Type alias to for [Domain::TypeDom]
 pub type TypeDom<D> = <D as Domain>::TypeDom;
@@ -31,11 +31,17 @@ pub type TypeDom<D> = <D as Domain>::TypeDom;
 ///
 /// A [`Domain`] should always have a [`::new(...)->Self`] method.
 /// This method is used in the [`objective!`](../../../tantale/macros/macro.objective.html) and [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
-pub trait Domain: Sized + PartialEq + Debug{
+pub trait Domain: Sized + PartialEq + Debug {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
-    type TypeDom: PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>;
+    type TypeDom: PartialEq
+        + Clone
+        + Display
+        + Debug
+        + Default
+        + Serialize
+        + for<'a> Deserialize<'a>;
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
     ///

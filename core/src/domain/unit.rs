@@ -30,8 +30,8 @@ use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::{fmt, ops::RangeInclusive};
-use serde::{Serialize,Deserialize};
 
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
@@ -305,8 +305,8 @@ impl From<BaseDom> for Unit {
     }
 }
 
-impl CSVWritable<(),f64> for Unit {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(), f64> for Unit {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 

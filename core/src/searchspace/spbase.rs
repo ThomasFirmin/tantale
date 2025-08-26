@@ -22,23 +22,14 @@ where
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
-impl<SolId, Obj, Opt, SInfo>
-    Searchspace<
-        SolId,
-        Obj,
-        Opt,
-        SInfo,
-    > for Sp<Obj, Opt>
+impl<SolId, Obj, Opt, SInfo> Searchspace<SolId, Obj, Opt, SInfo> for Sp<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
 {
-    fn onto_obj(
-        &self,
-        inp: Arc<Partial<SolId, Opt, SInfo>>,
-    ) -> Arc<Partial<SolId, Obj, SInfo>> {
+    fn onto_obj(&self, inp: Arc<Partial<SolId, Opt, SInfo>>) -> Arc<Partial<SolId, Obj, SInfo>> {
         let outx: Vec<TypeDom<Obj>> = inp
             .x
             .iter()
@@ -49,10 +40,7 @@ where
         Arc::new(inp.twin(outx))
     }
 
-    fn onto_opt(
-        &self,
-        inp: Arc<Partial<SolId, Obj, SInfo>>,
-    ) -> Arc<Partial<SolId, Opt, SInfo>> {
+    fn onto_opt(&self, inp: Arc<Partial<SolId, Obj, SInfo>>) -> Arc<Partial<SolId, Opt, SInfo>> {
         let outx: Vec<TypeDom<Opt>> = inp
             .x
             .iter()
@@ -180,14 +168,17 @@ where
     }
 }
 
-impl<Obj, Opt> CSVLeftRight<Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> for Sp<Obj, Opt>
+impl<Obj, Opt> CSVLeftRight<Sp<Obj, Opt>, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> for Sp<Obj, Opt>
 where
     Obj: Domain + Clone + Display + Debug,
     Opt: Domain + Clone + Display + Debug,
-    Var<Obj, Opt>: CSVLeftRight<Obj::TypeDom, Opt::TypeDom>,
+    Var<Obj, Opt>: CSVLeftRight<Var<Obj, Opt>, Obj::TypeDom, Opt::TypeDom>,
 {
-    fn header(&self) -> Vec<String> {
-        self.variables.iter().flat_map(|v| v.header()).collect()
+    fn header(elem: &Sp<Obj, Opt>) -> Vec<String> {
+        elem.variables
+            .iter()
+            .flat_map(Var::<Obj, Opt>::header)
+            .collect()
     }
 
     fn write_left(&self, comp: &Arc<[Obj::TypeDom]>) -> Vec<String> {

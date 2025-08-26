@@ -25,8 +25,8 @@ macro_rules! get_test {
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
                 let sample : Arc<Partial<SId,_,_>> = sp.sample_obj(None,info.clone());
-                let cod = Arc::new($func());
-                let computed : Computed<_,_,$cod<OutExample>,_,_> = Computed::new(sample,cod);
+                let (_,elem) = $func();
+                let computed : Computed<_,_,$cod<OutExample>,_,_> = Computed::new(sample,Arc::new(elem));
 
 
                 let st_ser = serde_json::to_string(&computed).unwrap();

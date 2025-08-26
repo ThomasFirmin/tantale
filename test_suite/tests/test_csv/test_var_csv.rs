@@ -1,6 +1,6 @@
 use super::init_dom::*;
 use tantale::core::saver::CSVLeftRight;
-use tantale::core::var;
+use tantale::core::{var,Var};
 
 use paste::paste;
 
@@ -13,7 +13,7 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = var!("a" ; domobj ; domopt);
-                let head = variable.header();
+                let head = Var::<_,_>::header(&variable);
                 assert_eq!(head[0],"a", "Wrong header for variable of name 'a'");
             }
 

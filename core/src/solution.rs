@@ -25,19 +25,15 @@
 //!
 use crate::domain::{Domain, TypeDom};
 
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, sync::Arc};
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
 pub trait SolInfo
 where
-    Self: Debug + Serialize + for<'a> Deserialize<'a>
+    Self: Debug + Serialize + for<'a> Deserialize<'a>,
 {
-
 }
 
 /// An abstract [`Solution`] made of at least a [`Domain`] and a [`SolInfo`].

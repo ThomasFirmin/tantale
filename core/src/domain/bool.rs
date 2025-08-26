@@ -28,8 +28,8 @@ use crate::saver::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use serde::{Serialize,Deserialize};
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Booleans domain
@@ -244,8 +244,8 @@ impl From<BaseDom> for Bool {
     }
 }
 
-impl CSVWritable<(),bool> for Bool {
-    fn header(_elem:&()) -> Vec<String> {
+impl CSVWritable<(), bool> for Bool {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 

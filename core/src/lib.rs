@@ -23,8 +23,8 @@ pub mod errors;
 pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
-    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity,
-    LinkedOutcome, Multi, MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
+    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, LinkedOutcome,
+    Multi, MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
 };
 
 pub mod optimizer;

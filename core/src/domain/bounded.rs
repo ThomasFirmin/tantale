@@ -41,12 +41,11 @@ use crate::saver::CSVWritable;
 
 use num::{cast::AsPrimitive, Num, NumCast};
 use rand::{distr::uniform::SampleUniform, prelude::ThreadRng};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
     ops::RangeInclusive,
 };
-use serde::{Serialize,Deserialize};
-
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
@@ -135,7 +134,7 @@ impl<T: BoundedBounds> Bounded<T> {
 
 impl<T> PartialEq for Bounded<T>
 where
-    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn eq(&self, other: &Self) -> bool {
         (self.lower() == other.lower()) && (self.upper() == other.upper())
@@ -144,7 +143,7 @@ where
 
 impl<T> Domain for Bounded<T>
 where
-    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     type TypeDom = T;
 
@@ -161,7 +160,7 @@ where
 
 impl<T> DomainBounded for Bounded<T>
 where
-    T : BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn lower(&self) -> Self::TypeDom {
         *self.bounds.start()
@@ -177,18 +176,18 @@ where
     }
 }
 
-impl<T> std::clone::Clone for Bounded<T> 
+impl<T> std::clone::Clone for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn clone(&self) -> Self {
         Bounded::new(*self.bounds.start(), *self.bounds.end())
     }
 }
 
-impl<T> fmt::Display for Bounded<T> 
+impl<T> fmt::Display for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -197,7 +196,7 @@ where
 
 impl<T> fmt::Debug for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>
+    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -532,11 +531,11 @@ pub type Nat = Bounded<u64>;
 /// ```
 pub type Int = Bounded<i64>;
 
-impl<T> CSVWritable<(),<Bounded<T> as Domain>::TypeDom> for Bounded<T>
+impl<T> CSVWritable<(), <Bounded<T> as Domain>::TypeDom> for Bounded<T>
 where
     T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
-    fn header(_elem:&()) -> Vec<String> {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 

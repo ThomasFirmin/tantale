@@ -34,8 +34,7 @@ mod outcome {
 
 #[test]
 fn out_header() {
-    let out = outcome::get_struct();
-    let head = out.header();
+    let head = outcome::OutExample::header(&());
     let str_true = Vec::from([
         String::from("fid2"),
         String::from("con3"),

@@ -402,18 +402,18 @@ where
     }
 }
 
-impl<Obj, Opt> CSVLeftRight<Obj::TypeDom, Opt::TypeDom> for Var<Obj, Opt>
+impl<Obj, Opt> CSVLeftRight<Self, Obj::TypeDom, Opt::TypeDom> for Var<Obj, Opt>
 where
-    Obj: Domain + CSVWritable<Obj::TypeDom>,
-    Opt: Domain + CSVWritable<Opt::TypeDom>,
+    Obj: Domain + CSVWritable<(), Obj::TypeDom>,
+    Opt: Domain + CSVWritable<(), Opt::TypeDom>,
 {
-    fn header(&self) -> Vec<String> {
-        let (name, id) = self.name;
+    fn header(elem: &Self) -> Vec<String> {
+        let (name, id) = elem.name;
         let name_str = match id {
             Some(i) => format!("{}{}", name, i),
             None => String::from(name),
         };
-        let dom_spec = self.domain_obj.header();
+        let dom_spec = Obj::header(&());
         if dom_spec.is_empty() {
             vec![name_str]
         } else {

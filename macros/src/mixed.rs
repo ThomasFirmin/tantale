@@ -37,8 +37,8 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         // DEFINITION OF MIXED DOMAIN
 
-        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<#tident> for #eident #egenerics #ewhere{
-            fn header(&self) -> Vec<String> {
+        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<() , #tident> for #eident #egenerics #ewhere{
+            fn header(_elem:&()) -> Vec<String> {
                 Vec::new()
             }
 

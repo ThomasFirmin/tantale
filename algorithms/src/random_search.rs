@@ -1,10 +1,10 @@
 use tantale_core::{
     domain::Domain,
     objective::{codomain::SingleCodomain, outcome::Outcome},
-    optimizer::{opt::{OptOutput, SolPairs}, EmptyInfo, OptInfo, OptState, Optimizer},
+    optimizer::{opt::{OptOutput, ArcVecArc}, EmptyInfo, OptInfo, OptState, Optimizer},
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{SId},
+    solution::{SId,Computed},
 };
 
 use rand::prelude::ThreadRng;
@@ -25,8 +25,8 @@ pub struct RSInfo {
     pub iteration: usize,
 }
 impl OptInfo for RSInfo {}
-impl CSVWritable<()> for RSInfo {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(), ()> for RSInfo {
+    fn header(_elem:&()) -> Vec<String> {
         Vec::from([String::from("iteration")])
     }
     fn write(&self, _comp: &()) -> Vec<String> {
@@ -59,9 +59,9 @@ where
 {
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
     let opt_samples = sp.vec_onto_opt(samples.clone());
-    let info = RSInfo {
+    let info = Arc::new(RSInfo {
         iteration: opt.0.iteration,
-    };
+    });
     opt.0.iteration += 1;
     (samples, opt_samples, info)
 }
@@ -83,7 +83,7 @@ where
 
     fn step(
         &mut self,
-        _x: SolPairs<SId, Obj, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
+        _x: ArcVecArc<Computed<SId, Opt, SingleCodomain<Out>, Out, EmptyInfo>>,
         sp: Arc<Scp>,
     ) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
         rs_iter::<Obj, Opt, Scp>(self, sp.clone())

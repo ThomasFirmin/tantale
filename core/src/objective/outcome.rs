@@ -10,7 +10,7 @@
 //! use tantale::core::{Codomain, FidelConstMultiCodomain};
 //! use std::fmt::Debug;
 //! use serde::{Serialize,Deserialize};
-//! 
+//!
 //! #[derive(Outcome,Debug,Serialize,Deserialize)]
 //! pub struct OutExample {
 //!     pub fid2: f64,
@@ -67,20 +67,16 @@ use crate::{
     solution::{Id, Partial, SolInfo},
 };
 
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
 pub trait Outcome
 where
-    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>
+    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
-
 }
 
 /// [`ObjState`] is use to describe the state of functions that are evaluated by steps (several iterations with intermediate results).
@@ -94,9 +90,9 @@ where
 }
 
 /// An [`Outcome`] linked to its [`Partial`], before the creation of a [`Computed`].
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
-    serialize="Dom::TypeDom: Serialize",
+    serialize = "Dom::TypeDom: Serialize",
     deserialize = "O: Outcome,SolId:Id, Dom::TypeDom: for<'a> Deserialize<'a>"
 ))]
 pub struct LinkedOutcome<O, SolId, Dom, Info>
@@ -118,9 +114,6 @@ where
     SolId: Id,
 {
     pub fn new(out: Arc<Out>, sol: Arc<Partial<SolId, Dom, Info>>) -> Self {
-        LinkedOutcome {
-            out,
-            sol,
-        }
+        LinkedOutcome { out, sol }
     }
 }

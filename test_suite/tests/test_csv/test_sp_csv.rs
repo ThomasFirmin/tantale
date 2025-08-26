@@ -1,6 +1,6 @@
 use super::init_sp::*;
 use tantale::core::saver::CSVLeftRight;
-use tantale::core::{EmptyInfo, Partial, SId, Searchspace, Solution};
+use tantale::core::{EmptyInfo, Partial, SId, Searchspace, Solution, Sp};
 
 use paste::paste;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ macro_rules! get_test {
             #[test]
             fn [<head_$name>](){
                 let sp = $name::get_searchspace();
-                let head = sp.header();
+                let head = Sp::<_,_>::header(&sp);
                 assert_eq!(head,Vec::from($expected), "Wrong header for searchspace.");
             }
 

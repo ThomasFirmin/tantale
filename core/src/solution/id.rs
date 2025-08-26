@@ -1,13 +1,13 @@
 use crate::saver::CSVWritable;
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use serde::{Serialize,Deserialize};
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
-    Self: Sized + PartialEq + Clone + Copy + std::fmt::Debug + Serialize + for<'a> Deserialize<'a>
+    Self: Sized + PartialEq + Clone + Copy + std::fmt::Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn generate() -> Self;
 }
@@ -75,8 +75,8 @@ impl ParSId {
         ParSId { pid, id }
     }
 }
-impl CSVWritable<()> for ParSId {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(), ()> for ParSId {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("pid"), String::from("id")])
     }
 
@@ -92,7 +92,7 @@ impl PartialEq for ParSId {
 
 /// The [`Id`] of a [`Solution`] made of a unique `id`
 /// corresponding to the number of created [`Solution`].
-#[derive(Clone, Copy, Debug, Serialize,Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SId {
     pub id: usize,
 }
@@ -107,8 +107,8 @@ impl SId {
         SId { id }
     }
 }
-impl CSVWritable<()> for SId {
-    fn header(&self) -> Vec<String> {
+impl CSVWritable<(), ()> for SId {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("id")])
     }
 

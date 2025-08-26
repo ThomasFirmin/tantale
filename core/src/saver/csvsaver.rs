@@ -1,10 +1,10 @@
 use crate::{
-    domain::{Domain,TypeDom},
+    domain::{Domain, TypeDom},
     objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, OptInfo, OptState},
     saver::{CheckpointError, Saver},
     searchspace::Searchspace,
-    solution::{Partial, Computed, Id, SolInfo, Solution},
+    solution::{Computed, Id, Partial, SolInfo, Solution},
     stop::Stop,
 };
 use rayon::prelude::*;
@@ -35,19 +35,19 @@ pub struct CSVSaver {
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
     path_check: Option<(PathBuf, PathBuf, PathBuf)>,
-    _headers_done:bool,
+    _headers_done: bool,
 }
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and where its components can be written as a [`Vec`] of [`String`].
-pub trait CSVWritable<H,C> {
-    fn header(elem:&H) -> Vec<String>;
+pub trait CSVWritable<H, C> {
+    fn header(elem: &H) -> Vec<String>;
     fn write(&self, comp: &C) -> Vec<String>;
 }
 
 /// A [`CSVLeftRight`] describes a CSV writable object made of two components (eg. `Obj` and `Opt`).
 pub trait CSVLeftRight<H, L, R> {
-    fn header(elem:&H) -> Vec<String>;
+    fn header(elem: &H) -> Vec<String>;
     fn write_left(&self, comp: &L) -> Vec<String>;
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
@@ -120,7 +120,7 @@ impl CSVSaver {
                 path_codom,
                 path_out,
                 path_check,
-                _headers_done:false,
+                _headers_done: false,
             }
         }
     }
@@ -133,26 +133,26 @@ where
     St: Stop + Serialize + DeserializeOwned,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
-    SInfo: SolInfo + CSVWritable<(),()> + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
-    Cod::TypeCodom: CSVWritable<(),()> + Send + Sync,
-    Out: Outcome + CSVWritable<(),()> + Send + Sync,
+    SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
+    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
+    Cod::TypeCodom: Send + Sync,
+    Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Scp: Searchspace<SolId, Obj, Opt, SInfo>
         + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
         + Send
         + Sync,
-    Info: OptInfo + CSVWritable<(),()> + Send + Sync,
-    SolId: Id + CSVWritable<(),()> + Send + Sync,
+    Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
     TypeDom<Obj>: Send + Sync,
     TypeDom<Opt>: Send + Sync,
 {
-    fn init(&mut self, sp:Arc<Scp>){
-        if !self._headers_done{
-            if let Some(ppobj) = &self.path_pobj{
+    fn init(&mut self, sp: Arc<Scp>, cod: Arc<Cod>) {
+        if !self._headers_done {
+            if let Some(ppobj) = &self.path_pobj {
                 let file = OpenOptions::new()
-                .append(true)
-                .open(ppobj.as_path())
-                .unwrap();
+                    .append(true)
+                    .open(ppobj.as_path())
+                    .unwrap();
                 let mut wrt = csv::Writer::from_writer(file);
                 let mut idstr = SolId::header(&());
                 idstr.extend(Scp::header(sp.as_ref()));
@@ -174,14 +174,28 @@ where
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
+            if let Some(ppout) = &self.path_out {
+                let file = OpenOptions::new()
+                    .append(true)
+                    .open(ppout.as_path())
+                    .unwrap();
+                let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+                let mut idstr = SolId::header(&());
+                idstr.extend(Out::header(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+            }
             {
                 let file = OpenOptions::new()
-                .append(true)
-                .open(self.path_codom.as_path())
-                .unwrap();
+                    .append(true)
+                    .open(self.path_codom.as_path())
+                    .unwrap();
                 let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
-                let mut idstr = id.header();
-                idstr.extend(Cod::header(&()));
+                let mut idstr = SolId::header(&());
+                idstr.extend(Cod::header(cod.as_ref()));
                 {
                     let mut wrt_local = wrt.lock().unwrap();
                     wrt_local.write_record(&idstr).unwrap();
@@ -196,6 +210,7 @@ where
         obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
         opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
         sp: Arc<Scp>,
+        _cod: Arc<Cod>,
         info: Arc<Info>,
     ) {
         if let Some(ppobj) = &self.path_pobj {
@@ -241,7 +256,12 @@ where
         }
     }
 
-    fn save_codom(&mut self, obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>) {
+    fn save_codom(
+        &self,
+        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>,
+        _sp: Arc<Scp>,
+        cod: Arc<Cod>,
+    ) {
         let file = OpenOptions::new()
             .append(true)
             .open(self.path_codom.as_path())
@@ -251,7 +271,7 @@ where
             let id = op.get_id();
             let codom = op.get_y();
             let mut idstr = id.write(&());
-            idstr.extend(codom.write(&()));
+            idstr.extend(cod.write(codom.as_ref()));
             {
                 let mut wrt_local = wrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -260,27 +280,13 @@ where
         });
     }
 
-    fn save_out(&mut self, out: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>) {
+    fn save_out(&self, out: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>, _sp: Arc<Scp>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppout.as_path())
                 .unwrap();
             let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
-
-            if !self._header_init_out {
-                let o = &out[0];
-                let id = o.sol.get_id();
-                let output = &o.out;
-                let mut idstr = id.header();
-                idstr.extend(output.header());
-                {
-                    let mut wrt_local = wrt.lock().unwrap();
-                    wrt_local.write_record(&idstr).unwrap();
-                    wrt_local.flush().unwrap();
-                }
-                self._header_init_out = true;
-            }
 
             out.par_iter().for_each(|o| {
                 let id = o.sol.get_id();
@@ -296,7 +302,7 @@ where
         }
     }
 
-    fn save_state(&mut self, _sp: Arc<Scp>, state: &State, stop: &St) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &State, stop: &St) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();

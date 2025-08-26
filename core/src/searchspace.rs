@@ -113,8 +113,8 @@ use crate::{
 };
 
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use serde::{Serialize,Deserialize};
 
 type ComputedOut<SolId, ADom, BDom, Cod, Out, Info> = (
     Arc<Computed<SolId, ADom, Cod, Out, Info>>,
@@ -244,7 +244,11 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<Partial<SolId, Obj, SInfo>>;
+    fn sample_obj(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        info: Arc<SInfo>,
+    ) -> Arc<Partial<SolId, Obj, SInfo>>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -282,7 +286,11 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<Partial<SolId, Opt, SInfo>>;
+    fn sample_opt(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        info: Arc<SInfo>,
+    ) -> Arc<Partial<SolId, Opt, SInfo>>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -397,7 +405,10 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_obj(&self, inp: ArcVecArc<Partial<SolId, Opt, SInfo>>) -> ArcVecArc<Partial<SolId, Obj, SInfo>>;
+    fn vec_onto_obj(
+        &self,
+        inp: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -440,7 +451,10 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_opt(&self, inp: ArcVecArc<Partial<SolId, Obj, SInfo>>) -> ArcVecArc<Partial<SolId, Opt, SInfo>>;
+    fn vec_onto_opt(
+        &self,
+        inp: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -610,7 +624,7 @@ where
     where
         Cod: Codomain<Out>,
         Out: Outcome,
-        Cod::TypeCodom : Serialize + for<'a> Deserialize<'a>,
+        Cod::TypeCodom: Serialize + for<'a> Deserialize<'a>,
     {
         (
             Arc::new(Computed::new(xa, y.clone())),
