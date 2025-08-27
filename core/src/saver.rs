@@ -1,10 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::{ArcVecArc, OptInfo, OptState},
-    searchspace::Searchspace,
-    solution::{Computed, Id, Partial, SolInfo},
-    stop::Stop,
+    Objective, Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::ArcVecArc, searchspace::Searchspace, solution::{Computed, Id, Partial}, stop::Stop
 };
 use std::sync::Arc;
 
@@ -14,37 +9,40 @@ pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
 pub mod serror;
 pub use serror::CheckpointError;
 
-pub trait Saver<SolId, St, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>
 where
     Self: Sized,
+    SolId: Id,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
-    Info: OptInfo,
-    SolId: Id,
-    State: OptState,
+    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
+    Op: Optimizer<SolId,Obj,Opt,Cod,Out,Scp>,
+    Ob: Objective<Obj,Cod,Out>,
+    Eval : Evaluate<Ob,St,Obj,Opt,Out,Cod,Op::Info, Op::SInfo,SolId>,
 {
     fn init(&mut self, sp: Arc<Scp>, cod: Arc<Cod>);
     fn save_partial(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        &self,
+        obj: ArcVecArc<Partial<SolId, Obj, Op::SInfo>>,
+        opt: ArcVecArc<Partial<SolId, Opt, Op::SInfo>>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
-        info: Arc<Info>,
+        info: Arc<Op::Info>,
     );
     fn save_codom(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, SInfo>>,
+        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
     );
-    fn save_out(&self, lout: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>, sp: Arc<Scp>);
-    fn save_state(&self, sp: Arc<Scp>, state: &State, stop: &St);
-    fn load(path: &str) -> Result<(Self, St, State), CheckpointError>;
+    fn save_out(&self, lout: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, sp: Arc<Scp>);
+    fn save_state(&self, sp: Arc<Scp>, state: &Op::State, stop: &St, eval:&Eval);
+    fn load_saver(path: &str, sp:&Scp, cod:&Cod) -> Result<Self, CheckpointError>;
+    fn load_stop(path: &str, sp:&Scp, cod:&Cod) -> Result<St, CheckpointError>;
+    fn load_optimizer(path: &str, sp:&Scp, cod:&Cod) -> Result<Op, CheckpointError>;
+    fn load_evaluate(path: &str, sp:&Scp, cod:&Cod) -> Result<Eval, CheckpointError>;
     fn clean(self);
 }

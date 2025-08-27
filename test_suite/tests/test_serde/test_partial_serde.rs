@@ -35,11 +35,15 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp | sp_ms_nosamp::_TantaleMixedObj | |(a,b)| a == b ,
-    sp_only_real | tantale_core::Real | |(a,b)| (a*10.0f64.powi(14)).round() == (b*10.0f64.powi(14)).round() ,
-    sp_only_int | tantale_core::Int | |(a,b)| a == b ,
-    sp_only_nat | tantale_core::Nat | |(a,b)| a == b ,
-    sp_only_unit | tantale_core::Unit | |(a,b)| (a*10.0f64.powi(14)).round() == (b*10.0f64.powi(14)).round() ,
-    sp_only_bool | tantale_core::Bool | |(a,b)| a == b ,
-    sp_only_cat | tantale_core::Cat | |(a,b)| a == b
+    sp_ms_nosamp | sp_ms_nosamp::_TantaleMixedObj | |(a, b)| a == b,
+    sp_only_real
+        | tantale_core::Real
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
+    sp_only_int | tantale_core::Int | |(a, b)| a == b,
+    sp_only_nat | tantale_core::Nat | |(a, b)| a == b,
+    sp_only_unit
+        | tantale_core::Unit
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
+    sp_only_bool | tantale_core::Bool | |(a, b)| a == b,
+    sp_only_cat | tantale_core::Cat | |(a, b)| a == b
 );

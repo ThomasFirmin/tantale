@@ -1,6 +1,5 @@
 use tantale_core::{
     experiment::{sequential::seqevaluator::Evaluator, Evaluate},
-    solution::id,
     stop::Calls,
     EmptyInfo, ObjBase, SId, Searchspace, SingleCodomain, Solution,
 };

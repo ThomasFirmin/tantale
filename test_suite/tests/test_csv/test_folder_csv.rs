@@ -3,16 +3,18 @@ use super::init_sp::sp_m_equal_allmsamp;
 use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RSInfo;
-use tantale_algos::RSState;
 use tantale_algos::RandomSearch;
-use tantale_core::optimizer::OptState;
+use tantale_core::experiment::sequential::seqevaluator::Evaluator;
+use tantale_core::experiment::Evaluate;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
 use tantale_core::saver::Saver;
 use tantale_core::stop::{Calls, Stop};
 use tantale_core::EmptyInfo;
 use tantale_core::LinkedOutcome;
+use tantale_core::ObjBase;
 use tantale_core::Solution;
+use tantale_core::Sp;
 use tantale_core::{OptInfo, SolInfo};
 
 use std::collections::HashMap;
@@ -51,12 +53,20 @@ mod infos {
 
 use infos::OutExample;
 
-pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
-    hash_obj: &mut HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
-    hash_opt: &mut HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+type EvalType<SInfo> = Evaluator<SId,sp_m_equal_allmsamp::_TantaleMixedObj,sp_m_equal_allmsamp::_TantaleMixedObj,SInfo>;
+
+pub fn run_saver<'a, Scp, Op, St, Sv>(
+    hash_obj: &mut HashMap<
+        usize,
+        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+    >,
+    hash_opt: &mut HashMap<
+        usize,
+        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+    >,
     hash_out: &mut HashMap<
         usize,
-        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>,
+        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
     >,
     hash_cod: &mut HashMap<
         usize,
@@ -66,54 +76,51 @@ pub fn run_saver<'a, Scp, Op, St, Sv, Info, SInfo, State>(
                 sp_m_equal_allmsamp::_TantaleMixedObj,
                 SingleCodomain<OutExample>,
                 OutExample,
-                SInfo,
+                Op::SInfo,
             >,
         >,
     >,
-    hash_inf: &mut HashMap<usize, Arc<Info>>,
+    hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
     sp: Arc<Scp>,
     cod: Arc<SingleCodomain<OutExample>>,
     opt: &'a mut Op,
     stop: &mut St,
     saver: &mut Sv,
     size: usize,
-) -> (Sv, St, &'a State, State)
+) -> (Sv, St, &'a Op::State, Op, EvalType<Op::SInfo>)
 where
     Scp: Searchspace<
         SId,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        SInfo,
+        Op::SInfo,
     >,
     Op: Optimizer<
         SId,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        SInfo,
         SingleCodomain<OutExample>,
         OutExample,
         Scp,
-        Info,
-        State,
     >,
-    St: Stop,
+    St: Stop + Send + Sync,
     Sv: Saver<
         SId,
         St,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        SInfo,
         SingleCodomain<OutExample>,
         OutExample,
         Scp,
-        Info,
-        State,
+        Op,
+        ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj, SingleCodomain<OutExample>, OutExample>,
+        EvalType<Op::SInfo>,
     >,
-    Info: OptInfo + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    State: OptState,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let (sobj, sopt, infos) = opt.first_step(sp.clone());
+    let eval: EvalType<Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone());
     let (cobj, copt, vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -156,9 +163,10 @@ where
     );
     saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
     saver.save_out(vinfos, sp.clone());
-    saver.save_state(sp.clone(), opt.get_state(), stop);
+    saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
-    let (sobj, sopt, infos) = opt.step(copt.clone(), sp.clone());
+    let (sobj, sopt, infos) = opt.step((cobj.clone(), copt.clone()), sp.clone());
+    let eval: EvalType<Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone());
     let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -194,13 +202,17 @@ where
     );
     saver.save_codom(Arc::new(computed.0), sp.clone(), cod.clone());
     saver.save_out(computed.2, sp.clone());
-    saver.save_state(sp.clone(), opt.get_state(), stop);
+    saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
     run_reader(
         "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size,
     );
-    let res = Sv::load("tmp_test").unwrap();
-    (res.0, res.1, opt.get_state(), res.2)
+    let nsaver : Sv = Sv::load_saver("tmp_test", &sp, &cod).unwrap();
+    let nstop = Sv::load_stop("tmp_test", &sp, &cod).unwrap();
+    let nopt = Sv::load_optimizer("tmp_test", &sp, &cod).unwrap();
+    let neval = Sv::load_evaluate("tmp_test", &sp, &cod).unwrap();
+
+    (nsaver, nstop, opt.get_state(), nopt, neval)
 }
 
 pub fn run_reader<SInfo, Info>(
@@ -367,15 +379,15 @@ fn test_csv_func() {
         Calls,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        EmptyInfo,
-        tantale_core::SingleCodomain<OutExample>,
+        SingleCodomain<OutExample>,
         OutExample,
         tantale_core::Sp<
             sp_m_equal_allmsamp::_TantaleMixedObj,
             sp_m_equal_allmsamp::_TantaleMixedObj,
         >,
-        RSInfo,
-        RSState,
+        RandomSearch,
+        ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>,
+        EvalType<EmptyInfo>,
     >>::init(&mut saver, sp.clone(), cod.clone());
 
     let path = saver.path.clone();
@@ -400,7 +412,7 @@ fn test_csv_func() {
 
     let mut hash_info: HashMap<usize, Arc<RSInfo>> = HashMap::new();
 
-    let (mut nsaver, mut nstop, rstate, nstate) = run_saver(
+    let (mut nsaver, mut nstop, rstate, mut nopt,_):(_,_,_,_,EvalType<EmptyInfo>) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
@@ -413,6 +425,14 @@ fn test_csv_func() {
         &mut saver,
         6,
     );
+    let nstate = <RandomSearch as Optimizer<
+        SId,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        SingleCodomain<OutExample>,
+        _,
+        Sp<sp_m_equal_allmsamp::_TantaleMixedObj, sp_m_equal_allmsamp::_TantaleMixedObj>,
+    >>::get_state(&mut nopt);
 
     assert_eq!(
         stop.0, nstop.0,
@@ -452,7 +472,7 @@ fn test_csv_func() {
         "Wrong checkpoint state before and after loading."
     );
 
-    let (nsaver, nnstop, rstate, nstate) = run_saver(
+    let (nsaver, nnstop, rstate, mut nopt, _) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
@@ -465,6 +485,15 @@ fn test_csv_func() {
         &mut nsaver,
         12,
     );
+    let nstate = <RandomSearch as Optimizer<
+        SId,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        sp_m_equal_allmsamp::_TantaleMixedObj,
+        SingleCodomain<OutExample>,
+        _,
+        Sp<sp_m_equal_allmsamp::_TantaleMixedObj, sp_m_equal_allmsamp::_TantaleMixedObj>,
+    >>::get_state(&mut nopt);
+
     assert_eq!(
         nstop.0, nnstop.0,
         "States of threshold in Calls are different after loading."
@@ -502,7 +531,7 @@ fn test_csv_func() {
         nsaver.checkpoint, checkpoint,
         "Wrong checkpoint state before and after loading."
     );
-    drop(Cleaner{});
+    drop(Cleaner {});
 }
 
 struct Cleaner;
@@ -515,6 +544,6 @@ impl Drop for Cleaner {
 
 #[test]
 fn test_csv() {
-    drop(Cleaner{});
+    drop(Cleaner {});
     test_csv_func();
 }

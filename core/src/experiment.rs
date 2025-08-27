@@ -1,14 +1,10 @@
 pub mod sequential;
 
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Objective, Outcome},
-    optimizer::opt::SolPairs,
-    solution::{Id, SolInfo},
-    stop::Stop,
-    LinkedOutcome,
+    LinkedOutcome, OptInfo, domain::Domain, objective::{Codomain, Objective, Outcome}, optimizer::opt::SolPairs, solution::{Id, SolInfo}, stop::Stop
 };
 use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
 
 pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo> = (
     SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
@@ -17,14 +13,16 @@ pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo> = (
 
 /// An evaluator describes how a batch of [`Partial`] should
 /// be evaluated to get a batch of [`Computed`].
-pub trait Evaluate<Ob, St, Obj, Opt, Out, Cod, SInfo, SolId>
+pub trait Evaluate<Ob, St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
 where
+    Self: Serialize + for<'de> Deserialize<'de>,
     Ob: Objective<Obj, Cod, Out>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
+    Info:OptInfo,
     SInfo: SolInfo,
     SolId: Id,
 {

@@ -17,8 +17,8 @@ use std::sync::Arc;
 pub trait Objective<Obj, Cod, Out>
 where
     Obj: Domain,
-    Out: Outcome,
     Cod: Codomain<Out>,
+    Out: Outcome,
 {
     /// Initialize the ['Objective'].
     fn init(&mut self);
@@ -69,8 +69,8 @@ where
 impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for ObjBase<Obj, Cod, Out>
 where
     Obj: Domain,
-    Out: Outcome,
     Cod: Codomain<Out>,
+    Out: Outcome,
 {
     fn init(&mut self) {}
     fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {

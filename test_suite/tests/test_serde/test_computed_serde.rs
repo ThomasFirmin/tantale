@@ -57,8 +57,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| a == b
-        ,
+        | |(a, b)| a == b,
     sp_only_real
         | tantale_core::Real
         | [
@@ -71,8 +70,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| (a*10.0f64.powi(14)).round() == (b*10.0f64.powi(14)).round()
-        ,
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_int
         | tantale_core::Int
         | [
@@ -85,8 +83,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| a == b
-        ,
+        | |(a, b)| a == b,
     sp_only_nat
         | tantale_core::Nat
         | [
@@ -99,8 +96,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| a == b
-        ,
+        | |(a, b)| a == b,
     sp_only_unit
         | tantale_core::Unit
         | [
@@ -113,8 +109,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| (a*10.0f64.powi(14)).round() == (b*10.0f64.powi(14)).round()
-        ,
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_bool
         | tantale_core::Bool
         | [
@@ -127,8 +122,7 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| a == b
-        ,
+        | |(a, b)| a == b,
     sp_only_cat
         | tantale_core::Cat
         | [
@@ -141,5 +135,5 @@ get_test!(
             ConstMultiCodomain | get_elemconstmulti,
             FidelConstMultiCodomain | get_elemfidelconstmulti,
         ]
-        | |(a,b)| a == b
+        | |(a, b)| a == b
 );

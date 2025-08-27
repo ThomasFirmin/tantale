@@ -1,0 +1,127 @@
+use tantale_core::{
+    experiment::sequential::seqrun::run,
+    saver::{CSVSaver, Saver},
+    stop::Calls,
+    EmptyInfo, ObjBase, Optimizer, SId, Searchspace, SingleCodomain, Solution,
+};
+
+use tantale_algos::{RSState, RandomSearch};
+
+use super::init_func::sp_evaluator;
+use crate::init_func::OutEvaluator;
+
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+    sync::{Arc, Mutex},
+};
+
+struct Cleaner;
+
+impl Drop for Cleaner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all("tmp_test_seqrun");
+    }
+}
+
+pub fn run_reader(path: &str, size: usize) {
+    let true_path = Path::new(path);
+    let eval_path = true_path.join(Path::new("evaluations"));
+    let path_obj = eval_path.join("obj.csv");
+    let path_opt = eval_path.join("opt.csv");
+    let path_out = eval_path.join("out.csv");
+    let path_cod = eval_path.join("cod.csv");
+
+    let mut hash_id = HashSet::new();
+    let mut size_obj = 0;
+    let mut size_opt = 0;
+    let mut size_cod = 0;
+    let mut size_out = 0;
+
+    // Check `Obj`
+    let mut rdr = csv::Reader::from_path(path_obj).unwrap();
+    for l in rdr.records() {
+        size_obj += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+    }
+    // Check `Opt`
+    let mut rdr = csv::Reader::from_path(path_opt).unwrap();
+    for l in rdr.records() {
+        size_opt += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+    }
+    // Check `Out`
+    let mut rdr = csv::Reader::from_path(path_out).unwrap();
+    for l in rdr.records() {
+        size_cod += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+    }
+    // Check `Cod`
+    let mut rdr = csv::Reader::from_path(path_cod).unwrap();
+    for l in rdr.records() {
+        size_out += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+    }
+
+    assert_eq!(
+        size_obj, size,
+        "Some solutions are missing within recorded obj save."
+    );
+    assert_eq!(
+        size_opt, size,
+        "Some solutions are missing within recorded opt save."
+    );
+    assert_eq!(
+        size_cod, size,
+        "Some solutions are missing within recorded cod save."
+    );
+    assert_eq!(
+        size_out, size,
+        "Some solutions are missing within recorded out save."
+    );
+    assert_eq!(hash_id.len(), size, "Some IDs are duplicated..");
+}
+
+#[test]
+fn test_seq_run() {
+    drop(Cleaner {});
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = RandomSearch::new(7);
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let obj = ObjBase::new(cod, func);
+    let stop = Calls::new(50);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+
+    run(sp, obj, opt, stop, saver);
+    run_reader("tmp_test_seqrun", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let saver = CSVSaver::load_saver("tmp_test_seqrun", &sp, &cod).unwrap();
+    let mut stop: Calls = CSVSaver::load_stop("tmp_test_seqrun", &sp, &cod).unwrap();
+    let opt: RandomSearch = CSVSaver::load_optimizer("tmp_test_seqrun", &sp, &cod).unwrap();
+    let eval = CSVSaver::load_evaluate("tmp_test_seqrun", &sp, &cod).unwrap();
+
+    assert_eq!(stop.0, 50, "Number of calls is wrong");
+    assert_eq!(opt.0.iteration, 8, "Number of iteration is wrong");
+    assert_eq!(opt.0.batch, 7, "Batch size is wrong");
+
+    let func = sp_evaluator::example;
+    let obj = ObjBase::new(cod, func);
+
+    stop.1 = 100;
+    run(sp, obj, opt, stop, saver);
+    run_reader("tmp_test_seqrun", 100);
+
+    let _a = Cleaner {};
+}

@@ -1,10 +1,14 @@
 use tantale_core::{
     domain::Domain,
     objective::{codomain::SingleCodomain, outcome::Outcome},
-    optimizer::{opt::{OptOutput, ArcVecArc}, EmptyInfo, OptInfo, OptState, Optimizer},
+    optimizer::{
+        opt::{OptOutput, SolPairs, SequentialOptimizer},
+        EmptyInfo, OptInfo, OptState, Optimizer,
+    },
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{SId,Computed},
+    solution::SId,
+    Criteria,
 };
 
 use rand::prelude::ThreadRng;
@@ -21,12 +25,13 @@ pub struct RSState {
 }
 impl OptState for RSState {}
 
+#[derive(Serialize,Deserialize)]
 pub struct RSInfo {
     pub iteration: usize,
 }
 impl OptInfo for RSInfo {}
 impl CSVWritable<(), ()> for RSInfo {
-    fn header(_elem:&()) -> Vec<String> {
+    fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("iteration")])
     }
     fn write(&self, _comp: &()) -> Vec<String> {
@@ -34,7 +39,7 @@ impl CSVWritable<(), ()> for RSInfo {
     }
 }
 
-pub struct RandomSearch(RSState, ThreadRng);
+pub struct RandomSearch(pub RSState, ThreadRng);
 impl RandomSearch {
     pub fn new(batch: usize) -> Self {
         let rng = rand::rng();
@@ -45,6 +50,11 @@ impl RandomSearch {
             },
             rng,
         )
+    }
+    pub fn codomain<Out: Outcome>(extractor: Criteria<Out>) -> SingleCodomain<Out> {
+        SingleCodomain {
+            y_criteria: extractor,
+        }
     }
 }
 
@@ -67,7 +77,7 @@ where
 }
 
 impl<Obj, Opt, Out, Scp>
-    Optimizer<SId, Obj, Opt, EmptyInfo, SingleCodomain<Out>, Out, Scp, RSInfo, RSState>
+    Optimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
     for RandomSearch
 where
     Obj: Domain + Clone + Display + Debug,
@@ -75,6 +85,10 @@ where
     Out: Outcome,
     Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {
+    type SInfo = EmptyInfo;
+    type Info = RSInfo;
+    type State = RSState;
+
     fn init(&mut self) {}
 
     fn first_step(&mut self, sp: Arc<Scp>) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
@@ -83,7 +97,7 @@ where
 
     fn step(
         &mut self,
-        _x: ArcVecArc<Computed<SId, Opt, SingleCodomain<Out>, Out, EmptyInfo>>,
+        _x: SolPairs<SId, Obj, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
         sp: Arc<Scp>,
     ) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
         rs_iter::<Obj, Opt, Scp>(self, sp.clone())
@@ -92,4 +106,19 @@ where
     fn get_state(&mut self) -> &RSState {
         &self.0
     }
+
+    fn from_state(state:RSState) -> Self {
+        RandomSearch(state, rand::rng())
+    }
+}
+
+impl<Obj, Opt, Out, Scp>
+    SequentialOptimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
+    for RandomSearch
+where
+    Obj: Domain + Clone + Display + Debug,
+    Opt: Domain + Clone + Display + Debug,
+    Out: Outcome,
+    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
+{
 }

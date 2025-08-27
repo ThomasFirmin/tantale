@@ -3,17 +3,27 @@ use crate::{
     objective::{Codomain, Outcome},
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{Computed, Id, ParSId, Partial, SId, SolInfo},
+    solution::{Computed, Id, ParSId, Partial, SolInfo},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 /// Describes information linked to a group of [`Solutions`](Solution)
 /// obtained  after each iteration of the [`Optimizer`].
-pub trait OptInfo {}
+pub trait OptInfo
+where
+    Self : Serialize + for<'de> Deserialize<'de>
+{
+
+}
 
 /// Describes the current state of an [`Optimizer`].
 /// It is used to serialize and deserialize the [`Optimizer`].
-pub trait OptState {}
+pub trait OptState
+where
+    Self : Serialize + for<'de> Deserialize<'de>
+{
+
+}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
@@ -47,64 +57,61 @@ pub type OptOutput<SolId, ADom, BDom, SInfo, Info> = (
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
-pub trait Optimizer<SolId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+pub trait Optimizer<SolId, Obj, Opt, Cod, Out, Scp>
 where
+    SolId: Id,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<SolId, Obj, Opt, SInfo>,
-    Info: OptInfo,
-    SolId: Id + PartialEq + Clone + Copy,
-    State: OptState,
+    Scp: Searchspace<SolId, Obj, Opt, Self::SInfo>,
 {
+    type SInfo : SolInfo;
+    type Info : OptInfo;
+    type State : OptState;
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
 
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, sp: Arc<Scp>) -> OptOutput<SolId, Obj, Opt, SInfo, Info>;
+    fn first_step(&mut self, sp: Arc<Scp>) -> OptOutput<SolId, Obj, Opt, Self::SInfo, Self::Info>;
 
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
     fn step(
         &mut self,
-        x: ArcVecArc<Computed<SolId, Opt, Cod, Out, SInfo>>,
+        x: SolPairs<SolId, Obj, Opt, Cod, Out, Self::SInfo>,
         sp: Arc<Scp>,
-    ) -> OptOutput<SolId, Obj, Opt, SInfo, Info>;
+    ) -> OptOutput<SolId, Obj, Opt, Self::SInfo, Self::Info>;
 
     /// Returns the current [`OptState`] of the [`Optimizer`].
-    fn get_state(&mut self) -> &State;
+    fn get_state(&mut self) -> &Self::State;
+
+    /// Return an instance of the [`Optimizer`]  from an [`OptState`].
+    fn from_state(state:Self::State) -> Self;
 }
 
 /// A sequential [`Optimizer`] without any parallelization.
-pub trait SequentialOptimizer<Obj, Opt, SInfo, Cod, Out, Scp, Info, State>:
-    Optimizer<SId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+pub trait SequentialOptimizer<SolId, Obj, Opt, Cod, Out, Scp>:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>
 where
+    SolId: Id,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<SId, Obj, Opt, SInfo>,
-    Info: OptInfo,
-    State: OptState,
+    Scp: Searchspace<SolId, Obj, Opt, Self::SInfo>,
 {
 }
 
 /// A parallel [`Optimizer`] with multi-processing.
-pub trait ParallelOptimizer<Obj, Opt, SInfo, Cod, Out, Scp, Info, State>:
-    Optimizer<ParSId, Obj, Opt, SInfo, Cod, Out, Scp, Info, State>
+pub trait ParallelOptimizer<Obj, Opt, Cod, Out, Scp>:
+    Optimizer<ParSId, Obj, Opt, Cod, Out, Scp>
 where
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    Scp: Searchspace<ParSId, Obj, Opt, SInfo>,
-    Info: OptInfo,
-    State: OptState,
+    Scp: Searchspace<ParSId, Obj, Opt, Self::SInfo>,
 {
     fn interact(&self);
     fn update(&self);
