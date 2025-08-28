@@ -2,30 +2,27 @@ use crate::{
     domain::{Domain, TypeDom},
     optimizer::ArcVecArc,
     saver::CSVLeftRight,
-    searchspace::{Searchspace, SolInfo},
+    searchspace::{Searchspace, SolInfo, ParSp},
     solution::{Id, Partial, Solution},
     variable::Var,
 };
 
 use rand::prelude::ThreadRng;
-use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 /// A basic [`Searchspace`] made of a [`Box`] slice of [`Variable`].
 pub struct Sp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
 {
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
 impl<SolId, Obj, Opt, SInfo> Searchspace<SolId, Obj, Opt, SInfo> for Sp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     SInfo: SolInfo,
     SolId: Id + PartialEq + Clone + Copy,
 {
@@ -168,10 +165,17 @@ where
     }
 }
 
+impl <Obj:Domain,Opt:Domain> From<ParSp<Obj,Opt>> for Sp<Obj,Opt>
+{
+    fn from(value: ParSp<Obj,Opt>) -> Self {
+        Sp { variables: value.variables }
+    }
+}
+
 impl<Obj, Opt> CSVLeftRight<Sp<Obj, Opt>, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> for Sp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Var<Obj, Opt>: CSVLeftRight<Var<Obj, Opt>, Obj::TypeDom, Opt::TypeDom>,
 {
     fn header(elem: &Sp<Obj, Opt>) -> Vec<String> {

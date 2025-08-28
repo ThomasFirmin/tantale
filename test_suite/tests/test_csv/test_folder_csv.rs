@@ -5,7 +5,6 @@ use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, Si
 use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
 use tantale_core::experiment::sequential::seqevaluator::Evaluator;
-use tantale_core::experiment::Evaluate;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
 use tantale_core::saver::Saver;
@@ -53,7 +52,7 @@ mod infos {
 
 use infos::OutExample;
 
-type EvalType<SInfo> = Evaluator<SId,sp_m_equal_allmsamp::_TantaleMixedObj,sp_m_equal_allmsamp::_TantaleMixedObj,SInfo>;
+type EvalType<Info,SInfo> = Evaluator<SId,sp_m_equal_allmsamp::_TantaleMixedObj,sp_m_equal_allmsamp::_TantaleMixedObj,Info,SInfo>;
 
 pub fn run_saver<'a, Scp, Op, St, Sv>(
     hash_obj: &mut HashMap<
@@ -87,7 +86,7 @@ pub fn run_saver<'a, Scp, Op, St, Sv>(
     stop: &mut St,
     saver: &mut Sv,
     size: usize,
-) -> (Sv, St, &'a Op::State, Op, EvalType<Op::SInfo>)
+) -> (St, &'a Op::State, Op, EvalType<Op::Info,Op::SInfo>)
 where
     Scp: Searchspace<
         SId,
@@ -114,13 +113,13 @@ where
         Scp,
         Op,
         ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj, SingleCodomain<OutExample>, OutExample>,
-        EvalType<Op::SInfo>,
+        EvalType<Op::Info,Op::SInfo>,
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let (sobj, sopt, infos) = opt.first_step(sp.clone());
-    let eval: EvalType<Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone());
+    let eval: EvalType<Op::Info,Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone(),infos.clone());
     let (cobj, copt, vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -166,7 +165,7 @@ where
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
     let (sobj, sopt, infos) = opt.step((cobj.clone(), copt.clone()), sp.clone());
-    let eval: EvalType<Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone());
+    let eval: EvalType<Op::Info,Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone(), infos.clone());
     let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -207,12 +206,11 @@ where
     run_reader(
         "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size,
     );
-    let nsaver : Sv = Sv::load_saver("tmp_test", &sp, &cod).unwrap();
-    let nstop = Sv::load_stop("tmp_test", &sp, &cod).unwrap();
-    let nopt = Sv::load_optimizer("tmp_test", &sp, &cod).unwrap();
-    let neval = Sv::load_evaluate("tmp_test", &sp, &cod).unwrap();
+    let nstop = saver.load_stop(&sp, &cod).unwrap();
+    let nopt = saver.load_optimizer(&sp, &cod).unwrap();
+    let neval = saver.load_evaluate(&sp, &cod).unwrap();
 
-    (nsaver, nstop, opt.get_state(), nopt, neval)
+    (nstop, opt.get_state(), nopt, neval)
 }
 
 pub fn run_reader<SInfo, Info>(
@@ -387,14 +385,8 @@ fn test_csv_func() {
         >,
         RandomSearch,
         ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>,
-        EvalType<EmptyInfo>,
-    >>::init(&mut saver, sp.clone(), cod.clone());
-
-    let path = saver.path.clone();
-    let save_obj = saver.save_obj;
-    let save_opt = saver.save_opt;
-    let save_out = saver.save_out;
-    let checkpoint = saver.checkpoint;
+        EvalType<RSInfo,EmptyInfo>,
+    >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
     let mut hash_obj: HashMap<
         usize,
@@ -412,7 +404,7 @@ fn test_csv_func() {
 
     let mut hash_info: HashMap<usize, Arc<RSInfo>> = HashMap::new();
 
-    let (mut nsaver, mut nstop, rstate, mut nopt,_):(_,_,_,_,EvalType<EmptyInfo>) = run_saver(
+    let (mut nstop, rstate, mut nopt,_):(_,_,_,EvalType<RSInfo,EmptyInfo>) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
@@ -454,25 +446,7 @@ fn test_csv_func() {
         "Iteration fields for RSState are different after loading."
     );
 
-    assert_eq!(nsaver.path, path, "Wrong path before and after loading.");
-    assert_eq!(
-        nsaver.save_obj, save_obj,
-        "Wrong save_obj state before and after loading."
-    );
-    assert_eq!(
-        nsaver.save_opt, save_opt,
-        "Wrong save_opt state before and after loading."
-    );
-    assert_eq!(
-        nsaver.save_out, save_out,
-        "Wrong save_out state before and after loading."
-    );
-    assert_eq!(
-        nsaver.checkpoint, checkpoint,
-        "Wrong checkpoint state before and after loading."
-    );
-
-    let (nsaver, nnstop, rstate, mut nopt, _) = run_saver(
+    let (nnstop, rstate, mut nopt, _) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
@@ -482,7 +456,7 @@ fn test_csv_func() {
         cod.clone(),
         &mut rs,
         &mut nstop,
-        &mut nsaver,
+        &mut saver,
         12,
     );
     let nstate = <RandomSearch as Optimizer<
@@ -512,24 +486,6 @@ fn test_csv_func() {
     assert_eq!(
         rstate.iteration, nstate.iteration,
         "Iteration fields for RSState are different after loading."
-    );
-
-    assert_eq!(nsaver.path, path, "Wrong path before and after loading.");
-    assert_eq!(
-        nsaver.save_obj, save_obj,
-        "Wrong save_obj state before and after loading."
-    );
-    assert_eq!(
-        nsaver.save_opt, save_opt,
-        "Wrong save_opt state before and after loading."
-    );
-    assert_eq!(
-        nsaver.save_out, save_out,
-        "Wrong save_out state before and after loading."
-    );
-    assert_eq!(
-        nsaver.checkpoint, checkpoint,
-        "Wrong checkpoint state before and after loading."
     );
     drop(Cleaner {});
 }

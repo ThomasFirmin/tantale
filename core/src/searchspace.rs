@@ -637,4 +637,4 @@ pub mod spbase;
 pub use spbase::Sp;
 
 pub mod sppar;
-pub use sppar::SpPar;
+pub use sppar::ParSp;

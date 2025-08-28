@@ -13,13 +13,11 @@ use std::sync::{Arc, Mutex};
 ))]
 pub struct Evaluator<SolId, Obj, Opt, Info, SInfo>
 where
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
-    SolId: Id + Send + Sync,
-    SInfo: SolInfo + Send + Sync,
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
+    SInfo: SolInfo,
     Info: OptInfo,
-    Obj::TypeDom: Send + Sync,
-    Opt::TypeDom: Send + Sync,
 {
     pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
@@ -28,13 +26,11 @@ where
 
 impl<SolId, Obj, Opt, Info, SInfo> Evaluator<SolId, Obj, Opt, Info, SInfo>
 where
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
-    SolId: Id + Send + Sync,
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
     Info:OptInfo,
-    SInfo: SolInfo + Send + Sync,
-    Obj::TypeDom: Send + Sync,
-    Opt::TypeDom: Send + Sync,
+    SInfo: SolInfo,
 {
     pub fn new(
         in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
@@ -45,8 +41,105 @@ where
     }
 }
 
+impl <SolId, Obj, Opt, Info, SInfo> From<ParEvaluator<SolId, Obj, Opt, Info, SInfo>> for Evaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
+    Info:OptInfo,
+    SInfo: SolInfo,
+{
+    fn from(value: ParEvaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
+        Evaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info }
+    }
+}
+
 impl<Ob, St, Obj, Opt, Out, Cod, Info, SInfo, SolId> Evaluate<Ob, St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
     for Evaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    Ob: Objective<Obj, Cod, Out>,
+    St: Stop,
+    Obj: Domain,
+    Opt: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    SolId: Id,
+    Info: OptInfo,
+    SInfo: SolInfo,
+{
+    fn init(&mut self) {}
+    fn evaluate(
+        &mut self,
+        ob: Arc<Ob>,
+        stop: Arc<Mutex<St>>,
+    ) -> (
+        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
+        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
+    ) {
+        let mut result_obj = Vec::new();
+        let mut result_opt = Vec::new();
+        let mut result_out = Vec::new();
+        let mut st = stop.lock().unwrap();
+        
+        let mut i=0;
+        let length = self.in_obj.len();
+        while i < length && !st.stop(){
+            let sobj = self.in_obj[i].clone();
+            let sopt = self.in_opt[i].clone();
+            let (cod, out) = ob.compute(sobj.get_x());
+            result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
+            result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
+            result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
+            st.update(ExpStep::Distribution);
+            i += 1
+        }
+
+        ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
+    }
+}
+
+
+
+
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
+    deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
+))]
+pub struct ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Info: OptInfo,
+    SInfo: SolInfo,
+{
+    pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+    pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+    pub info: Arc<Info>,
+}
+
+impl<SolId, Obj, Opt, Info, SInfo> ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Info:OptInfo,
+    SInfo: SolInfo,
+{
+    pub fn new(
+        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        info:Arc<Info>
+    ) -> Self {
+        ParEvaluator { in_obj, in_opt ,info}
+    }
+}
+
+impl<Ob, St, Obj, Opt, Out, Cod, Info, SInfo, SolId> Evaluate<Ob, St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
+    for ParEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     Ob: Objective<Obj, Cod, Out> + Send + Sync,
     St: Stop + Send + Sync,
@@ -104,5 +197,18 @@ where
         let opt = Arc::new(Arc::try_unwrap(result_opt).unwrap().into_inner().unwrap());
         let lin = Arc::try_unwrap(result_out).unwrap().into_inner().unwrap();
         ((obj, opt), lin)
+    }
+}
+
+impl <SolId, Obj, Opt, Info, SInfo> From<Evaluator<SolId, Obj, Opt, Info, SInfo>> for ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
+    Info:OptInfo,
+    SInfo: SolInfo,
+{
+    fn from(value: Evaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
+        ParEvaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info }
     }
 }

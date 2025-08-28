@@ -1,37 +1,26 @@
 use crate::{
-    domain::{Domain, TypeDom},
-    optimizer::ArcVecArc,
-    saver::CSVLeftRight,
-    searchspace::{Searchspace, SolInfo},
-    solution::{Id, Partial, Solution},
-    variable::Var,
+    Sp, domain::{Domain, TypeDom}, optimizer::ArcVecArc, saver::CSVLeftRight, searchspace::{Searchspace, SolInfo}, solution::{Id, Partial, Solution}, variable::Var
 };
 
 use rand::prelude::ThreadRng;
-use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use rayon::prelude::*;
 
 /// A basic [`Searchspace`] made of a [`Box`] slice of [`Variable`].
-pub struct SpPar<Obj, Opt>
-where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+pub struct ParSp<Obj:Domain, Opt:Domain>
 {
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
-impl<SolId, Obj, Opt, SInfo> Searchspace<SolId, Obj, Opt, SInfo> for SpPar<Obj, Opt>
+impl<SolId, Obj, Opt, SInfo> Searchspace<SolId, Obj, Opt, SInfo> for ParSp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug + Send + Sync,
-    Opt: Domain + Clone + Display + Debug + Send + Sync,
+    Obj: Domain + Send + Sync,
+    Opt: Domain + Send + Sync,
     TypeDom<Obj>: Send + Sync,
     TypeDom<Opt>: Send + Sync,
     SInfo: SolInfo + Send + Sync,
-    SolId: Id + PartialEq + Copy + Clone + Send + Sync,
+    SolId: Id + Send + Sync,
 {
     fn onto_obj(&self, inp: Arc<Partial<SolId, Opt, SInfo>>) -> Arc<Partial<SolId, Obj, SInfo>> {
         let var_it = self.variables.par_iter();
@@ -178,14 +167,23 @@ where
     }
 }
 
-impl<Obj, Opt> CSVLeftRight<SpPar<Obj, Opt>, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    for SpPar<Obj, Opt>
+
+impl <Obj:Domain,Opt:Domain> From<Sp<Obj,Opt>> for ParSp<Obj,Opt>
+{
+    fn from(value: Sp<Obj,Opt>) -> Self {
+        ParSp { variables: value.variables }
+    }
+}
+
+
+impl<Obj, Opt> CSVLeftRight<ParSp<Obj, Opt>, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+    for ParSp<Obj, Opt>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Var<Obj, Opt>: CSVLeftRight<Var<Obj, Opt>, Obj::TypeDom, Opt::TypeDom>,
 {
-    fn header(elem: &SpPar<Obj, Opt>) -> Vec<String> {
+    fn header(elem: &ParSp<Obj, Opt>) -> Vec<String> {
         elem.variables
             .iter()
             .flat_map(Var::<Obj, Opt>::header)

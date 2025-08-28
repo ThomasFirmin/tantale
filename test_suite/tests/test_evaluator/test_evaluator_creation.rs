@@ -24,15 +24,16 @@ fn test_seq_evaluator() {
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: Evaluator<SId, _, _, _> = Evaluator::new(sobj.clone(), sopt.clone());
+    let mut eval: Evaluator<SId, _, _, _, _> = Evaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
-    let ((cobj, copt), linked) = <Evaluator<_, _, _, _> as Evaluate<
+    let ((cobj, copt), linked) = <Evaluator<_, _, _, _, _> as Evaluate<
         ObjBase<_, SingleCodomain<OutEvaluator>, OutEvaluator>,
         Calls,
         _,
         _,
         OutEvaluator,
         SingleCodomain<OutEvaluator>,
+        _,
         _,
         _,
     >>::evaluate(&mut eval, obj.clone(), stop.clone());

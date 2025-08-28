@@ -1,5 +1,5 @@
 use tantale_core::{
-    experiment::sequential::seqrun::run,
+    experiment::{sequential::Experiment, Runable},
     saver::{CSVSaver, Saver},
     stop::Calls,
     EmptyInfo, ObjBase, Optimizer, SId, Searchspace, SingleCodomain, Solution,
@@ -102,15 +102,18 @@ fn test_seq_run() {
     let stop = Calls::new(50);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
 
-    run(sp, obj, opt, stop, saver);
+    let mut exp = Experiment::new(sp, obj, opt, stop, saver);
+    exp.run();
+
     run_reader("tmp_test_seqrun", 50);
 
     let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let saver = CSVSaver::load_saver("tmp_test_seqrun", &sp, &cod).unwrap();
-    let mut stop: Calls = CSVSaver::load_stop("tmp_test_seqrun", &sp, &cod).unwrap();
-    let opt: RandomSearch = CSVSaver::load_optimizer("tmp_test_seqrun", &sp, &cod).unwrap();
-    let eval = CSVSaver::load_evaluate("tmp_test_seqrun", &sp, &cod).unwrap();
+    let obj = ObjBase::new(cod, func);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+    let mut exp= Experiment::load(sp, obj, saver);
+    exp.stop.0 = 0;
 
     assert_eq!(stop.0, 50, "Number of calls is wrong");
     assert_eq!(opt.0.iteration, 8, "Number of iteration is wrong");
