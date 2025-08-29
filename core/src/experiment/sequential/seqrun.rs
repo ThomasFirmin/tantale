@@ -16,10 +16,10 @@ type ParEvalType<Obj,Opt,Info,SInfo> = Option<ParEvaluator<SId,Obj,Opt,Info, SIn
 
 pub struct Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Ob: Objective<Obj, Cod, Out>,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
+    Ob: Objective<Obj, Cod, Out>,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Evaluator<SId,Obj,Opt,Op::Info, Op::SInfo>>,
     Obj: Domain,
     Opt: Domain,
@@ -40,10 +40,10 @@ where
 
 impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod> Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Ob: Objective<Obj, Cod, Out>,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
+    Ob: Objective<Obj, Cod, Out>,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Evaluator<SId,Obj,Opt,Op::Info, Op::SInfo>>,
     Obj: Domain,
     Opt: Domain,
@@ -58,10 +58,10 @@ where
 
 impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod> Runable<SId,Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId,Obj,Opt,Op::Info, Op::SInfo>> for Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Ob: Objective<Obj, Cod, Out>,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Ob: Objective<Obj, Cod, Out>,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Evaluator<SId,Obj,Opt,Op::Info, Op::SInfo>>,
     Obj: Domain,
     Opt: Domain,
@@ -138,10 +138,10 @@ where
 
 pub struct ParExperiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, ParEvaluator<SId,Obj,Opt,Op::Info, Op::SInfo>> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
@@ -168,10 +168,10 @@ where
 
 impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod> ParExperiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, ParEvaluator<SId,Obj,Opt,Op::Info, Op::SInfo>> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
@@ -192,10 +192,10 @@ where
 
 impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod> Runable<SId,Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod, ParEvaluator<SId,Obj,Opt,Op::Info, Op::SInfo>> for ParExperiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Ob: Objective<Obj, Cod, Out> + Send + Sync,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, ParEvaluator<SId,Obj,Opt,Op::Info, Op::SInfo>> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
@@ -271,7 +271,7 @@ where
     fn load(searchspace:Scp,objective:Ob,saver:Sv)-> Self {
         let (stop,optimizer,evaluator) = saver.load(
             &searchspace, 
-            objective.get_codomain().as_ref()
+            objective.get_codomain().as_ref(),
         ).unwrap();
         ParExperiment{
             searchspace,

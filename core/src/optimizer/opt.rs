@@ -18,12 +18,10 @@ where
 
 /// Describes the current state of an [`Optimizer`].
 /// It is used to serialize and deserialize the [`Optimizer`].
-pub trait OptState
+pub trait OptState 
 where
     Self : Serialize + for<'de> Deserialize<'de>
-{
-
-}
+{}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
 #[derive(Serialize, Deserialize, std::fmt::Debug)]

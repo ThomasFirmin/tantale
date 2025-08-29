@@ -13,17 +13,15 @@ use tantale_core::{
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
 pub struct RSState {
     pub batch: usize,
     pub iteration: usize,
 }
-impl OptState for RSState {}
+impl OptState for RSState
+{}
 
 #[derive(Serialize,Deserialize)]
 pub struct RSInfo {
@@ -63,8 +61,8 @@ fn rs_iter<Obj, Opt, Scp>(
     sp: Arc<Scp>,
 ) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo>
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
@@ -80,8 +78,8 @@ impl<Obj, Opt, Out, Scp>
     Optimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
     for RandomSearch
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {
@@ -116,8 +114,8 @@ impl<Obj, Opt, Out, Scp>
     SequentialOptimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
     for RandomSearch
 where
-    Obj: Domain + Clone + Display + Debug,
-    Opt: Domain + Clone + Display + Debug,
+    Obj: Domain,
+    Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
 {

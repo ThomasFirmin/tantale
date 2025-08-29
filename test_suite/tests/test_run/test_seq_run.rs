@@ -3,6 +3,7 @@ use tantale_core::{
     saver::{CSVSaver, Saver},
     stop::Calls,
     EmptyInfo, ObjBase, Optimizer, SId, Searchspace, SingleCodomain, Solution,
+    load,
 };
 
 use tantale_algos::{RSState, RandomSearch};
@@ -102,7 +103,7 @@ fn test_seq_run() {
     let stop = Calls::new(50);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
 
-    let mut exp = Experiment::new(sp, obj, opt, stop, saver);
+    let exp = Experiment::new(sp, obj, opt, stop, saver);
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -112,18 +113,15 @@ fn test_seq_run() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = ObjBase::new(cod, func);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-    let mut exp= Experiment::load(sp, obj, saver);
+    let mut exp= load!(Experiment, RandomSearch, Calls | sp, obj, saver);
     exp.stop.0 = 0;
 
-    assert_eq!(stop.0, 50, "Number of calls is wrong");
-    assert_eq!(opt.0.iteration, 8, "Number of iteration is wrong");
-    assert_eq!(opt.0.batch, 7, "Batch size is wrong");
+    assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
+    assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
+    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-    let func = sp_evaluator::example;
-    let obj = ObjBase::new(cod, func);
-
-    stop.1 = 100;
-    run(sp, obj, opt, stop, saver);
+    exp.stop.1 = 100;
+    exp.run();
     run_reader("tmp_test_seqrun", 100);
 
     let _a = Cleaner {};

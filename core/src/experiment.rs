@@ -12,6 +12,12 @@ pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo> = (
     Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
 );
 
+#[macro_export]
+macro_rules! load {
+    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
+        $experiment::<_,_,$optimizer,$stop,_,_,_,_,_>::load($searchspace,$objective,$saver)
+    };
+}
 
 pub trait Runable<SolId, Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod, Eval>
 where
