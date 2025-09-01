@@ -83,11 +83,12 @@ where
         };
 
         let (mut sobj, mut sopt, mut info): (_,_,Arc<Op::Info>);
-        while !st.lock().unwrap().stop() {
+        loop{
             {
                 let mut st = st.lock().unwrap();
-                self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st, &eval);
                 st.update(ExpStep::Evaluation);
+                self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st, &eval);
+                if st.stop(){break};
             }
 
             // Arc copy of data to send to evaluator thread.
@@ -104,13 +105,15 @@ where
                     >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
-            self.saver.save_partial(eval.in_obj, eval.in_opt, sp.clone(), cod.clone(), eval.info);
+            self.saver.save_partial(cobj.clone(), copt.clone(), sp.clone(), cod.clone(), eval.info.clone());
             self.saver.save_out(cout, sp.clone());
             self.saver.save_codom(cobj.clone(), sp.clone() , cod.clone());
 
+            if st.lock().unwrap().stop(){self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st.lock().unwrap(), &eval); break};
             (sobj, sopt, info) = self.optimizer.step((cobj,copt), sp.clone());
             eval = Evaluator::new(sobj.clone(), sopt.clone(), info);
             st.lock().unwrap().update(ExpStep::Optimization);
+            if st.lock().unwrap().stop(){self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st.lock().unwrap(), &eval); break};
         }
     }
 
@@ -223,11 +226,12 @@ where
         };
 
         let (mut sobj, mut sopt, mut info): (_,_,Arc<Op::Info>);
-        while !st.lock().unwrap().stop() {
+        loop {
             {
                 let mut st = st.lock().unwrap();
                 self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st, &eval);
                 st.update(ExpStep::Evaluation);
+                if st.stop(){break};
             }
 
             // Arc copy of data to send to evaluator thread.
@@ -244,8 +248,8 @@ where
                     >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
-            let sobj1 = eval.in_obj.clone();
-            let sopt1 = eval.in_opt.clone();
+            let cobj1 = cobj.clone();
+            let copt1 = copt.clone();
             let sp1 = sp.clone();
             let cod1 = cod.clone();
             let info1 = eval.info.clone();
@@ -254,7 +258,7 @@ where
             let cod2 = cod.clone();
             rayon::join(
                 || {
-                    let _ = &self.saver.save_partial(sobj1, sopt1, sp1, cod1, info1);
+                    let _ = &self.saver.save_partial(cobj1, copt1, sp1, cod1, info1);
                 },
                 || {
                     let _ = &self.saver.save_out(cout, sp2.clone());
@@ -262,9 +266,11 @@ where
                 },
             );
 
+            if st.lock().unwrap().stop(){self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st.lock().unwrap(), &eval);break};
             (sobj, sopt, info) = self.optimizer.step((cobj,copt), sp.clone());
             eval = ParEvaluator::new(sobj.clone(), sopt.clone(), info);
             st.lock().unwrap().update(ExpStep::Optimization);
+            if st.lock().unwrap().stop(){self.saver.save_state(sp.clone(), self.optimizer.get_state(), &st.lock().unwrap(), &eval);break};
         }
     }
 

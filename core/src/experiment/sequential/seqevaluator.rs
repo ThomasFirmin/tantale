@@ -2,7 +2,7 @@ use crate::{
     ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, OptInfo, Outcome, Partial, SolInfo, Solution, experiment::Evaluate, optimizer::opt::SolPairs, stop::{ExpStep, Stop}
 };
 
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
@@ -22,6 +22,7 @@ where
     pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
+    idx: usize,
 }
 
 impl<SolId, Obj, Opt, Info, SInfo> Evaluator<SolId, Obj, Opt, Info, SInfo>
@@ -37,7 +38,7 @@ where
         in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
         info:Arc<Info>
     ) -> Self {
-        Evaluator { in_obj, in_opt ,info}
+        Evaluator { in_obj, in_opt ,info, idx:0}
     }
 }
 
@@ -50,7 +51,8 @@ where
     SInfo: SolInfo,
 {
     fn from(value: ParEvaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
-        Evaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info }
+        let idx = value.in_obj.len()-value.idx_list.lock().unwrap().len();
+        Evaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info, idx}
     }
 }
 
@@ -81,7 +83,7 @@ where
         let mut result_out = Vec::new();
         let mut st = stop.lock().unwrap();
         
-        let mut i=0;
+        let mut i= self.idx;
         let length = self.in_obj.len();
         while i < length && !st.stop(){
             let sobj = self.in_obj[i].clone();
@@ -93,7 +95,8 @@ where
             st.update(ExpStep::Distribution);
             i += 1
         }
-
+        // For saving in case of early stopping before full evaluation of all elements
+        self.idx = i;
         ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
     }
 }
@@ -119,6 +122,7 @@ where
     pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
+    idx_list : Arc<Mutex<Vec<usize>>>,
 }
 
 impl<SolId, Obj, Opt, Info, SInfo> ParEvaluator<SolId, Obj, Opt, Info, SInfo>
@@ -134,7 +138,8 @@ where
         in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
         info:Arc<Info>
     ) -> Self {
-        ParEvaluator { in_obj, in_opt ,info}
+        let idx_list = Arc::new(Mutex::new((0..in_obj.len()).collect()));
+        ParEvaluator { in_obj, in_opt ,info,idx_list}
     }
 }
 
@@ -167,16 +172,17 @@ where
         let result_opt = Arc::new(Mutex::new(Vec::new()));
         let result_out = Arc::new(Mutex::new(Vec::new()));
 
-        self.in_obj
-            .par_iter()
-            .zip(self.in_opt.par_iter())
-            .for_each(|(sobj, sopt)| {
+        (0..self.idx_list.lock().unwrap().len()).into_par_iter()
+            .for_each(|_| {
                 let dostop = {
                     let mut stplock = stop.lock().unwrap();
                     stplock.update(ExpStep::Distribution);
                     stplock.stop()
                 };
                 if !dostop {
+                    let idx = self.idx_list.lock().unwrap().pop().unwrap();
+                    let sobj = self.in_obj[idx].clone();
+                    let sopt = self.in_opt[idx].clone();
                     let (cod, out) = ob.clone().compute(sobj.get_x().clone());
                     result_obj
                         .lock()
@@ -209,6 +215,7 @@ where
     SInfo: SolInfo,
 {
     fn from(value: Evaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
-        ParEvaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info }
+        let idx_list = Arc::new(Mutex::new((0..value.in_obj.len()).collect()));
+        ParEvaluator{ in_obj: value.in_obj, in_opt: value.in_opt, info: value.info , idx_list}
     }
 }

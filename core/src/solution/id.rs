@@ -1,8 +1,6 @@
-use crate::saver::CSVWritable;
+use crate::{saver::CSVWritable,SOL_ID};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
+use std::sync::atomic::Ordering;
 
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id

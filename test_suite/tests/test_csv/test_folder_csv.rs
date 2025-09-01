@@ -154,8 +154,8 @@ where
 
     let (cobj, copt, vinfos) = (Arc::new(cobj), Arc::new(copt), vinfos);
     saver.save_partial(
-        sobj.clone(),
-        sopt.clone(),
+        cobj.clone(),
+        copt.clone(),
         sp.clone(),
         cod.clone(),
         infos.clone(),
@@ -191,15 +191,17 @@ where
             (r.0, r.1, linked)
         })
         .collect();
-
+    
+    let cobj = Arc::new(computed.0);
+    let copt = Arc::new(computed.1);
     saver.save_partial(
-        sobj.clone(),
-        sopt.clone(),
+        cobj.clone(),
+        copt.clone(),
         sp.clone(),
         cod.clone(),
         infos.clone(),
     );
-    saver.save_codom(Arc::new(computed.0), sp.clone(), cod.clone());
+    saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
     saver.save_out(computed.2, sp.clone());
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 

@@ -12,7 +12,7 @@ impl Stop for Calls {
     }
 
     fn stop(&self) -> bool {
-        self.0 > self.1
+        self.0 >= self.1
     }
 
     fn update(&mut self, step: ExpStep) {

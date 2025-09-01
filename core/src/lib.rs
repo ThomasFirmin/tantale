@@ -2,6 +2,12 @@
 //!
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
+use std::sync::atomic::AtomicUsize;
+
+pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
+pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
+
+
 pub mod domain;
 pub use domain::{
     uniform, uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real, BaseDom,

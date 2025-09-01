@@ -1,13 +1,21 @@
 use crate::{
-    Objective, domain::{Domain, TypeDom}, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::{ArcVecArc, Optimizer}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Computed, Id, Partial, Solution}, stop::Stop
+    Objective, SOL_ID, OPT_ID,
+    domain::{Domain, TypeDom},
+    experiment::Evaluate,
+    objective::{Codomain, LinkedOutcome, Outcome},
+    optimizer::{ArcVecArc, Optimizer},
+    saver::{CheckpointError, GlobalParameters, Saver},
+    searchspace::Searchspace,
+    solution::{Computed, Id, Solution},
+    stop::Stop
 };
 use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::{
-    fs::{create_dir, create_dir_all, File, OpenOptions},
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    fs::{File, OpenOptions, create_dir, create_dir_all},
+    path::{Path, PathBuf}, 
+    sync::{Arc, Mutex, atomic::Ordering}
 };
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
@@ -28,7 +36,7 @@ pub struct CSVSaver {
     path_popt: Option<PathBuf>,
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
-    path_check: Option<(PathBuf, PathBuf, PathBuf)>,
+    path_check: Option<(PathBuf, PathBuf, PathBuf, PathBuf)>,
 }
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
@@ -74,7 +82,8 @@ impl CSVSaver {
             let pste = path.join(Path::new("state_opt.json"));
             let pstp = path.join(Path::new("state_stp.json"));
             let peva = path.join(Path::new("state_eval.json"));
-            Some((pste, pstp, peva))
+            let ppar = path.join(Path::new("state_param.json"));
+            Some((pste, pstp, peva, ppar))
         } else {
             None
         };
@@ -174,8 +183,8 @@ where
 
     fn save_partial(
         &self,
-        obj: ArcVecArc<Partial<SolId, Obj, Op::SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, Op::SInfo>>,
+        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
         sp: Arc<Scp>,
         _cod: Arc<Cod>,
         info: Arc<Op::Info>,
@@ -277,6 +286,11 @@ where
             serde_json::to_writer(wrt, stop).unwrap();
             let wrt = File::create(path.2.as_path()).unwrap();
             serde_json::to_writer(wrt, eval).unwrap();
+
+            let global = GlobalParameters{ sold_id:SOL_ID.load(Ordering::Relaxed), opt_id: OPT_ID.load(Ordering::Relaxed) };
+
+            let wrt = File::create(path.3.as_path()).unwrap();
+            serde_json::to_writer(wrt, &global).unwrap();
         }
     }
 
@@ -325,12 +339,12 @@ where
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_eva = path_check.join(Path::new("state_eva.json"));
+            let path_eva = path_check.join(Path::new("state_eval.json"));
             if path_eva.is_file() {
                 let rdreva = File::open(path_eva).unwrap();
                 Ok(serde_json::from_reader(rdreva).unwrap())
             } else {
-                Err(CheckpointError(String::from("One state file does not exists among state_sav.json, state_opt.json, state_stp.json.")))
+                Err(CheckpointError(String::from("Evaluator state file state_eval.json does not exists.")))
             }
         } else {
             Err(CheckpointError(String::from(
@@ -339,12 +353,32 @@ where
         }
     }
     
+    fn load_parameters(&self, _sp:&Scp, _cod:&Cod) -> Result<GlobalParameters, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_par = path_check.join(Path::new("state_param.json"));
+            if path_par.is_file() {
+                let rdrpar = File::open(path_par).unwrap();
+                Ok(serde_json::from_reader(rdrpar).unwrap())
+            } else {
+                Err(CheckpointError(String::from("Parameters state file state_param.json does not exists.")))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
     fn load(&self, _sp:&Scp, _cod:&Cod) -> Result<(St,Op,Eval), CheckpointError> {
+        let global: GlobalParameters = <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_parameters(self,_sp,_cod)?;
+        SOL_ID.store(global.sold_id, Ordering::Release);
+        OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
             <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_stop(self,_sp,_cod)?,
             <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_optimizer(self,_sp,_cod)?,
             <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_evaluate(self,_sp,_cod)?,
         ))
     }
-
 }
