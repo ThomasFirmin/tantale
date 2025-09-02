@@ -171,16 +171,15 @@ where
         let result_obj = Arc::new(Mutex::new(Vec::new()));
         let result_opt = Arc::new(Mutex::new(Vec::new()));
         let result_out = Arc::new(Mutex::new(Vec::new()));
-
-        (0..self.idx_list.lock().unwrap().len()).into_par_iter()
+        let length = self.idx_list.lock().unwrap().len();
+        (0..length).into_par_iter()
             .for_each(|_| {
-                let dostop = {
-                    let mut stplock = stop.lock().unwrap();
+                let mut stplock = stop.lock().unwrap();
+                if !stplock.stop(){
                     stplock.update(ExpStep::Distribution);
-                    stplock.stop()
-                };
-                if !dostop {
+                    drop(stplock);
                     let idx = self.idx_list.lock().unwrap().pop().unwrap();
+
                     let sobj = self.in_obj[idx].clone();
                     let sopt = self.in_opt[idx].clone();
                     let (cod, out) = ob.clone().compute(sobj.get_x().clone());
@@ -198,7 +197,6 @@ where
                         .push(LinkedOutcome::new(out.clone(), sobj.clone()));
                 }
             });
-
         let obj = Arc::new(Arc::try_unwrap(result_obj).unwrap().into_inner().unwrap());
         let opt = Arc::new(Arc::try_unwrap(result_opt).unwrap().into_inner().unwrap());
         let lin = Arc::try_unwrap(result_out).unwrap().into_inner().unwrap();
