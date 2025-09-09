@@ -1,5 +1,11 @@
 use crate::{
-    Sp, domain::{Domain, TypeDom}, optimizer::ArcVecArc, saver::CSVLeftRight, searchspace::{Searchspace, SolInfo}, solution::{Id, Partial, Solution}, variable::Var
+    domain::{Domain, TypeDom},
+    optimizer::ArcVecArc,
+    saver::CSVLeftRight,
+    searchspace::{Searchspace, SolInfo},
+    solution::{Id, Partial, Solution},
+    variable::Var,
+    Sp,
 };
 
 use rand::prelude::ThreadRng;
@@ -8,8 +14,7 @@ use std::sync::Arc;
 use rayon::prelude::*;
 
 /// A basic [`Searchspace`] made of a [`Box`] slice of [`Variable`].
-pub struct ParSp<Obj:Domain, Opt:Domain>
-{
+pub struct ParSp<Obj: Domain, Opt: Domain> {
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
@@ -167,14 +172,13 @@ where
     }
 }
 
-
-impl <Obj:Domain,Opt:Domain> From<Sp<Obj,Opt>> for ParSp<Obj,Opt>
-{
-    fn from(value: Sp<Obj,Opt>) -> Self {
-        ParSp { variables: value.variables }
+impl<Obj: Domain, Opt: Domain> From<Sp<Obj, Opt>> for ParSp<Obj, Opt> {
+    fn from(value: Sp<Obj, Opt>) -> Self {
+        ParSp {
+            variables: value.variables,
+        }
     }
 }
-
 
 impl<Obj, Opt> CSVLeftRight<ParSp<Obj, Opt>, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
     for ParSp<Obj, Opt>

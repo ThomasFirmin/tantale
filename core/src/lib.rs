@@ -7,7 +7,6 @@ use std::sync::atomic::AtomicUsize;
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
 
-
 pub mod domain;
 pub use domain::{
     uniform, uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real, BaseDom,
@@ -19,7 +18,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{Computed, Id, ParSId, Partial, SId, SolInfo, Solution};
+pub use solution::{Computed, Id, ParSId, Partial, SId, SolInfo, Solution,FidelState,FidelityInfo};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};
@@ -30,7 +29,7 @@ pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
     FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, LinkedOutcome,
-    Multi, MultiCodomain, ObjBase, Objective, Outcome, Single, SingleCodomain,
+    Multi, MultiCodomain, Objective, Outcome, Single, SingleCodomain,
 };
 
 pub mod optimizer;

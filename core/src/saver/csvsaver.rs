@@ -1,5 +1,4 @@
 use crate::{
-    Objective, SOL_ID, OPT_ID,
     domain::{Domain, TypeDom},
     experiment::Evaluate,
     objective::{Codomain, LinkedOutcome, Outcome},
@@ -7,15 +6,16 @@ use crate::{
     saver::{CheckpointError, GlobalParameters, Saver},
     searchspace::Searchspace,
     solution::{Computed, Id, Solution},
-    stop::Stop
+    stop::Stop,
+    OPT_ID, SOL_ID,
 };
 use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::{
-    fs::{File, OpenOptions, create_dir, create_dir_all},
-    path::{Path, PathBuf}, 
-    sync::{Arc, Mutex, atomic::Ordering}
+    fs::{create_dir, create_dir_all, File, OpenOptions},
+    path::{Path, PathBuf},
+    sync::{atomic::Ordering, Arc, Mutex},
 };
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
@@ -104,8 +104,8 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Cod, Out, Scp,Op, Ob, Eval>
-    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval> for CSVSaver
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
@@ -115,24 +115,26 @@ where
     Cod::TypeCodom: Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
-    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    + Send
-    + Sync,
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     TypeDom<Obj>: Send + Sync,
     TypeDom<Opt>: Send + Sync,
-    Op: Optimizer<SolId,Obj,Opt,Cod,Out,Scp>,
-    Op::Info:  CSVWritable<(), ()> + Send + Sync,
+    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Ob: Objective<Obj,Cod,Out>,
-    Eval: Evaluate<Ob,St,Obj,Opt,Out,Cod,Op::Info,Op::SInfo,SolId>,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             panic!("The folder path already exists, {}.", self.path.display())
         } else if self.path.is_file() {
-            panic!("The given path cannot point to a file, {}.", self.path.display())
+            panic!(
+                "The given path cannot point to a file, {}.",
+                self.path.display()
+            )
         } else {
             let path_evals = self.path.join(Path::new("evaluations"));
             create_dir_all(self.path.as_path()).unwrap();
@@ -174,7 +176,7 @@ where
                 wrt.flush().unwrap();
             }
 
-            if self.path_check.is_some(){
+            if self.path_check.is_some() {
                 let path = self.path.join(Path::new("checkpoint"));
                 create_dir(path.as_path()).unwrap();
             }
@@ -278,7 +280,7 @@ where
         }
     }
 
-    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval:&Eval) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
@@ -287,7 +289,10 @@ where
             let wrt = File::create(path.2.as_path()).unwrap();
             serde_json::to_writer(wrt, eval).unwrap();
 
-            let global = GlobalParameters{ sold_id:SOL_ID.load(Ordering::Relaxed), opt_id: OPT_ID.load(Ordering::Relaxed) };
+            let global = GlobalParameters {
+                sold_id: SOL_ID.load(Ordering::Relaxed),
+                opt_id: OPT_ID.load(Ordering::Relaxed),
+            };
 
             let wrt = File::create(path.3.as_path()).unwrap();
             serde_json::to_writer(wrt, &global).unwrap();
@@ -298,7 +303,7 @@ where
         std::fs::remove_dir_all(&self.path).unwrap();
     }
 
-    fn load_stop(&self,_sp:&Scp, _cod:&Cod) -> Result<St, CheckpointError> {
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod) -> Result<St, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -307,7 +312,9 @@ where
                 let rdrstp = File::open(path_stp).unwrap();
                 Ok(serde_json::from_reader(rdrstp).unwrap())
             } else {
-                Err(CheckpointError(String::from("Stop state file state_stp.json does not exists.")))
+                Err(CheckpointError(String::from(
+                    "Stop state file state_stp.json does not exists.",
+                )))
             }
         } else {
             Err(CheckpointError(String::from(
@@ -316,8 +323,7 @@ where
         }
     }
 
-
-    fn load_optimizer(&self,_sp:&Scp, _cod:&Cod) -> Result<Op, CheckpointError> {
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod) -> Result<Op, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -326,7 +332,9 @@ where
                 let rdropt = File::open(path_opt).unwrap();
                 Ok(Op::from_state(serde_json::from_reader(rdropt).unwrap()))
             } else {
-                Err(CheckpointError(String::from("Optimizer state file state_opt.json does not exists.")))
+                Err(CheckpointError(String::from(
+                    "Optimizer state file state_opt.json does not exists.",
+                )))
             }
         } else {
             Err(CheckpointError(String::from(
@@ -335,7 +343,7 @@ where
         }
     }
 
-    fn load_evaluate(&self,_sp:&Scp, _cod:&Cod) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod) -> Result<Eval, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -344,25 +352,9 @@ where
                 let rdreva = File::open(path_eva).unwrap();
                 Ok(serde_json::from_reader(rdreva).unwrap())
             } else {
-                Err(CheckpointError(String::from("Evaluator state file state_eval.json does not exists.")))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-    
-    fn load_parameters(&self, _sp:&Scp, _cod:&Cod) -> Result<GlobalParameters, CheckpointError> {
-        let path_check = self.path.join(Path::new("checkpoint"));
-        let does_exist = path_check.try_exists().unwrap();
-        if does_exist {
-            let path_par = path_check.join(Path::new("state_param.json"));
-            if path_par.is_file() {
-                let rdrpar = File::open(path_par).unwrap();
-                Ok(serde_json::from_reader(rdrpar).unwrap())
-            } else {
-                Err(CheckpointError(String::from("Parameters state file state_param.json does not exists.")))
+                Err(CheckpointError(String::from(
+                    "Evaluator state file state_eval.json does not exists.",
+                )))
             }
         } else {
             Err(CheckpointError(String::from(
@@ -371,14 +363,345 @@ where
         }
     }
 
-    fn load(&self, _sp:&Scp, _cod:&Cod) -> Result<(St,Op,Eval), CheckpointError> {
-        let global: GlobalParameters = <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_parameters(self,_sp,_cod)?;
+    fn load_parameters(&self, _sp: &Scp, _cod: &Cod) -> Result<GlobalParameters, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_par = path_check.join(Path::new("state_param.json"));
+            if path_par.is_file() {
+                let rdrpar = File::open(path_par).unwrap();
+                Ok(serde_json::from_reader(rdrpar).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "Parameters state file state_param.json does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
+        let global: GlobalParameters =
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_parameters(
+                self, _sp, _cod,
+            )?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_stop(self,_sp,_cod)?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_optimizer(self,_sp,_cod)?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Ob, Eval>>::load_evaluate(self,_sp,_cod)?,
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_stop(
+                self, _sp, _cod,
+            )?,
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_optimizer(
+                self, _sp, _cod,
+            )?,
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_evaluate(
+                self, _sp, _cod,
+            )?,
+        ))
+    }
+}
+
+
+#[cfg(feature="mpi")]
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
+where
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
+    St: Stop + Serialize + DeserializeOwned,
+    Obj: Domain + Send + Sync,
+    Opt: Domain + Send + Sync,
+    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
+    Cod::TypeCodom: Send + Sync,
+    Out: Outcome + CSVWritable<(), ()> + Send + Sync,
+    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
+    TypeDom<Obj>: Send + Sync,
+    TypeDom<Opt>: Send + Sync,
+    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::State: Serialize + DeserializeOwned,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
+{
+    fn init(&mut self, sp: &Scp, cod: &Cod) {
+        let does_exist = self.path.try_exists().unwrap();
+        if does_exist {
+            panic!("The folder path already exists, {}.", self.path.display())
+        } else if self.path.is_file() {
+            panic!(
+                "The given path cannot point to a file, {}.",
+                self.path.display()
+            )
+        } else {
+            let path_evals = self.path.join(Path::new("evaluations"));
+            create_dir_all(self.path.as_path()).unwrap();
+            create_dir(path_evals.as_path()).unwrap();
+
+            if let Some(ppobj) = &self.path_pobj {
+                let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
+                let mut idstr = SolId::header(&());
+                idstr.extend(Scp::header(sp));
+                idstr.extend(Op::SInfo::header(&()));
+                idstr.extend(Op::Info::header(&()));
+                wrt.write_record(idstr).unwrap();
+                wrt.flush().unwrap();
+            }
+
+            if let Some(ppopt) = &self.path_popt {
+                let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
+                let mut idstr = SolId::header(&());
+                idstr.extend(Scp::header(sp));
+                idstr.extend(Op::SInfo::header(&()));
+                idstr.extend(Op::Info::header(&()));
+                wrt.write_record(idstr).unwrap();
+                wrt.flush().unwrap();
+            }
+
+            if let Some(ppout) = &self.path_out {
+                let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
+                let mut idstr = SolId::header(&());
+                idstr.extend(Out::header(&()));
+                wrt.write_record(idstr).unwrap();
+                wrt.flush().unwrap();
+            }
+
+            {
+                let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
+                let mut idstr = SolId::header(&());
+                idstr.extend(Cod::header(cod));
+                wrt.write_record(idstr).unwrap();
+                wrt.flush().unwrap();
+            }
+
+            if self.path_check.is_some() {
+                let path = self.path.join(Path::new("checkpoint"));
+                create_dir(path.as_path()).unwrap();
+            }
+        }
+    }
+
+    fn save_partial(
+        &self,
+        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        sp: Arc<Scp>,
+        _cod: Arc<Cod>,
+        info: Arc<Op::Info>,
+    ) {
+        if let Some(ppobj) = &self.path_pobj {
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppobj.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+            obj.par_iter().for_each(|op| {
+                let id = op.get_id();
+                let sinfo = op.get_info();
+                let mut idstr = id.write(&());
+                idstr.extend(sp.write_left(&op.get_x().clone()));
+                idstr.extend(sinfo.write(&()));
+                idstr.extend(info.write(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+            });
+        }
+        if let Some(ppopt) = &self.path_popt {
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppopt.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+
+            opt.par_iter().for_each(|op| {
+                let id = op.get_id();
+                let sinfo = op.get_info();
+                let mut idstr = id.write(&());
+                idstr.extend(sp.write_right(&op.get_x().clone()));
+                idstr.extend(sinfo.write(&()));
+                idstr.extend(info.write(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+            });
+        }
+    }
+
+    fn save_codom(
+        &self,
+        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        _sp: Arc<Scp>,
+        cod: Arc<Cod>,
+    ) {
+        let file = OpenOptions::new()
+            .append(true)
+            .open(self.path_codom.as_path())
+            .unwrap();
+        let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+        obj.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let codom = op.get_y();
+            let mut idstr = id.write(&());
+            idstr.extend(cod.write(codom.as_ref()));
+            {
+                let mut wrt_local = wrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn save_out(&self, out: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, _sp: Arc<Scp>) {
+        if let Some(ppout) = &self.path_out {
+            let file = OpenOptions::new()
+                .append(true)
+                .open(ppout.as_path())
+                .unwrap();
+            let wrt = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
+
+            out.par_iter().for_each(|o| {
+                let id = o.sol.get_id();
+                let output = &o.out;
+                let mut idstr = id.write(&());
+                idstr.extend(output.write(&()));
+                {
+                    let mut wrt_local = wrt.lock().unwrap();
+                    wrt_local.write_record(&idstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+            });
+        }
+    }
+
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval) {
+        if let Some(path) = &self.path_check {
+            let wrt = File::create(path.0.as_path()).unwrap();
+            serde_json::to_writer(wrt, state).unwrap();
+            let wrt = File::create(path.1.as_path()).unwrap();
+            serde_json::to_writer(wrt, stop).unwrap();
+            let wrt = File::create(path.2.as_path()).unwrap();
+            serde_json::to_writer(wrt, eval).unwrap();
+
+            let global = GlobalParameters {
+                sold_id: SOL_ID.load(Ordering::Relaxed),
+                opt_id: OPT_ID.load(Ordering::Relaxed),
+            };
+
+            let wrt = File::create(path.3.as_path()).unwrap();
+            serde_json::to_writer(wrt, &global).unwrap();
+        }
+    }
+
+    fn clean(self) {
+        std::fs::remove_dir_all(&self.path).unwrap();
+    }
+
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod) -> Result<St, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_stp = path_check.join(Path::new("state_stp.json"));
+            if path_stp.is_file() {
+                let rdrstp = File::open(path_stp).unwrap();
+                Ok(serde_json::from_reader(rdrstp).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "Stop state file state_stp.json does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod) -> Result<Op, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_opt = path_check.join(Path::new("state_opt.json"));
+            if path_opt.is_file() {
+                let rdropt = File::open(path_opt).unwrap();
+                Ok(Op::from_state(serde_json::from_reader(rdropt).unwrap()))
+            } else {
+                Err(CheckpointError(String::from(
+                    "Optimizer state file state_opt.json does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod) -> Result<Eval, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_eva = path_check.join(Path::new("state_eval.json"));
+            if path_eva.is_file() {
+                let rdreva = File::open(path_eva).unwrap();
+                Ok(serde_json::from_reader(rdreva).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "Evaluator state file state_eval.json does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load_parameters(&self, _sp: &Scp, _cod: &Cod) -> Result<GlobalParameters, CheckpointError> {
+        let path_check = self.path.join(Path::new("checkpoint"));
+        let does_exist = path_check.try_exists().unwrap();
+        if does_exist {
+            let path_par = path_check.join(Path::new("state_param.json"));
+            if path_par.is_file() {
+                let rdrpar = File::open(path_par).unwrap();
+                Ok(serde_json::from_reader(rdrpar).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "Parameters state file state_param.json does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
+        let global: GlobalParameters =
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_parameters(
+                self, _sp, _cod,
+            )?;
+        SOL_ID.store(global.sold_id, Ordering::Release);
+        OPT_ID.store(global.sold_id, Ordering::Release);
+        Ok((
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_stop(
+                self, _sp, _cod,
+            )?,
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_optimizer(
+                self, _sp, _cod,
+            )?,
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_evaluate(
+                self, _sp, _cod,
+            )?,
         ))
     }
 }

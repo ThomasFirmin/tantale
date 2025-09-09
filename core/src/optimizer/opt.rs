@@ -11,17 +11,17 @@ use std::sync::Arc;
 /// obtained  after each iteration of the [`Optimizer`].
 pub trait OptInfo
 where
-    Self : Serialize + for<'de> Deserialize<'de>
+    Self: Serialize + for<'de> Deserialize<'de>,
 {
-
 }
 
 /// Describes the current state of an [`Optimizer`].
 /// It is used to serialize and deserialize the [`Optimizer`].
-pub trait OptState 
+pub trait OptState
 where
-    Self : Serialize + for<'de> Deserialize<'de>
-{}
+    Self: Serialize + for<'de> Deserialize<'de>,
+{
+}
 
 /// An empty [`OptInfo`] or [`SolInfo`].
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
@@ -64,9 +64,9 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Self::SInfo>,
 {
-    type SInfo : SolInfo;
-    type Info : OptInfo;
-    type State : OptState;
+    type SInfo: SolInfo;
+    type Info: OptInfo;
+    type State: OptState;
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
 
@@ -86,11 +86,12 @@ where
     fn get_state(&mut self) -> &Self::State;
 
     /// Return an instance of the [`Optimizer`]  from an [`OptState`].
-    fn from_state(state:Self::State) -> Self;
+    fn from_state(state: Self::State) -> Self;
 }
 
 /// A sequential [`Optimizer`] without any parallelization.
-pub trait SequentialOptimizer<SolId, Obj, Opt, Cod, Out, Scp>:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>
+pub trait SequentialOptimizer<SolId, Obj, Opt, Cod, Out, Scp>:
+    Optimizer<SolId, Obj, Opt, Cod, Out, Scp>
 where
     SolId: Id,
     Obj: Domain,

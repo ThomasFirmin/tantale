@@ -291,6 +291,23 @@ pub fn obj(input: TokenStream) -> TokenStream {
             ).to_compile_error();
     }
 
+    let output = &fn_item.sig.output;
+    let outspan = output.span();
+    let outtype = match output {
+        syn::ReturnType::Default => return
+            syn::Error::new(outspan,
+                 "When defining the objective function, it should have a single Outcome type. A single type path."
+                ).to_compile_error().into(),
+        syn::ReturnType::Type(_, ty) => ty,
+    };
+
+    match outtype.as_ref(){
+        syn::Type::Path(_) => {},
+        _ => return syn::Error::new(outspan,
+                 "When defining the objective function, it should have a single Outcome type. A single type path."
+                ).to_compile_error().into(),
+    }
+
     let content = fn_item.block.stmts;
 
     let mut variables: Vec<LineStream> = Vec::new();
@@ -309,9 +326,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
         repeats,
     ) = parse_sp(variables).unwrap();
 
-    let new_args: syn::FnArg =
-        parse_quote! {tantale_in : std::sync::Arc::<[<#ident_mixed_obj as Domain>::TypeDom]>};
-    fn_item.sig.inputs.push(new_args);
+    fn_item.sig.inputs.push(parse_quote! {tantale_in : std::sync::Arc::<[<#ident_mixed_obj as Domain>::TypeDom]>});
+    fn_item.sig.inputs.push(parse_quote! {tantale_state : Option<std::sync::Arc::<#outtype>>});
 
     let mut new_stream = TokenStream::new();
 

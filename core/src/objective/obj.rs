@@ -7,44 +7,30 @@
 use crate::domain::{Domain, TypeDom};
 use crate::objective::outcome::Outcome;
 use crate::objective::Codomain;
-
 use std::sync::Arc;
 
-/// The trait [`Objective`] allows to define the minimal behavior of the wrapper.
+type OptimFn<TypeDom,Out> = fn(Arc<[TypeDom]>,Option<Arc<Out>>) -> Out;
+
+/// The [`Objective`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
-///
-pub trait Objective<Obj, Cod, Out>
-where
-    Obj: Domain,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-{
-    /// Initialize the ['Objective'].
-    fn init(&mut self);
-    /// Compute the outputs of a function to maximize according to an input `x`.
-    fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>);
-
-    fn get_codomain(&self) -> Arc<Cod>;
-}
-
-/// A simple structure wrapping a user defined function to be maximized.
 ///
 /// # Attributes
 ///
 /// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
-/// * `function` : `fn(&[Obj::TypeDom]) -> Out` - A function to be maximized.
-pub struct ObjBase<Obj, Cod, Out>
+/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`] 
+///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
+pub struct Objective<Obj, Cod, Out>
 where
     Obj: Domain,
     Cod: Codomain<Out>,
     Out: Outcome,
 {
     pub codomain: Arc<Cod>,
-    pub function: fn(Arc<[TypeDom<Obj>]>) -> Out,
+    pub function: OptimFn<Obj::TypeDom,Out>,
 }
 
-impl<Obj, Cod, Out> ObjBase<Obj, Cod, Out>
+impl<Obj, Cod, Out> Objective<Obj, Cod, Out>
 where
     Obj: Domain,
     Out: Outcome,
@@ -59,26 +45,21 @@ where
     ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`objective!`](tantale::macros:objective) macro.
     ///
-    pub fn new(cod: Cod, func: fn(Arc<[TypeDom<Obj>]>) -> Out) -> Self {
+    pub fn new(cod: Cod, func: OptimFn<Obj::TypeDom,Out>) -> Self {
         Self {
             codomain: Arc::new(cod),
             function: func,
         }
     }
-}
-impl<Obj, Cod, Out> Objective<Obj, Cod, Out> for ObjBase<Obj, Cod, Out>
-where
-    Obj: Domain,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-{
-    fn init(&mut self) {}
-    fn compute(&self, x: Arc<[TypeDom<Obj>]>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
-        let out = (self.function)(x);
+    /// Initialize the ['Objective'].
+    pub fn init(&mut self) {}
+    /// Compute the outputs of a function to maximize according to an input `x`.    
+    pub fn compute(&self, x: Arc<[TypeDom<Obj>]>, state:Option<Arc<Out>>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
+        let out = (self.function)(x, state);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
     }
 
-    fn get_codomain(&self) -> Arc<Cod> {
+    pub fn get_codomain(&self) -> Arc<Cod> {
         self.codomain.clone()
     }
 }

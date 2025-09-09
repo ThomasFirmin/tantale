@@ -2,7 +2,7 @@ use crate::{
     domain::{Domain, TypeDom},
     optimizer::ArcVecArc,
     saver::CSVLeftRight,
-    searchspace::{Searchspace, SolInfo, ParSp},
+    searchspace::{ParSp, Searchspace, SolInfo},
     solution::{Id, Partial, Solution},
     variable::Var,
 };
@@ -165,10 +165,11 @@ where
     }
 }
 
-impl <Obj:Domain,Opt:Domain> From<ParSp<Obj,Opt>> for Sp<Obj,Opt>
-{
-    fn from(value: ParSp<Obj,Opt>) -> Self {
-        Sp { variables: value.variables }
+impl<Obj: Domain, Opt: Domain> From<ParSp<Obj, Opt>> for Sp<Obj, Opt> {
+    fn from(value: ParSp<Obj, Opt>) -> Self {
+        Sp {
+            variables: value.variables,
+        }
     }
 }
 

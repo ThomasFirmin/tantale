@@ -1,7 +1,7 @@
 use tantale_core::{
     experiment::{sequential::seqevaluator::{ParEvaluator,Evaluator}, Evaluate},
     stop::Calls,
-    EmptyInfo, ObjBase, SId, Searchspace, SingleCodomain, Solution,
+    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution,
 };
 
 use super::init_func::sp_evaluator;
@@ -17,7 +17,7 @@ fn test_seq_evaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(ObjBase::new(cod, func));
+    let obj = Arc::new(Objective::new(cod, func));
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
@@ -27,7 +27,6 @@ fn test_seq_evaluator() {
     let mut eval: Evaluator<SId, _, _, _, _> = Evaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
     let ((cobj, copt), linked) = <Evaluator<_, _, _, _, _> as Evaluate<
-        ObjBase<_, SingleCodomain<OutEvaluator>, OutEvaluator>,
         Calls,
         _,
         _,
@@ -150,7 +149,7 @@ fn test_par_evaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(ObjBase::new(cod, func));
+    let obj = Arc::new(Objective::new(cod, func));
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
@@ -160,7 +159,6 @@ fn test_par_evaluator() {
     let mut eval: ParEvaluator<SId, _, _, _, _> = ParEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
     let ((cobj, copt), linked) = <ParEvaluator<_, _, _, _, _> as Evaluate<
-        ObjBase<_, SingleCodomain<OutEvaluator>, OutEvaluator>,
         Calls,
         _,
         _,

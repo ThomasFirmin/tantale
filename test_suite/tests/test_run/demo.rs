@@ -1,5 +1,5 @@
 use tantale::core::{
-    ObjBase,
+    Objective,
     experiment::{Runable, sequential::ParExperiment},
     load,
     saver::CSVSaver,
@@ -68,7 +68,7 @@ pub mod function_module {
             let _k = [! k_{4} | Nat(0,100) | !];
 
             FuncOutcome{
-                obj: [! j | Real(1000.0,2000.0) | !],
+                obj: [! j | Real(1000.0,2000.0) => uniform_real | !],
                 info : [! info | Cat(&["apple", "orange", "egg"]) | !]
 
             }
@@ -96,7 +96,7 @@ fn test_seq_run() {
     let saver = CSVSaver::new("demo_par", true, true, true, 1);
 
     // Objective
-    let obj = ObjBase::new(cod, func);
+    let obj = Objective::new(cod, func);
 
     // Experiment
     let exp = ParExperiment::new(sp, obj, opt, stop, saver);

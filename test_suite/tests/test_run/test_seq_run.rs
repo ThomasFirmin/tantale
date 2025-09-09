@@ -1,5 +1,5 @@
 use tantale_core::{
-    ObjBase, experiment::{Runable, sequential::{Experiment, ParExperiment}}, load, saver::CSVSaver, stop::Calls
+    Objective, experiment::{Runable, sequential::{Experiment, ParExperiment}}, load, saver::CSVSaver, stop::Calls
 };
 
 use tantale_algos::RandomSearch;
@@ -12,11 +12,11 @@ use std::{
     path::Path
 };
 
-struct Cleaner;
+struct Cleaner{path:String}
 
 impl Drop for Cleaner {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all("tmp_test_seqrun");
+        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 
@@ -88,17 +88,17 @@ pub fn run_reader(path: &str, size: usize) {
 
 #[test]
 fn test_seq_run() {
-    drop(Cleaner {});
+    drop(Cleaner {path:String::from("tmp_test_seqrun")});
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = RandomSearch::new(7);
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = ObjBase::new(cod, func);
+    let obj = Objective::new(cod, func);
     let stop = Calls::new(50);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
 
-    let exp = ParExperiment::new(sp, obj, opt, stop, saver);
+    let exp = Experiment::new(sp, obj, opt, stop, saver);
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -106,8 +106,55 @@ fn test_seq_run() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = ObjBase::new(cod, func);
+    let obj = Objective::new(cod, func);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+    let mut exp= load!(Experiment, RandomSearch, Calls | sp, obj, saver);
+
+    assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
+    assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
+    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+
+    exp.stop.1 = 100;
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let obj = Objective::new(cod, func);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+    let exp= load!(Experiment, RandomSearch, Calls | sp, obj, saver);
+    run_reader("tmp_test_seqrun", 100);
+    assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
+    assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
+    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+
+    drop(Cleaner {path:String::from("tmp_test_seqrun")});
+}
+
+
+
+#[test]
+fn test_seq_parrun() {
+    drop(Cleaner {path:String::from("tmp_test_parseqrun")});
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = RandomSearch::new(7);
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let obj = Objective::new(cod, func);
+    let stop = Calls::new(50);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
+
+    let exp = ParExperiment::new(sp, obj, opt, stop, saver);
+    exp.run();
+
+    run_reader("tmp_test_parseqrun", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let obj = Objective::new(cod, func);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
     let mut exp= load!(ParExperiment, RandomSearch, Calls | sp, obj, saver);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
@@ -120,13 +167,14 @@ fn test_seq_run() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = ObjBase::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+    let obj = Objective::new(cod, func);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
     let exp= load!(ParExperiment, RandomSearch, Calls | sp, obj, saver);
-    run_reader("tmp_test_seqrun", 100);
+    run_reader("tmp_test_parseqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-    let _a = Cleaner {};
+    drop(Cleaner {path:String::from("tmp_test_parseqrun")});
+
 }

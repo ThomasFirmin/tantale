@@ -1,37 +1,40 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, OptInfo, Outcome, Partial, SolInfo, Solution, experiment::Evaluate, optimizer::opt::SolPairs, stop::{ExpStep, Stop}
+    ArcVecArc, Computed, Domain, Fidelity, Id, LinkedOutcome, Objective, OptInfo, Outcome, Partial, SolInfo, Solution, experiment::Evaluate, optimizer::opt::SolPairs, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct Evaluator<SolId, Obj, Opt, Info, SInfo>
+pub struct Evaluator<SolId, Obj, Opt, Info, SInfo, Out>
 where
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
+    Out:Outcome
 {
     pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx: usize,
+    states: HashMap<SolId,Arc<Out>>
 }
 
-impl<SolId, Obj, Opt, Info, SInfo> Evaluator<SolId, Obj, Opt, Info, SInfo>
+impl<SolId, Obj, Opt, Info, SInfo,Out> Evaluator<SolId, Obj, Opt, Info, SInfo,Out>
 where
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     Info: OptInfo,
     SInfo: SolInfo,
+    Out: Outcome,
 {
     pub fn new(
         in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
@@ -43,38 +46,41 @@ where
             in_opt,
             info,
             idx: 0,
+            states: HashMap::new()
         }
     }
 }
 
-impl<SolId, Obj, Opt, Info, SInfo> From<ParEvaluator<SolId, Obj, Opt, Info, SInfo>>
-    for Evaluator<SolId, Obj, Opt, Info, SInfo>
+impl<SolId, Obj, Opt, Info, SInfo,Out> From<ParEvaluator<SolId, Obj, Opt, Info, SInfo,Out>>
+    for Evaluator<SolId, Obj, Opt, Info, SInfo,Out>
 where
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     Info: OptInfo,
     SInfo: SolInfo,
+    Out:Outcome
 {
-    fn from(value: ParEvaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
+    fn from(value: ParEvaluator<SolId, Obj, Opt, Info, SInfo, Out>) -> Self {
         let idx = value.in_obj.len() - value.idx_list.lock().unwrap().len();
         Evaluator {
             in_obj: value.in_obj,
             in_opt: value.in_opt,
             info: value.info,
             idx,
+            states: value.states.lock().unwrap().clone(),
         }
     }
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId> for Evaluator<SolId, Obj, Opt, Info, SInfo>
+    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId> for Evaluator<SolId, Obj, Opt, Info, SInfo, Out>
 where
     St: Stop,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
+    Cod: Fidelity<Out>,
     SolId: Id,
     Info: OptInfo,
     SInfo: SolInfo,
@@ -98,7 +104,9 @@ where
         while i < length && !st.stop() {
             let sobj = self.in_obj[i].clone();
             let sopt = self.in_opt[i].clone();
-            let (cod, out) = ob.compute(sobj.get_x(),None);
+            let prev_out = self.states.remove(&sobj.id);
+            let (cod, out) = ob.compute(sobj.get_x(),prev_out);
+            self.states.insert(sobj.id, out.clone());
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
             result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
@@ -109,7 +117,6 @@ where
         self.idx = i;
         ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
     }
-    
     fn update(&mut self, obj : ArcVecArc<Partial<SolId, Obj, SInfo>>, opt : ArcVecArc<Partial<SolId, Opt, SInfo>>, info: Arc<Info>) {
         self.in_obj = obj;
         self.in_opt = opt;
@@ -123,27 +130,30 @@ where
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+pub struct ParEvaluator<SolId, Obj, Opt, Info, SInfo,Out>
 where
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
     Info: OptInfo,
     SInfo: SolInfo,
+    Out:Outcome,
 {
     pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx_list: Arc<Mutex<Vec<usize>>>,
+    states: Arc<Mutex<HashMap<SolId,Arc<Out>>>>
 }
 
-impl<SolId, Obj, Opt, Info, SInfo> ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<SolId, Obj, Opt, Info, SInfo,Out> ParEvaluator<SolId, Obj, Opt, Info, SInfo,Out>
 where
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
     Info: OptInfo,
     SInfo: SolInfo,
+    Out:Outcome,
 {
     pub fn new(
         in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
@@ -156,19 +166,20 @@ where
             in_opt,
             info,
             idx_list,
+            states: Arc::new(Mutex::new(HashMap::new()))
         }
     }
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
     Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    for ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+    for ParEvaluator<SolId, Obj, Opt, Info, SInfo,Out>
 where
     St: Stop + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
+    Cod: Fidelity<Out> + Send + Sync,
     SolId: Id + Send + Sync,
     Info: OptInfo,
     SInfo: SolInfo + Send + Sync,
@@ -198,7 +209,9 @@ where
 
                 let sobj = self.in_obj[idx].clone();
                 let sopt = self.in_opt[idx].clone();
-                let (cod, out) = ob.clone().compute(sobj.get_x().clone(),None);
+                let prev_out = self.states.lock().unwrap().remove(&sobj.id);
+                let (cod, out) = ob.clone().compute(sobj.get_x().clone(),prev_out);
+                self.states.lock().unwrap().insert(sobj.id, out.clone());
                 result_obj
                     .lock()
                     .unwrap()
@@ -227,22 +240,24 @@ where
     }
 }
 
-impl<SolId, Obj, Opt, Info, SInfo> From<Evaluator<SolId, Obj, Opt, Info, SInfo>>
-    for ParEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<SolId, Obj, Opt, Info, SInfo, Out> From<Evaluator<SolId, Obj, Opt, Info, SInfo, Out>>
+    for ParEvaluator<SolId, Obj, Opt, Info, SInfo, Out>
 where
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     Info: OptInfo,
     SInfo: SolInfo,
+    Out: Outcome,
 {
-    fn from(value: Evaluator<SolId, Obj, Opt, Info, SInfo>) -> Self {
+    fn from(value: Evaluator<SolId, Obj, Opt, Info, SInfo,Out>) -> Self {
         let idx_list = Arc::new(Mutex::new((0..value.in_obj.len()).collect()));
         ParEvaluator {
             in_obj: value.in_obj,
             in_opt: value.in_opt,
             info: value.info,
             idx_list,
+            states: Arc::new(Mutex::new(value.states))
         }
     }
 }

@@ -11,7 +11,6 @@ use tantale_core::saver::Saver;
 use tantale_core::stop::{Calls, Stop};
 use tantale_core::EmptyInfo;
 use tantale_core::LinkedOutcome;
-use tantale_core::ObjBase;
 use tantale_core::Solution;
 use tantale_core::Sp;
 use tantale_core::{OptInfo, SolInfo};
@@ -112,7 +111,6 @@ where
         OutExample,
         Scp,
         Op,
-        ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj, SingleCodomain<OutExample>, OutExample>,
         EvalType<Op::Info,Op::SInfo>,
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -386,7 +384,6 @@ fn test_csv_func() {
             sp_m_equal_allmsamp::_TantaleMixedObj,
         >,
         RandomSearch,
-        ObjBase<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>,
         EvalType<RSInfo,EmptyInfo>,
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 

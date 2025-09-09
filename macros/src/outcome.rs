@@ -40,14 +40,6 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else if is_numeric_type(fty) {
             to_header_stmts.push(quote! {stringify!(#fident).to_string()});
             to_string_stmts.push(quote! {self.#fident.to_string()});
-        } else {
-            panic!(
-                "{:?}",
-                syn::Error::new(
-                    fty.span(),
-                    "Fields must must be primitive or a Vec of primitive from: [isize,i32,i64,f32,f64,usize,u32,u64,String,bool]"
-                )
-            );
         }
     });
 

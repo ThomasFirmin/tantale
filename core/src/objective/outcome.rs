@@ -1,9 +1,14 @@
-//! An [`Outcome`](tantale::core::Outcome) describes the output of
+//! An [`Outcome`](tantale::core::Outcome) is a user-defined struct describing the output of
 //! the function to be maximized. This output may contain the values
 //! to be optimized, constraints, fidelities, and other information
-//! linked to the evaluation (e.g. computation time).
+//! linked to the evaluation (e.g. computation time), or internal state.
 //!
-//! # Example with a user-defined structure
+//! # Notes
+//!  An [`Outcome`](tantale::core::Outcome) is [`CSVWritable`](tantale::core::saver::csvsaver::CSVWritable), ['Serializable'](serde::Serializable), ['Deserializable'](serde::Deserializable).
+//!  But only following types are writable [`isize`], [`i32`], [`i64`], [`f32`], [`f64`], [`usize`], [`u32`], [`u64`], [`String`], [`bool`]. [`Vec`] can also be written if it implements [`Debug`](std::fmt::Debug).
+//!  Other fields should be ['Serializable'](serde::Serializable) and ['Deserializable'](serde::Deserializable) for checkpointing.
+//! 
+//! # Example
 //!
 //! ```
 //! use tantale::macros::Outcome;
@@ -79,17 +84,8 @@ where
 {
 }
 
-/// [`ObjState`] is use to describe the state of functions that are evaluated by steps (several iterations with intermediate results).
-pub trait ObjState {}
-/// [`Stepped`] is a trait describing an [`Outcome`] containing the [`ObjState`] of a function.
-pub trait Stepped<S>: Outcome
-where
-    S: ObjState,
-{
-    fn get_state(&self) -> S;
-}
-
-/// An [`Outcome`] linked to its [`Partial`], before the creation of a [`Computed`].
+/// An [`Outcome`] binded to its [`Partial`], before the creation of a [`Computed`].
+/// It is mostly use for saving and checkpointing issues.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
     serialize = "Dom::TypeDom: Serialize",

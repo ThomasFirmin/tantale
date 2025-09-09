@@ -5,6 +5,10 @@ use crate::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use mpi::{
+    environment::Universe,
+    topology::{Rank, SimpleCommunicator},
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -23,6 +27,10 @@ where
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx: usize,
+    universe: Universe,
+    world: SimpleCommunicator,
+    wsize: Rank,
+    rank: Rank,
 }
 
 impl<SolId, Obj, Opt, Info, SInfo> Evaluator<SolId, Obj, Opt, Info, SInfo>

@@ -15,6 +15,7 @@
 //! let sample = dom.sample(&mut rng);
 //! assert!(dom.is_in(&sample));
 //! assert_eq!(dom.values(), &check);
+//! ```
 
 use super::onto::OntoOutput;
 use crate::domain::{

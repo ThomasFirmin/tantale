@@ -1,11 +1,11 @@
-use crate::{saver::CSVWritable,SOL_ID};
+use crate::{saver::CSVWritable, SOL_ID};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::Ordering;
+use std::{fmt::Debug, hash::{Hash,Hasher}, sync::atomic::Ordering};
 
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
-    Self: Sized + PartialEq + Clone + Copy + std::fmt::Debug + Serialize + for<'a> Deserialize<'a>,
+    Self: Sized + PartialEq + Eq + Clone + Copy + Debug + Serialize + for<'a> Deserialize<'a> + Hash,
 {
     fn generate() -> Self;
 }
@@ -21,10 +21,17 @@ pub struct DistSId {
     pub rank: std::os::raw::c_int,
 }
 #[cfg(feature = "mpi")]
-impl Id for DistSId {}
-#[cfg(feature = "mpi")]
 impl DistSId {
     pub fn new(pid: u32, id: usize, rank: std::os::raw::c_int) -> DistSId {
+        DistSId { pid, id, rank }
+    }
+}
+#[cfg(feature = "mpi")]
+impl Id for DistSId {
+    fn generate() -> Self {
+        let pid = std::process::id();
+        let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
+        let rank = mpi::universe().unwrap().world().rank();
         DistSId { pid, id, rank }
     }
 }
@@ -88,6 +95,15 @@ impl PartialEq for ParSId {
     }
 }
 
+impl Eq for ParSId{}
+
+impl Hash for ParSId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.pid.hash(state);
+    }
+}
+
 /// The [`Id`] of a [`Solution`] made of a unique `id`
 /// corresponding to the number of created [`Solution`].
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -117,5 +133,13 @@ impl CSVWritable<(), ()> for SId {
 impl PartialEq for SId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl Eq for SId{}
+
+impl Hash for SId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }

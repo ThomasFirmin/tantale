@@ -2,7 +2,7 @@
 //! The [`sp!`](../../../tantale/macros/macro.sp.html) handles the complex relationships between [`Domains`](tantale::core::Domain)
 //! to create a [`Sp`] instance made of a [`Vec`] of [`Var`](tantale::core::Var).
 //!
-//! You can also define a [`Sp`] directly within the [`Objective`] function with [`objective!`](../../../tantale/macros/macro.objective.html).
+//! You can also define a [`Sp`] directly within the [`Objective`](tantale::core::Objective) function with [`objective!`](../../../tantale/macros/macro.objective.html).
 //! It also handles [`Mixed`](tantale::core::Mixed) searchspaces, but it can also automatically disambiguate the mixed input vector of the function to
 //! get the right value at the right place.
 //!

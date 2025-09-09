@@ -76,5 +76,5 @@ fn obj_test() {
     let rng = Some(&mut rng);
 
     let sample: Arc<Partial<SId, _, _>> = sp.sample_obj(rng, info);
-    searchspace::example(sample.get_x());
+    searchspace::example(sample.get_x(),None);
 }
