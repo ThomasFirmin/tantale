@@ -9,7 +9,7 @@ use crate::objective::outcome::Outcome;
 use crate::objective::Codomain;
 use std::sync::Arc;
 
-type OptimFn<TypeDom,Out> = fn(Arc<[TypeDom]>,Option<Arc<Out>>) -> Out;
+type OptimFn<TypeDom,Out> = fn(&[TypeDom],Option<Arc<Out>>) -> Out;
 
 /// The [`Objective`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
@@ -53,9 +53,13 @@ where
     }
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
+    /// Compute the raw outputs of a function to maximize according to an input `x`.
+    pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<Out>>) -> Out {
+        (self.function)(x, state)
+    }
     /// Compute the outputs of a function to maximize according to an input `x`.    
-    pub fn compute(&self, x: Arc<[TypeDom<Obj>]>, state:Option<Arc<Out>>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
-        let out = (self.function)(x, state);
+    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<Out>>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
+        let out = self.raw_compute(x, state);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
     }
 

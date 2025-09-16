@@ -4,4 +4,4 @@ pub mod mpievaluator;
 pub mod mpirun;
 
 #[cfg(feature = "mpi")]
-pub use seqrun::{Experiment, ParExperiment};
+pub use mpirun::Experiment;

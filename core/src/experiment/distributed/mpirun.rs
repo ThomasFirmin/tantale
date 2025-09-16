@@ -1,21 +1,22 @@
 use crate::{
+    MPI_UNIVERSE,
+    MPI_WORLD,
+    MPI_SIZE,
+    MPI_RANK,
+    solution::id::DistSId,
     domain::Domain,
     experiment::{
-        sequential::seqevaluator::{Evaluator, ParEvaluator},
+        distributed::mpievaluator::Evaluator,
         Evaluate, Runable,
     },
     objective::{Codomain, Objective, Outcome},
     optimizer::opt::SequentialOptimizer,
     saver::Saver,
     searchspace::Searchspace,
-    solution::DistSId,
     stop::{ExpStep, Stop},
 };
 
-use mpi::{
-    environment::Universe,
-    topology::{Rank, SimpleCommunicator},
-};
+use mpi::{point_to_point::{Source, Status}, topology::Communicator, traits::{Destination, Equivalence}};
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
@@ -23,12 +24,17 @@ use std::{
 
 type EvalType<Obj, Opt, Info, SInfo> = Option<Evaluator<DistSId, Obj, Opt, Info, SInfo>>;
 
-pub struct Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
+
+enum Message<Dom:Domain>{
+    Stop,
+    Point(Arc<[Dom::TypeDom]>),
+}
+
+pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
-    Ob: Objective<Obj, Cod, Out>,
     Sv: Saver<
         DistSId,
         St,
@@ -38,36 +44,31 @@ where
         Out,
         Scp,
         Op,
-        Ob,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
     >,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
+    Obj::TypeDom : Equivalence,
 {
     pub searchspace: Scp,
-    pub objective: Ob,
+    pub objective: Objective<Obj,Cod,Out>,
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
     evaluator: EvalType<Obj, Opt, Op::Info, Op::SInfo>,
-    universe: Universe,
-    world: SimpleCommunicator,
-    wsize: Rank,
-    rank: Rank,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
     _codom: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod> Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod> Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
-    Ob: Objective<Obj, Cod, Out>,
     Sv: Saver<
         DistSId,
         St,
@@ -77,15 +78,15 @@ where
         Out,
         Scp,
         Op,
-        Ob,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
     >,
     Obj: Domain,
     Opt: Domain,
-    Out: Outcome,
+    Out: Outcome + Equivalence,
     Cod: Codomain<Out>,
+    Obj::TypeDom : Equivalence,
 {
-    pub fn new(searchspace: Scp, objective: Ob, optimizer: Op, stop: St, mut saver: Sv) -> Self {
+    pub fn new(searchspace: Scp, objective: Objective<Obj, Cod, Out>, optimizer: Op, stop: St, mut saver: Sv) -> Self {
         saver.init(&searchspace, objective.get_codomain().as_ref());
         Experiment {
             searchspace,
@@ -100,15 +101,34 @@ where
             _out: PhantomData,
         }
     }
-    pub fn launch_worker(&self) {}
+    pub fn launch_worker(&self, obj_func : &Objective<Obj,Cod,Out>){
+        // Master process is always Rank 0.
+        // Tag Messages : 
+        // * 0 -> Global Stop
+        // * 1 -> Ask for work
+        let rank = *MPI_RANK.get().unwrap();
+        if  rank !=0{
+            let world = MPI_WORLD.get().unwrap();
+            loop {
+                let (msg,status) = world.process_at_rank(0).receive_vec::<Obj::TypeDom>();
+                if status.tag() == 0{
+                    break;
+                }
+                else{
+                    let out = obj_func.raw_compute(&msg[..], None);
+                    world.process_at_rank(0).send(&out);
+                }
+            }
+
+        }
+    }
     pub fn launch_master(&self) {}
 }
 
-impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
     Runable<
         DistSId,
         Scp,
-        Ob,
         Op,
         St,
         Sv,
@@ -117,12 +137,11 @@ impl<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
         Out,
         Cod,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
-    > for Experiment<Scp, Ob, Op, St, Sv, Obj, Opt, Out, Cod>
+    > for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
-    Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Ob: Objective<Obj, Cod, Out>,
+    Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
     Sv: Saver<
         DistSId,
         St,
@@ -132,16 +151,19 @@ where
         Out,
         Scp,
         Op,
-        Ob,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
     >,
     Obj: Domain,
     Opt: Domain,
-    Out: Outcome,
+    Out: Outcome + Equivalence,
     Cod: Codomain<Out>,
+    Obj::TypeDom : Equivalence,
 {
     fn run(mut self) {
-        if self.rank == 0 {
+        if MPI_UNIVERSE.get().is_none(){
+            panic!("The MPI Universe is not initialized.")
+        }
+        if *MPI_RANK.get().unwrap() == 0 {
             let sp = Arc::new(self.searchspace);
             let ob = Arc::new(self.objective);
             let cod = ob.get_codomain();
@@ -170,7 +192,6 @@ where
                 // Arc copy of data to send to evaluator thread.
                 let ((cobj, copt), cout) =
                     <Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo> as Evaluate<
-                        Ob,
                         St,
                         Obj,
                         Opt,
@@ -215,11 +236,11 @@ where
                 };
             }
         } else {
-            self.launch_worker();
+            self.launch_worker(&self.objective);
         }
     }
 
-    fn load(searchspace: Scp, objective: Ob, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
@@ -229,7 +250,7 @@ where
             optimizer,
             stop,
             saver,
-            evaluator: Some(evaluator),
+            evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
             _codom: PhantomData,

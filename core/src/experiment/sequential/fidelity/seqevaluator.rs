@@ -105,7 +105,7 @@ where
             let sobj = self.in_obj[i].clone();
             let sopt = self.in_opt[i].clone();
             let prev_out = self.states.remove(&sobj.id);
-            let (cod, out) = ob.compute(sobj.get_x(),prev_out);
+            let (cod, out) = ob.compute(sobj.get_x().as_ref(),prev_out);
             self.states.insert(sobj.id, out.clone());
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
@@ -210,7 +210,7 @@ where
                 let sobj = self.in_obj[idx].clone();
                 let sopt = self.in_opt[idx].clone();
                 let prev_out = self.states.lock().unwrap().remove(&sobj.id);
-                let (cod, out) = ob.clone().compute(sobj.get_x().clone(),prev_out);
+                let (cod, out) = ob.clone().compute(sobj.get_x().as_ref(),prev_out);
                 self.states.lock().unwrap().insert(sobj.id, out.clone());
                 result_obj
                     .lock()

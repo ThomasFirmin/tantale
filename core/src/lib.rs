@@ -3,9 +3,40 @@
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
 use std::sync::atomic::AtomicUsize;
+#[cfg(feature="mpi")]
+use std::sync::OnceLock;
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
+pub static RUN_ID: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(feature="mpi")]
+pub static MPI_UNIVERSE: OnceLock<mpi::environment::Universe> = OnceLock::new();
+#[cfg(feature="mpi")]
+pub static MPI_WORLD: OnceLock<mpi::topology::SimpleCommunicator> = OnceLock::new();
+#[cfg(feature="mpi")]
+pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
+#[cfg(feature="mpi")]
+pub static MPI_RANK: OnceLock<mpi::Rank> = OnceLock::new();
+
+#[cfg(feature="mpi")]
+pub fn mpi_init(){
+    use mpi::traits::Communicator;
+
+    if MPI_UNIVERSE.get().is_none(){
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        let size = world.size();
+        let rank = world.rank();
+        MPI_UNIVERSE.set(universe);
+        MPI_WORLD.set(world);
+        MPI_SIZE.set(size).unwrap();
+        MPI_RANK.set(rank).unwrap();
+    }
+    else{
+        panic!("The MPI Universe has already been initialized")
+    }
+}
 
 pub mod domain;
 pub use domain::{

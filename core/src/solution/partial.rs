@@ -23,7 +23,7 @@ where
     Info: SolInfo,
 {
     pub id: SolId,
-    pub x: Arc<[TypeDom<Dom>]>,
+    pub x: Arc<[Dom::TypeDom]>,
     pub info: Arc<Info>,
 }
 

@@ -66,7 +66,19 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistributedSaver{
+pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+where
+    Self: Sized,
+    SolId: Id,
+    St: Stop,
+    Obj: Domain,
+    Opt: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
+    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
+{
     fn init(&mut self, sp: &Scp, cod: &Cod, rank:Rank);
     fn save_partial(
         &self,

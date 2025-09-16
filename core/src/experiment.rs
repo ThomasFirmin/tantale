@@ -30,7 +30,7 @@ macro_rules! load {
 pub trait Runable<SolId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Eval>
 where
     SolId: Id,
-    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,

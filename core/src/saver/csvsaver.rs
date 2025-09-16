@@ -9,6 +9,7 @@ use crate::{
     stop::Stop,
     OPT_ID, SOL_ID,
 };
+
 use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
@@ -17,6 +18,24 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc, Mutex},
 };
+#[cfg(feature="mpi")]
+use crate::saver::DistributedSaver;
+#[cfg(feature="mpi")]
+use mpi::Rank;
+
+/// A [`CSVWritable`] is an object for wich a CSV header can be given,
+/// and how its components can be written as a [`Vec`] of [`String`].
+pub trait CSVWritable<H, C> {
+    fn header(elem: &H) -> Vec<String>;
+    fn write(&self, comp: &C) -> Vec<String>;
+}
+
+/// A [`CSVLeftRight`] describes a [`CSVWritable`] object made of two components (eg. `Obj` and `Opt`).
+pub trait CSVLeftRight<H, L, R> {
+    fn header(elem: &H) -> Vec<String>;
+    fn write_left(&self, comp: &L) -> Vec<String>;
+    fn write_right(&self, comp: &R) -> Vec<String>;
+}
 
 /// A CSV [`Saver`] taking a path of where the save folder should be created.
 ///
@@ -37,20 +56,6 @@ pub struct CSVSaver {
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
     path_check: Option<(PathBuf, PathBuf, PathBuf, PathBuf)>,
-}
-
-/// A [`CSVWritable`] is an object for wich a CSV header can be given,
-/// and where its components can be written as a [`Vec`] of [`String`].
-pub trait CSVWritable<H, C> {
-    fn header(elem: &H) -> Vec<String>;
-    fn write(&self, comp: &C) -> Vec<String>;
-}
-
-/// A [`CSVLeftRight`] describes a CSV writable object made of two components (eg. `Obj` and `Opt`).
-pub trait CSVLeftRight<H, L, R> {
-    fn header(elem: &H) -> Vec<String>;
-    fn write_left(&self, comp: &L) -> Vec<String>;
-    fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
 impl CSVSaver {
@@ -428,7 +433,7 @@ where
     Op::State: Serialize + DeserializeOwned,
     Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
 {
-    fn init(&mut self, sp: &Scp, cod: &Cod) {
+    fn init(&mut self, sp: &Scp, cod: &Cod, rank:Rank) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             panic!("The folder path already exists, {}.", self.path.display())
@@ -438,7 +443,7 @@ where
                 self.path.display()
             )
         } else {
-            let path_evals = self.path.join(Path::new("evaluations"));
+            let path_evals = self.path.join(Path::new(format!("evaluations_{}",rank)));
             create_dir_all(self.path.as_path()).unwrap();
             create_dir(path_evals.as_path()).unwrap();
 
@@ -479,7 +484,7 @@ where
             }
 
             if self.path_check.is_some() {
-                let path = self.path.join(Path::new("checkpoint"));
+                let path = self.path.join(Path::new(format!("checkpoint",rank)));
                 create_dir(path.as_path()).unwrap();
             }
         }
@@ -492,6 +497,7 @@ where
         sp: Arc<Scp>,
         _cod: Arc<Cod>,
         info: Arc<Op::Info>,
+        rank:Rank,
     ) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
@@ -541,6 +547,7 @@ where
         obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
         _sp: Arc<Scp>,
         cod: Arc<Cod>,
+        rank:Rank,
     ) {
         let file = OpenOptions::new()
             .append(true)
@@ -560,7 +567,7 @@ where
         });
     }
 
-    fn save_out(&self, out: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, _sp: Arc<Scp>) {
+    fn save_out(&self, out: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, _sp: Arc<Scp>,rank:Rank) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -582,7 +589,7 @@ where
         }
     }
 
-    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval,rank:Rank) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
@@ -605,7 +612,7 @@ where
         std::fs::remove_dir_all(&self.path).unwrap();
     }
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod) -> Result<St, CheckpointError> {
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<St, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -625,7 +632,7 @@ where
         }
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod) -> Result<Op, CheckpointError> {
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Op, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -645,7 +652,7 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Eval, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -665,7 +672,7 @@ where
         }
     }
 
-    fn load_parameters(&self, _sp: &Scp, _cod: &Cod) -> Result<GlobalParameters, CheckpointError> {
+    fn load_parameters(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<GlobalParameters, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -685,7 +692,7 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters =
             <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_parameters(
                 self, _sp, _cod,

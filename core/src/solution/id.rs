@@ -1,7 +1,10 @@
 use crate::{saver::CSVWritable, SOL_ID};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::{Hash,Hasher}, sync::atomic::Ordering};
-
+#[cfg(feature = "mpi")]
+use crate::MPI_RANK;
+#[cfg(feature = "mpi")]
+use mpi::Rank;
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
@@ -11,52 +14,49 @@ where
 }
 
 #[cfg(feature = "mpi")]
-/// The [`Id`] of a [`Solution`] made of the `pid` of the process
-/// from which the [`Solution`] was created, the MPI `rank`, and a unique `id`
+/// The [`Id`] of a [`Solution`] made of the MPI `rank` where the [`Solution`] was created, and a unique `id` proper to the MPI process and
 /// corresponding to the number of [`Solution`] created from that process.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct DistSId {
-    pub pid: u32,
+    pub rank: Rank,
     pub id: usize,
-    pub rank: std::os::raw::c_int,
 }
 #[cfg(feature = "mpi")]
 impl DistSId {
-    pub fn new(pid: u32, id: usize, rank: std::os::raw::c_int) -> DistSId {
-        DistSId { pid, id, rank }
+    pub fn new(rank: Rank, id: usize) -> DistSId {
+        DistSId { rank , id }
     }
 }
 #[cfg(feature = "mpi")]
 impl Id for DistSId {
     fn generate() -> Self {
-        let pid = std::process::id();
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
-        let rank = mpi::universe().unwrap().world().rank();
-        DistSId { pid, id, rank }
+        DistSId { rank:*MPI_RANK.get().unwrap(), id }
     }
 }
 #[cfg(feature = "mpi")]
-impl CSVWritable<()> for DistSId {
-    fn header(&self) -> Vec<String> {
-        Vec::from([
-            String::from("pid"),
-            String::from("id"),
-            String::from("rank"),
-        ])
+impl CSVWritable<(), ()> for DistSId {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([String::from("id"), String::from("rank")])
     }
 
     fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([
-            format!("{}", self.pid),
-            format!("{}", self.id),
-            format!("{}", self.rank),
-        ])
+        Vec::from([format!("{}", self.id), format!("{}", self.rank)])
     }
 }
 #[cfg(feature = "mpi")]
 impl PartialEq for DistSId {
     fn eq(&self, other: &Self) -> bool {
-        self.pid == other.pid && self.id == other.id && self.rank == other.rank
+        self.id == other.id &&  self.rank == other.rank
+    }
+}
+#[cfg(feature = "mpi")]
+impl Eq for DistSId{}
+#[cfg(feature = "mpi")]
+impl Hash for DistSId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.rank.hash(state);
     }
 }
 
