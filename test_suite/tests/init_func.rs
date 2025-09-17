@@ -12,7 +12,6 @@ pub struct OutExample {
     pub bool_v: bool,
     pub neuron: Neuron,
     pub vec: Vec<u64>,
-    pub prevout: f64,
 }
 impl Outcome for OutExample {}
 
@@ -27,7 +26,6 @@ pub struct OutUnique {
     pub bool_v: f64,
     pub point: Point,
     pub vec: Vec<f64>,
-    pub prevout: f64,
 }
 impl Outcome for OutUnique {}
 
@@ -83,7 +81,6 @@ pub mod sp_ms_nosamp {
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutExample{
                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -95,7 +92,6 @@ pub mod sp_ms_nosamp {
                 bool_v: d,
                 neuron: layer,
                 vec: k.iter().map(|i| *i).collect(),
-                prevout,
             }
         }
     );
@@ -125,7 +121,6 @@ pub mod sp_ms_samp {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutExample{
                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -137,7 +132,6 @@ pub mod sp_ms_samp {
                 bool_v: d,
                 neuron: layer,
                 vec: k.iter().map(|i| *i).collect(),
-                prevout,
             }
         }
     );
@@ -167,7 +161,6 @@ pub mod sp_ms_samp_right {
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutExample{
                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -179,7 +172,6 @@ pub mod sp_ms_samp_right {
                 bool_v: d,
                 neuron: layer,
                 vec: k.iter().map(|i| *i).collect(),
-                prevout,
             }
         }
     );
@@ -209,7 +201,6 @@ pub mod sp_ms_noright {
 
             let k = [! k_{4} | Nat(0,100) | !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutExample{
                 obj: [! j | Real(1000.0,2000.0) | !],
@@ -221,7 +212,6 @@ pub mod sp_ms_noright {
                 bool_v: d,
                 neuron: layer,
                 vec: k.iter().map(|i| *i).collect(),
-                prevout,
             }
         }
     );
@@ -251,7 +241,6 @@ pub mod sp_ms_samp_noright {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutExample{
                 obj: [! j | Real(1000.0,2000.0) | !],
@@ -263,7 +252,6 @@ pub mod sp_ms_samp_noright {
                 bool_v: d,
                 neuron: layer,
                 vec: k.iter().map(|i| *i).collect(),
-                prevout,
             }
         }
     );
@@ -294,7 +282,6 @@ pub mod sp_sm_samp {
 
             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutUnique{
                 obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
@@ -306,7 +293,6 @@ pub mod sp_sm_samp {
                 bool_v: d,
                 point: p,
                 vec: k.iter().map(|i| **i).collect(),
-                prevout,
             }
         }
     );
@@ -337,7 +323,6 @@ pub mod sp_sm_samp_noright {
 
             let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
 
-            let prevout = if let Some(state) = tantale_state {state.prevout + 1.} else{0.};
 
             OutUnique{
                 obj: [! j | Real(0.0,1.0) | !],
@@ -349,7 +334,6 @@ pub mod sp_sm_samp_noright {
                 bool_v: d,
                 point: p,
                 vec: k.iter().map(|i| **i).collect(),
-                prevout,
             }
         }
     );

@@ -4,6 +4,7 @@ use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
+use tantale_core::Objective;
 use tantale_core::experiment::sequential::seqevaluator::Evaluator;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
@@ -112,6 +113,7 @@ where
         Scp,
         Op,
         EvalType<Op::Info,Op::SInfo>,
+        Objective<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
@@ -385,6 +387,7 @@ fn test_csv_func() {
         >,
         RandomSearch,
         EvalType<RSInfo,EmptyInfo>,
+        Objective<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>,
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
     let mut hash_obj: HashMap<

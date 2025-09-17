@@ -68,7 +68,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId> for Evaluator<SolId, Obj, Opt, Info, SInfo>
+    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj,Cod,Out>> for Evaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop,
     Obj: Domain,
@@ -98,7 +98,7 @@ where
         while i < length && !st.stop() {
             let sobj = self.in_obj[i].clone();
             let sopt = self.in_opt[i].clone();
-            let (cod, out) = ob.compute(sobj.get_x().as_ref(),None);
+            let (cod, out) = ob.compute(sobj.get_x().as_ref());
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
             result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
@@ -161,7 +161,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
+    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj,Cod,Out>>
     for ParEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop + Send + Sync,
@@ -198,7 +198,7 @@ where
 
                 let sobj = self.in_obj[idx].clone();
                 let sopt = self.in_opt[idx].clone();
-                let (cod, out) = ob.clone().compute(sobj.get_x().as_ref(),None);
+                let (cod, out) = ob.clone().compute(sobj.get_x().as_ref());
                 result_obj
                     .lock()
                     .unwrap()

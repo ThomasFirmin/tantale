@@ -5,14 +5,18 @@
 //!
 
 use crate::domain::{Domain, TypeDom};
-use crate::objective::outcome::Outcome;
+use crate::objective::outcome::{FuncState, Outcome};
 use crate::objective::Codomain;
 use std::sync::Arc;
 
-type OptimFn<TypeDom,Out> = fn(&[TypeDom],Option<Arc<Out>>) -> Out;
+type OptimFn<TypeDom,Out> = fn(&[TypeDom]) -> Out;
+type SteppFn<TypeDom,Out,FnState> = fn(&[TypeDom],Option<Arc<FnState>>) -> (Out,FnState);
 
-/// The [`Objective`] allows to define the minimal behavior of the wrapper.
-/// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
+/// A wrapper arround the user-defined function to maximize.
+pub trait FuncWrapper{}
+
+/// [`Objective`] is the minimal wrapper for the raw function to maximize.
+/// This raw function must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
 ///
 /// # Attributes
@@ -54,12 +58,12 @@ where
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<Out>>) -> Out {
-        (self.function)(x, state)
+    pub fn raw_compute(&self, x: &[TypeDom<Obj>]) -> Out {
+        (self.function)(x)
     }
     /// Compute the outputs of a function to maximize according to an input `x`.    
-    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<Out>>) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
-        let out = self.raw_compute(x, state);
+    pub fn compute(&self, x: &[TypeDom<Obj>]) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
+        let out = self.raw_compute(x);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
     }
 
@@ -67,3 +71,77 @@ where
         self.codomain.clone()
     }
 }
+
+impl<Obj, Cod, Out> FuncWrapper for Objective<Obj, Cod, Out>
+where
+    Obj: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+{}
+
+/// The [`Stepped`] allows to define the minimal behavior of the wrapper.
+/// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
+/// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
+///
+/// # Attributes
+///
+/// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
+/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`] 
+///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
+pub struct Stepped<Obj, Cod, Out, FnState>
+where
+    Obj: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    FnState : FuncState,
+{
+    pub codomain: Arc<Cod>,
+    pub function: SteppFn<Obj::TypeDom,Out,FnState>,
+}
+
+impl<Obj, Cod, Out,FnState> Stepped<Obj, Cod, Out, FnState>
+where
+    Obj: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    FnState : FuncState,
+{
+    /// Creates an new instance of [`ObjBase`].
+    ///
+    /// # Parameters
+    ///
+    /// * `cod`  :  `Cod` -  A [`Codomain`] of a corresponding [`Outcome`].
+    /// * `func` : The objective function to be optimized and defined by the user.
+    ///   It can be created side-by-side with the [`Searchspace`] using the
+    ///   [`objective!`](tantale::macros:objective) macro.
+    ///
+    pub fn new(cod: Cod, func: SteppFn<Obj::TypeDom,Out,FnState>) -> Self {
+        Self {
+            codomain: Arc::new(cod),
+            function: func,
+        }
+    }
+    /// Initialize the ['Objective'].
+    pub fn init(&mut self) {}
+    /// Compute the raw outputs of a function to maximize according to an input `x`.
+pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<FnState>>) -> (Out,FnState) {
+        (self.function)(x, state)
+    }
+    /// Compute the outputs of a function to maximize according to an input `x`.    
+    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<FnState>>) -> (Arc<Cod::TypeCodom>, Arc<Out>, Arc<FnState>) {
+        let (out,state) = self.raw_compute(x, state);
+        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), Arc::new(state))
+    }
+
+    pub fn get_codomain(&self) -> Arc<Cod> {
+        self.codomain.clone()
+    }
+}
+
+impl<Obj, Cod, Out, FnState> FuncWrapper for Stepped<Obj, Cod, Out, FnState>
+where
+    Obj: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    FnState:FuncState
+{}

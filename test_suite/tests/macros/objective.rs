@@ -4,8 +4,7 @@ fn obj_test() {
         use serde::{Deserialize, Serialize};
         use tantale::core::domain::sampler::{uniform_int, uniform_real};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale::macros::Outcome;
-        use tantale_macros::objective;
+        use tantale::macros::{Outcome,objective};
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutExample {
@@ -76,5 +75,5 @@ fn obj_test() {
     let rng = Some(&mut rng);
 
     let sample: Arc<Partial<SId, _, _>> = sp.sample_obj(rng, info);
-    searchspace::example(sample.get_x(),None);
+    searchspace::example(sample.get_x().as_ref());
 }

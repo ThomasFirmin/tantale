@@ -11,7 +11,7 @@ use crate::{
     },
     objective::{Codomain, Objective, Outcome},
     optimizer::opt::SequentialOptimizer,
-    saver::Saver,
+    saver::DistributedSaver,
     searchspace::Searchspace,
     stop::{ExpStep, Stop},
 };
@@ -35,7 +35,7 @@ where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<
+    Sv: DistributedSaver<
         DistSId,
         St,
         Obj,
@@ -45,6 +45,7 @@ where
         Scp,
         Op,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
+        Objective<Obj, Cod, Out>,
     >,
     Obj: Domain,
     Opt: Domain,
@@ -69,7 +70,7 @@ where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<
+    Sv: DistributedSaver<
         DistSId,
         St,
         Obj,
@@ -79,6 +80,7 @@ where
         Scp,
         Op,
         Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
+        Objective<Obj, Cod, Out>,
     >,
     Obj: Domain,
     Opt: Domain,
@@ -87,7 +89,7 @@ where
     Obj::TypeDom : Equivalence,
 {
     pub fn new(searchspace: Scp, objective: Objective<Obj, Cod, Out>, optimizer: Op, stop: St, mut saver: Sv) -> Self {
-        saver.init(&searchspace, objective.get_codomain().as_ref());
+        saver.init(&searchspace, objective.get_codomain().as_ref(),*MPI_RANK.get().unwrap());
         Experiment {
             searchspace,
             objective,
@@ -142,7 +144,7 @@ where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<
+    Sv: DistributedSaver<
         DistSId,
         St,
         Obj,
@@ -202,7 +204,7 @@ where
                         DistSId,
                     >>::evaluate(&mut eval, ob.clone(), st.clone());
 
-                // Saver part
+                // DistributedSaver part
                 self.saver.save_partial(
                     cobj.clone(),
                     copt.clone(),

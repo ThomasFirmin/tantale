@@ -1,7 +1,7 @@
 use crate::{
     Fidelity, domain::Domain, experiment::{
         Evaluate, Runable, sequential::fidelity::seqevaluator::{Evaluator, ParEvaluator}
-    }, objective::{Objective, Outcome}, optimizer::opt::SequentialOptimizer, saver::Saver, searchspace::Searchspace, solution::SId, stop::{ExpStep, Stop}
+    }, objective::{Stepped,Outcome, outcome::FuncState}, optimizer::opt::SequentialOptimizer, saver::Saver, searchspace::Searchspace, solution::SId, stop::{ExpStep, Stop}
 };
 
 use std::{
@@ -9,46 +9,48 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type EvalType<Obj, Opt, Info, SInfo, Out> = Option<Evaluator<SId, Obj, Opt, Info, SInfo, Out>>;
-type ParEvalType<Obj, Opt, Info, SInfo, Out> = Option<ParEvaluator<SId, Obj, Opt, Info, SInfo, Out>>;
+type EvalType<Obj, Opt, Info, SInfo, FnState> = Option<Evaluator<SId, Obj, Opt, Info, SInfo, FnState>>;
+type ParEvalType<Obj, Opt, Info, SInfo, FnState> = Option<ParEvaluator<SId, Obj, Opt, Info, SInfo, FnState>>;
 
-pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,Stepped<Obj, Cod, Out,FnState>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
     Cod: Fidelity<Out>,
+    FnState: FuncState,
 {
     pub searchspace: Scp,
-    pub objective: Objective<Obj, Cod, Out>,
+    pub objective: Stepped<Obj, Cod, Out,FnState>,
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
-    evaluator: EvalType<Obj, Opt, Op::Info, Op::SInfo,Out>,
+    evaluator: EvalType<Obj, Opt, Op::Info, Op::SInfo,FnState>,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
     _codom: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod> Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState> Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo,Out>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState>, Stepped<Obj,Cod,Out,FnState>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
     Cod: Fidelity<Out>,
+    FnState: FuncState,
 {
     pub fn new(
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Stepped<Obj,Cod,Out,FnState>,
         optimizer: Op,
         stop: St,
         mut saver: Sv,
@@ -69,18 +71,19 @@ where
     }
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>>
-    for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
+    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>, Stepped<Obj,Cod,Out,FnState>>
+    for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>, Stepped<Obj,Cod,Out,FnState>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
     Cod: Fidelity<Out>,
+    FnState: FuncState,
 {
     fn run(mut self) {
         let sp = Arc::new(self.searchspace);
@@ -110,7 +113,7 @@ where
 
             // Arc copy of data to send to evaluator thread.
             let ((cobj, copt), cout) =
-                <Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out> as Evaluate<
+                <Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState> as Evaluate<
                     St,
                     Obj,
                     Opt,
@@ -119,6 +122,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Stepped<Obj,Cod,Out,FnState>
                 >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
@@ -142,7 +146,7 @@ where
                 break;
             };
             (sobj, sopt, info) = self.optimizer.step((cobj, copt), sp.clone());
-            <Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo,Out> as Evaluate<
+            <Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState> as Evaluate<
                     St,
                     Obj,
                     Opt,
@@ -151,6 +155,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Stepped<Obj,Cod,Out,FnState>
                 >>::update(&mut eval, sobj.clone(),sopt.clone(),info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
@@ -165,7 +170,7 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Stepped<Obj,Cod,Out,FnState>, saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
@@ -184,7 +189,7 @@ where
     }
 }
 
-pub struct ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+pub struct ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
@@ -198,7 +203,8 @@ where
             Out,
             Scp,
             Op,
-            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>,
+            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+            Stepped<Obj,Cod,Out,FnState>
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -207,24 +213,25 @@ where
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Cod: Fidelity<Out> + Send + Sync,
+    FnState: FuncState + Send + Sync,
     Cod::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
     Op::State: Send + Sync,
 {
     pub searchspace: Scp,
-    pub objective: Objective<Obj, Cod, Out>,
+    pub objective: Stepped<Obj,Cod,Out,FnState>,
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
-    evaluator: ParEvalType<Obj, Opt, Op::Info, Op::SInfo, Out>,
+    evaluator: ParEvalType<Obj, Opt, Op::Info, Op::SInfo, FnState>,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
     _codom: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod> ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState> ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
@@ -238,7 +245,8 @@ where
             Out,
             Scp,
             Op,
-            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>,
+            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+            Stepped<Obj,Cod,Out,FnState>
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -247,6 +255,7 @@ where
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Cod: Fidelity<Out> + Send + Sync,
+    FnState: FuncState + Send + Sync,
     Cod::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
@@ -254,7 +263,7 @@ where
 {
     pub fn new(
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Stepped<Obj,Cod,Out,FnState>,
         optimizer: Op,
         stop: St,
         mut saver: Sv,
@@ -275,7 +284,7 @@ where
     }
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
     Runable<
         SId,
         Scp,
@@ -286,8 +295,9 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
         Opt,
         Out,
         Cod,
-        ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>,
-    > for ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+        ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+        Stepped<Obj,Cod,Out,FnState>
+    > for ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod,FnState>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
@@ -301,7 +311,8 @@ where
             Out,
             Scp,
             Op,
-            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, Out>,
+            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+            Stepped<Obj,Cod,Out,FnState>
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -310,6 +321,7 @@ where
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Cod: Fidelity<Out> + Send + Sync,
+    FnState: FuncState + Send + Sync,
     Cod::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
@@ -343,7 +355,7 @@ where
 
             // Arc copy of data to send to evaluator thread.
             let ((cobj, copt), cout) =
-                <ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,Out> as Evaluate<
+                <ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState> as Evaluate<
                     St,
                     Obj,
                     Opt,
@@ -352,6 +364,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Stepped<Obj,Cod,Out,FnState>
                 >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
@@ -383,7 +396,7 @@ where
                 break;
             };
             (sobj, sopt, info) = self.optimizer.step((cobj, copt), sp.clone());
-            <ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,Out> as Evaluate<
+            <ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState> as Evaluate<
                     St,
                     Obj,
                     Opt,
@@ -392,6 +405,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Stepped<Obj,Cod,Out,FnState>
                 >>::update(&mut eval, sobj.clone(),sopt.clone(),info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
@@ -406,7 +420,7 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Stepped<Obj,Cod,Out,FnState>, saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();

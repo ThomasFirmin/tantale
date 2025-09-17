@@ -23,8 +23,7 @@ macro_rules! get_test {
                 let sample_obj : Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x(),None);
-                let out = func(sample_obj.get_x(),Some(Arc::new(out)));
+                let out = func(sample_obj.get_x().as_ref());
 
                 assert!(sp.variables[0].is_in_obj(&$name::_TantaleMixedObjTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&$name::_TantaleMixedObjTypeDom::Nat(out.nat_v)),"Element [1] of tantale_in not int variable [1].");
@@ -35,7 +34,6 @@ macro_rules! get_test {
                 let sum = out.poi.0 + 1;
                 assert!(sp.variables[4].is_in_obj(&$name::_TantaleMixedObjTypeDom::Int(poi)),"Element [4] of tantale_in not int variable [4].");
                 assert_eq!(out.poi.1, sum,"Result of Int + 1 is wrong.");
-                assert_eq!(out.prevout, 1.,"Result of prevout is wrong.");
 
                 let ipn_int = out.ipn.0;
                 let ipn_nat = out.ipn.1;
@@ -69,7 +67,7 @@ macro_rules! get_test {
                 let converted_obj = sp.onto_obj(sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let out = func(converted_obj.get_x(),None);
+                let out = func(converted_obj.get_x().as_ref());
 
                 assert!(sp.variables[0].is_in_obj(&$name::_TantaleMixedObjTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&$name::_TantaleMixedObjTypeDom::Nat(out.nat_v)),"Element [1] of tantale_in not int variable [1].");
@@ -135,7 +133,7 @@ macro_rules! get_test_real {
                 let sample_obj : Arc<Partial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x(),None);
+                let out = func(sample_obj.get_x().as_ref());
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&out.nat_v),"Element [1] of tantale_in not int variable [1].");
@@ -176,7 +174,7 @@ macro_rules! get_test_real {
                 let converted_obj = sp.onto_obj(sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let out = func(converted_obj.get_x(),None);
+                let out = func(converted_obj.get_x().as_ref());
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&out.nat_v),"Element [1] of tantale_in not int variable [1].");

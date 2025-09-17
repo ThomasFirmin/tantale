@@ -1,12 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::Evaluate,
-    objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::ArcVecArc,
-    searchspace::Searchspace,
-    solution::{Computed, Id},
-    stop::Stop,
-    Optimizer,
+    Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome}, optimizer::ArcVecArc, searchspace::Searchspace, solution::{Computed, Id}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -27,7 +20,7 @@ pub struct GlobalParameters {
     pub opt_id: usize,
 }
 
-pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
 where
     Self: Sized,
     SolId: Id,
@@ -38,7 +31,8 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
+    FnWrap: FuncWrapper,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod);
     fn save_partial(
@@ -66,7 +60,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
 where
     Self: Sized,
     SolId: Id,
@@ -77,7 +71,8 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId>,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
+    FnWrap: FuncWrapper,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod, rank:Rank);
     fn save_partial(

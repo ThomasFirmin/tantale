@@ -35,6 +35,7 @@ fn test_seq_evaluator() {
         _,
         _,
         _,
+        _,
     >>::evaluate(&mut eval, obj.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
@@ -164,6 +165,7 @@ fn test_par_evaluator() {
         _,
         OutEvaluator,
         SingleCodomain<OutEvaluator>,
+        _,
         _,
         _,
         _,

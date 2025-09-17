@@ -25,7 +25,7 @@ where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -48,7 +48,7 @@ where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -78,13 +78,13 @@ where
 }
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>>
+    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>>
     for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>>,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -127,6 +127,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Objective<Obj,Cod,Out>,
                 >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
@@ -158,7 +159,8 @@ where
                     Cod,
                     Op::Info,
                     Op::SInfo,
-                    SId,
+                    SId, 
+                    Objective<Obj,Cod,Out>,
                 >>::update(&mut eval, sobj.clone(),sopt.clone(),info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
@@ -206,7 +208,8 @@ where
             Out,
             Scp,
             Op,
-            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+            ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, 
+            Objective<Obj,Cod,Out>,
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -247,6 +250,7 @@ where
             Scp,
             Op,
             ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+            Objective<Obj,Cod,Out>,
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -295,6 +299,7 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
         Out,
         Cod,
         ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+        Objective<Obj,Cod,Out>
     > for ParExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
@@ -310,6 +315,7 @@ where
             Scp,
             Op,
             ParEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+            Objective<Obj,Cod,Out>,
         > + Send
         + Sync,
     Obj: Domain + Send + Sync,
@@ -360,6 +366,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Objective<Obj,Cod,Out>,
                 >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
@@ -400,6 +407,7 @@ where
                     Op::Info,
                     Op::SInfo,
                     SId,
+                    Objective<Obj,Cod,Out>,
                 >>::update(&mut eval, sobj.clone(),sopt.clone(),info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {

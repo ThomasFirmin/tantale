@@ -1,5 +1,5 @@
 pub mod obj;
-pub use obj::Objective;
+pub use obj::{FuncWrapper, Objective,Stepped};
 
 pub mod codomain;
 pub use codomain::{

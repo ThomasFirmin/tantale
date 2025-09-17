@@ -78,10 +78,22 @@ use serde::{Deserialize, Serialize};
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
+/// An [`Outcome`] should be defined with the [`Outcome`][tantale::macros::Outcome] derive macro.
+/// It should be a struct with named fields.
 pub trait Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
+}
+
+/// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the 
+/// current state of evaluation of the [`Objective`]. It is used in multi-fidelity optimization,
+/// where a function can be evaluated by state.
+pub trait FuncState
+where
+    Self: Sized + Serialize + for<'de> Deserialize<'de>,
+{
+
 }
 
 /// An [`Outcome`] binded to its [`Partial`], before the creation of a [`Computed`].
