@@ -43,7 +43,7 @@ impl Parse for CustomBlock {
     }
 }
 
-fn extract_var(
+pub fn extract_var(
     input: &TokenStream,
     variables: &mut Vec<LineStream>,
     is_mixed: bool,
@@ -137,7 +137,7 @@ fn complex_vec_replacement(
     .into()
 }
 
-fn reconstruct_simple(
+pub fn reconstruct_simple(
     input: TokenStream,
     new_stream: &mut TokenStream,
     mixed_ty: &proc_macro2::Ident,
@@ -202,7 +202,7 @@ fn reconstruct_simple(
     (token_idx, var_idx)
 }
 
-fn reconstruct_mixed(
+pub fn reconstruct_mixed(
     input: TokenStream,
     new_stream: &mut TokenStream,
     mixed_ty: &proc_macro2::Ident,
@@ -267,7 +267,7 @@ fn reconstruct_mixed(
     (token_idx, var_idx)
 }
 
-fn reconstruct_tokens(
+pub fn reconstruct_tokens(
     input: TokenStream,
     new_stream: &mut TokenStream,
     mixed_ty: &proc_macro2::Ident,
@@ -325,9 +325,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
         tobj_vec,
         repeats,
     ) = parse_sp(variables).unwrap();
-
-    let tntin = parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]};
-    fn_item.sig.inputs.push(tntin);
+    
+    fn_item.sig.inputs.push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
 
     let mut new_stream = TokenStream::new();
 

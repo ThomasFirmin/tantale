@@ -2,6 +2,7 @@ extern crate proc_macro;
 
 mod mixed;
 mod objective;
+mod stepped;
 mod outcome;
 mod searchspace;
 
@@ -23,4 +24,9 @@ pub fn sp(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     objective::obj(input)
+}
+
+#[proc_macro]
+pub fn stepped(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    stepped::obj(input)
 }

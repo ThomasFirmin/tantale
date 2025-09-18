@@ -10,7 +10,7 @@ use crate::objective::Codomain;
 use std::sync::Arc;
 
 type OptimFn<TypeDom,Out> = fn(&[TypeDom]) -> Out;
-type SteppFn<TypeDom,Out,FnState> = fn(&[TypeDom],Option<Arc<FnState>>) -> (Out,FnState);
+type SteppFn<TypeDom,Out,FnState> = fn(&[TypeDom], Option<FnState>) -> (Out,FnState);
 
 /// A wrapper arround the user-defined function to maximize.
 pub trait FuncWrapper{}
@@ -124,11 +124,11 @@ where
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<FnState>>) -> (Out,FnState) {
+pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<FnState>) -> (Out,FnState) {
         (self.function)(x, state)
     }
     /// Compute the outputs of a function to maximize according to an input `x`.    
-    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<Arc<FnState>>) -> (Arc<Cod::TypeCodom>, Arc<Out>, Arc<FnState>) {
+    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<FnState>) -> (Arc<Cod::TypeCodom>, Arc<Out>, Arc<FnState>) {
         let (out,state) = self.raw_compute(x, state);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), Arc::new(state))
     }

@@ -5,10 +5,19 @@
 use std::sync::atomic::AtomicUsize;
 #[cfg(feature="mpi")]
 use std::sync::OnceLock;
+use serde::{Serialize,Deserialize};
+
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
 pub static RUN_ID: AtomicUsize = AtomicUsize::new(0);
+
+#[derive(Serialize, Deserialize)]
+pub struct GlobalParameters {
+    pub sold_id: usize,
+    pub opt_id: usize,
+    pub run_id: usize,
+}
 
 #[cfg(feature="mpi")]
 pub static MPI_UNIVERSE: OnceLock<mpi::environment::Universe> = OnceLock::new();

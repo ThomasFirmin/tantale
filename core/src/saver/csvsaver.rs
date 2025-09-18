@@ -1,5 +1,16 @@
 use crate::{
-    OPT_ID, SOL_ID, domain::{Domain, TypeDom}, experiment::Evaluate, objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome}, optimizer::{ArcVecArc, Optimizer}, saver::{CheckpointError, GlobalParameters, Saver}, searchspace::Searchspace, solution::{Computed, Id, Solution}, stop::Stop
+    GlobalParameters,
+    OPT_ID,
+    SOL_ID,
+    RUN_ID,
+    domain::{Domain, TypeDom},
+    experiment::Evaluate,
+    objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
+    optimizer::{ArcVecArc, Optimizer},
+    saver::{CheckpointError, Saver},
+    searchspace::Searchspace,
+    solution::{Computed, Id, Solution},
+    stop::Stop
 };
 
 use rayon::prelude::*;
@@ -10,10 +21,11 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc, Mutex},
 };
+
 #[cfg(feature="mpi")]
-use crate::saver::DistributedSaver;
+use crate::{MPI_WORLD,saver::DistributedSaver};
 #[cfg(feature="mpi")]
-use mpi::Rank;
+use mpi::{Rank,traits::CommunicatorCollectives};
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and how its components can be written as a [`Vec`] of [`String`].
@@ -290,6 +302,7 @@ where
             let global = GlobalParameters {
                 sold_id: SOL_ID.load(Ordering::Relaxed),
                 opt_id: OPT_ID.load(Ordering::Relaxed),
+                run_id: RUN_ID.load(Ordering::Relaxed),
             };
 
             let wrt = File::create(path.3.as_path()).unwrap();
@@ -431,51 +444,65 @@ where
 
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
-            panic!("The folder path already exists, {}.", self.path.display())
+            if rank == 0{
+                panic!("The folder path already exists, {}.", self.path.display())
+            }
         } else if self.path.is_file() {
             panic!(
                 "The given path cannot point to a file, {}.",
                 self.path.display()
             )
         } else {
-            let path_evals = self.path.join(Path::new("evaluations"));
-            create_dir_all(self.path.as_path()).unwrap();
+            if rank == 0{
+                create_dir_all(self.path.as_path()).unwrap();
+            }
+            // Wait for main folder to be created.
+            MPI_WORLD.get().unwrap().barrier();
+            let path_evals = self.path.join(Path::new(&format!("evaluations_rk{}",rank)));
             create_dir(path_evals.as_path()).unwrap();
-
-            if let Some(ppobj) = &self.path_pobj {
-                let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
+            
+            if self.path_pobj.is_some() {
+                let nppobj = path_evals.join(Path::new("obj.csv"));
+                let mut wrt = csv::Writer::from_path(nppobj.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
                 idstr.extend(Scp::header(sp));
                 idstr.extend(Op::SInfo::header(&()));
                 idstr.extend(Op::Info::header(&()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
+                self.path_pobj.replace(nppobj);
             }
 
-            if let Some(ppopt) = &self.path_popt {
-                let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
+            if self.path_popt.is_some() {
+                let nppopt = path_evals.join(Path::new("opt.csv"));
+                let mut wrt = csv::Writer::from_path(nppopt.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
                 idstr.extend(Scp::header(sp));
                 idstr.extend(Op::SInfo::header(&()));
                 idstr.extend(Op::Info::header(&()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
+                self.path_popt.replace(nppopt);
             }
 
-            if let Some(ppout) = &self.path_out {
-                let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
+            if self.path_out.is_some() {
+                let nppout = path_evals.join(Path::new("out.csv"));
+                let mut wrt = csv::Writer::from_path(nppout.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
                 idstr.extend(Out::header(&()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
+                self.path_out.replace(nppout);
             }
 
             {
-                let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
+                let nppcod = path_evals.join(Path::new("cod.csv"));
+                let mut wrt = csv::Writer::from_path(nppcod.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
                 idstr.extend(Cod::header(cod));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
+                self.path_codom = nppcod;
             }
 
             if self.path_check.is_some() {
@@ -589,7 +616,7 @@ where
         }
     }
 
-    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval,rank:Rank) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval,_rank:Rank) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
@@ -601,6 +628,7 @@ where
             let global = GlobalParameters {
                 sold_id: SOL_ID.load(Ordering::Relaxed),
                 opt_id: OPT_ID.load(Ordering::Relaxed),
+                run_id: RUN_ID.load(Ordering::Relaxed),
             };
 
             let wrt = File::create(path.3.as_path()).unwrap();
@@ -608,8 +636,8 @@ where
         }
     }
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod,_rank:Rank) -> Result<St, CheckpointError> {
-        let path_check = self.path.join(Path::new("checkpoint"));
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod, rank:Rank) -> Result<St, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_stp = path_check.join(Path::new("state_stp.json"));
@@ -628,8 +656,8 @@ where
         }
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod,_rank:Rank) -> Result<Op, CheckpointError> {
-        let path_check = self.path.join(Path::new("checkpoint"));
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Op, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_opt = path_check.join(Path::new("state_opt.json"));
@@ -648,8 +676,8 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod,_rank:Rank) -> Result<Eval, CheckpointError> {
-        let path_check = self.path.join(Path::new("checkpoint"));
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Eval, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_eva = path_check.join(Path::new("state_eval.json"));
@@ -668,8 +696,8 @@ where
         }
     }
 
-    fn load_parameters(&self, _sp: &Scp, _cod: &Cod,_rank:Rank) -> Result<GlobalParameters, CheckpointError> {
-        let path_check = self.path.join(Path::new("checkpoint"));
+    fn load_parameters(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<GlobalParameters, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_par = path_check.join(Path::new("state_param.json"));
@@ -688,22 +716,23 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Cod,_rank:Rank) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters =
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval,FnWrap>>::load_parameters(
-                self, _sp, _cod,
+            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval,FnWrap>>::load_parameters(
+                self, _sp, _cod, rank
             )?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
+        RUN_ID.store(global.run_id, Ordering::Release);
         Ok((
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_stop(
-                self, _sp, _cod,
+            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_stop(
+                self, _sp, _cod,rank
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_optimizer(
-                self, _sp, _cod,
+            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_optimizer(
+                self, _sp, _cod,rank
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_evaluate(
-                self, _sp, _cod,
+            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_evaluate(
+                self, _sp, _cod,rank
             )?,
         ))
     }

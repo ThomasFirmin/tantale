@@ -24,7 +24,7 @@ where
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx: usize,
-    states: HashMap<SolId,Arc<FnState>>
+    states: HashMap<SolId,FnState>
 }
 
 impl<SolId, Obj, Opt, Info, SInfo,FnState> Evaluator<SolId, Obj, Opt, Info, SInfo,FnState>
@@ -144,7 +144,7 @@ where
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx_list: Arc<Mutex<Vec<usize>>>,
-    states: Arc<Mutex<HashMap<SolId,Arc<FnState>>>>
+    states: Arc<Mutex<HashMap<SolId,FnState>>>
 }
 
 impl<SolId, Obj, Opt, Info, SInfo,FnState> ParEvaluator<SolId, Obj, Opt, Info, SInfo,FnState>

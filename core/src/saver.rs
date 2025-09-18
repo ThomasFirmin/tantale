@@ -1,7 +1,14 @@
 use crate::{
-    Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome}, optimizer::ArcVecArc, searchspace::Searchspace, solution::{Computed, Id}, stop::Stop
+    GlobalParameters,
+    Optimizer,
+    domain::Domain,
+    experiment::Evaluate,
+    objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
+    optimizer::ArcVecArc,
+    searchspace::Searchspace,
+    solution::{Computed, Id},
+    stop::Stop
 };
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[cfg(feature = "mpi")]
@@ -13,11 +20,17 @@ pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
 pub mod serror;
 pub use serror::CheckpointError;
 
-
-#[derive(Serialize, Deserialize)]
-pub struct GlobalParameters {
-    pub sold_id: usize,
-    pub opt_id: usize,
+#[macro_export]
+macro_rules! load {
+    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
+        $experiment::<_, $optimizer, $stop, _, _, _, _, _>::load($searchspace, $objective, $saver)
+    };
+    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
+        $experiment::<_, $optimizer, $stop, _, _, _, _, _, _>::load($searchspace, $objective, $saver)
+    };
+    ($rank : expr, $experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
+        $experiment::<_, $optimizer, $stop, _, _, _, _, _>::load($searchspace, $objective, $saver)
+    };
 }
 
 pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
