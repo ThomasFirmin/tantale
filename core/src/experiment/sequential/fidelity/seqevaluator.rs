@@ -68,7 +68,7 @@ where
             in_opt: value.in_opt,
             info: value.info,
             idx,
-            states: value.states.lock().unwrap().clone(),
+            states: value.states,
         }
     }
 }
@@ -107,7 +107,7 @@ where
             let sopt = self.in_opt[i].clone();
             let prev_out = self.states.remove(&sobj.id);
             let (cod, out,state) = ob.compute(sobj.get_x().as_ref(),prev_out);
-            self.states.insert(sobj.id, state.clone());
+            self.states.insert(sobj.id, state);
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
             result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
@@ -144,7 +144,7 @@ where
     pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     pub info: Arc<Info>,
     idx_list: Arc<Mutex<Vec<usize>>>,
-    states: Arc<Mutex<HashMap<SolId,FnState>>>
+    states: HashMap<SolId,FnState>,
 }
 
 impl<SolId, Obj, Opt, Info, SInfo,FnState> ParEvaluator<SolId, Obj, Opt, Info, SInfo,FnState>
@@ -167,7 +167,7 @@ where
             in_opt,
             info,
             idx_list,
-            states: Arc::new(Mutex::new(HashMap::new()))
+            states: HashMap::new()
         }
     }
 }
@@ -198,6 +198,7 @@ where
         SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
         Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
     ) {
+        let hash_state = Arc::new(Mutex::new(&mut self.states));
         let result_obj = Arc::new(Mutex::new(Vec::new()));
         let result_opt = Arc::new(Mutex::new(Vec::new()));
         let result_out = Arc::new(Mutex::new(Vec::new()));
@@ -211,9 +212,9 @@ where
 
                 let sobj = self.in_obj[idx].clone();
                 let sopt = self.in_opt[idx].clone();
-                let prev_out = self.states.lock().unwrap().remove(&sobj.id);
+                let prev_out = hash_state.lock().unwrap().remove(&sobj.id);
                 let (cod, out, state) = ob.clone().compute(sobj.get_x().as_ref(),prev_out);
-                self.states.lock().unwrap().insert(sobj.id, state.clone());
+                hash_state.lock().unwrap().insert(sobj.id, state);
                 result_obj
                     .lock()
                     .unwrap()
@@ -259,7 +260,7 @@ where
             in_opt: value.in_opt,
             info: value.info,
             idx_list,
-            states: Arc::new(Mutex::new(value.states))
+            states: value.states,
         }
     }
 }

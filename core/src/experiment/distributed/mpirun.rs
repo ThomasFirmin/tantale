@@ -3,7 +3,7 @@ use crate::{
     MPI_WORLD,
     MPI_SIZE,
     MPI_RANK,
-    solution::id::DistSId,
+    solution::id::SId,
     domain::Domain,
     experiment::{
         distributed::mpievaluator::Evaluator,
@@ -22,21 +22,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type EvalType<Obj, Opt, Info, SInfo> = Option<Evaluator<DistSId, Obj, Opt, Info, SInfo>>;
-
-
-enum Message<Dom:Domain>{
-    Stop,
-    Point(Arc<[Dom::TypeDom]>),
-}
+type EvalType<Obj, Opt, Info, SInfo> = Option<Evaluator<SId, Obj, Opt, Info, SInfo>>;
 
 pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
+    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
-    Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
     Sv: DistributedSaver<
-        DistSId,
+        SId,
         St,
         Obj,
         Opt,
@@ -44,7 +38,7 @@ where
         Out,
         Scp,
         Op,
-        Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
+        Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
         Objective<Obj, Cod, Out>,
     >,
     Obj: Domain,
@@ -103,43 +97,10 @@ where
             _out: PhantomData,
         }
     }
-    pub fn launch_worker(&self, obj_func : &Objective<Obj,Cod,Out>){
-        // Master process is always Rank 0.
-        // Tag Messages : 
-        // * 0 -> Global Stop
-        // * 1 -> Ask for work
-        let rank = *MPI_RANK.get().unwrap();
-        if  rank !=0{
-            let world = MPI_WORLD.get().unwrap();
-            loop {
-                let (msg,status) = world.process_at_rank(0).receive_vec::<Obj::TypeDom>();
-                if status.tag() == 0{
-                    break;
-                }
-                else{
-                    let out = obj_func.raw_compute(&msg[..], None);
-                    world.process_at_rank(0).send(&out);
-                }
-            }
-
-        }
-    }
-    pub fn launch_master(&self) {}
 }
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-    Runable<
-        DistSId,
-        Scp,
-        Op,
-        St,
-        Sv,
-        Obj,
-        Opt,
-        Out,
-        Cod,
-        Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
-    > for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>> for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,

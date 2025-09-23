@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::{Hash,Hasher}, sync::atomic::Ordering};
 #[cfg(feature = "mpi")]
 use crate::MPI_RANK;
-#[cfg(feature = "mpi")]
+#[cfg(feature="mpi")]
 use mpi::Rank;
+use num::cast::AsPrimitive;
+
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
@@ -17,21 +19,24 @@ where
 /// The [`Id`] of a [`Solution`] made of the MPI `rank` where the [`Solution`] was created, and a unique `id` proper to the MPI process and
 /// corresponding to the number of [`Solution`] created from that process.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct DistSId {
-    pub rank: Rank,
+    pub rank: usize,
     pub id: usize,
 }
+
 #[cfg(feature = "mpi")]
 impl DistSId {
     pub fn new(rank: Rank, id: usize) -> DistSId {
-        DistSId { rank , id }
+        DistSId { rank:rank.as_() , id }
     }
 }
 #[cfg(feature = "mpi")]
 impl Id for DistSId {
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
-        DistSId { rank:*MPI_RANK.get().unwrap(), id }
+        let rank = *MPI_RANK.get().unwrap();
+        DistSId { rank: rank.as_(), id }
     }
 }
 #[cfg(feature = "mpi")]
@@ -65,19 +70,19 @@ impl Hash for DistSId {
 /// corresponding to the number of [`Solution`] created from that process.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ParSId {
-    pub pid: u32,
+    pub pid: usize,
     pub id: usize,
 }
 impl Id for ParSId {
     fn generate() -> Self {
-        let pid = std::process::id();
+        let pid = std::process::id().as_();
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         ParSId { pid, id }
     }
 }
 impl ParSId {
     pub fn new(pid: u32, id: usize) -> ParSId {
-        ParSId { pid, id }
+        ParSId { pid : pid.as_(), id }
     }
 }
 impl CSVWritable<(), ()> for ParSId {

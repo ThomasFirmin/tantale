@@ -3,7 +3,7 @@ use crate::{
     OPT_ID,
     SOL_ID,
     RUN_ID,
-    domain::{Domain, TypeDom},
+    domain::Domain,
     experiment::Evaluate,
     objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, Optimizer},
@@ -127,8 +127,8 @@ where
         + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
         + Send
         + Sync,
-    TypeDom<Obj>: Send + Sync,
-    TypeDom<Opt>: Send + Sync,
+    Obj::TypeDom: Send + Sync,
+    Opt::TypeDom: Send + Sync,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
@@ -431,8 +431,8 @@ where
         + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
         + Send
         + Sync,
-    TypeDom<Obj>: Send + Sync,
-    TypeDom<Opt>: Send + Sync,
+    Obj::TypeDom: Send + Sync,
+    Opt::TypeDom: Send + Sync,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,

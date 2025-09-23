@@ -128,9 +128,9 @@ pub fn raw_compute(&self, x: &[TypeDom<Obj>], state:Option<FnState>) -> (Out,FnS
         (self.function)(x, state)
     }
     /// Compute the outputs of a function to maximize according to an input `x`.    
-    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<FnState>) -> (Arc<Cod::TypeCodom>, Arc<Out>, Arc<FnState>) {
+    pub fn compute(&self, x: &[TypeDom<Obj>], state:Option<FnState>) -> (Arc<Cod::TypeCodom>, Arc<Out>, FnState) {
         let (out,state) = self.raw_compute(x, state);
-        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), Arc::new(state))
+        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), state)
     }
 
     pub fn get_codomain(&self) -> Arc<Cod> {
