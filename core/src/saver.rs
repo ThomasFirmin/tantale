@@ -17,6 +17,9 @@ use mpi::Rank;
 pub mod csvsaver;
 pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
 
+pub mod nosaver;
+pub use nosaver::NoSaver;
+
 pub mod serror;
 pub use serror::CheckpointError;
 
@@ -73,7 +76,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
+pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>:Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
 where
     Self: Sized,
     SolId: Id,

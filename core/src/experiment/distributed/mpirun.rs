@@ -1,12 +1,13 @@
+use mpi::traits::Communicator;
+
 use crate::{
     MPI_UNIVERSE,
     MPI_WORLD,
-    MPI_SIZE,
     MPI_RANK,
     solution::id::SId,
     domain::Domain,
     experiment::{
-        distributed::mpievaluator::Evaluator,
+        distributed::mpievaluator::{Evaluator,launch_worker},
         Evaluate, Runable,
     },
     objective::{Codomain, Objective, Outcome},
@@ -15,14 +16,26 @@ use crate::{
     searchspace::Searchspace,
     stop::{ExpStep, Stop},
 };
-
-use mpi::{point_to_point::{Source, Status}, topology::Communicator, traits::{Destination, Equivalence}};
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
 };
 
 type EvalType<Obj, Opt, Info, SInfo> = Option<Evaluator<SId, Obj, Opt, Info, SInfo>>;
+
+pub fn master_worker<M,W>(master : M, worker : W)
+where
+    M : FnOnce(),
+    W : FnOnce(),
+{
+    let rank = *MPI_RANK.get().unwrap();
+    if rank == 0{
+        master();
+    }
+    else{
+        worker()
+    }
+}
 
 pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
@@ -45,7 +58,6 @@ where
     Opt: Domain,
     Out: Outcome,
     Cod: Codomain<Out>,
-    Obj::TypeDom : Equivalence,
 {
     pub searchspace: Scp,
     pub objective: Objective<Obj,Cod,Out>,
@@ -61,11 +73,11 @@ where
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod> Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
+    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
-    Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
     Sv: DistributedSaver<
-        DistSId,
+        SId,
         St,
         Obj,
         Opt,
@@ -73,17 +85,16 @@ where
         Out,
         Scp,
         Op,
-        Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
+        Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
         Objective<Obj, Cod, Out>,
     >,
     Obj: Domain,
     Opt: Domain,
-    Out: Outcome + Equivalence,
+    Out: Outcome,
     Cod: Codomain<Out>,
-    Obj::TypeDom : Equivalence,
 {
     pub fn new(searchspace: Scp, objective: Objective<Obj, Cod, Out>, optimizer: Op, stop: St, mut saver: Sv) -> Self {
-        saver.init(&searchspace, objective.get_codomain().as_ref(),*MPI_RANK.get().unwrap());
+        DistributedSaver::init(&mut saver, &searchspace, objective.get_codomain().as_ref(),*MPI_RANK.get().unwrap());
         Experiment {
             searchspace,
             objective,
@@ -100,13 +111,14 @@ where
 }
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>> for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+    Runable<SId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>, Objective<Obj,Cod,Out>>
+    for Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
-    Op: SequentialOptimizer<DistSId, Obj, Opt, Cod, Out, Scp>,
+    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
-    Scp: Searchspace<DistSId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
     Sv: DistributedSaver<
-        DistSId,
+        SId,
         St,
         Obj,
         Opt,
@@ -114,20 +126,26 @@ where
         Out,
         Scp,
         Op,
-        Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo>,
+        Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+        Objective<Obj, Cod, Out>,
     >,
     Obj: Domain,
     Opt: Domain,
-    Out: Outcome + Equivalence,
+    Out: Outcome,
     Cod: Codomain<Out>,
-    Obj::TypeDom : Equivalence,
 {
     fn run(mut self) {
         if MPI_UNIVERSE.get().is_none(){
             panic!("The MPI Universe is not initialized.")
         }
-        if *MPI_RANK.get().unwrap() == 0 {
-            let sp = Arc::new(self.searchspace);
+        let rank = *MPI_RANK.get().unwrap();
+        if rank != 0 {
+            let world = MPI_WORLD.get().unwrap();
+            world.abort(42);
+            launch_worker::<SId,Obj,Cod,Out>(&self.objective);
+        }
+        else{
+            let sp = Arc::new(self.searchspace); 
             let ob = Arc::new(self.objective);
             let cod = ob.get_codomain();
             let st = Arc::new(Mutex::new(self.stop));
@@ -145,8 +163,14 @@ where
                 {
                     let mut st = st.lock().unwrap();
                     st.update(ExpStep::Evaluation);
-                    self.saver
-                        .save_state(sp.clone(), self.optimizer.get_state(), &st, &eval);
+                    DistributedSaver::save_state(
+                        &self.saver,
+                        sp.clone(),
+                        self.optimizer.get_state(),
+                        &st,
+                        &eval,
+                        rank,
+                    );
                     if st.stop() {
                         break;
                     };
@@ -154,7 +178,7 @@ where
 
                 // Arc copy of data to send to evaluator thread.
                 let ((cobj, copt), cout) =
-                    <Evaluator<DistSId, Obj, Opt, Op::Info, Op::SInfo> as Evaluate<
+                    <Evaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as Evaluate<
                         St,
                         Obj,
                         Opt,
@@ -162,26 +186,41 @@ where
                         Cod,
                         Op::Info,
                         Op::SInfo,
-                        DistSId,
+                        SId,
+                        Objective<Obj,Cod,Out>
                     >>::evaluate(&mut eval, ob.clone(), st.clone());
 
                 // DistributedSaver part
-                self.saver.save_partial(
+                DistributedSaver::save_partial(
+                    &self.saver,
                     cobj.clone(),
                     copt.clone(),
                     sp.clone(),
                     cod.clone(),
                     eval.info.clone(),
+                    rank,
                 );
-                self.saver.save_out(cout, sp.clone());
-                self.saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
-
+                DistributedSaver::save_out(
+                    &self.saver,
+                    cout,
+                    sp.clone(),
+                    rank,
+                );
+                DistributedSaver::save_codom(
+                    &self.saver,
+                    cobj.clone(),
+                    sp.clone(),
+                    cod.clone(),
+                    rank,
+                );
                 if st.lock().unwrap().stop() {
-                    self.saver.save_state(
+                    DistributedSaver::save_state(
+                        &self.saver,
                         sp.clone(),
                         self.optimizer.get_state(),
                         &st.lock().unwrap(),
                         &eval,
+                        rank,
                     );
                     break;
                 };
@@ -189,24 +228,33 @@ where
                 eval = Evaluator::new(sobj.clone(), sopt.clone(), info);
                 st.lock().unwrap().update(ExpStep::Optimization);
                 if st.lock().unwrap().stop() {
-                    self.saver.save_state(
+                    DistributedSaver::save_state(
+                        &self.saver,
                         sp.clone(),
                         self.optimizer.get_state(),
                         &st.lock().unwrap(),
                         &eval,
+                        rank,
                     );
                     break;
                 };
             }
-        } else {
-            self.launch_worker(&self.objective);
+            let world = MPI_WORLD.get().unwrap();
+            world.abort(42)
         }
     }
 
     fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
-        let (stop, optimizer, evaluator) = saver
-            .load(&searchspace, objective.get_codomain().as_ref())
-            .unwrap();
+        let rank = *MPI_RANK.get().unwrap();
+        if rank == 0{
+
+        }
+        let (stop, optimizer, evaluator) =
+            DistributedSaver::load(
+                &saver,
+                &searchspace,
+                objective.get_codomain().as_ref()
+            ).unwrap();
         Experiment {
             searchspace,
             objective,

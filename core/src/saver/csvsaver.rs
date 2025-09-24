@@ -41,13 +41,17 @@ pub trait CSVLeftRight<H, L, R> {
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
-/// A CSV [`Saver`] taking a path of where the save folder should be created.
-///
+/// A [`CSVSaver`] taking a path of where the save folder should be created.
+/// The computed [`Codomain`] are always saved by default.
+/// 
 /// # Attribute
 ///
 /// * `path` : `&'static` [`str`]  - The path to where the folder should be created.
 ///   Creates all parents folder that might not  exist yet.
-/// * `sep` : [`char] - The separator between columns of the CSV files.
+/// * `save_obj` : bool - If `true` computed objective [`Partial`] will be saved.
+/// * `save_opt` : bool - If `true` computed optimizer [`Partial`] will be saved.
+/// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
+/// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
 #[derive(Serialize, Deserialize)]
 pub struct CSVSaver {
     pub path: PathBuf,
@@ -415,7 +419,17 @@ where
     }
 }
 
-
+/// Version of [`CSVSaver`] for MPI-distributed algorithms..
+/// The computed [`Codomain`] are always saved by default.
+/// 
+/// # Attribute
+///
+/// * `path` : `&'static` [`str`]  - The path to where the folder should be created.
+///   Creates all parents folder that might not  exist yet.
+/// * `save_obj` : bool - If `true` computed objective [`Partial`] will be saved.
+/// * `save_opt` : bool - If `true` computed optimizer [`Partial`] will be saved.
+/// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
+/// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
 #[cfg(feature="mpi")]
 impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
     DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for CSVSaver

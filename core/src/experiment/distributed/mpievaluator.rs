@@ -1,7 +1,6 @@
 use crate::{
     MPI_WORLD,
     MPI_SIZE,
-    MPI_RANK,
     ArcVecArc,
     Codomain,
     Computed,
@@ -45,7 +44,7 @@ pub struct OMessage<SolId:Id,Out:Outcome>(SolId, Out);
 // WORKER //
 //_______ //
 
-fn launch_worker<SolId,Obj,Cod,Out>(obj_func : &Objective<Obj,Cod,Out>)
+pub fn launch_worker<SolId,Obj,Cod,Out>(obj_func : &Objective<Obj,Cod,Out>)
 where
     SolId:Id,
     Obj: Domain,
@@ -53,26 +52,25 @@ where
     Out:Outcome,
 {
     // Master process is always Rank 0.
-    let rank = *MPI_RANK.get().unwrap();
-    if  rank !=0{
-        let world = MPI_WORLD.get().unwrap();
-        let config = bincode::config::standard();
-        loop {
-            // Receive X and compute
-            let (msg,_) : (Vec<u8>,_) = world.process_at_rank(0).receive_vec();
-            let (id_x,_): (Compat<XMessage<SolId,Obj>>,_) = bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
-            let msg = id_x.0;
-            let id = msg.0;
-            let x = msg.1.as_ref();
-            let out = obj_func.raw_compute(x);
+    let world = MPI_WORLD.get().unwrap();
+    let config = bincode::config::standard();
+    loop {
+        // Receive X and compute
+        let (msg,status) : (Vec<u8>,_) = world.process_at_rank(0).receive_vec();
+        if status.tag() == -1 {break}
+        let (id_x,_): (Compat<XMessage<SolId,Obj>>,_) = bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
+        let msg = id_x.0;
+        let id = msg.0;
+        let x = msg.1.as_ref();
+        let out = obj_func.raw_compute(x);
 
-            // Send results
-            let raw_msg: OMessage<SolId, Out> = OMessage(id,out);
-            let msg_struct = Compat(raw_msg);
-            let msg = bincode::encode_to_vec(msg_struct,config).unwrap();
-            world.process_at_rank(0).send(&msg);
-        }
+        // Send results
+        let raw_msg: OMessage<SolId, Out> = OMessage(id,out);
+        let msg_struct = Compat(raw_msg);
+        let msg = bincode::encode_to_vec(msg_struct,config).unwrap();
+        world.process_at_rank(0).send(&msg);
     }
+    std::process::exit(0);
 }
 
 
@@ -100,7 +98,7 @@ where
         let msg_struct = Compat(raw_msg);
         let msg = bincode::encode_to_vec(msg_struct,config).unwrap();
         waiting.insert(sobj.id, (sobj,sopt));
-        world.process_at_rank(rank).send(&msg);
+        world.process_at_rank(rank).send_with_tag(&msg,1);
     }
     has_idl
 }
@@ -185,17 +183,14 @@ where
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
     Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId,Objective<Obj, Cod, Out>> for Evaluator<SolId, Obj, Opt, Info, SInfo>
 where
-    St: Stop + Send + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
-    Out: Outcome + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
-    SolId: Id + Send + Sync,
+    St: Stop,
+    Obj: Domain,
+    Opt: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    SolId: Id,
     Info: OptInfo,
-    SInfo: SolInfo + Send + Sync,
-    Obj::TypeDom: Send + Sync,
-    Opt::TypeDom: Send + Sync,
-    Cod::TypeCodom: Send + Sync,
+    SInfo: SolInfo,
 {
     fn init(&mut self) {}
     fn evaluate(
@@ -281,7 +276,7 @@ where
         let msg_struct = Compat((id,x.as_ref()));
         let msg = bincode::encode_to_vec(msg_struct,config).unwrap();
         waiting.lock().unwrap().insert(id, (sobj,sopt));
-        world.process_at_rank(rank).send(&msg);
+        world.process_at_rank(rank).send_with_tag(&msg,1);
     }
     has_idl
 }
