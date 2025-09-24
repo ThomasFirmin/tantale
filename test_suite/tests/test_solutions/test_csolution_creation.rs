@@ -2,6 +2,7 @@ use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{Codomain, Computed, ParSId, Partial, SingleCodomain};
 use tantale_core::Solution;
 
+use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
@@ -29,7 +30,7 @@ where
         42.0,
         "Wrong solution info from TestSInfo."
     );
-    assert_eq!(sol.get_id().pid, pid, "Solution PID mismatch.");
+    assert_eq!(sol.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
 }
 
 // BOTH DOMAINS ARE DEFINED

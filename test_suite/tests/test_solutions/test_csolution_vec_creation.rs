@@ -3,6 +3,7 @@ use tantale::core::{Computed, ParSId, Partial, Solution};
 use tantale_core::domain::TypeDom;
 use tantale_core::{Codomain, SingleCodomain};
 
+use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
@@ -31,7 +32,7 @@ where
             42.0,
             "Wrong solution info from TestSInfo."
         );
-        assert_eq!(s.get_id().pid, pid, "Solution PID mismatch.");
+        assert_eq!(s.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
     }
 }
 

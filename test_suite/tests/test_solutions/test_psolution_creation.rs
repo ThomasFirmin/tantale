@@ -1,6 +1,7 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale_core::solution::{ParSId, Partial, Solution};
 
+use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
@@ -19,7 +20,7 @@ where
         std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
         "Solution `x` mismatch."
     );
-    assert_eq!(sol.get_id().pid, pid, "Solution PID mismatch.");
+    assert_eq!(sol.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
     assert_eq!(
         sol.get_info().info,
         42.0,

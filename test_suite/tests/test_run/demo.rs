@@ -82,21 +82,20 @@ fn test_seq_run() {
     use function_module::{FuncOutcome, get_searchspace,my_network};
     drop(Cleaner {});
 
-    // Domain
+    // Domain / Codomain
     let sp = get_searchspace();
     let func = my_network;
-
-    // Codomain
-    let stop = Calls::new(50);
     let cod = RandomSearch::codomain(
         |o: &FuncOutcome|
         o.obj
     );
+    let obj = Objective::new(cod, func);
+
+    // MASTER - WORKER Here
+
+    let stop = Calls::new(50);
     let opt = RandomSearch::new(7);
     let saver = CSVSaver::new("demo_par", true, true, true, 1);
-
-    // Objective
-    let obj = Objective::new(cod, func);
 
     // Experiment
     let exp = ParExperiment::new(sp, obj, opt, stop, saver);
