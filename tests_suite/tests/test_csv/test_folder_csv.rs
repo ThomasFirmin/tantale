@@ -5,7 +5,7 @@ use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, Si
 use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
 use tantale_core::Objective;
-use tantale_core::experiment::sequential::seqevaluator::Evaluator;
+use tantale_core::experiment::Evaluator;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
 use tantale_core::saver::Saver;

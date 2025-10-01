@@ -14,13 +14,13 @@ maintenance = { status = "actively-developed" }
 
 
 [workspace]
-members = ["macros", "core", "algorithms", "test_suite"]
+members = ["macros", "core", "algorithms", "tests_suite"]
 
 [workspace.dependencies]
 tantale_core = { path = "core" }
 tantale_macros = { path = "macros" }
 tantale_algos = { path = "algorithms" }
-tantale_test_suite = { path = "test_suite" }
+tantale_tests = { path = "tests_suite" }
 
 [dependencies]
 tantale_core.workspace = true
@@ -31,4 +31,4 @@ tantale_algos.workspace = true
 mpi = ["tantale_core/mpi"]
 
 [dev-dependencies]
-tantale_test_suite.workspace = true
+tantale_tests.workspace = true

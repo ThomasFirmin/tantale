@@ -1,5 +1,5 @@
 use tantale_core::{
-    experiment::{sequential::seqevaluator::{ParEvaluator,Evaluator}, Evaluate},
+    experiment::Evaluate,
     stop::Calls,
     EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution,
 };
@@ -14,6 +14,8 @@ use std::{
 
 #[test]
 fn test_seq_evaluator() {
+    use tantale::core::experiment::Evaluator;
+
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
@@ -146,7 +148,10 @@ fn test_seq_evaluator() {
 
 
 #[test]
-fn test_par_evaluator() {
+fn test_seq_par_evaluator() {
+
+    use tantale::core::experiment::ThrEvaluator;
+
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
@@ -157,9 +162,9 @@ fn test_par_evaluator() {
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: ParEvaluator<SId, _, _, _, _> = ParEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+    let mut eval: ThrEvaluator<SId, _, _, _, _> = ThrEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
-    let ((cobj, copt), linked) = <ParEvaluator<_, _, _, _, _> as Evaluate<
+    let ((cobj, copt), linked) = <ThrEvaluator<_, _, _, _, _> as Evaluate<
         Calls,
         _,
         _,

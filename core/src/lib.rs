@@ -2,11 +2,10 @@
 //!
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicUsize;
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 use std::sync::OnceLock;
-use serde::{Serialize,Deserialize};
-
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -19,30 +18,29 @@ pub struct GlobalParameters {
     pub run_id: usize,
 }
 
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 pub static MPI_UNIVERSE: OnceLock<mpi::environment::Universe> = OnceLock::new();
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 pub static MPI_WORLD: OnceLock<mpi::topology::SimpleCommunicator> = OnceLock::new();
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 pub static MPI_RANK: OnceLock<mpi::Rank> = OnceLock::new();
 
-#[cfg(feature="mpi")]
-pub fn mpi_init(){
+#[cfg(feature = "mpi")]
+pub fn mpi_init() {
     use mpi::traits::Communicator;
 
-    if MPI_UNIVERSE.get().is_none(){
+    if MPI_UNIVERSE.get().is_none() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         let size = world.size();
         let rank = world.rank();
-        MPI_UNIVERSE.set(universe);
-        MPI_WORLD.set(world);
+        MPI_UNIVERSE.set(universe).unwrap_or_else(|_| panic!("Something went wrong when setting the MPI Universe"));
+        MPI_WORLD.set(world).unwrap_or_else(|_| panic!("Something went wrong when setting the MPI World"));
         MPI_SIZE.set(size).unwrap();
         MPI_RANK.set(rank).unwrap();
-    }
-    else{
+    } else {
         panic!("The MPI Universe has already been initialized")
     }
 }
@@ -58,7 +56,9 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{Computed, Id, ParSId, Partial, SId, SolInfo, Solution,FidelState,FidelityInfo};
+pub use solution::{
+    Computed, FidelState, FidelityInfo, Id, ParSId, Partial, SId, SolInfo, Solution,
+};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};
@@ -69,7 +69,7 @@ pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
     FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, LinkedOutcome,
-    Multi, MultiCodomain, Objective, Stepped, Outcome, Single, SingleCodomain,
+    Multi, MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped,
 };
 
 pub mod optimizer;

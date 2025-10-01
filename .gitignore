@@ -57,3 +57,6 @@ coverage.xml
 docs/_build/
 make.bat
 Makefile
+
+#Test folder
+tmp_*/

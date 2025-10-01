@@ -34,16 +34,14 @@ pub trait SolInfo
 where
     Self: Debug + Serialize + for<'a> Deserialize<'a>,
 {
-
 }
 
-
 /// Describes the fidelity state of a [`Partial`].
-/// 
+///
 /// * [`New`](FidelState::New) : A newly created solution.
 /// * [`Resume`](FidelState::Resume) : Resume the evaluation of [`Partial`].
 /// * [`Discard`](FidelState::Discard) : Discard a [`Partial`] that has already been evaluated for a few steps.
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 pub enum FidelState {
     New,
     Resume,
@@ -52,7 +50,7 @@ pub enum FidelState {
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of an [`Optimizer`] based on multi-fidelity.
-pub trait FidelityInfo : SolInfo
+pub trait FidelityInfo: SolInfo
 where
     Self: Debug + Serialize + for<'a> Deserialize<'a>,
 {

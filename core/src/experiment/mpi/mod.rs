@@ -1,7 +1,6 @@
 #[cfg(feature = "mpi")]
-pub mod mpievaluator;
+pub mod synchronous;
 #[cfg(feature = "mpi")]
-pub mod mpirun;
-
+pub mod utils;
 #[cfg(feature = "mpi")]
-pub use mpirun::Experiment;
+pub mod tools;

@@ -1,11 +1,11 @@
 [package]
-name = "tantale_test_suite"
+name = "tantale_tests"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 tantale = { path = "../"}
-tantale_core = { path = "../core"}
+tantale_core = { path = "../core", features=["mpi"]}
 tantale_macros = { path = "../macros"}
 tantale_algos = { path = "../algorithms"}
 num = "0.4.3"

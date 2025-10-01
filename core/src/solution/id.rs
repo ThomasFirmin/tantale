@@ -1,16 +1,21 @@
-use crate::{saver::CSVWritable, SOL_ID};
-use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, hash::{Hash,Hasher}, sync::atomic::Ordering};
 #[cfg(feature = "mpi")]
 use crate::MPI_RANK;
-#[cfg(feature="mpi")]
+use crate::{saver::CSVWritable, SOL_ID};
+#[cfg(feature = "mpi")]
 use mpi::Rank;
 use num::cast::AsPrimitive;
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    sync::atomic::Ordering,
+};
 
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
 where
-    Self: Sized + PartialEq + Eq + Clone + Copy + Debug + Serialize + for<'a> Deserialize<'a> + Hash,
+    Self:
+        Sized + PartialEq + Eq + Clone + Copy + Debug + Serialize + for<'a> Deserialize<'a> + Hash,
 {
     fn generate() -> Self;
 }
@@ -28,7 +33,10 @@ pub struct DistSId {
 #[cfg(feature = "mpi")]
 impl DistSId {
     pub fn new(rank: Rank, id: usize) -> DistSId {
-        DistSId { rank:rank.as_() , id }
+        DistSId {
+            rank: rank.as_(),
+            id,
+        }
     }
 }
 #[cfg(feature = "mpi")]
@@ -36,7 +44,10 @@ impl Id for DistSId {
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         let rank = *MPI_RANK.get().unwrap();
-        DistSId { rank: rank.as_(), id }
+        DistSId {
+            rank: rank.as_(),
+            id,
+        }
     }
 }
 #[cfg(feature = "mpi")]
@@ -52,11 +63,11 @@ impl CSVWritable<(), ()> for DistSId {
 #[cfg(feature = "mpi")]
 impl PartialEq for DistSId {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id &&  self.rank == other.rank
+        self.id == other.id && self.rank == other.rank
     }
 }
 #[cfg(feature = "mpi")]
-impl Eq for DistSId{}
+impl Eq for DistSId {}
 #[cfg(feature = "mpi")]
 impl Hash for DistSId {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -82,7 +93,7 @@ impl Id for ParSId {
 }
 impl ParSId {
     pub fn new(pid: u32, id: usize) -> ParSId {
-        ParSId { pid : pid.as_(), id }
+        ParSId { pid: pid.as_(), id }
     }
 }
 impl CSVWritable<(), ()> for ParSId {
@@ -100,7 +111,7 @@ impl PartialEq for ParSId {
     }
 }
 
-impl Eq for ParSId{}
+impl Eq for ParSId {}
 
 impl Hash for ParSId {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -141,7 +152,7 @@ impl PartialEq for SId {
     }
 }
 
-impl Eq for SId{}
+impl Eq for SId {}
 
 impl Hash for SId {
     fn hash<H: Hasher>(&self, state: &mut H) {

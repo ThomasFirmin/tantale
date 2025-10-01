@@ -1,8 +1,4 @@
 use crate::{
-    GlobalParameters,
-    OPT_ID,
-    SOL_ID,
-    RUN_ID,
     domain::Domain,
     experiment::Evaluate,
     objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
@@ -10,7 +6,8 @@ use crate::{
     saver::{CheckpointError, Saver},
     searchspace::Searchspace,
     solution::{Computed, Id, Solution},
-    stop::Stop
+    stop::Stop,
+    GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
 };
 
 use rayon::prelude::*;
@@ -22,10 +19,10 @@ use std::{
     sync::{atomic::Ordering, Arc, Mutex},
 };
 
-#[cfg(feature="mpi")]
-use crate::{MPI_WORLD,saver::DistributedSaver};
-#[cfg(feature="mpi")]
-use mpi::{Rank,traits::CommunicatorCollectives};
+#[cfg(feature = "mpi")]
+use crate::{saver::DistributedSaver, MPI_WORLD};
+#[cfg(feature = "mpi")]
+use mpi::{traits::CommunicatorCollectives, Rank};
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and how its components can be written as a [`Vec`] of [`String`].
@@ -43,7 +40,7 @@ pub trait CSVLeftRight<H, L, R> {
 
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
 /// The computed [`Codomain`] are always saved by default.
-/// 
+///
 /// # Attribute
 ///
 /// * `path` : `&'static` [`str`]  - The path to where the folder should be created.
@@ -137,7 +134,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId,FnWrap>,
+    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
     FnWrap: FuncWrapper,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod) {
@@ -399,10 +396,18 @@ where
     }
 
     fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
-        let global: GlobalParameters =
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_parameters(
-                self, _sp, _cod,
-            )?;
+        let global: GlobalParameters = <CSVSaver as Saver<
+            SolId,
+            St,
+            Obj,
+            Opt,
+            Cod,
+            Out,
+            Scp,
+            Op,
+            Eval,
+            FnWrap,
+        >>::load_parameters(self, _sp, _cod)?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
@@ -421,7 +426,7 @@ where
 
 /// Version of [`CSVSaver`] for MPI-distributed algorithms..
 /// The computed [`Codomain`] are always saved by default.
-/// 
+///
 /// # Attribute
 ///
 /// * `path` : `&'static` [`str`]  - The path to where the folder should be created.
@@ -430,7 +435,7 @@ where
 /// * `save_opt` : bool - If `true` computed optimizer [`Partial`] will be saved.
 /// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
 /// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
     DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for CSVSaver
 where
@@ -454,11 +459,10 @@ where
     Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
     FnWrap: FuncWrapper,
 {
-    fn init(&mut self, sp: &Scp, cod: &Cod, rank:Rank) {
-
+    fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
-            if rank == 0{
+            if rank == 0 {
                 panic!("The folder path already exists, {}.", self.path.display())
             }
         } else if self.path.is_file() {
@@ -467,14 +471,16 @@ where
                 self.path.display()
             )
         } else {
-            if rank == 0{
+            if rank == 0 {
                 create_dir_all(self.path.as_path()).unwrap();
             }
             // Wait for main folder to be created.
             MPI_WORLD.get().unwrap().barrier();
-            let path_evals = self.path.join(Path::new(&format!("evaluations_rk{}",rank)));
+            let path_evals = self
+                .path
+                .join(Path::new(&format!("evaluations_rk{}", rank)));
             create_dir(path_evals.as_path()).unwrap();
-            
+
             if self.path_pobj.is_some() {
                 let nppobj = path_evals.join(Path::new("obj.csv"));
                 let mut wrt = csv::Writer::from_path(nppobj.as_path()).unwrap();
@@ -520,7 +526,7 @@ where
             }
 
             if self.path_check.is_some() {
-                let path = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
+                let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
                 let pste = path.join(Path::new("state_opt.json"));
                 let pstp = path.join(Path::new("state_stp.json"));
                 let peva = path.join(Path::new("state_eval.json"));
@@ -538,7 +544,7 @@ where
         sp: Arc<Scp>,
         _cod: Arc<Cod>,
         info: Arc<Op::Info>,
-        _rank:Rank,
+        _rank: Rank,
     ) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
@@ -588,7 +594,7 @@ where
         obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
         _sp: Arc<Scp>,
         cod: Arc<Cod>,
-        _rank:Rank,
+        _rank: Rank,
     ) {
         let file = OpenOptions::new()
             .append(true)
@@ -608,7 +614,12 @@ where
         });
     }
 
-    fn save_out(&self, out: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, _sp: Arc<Scp>,_rank:Rank) {
+    fn save_out(
+        &self,
+        out: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>,
+        _sp: Arc<Scp>,
+        _rank: Rank,
+    ) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -630,7 +641,7 @@ where
         }
     }
 
-    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval,_rank:Rank) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, _rank: Rank) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
@@ -650,8 +661,8 @@ where
         }
     }
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod, rank:Rank) -> Result<St, CheckpointError> {
-        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<St, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_stp = path_check.join(Path::new("state_stp.json"));
@@ -670,8 +681,8 @@ where
         }
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Op, CheckpointError> {
-        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<Op, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_opt = path_check.join(Path::new("state_opt.json"));
@@ -690,8 +701,8 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<Eval, CheckpointError> {
-        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<Eval, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_eva = path_check.join(Path::new("state_eval.json"));
@@ -710,8 +721,13 @@ where
         }
     }
 
-    fn load_parameters(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<GlobalParameters, CheckpointError> {
-        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}",rank)));
+    fn load_parameters(
+        &self,
+        _sp: &Scp,
+        _cod: &Cod,
+        rank: Rank,
+    ) -> Result<GlobalParameters, CheckpointError> {
+        let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
             let path_par = path_check.join(Path::new("state_param.json"));
@@ -730,24 +746,61 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Cod,rank:Rank) -> Result<(St, Op, Eval), CheckpointError> {
-        let global: GlobalParameters =
-            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval,FnWrap>>::load_parameters(
-                self, _sp, _cod, rank
-            )?;
+    fn load(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
+        let global: GlobalParameters = <CSVSaver as DistributedSaver<
+            SolId,
+            St,
+            Obj,
+            Opt,
+            Cod,
+            Out,
+            Scp,
+            Op,
+            Eval,
+            FnWrap,
+        >>::load_parameters(self, _sp, _cod, rank)?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         RUN_ID.store(global.run_id, Ordering::Release);
-        Ok((
-            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_stop(
-                self, _sp, _cod,rank
-            )?,
-            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_optimizer(
-                self, _sp, _cod,rank
-            )?,
-            <CSVSaver as DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_evaluate(
-                self, _sp, _cod,rank
-            )?,
-        ))
+        Ok(
+            (
+                <CSVSaver as DistributedSaver<
+                    SolId,
+                    St,
+                    Obj,
+                    Opt,
+                    Cod,
+                    Out,
+                    Scp,
+                    Op,
+                    Eval,
+                    FnWrap,
+                >>::load_stop(self, _sp, _cod, rank)?,
+                <CSVSaver as DistributedSaver<
+                    SolId,
+                    St,
+                    Obj,
+                    Opt,
+                    Cod,
+                    Out,
+                    Scp,
+                    Op,
+                    Eval,
+                    FnWrap,
+                >>::load_optimizer(self, _sp, _cod, rank)?,
+                <CSVSaver as DistributedSaver<
+                    SolId,
+                    St,
+                    Obj,
+                    Opt,
+                    Cod,
+                    Out,
+                    Scp,
+                    Op,
+                    Eval,
+                    FnWrap,
+                >>::load_evaluate(self, _sp, _cod, rank)?,
+            ),
+        )
     }
 }

@@ -8,6 +8,12 @@ pub use macros::sp;
 #[doc(inline)]
 pub use macros::Mixed;
 #[doc(inline)]
+pub use macros::Outcome;
+#[doc(inline)]
+pub use macros::objective;
+#[doc(inline)]
+pub use macros::stepped;
+#[doc(inline)]
 pub use tantale_algos as algos;
 #[doc(inline)]
 pub use tantale_core as core;

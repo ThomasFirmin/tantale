@@ -1,6 +1,6 @@
 use tantale::core::{
     Objective,
-    experiment::{Runable, sequential::ParExperiment},
+    experiment::{Runable, Experiment},
     load,
     saver::CSVSaver,
     stop::Calls
@@ -48,11 +48,11 @@ pub mod function_module {
         (x, y, x + y)
     }
 
-    pub  use tantale::core::uniform_real;
+    pub  use tantale::core::uniform_real;   
 
     objective!(
         pub fn my_network() -> FuncOutcome {
-            let _a = [! a | Int(0,100) | !];
+            let _a = [! a | Int(-100,100) | !];
             let _b = [! b | Nat(0,100) | !];
             let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
             let _d = [! d | Bool() | !];
@@ -65,7 +65,7 @@ pub mod function_module {
                 activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
             };
 
-            let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{1000} | Nat(0,100) | !];
 
             FuncOutcome{
                 obj: [! j | Real(1000.0,2000.0) => uniform_real | !],
@@ -98,6 +98,6 @@ fn test_seq_run() {
     let saver = CSVSaver::new("demo_par", true, true, true, 1);
 
     // Experiment
-    let exp = ParExperiment::new(sp, obj, opt, stop, saver);
+    let exp = Experiment::new(sp, obj, opt, stop, saver);
     exp.run();
 }

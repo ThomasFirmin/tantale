@@ -7,7 +7,7 @@
 //!  An [`Outcome`](tantale::core::Outcome) is [`CSVWritable`](tantale::core::saver::csvsaver::CSVWritable), ['Serializable'](serde::Serializable), ['Deserializable'](serde::Deserializable).
 //!  But only following types are writable [`isize`], [`i32`], [`i64`], [`f32`], [`f64`], [`usize`], [`u32`], [`u64`], [`String`], [`bool`]. [`Vec`] can also be written if it implements [`Debug`](std::fmt::Debug).
 //!  Other fields should be ['Serializable'](serde::Serializable) and ['Deserializable'](serde::Deserializable) for checkpointing.
-//! 
+//!
 //! # Example
 //!
 //! ```
@@ -86,14 +86,13 @@ where
 {
 }
 
-/// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the 
+/// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the
 /// current state of evaluation of the [`Objective`]. It is used in multi-fidelity optimization,
 /// where a function can be evaluated by state.
 pub trait FuncState
 where
     Self: Sized + Serialize + for<'de> Deserialize<'de>,
 {
-
 }
 
 /// An [`Outcome`] binded to its [`Partial`], before the creation of a [`Computed`].
