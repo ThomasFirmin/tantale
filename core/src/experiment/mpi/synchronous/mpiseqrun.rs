@@ -1,5 +1,5 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, MPI_RANK, MPI_SIZE, MPI_UNIVERSE, MPI_WORLD, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
+    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, MPI_RANK, MPI_SIZE, MPI_UNIVERSE, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
         Evaluate, Runable, mpi::utils::{
             OMessage, SolPair, VecArcComputed, fill_workers, send_to_worker
         }
@@ -7,9 +7,7 @@ use crate::{
 };
 
 use bincode::{self, serde::Compat};
-use mpi::{
-    traits::{Communicator, Source},
-};
+use mpi::traits::{Communicator, Destination, Source};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap, marker::PhantomData, sync::{Arc, Mutex}
@@ -96,7 +94,7 @@ where
         );
 
         // Main variables
-        let world = MPI_WORLD.get().unwrap();
+        let world = MPI_UNIVERSE.get().unwrap().world();
         let length = self.in_obj.len();
         //Results
         let mut result_obj: VecArcComputed<SolId, Obj, Cod, Out, SInfo> = Vec::new();
@@ -118,10 +116,9 @@ where
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod)));
             result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
-            stop.lock().unwrap().update(ExpStep::Distribution);
             if !stop.lock().unwrap().stop() && i < length {
                 let has_idl = send_to_worker(
-                    world,
+                    &world,
                     &mut idle_process,
                     config,
                     self.in_obj[i].clone(),
@@ -129,6 +126,7 @@ where
                     &mut waiting,
                 );
                 if has_idl {
+                    stop.lock().unwrap().update(ExpStep::Distribution);
                     i += 1;
                 }
             }
@@ -358,15 +356,25 @@ where
                 break 'main;
             };
         }
-        let world = MPI_WORLD.get().unwrap();
-        world.abort(42)
+        let world = MPI_UNIVERSE.get().unwrap().world();
+        (1..*MPI_SIZE.get().unwrap()).for_each(
+            |idx|{
+                world.process_at_rank(idx).send_with_tag(&Vec::<u8>::new(),42);
+            }
+        );
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
         let rank = *MPI_RANK.get().unwrap();
         let (stop, optimizer, evaluator) =
             DistributedSaver::load(&saver, &searchspace, objective.get_codomain().as_ref(),rank)
                 .unwrap();
+        DistributedSaver::init(
+            &mut saver,
+            &searchspace,
+            objective.get_codomain().as_ref(),
+            *MPI_RANK.get().unwrap(),
+        );
         MPIExperiment {
             searchspace,
             objective,

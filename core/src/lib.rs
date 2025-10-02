@@ -21,29 +21,9 @@ pub struct GlobalParameters {
 #[cfg(feature = "mpi")]
 pub static MPI_UNIVERSE: OnceLock<mpi::environment::Universe> = OnceLock::new();
 #[cfg(feature = "mpi")]
-pub static MPI_WORLD: OnceLock<mpi::topology::SimpleCommunicator> = OnceLock::new();
-#[cfg(feature = "mpi")]
 pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
 #[cfg(feature = "mpi")]
 pub static MPI_RANK: OnceLock<mpi::Rank> = OnceLock::new();
-
-#[cfg(feature = "mpi")]
-pub fn mpi_init() {
-    use mpi::traits::Communicator;
-
-    if MPI_UNIVERSE.get().is_none() {
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        let size = world.size();
-        let rank = world.rank();
-        MPI_UNIVERSE.set(universe).unwrap_or_else(|_| panic!("Something went wrong when setting the MPI Universe"));
-        MPI_WORLD.set(world).unwrap_or_else(|_| panic!("Something went wrong when setting the MPI World"));
-        MPI_SIZE.set(size).unwrap();
-        MPI_RANK.set(rank).unwrap();
-    } else {
-        panic!("The MPI Universe has already been initialized")
-    }
-}
 
 pub mod domain;
 pub use domain::{

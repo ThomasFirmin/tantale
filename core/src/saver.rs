@@ -34,9 +34,6 @@ macro_rules! load {
             $saver,
         )
     };
-    ($rank : expr, $experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_, $optimizer, $stop, _, _, _, _, _>::load($searchspace, $objective, $saver)
-    };
 }
 
 pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>

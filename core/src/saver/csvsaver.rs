@@ -20,7 +20,7 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{saver::DistributedSaver, MPI_WORLD};
+use crate::{saver::DistributedSaver, MPI_UNIVERSE};
 #[cfg(feature = "mpi")]
 use mpi::{traits::CommunicatorCollectives, Rank};
 
@@ -475,7 +475,7 @@ where
                 create_dir_all(self.path.as_path()).unwrap();
             }
             // Wait for main folder to be created.
-            MPI_WORLD.get().unwrap().barrier();
+            MPI_UNIVERSE.get().unwrap().world().barrier();
             let path_evals = self
                 .path
                 .join(Path::new(&format!("evaluations_rk{}", rank)));

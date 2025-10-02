@@ -1,11 +1,12 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, MPI_WORLD, Objective, Outcome, Partial, SolInfo, Solution, stop::{ExpStep, Stop}
+    ArcVecArc, Codomain, Computed, Domain, Id, MPI_UNIVERSE, Objective, Outcome, Partial, SolInfo, Solution, stop::{ExpStep, Stop}
 };
 
 use bincode::{self, config::Configuration, serde::Compat};
 use mpi::{
     topology::SimpleCommunicator,
     traits::{Communicator, Destination, Source},
+    collective::CommunicatorCollectives
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -48,12 +49,13 @@ where
     Out: Outcome,
 {
     // Master process is always Rank 0.
-    let world = MPI_WORLD.get().unwrap();
+    let world = MPI_UNIVERSE.get().unwrap().world();
     let config = bincode::config::standard();
+    world.barrier();
     loop {
         // Receive X and compute
         let (msg, status): (Vec<u8>, _) = world.process_at_rank(0).receive_vec();
-        if status.tag() == -1 {
+        if status.tag() == 42 {
             break;
         }
         let (id_x, _): (Compat<XMessage<SolId, Obj>>, _) =
@@ -69,7 +71,6 @@ where
         let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
         world.process_at_rank(0).send(&msg);
     }
-    std::process::exit(0);
 }
 
 // Send an Obj solution to a worker
@@ -118,12 +119,12 @@ where
 {
     let mut i = idx;
     let mut st = stop.lock().unwrap();
-    let world = MPI_WORLD.get().unwrap();
+    let world = MPI_UNIVERSE.get().unwrap().world();
     let length = in_obj.len();
     let mut at_least_one_idle = true;
     while at_least_one_idle && i < length && !st.stop() {
         let has_idle = send_to_worker(
-            world,
+            &world,
             idle,
             config,
             in_obj[i].clone(),
@@ -187,12 +188,12 @@ where
 {
     let mut i = idx;
     let mut st = stop.lock().unwrap();
-    let world = MPI_WORLD.get().unwrap();
+    let world = MPI_UNIVERSE.get().unwrap().world();
     let length = in_obj.len();
     let mut at_least_one_idle = true;
     while at_least_one_idle && i < length && !st.stop() {
         let has_idle = par_send_to_worker(
-            world,
+            &world,
             idle.clone(),
             config,
             in_obj[i].clone(),

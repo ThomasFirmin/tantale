@@ -679,8 +679,18 @@ dependencies = [
 name = "tantale"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "csv",
+ "mpi",
+ "num",
+ "paste",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
  "tantale_algos",
  "tantale_core",
+ "tantale_examples",
  "tantale_macros",
  "tantale_tests",
 ]
@@ -711,6 +721,25 @@ dependencies = [
  "serde",
  "serde_json",
  "tantale",
+]
+
+[[package]]
+name = "tantale_examples"
+version = "0.0.0"
+dependencies = [
+ "bincode",
+ "csv",
+ "mpi",
+ "num",
+ "paste",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tantale",
+ "tantale_algos",
+ "tantale_core",
+ "tantale_macros",
 ]
 
 [[package]]

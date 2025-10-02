@@ -1,22 +1,93 @@
-use tantale_core::{
-    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, experiment::{Evaluate,MPIEvaluator, mpi::tools}, stop::Calls
+use tantale::core::{
+    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, experiment::{Evaluate, MPIThrEvaluator, mpi::tools}, stop::Calls
 };
-
-use super::init_func::sp_evaluator;
-use crate::init_func::OutEvaluator;
 
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-#[test]
-fn test_seq_evaluator() {
+mod init_func{
+    use tantale::macros::Outcome;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    pub struct OutEvaluator {
+        pub obj: f64,
+    }
+
+    impl PartialEq for OutEvaluator {
+        fn eq(&self, other: &Self) -> bool {
+            self.obj == other.obj
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Point {
+        pub x: f64,
+        pub y: f64,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Neuron {
+        pub number: i64,
+        pub activation: String,
+    }
+
+    pub fn plus_one_int(x: i64) -> (i64, i64) {
+        (x, x + 1)
+    }
+
+    pub fn int_plus_nat(x: i64, y: u64) -> (i64, u64, i64) {
+        (x, y, x + (y as i64))
+    }
+
+    pub mod sp_evaluator {
+        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+        use tantale::core::{Bool, Cat, Int, Nat, Real};
+        use tantale::macros::objective;
+
+        objective!(
+            pub fn example() -> OutEvaluator {
+                let _a = [! a | Int(0,100) | !];
+                let _b = [! b | Nat(0,100) | !];
+                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+                let _d = [! d | Bool() | !];
+
+                let _e = plus_one_int([! e | Int(0,100) | !]);
+                let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+
+                let _layer = Neuron{
+                    number: [! h | Int(0,100) | !],
+                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                };
+
+                let _k = [! k_{4} | Nat(0,100) | !];
+
+                OutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0) | !]
+                }
+            }
+        );
+    }
+}
+
+use init_func::{sp_evaluator,OutEvaluator};
+
+fn main() {
+    eprintln!("INFO : Running test_seq_evaluator.");
+    
+    if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
+        eprintln!("Skipping MPI test (not under mpirun)");
+        return;
+    }
+
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
     let obj = Arc::new(Objective::new(cod, func));
 
     if !tools::launch_worker(&obj){
+        eprintln!("TEEESST");
         let sp = sp_evaluator::get_searchspace();
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -24,9 +95,9 @@ fn test_seq_evaluator() {
         let mut rng = rand::rng();
         let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
         let sopt = sp.vec_onto_obj(sobj.clone());
-        let mut eval: MPIEvaluator<SId, _, _, _, _> = MPIEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+        let mut eval: MPIThrEvaluator<SId, _, _, _, _> = MPIThrEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
-        let ((cobj, copt), linked) = <MPIEvaluator<_, _, _, _, _> as Evaluate<
+        let ((cobj, copt), linked) = <MPIThrEvaluator<_, _, _, _, _> as Evaluate<
             Calls,
             _,
             _,

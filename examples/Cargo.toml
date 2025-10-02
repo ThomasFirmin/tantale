@@ -1,0 +1,40 @@
+[package]
+name = "tantale_examples"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+tantale = { path = "..", features=["mpi"]}
+tantale_core = { path = "../core", features=["mpi"]}
+tantale_macros = { path = "../macros"}
+tantale_algos = { path = "../algorithms"}
+num = "0.4.3"
+paste = "1.0.15"
+rand = "0.9.0"
+rayon = "1.10.0"
+csv = "1.1"
+serde = {version="1.0.219", features=["derive","rc"]}
+serde_json = "1.0.142"
+mpi = {version = "0.8.0", features=["derive"]}
+bincode = {version = "2.0.1", features=["serde"]}
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", "katex-header.html"]
+
+[[example]]
+name="mpi_seq_run"
+path="mpi_seq_run.rs"
+
+[[example]]
+name="mpi_seq_evaluator"
+path="mpi_seq_evaluator.rs"
+
+[[example]]
+name="mpi_par_run"
+path="mpi_par_run.rs"
+
+[[example]]
+name="mpi_par_evaluator"
+path="mpi_par_evaluator.rs"

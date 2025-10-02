@@ -1,16 +1,80 @@
-use tantale_core::{
+use tantale::core::{
     Objective, experiment::{Runable, MPIExperiment, mpi::tools}, load, saver::CSVSaver, stop::Calls
 };
 
 use tantale_algos::RandomSearch;
 
-use super::init_func::sp_evaluator;
-use crate::init_func::OutEvaluator;
-
 use std::{
     collections::HashSet,
     path::Path
 };
+
+mod init_func{
+    use tantale::macros::Outcome;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    pub struct OutEvaluator {
+        pub obj: f64,
+    }
+
+    impl PartialEq for OutEvaluator {
+        fn eq(&self, other: &Self) -> bool {
+            self.obj == other.obj
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Point {
+        pub x: f64,
+        pub y: f64,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Neuron {
+        pub number: i64,
+        pub activation: String,
+    }
+
+    pub fn plus_one_int(x: i64) -> (i64, i64) {
+        (x, x + 1)
+    }
+
+    pub fn int_plus_nat(x: i64, y: u64) -> (i64, u64, i64) {
+        (x, y, x + (y as i64))
+    }
+
+    pub mod sp_evaluator {
+        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+        use tantale::core::{Bool, Cat, Int, Nat, Real};
+        use tantale::macros::objective;
+
+        objective!(
+            pub fn example() -> OutEvaluator {
+                let _a = [! a | Int(0,100) | !];
+                let _b = [! b | Nat(0,100) | !];
+                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+                let _d = [! d | Bool() | !];
+
+                let _e = plus_one_int([! e | Int(0,100) | !]);
+                let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+
+                let _layer = Neuron{
+                    number: [! h | Int(0,100) | !],
+                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                };
+
+                let _k = [! k_{4} | Nat(0,100) | !];
+
+                OutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0) | !]
+                }
+            }
+        );
+    }
+}
+
+use init_func::{sp_evaluator,OutEvaluator};
 
 struct Cleaner{path:String}
 
@@ -22,7 +86,7 @@ impl Drop for Cleaner {
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("evaluations"));
+    let eval_path = true_path.join(Path::new("evaluations_rk0"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
@@ -86,21 +150,16 @@ pub fn run_reader(path: &str, size: usize) {
     assert_eq!(hash_id.len(), size, "Some IDs are duplicated.");
 }
 
-#[test]
-fn test_mpi_run() {
-    
-    if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
-        eprintln!("Skipping MPI test (not under mpirun)");
-        return;
-    }
-    
-    drop(Cleaner {path:String::from("tmp_test_seqrun")});
+fn main() {
+    eprintln!("INFO : Running test_seq_run.");
 
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-
+    
     if !tools::launch_worker(&obj){
+        // drop(Cleaner {path:String::from("tmp_test_seqrun")});
+        
         let sp = sp_evaluator::get_searchspace();
         let opt = RandomSearch::new(7);
         let stop = Calls::new(50);
@@ -115,7 +174,7 @@ fn test_mpi_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-
+    
     if !tools::launch_worker(&obj){
         let sp = sp_evaluator::get_searchspace();
         let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
@@ -128,6 +187,8 @@ fn test_mpi_run() {
         exp.stop.1 = 100;
         exp.run();
 
+        println!("LFKJHDIUQHGFIUHIUDSFHIKLOUHEDFD");
+        
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
         let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
@@ -139,6 +200,6 @@ fn test_mpi_run() {
         assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
         assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-        drop(Cleaner {path:String::from("tmp_test_seqrun")});
+        // drop(Cleaner {path:String::from("tmp_test_seqrun")});
     }
 }

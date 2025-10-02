@@ -1,5 +1,5 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, MPI_RANK, MPI_SIZE, MPI_UNIVERSE, MPI_WORLD, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
+    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, MPI_RANK, MPI_SIZE, MPI_UNIVERSE, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
         Evaluate, Runable, mpi::utils::{
             ArcMutexHash, VecArcComputed, par_send_to_worker, par_fill_workers
         }
@@ -7,7 +7,7 @@ use crate::{
 };
 
 use bincode::{self,serde::Compat};
-use mpi::traits::{Communicator, Source};
+use mpi::traits::{Communicator, Destination, Source};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap, marker::PhantomData, sync::{Arc, Mutex}
@@ -98,7 +98,6 @@ where
         );
 
         // Main variables
-        let world = MPI_WORLD.get().unwrap();
         let length = self.in_obj.len();
         //Results
         let mut result_obj: VecArcComputed<SolId, Obj, Cod, Out, SInfo> = Vec::new();
@@ -113,6 +112,7 @@ where
             let idl_2 = idle_process.clone();
             rayon::join(
                 || {
+                    let world = MPI_UNIVERSE.get().unwrap().world();
                     let (bytes, status): (Vec<u8>, _) = world.any_process().receive_vec();
                     idl_1.lock().unwrap().push(status.source_rank());
                     let (bytes, _): (Compat<(SolId, Out)>, _) =
@@ -127,9 +127,10 @@ where
                     stop.lock().unwrap().update(ExpStep::Distribution);
                 },
                 || {
+                    let world = MPI_UNIVERSE.get().unwrap().world();
                     if !stop.lock().unwrap().stop() && i < length {
                         let has_idl = par_send_to_worker(
-                            world,
+                            &world,
                             idl_2,
                             config,
                             self.in_obj[i].clone(),
@@ -389,8 +390,12 @@ where
                 break 'main;
             };
         }
-        let world = MPI_WORLD.get().unwrap();
-        world.abort(42)
+        let world = MPI_UNIVERSE.get().unwrap().world();
+        (1..*MPI_SIZE.get().unwrap()).for_each(
+            |idx|{
+                world.process_at_rank(idx).send_with_tag(&Vec::<u8>::new(),-1);
+            }
+        );
     }
 
     fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
