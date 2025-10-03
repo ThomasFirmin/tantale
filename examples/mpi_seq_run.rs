@@ -3,6 +3,7 @@ use tantale::core::{
 };
 
 use tantale_algos::RandomSearch;
+use tantale_core::MPI_RANK;
 
 use std::{
     collections::HashSet,
@@ -158,7 +159,7 @@ fn main() {
     let obj = Objective::new(cod, func);
     
     if !tools::launch_worker(&obj){
-        // drop(Cleaner {path:String::from("tmp_test_seqrun")});
+        drop(Cleaner {path:String::from("tmp_test_seqrun")});
         
         let sp = sp_evaluator::get_searchspace();
         let opt = RandomSearch::new(7);
@@ -200,6 +201,10 @@ fn main() {
         assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
         assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
+        println!("35456654654353435456453");
+
         // drop(Cleaner {path:String::from("tmp_test_seqrun")});
     }
+    tools::finalize();
+    println!("JE SUIS LE RANG {} et j'ai termine",{*MPI_RANK.get().unwrap()});
 }

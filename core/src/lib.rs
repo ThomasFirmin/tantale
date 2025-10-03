@@ -10,6 +10,10 @@ use std::sync::OnceLock;
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
 pub static RUN_ID: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "mpi")]
+pub static MPI_RANK: OnceLock<mpi::Rank> = OnceLock::new();
+#[cfg(feature = "mpi")]
+pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
 
 #[derive(Serialize, Deserialize)]
 pub struct GlobalParameters {
@@ -17,13 +21,6 @@ pub struct GlobalParameters {
     pub opt_id: usize,
     pub run_id: usize,
 }
-
-#[cfg(feature = "mpi")]
-pub static MPI_UNIVERSE: OnceLock<mpi::environment::Universe> = OnceLock::new();
-#[cfg(feature = "mpi")]
-pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
-#[cfg(feature = "mpi")]
-pub static MPI_RANK: OnceLock<mpi::Rank> = OnceLock::new();
 
 pub mod domain;
 pub use domain::{

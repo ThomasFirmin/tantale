@@ -1,22 +1,22 @@
 use crate::{
-    domain::Domain,
-    experiment::{
-        Evaluate, Runable,
-    },
-    objective::{Codomain, Objective, Outcome},
-    optimizer::opt::{SequentialOptimizer,SolPairs},
-    saver::Saver,
-    searchspace::Searchspace,
-    solution::SId,
-    stop::{ExpStep, Stop},
-    Id,SolInfo,OptInfo,ArcVecArc,Solution,Partial,Computed,LinkedOutcome,
+    ArcVecArc, Computed, Id, LinkedOutcome, OptInfo, Partial, SolInfo, Solution, domain::Domain, experiment::{
+        DistEvaluate, Evaluate, Runable,
+    }, objective::{Codomain, Objective, Outcome}, optimizer::opt::{SequentialOptimizer,SolPairs}, saver::Saver, searchspace::Searchspace, solution::SId, stop::{ExpStep, Stop}
 };
 
 use serde::{Deserialize, Serialize};
 use std::{
-    marker::PhantomData,
-    sync::{Arc, Mutex},
+    collections::HashMap, marker::PhantomData, sync::{Arc, Mutex}
 };
+
+#[cfg(feature="mpi")]
+use crate::{
+    experiment::mpi::{tools::MPIProcess, utils::{OMessage, SolPair, VecArcComputed,fill_workers,send_to_worker}}
+};
+#[cfg(feature="mpi")]
+use mpi::{traits::{Communicator,Source}};
+#[cfg(feature="mpi")]
+use bincode::serde::Compat;
 
 type EvalType<Obj, Opt, Info, SInfo> = Option<Evaluator<SId, Obj, Opt, Info, SInfo>>;
 
@@ -117,6 +117,102 @@ where
         self.idx = 0;
     }
 }
+
+#[cfg(feature="mpi")]
+impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
+    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
+    for Evaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    St: Stop,
+    Obj: Domain,
+    Opt: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    SolId: Id,
+    Info: OptInfo,
+    SInfo: SolInfo,
+{
+    fn init(&mut self) {}
+    fn evaluate(
+        &mut self,
+        proc:&MPIProcess,
+        ob: Arc<Objective<Obj, Cod, Out>>,
+        stop: Arc<Mutex<St>>,
+    ) -> (
+        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
+        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
+    ) {
+        // Bytes encoding config
+        let config = bincode::config::standard();
+        // [1..SIZE] because of master process
+        let mut idle_process: Vec<i32> = (1..proc.size).collect();
+        let mut waiting: HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>> = HashMap::new();
+        let mut i = fill_workers(
+            &proc,
+            &mut idle_process,
+            stop.clone(),
+            self.in_obj.clone(),
+            self.in_opt.clone(),
+            self.idx,
+            &mut waiting,
+            config,
+        );
+
+        // Main variables
+        let length = self.in_obj.len();
+        //Results
+        let mut result_obj: VecArcComputed<SolId, Obj, Cod, Out, SInfo> = Vec::new();
+        let mut result_opt: VecArcComputed<SolId, Opt, Cod, Out, SInfo> = Vec::new();
+        let mut result_out: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>> = Vec::new();
+
+        // Recv / sendv loop
+        while !waiting.is_empty() {
+            let (bytes, status): (Vec<u8>, _) = proc.world.any_process().receive_vec();
+            idle_process.push(status.source_rank());
+            let (bytes, _): (Compat<OMessage<SolId, Out>>, _) =
+                bincode::decode_from_slice(bytes.as_slice(), config).unwrap();
+            let msg = bytes.0;
+            let id = msg.0;
+            let out = msg.1;
+            let cod = Arc::new(ob.codomain.get_elem(&out));
+            let out = Arc::new(out);
+            let (sobj, sopt) = waiting.remove(&id).unwrap();
+            result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
+            result_opt.push(Arc::new(Computed::new(sopt.clone(), cod)));
+            result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
+            if !stop.lock().unwrap().stop() && i < length {
+                let has_idl = send_to_worker(
+                    &proc.world,
+                    &mut idle_process,
+                    config,
+                    self.in_obj[i].clone(),
+                    self.in_opt[i].clone(),
+                    &mut waiting,
+                );
+                if has_idl {
+                    stop.lock().unwrap().update(ExpStep::Distribution);
+                    i += 1;
+                }
+            }
+        }
+        // For saving in case of early stopping before full evaluation of all elements
+        self.idx = i;
+        ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
+    }
+
+    fn update(
+        &mut self,
+        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        info: Arc<Info>,
+    ) {
+        self.in_obj = obj;
+        self.in_opt = opt;
+        self.info = info;
+        self.idx = 0;
+    }
+}
+
 
 pub struct Experiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
@@ -317,10 +413,15 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
+        Saver::after_load(
+            &mut saver,
+            &searchspace,
+            objective.get_codomain().as_ref(),
+        );
         Experiment {
             searchspace,
             objective,

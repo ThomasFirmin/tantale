@@ -51,6 +51,7 @@ where
     FnWrap: FuncWrapper,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod);
+    fn after_load(&mut self, sp: &Scp, cod: &Cod);
     fn save_partial(
         &self,
         obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
@@ -92,6 +93,7 @@ where
     FnWrap: FuncWrapper,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
+    fn after_load(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
     fn save_partial(
         &self,
         obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,

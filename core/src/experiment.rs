@@ -1,11 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, FuncWrapper, Outcome},
-    optimizer::opt::{ArcVecArc, Optimizer, SolPairs},
-    saver::Saver,
-    solution::{Id, Partial, SolInfo},
-    stop::Stop,
-    LinkedOutcome, OptInfo, Searchspace,
+    LinkedOutcome, OptInfo, Searchspace, domain::Domain, experiment::mpi::tools::MPIProcess, objective::{Codomain, FuncWrapper, Outcome}, optimizer::opt::{ArcVecArc, Optimizer, SolPairs}, saver::Saver, solution::{Id, Partial, SolInfo}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -63,6 +57,67 @@ where
     );
 }
 
+/// Describes a multi-threaded [`Evaluate`].
+pub trait ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>: Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>
+where
+    Self: Serialize + for<'de> Deserialize<'de>,
+    St: Stop,
+    FnWrap: FuncWrapper,
+    Obj: Domain,
+    Opt: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    Info: OptInfo,
+    SInfo: SolInfo,
+    SolId: Id,
+    FnWrap: FuncWrapper,
+{
+    fn init(&mut self);
+    fn evaluate(
+        &mut self,
+        proc:&MPIProcess,
+        ob: Arc<FnWrap>,
+        stop: Arc<Mutex<St>>,
+    ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo>;
+    fn update(
+        &mut self,
+        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        info: Arc<Info>,
+    );
+}
+
+
+#[cfg(feature="mpi")]
+/// Describes an MPI-distributed [`Evaluate`].
+pub trait DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>: Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>
+where
+    Self: Serialize + for<'de> Deserialize<'de>,
+    St: Stop,
+    FnWrap: FuncWrapper,
+    Obj: Domain,
+    Opt: Domain,
+    Out: Outcome,
+    Cod: Codomain<Out>,
+    Info: OptInfo,
+    SInfo: SolInfo,
+    SolId: Id,
+    FnWrap: FuncWrapper,
+{
+    fn init(&mut self);
+    fn evaluate(
+        &mut self,
+        proc:&MPIProcess,
+        ob: Arc<FnWrap>,
+        stop: Arc<Mutex<St>>,
+    ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo>;
+    fn update(
+        &mut self,
+        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        info: Arc<Info>,
+    );
+}
 
 // SYNCHRONOUS
 pub mod synchronous;

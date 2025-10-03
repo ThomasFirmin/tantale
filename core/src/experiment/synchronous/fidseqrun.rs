@@ -329,10 +329,15 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Stepped<Obj, Cod, Out, FnState>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Stepped<Obj, Cod, Out, FnState>, mut saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
+        Saver::after_load(
+            &mut saver,
+            &searchspace,
+            objective.get_codomain().as_ref(),
+        );
         FidExperiment {
             searchspace,
             objective,

@@ -1,8 +1,8 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, MPI_RANK, MPI_SIZE, MPI_UNIVERSE, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
-        Evaluate, Runable, mpi::utils::{
-            ArcMutexHash, VecArcComputed, par_send_to_worker, par_fill_workers
-        }
+    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, OptInfo, Outcome, Partial, SId, Searchspace, SolInfo, experiment::{
+        DistEvaluate, Runable, mpi::{tools::MPIProcess, utils::{
+            ArcMutexHash, VecArcComputed, par_fill_workers, par_send_to_worker
+        }}
     }, optimizer::opt::{SequentialOptimizer, SolPairs}, saver::DistributedSaver, stop::{ExpStep, Stop}
 };
 
@@ -57,7 +57,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
+    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
     for MPIThrEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop + Send + Sync,
@@ -340,7 +340,7 @@ where
 
             // Arc copy of data to send to evaluator thread.
             let ((cobj, copt), cout) =
-                <MPIThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as Evaluate<
+                <MPIThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as DistEvaluate<
                     St,
                     Obj,
                     Opt,
@@ -398,11 +398,17 @@ where
         );
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
         let rank = *MPI_RANK.get().unwrap();
         let (stop, optimizer, evaluator) =
             DistributedSaver::load(&saver, &searchspace, objective.get_codomain().as_ref(),rank)
                 .unwrap();
+        DistributedSaver::after_load(
+            &mut saver,
+            &searchspace,
+            objective.get_codomain().as_ref(),
+            *MPI_RANK.get().unwrap(),
+        );
         MPIThrExperiment {
             searchspace,
             objective,

@@ -43,6 +43,7 @@ where
     FnWrap: FuncWrapper,
 {
     fn init(&mut self, _sp: &Scp, _cod: &Cod) {}
+    fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {}
     fn save_partial(
         &self,
         _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
@@ -101,9 +102,10 @@ where
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
     FnWrap: FuncWrapper,
-{
+    {
+    
     fn init(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
-
+    fn after_load(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
     fn save_partial(
         &self,
         _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
@@ -159,4 +161,5 @@ where
     ) -> Result<GlobalParameters, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
+    
 }

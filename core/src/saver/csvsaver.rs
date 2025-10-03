@@ -20,9 +20,9 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{saver::DistributedSaver, MPI_UNIVERSE};
+use crate::{saver::DistributedSaver};
 #[cfg(feature = "mpi")]
-use mpi::{traits::CommunicatorCollectives, Rank};
+use mpi::Rank;
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and how its components can be written as a [`Vec`] of [`String`].
@@ -191,6 +191,37 @@ where
                 let path = self.path.join(Path::new("checkpoint"));
                 create_dir(path.as_path()).unwrap();
             }
+        }
+    }
+
+    fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {
+        let does_exist = self.path.try_exists().unwrap();
+        if does_exist {
+            
+            let path_evals = self.path.join(Path::new("evaluations"));
+            if !path_evals.try_exists().unwrap(){panic!("The folder path for evaluations does not exists, {}.", path_evals.display())}
+
+            if let Some(ppobj) = &self.path_pobj {
+                if !ppobj.try_exists().unwrap(){panic!("The file path for Objective solutions does not exists, {}.", ppobj.display())}
+            }
+
+            if let Some(ppopt) = &self.path_popt {
+                if !ppopt.try_exists().unwrap(){panic!("The file path for Optimizer solutions does not exists, {}.", ppopt.display())}
+            }
+
+            if let Some(ppout) = &self.path_out {
+                if !ppout.try_exists().unwrap(){panic!("The file path for Output does not exists, {}.", ppout.display())}
+            }
+
+            if !self.path_codom.try_exists().unwrap(){panic!("The file path for Codomain does not exists, {}.", self.path_codom.display())}
+
+            if self.path_check.is_some() {
+                let path = self.path.join(Path::new("checkpoint"));
+                if !path.try_exists().unwrap(){panic!("The folder path for checkpoints does not exists, {}.", path.display())}
+            }
+        }
+        else{
+            panic!("The folder path does not exists, {}.", self.path.display())
         }
     }
 
@@ -470,12 +501,8 @@ where
                 "The given path cannot point to a file, {}.",
                 self.path.display()
             )
-        } else {
-            if rank == 0 {
+        } else if rank == 0 {
                 create_dir_all(self.path.as_path()).unwrap();
-            }
-            // Wait for main folder to be created.
-            MPI_UNIVERSE.get().unwrap().world().barrier();
             let path_evals = self
                 .path
                 .join(Path::new(&format!("evaluations_rk{}", rank)));
@@ -534,6 +561,52 @@ where
                 self.path_check.replace((pste, pstp, peva, ppar));
                 create_dir(path.as_path()).unwrap();
             }
+        }
+    }
+
+    fn after_load(&mut self, _sp: &Scp, _cod: &Cod, rank: Rank) {
+        let does_exist = self.path.try_exists().unwrap();
+        if does_exist {
+            let path_evals = self
+                .path
+                .join(Path::new(&format!("evaluations_rk{}", rank)));
+
+            if !path_evals.try_exists().unwrap(){panic!("The folder path for evaluations does not exists, {}.", path_evals.display())}
+
+            if self.path_pobj.is_some() {
+                let nppobj = path_evals.join(Path::new("obj.csv"));
+                if !nppobj.try_exists().unwrap(){panic!("The file path for Objective solutions does not exists, {}.", nppobj.display())}
+                self.path_pobj = Some(nppobj);
+            }
+
+            if self.path_popt.is_some() {
+                let nppopt = path_evals.join(Path::new("opt.csv"));
+                if !nppopt.try_exists().unwrap(){panic!("The file path for Optimizer solutions does not exists, {}.", nppopt.display())}
+                self.path_popt = Some(nppopt);
+            }
+
+            if self.path_out.is_some() {
+                let nppout = path_evals.join(Path::new("out.csv"));
+                if !nppout.try_exists().unwrap(){panic!("The file path for Output does not exists, {}.", nppout.display())}
+                self.path_out = Some(nppout);
+            }
+            
+            let nppcod = path_evals.join(Path::new("cod.csv"));
+            if !nppcod.try_exists().unwrap(){panic!("The file path for Codomain does not exists, {}.", nppcod.display())}
+            self.path_codom = nppcod;
+
+            if self.path_check.is_some() {
+                let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
+                if !path.try_exists().unwrap(){panic!("The folder path for checkpoints does not exists, {}.", path.display())}
+                let pste = path.join(Path::new("state_opt.json"));
+                let pstp = path.join(Path::new("state_stp.json"));
+                let peva = path.join(Path::new("state_eval.json"));
+                let ppar = path.join(Path::new("state_param.json"));
+                self.path_check.replace((pste, pstp, peva, ppar));
+            }
+        }
+        else{
+            panic!("The folder path does not exists, {}.", self.path.display())
         }
     }
 

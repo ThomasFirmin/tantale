@@ -363,10 +363,15 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
+        Saver::after_load(
+            &mut saver,
+            &searchspace,
+            objective.get_codomain().as_ref(),
+        );
         ThrExperiment {
             searchspace,
             objective,
