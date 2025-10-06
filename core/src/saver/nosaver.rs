@@ -1,7 +1,7 @@
 use crate::{
     domain::Domain,
     experiment::Evaluate,
-    objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
+    objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, Optimizer},
     saver::{CheckpointError, Saver},
     searchspace::Searchspace,
@@ -28,8 +28,8 @@ impl NoSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
-    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for NoSaver
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for NoSaver
 where
     SolId: Id,
     St: Stop,
@@ -39,8 +39,7 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
+    Eval: Evaluate,
 {
     fn init(&mut self, _sp: &Scp, _cod: &Cod) {}
     fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {}
@@ -89,8 +88,8 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
-    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for NoSaver
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for NoSaver
 where
     SolId: Id,
     St: Stop,
@@ -100,10 +99,8 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
-    {
-    
+    Eval: Evaluate,
+{
     fn init(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
     fn after_load(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
     fn save_partial(

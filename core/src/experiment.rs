@@ -15,8 +15,8 @@ where
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    Sv: Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>,
+    Eval: Evaluate,
+    Sv: Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -27,11 +27,15 @@ where
     fn load(searchspace: Scp, objective: FnWrap, saver: Sv) -> Self;
 }
 
+pub trait Evaluate
+where
+    Self: Serialize + for<'de> Deserialize<'de>
+{}
+
 /// An evaluator describes how a batch of [`Partial`] should
 /// be evaluated to get a batch of [`Computed`].
-pub trait Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>
+pub trait SeqEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap> : Evaluate
 where
-    Self: Serialize + for<'de> Deserialize<'de>,
     St: Stop,
     FnWrap: FuncWrapper,
     Obj: Domain,
@@ -58,7 +62,7 @@ where
 }
 
 /// Describes a multi-threaded [`Evaluate`].
-pub trait ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>: Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>
+pub trait ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap> : Evaluate
 where
     Self: Serialize + for<'de> Deserialize<'de>,
     St: Stop,
@@ -75,7 +79,6 @@ where
     fn init(&mut self);
     fn evaluate(
         &mut self,
-        proc:&MPIProcess,
         ob: Arc<FnWrap>,
         stop: Arc<Mutex<St>>,
     ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo>;
@@ -90,7 +93,7 @@ where
 
 #[cfg(feature="mpi")]
 /// Describes an MPI-distributed [`Evaluate`].
-pub trait DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>: Evaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap>
+pub trait DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnWrap> : Evaluate
 where
     Self: Serialize + for<'de> Deserialize<'de>,
     St: Stop,
@@ -121,10 +124,10 @@ where
 
 // SYNCHRONOUS
 pub mod synchronous;
-pub use synchronous::seqrun::{Experiment,Evaluator};
-pub use synchronous::thrrun::{ThrExperiment,ThrEvaluator};
-pub use synchronous::fidseqrun::{FidExperiment,FidEvaluator};
-pub use synchronous::fidthrrun::{FidThrExperiment,FidThrEvaluator};
+pub use synchronous::evaluator::{SeqEvaluator,ThrSeqEvaluator};
+pub use synchronous::syncrun::Experiment;
+pub use synchronous::fidevaluator::{FidEvaluator,FidThrEvaluator};
+pub use synchronous::fidsyncrun::{FidExperiment};
 
 #[cfg(feature="mpi")]
 pub mod mpi;

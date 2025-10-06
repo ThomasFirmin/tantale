@@ -1,7 +1,7 @@
 use crate::{
     domain::Domain,
     experiment::Evaluate,
-    objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
+    objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::{ArcVecArc, Optimizer},
     saver::{CheckpointError, Saver},
     searchspace::Searchspace,
@@ -114,8 +114,8 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
-    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for CSVSaver
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
@@ -134,8 +134,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
+    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod) {
         let does_exist = self.path.try_exists().unwrap();
@@ -437,18 +436,17 @@ where
             Scp,
             Op,
             Eval,
-            FnWrap,
         >>::load_parameters(self, _sp, _cod)?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_stop(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_stop(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_optimizer(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_optimizer(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>>::load_evaluate(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_evaluate(
                 self, _sp, _cod,
             )?,
         ))
@@ -467,8 +465,8 @@ where
 /// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
 /// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
 #[cfg(feature = "mpi")]
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
-    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap> for CSVSaver
+impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
+    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
@@ -487,8 +485,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
+    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
@@ -830,7 +827,6 @@ where
             Scp,
             Op,
             Eval,
-            FnWrap,
         >>::load_parameters(self, _sp, _cod, rank)?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
@@ -847,7 +843,6 @@ where
                     Scp,
                     Op,
                     Eval,
-                    FnWrap,
                 >>::load_stop(self, _sp, _cod, rank)?,
                 <CSVSaver as DistributedSaver<
                     SolId,
@@ -859,7 +854,6 @@ where
                     Scp,
                     Op,
                     Eval,
-                    FnWrap,
                 >>::load_optimizer(self, _sp, _cod, rank)?,
                 <CSVSaver as DistributedSaver<
                     SolId,
@@ -871,7 +865,6 @@ where
                     Scp,
                     Op,
                     Eval,
-                    FnWrap,
                 >>::load_evaluate(self, _sp, _cod, rank)?,
             ),
         )

@@ -1,4 +1,5 @@
-pub mod fidseqrun;
-pub mod fidthrrun;
-pub mod seqrun;
+pub mod fidsyncrun;
+pub mod syncrun;
 pub mod thrrun;
+pub mod evaluator;
+pub mod fidevaluator;

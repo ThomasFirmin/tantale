@@ -1,7 +1,7 @@
 use crate::{
     domain::Domain,
     experiment::Evaluate,
-    objective::{Codomain, FuncWrapper, LinkedOutcome, Outcome},
+    objective::{Codomain, LinkedOutcome, Outcome},
     optimizer::ArcVecArc,
     searchspace::Searchspace,
     solution::{Computed, Id},
@@ -36,7 +36,7 @@ macro_rules! load {
     };
 }
 
-pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
+pub trait Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
 where
     Self: Sized,
     SolId: Id,
@@ -47,8 +47,7 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
+    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod);
     fn after_load(&mut self, sp: &Scp, cod: &Cod);
@@ -77,8 +76,8 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>:
-    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval, FnWrap>
+pub trait DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>:
+    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
 where
     Self: Sized,
     SolId: Id,
@@ -89,8 +88,7 @@ where
     Out: Outcome,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
-    Eval: Evaluate<St, Obj, Opt, Out, Cod, Op::Info, Op::SInfo, SolId, FnWrap>,
-    FnWrap: FuncWrapper,
+    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
     fn after_load(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
