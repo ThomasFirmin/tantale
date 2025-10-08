@@ -1,13 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::Evaluate,
-    objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::{ArcVecArc, Optimizer},
-    saver::{CheckpointError, Saver},
-    searchspace::Searchspace,
-    solution::{Computed, Id, Solution},
-    stop::Stop,
-    GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
+    GlobalParameters, OPT_ID, RUN_ID, SOL_ID, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::{ArcVecArc, Optimizer, opt::{Batch, BatchType}}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Computed, Id, Solution}, stop::Stop
 };
 
 use rayon::prelude::*;
@@ -20,7 +12,7 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{saver::DistributedSaver};
+use crate::saver::DistributedSaver;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
@@ -36,6 +28,12 @@ pub trait CSVLeftRight<H, L, R> {
     fn header(elem: &H) -> Vec<String>;
     fn write_left(&self, comp: &L) -> Vec<String>;
     fn write_right(&self, comp: &R) -> Vec<String>;
+}
+
+/// A [`CSVWrite`] describes the object for which the component has to be written within a CSV file.
+pub trait CSVWrite<T>
+{
+    fn write(elem: &H) -> Vec<String>;
 }
 
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
@@ -128,13 +126,13 @@ where
         + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
         + Send
         + Sync,
+    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    Eval: Evaluate,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
-    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod) {
         let does_exist = self.path.try_exists().unwrap();
@@ -196,41 +194,67 @@ where
     fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
-            
             let path_evals = self.path.join(Path::new("evaluations"));
-            if !path_evals.try_exists().unwrap(){panic!("The folder path for evaluations does not exists, {}.", path_evals.display())}
+            if !path_evals.try_exists().unwrap() {
+                panic!(
+                    "The folder path for evaluations does not exists, {}.",
+                    path_evals.display()
+                )
+            }
 
             if let Some(ppobj) = &self.path_pobj {
-                if !ppobj.try_exists().unwrap(){panic!("The file path for Objective solutions does not exists, {}.", ppobj.display())}
+                if !ppobj.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Objective solutions does not exists, {}.",
+                        ppobj.display()
+                    )
+                }
             }
 
             if let Some(ppopt) = &self.path_popt {
-                if !ppopt.try_exists().unwrap(){panic!("The file path for Optimizer solutions does not exists, {}.", ppopt.display())}
+                if !ppopt.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Optimizer solutions does not exists, {}.",
+                        ppopt.display()
+                    )
+                }
             }
 
             if let Some(ppout) = &self.path_out {
-                if !ppout.try_exists().unwrap(){panic!("The file path for Output does not exists, {}.", ppout.display())}
+                if !ppout.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Output does not exists, {}.",
+                        ppout.display()
+                    )
+                }
             }
 
-            if !self.path_codom.try_exists().unwrap(){panic!("The file path for Codomain does not exists, {}.", self.path_codom.display())}
+            if !self.path_codom.try_exists().unwrap() {
+                panic!(
+                    "The file path for Codomain does not exists, {}.",
+                    self.path_codom.display()
+                )
+            }
 
             if self.path_check.is_some() {
                 let path = self.path.join(Path::new("checkpoint"));
-                if !path.try_exists().unwrap(){panic!("The folder path for checkpoints does not exists, {}.", path.display())}
+                if !path.try_exists().unwrap() {
+                    panic!(
+                        "The folder path for checkpoints does not exists, {}.",
+                        path.display()
+                    )
+                }
             }
-        }
-        else{
+        } else {
             panic!("The folder path does not exists, {}.", self.path.display())
         }
     }
 
     fn save_partial(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        batch : Op::BType,
         sp: Arc<Scp>,
         _cod: Arc<Cod>,
-        info: Arc<Op::Info>,
     ) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
@@ -426,17 +450,10 @@ where
     }
 
     fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
-        let global: GlobalParameters = <CSVSaver as Saver<
-            SolId,
-            St,
-            Obj,
-            Opt,
-            Cod,
-            Out,
-            Scp,
-            Op,
-            Eval,
-        >>::load_parameters(self, _sp, _cod)?;
+        let global: GlobalParameters =
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_parameters(
+                self, _sp, _cod,
+            )?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
@@ -482,10 +499,11 @@ where
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    BType: BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>,
+    Eval: Evaluate,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Eval: Evaluate,
 {
     fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
@@ -499,7 +517,7 @@ where
                 self.path.display()
             )
         } else if rank == 0 {
-                create_dir_all(self.path.as_path()).unwrap();
+            create_dir_all(self.path.as_path()).unwrap();
             let path_evals = self
                 .path
                 .join(Path::new(&format!("evaluations_rk{}", rank)));
@@ -568,52 +586,79 @@ where
                 .path
                 .join(Path::new(&format!("evaluations_rk{}", rank)));
 
-            if !path_evals.try_exists().unwrap(){panic!("The folder path for evaluations does not exists, {}.", path_evals.display())}
+            if !path_evals.try_exists().unwrap() {
+                panic!(
+                    "The folder path for evaluations does not exists, {}.",
+                    path_evals.display()
+                )
+            }
 
             if self.path_pobj.is_some() {
                 let nppobj = path_evals.join(Path::new("obj.csv"));
-                if !nppobj.try_exists().unwrap(){panic!("The file path for Objective solutions does not exists, {}.", nppobj.display())}
+                if !nppobj.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Objective solutions does not exists, {}.",
+                        nppobj.display()
+                    )
+                }
                 self.path_pobj = Some(nppobj);
             }
 
             if self.path_popt.is_some() {
                 let nppopt = path_evals.join(Path::new("opt.csv"));
-                if !nppopt.try_exists().unwrap(){panic!("The file path for Optimizer solutions does not exists, {}.", nppopt.display())}
+                if !nppopt.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Optimizer solutions does not exists, {}.",
+                        nppopt.display()
+                    )
+                }
                 self.path_popt = Some(nppopt);
             }
 
             if self.path_out.is_some() {
                 let nppout = path_evals.join(Path::new("out.csv"));
-                if !nppout.try_exists().unwrap(){panic!("The file path for Output does not exists, {}.", nppout.display())}
+                if !nppout.try_exists().unwrap() {
+                    panic!(
+                        "The file path for Output does not exists, {}.",
+                        nppout.display()
+                    )
+                }
                 self.path_out = Some(nppout);
             }
-            
+
             let nppcod = path_evals.join(Path::new("cod.csv"));
-            if !nppcod.try_exists().unwrap(){panic!("The file path for Codomain does not exists, {}.", nppcod.display())}
+            if !nppcod.try_exists().unwrap() {
+                panic!(
+                    "The file path for Codomain does not exists, {}.",
+                    nppcod.display()
+                )
+            }
             self.path_codom = nppcod;
 
             if self.path_check.is_some() {
                 let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
-                if !path.try_exists().unwrap(){panic!("The folder path for checkpoints does not exists, {}.", path.display())}
+                if !path.try_exists().unwrap() {
+                    panic!(
+                        "The folder path for checkpoints does not exists, {}.",
+                        path.display()
+                    )
+                }
                 let pste = path.join(Path::new("state_opt.json"));
                 let pstp = path.join(Path::new("state_stp.json"));
                 let peva = path.join(Path::new("state_eval.json"));
                 let ppar = path.join(Path::new("state_param.json"));
                 self.path_check.replace((pste, pstp, peva, ppar));
             }
-        }
-        else{
+        } else {
             panic!("The folder path does not exists, {}.", self.path.display())
         }
     }
 
     fn save_partial(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        batch : Op::BType,
         sp: Arc<Scp>,
         _cod: Arc<Cod>,
-        info: Arc<Op::Info>,
         _rank: Rank,
     ) {
         if let Some(ppobj) = &self.path_pobj {

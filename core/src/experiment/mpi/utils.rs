@@ -1,11 +1,12 @@
 use crate::{
-    ArcVecArc, Codomain, Computed, Domain, Id, Objective, Outcome, Partial, SolInfo, Solution, experiment::mpi::tools::MPIProcess, stop::{ExpStep, Stop}
+    experiment::mpi::tools::MPIProcess,
+    stop::{ExpStep, Stop},
+    ArcVecArc, Codomain, Computed, Domain, Id, LinkedOutcome, Objective, Outcome, Partial, SolInfo,
+    Solution,
 };
 
 use bincode::{self, config::Configuration, serde::Compat};
-use mpi::{
-    topology::SimpleCommunicator, traits::{Communicator, Destination, Source}
-};
+use mpi::traits::{Communicator, Destination, Source};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -17,9 +18,11 @@ pub type SolPair<SolId, Obj, Opt, SInfo> = (
     Arc<Partial<SolId, Opt, SInfo>>,
 );
 
-pub type VecArcComputed<SolId, Obj, Cod, Out, SInfo> = Vec<Arc<Computed<SolId, Obj, Cod, Out, SInfo>>>;
+pub type VecArcComputed<SolId, Obj, Cod, Out, SInfo> =
+    Vec<Arc<Computed<SolId, Obj, Cod, Out, SInfo>>>;
 
-pub type ArcMutexHash<SolId, Obj, Opt, SInfo> = Arc<Mutex<HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>>>>;
+pub type ArcMutexHash<SolId, Obj, Opt, SInfo> =
+    Arc<Mutex<HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>>>>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -39,7 +42,7 @@ pub struct OMessage<SolId: Id, Out: Outcome>(pub SolId, pub Out);
 // WORKER //
 //_______ //
 
-pub fn launch_worker<SolId, Obj, Cod, Out>(proc:&MPIProcess, obj_func: &Objective<Obj, Cod, Out>)
+pub fn launch_worker<SolId, Obj, Cod, Out>(proc: &MPIProcess, obj_func: &Objective<Obj, Cod, Out>)
 where
     SolId: Id,
     Obj: Domain,
@@ -53,15 +56,14 @@ where
         let (msg, status): (Vec<u8>, _) = proc.world.process_at_rank(0).receive_vec();
         if status.tag() == 42 {
             break;
-        }
-        else{
+        } else {
             let (id_x, _): (Compat<XMessage<SolId, Obj>>, _) =
                 bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
             let msg = id_x.0;
             let id = msg.0;
             let x = msg.1.as_ref();
             let out = obj_func.raw_compute(x);
-    
+
             // Send results
             let raw_msg: OMessage<SolId, Out> = OMessage(id, out);
             let msg_struct = Compat(raw_msg);
@@ -69,17 +71,45 @@ where
             proc.world.process_at_rank(0).send(&msg);
         }
     }
-    eprintln!("INFO : Process of rank {} exiting worker loop.",proc.world.rank());
+    eprintln!(
+        "INFO : Process of rank {} exiting worker loop.",
+        proc.world.rank()
+    );
 }
 
-// Send an Obj solution to a worker
-pub fn send_to_worker<SolId, Obj, Opt, SInfo>(
-    world: &SimpleCommunicator,
-    idle: &mut Vec<i32>,
-    config: Configuration,
+/// A structure containing utilitaries to send [`Partial`] to workers.
+pub struct SendRecParam<'a, Obj, Opt, SInfo, SolId>
+where
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    SolId: Id,
+{
+    pub config: Configuration,
+    pub proc: &'a MPIProcess,
+    pub idle: &'a mut Vec<i32>,
+    pub waiting: &'a mut HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>>,
+}
+
+/// A structure containing utilitaries to send [`Partial`] to workers while using multi-threading.
+pub struct ThrSendRecParam<'a, Obj, Opt, SInfo, SolId>
+where
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    SolId: Id,
+{
+    pub config: Configuration,
+    pub proc: &'a MPIProcess,
+    pub idle: Arc<Mutex<Vec<i32>>>,
+    pub waiting: ArcMutexHash<SolId, Obj, Opt, SInfo>,
+}
+
+/// Send an Obj [`Solution`] to a worker
+pub fn send_to_worker<'a, SolId, Obj, Opt, SInfo>(
+    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
     sobj: Arc<Partial<SolId, Obj, SInfo>>,
     sopt: Arc<Partial<SolId, Opt, SInfo>>,
-    waiting: &mut HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>>,
 ) -> bool
 where
     Obj: Domain,
@@ -87,28 +117,29 @@ where
     SInfo: SolInfo,
     SolId: Id,
 {
-    let has_idl = !idle.is_empty();
+    let has_idl = !params.idle.is_empty();
     if has_idl {
-        let rank = idle.pop().unwrap();
+        let rank = params.idle.pop().unwrap();
         let raw_msg: XMessage<SolId, Obj> = XMessage(sobj.id, sobj.get_x());
         let msg_struct = Compat(raw_msg);
-        let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
-        waiting.insert(sobj.id, (sobj, sopt));
-        world.process_at_rank(rank).send_with_tag(&msg, 1);
+        let msg = bincode::encode_to_vec(msg_struct, params.config).unwrap();
+        params.waiting.insert(sobj.id, (sobj, sopt));
+        params
+            .proc
+            .world
+            .process_at_rank(rank)
+            .send_with_tag(&msg, 1);
     }
     has_idl
 }
 
 // Send as much solutions as possible to idle workers without waiting for a result.
-pub fn fill_workers<SolId, Obj, Opt, SInfo, St>(
-    proc:&MPIProcess,
-    idle: &mut Vec<i32>,
+pub fn fill_workers<'a, SolId, Obj, Opt, SInfo, St>(
+    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
     stop: Arc<Mutex<St>>,
     in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     idx: usize,
-    waiting: &mut HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>>,
-    config: Configuration,
 ) -> usize
 where
     St: Stop,
@@ -117,19 +148,12 @@ where
     SInfo: SolInfo,
     SolId: Id,
 {
-    let mut i = idx;
+    let mut i: usize = idx;
     let mut st = stop.lock().unwrap();
     let length = in_obj.len();
     let mut at_least_one_idle = true;
     while at_least_one_idle && i < length && !st.stop() {
-        let has_idle = send_to_worker(
-            &proc.world,
-            idle,
-            config,
-            in_obj[i].clone(),
-            in_opt[i].clone(),
-            waiting,
-        );
+        let has_idle = send_to_worker(params, in_obj[i].clone(), in_opt[i].clone());
         if has_idle {
             st.update(ExpStep::Distribution);
             i += 1;
@@ -141,12 +165,9 @@ where
 }
 
 pub fn par_send_to_worker<SolId, Obj, Opt, SInfo>(
-    world: &SimpleCommunicator,
-    idle: Arc<Mutex<Vec<i32>>>,
-    config: Configuration,
+    params: &mut ThrSendRecParam<Obj, Opt, SInfo, SolId>,
     sobj: Arc<Partial<SolId, Obj, SInfo>>,
     sopt: Arc<Partial<SolId, Opt, SInfo>>,
-    waiting: ArcMutexHash<SolId, Obj, Opt, SInfo>,
 ) -> bool
 where
     Obj: Domain,
@@ -154,30 +175,31 @@ where
     SInfo: SolInfo,
     SolId: Id,
 {
-    let mut idl = idle.lock().unwrap();
+    let mut idl = params.idle.lock().unwrap();
     let has_idl = !idl.is_empty();
     if has_idl {
         let rank = idl.pop().unwrap();
         let id = sobj.id;
         let x = sobj.get_x();
         let msg_struct = Compat((id, x.as_ref()));
-        let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
-        waiting.lock().unwrap().insert(id, (sobj, sopt));
-        world.process_at_rank(rank).send_with_tag(&msg, 1);
+        let msg = bincode::encode_to_vec(msg_struct, params.config).unwrap();
+        params.waiting.lock().unwrap().insert(id, (sobj, sopt));
+        params
+            .proc
+            .world
+            .process_at_rank(rank)
+            .send_with_tag(&msg, 1);
     }
     has_idl
 }
 
 // Send as much solutions as possible to idle workers without waiting for a result.
 pub fn par_fill_workers<SolId, Obj, Opt, SInfo, St>(
-    proc:&MPIProcess,
-    idle: Arc<Mutex<Vec<i32>>>,
+    params: &mut ThrSendRecParam<Obj, Opt, SInfo, SolId>,
     stop: Arc<Mutex<St>>,
     in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
     in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
     idx: usize,
-    waiting: ArcMutexHash<SolId, Obj, Opt, SInfo>,
-    config: Configuration,
 ) -> usize
 where
     St: Stop,
@@ -191,14 +213,7 @@ where
     let length = in_obj.len();
     let mut at_least_one_idle = true;
     while at_least_one_idle && i < length && !st.stop() {
-        let has_idle = par_send_to_worker(
-            &proc.world,
-            idle.clone(),
-            config,
-            in_obj[i].clone(),
-            in_opt[i].clone(),
-            waiting.clone(),
-        );
+        let has_idle = par_send_to_worker(params, in_obj[i].clone(), in_opt[i].clone());
         if has_idle {
             st.update(ExpStep::Distribution);
             i += 1;
@@ -207,4 +222,79 @@ where
         }
     }
     i
+}
+
+pub struct Results<SolId, Obj, Opt, Cod, Out, SInfo>
+where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    pub robj: VecArcComputed<SolId, Obj, Cod, Out, SInfo>,
+    pub ropt: VecArcComputed<SolId, Opt, Cod, Out, SInfo>,
+    pub rout: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
+}
+
+impl<SolId, Obj, Opt, Cod, Out, SInfo> Results<SolId, Obj, Opt, Cod, Out, SInfo>
+where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    pub fn new() -> Self {
+        Results {
+            robj: Vec::new(),
+            ropt: Vec::new(),
+            rout: Vec::new(),
+        }
+    }
+}
+
+impl<SolId, Obj, Opt, Cod, Out, SInfo> Default for Results<SolId, Obj, Opt, Cod, Out, SInfo>
+where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub fn receive_obj_computed<'a, Obj, Opt, SInfo, SolId, Cod, Out>(
+    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
+    res: &mut Results<SolId, Obj, Opt, Cod, Out, SInfo>,
+    ob: &Objective<Obj, Cod, Out>,
+) where
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    // Recv / sendv loop
+    let (bytes, status): (Vec<u8>, _) = params.proc.world.any_process().receive_vec();
+    params.idle.push(status.source_rank());
+    let (bytes, _): (Compat<OMessage<SolId, Out>>, _) =
+        bincode::decode_from_slice(bytes.as_slice(), params.config).unwrap();
+    let msg = bytes.0;
+    let id = msg.0;
+    let out = msg.1;
+    let cod = Arc::new(ob.codomain.get_elem(&out));
+    let out = Arc::new(out);
+    let (sobj, sopt) = params.waiting.remove(&id).unwrap();
+    res.robj
+        .push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
+    res.ropt.push(Arc::new(Computed::new(sopt.clone(), cod)));
+    res.rout.push(LinkedOutcome::new(out.clone(), sobj.clone()));
 }

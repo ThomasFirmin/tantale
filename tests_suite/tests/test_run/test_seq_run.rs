@@ -88,7 +88,7 @@ pub fn run_reader(path: &str, size: usize) {
 
 #[test]
 fn test_seq_run() {
-    use tantale::core::experiment::Experiment;
+    use tantale::core::experiment::SyncExperiment;
     drop(Cleaner {path:String::from("tmp_test_seqrun")});
 
     let sp = sp_evaluator::get_searchspace();
@@ -99,7 +99,7 @@ fn test_seq_run() {
     let stop = Calls::new(50);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
 
-    let exp = Experiment::new(sp, obj, opt, stop, saver);
+    let exp = SyncExperiment::new(sp, obj, opt, stop, saver);
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -109,7 +109,7 @@ fn test_seq_run() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-    let mut exp= load!(Experiment, RandomSearch, Calls | sp, obj, saver);
+    let mut exp= load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -123,7 +123,7 @@ fn test_seq_run() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-    let exp= load!(Experiment, RandomSearch, Calls | sp, obj, saver);
+    let exp= load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
     run_reader("tmp_test_seqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");

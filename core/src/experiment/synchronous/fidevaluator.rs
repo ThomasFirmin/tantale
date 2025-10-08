@@ -2,26 +2,22 @@ use crate::{
     domain::Domain,
     experiment::{
         Evaluate,
-        SeqEvaluate,
+        MonoEvaluate,
         ThrEvaluate,
         // DistEvaluate,
     },
     objective::{outcome::FuncState, Outcome, Stepped},
     optimizer::opt::SolPairs,
-    solution::SId,
     stop::{ExpStep, Stop},
-    ArcVecArc, Computed, Fidelity, Id, LinkedOutcome, OptInfo, Partial, SolInfo,
-    Solution,
+    ArcVecArc, Computed, Fidelity, Id, LinkedOutcome, OptInfo, Partial, SolInfo, Solution,
 };
 
-use serde::{Deserialize, Serialize};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-
-type EvalType<Obj, Opt, Info, SInfo, FnState> = Option<FidEvaluator<SId, Obj, Opt, Info, SInfo, FnState>>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -68,19 +64,20 @@ where
     }
 }
 
-impl <SolId, Obj, Opt, Info, SInfo, FnState> Evaluate for FidEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
+impl<SolId, Obj, Opt, Info, SInfo, FnState> Evaluate
+    for FidEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
 where
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
-    FnState: FuncState
-{}
-
+    FnState: FuncState,
+{
+}
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
-    SeqEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>>
+    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>>
     for FidEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
 where
     St: Stop,
@@ -138,12 +135,6 @@ where
     }
 }
 
-
-
-
-
-
-
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
@@ -165,16 +156,41 @@ where
     states: HashMap<SolId, FnState>,
 }
 
+impl<SolId, Obj, Opt, Info, SInfo, FnState> FidThrEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
+where
+    Obj: Domain,
+    Opt: Domain,
+    SolId: Id,
+    Info: OptInfo,
+    SInfo: SolInfo,
+    FnState: FuncState,
+{
+    pub fn new(
+        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
+        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
+        info: Arc<Info>,
+    ) -> Self {
+        FidThrEvaluator {
+            in_obj,
+            in_opt,
+            info,
+            idx_list: Arc::new(Mutex::new(Vec::new())),
+            states: HashMap::new(),
+        }
+    }
+}
 
-impl <SolId, Obj, Opt, Info, SInfo, FnState> Evaluate for FidThrEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
+impl<SolId, Obj, Opt, Info, SInfo, FnState> Evaluate
+    for FidThrEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
 where
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
     Info: OptInfo,
     SInfo: SolInfo,
-    FnState: FuncState
-{}
+    FnState: FuncState,
+{
+}
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
     ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>>

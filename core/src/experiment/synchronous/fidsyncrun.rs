@@ -1,43 +1,26 @@
 use crate::{
-    Fidelity,
     domain::Domain,
-    experiment::{
-        Evaluate, FidEvaluator, FidThrEvaluator, Runable
-    },
-    objective::{Outcome, Stepped, outcome::FuncState},
-    optimizer::opt::SequentialOptimizer,
+    experiment::{Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable, ThrEvaluate},
+    objective::{outcome::FuncState, Outcome, Stepped},
+    optimizer::opt::Optimizer,
     saver::Saver,
     searchspace::Searchspace,
     solution::SId,
     stop::{ExpStep, Stop},
+    Fidelity,
 };
 
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
 };
-
-type EvalType<Obj, Opt, Info, SInfo, FnState> = Option<FidEvaluator<SId, Obj, Opt, Info, SInfo, FnState>>;
-type ThrEvalType<Obj, Opt, Info, SInfo, FnState> = Option<FidThrEvaluator<SId, Obj, Opt, Info, SInfo, FnState>>;
-
-
 pub struct FidExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
-    Eval:Evaluate,
-    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
+    Eval: Evaluate,
+    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<
-        SId,
-        St,
-        Obj,
-        Opt,
-        Cod,
-        Out,
-        Scp,
-        Op,
-        Eval,
-    >,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -49,7 +32,7 @@ where
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
-    evaluator: EvalType<Obj, Opt, Op::Info, Op::SInfo, FnState>,
+    evaluator: Option<Eval>,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
     _codom: PhantomData<Cod>,
@@ -57,23 +40,13 @@ where
 }
 
 impl<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
-    FidExperiment<Eval,Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
+    FidExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
 where
-    Eval:Evaluate,
-    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
+    Eval: Evaluate,
+    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<
-        SId,
-        St,
-        Obj,
-        Opt,
-        Cod,
-        Out,
-        Scp,
-        Op,
-        FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
-    >,
+    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
@@ -116,9 +89,21 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
         Cod,
         FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
         Stepped<Obj, Cod, Out, FnState>,
-    > for FidExperiment<FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>, Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
+    >
+    for FidExperiment<
+        FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+        Scp,
+        Op,
+        St,
+        Sv,
+        Obj,
+        Opt,
+        Out,
+        Cod,
+        FnState,
+    >
 where
-    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
+    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
@@ -166,7 +151,17 @@ where
 
             // Arc copy of data to send to evaluator thread.
             let ((cobj, copt), cout) =
-            eval.evaluate(&mut eval, ob.clone(), st.clone());
+                <FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState> as MonoEvaluate<
+                    St,
+                    Obj,
+                    Opt,
+                    Out,
+                    Cod,
+                    Op::Info,
+                    Op::SInfo,
+                    SId,
+                    Stepped<Obj, Cod, Out, FnState>,
+                >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             self.saver.save_partial(
@@ -189,7 +184,17 @@ where
                 break 'main;
             };
             (sobj, sopt, info) = self.optimizer.step((cobj, copt), sp.clone());
-            eval.update(sobj.clone(), sopt.clone(), info.clone());
+            <FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState> as MonoEvaluate<
+                St,
+                Obj,
+                Opt,
+                Out,
+                Cod,
+                Op::Info,
+                Op::SInfo,
+                SId,
+                Stepped<Obj, Cod, Out, FnState>,
+            >>::update(&mut eval, sobj.clone(), sopt.clone(), info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(
@@ -207,11 +212,7 @@ where
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
-        Saver::after_load(
-            &mut saver,
-            &searchspace,
-            objective.get_codomain().as_ref(),
-        );
+        Saver::after_load(&mut saver, &searchspace, objective.get_codomain().as_ref());
         FidExperiment {
             searchspace,
             objective,
@@ -240,9 +241,21 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
         Cod,
         FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
         Stepped<Obj, Cod, Out, FnState>,
-    > for FidExperiment<FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>, Scp, Op, St, Sv, Obj, Opt, Out, Cod, FnState>
+    >
+    for FidExperiment<
+        FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState>,
+        Scp,
+        Op,
+        St,
+        Sv,
+        Obj,
+        Opt,
+        Out,
+        Cod,
+        FnState,
+    >
 where
-    Op: SequentialOptimizer<SId, Obj, Opt, Cod, Out, Scp>,
+    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop + Send + Sync,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
@@ -297,7 +310,17 @@ where
 
             // Arc copy of data to send to evaluator thread.
             let ((cobj, copt), cout) =
-            eval.evaluate(ob.clone(), st.clone());
+                <FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState> as ThrEvaluate<
+                    St,
+                    Obj,
+                    Opt,
+                    Out,
+                    Cod,
+                    Op::Info,
+                    Op::SInfo,
+                    SId,
+                    Stepped<Obj, Cod, Out, FnState>,
+                >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             let cobj1 = cobj.clone();
@@ -328,7 +351,17 @@ where
                 break 'main;
             };
             (sobj, sopt, info) = self.optimizer.step((cobj, copt), sp.clone());
-            eval.update(sobj.clone(), sopt.clone(), info.clone());
+            <FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo, FnState> as ThrEvaluate<
+                St,
+                Obj,
+                Opt,
+                Out,
+                Cod,
+                Op::Info,
+                Op::SInfo,
+                SId,
+                Stepped<Obj, Cod, Out, FnState>,
+            >>::update(&mut eval, sobj.clone(), sopt.clone(), info.clone());
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(
@@ -346,11 +379,7 @@ where
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
-        Saver::after_load(
-            &mut saver,
-            &searchspace,
-            objective.get_codomain().as_ref(),
-        );
+        Saver::after_load(&mut saver, &searchspace, objective.get_codomain().as_ref());
         FidExperiment {
             searchspace,
             objective,

@@ -15,6 +15,18 @@ type SteppFn<TypeDom, Out, FnState> = fn(&[TypeDom], Option<FnState>) -> (Out, F
 /// A wrapper arround the user-defined function to maximize.
 pub trait FuncWrapper {}
 
+/// Describes the fidelity state of a [`Partial`].
+///
+/// * [`New`](FidelState::New) : A newly created solution.
+/// * [`Resume`](FidelState::Resume) : Resume the evaluation of [`Partial`].
+/// * [`Discard`](FidelState::Discard) : Discard a [`Partial`] that has already been evaluated for a few steps.
+#[derive(Copy, Clone)]
+pub enum FidelState {
+    New,
+    Resume,
+    Discard,
+}
+
 /// [`Objective`] is the minimal wrapper for the raw function to maximize.
 /// This raw function must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).

@@ -2,8 +2,8 @@ use tantale_core::{
     domain::Domain,
     objective::{codomain::SingleCodomain, outcome::Outcome},
     optimizer::{
-        opt::{OptOutput, SolPairs, SequentialOptimizer},
-        EmptyInfo, OptInfo, OptState, Optimizer,
+        opt::{OptOutput, SolPairs, Optimizer},
+        EmptyInfo, OptInfo, OptState,
     },
     saver::CSVWritable,
     searchspace::Searchspace,
@@ -108,15 +108,4 @@ where
     fn from_state(state:RSState) -> Self {
         RandomSearch(state, rand::rng())
     }
-}
-
-impl<Obj, Opt, Out, Scp>
-    SequentialOptimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
-    for RandomSearch
-where
-    Obj: Domain,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
-{
 }

@@ -1,6 +1,6 @@
 use tantale::core::{
     Objective,
-    experiment::{Runable, Experiment},
+    experiment::{Runable, SyncExperiment},
     load,
     saver::CSVSaver,
     stop::Calls
@@ -98,6 +98,6 @@ fn test_seq_run() {
     let saver = CSVSaver::new("demo_par", true, true, true, 1);
 
     // Experiment
-    let exp = Experiment::new(sp, obj, opt, stop, saver);
+    let exp = SyncExperiment::new(sp, obj, opt, stop, saver);
     exp.run();
 }

@@ -1,12 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::Evaluate,
-    objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::ArcVecArc,
-    searchspace::Searchspace,
-    solution::{Computed, Id},
-    stop::Stop,
-    GlobalParameters, Optimizer,
+    GlobalParameters, Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::opt::CBType, searchspace::Searchspace, solution::Id, stop::Stop
 };
 use std::sync::Arc;
 
@@ -53,15 +46,13 @@ where
     fn after_load(&mut self, sp: &Scp, cod: &Cod);
     fn save_partial(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        batch : Op::BType,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
-        info: Arc<Op::Info>,
     );
     fn save_codom(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
     );
@@ -94,16 +85,14 @@ where
     fn after_load(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
     fn save_partial(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        batch : Op::BType,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
-        info: Arc<Op::Info>,
         rank: Rank,
     );
     fn save_codom(
         &self,
-        obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
         rank: Rank,

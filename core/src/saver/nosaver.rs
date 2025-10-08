@@ -1,13 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::Evaluate,
-    objective::{Codomain, LinkedOutcome, Outcome},
-    optimizer::{ArcVecArc, Optimizer},
-    saver::{CheckpointError, Saver},
-    searchspace::Searchspace,
-    solution::{Computed, Id},
-    stop::Stop,
-    GlobalParameters,
+    GlobalParameters, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::{ArcVecArc, Optimizer}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Computed, Id}, stop::Stop
 };
 
 use serde::{Deserialize, Serialize};
@@ -158,5 +150,4 @@ where
     ) -> Result<GlobalParameters, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
-    
 }
