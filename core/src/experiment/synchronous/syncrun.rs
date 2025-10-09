@@ -2,7 +2,7 @@ use crate::{
     domain::Domain,
     experiment::{Evaluate, MonoEvaluate, MonoEvaluator, Runable, ThrEvaluate, ThrEvaluator},
     objective::{Codomain, Objective, Outcome},
-    optimizer::{Optimizer, opt::Batch},
+    optimizer::{Optimizer, Batch},
     saver::Saver,
     searchspace::Searchspace,
     solution::SId,
@@ -50,7 +50,7 @@ impl<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod>
     SyncExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 where
     Eval: Evaluate,
-    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp, Batch<SId,Obj,Opt,Op::SInfo,Op::Info>>,
+    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
     Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>,
@@ -136,7 +136,7 @@ where
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
-                let (sobj, sopt, info) = self.optimizer.first_step(sp.clone());
+                let batch = self.optimizer.first_step(sp.clone());
                 MonoEvaluator::new(sobj.clone(), sopt.clone(), info)
             }
         };

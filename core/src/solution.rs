@@ -71,5 +71,8 @@ pub use partial::Partial;
 pub mod computed;
 pub use computed::Computed;
 
+pub mod raw;
+pub use raw::RawSol;
+
 pub mod id;
 pub use id::{Id, ParSId, SId};

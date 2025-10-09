@@ -3,160 +3,11 @@ use crate::{
     objective::{Codomain, Outcome},
     saver::CSVWritable,
     searchspace::Searchspace,
-    solution::{Computed, Id, Partial, SolInfo},
+    solution::{Id, SolInfo},
+    optimizer::BatchType,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-pub trait BatchType<SolId,ADom,BDom,SInfo,Info>
-where
-    Self: Serialize + for<'de> Deserialize<'de>,
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-{
-    type Comp<Cod:Codomain<Out>,Out:Outcome>: CompBatchType<SolId,ADom,BDom,SInfo,Info,Cod,Out>;
-}
-
-pub trait CompBatchType<SolId,ADom,BDom,SInfo,Info,Cod,Out>
-where
-    Self: Serialize + for<'de> Deserialize<'de>,
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-{
-    type Part: BatchType<SolId,ADom,BDom,SInfo,Info>;
-}
-
-#[derive(Serialize,Deserialize)]
-#[serde(bound(
-    serialize = "ADom::TypeDom: Serialize,BDom::TypeDom: Serialize",
-    deserialize = "ADom::TypeDom: for<'a> Deserialize<'a>,BDom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct Batch<SolId,ADom,BDom,SInfo,Info>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo
-{
-    pub sobj : ArcVecArc<Partial<SolId,ADom,SInfo>>,
-    pub sopt : ArcVecArc<Partial<SolId,BDom,SInfo>>,
-    pub info : Arc<Info>
-}
-
-#[derive(Serialize,Deserialize)]
-#[serde(bound(
-    serialize = "ADom::TypeDom: Serialize,BDom::TypeDom: Serialize",
-    deserialize = "ADom::TypeDom: for<'a> Deserialize<'a>,BDom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct CompBatch<SolId,ADom,BDom,SInfo,Info,Cod,Out>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-{
-    pub cobj : ArcVecArc<Computed<SolId,ADom,Cod,Out,SInfo>>,
-    pub copt : ArcVecArc<Computed<SolId,BDom,Cod,Out,SInfo>>,
-    pub info : Arc<Info>
-}
-
-impl <SolId,ADom,BDom,SInfo,Info> BatchType<SolId,ADom,BDom,SInfo,Info> for Batch<SolId,ADom,BDom,SInfo,Info>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-{
-    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompBatch<SolId,ADom,BDom,SInfo,Info,Cod,Out>;
-}
-
-impl <SolId,ADom,BDom,SInfo,Info,Cod,Out> CompBatchType<SolId,ADom,BDom,SInfo,Info,Cod,Out> for CompBatch<SolId,ADom,BDom,SInfo,Info,Cod,Out>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-{
-    type Part = Batch<SolId,ADom,BDom,SInfo,Info>;
-}
-
-#[derive(Serialize,Deserialize)]
-#[serde(bound(
-    serialize = "ADom::TypeDom: Serialize,BDom::TypeDom: Serialize",
-    deserialize = "ADom::TypeDom: for<'a> Deserialize<'a>,BDom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct Single<SolId,ADom,BDom,SInfo,Info>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-{
-    pub sobj : Arc<Partial<SolId,ADom,SInfo>>,
-    pub sopt : Arc<Partial<SolId,BDom,SInfo>>,
-    pub info : Arc<Info>
-}
-
-#[derive(Serialize,Deserialize)]
-#[serde(bound(
-    serialize = "ADom::TypeDom: Serialize,BDom::TypeDom: Serialize",
-    deserialize = "ADom::TypeDom: for<'a> Deserialize<'a>,BDom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct CompSingle<SolId,ADom,BDom,SInfo,Info,Cod,Out>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-{
-    pub cobj : ArcVecArc<Computed<SolId,ADom,Cod,Out,SInfo>>,
-    pub copt : ArcVecArc<Computed<SolId,BDom,Cod,Out,SInfo>>,
-    pub info : Arc<Info>
-}
-
-impl <SolId,ADom,BDom,SInfo,Info> BatchType<SolId,ADom,BDom,SInfo,Info> for Single<SolId,ADom,BDom,SInfo,Info>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-{
-    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompSingle<SolId,ADom,BDom,SInfo,Info,Cod,Out>;
-}
-
-impl <SolId,ADom,BDom,SInfo,Info,Cod,Out> CompBatchType<SolId,ADom,BDom,SInfo,Info,Cod,Out> for CompSingle<SolId,ADom,BDom,SInfo,Info,Cod,Out>
-where
-    SolId:Id,
-    ADom:Domain,
-    BDom:Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-{
-    type Part = Single<SolId,ADom,BDom,SInfo,Info>;
-}
 
 /// Describes information linked to a group of [`Solutions`](Solution)
 /// obtained  after each iteration of the [`Optimizer`].
@@ -192,7 +43,9 @@ impl CSVWritable<(), ()> for EmptyInfo {
 
 pub type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
 /// Computed [`BatchType`], the associated type of a [`BatchType`] knwowing the optimizer.
+pub type PBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType;
 pub type CBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>>::Comp<Cod,Out>;
+pub type OBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>>::Outc<Out>;
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**

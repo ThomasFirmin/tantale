@@ -67,13 +67,7 @@
 //! println!("FIDELITY : {}",extracted.fidelity);
 //! ```
 
-use crate::{
-    domain::Domain,
-    solution::{Id, Partial, SolInfo},
-};
-
-use std::{fmt::Debug, sync::Arc};
-
+use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
@@ -93,34 +87,4 @@ pub trait FuncState
 where
     Self: Sized + Serialize + for<'de> Deserialize<'de>,
 {
-}
-
-/// An [`Outcome`] binded to its [`Partial`], before the creation of a [`Computed`].
-/// It is mostly use for saving and checkpointing issues.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize",
-    deserialize = "O: Outcome,SolId:Id, Dom::TypeDom: for<'a> Deserialize<'a>"
-))]
-pub struct LinkedOutcome<O, SolId, Dom, Info>
-where
-    O: Outcome,
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
-{
-    pub out: Arc<O>,
-    pub sol: Arc<Partial<SolId, Dom, Info>>,
-}
-
-impl<Out, SolId, Dom, Info> LinkedOutcome<Out, SolId, Dom, Info>
-where
-    Out: Outcome,
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    pub fn new(out: Arc<Out>, sol: Arc<Partial<SolId, Dom, Info>>) -> Self {
-        LinkedOutcome { out, sol }
-    }
 }

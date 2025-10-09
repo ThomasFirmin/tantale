@@ -1,5 +1,5 @@
 use crate::{
-    LinkedOutcome, OptInfo, Searchspace, domain::Domain, objective::{Codomain, FuncWrapper, Outcome}, optimizer::opt::{ArcVecArc, BatchType, Optimizer}, saver::Saver, solution::{Id, Partial, SolInfo}, stop::Stop
+    OptInfo, Searchspace, domain::Domain, objective::{Codomain, FuncWrapper, Outcome}, optimizer::{ArcVecArc, BatchType, Optimizer}, saver::Saver, solution::{Id, Partial, SolInfo}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -9,7 +9,7 @@ use crate::experiment::mpi::tools::MPIProcess;
 
 pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo, Info,BType:BatchType<SolId,Obj,Opt,SInfo,Info>> = (
     BType::Comp<Cod,Out>,
-    Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
+    BType::Outc<Out>,
 );
 
 pub trait Runable<SolId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Eval, FnWrap>

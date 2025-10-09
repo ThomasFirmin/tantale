@@ -1,10 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
-    objective::{Codomain, Objective, Outcome},
-    optimizer::opt::SolPairs,
-    stop::{ExpStep, Stop},
-    ArcVecArc, Computed, Id, LinkedOutcome, OptInfo, Partial, SolInfo, Solution,
+    ArcVecArc, Computed, Id, OptInfo, Partial, SolInfo, Solution, domain::Domain, experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, objective::{Codomain, Objective, Outcome}, optimizer::{Batch, CompBatch, batchtype::OutBatch}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -44,9 +39,8 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    pub info: Arc<Info>,
+    pub batch: Batch<SolId,Obj,Opt,SInfo,Info>,
+    size:usize,
     idx: usize,
 }
 
@@ -59,14 +53,12 @@ where
     SInfo: SolInfo,
 {
     pub fn new(
-        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch: Batch<SolId,Obj,Opt,SInfo,Info>
     ) -> Self {
+        let size=batch.sobj.len();
         MonoEvaluator {
-            in_obj,
-            in_opt,
-            info,
+            batch,
+            size,
             idx: 0,
         }
     }
@@ -83,7 +75,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
+    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>, Batch<SolId,Obj,Opt,SInfo,Info>>
     for MonoEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop,
@@ -100,20 +92,18 @@ where
         &mut self,
         ob: Arc<Objective<Obj, Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (
-        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-    ) {
+    ) -> (CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>,OutBatch<SolId,Obj,Opt,SInfo,Info,Out>)
+    
+    {
         let mut result_obj = Vec::new();
         let mut result_opt = Vec::new();
         let mut result_out = Vec::new();
         let mut st = stop.lock().unwrap();
 
         let mut i = self.idx;
-        let length = self.in_obj.len();
-        while i < length && !st.stop() {
-            let sobj = self.in_obj[i].clone();
-            let sopt = self.in_opt[i].clone();
+        while i < self.size && !st.stop() {
+            let sobj = self.batch.sobj[i].clone();
+            let sopt = self.batch.sopt[i].clone();
             let (cod, out) = ob.compute(sobj.get_x().as_ref());
             result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
             result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
@@ -237,9 +227,8 @@ where
     Info: OptInfo,
     SInfo: SolInfo,
 {
-    pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    pub info: Arc<Info>,
+    pub batch: Batch<SolId,Obj,Opt,SInfo,Info>,
+    size:usize,
     idx_list: Arc<Mutex<Vec<usize>>>,
 }
 
@@ -252,14 +241,12 @@ where
     SInfo: SolInfo,
 {
     pub fn new(
-        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch: Batch<SolId,Obj,Opt,SInfo,Info>,
     ) -> Self {
+        let size = batch.sobj.len();
         ThrEvaluator {
-            in_obj,
-            in_opt,
-            info,
+            batch,
+            size,
             idx_list: Arc::new(Mutex::new(Vec::new())),
         }
     }

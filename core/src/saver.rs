@@ -1,5 +1,5 @@
 use crate::{
-    GlobalParameters, Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::opt::CBType, searchspace::Searchspace, solution::Id, stop::Stop
+    GlobalParameters, Optimizer, domain::Domain, experiment::Evaluate, objective::{Codomain, Outcome}, optimizer::{opt::{CBType, OBType, PBType}}, searchspace::Searchspace, solution::Id, stop::Stop
 };
 use std::sync::Arc;
 
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use mpi::Rank;
 
 pub mod csvsaver;
-pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable};
+pub use csvsaver::{CSVLeftRight, CSVSaver, CSVWritable, BatchCSVWrite};
 
 pub mod nosaver;
 pub use nosaver::NoSaver;
@@ -46,17 +46,18 @@ where
     fn after_load(&mut self, sp: &Scp, cod: &Cod);
     fn save_partial(
         &self,
-        batch : Op::BType,
+        batch : PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
     );
+    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
+    fn save_out(&self, batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
     fn save_codom(
         &self,
         batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
     );
-    fn save_out(&self, lout: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, sp: Arc<Scp>);
     fn save_state(&self, sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval);
     fn load(&self, sp: &Scp, cod: &Cod) -> Result<(St, Op, Eval), CheckpointError>;
     fn load_stop(&self, sp: &Scp, cod: &Cod) -> Result<St, CheckpointError>;
@@ -97,9 +98,10 @@ where
         cod: Arc<Cod>,
         rank: Rank,
     );
+    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>, rank:Rank);
     fn save_out(
         &self,
-        lout: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>,
+        batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         rank: Rank,
     );

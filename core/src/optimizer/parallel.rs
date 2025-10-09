@@ -1,4 +1,4 @@
-use crate::{Codomain, Domain, Optimizer, Outcome, ParSId, Searchspace, optimizer::opt::BatchType};
+use crate::{Codomain, Domain, Optimizer, Outcome, ParSId, Searchspace};
 
 pub enum AlgoLvl {
     Sequential,
@@ -15,15 +15,14 @@ pub enum IterLvl {
 }
 
 /// A parallel [`Optimizer`] with multi-processing.
-pub trait DistributedOptimizer<Obj, Opt, Cod, Out, Scp, BType>:
-    Optimizer<ParSId, Obj, Opt, Cod, Out, Scp, BType>
+pub trait DistributedOptimizer<Obj, Opt, Cod, Out, Scp>:
+    Optimizer<ParSId, Obj, Opt, Cod, Out, Scp>
 where
     Obj: Domain,
     Opt: Domain,
     Cod: Codomain<Out>,
     Out: Outcome,
     Scp: Searchspace<ParSId, Obj, Opt, Self::SInfo>,
-    BType: BatchType<ParSId,Obj,Opt,Self::SInfo,Self::Info>,
 {
     fn interact(&self);
     fn update(&self);

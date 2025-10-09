@@ -1,5 +1,14 @@
 use crate::{
-    GlobalParameters, domain::Domain, experiment::Evaluate, objective::{Codomain, LinkedOutcome, Outcome}, optimizer::{ArcVecArc, Optimizer}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Computed, Id}, stop::Stop
+    GlobalParameters,
+    domain::Domain,
+    experiment::Evaluate,
+    objective::{Codomain, Outcome},
+    optimizer::{Optimizer},
+    saver::{CheckpointError, Saver},
+    searchspace::Searchspace,
+    solution::Id,
+    stop::Stop,
+    optimizer::{PBType,CBType,OBType}
 };
 
 use serde::{Deserialize, Serialize};
@@ -33,28 +42,29 @@ where
     Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
     Eval: Evaluate,
 {
+
     fn init(&mut self, _sp: &Scp, _cod: &Cod) {}
+    
     fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {}
+    
     fn save_partial(
         &self,
-        _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        _opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        _batch : PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
-        _info: Arc<Op::Info>,
-    ) {
-    }
-
+    ) {}
+    
+    fn save_info(&self, _batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
+    
+    fn save_out(&self, _batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
+    
     fn save_codom(
         &self,
-        _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        _batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
-    ) {
-    }
-
-    fn save_out(&self, _lout: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>, _sp: Arc<Scp>) {}
-
+    ) {}
+    
     fn save_state(&self, _sp: Arc<Scp>, _state: &Op::State, _stop: &St, _eval: &Eval) {}
 
     fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
@@ -76,6 +86,7 @@ where
     fn load_parameters(&self, _sp: &Scp, _cod: &Cod) -> Result<GlobalParameters, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
+
     fn clean(self) {}
 }
 
@@ -94,51 +105,49 @@ where
     Eval: Evaluate,
 {
     fn init(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
+
     fn after_load(&mut self, _sp: &Scp, _cod: &Cod, _rank: Rank) {}
+
     fn save_partial(
         &self,
-        _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
-        _opt: ArcVecArc<Computed<SolId, Opt, Cod, Out, Op::SInfo>>,
+        _batch : Op::BType,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
-        _info: Arc<Op::Info>,
         _rank: Rank,
-    ) {
-    }
+    ) {}
 
     fn save_codom(
         &self,
-        _obj: ArcVecArc<Computed<SolId, Obj, Cod, Out, Op::SInfo>>,
+        _batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
         _rank: Rank,
-    ) {
-    }
+    ) {}
+
+    fn save_info(&self, _batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {}
 
     fn save_out(
         &self,
-        _lout: Vec<LinkedOutcome<Out, SolId, Obj, Op::SInfo>>,
+        _batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _rank: Rank,
-    ) {
-    }
+    ) {}
 
-    fn save_state(&self, _sp: Arc<Scp>, _state: &Op::State, _stop: &St, _eval: &Eval, _rank: Rank) {
-    }
+    fn save_state(&self, _sp: Arc<Scp>, _state: &Op::State, _stop: &St, _eval: &Eval, _rank: Rank) {}
 
-    fn load(&self, _sp: &Scp, _cod: &Cod, _rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(&self, _sp: &Scp, _cod: &Cod, __rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod, _rank: Rank) -> Result<St, CheckpointError> {
+    fn load_stop(&self, _sp: &Scp, _cod: &Cod, __rank: Rank) -> Result<St, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod, _rank: Rank) -> Result<Op, CheckpointError> {
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod, __rank: Rank) -> Result<Op, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod, _rank: Rank) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod, __rank: Rank) -> Result<Eval, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
 
@@ -146,7 +155,7 @@ where
         &self,
         _sp: &Scp,
         _cod: &Cod,
-        _rank: Rank,
+        __rank: Rank,
     ) -> Result<GlobalParameters, CheckpointError> {
         std::unimplemented!("NoSaver does not create any checkpoint, and thus cannot be loaded.")
     }
