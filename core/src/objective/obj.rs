@@ -1,7 +1,6 @@
 //! The [`Objective`](tantale::core::Objective) describes the wrapper arround the function
 //! the user wants to maximize. This function must output an [`Outcome`](tantale::core::Outcome)
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
-//! The [`Codomain`](tantale::core::Codomain)
 //!
 
 use crate::domain::{Domain, TypeDom};
@@ -28,14 +27,14 @@ pub enum FidelState {
 }
 
 /// [`Objective`] is the minimal wrapper for the raw function to maximize.
-/// This raw function must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
+/// This raw function must return an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
 ///
 /// # Attributes
 ///
 /// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
-/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`]
-///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
+/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. It takes a vector
+///    containing the point to be evaluated.
 pub struct Objective<Obj, Cod, Out>
 where
     Obj: Domain,

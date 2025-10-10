@@ -1,11 +1,12 @@
+use crate::{Codomain, Computed};
 use crate::domain::{Domain, TypeDom};
-use crate::objective::{Codomain, Outcome};
+use crate::objective::Outcome;
 use crate::solution::{Id, Partial, SolInfo, Solution};
 
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -57,19 +58,18 @@ where
 impl<SolId, Dom, Info, Out> RawSol<SolId, Dom, Out, Info>
 where
     Dom: Domain,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
-    Cod: Codomain<Out>,
-    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Info: SolInfo,
+    Out: Outcome,
+    SolId: Id,
 {
     /// Creates a new [`RawSol`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(
         sol: Arc<Partial<SolId, Dom, Info>>,
-        y: Arc<<Cod as Codomain<Out>>::TypeCodom>,
+        out:Arc<Out>,
     ) -> Self {
         RawSol {
             sol,
-            y,
+            out,
             _id: PhantomData,
             _dom: PhantomData,
             _info: PhantomData,
@@ -81,7 +81,7 @@ where
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Arc<Self>>
     where
         I: IntoIterator<Item = Arc<Partial<SolId, Dom, Info>>>,
-        J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
+        J: IntoIterator<Item = Arc<Out>>,
     {
         sol.into_iter()
             .zip(y)
@@ -95,8 +95,8 @@ where
     }
 
     /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    pub fn get_y(&self) -> Arc<<Cod as Codomain<Out>>::TypeCodom> {
-        self.y.clone()
+    pub fn get_out(&self) -> Arc<Out>{
+        self.out.clone()
     }
 
     /// Given a [`RawSol`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
@@ -107,8 +107,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Solution,RawSol,Partial,Real,Int,SingleCodomain,EmptyInfo,SId,Id};
-    /// use tantale::core::objective::codomain::ElemSingleCodomain;
+    /// use tantale::core::{Solution,RawSol,Partial,Real,Int,EmptyInfo,SId,Id};
     /// use std::sync::Arc;
     ///
     /// # use tantale::core::Outcome;
@@ -122,10 +121,10 @@ where
     /// let info = Arc::new(EmptyInfo{});
     ///
     /// let partial = Arc::new(Partial::new(SId::generate(),x_1,info));
-    /// let y = Arc::new(ElemSingleCodomain{value:1.0});
+    /// let out = Arc::new(OutExample(10));
     ///
-    /// let real_sol = RawSol::<_,Real,SingleCodomain<OutExample>,OutExample,_>::new(partial,y);
-    /// let int_sol : RawSol<_,Int,SingleCodomain<OutExample>,OutExample,_> = real_sol.twin(x_2);
+    /// let real_sol = RawSol::<_,Real,OutExample,_>::new(partial,out);
+    /// let int_sol : RawSol<_,Int,OutExample,_> = real_sol.twin(x_2);
     ///
     /// let id_r = real_sol.get_id();
     /// let id_i = int_sol.get_id();
@@ -138,13 +137,19 @@ where
     /// }
     ///
     /// ```
-    pub fn twin<B, T>(&self, x: T) -> RawSol<SolId, B, Cod, Out, Info>
+    pub fn twin<B, T>(&self, x: T) -> RawSol<SolId, B, Out, Info>
     where
-        B: Domain + Clone + Display + Debug,
+        B: Domain,
         T: AsRef<[TypeDom<B>]>,
     {
         let info = self.get_sol().get_info();
         let partial = Arc::new(Partial::new(self.get_sol().get_id(), x, info));
-        RawSol::new(partial, self.get_y())
+        RawSol::new(partial, self.get_out())
+    }
+
+
+    pub fn get_computed<Cod:Codomain<Out>>(&self, cod:Arc<Cod>) -> Computed<SolId,Dom,Cod,Out,Info>{
+        let y = Arc::new(cod.get_elem(&self.out));
+        Computed::new(self.get_sol(), y)
     }
 }

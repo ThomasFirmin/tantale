@@ -50,7 +50,7 @@ pub use crate::objective::{
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{ArcVecArc, EmptyInfo, OptInfo, Optimizer};
+pub use crate::optimizer::{ArcVecArc, VecArc, EmptyInfo, OptInfo, Optimizer};
 
 pub mod stop;
 pub use stop::Stop;

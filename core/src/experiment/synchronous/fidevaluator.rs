@@ -1,15 +1,10 @@
 use crate::{
-    domain::Domain,
-    experiment::{
+    Fidelity, Id, OptInfo, SolInfo, Solution, domain::Domain, experiment::{
         Evaluate,
         MonoEvaluate,
-        ThrEvaluate,
+        ThrEvaluate, utils::BatchResults,
         // DistEvaluate,
-    },
-    objective::{outcome::FuncState, Outcome, Stepped},
-    optimizer::opt::SolPairs,
-    stop::{ExpStep, Stop},
-    ArcVecArc, Computed, Fidelity, Id, LinkedOutcome, OptInfo, Partial, SolInfo, Solution,
+    }, objective::{Outcome, Stepped, outcome::FuncState}, solution::{Batch, CompBatch, RawBatch}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -33,9 +28,7 @@ where
     Info: OptInfo,
     FnState: FuncState,
 {
-    pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    pub info: Arc<Info>,
+    pub batch:Batch<SolId,Obj,Opt,SInfo,Info>,
     idx: usize,
     states: HashMap<SolId, FnState>,
 }
@@ -50,14 +43,10 @@ where
     FnState: FuncState,
 {
     pub fn new(
-        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch:Batch<SolId,Obj,Opt,SInfo,Info>
     ) -> Self {
         FidEvaluator {
-            in_obj,
-            in_opt,
-            info,
+            batch,
             idx: 0,
             states: HashMap::new(),
         }
@@ -77,7 +66,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
-    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>>
+    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>,Batch<SolId,Obj,Opt,SInfo,Info>>
     for FidEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
 where
     St: Stop,
@@ -95,42 +84,30 @@ where
         &mut self,
         ob: Arc<Stepped<Obj, Cod, Out, FnState>>,
         stop: Arc<Mutex<St>>,
-    ) -> (
-        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-    ) {
-        let mut result_obj = Vec::new();
-        let mut result_opt = Vec::new();
-        let mut result_out = Vec::new();
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+        let mut results = BatchResults::new(self.batch.info.clone());
         let mut st = stop.lock().unwrap();
 
         let mut i = self.idx;
-        let length = self.in_obj.len();
-        while i < length && !st.stop() {
-            let sobj = self.in_obj[i].clone();
-            let sopt = self.in_opt[i].clone();
-            let prev_out = self.states.remove(&sobj.id);
-            let (cod, out, state) = ob.compute(sobj.get_x().as_ref(), prev_out);
-            self.states.insert(sobj.id, state);
-            result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
-            result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
-            result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
+        while i < self.batch.size() && !st.stop() {
+            let pair = self.batch.index(i);
+            let sid = pair.0.id;
+            let prev_state = self.states.remove(&sid); // Get previous state
+            let (y, out, state) = ob.compute(pair.0.get_x().as_ref(), prev_state);
+            self.states.insert(sid, state);
+            results.add(pair, out, y);
             st.update(ExpStep::Distribution);
             i += 1
         }
         // For saving in case of early stopping before full evaluation of all elements
         self.idx = i;
-        ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
+        (results.rbatch,results.cbatch)
     }
     fn update(
         &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch:Batch<SolId,Obj,Opt,SInfo,Info>
     ) {
-        self.in_obj = obj;
-        self.in_opt = opt;
-        self.info = info;
+        self.batch=batch;
         self.idx = 0;
     }
 }
@@ -149,9 +126,7 @@ where
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    pub in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    pub in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    pub info: Arc<Info>,
+    pub batch:Batch<SolId,Obj,Opt,SInfo,Info>,
     idx_list: Arc<Mutex<Vec<usize>>>,
     states: HashMap<SolId, FnState>,
 }
@@ -166,14 +141,10 @@ where
     FnState: FuncState,
 {
     pub fn new(
-        in_obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        in_opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch:Batch<SolId,Obj,Opt,SInfo,Info>,
     ) -> Self {
         FidThrEvaluator {
-            in_obj,
-            in_opt,
-            info,
+            batch,
             idx_list: Arc::new(Mutex::new(Vec::new())),
             states: HashMap::new(),
         }
@@ -193,7 +164,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
-    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>>
+    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>,Batch<SolId,Obj,Opt,SInfo,Info>>
     for FidThrEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
 where
     St: Stop + Send + Sync,
@@ -202,7 +173,7 @@ where
     Out: Outcome + Send + Sync,
     Cod: Fidelity<Out> + Send + Sync,
     SolId: Id + Send + Sync,
-    Info: OptInfo,
+    Info: OptInfo + Send + Sync,
     SInfo: SolInfo + Send + Sync,
     FnState: FuncState + Send + Sync,
     Obj::TypeDom: Send + Sync,
@@ -214,14 +185,10 @@ where
         &mut self,
         ob: Arc<Stepped<Obj, Cod, Out, FnState>>,
         stop: Arc<Mutex<St>>,
-    ) -> (
-        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-    ) {
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
+    {
         let hash_state = Arc::new(Mutex::new(&mut self.states));
-        let result_obj = Arc::new(Mutex::new(Vec::new()));
-        let result_opt = Arc::new(Mutex::new(Vec::new()));
-        let result_out = Arc::new(Mutex::new(Vec::new()));
+        let results = Arc::new(Mutex::new(BatchResults::new(self.batch.info.clone())));
         let length = self.idx_list.lock().unwrap().len();
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
@@ -229,40 +196,25 @@ where
                 stplock.update(ExpStep::Distribution);
                 drop(stplock);
                 let idx = self.idx_list.lock().unwrap().pop().unwrap();
-
-                let sobj = self.in_obj[idx].clone();
-                let sopt = self.in_opt[idx].clone();
-                let prev_out = hash_state.lock().unwrap().remove(&sobj.id);
-                let (cod, out, state) = ob.clone().compute(sobj.get_x().as_ref(), prev_out);
-                hash_state.lock().unwrap().insert(sobj.id, state);
-                result_obj
+                let pair = self.batch.index(idx);
+                let sid = pair.0.id; 
+                let prev_state = hash_state.lock().unwrap().remove(&sid);
+                let (y, out, state) = ob.clone().compute(pair.0.get_x().as_ref(), prev_state);
+                hash_state.lock().unwrap().insert(sid, state);
+                results
                     .lock()
                     .unwrap()
-                    .push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
-                result_opt
-                    .lock()
-                    .unwrap()
-                    .push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
-                result_out
-                    .lock()
-                    .unwrap()
-                    .push(LinkedOutcome::new(out.clone(), sobj.clone()));
+                    .add(pair, out, y);
             }
         });
-        let obj = Arc::new(Arc::try_unwrap(result_obj).unwrap().into_inner().unwrap());
-        let opt = Arc::new(Arc::try_unwrap(result_opt).unwrap().into_inner().unwrap());
-        let lin = Arc::try_unwrap(result_out).unwrap().into_inner().unwrap();
-        ((obj, opt), lin)
+        let res = Arc::try_unwrap(results).unwrap().into_inner().unwrap();
+        (res.rbatch,res.cbatch)
     }
     fn update(
         &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
+        batch: Batch<SolId,Obj,Opt,SInfo,Info>
     ) {
-        self.in_obj = obj;
-        self.in_opt = opt;
-        self.info = info;
-        self.idx_list = Arc::new(Mutex::new((0..self.in_obj.len()).collect()));
+        self.batch = batch;
+        self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));
     }
 }

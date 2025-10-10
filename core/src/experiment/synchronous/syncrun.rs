@@ -1,12 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::{Evaluate, MonoEvaluate, MonoEvaluator, Runable, ThrEvaluate, ThrEvaluator},
-    objective::{Codomain, Objective, Outcome},
-    optimizer::{Optimizer, Batch},
-    saver::Saver,
-    searchspace::Searchspace,
-    solution::SId,
-    stop::{ExpStep, Stop},
+    SolInfo, domain::Domain, experiment::{Evaluate, MonoEvaluate, MonoEvaluator, Runable, ThrEvaluate, ThrEvaluator}, objective::{Codomain, Objective, Outcome}, optimizer::Optimizer, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -137,11 +130,11 @@ where
             Some(e) => e,
             None => {
                 let batch = self.optimizer.first_step(sp.clone());
-                MonoEvaluator::new(sobj.clone(), sopt.clone(), info)
+                MonoEvaluator::new(batch)
             }
         };
 
-        let (mut sobj, mut sopt, mut info): (_, _, Arc<Op::Info>);
+        let mut batch : Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
         'main: loop {
             {
                 let mut st = st.lock().unwrap();

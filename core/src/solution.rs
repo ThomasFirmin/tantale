@@ -4,7 +4,7 @@
 //!     * A [`Solution`] from the [`Optimizer`](tantale::core::optimizer::Optimizer) [`Domains`](tantale::core::domain::Domain).
 //!
 //! A [`Solution`] is statically typed by a [`Domain`].
-//! A [`Solution`] cannot typed by a `dyn Trait`. This is why the [`Mixed`](tantale::core::Mixed) trait is used
+//! A [`Solution`] cannot be typed by a `dyn Trait`. This is why the [`Mixed`](tantale::core::Mixed) trait is used
 //! within the [`sp!`](../../../tantale/macros/macro.sp.html) macro, to create `enum` of used [`Domains`](tantale::core::Domain) and
 //! and `enum` of [`TypeDom`](tantale::core::Domain::TypeDom).
 //!
@@ -65,6 +65,9 @@ where
     }
 }
 
+pub mod id;
+pub use id::{Id, ParSId, SId};
+
 pub mod partial;
 pub use partial::Partial;
 
@@ -74,5 +77,5 @@ pub use computed::Computed;
 pub mod raw;
 pub use raw::RawSol;
 
-pub mod id;
-pub use id::{Id, ParSId, SId};
+pub mod batchtype;
+pub use batchtype::{BatchType,Batch,Single,CompBatchType,CompBatch,CompSingle,RawBatch,RawBatchType,RawSingle};

@@ -1,5 +1,11 @@
 use crate::{
-    OptInfo, Searchspace, domain::Domain, objective::{Codomain, FuncWrapper, Outcome}, optimizer::{ArcVecArc, BatchType, Optimizer}, saver::Saver, solution::{Id, Partial, SolInfo}, stop::Stop
+    OptInfo, Searchspace,
+    domain::Domain,
+    objective::{Codomain, FuncWrapper, Outcome},
+    optimizer::Optimizer,
+    saver::Saver,
+    solution::{Id, SolInfo, BatchType},
+    stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -8,8 +14,8 @@ use std::sync::{Arc, Mutex};
 use crate::experiment::mpi::tools::MPIProcess;
 
 pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo, Info,BType:BatchType<SolId,Obj,Opt,SInfo,Info>> = (
-    BType::Comp<Cod,Out>,
     BType::Outc<Out>,
+    BType::Comp<Cod,Out>,
 );
 
 pub trait Runable<SolId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Eval, FnWrap>
@@ -77,12 +83,7 @@ where
         ob: Arc<FnWrap>,
         stop: Arc<Mutex<St>>,
     ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo,Info,BType>;
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    );
+    fn update(&mut self,batch: BType);
 }
 
 /// [`MonoEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
@@ -107,12 +108,7 @@ where
         ob: Arc<FnWrap>,
         stop: Arc<Mutex<St>>,
     ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo,Info,BType>;
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    );
+    fn update(&mut self,batch: BType);
 }
 
 /// [`ThrEvaluate`] is an [`Evaluate`] describing how to evaluate, with multi-threading, the output of a sequential [`Optimizer`]
@@ -138,12 +134,7 @@ where
         ob: Arc<FnWrap>,
         stop: Arc<Mutex<St>>,
     ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo,Info,BType>;
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    );
+    fn update(&mut self,batch: BType);
 }
 
 #[cfg(feature = "mpi")]
@@ -171,12 +162,7 @@ where
         ob: Arc<FnWrap>,
         stop: Arc<Mutex<St>>,
     ) -> EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo,Info,BType>;
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    );
+    fn update(&mut self,batch: BType);
 }
 
 // SYNCHRONOUS
@@ -186,17 +172,8 @@ pub use synchronous::fidevaluator::{FidEvaluator, FidThrEvaluator};
 pub use synchronous::fidsyncrun::FidExperiment;
 pub use synchronous::syncrun::SyncExperiment;
 
-
-pub enum ParType{
-
-}
-
-pub enum IterLvl{
-    Single,
-    Batch,
-    Thr,
-    Dist,
-}
+// Utils
+pub mod utils;
 
 #[cfg(feature = "mpi")]
 pub mod mpi;

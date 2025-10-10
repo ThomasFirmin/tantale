@@ -1,5 +1,10 @@
 use crate::{
-    ArcVecArc, Computed, Id, OptInfo, Partial, SolInfo, Solution, domain::Domain, experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, objective::{Codomain, Objective, Outcome}, optimizer::{Batch, CompBatch, batchtype::OutBatch}, stop::{ExpStep, Stop}
+    Id, OptInfo, SolInfo, Solution,
+    domain::Domain,
+    experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
+    objective::{Codomain, Objective, Outcome},
+    solution::{Batch, BatchType, CompBatch, RawBatch},
+    stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -11,6 +16,7 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
+    utils::{BatchResults,PartPair},
     mpi::{
         tools::MPIProcess,
         utils::{
@@ -18,9 +24,7 @@ use crate::experiment::{
             receive_obj_computed,
             send_to_worker,
             //ArcMutexHash, par_fill_workers, par_send_to_worker
-            Results,
             SendRecParam,
-            SolPair,
         },
     },
     DistEvaluate,
@@ -92,46 +96,34 @@ where
         &mut self,
         ob: Arc<Objective<Obj, Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>,OutBatch<SolId,Obj,Opt,SInfo,Info,Out>)
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
     
     {
-        let mut result_obj = Vec::new();
-        let mut result_opt = Vec::new();
-        let mut result_out = Vec::new();
+        let mut batch_res = BatchResults::new(self.batch.get_info());
         let mut st = stop.lock().unwrap();
 
         let mut i = self.idx;
         while i < self.size && !st.stop() {
-            let sobj = self.batch.sobj[i].clone();
-            let sopt = self.batch.sopt[i].clone();
-            let (cod, out) = ob.compute(sobj.get_x().as_ref());
-            result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
-            result_opt.push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
-            result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
+            let pair = self.batch.index(i);
+            let (y, out) = ob.compute(pair.0.get_x().as_ref());
+            batch_res.add(pair,out,y);
             st.update(ExpStep::Distribution);
             i += 1
         }
         // For saving in case of early stopping before full evaluation of all elements
         self.idx = i;
-        ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
+        (batch_res.rbatch, batch_res.cbatch)
     }
-
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    ) {
-        self.in_obj = obj;
-        self.in_opt = opt;
-        self.info = info;
-        self.idx = 0;
+    
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+        self.batch = batch;
+        self.idx=0;
     }
 }
 
 #[cfg(feature = "mpi")]
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
+    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>, Batch<SolId,Obj,Opt,SInfo,Info>>
     for MonoEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop,
@@ -149,14 +141,12 @@ where
         proc: &MPIProcess,
         ob: Arc<Objective<Obj, Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (
-        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-    ) {
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
+    {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
-        let mut waiting: HashMap<SolId, SolPair<SolId, Obj, Opt, SInfo>> = HashMap::new(); // solution being evaluated
+        let mut waiting: HashMap<SolId, PartPair<SolId, Obj, Opt, SInfo>> = HashMap::new(); // solution being evaluated
         let mut sendrec_params = SendRecParam {
             config,
             proc,
@@ -168,24 +158,20 @@ where
         let mut i = fill_workers(
             &mut sendrec_params,
             stop.clone(),
-            self.in_obj.clone(),
-            self.in_opt.clone(),
+            &self.batch,
             self.idx,
         );
 
-        // Main variables
-        let length = self.in_obj.len();
         //Results
-        let mut results = Results::new();
+        let mut results = BatchResults::new(self.batch.info.clone());
 
         // Recv / sendv loop
         while !sendrec_params.waiting.is_empty() {
             receive_obj_computed(&mut sendrec_params, &mut results, &ob);
-            if !stop.lock().unwrap().stop() && i < length {
+            if !stop.lock().unwrap().stop() && i < self.batch.size() {
                 let has_idl = send_to_worker(
                     &mut sendrec_params,
-                    self.in_obj[i].clone(),
-                    self.in_opt[i].clone(),
+                    self.batch.index(i),
                 );
                 if has_idl {
                     stop.lock().unwrap().update(ExpStep::Distribution);
@@ -195,22 +181,12 @@ where
         }
         // For saving in case of early stopping before full evaluation of all elements
         self.idx = i;
-        (
-            (Arc::new(results.robj), Arc::new(results.ropt)),
-            results.rout,
-        )
+        (results.rbatch,results.cbatch)
     }
 
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    ) {
-        self.in_obj = obj;
-        self.in_opt = opt;
-        self.info = info;
-        self.idx = 0;
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+        self.batch = batch;
+        self.idx=0;
     }
 }
 
@@ -265,7 +241,7 @@ where
 }
 
 impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
+    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>,Batch<SolId,Obj,Opt,SInfo,Info>>
     for ThrEvaluator<SolId, Obj, Opt, Info, SInfo>
 where
     St: Stop + Send + Sync,
@@ -274,7 +250,7 @@ where
     Out: Outcome + Send + Sync,
     Cod: Codomain<Out> + Send + Sync,
     SolId: Id + Send + Sync,
-    Info: OptInfo,
+    Info: OptInfo + Send + Sync,
     SInfo: SolInfo + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
@@ -285,13 +261,8 @@ where
         &mut self,
         ob: Arc<Objective<Obj, Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (
-        SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-        Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-    ) {
-        let result_obj = Arc::new(Mutex::new(Vec::new()));
-        let result_opt = Arc::new(Mutex::new(Vec::new()));
-        let result_out = Arc::new(Mutex::new(Vec::new()));
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+        let results = Arc::new(Mutex::new(BatchResults::new(self.batch.info.clone())));
         let length = self.idx_list.lock().unwrap().len();
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
@@ -300,38 +271,17 @@ where
                 drop(stplock);
                 let idx = self.idx_list.lock().unwrap().pop().unwrap();
 
-                let sobj = self.in_obj[idx].clone();
-                let sopt = self.in_opt[idx].clone();
-                let (cod, out) = ob.clone().compute(sobj.get_x().as_ref());
-                result_obj
-                    .lock()
-                    .unwrap()
-                    .push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
-                result_opt
-                    .lock()
-                    .unwrap()
-                    .push(Arc::new(Computed::new(sopt.clone(), cod.clone())));
-                result_out
-                    .lock()
-                    .unwrap()
-                    .push(LinkedOutcome::new(out.clone(), sobj.clone()));
+                let pair = self.batch.index(idx);
+                let (y, out) = ob.clone().compute(pair.0.get_x().as_ref());
+                results.lock().unwrap().add(pair, out, y);
             }
         });
-        let obj = Arc::new(Arc::try_unwrap(result_obj).unwrap().into_inner().unwrap());
-        let opt = Arc::new(Arc::try_unwrap(result_opt).unwrap().into_inner().unwrap());
-        let lin = Arc::try_unwrap(result_out).unwrap().into_inner().unwrap();
-        ((obj, opt), lin)
+        let res = Arc::try_unwrap(results).unwrap().into_inner().unwrap();
+        (res.rbatch,res.cbatch)
     }
-    fn update(
-        &mut self,
-        obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-        opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-        info: Arc<Info>,
-    ) {
-        self.in_obj = obj;
-        self.in_opt = opt;
-        self.info = info;
-        self.idx_list = Arc::new(Mutex::new((0..self.in_obj.len()).collect()));
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+        self.batch = batch;
+        self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));
     }
 }
 

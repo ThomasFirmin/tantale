@@ -4,16 +4,16 @@ use crate::{
     saver::CSVWritable,
     searchspace::Searchspace,
     solution::{Id, SolInfo},
-    optimizer::BatchType,
+    solution::BatchType,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{fmt::Debug,sync::Arc};
 
 /// Describes information linked to a group of [`Solutions`](Solution)
 /// obtained  after each iteration of the [`Optimizer`].
 pub trait OptInfo
 where
-    Self: Serialize + for<'de> Deserialize<'de>,
+    Self: Serialize + for<'de> Deserialize<'de> + Debug,
 {
 }
 
@@ -42,6 +42,7 @@ impl CSVWritable<(), ()> for EmptyInfo {
 }
 
 pub type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
+pub type VecArc<T> = Vec<Arc<T>>;
 /// Computed [`BatchType`], the associated type of a [`BatchType`] knwowing the optimizer.
 pub type PBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType;
 pub type CBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>>::Comp<Cod,Out>;

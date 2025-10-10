@@ -64,10 +64,10 @@ where
 impl<SolId, Dom, Info, Cod, Out> Computed<SolId, Dom, Cod, Out, Info>
 where
     Dom: Domain,
-    Info: SolInfo + Serialize + for<'a> Deserialize<'a>,
+    Info: SolInfo,
     Cod: Codomain<Out>,
-    Out: Outcome + Serialize + for<'a> Deserialize<'a>,
-    SolId: Id + PartialEq + Clone + Copy + Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome,
+    SolId: Id,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(

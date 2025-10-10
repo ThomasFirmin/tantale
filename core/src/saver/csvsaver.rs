@@ -3,9 +3,9 @@ use crate::{
     domain::Domain,
     experiment::Evaluate,
     objective::{Codomain, Outcome},
-    optimizer::{Batch, BatchType, Optimizer, opt::{CBType, OBType, PBType}},
+    optimizer::{Optimizer, opt::{CBType, OBType, PBType}},
     saver::{CheckpointError, Saver}, searchspace::Searchspace,
-    solution::{Id, Solution},
+    solution::{Batch, BatchType, Id, Solution},
     stop::Stop
 };
 
@@ -140,11 +140,9 @@ where
     
     fn write_out(obatch: Self::Outc<Out>, wrt : csv::Writer<File>) {
         let wrt = Arc::new(Mutex::new(wrt));
-        let sol = obatch.sobj.par_iter();
-        let out = obatch.out.par_iter();
-        sol.zip(out).for_each(|(s,o)| {
+        obatch.robj.par_iter().for_each(|s| {
             let id = s.get_id();
-            let output = &o;
+            let output = s.get_out();
             let mut idstr = id.write(&());
             idstr.extend(output.write(&()));
             {
