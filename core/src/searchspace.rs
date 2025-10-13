@@ -107,7 +107,7 @@
 
 use crate::{
     domain::Domain,
-    optimizer::ArcVecArc,
+    optimizer::VecArc,
     solution::{Computed, Id, Partial, SolInfo, Solution},
     Codomain, Outcome,
 };
@@ -385,7 +385,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::sync::Arc;
     ///
     /// let mut rng = rand::rng();
@@ -393,8 +393,8 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_obj : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
-    /// let vec_opt : ArcVecArc<Partial<SId,_,_>> = sp.vec_onto_opt(vec_obj.clone()); // Map obj => opt
+    /// let vec_obj : VecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_opt : VecArc<Partial<SId,_,_>> = sp.vec_onto_opt(vec_obj.clone()); // Map obj => opt
     ///
     /// for (obj,opt) in vec_obj.iter().zip(vec_opt.clone().iter()){
     ///     println!("[");
@@ -407,8 +407,8 @@ where
     /// ```
     fn vec_onto_obj(
         &self,
-        inp: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>>;
+        inp: VecArc<Partial<SolId, Opt, SInfo>>,
+    ) -> VecArc<Partial<SolId, Obj, SInfo>>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -431,7 +431,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::sync::Arc;
     ///
     /// let mut rng =rand::rng();
@@ -439,8 +439,8 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_opt : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
-    /// let vec_obj : ArcVecArc<Partial<SId,_,_>> = sp.vec_onto_obj(vec_opt.clone());
+    /// let vec_opt : VecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : VecArc<Partial<SId,_,_>> = sp.vec_onto_obj(vec_opt.clone());
     ///
     /// for (opt,obj) in vec_opt.iter().zip(vec_obj.clone().iter()){
     ///     println!("[");
@@ -453,8 +453,8 @@ where
     /// ```
     fn vec_onto_opt(
         &self,
-        inp: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>>;
+        inp: VecArc<Partial<SolId, Obj, SInfo>>,
+    ) -> VecArc<Partial<SolId, Opt, SInfo>>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -477,7 +477,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::{fmt::Debug, sync::Arc};
     ///
     /// let mut rng =rand::rng();
@@ -485,7 +485,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_obj : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : VecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
     ///
     /// for obj in vec_obj.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -498,7 +498,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>>;
+    ) -> VecArc<Partial<SolId, Obj, SInfo>>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -519,7 +519,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::sync::Arc;
     ///
     /// let mut rng =rand::rng();
@@ -527,7 +527,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vec_opt : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vec_opt : VecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
     ///
     /// for obj in vec_opt.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -539,7 +539,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>>;
+    ) -> VecArc<Partial<SolId, Opt, SInfo>>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -560,7 +560,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::sync::Arc;
     ///
     /// let mut rng =rand::rng();
@@ -568,12 +568,12 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vobj : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vobj : VecArc<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
     ///
     /// sp.vec_is_in_obj(vobj.clone());
     ///
     /// ```
-    fn vec_is_in_obj<S>(&self, inp: ArcVecArc<S>) -> bool
+    fn vec_is_in_obj<S>(&self, inp: VecArc<S>) -> bool
     where
         S: Solution<SolId, Obj, SInfo> + Send + Sync;
     /// Check if all [`Solution`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
@@ -596,7 +596,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,ArcVecArc};
+    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,VecArc};
     /// use std::sync::Arc;
     ///
     /// let mut rng =rand::rng();
@@ -604,12 +604,12 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo{});
     ///
-    /// let vopt : ArcVecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vopt : VecArc<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
     ///
     /// sp.vec_is_in_opt(vopt.clone());
     ///
     /// ```
-    fn vec_is_in_opt<S>(&self, inp: ArcVecArc<S>) -> bool
+    fn vec_is_in_opt<S>(&self, inp: VecArc<S>) -> bool
     where
         S: Solution<SolId, Opt, SInfo> + Send + Sync;
 

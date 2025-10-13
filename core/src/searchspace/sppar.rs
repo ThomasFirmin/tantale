@@ -1,6 +1,6 @@
 use crate::{
     domain::{Domain, TypeDom},
-    optimizer::ArcVecArc,
+    optimizer::VecArc,
     saver::CSVLeftRight,
     searchspace::{Searchspace, SolInfo},
     solution::{Id, Partial, Solution},
@@ -85,24 +85,16 @@ where
 
     fn vec_onto_obj(
         &self,
-        inp: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
-        Arc::new(
-            inp.par_iter()
-                .map(|sol| self.onto_obj(sol.clone()))
-                .collect(),
-        )
+        inp: VecArc<Partial<SolId, Opt, SInfo>>,
+    ) -> VecArc<Partial<SolId, Obj, SInfo>> {
+        inp.par_iter().map(|sol| self.onto_obj(sol.clone())).collect()
     }
 
     fn vec_onto_opt(
         &self,
-        inp: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
-        Arc::new(
-            inp.par_iter()
-                .map(|sol| self.onto_opt(sol.clone()))
-                .collect(),
-        )
+        inp: VecArc<Partial<SolId, Obj, SInfo>>,
+    ) -> VecArc<Partial<SolId, Opt, SInfo>> {
+        inp.par_iter().map(|sol| self.onto_opt(sol.clone())).collect()
     }
 
     /// [`None`] should be used for `_rng`.
@@ -111,13 +103,8 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<Partial<SolId, Obj, SInfo>> {
-        Arc::new(
-            (0..size)
-                .into_par_iter()
-                .map(|_| self.sample_obj(None, info.clone()))
-                .collect(),
-        )
+    ) -> VecArc<Partial<SolId, Obj, SInfo>> {
+        (0..size).into_par_iter().map(|_| self.sample_obj(None, info.clone())).collect()
     }
 
     /// [`None`] should be used for `_rng`.
@@ -126,13 +113,8 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> ArcVecArc<Partial<SolId, Opt, SInfo>> {
-        Arc::new(
-            (0..size)
-                .into_par_iter()
-                .map(|_| self.sample_opt(None, info.clone()))
-                .collect(),
-        )
+    ) -> VecArc<Partial<SolId, Opt, SInfo>> {
+        (0..size).into_par_iter().map(|_| self.sample_opt(None, info.clone())).collect()
     }
 
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
@@ -157,14 +139,14 @@ where
             .all(|(elem, v)| v.is_in_opt(elem))
     }
 
-    fn vec_is_in_obj<S>(&self, inp: ArcVecArc<S>) -> bool
+    fn vec_is_in_obj<S>(&self, inp: VecArc<S>) -> bool
     where
         S: Solution<SolId, Obj, SInfo> + Send + Sync,
     {
         inp.par_iter().all(|sol| self.is_in_obj(sol.clone()))
     }
 
-    fn vec_is_in_opt<S>(&self, inp: ArcVecArc<S>) -> bool
+    fn vec_is_in_opt<S>(&self, inp: VecArc<S>) -> bool
     where
         S: Solution<SolId, Opt, SInfo> + Send + Sync,
     {

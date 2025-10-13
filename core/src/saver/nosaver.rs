@@ -49,18 +49,17 @@ where
     
     fn save_partial(
         &self,
-        _batch : PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        _batch : &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
-        _cod: Arc<Cod>,
     ) {}
     
-    fn save_info(&self, _batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
+    fn save_info(&self, _batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
     
-    fn save_out(&self, _batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
+    fn save_out(&self, _batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {}
     
     fn save_codom(
         &self,
-        _batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        _batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
     ) {}
@@ -110,25 +109,24 @@ where
 
     fn save_partial(
         &self,
-        _batch : Op::BType,
+        _batch : &Op::BType,
         _sp: Arc<Scp>,
-        _cod: Arc<Cod>,
         _rank: Rank,
     ) {}
 
     fn save_codom(
         &self,
-        _batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        _batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _cod: Arc<Cod>,
         _rank: Rank,
     ) {}
 
-    fn save_info(&self, _batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {}
+    fn save_info(&self, _batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {}
 
     fn save_out(
         &self,
-        _batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        _batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         _rank: Rank,
     ) {}

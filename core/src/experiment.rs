@@ -13,9 +13,9 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::tools::MPIProcess;
 
-pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo, Info,BType:BatchType<SolId,Obj,Opt,SInfo,Info>> = (
-    BType::Outc<Out>,
-    BType::Comp<Cod,Out>,
+pub type EvaluateOut<SolId, Obj, Opt, Cod, Out, SInfo, Info,BType> = (
+    <BType as BatchType<SolId,Obj,Opt,SInfo,Info>>::Outc<Out>,
+    <BType as BatchType<SolId,Obj,Opt,SInfo,Info>>::Comp<Cod,Out>,
 );
 
 pub trait Runable<SolId, Scp, Op, St, Sv, Obj, Opt, Out, Cod, Eval, FnWrap>
@@ -32,6 +32,7 @@ where
     Cod: Codomain<Out>,
     FnWrap: FuncWrapper,
 {
+    fn new(searchspace: Scp,objective: FnWrap,optimizer: Op,stop: St, saver: Sv) -> Self;
     fn run(self);
     fn load(searchspace: Scp, objective: FnWrap, saver: Sv) -> Self;
 }
@@ -51,6 +52,7 @@ where
     Cod: Codomain<Out>,
     FnWrap: FuncWrapper,
 {
+    fn new(proc: &MPIProcess,searchspace: Scp,objective: FnWrap,optimizer: Op,stop: St,saver: Sv) -> Self;
     fn run(self, proc: &MPIProcess);
     fn load(proc: &MPIProcess, searchspace: Scp, objective: FnWrap, saver: Sv) -> Self;
 }
@@ -174,6 +176,13 @@ pub use synchronous::syncrun::SyncExperiment;
 
 // Utils
 pub mod utils;
+
+pub enum RunMode {
+    Single,
+    Monothreaded,
+    Threaded,
+    Distributed
+}
 
 #[cfg(feature = "mpi")]
 pub mod mpi;

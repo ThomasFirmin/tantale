@@ -57,8 +57,8 @@ where
     fn write_partial_obj(&self, wrt : csv::Writer<File>, scp: Arc<Scp>);
     fn write_partial_opt(&self, wrt : csv::Writer<File>, scp: Arc<Scp>);
     fn write_info(&self, wrt : csv::Writer<File>);
-    fn write_codom(cbatch : Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod: Arc<Cod>);
-    fn write_out(obatch: Self::Outc<Out>, wrt : csv::Writer<File>);
+    fn write_codom(cbatch : &Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod: Arc<Cod>);
+    fn write_out(obatch: &Self::Outc<Out>, wrt : csv::Writer<File>);
 }
 
 
@@ -123,7 +123,7 @@ where
         });
     }
 
-    fn write_codom(cbatch : Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod:Arc<Cod>) {
+    fn write_codom(cbatch : &Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod:Arc<Cod>) {
         let wrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -138,7 +138,7 @@ where
         });
     }
     
-    fn write_out(obatch: Self::Outc<Out>, wrt : csv::Writer<File>) {
+    fn write_out(obatch: &Self::Outc<Out>, wrt : csv::Writer<File>) {
         let wrt = Arc::new(Mutex::new(wrt));
         obatch.robj.par_iter().for_each(|s| {
             let id = s.get_id();
@@ -414,9 +414,8 @@ where
 
     fn save_partial(
         &self,
-        batch : Op::BType,
+        batch : &Op::BType,
         sp: Arc<Scp>,
-        _cod: Arc<Cod>,
     ) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
@@ -434,7 +433,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -447,7 +446,7 @@ where
 
     fn save_codom(
         &self,
-        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         cod: Arc<Cod>,
     ) {
@@ -458,7 +457,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -818,9 +817,8 @@ where
 
     fn save_partial(
         &self,
-        batch : Op::BType,
+        batch : &Op::BType,
         sp: Arc<Scp>,
-        _cod: Arc<Cod>,
         _rank: Rank,
     ) {
         if let Some(ppobj) = &self.path_pobj {
@@ -839,7 +837,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -852,7 +850,7 @@ where
 
     fn save_codom(
         &self,
-        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         _sp: Arc<Scp>,
         cod: Arc<Cod>,
         _rank:Rank,
@@ -864,7 +862,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>,_rank:Rank) {
+    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>,_rank:Rank) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)

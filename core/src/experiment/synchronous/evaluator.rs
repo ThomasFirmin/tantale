@@ -1,7 +1,7 @@
 use crate::{
     Id, OptInfo, SolInfo, Solution,
     domain::Domain,
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
+    experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults},
     objective::{Codomain, Objective, Outcome},
     solution::{Batch, BatchType, CompBatch, RawBatch},
     stop::{ExpStep, Stop}
@@ -10,25 +10,33 @@ use crate::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
-    utils::{BatchResults,PartPair},
+    utils::PartPair,
     mpi::{
         tools::MPIProcess,
         utils::{
             fill_workers,
             receive_obj_computed,
             send_to_worker,
-            //ArcMutexHash, par_fill_workers, par_send_to_worker
+            ArcMutexHash,
+            ThrSendRecParam,
+            par_fill_workers,
+            par_send_to_worker,
             SendRecParam,
         },
     },
     DistEvaluate,
 };
+#[cfg(feature = "mpi")]
+use std::collections::HashMap;
+#[cfg(feature = "mpi")]
+use mpi::{point_to_point::Source, traits::Communicator};
+#[cfg(feature = "mpi")]
+use bincode::serde::Compat;
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -285,109 +293,81 @@ where
     }
 }
 
-// #[cfg(feature="mpi")]
-// impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-//     DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>>
-//     for ThrEvaluator<SolId, Obj, Opt, Info, SInfo>
-// where
-//     St: Stop + Send + Sync,
-//     Obj: Domain + Send + Sync,
-//     Opt: Domain + Send + Sync,
-//     Out: Outcome + Send + Sync,
-//     Cod: Codomain<Out> + Send + Sync,
-//     SolId: Id + Send + Sync,
-//     Info: OptInfo,
-//     SInfo: SolInfo + Send + Sync,
-//     Obj::TypeDom: Send + Sync,
-//     Opt::TypeDom: Send + Sync,
-//     Cod::TypeCodom: Send + Sync,
-// {
-//     fn init(&mut self) {}
-//     fn evaluate(
-//         &mut self,
-//         proc:&MPIProcess,
-//         ob: Arc<Objective<Obj, Cod, Out>>,
-//         stop: Arc<Mutex<St>>,
-//     ) -> (
-//         SolPairs<SolId, Obj, Opt, Cod, Out, SInfo>,
-//         Vec<LinkedOutcome<Out, SolId, Obj, SInfo>>,
-//     ) {
-//         // Bytes encoding config
-//         let config = bincode::config::standard();
-//         // [1..SIZE] because of master process
-//         let idle_process: Arc<Mutex<Vec<i32>>> =
-//             Arc::new(Mutex::new((1..proc.size).collect()));
-//         let waiting: ArcMutexHash<SolId, Obj, Opt, SInfo> = Arc::new(Mutex::new(HashMap::new()));
-//         let mut i = par_fill_workers(
-//             &proc,
-//             idle_process.clone(),
-//             stop.clone(),
-//             self.in_obj.clone(),
-//             self.in_opt.clone(),
-//             self.idx,
-//             waiting.clone(),
-//             config,
-//         );
+#[cfg(feature="mpi")]
+impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
+    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>,Batch<SolId,Obj,Opt,SInfo,Info>>
+    for ThrEvaluator<SolId, Obj, Opt, Info, SInfo>
+where
+    St: Stop + Send + Sync,
+    Obj: Domain + Send + Sync,
+    Opt: Domain + Send + Sync,
+    Out: Outcome + Send + Sync,
+    Cod: Codomain<Out> + Send + Sync,
+    SolId: Id + Send + Sync,
+    Info: OptInfo + Send + Sync,
+    SInfo: SolInfo + Send + Sync,
+    Obj::TypeDom: Send + Sync,
+    Opt::TypeDom: Send + Sync,
+    Cod::TypeCodom: Send + Sync,
+{
+    fn init(&mut self) {}
+    fn evaluate(
+        &mut self,
+        proc:&MPIProcess,
+        ob: Arc<Objective<Obj, Cod, Out>>,
+        stop: Arc<Mutex<St>>,
+    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+        // Define send/rec utilitaries and parameters
 
-//         // Main variables
-//         let length = self.in_obj.len();
-//         //Results
-//         let mut result_obj: VecArcComputed<SolId, Obj, Cod, Out, SInfo> = Vec::new();
-//         let mut result_opt: VecArcComputed<SolId, Opt, Cod, Out, SInfo> = Vec::new();
-//         let mut result_out: Vec<LinkedOutcome<Out, SolId, Obj, SInfo>> = Vec::new();
+        use num::cast::AsPrimitive;
+        let config = bincode::config::standard(); // Bytes encoding config
+        let idle_process: Arc<Mutex<Vec<usize>>> = Arc::new(Mutex::new((1..proc.size.as_()).collect())); // [1..SIZE] because of master process / Processes doing nothing
+        let waiting: ArcMutexHash<SolId, Obj, Opt, SInfo> = Arc::new(Mutex::new(HashMap::new())); // solution being evaluated
+        let sendrec_params = ThrSendRecParam {
+            config,
+            proc,
+            idle: idle_process,
+            waiting,
+        };
+        // Fill workers with first solutions
+        par_fill_workers(
+            &sendrec_params,
+            stop.clone(),
+            &self.batch,
+            self.idx_list.clone(),
+        );
 
-//         // Recv / sendv loop
-//         while !waiting.lock().unwrap().is_empty() {
-//             let wait_1 = waiting.clone();
-//             let wait_2 = waiting.clone();
-//             let idl_1 = idle_process.clone();
-//             let idl_2 = idle_process.clone();
-//             rayon::join(
-//                 || {
-//                     let (bytes, status): (Vec<u8>, _) = proc.world.any_process().receive_vec();
-//                     idl_1.lock().unwrap().push(status.source_rank());
-//                     let (bytes, _): (Compat<(SolId, Out)>, _) =
-//                         bincode::decode_from_slice(bytes.as_slice(), config).unwrap();
-//                     let (id, out) = bytes.0;
-//                     let cod = Arc::new(ob.codomain.get_elem(&out));
-//                     let out = Arc::new(out);
-//                     let (sobj, sopt) = wait_1.lock().unwrap().remove(&id).unwrap();
-//                     result_obj.push(Arc::new(Computed::new(sobj.clone(), cod.clone())));
-//                     result_opt.push(Arc::new(Computed::new(sopt.clone(), cod)));
-//                     result_out.push(LinkedOutcome::new(out.clone(), sobj.clone()));
-//                     stop.lock().unwrap().update(ExpStep::Distribution);
-//                 },
-//                 || {
-//                     if !stop.lock().unwrap().stop() && i < length {
-//                         let has_idl = par_send_to_worker(
-//                             &proc.world,
-//                             idl_2,
-//                             config,
-//                             self.in_obj[i].clone(),
-//                             self.in_opt[i].clone(),
-//                             wait_2,
-//                         );
-//                         if has_idl {
-//                             i += 1;
-//                         }
-//                     }
-//                 },
-//             );
-//         }
-//         // For saving in case of early stopping before full evaluation of all elements
-//         self.idx = i;
-//         ((Arc::new(result_obj), Arc::new(result_opt)), result_out)
-//     }
+        //Results
+        let mut results = BatchResults::new(self.batch.info.clone());
+        // Recv / sendv loop
+        while !sendrec_params.waiting.lock().unwrap().is_empty() {
+            let (bytes, status): (Vec<u8>, _) = proc.world.any_process().receive_vec();
+            sendrec_params.idle.lock().unwrap().push(status.source_rank().as_());
+            let (bytes, _): (Compat<(SolId, Out)>, _) =
+                bincode::decode_from_slice(bytes.as_slice(), config).unwrap();
+            let (id, out) = bytes.0;
+            let y = Arc::new(ob.codomain.get_elem(&out));
+            let out = Arc::new(out);
+            let pair = sendrec_params.waiting.lock().unwrap().remove(&id).unwrap();
+            results.add(pair, out, y);
+            stop.lock().unwrap().update(ExpStep::Distribution);
+            let mut i_list = self.idx_list.lock().unwrap();
+            if !stop.lock().unwrap().stop() && !i_list.is_empty() {
+                let i = i_list.last().unwrap();
+                let has_idl = par_send_to_worker(
+                    &sendrec_params,
+                    self.batch.index(*i),
+                );
+                if has_idl {
+                    i_list.pop().unwrap();
+                }
+            }
+        }
+        (results.rbatch,results.cbatch)
+    }
 
-//     fn update(
-//         &mut self,
-//         obj: ArcVecArc<Partial<SolId, Obj, SInfo>>,
-//         opt: ArcVecArc<Partial<SolId, Opt, SInfo>>,
-//         info: Arc<Info>,
-//     ) {
-//         self.in_obj = obj;
-//         self.in_opt = opt;
-//         self.info = info;
-//         self.idx = 0;
-//     }
-// }
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+        self.batch = batch;
+        self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));
+    }
+}

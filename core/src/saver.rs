@@ -18,14 +18,10 @@ pub use serror::CheckpointError;
 #[macro_export]
 macro_rules! load {
     ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_, $optimizer, $stop, _, _, _, _, _>::load($searchspace, $objective, $saver)
+        $experiment::<_,_,$optimizer, $stop, _, _, _, _, _, _, _>::load($searchspace, $objective, $saver)
     };
-    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_, $optimizer, $stop, _, _, _, _, _, _>::load(
-            $searchspace,
-            $objective,
-            $saver,
-        )
+    ($experiment: ident, $optimizer : ident, $stop : ident | $process : expr, $searchspace : expr, $objective : expr , $saver : expr) => {
+        $experiment::<_,_,$optimizer, $stop, _, _, _, _, _, _, _>::load($process, $searchspace, $objective, $saver)
     };
 }
 
@@ -46,15 +42,14 @@ where
     fn after_load(&mut self, sp: &Scp, cod: &Cod);
     fn save_partial(
         &self,
-        batch : PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch : &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
-        cod: Arc<Cod>,
     );
-    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
-    fn save_out(&self, batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
+    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>);
     fn save_codom(
         &self,
-        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
     );
@@ -86,22 +81,21 @@ where
     fn after_load(&mut self, sp: &Scp, cod: &Cod, rank: Rank);
     fn save_partial(
         &self,
-        batch : Op::BType,
+        batch : &Op::BType,
         sp: Arc<Scp>,
-        cod: Arc<Cod>,
         rank: Rank,
     );
     fn save_codom(
         &self,
-        batch: CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         cod: Arc<Cod>,
         rank: Rank,
     );
-    fn save_info(&self, batch: PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>, rank:Rank);
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, sp: Arc<Scp>, rank:Rank);
     fn save_out(
         &self,
-        batch: OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
         sp: Arc<Scp>,
         rank: Rank,
     );

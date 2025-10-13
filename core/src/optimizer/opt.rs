@@ -1,10 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Outcome},
-    saver::CSVWritable,
-    searchspace::Searchspace,
-    solution::{Id, SolInfo},
-    solution::BatchType,
+    domain::Domain, experiment::RunMode, objective::{Codomain, Outcome}, saver::CSVWritable, searchspace::Searchspace, solution::{BatchType, Id, SolInfo}
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug,sync::Arc};
@@ -44,9 +39,9 @@ impl CSVWritable<(), ()> for EmptyInfo {
 pub type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
 pub type VecArc<T> = Vec<Arc<T>>;
 /// Computed [`BatchType`], the associated type of a [`BatchType`] knwowing the optimizer.
-pub type PBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType;
-pub type CBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>>::Comp<Cod,Out>;
-pub type OBType<Op:Optimizer<SolId, Obj, Opt, Cod, Out, Scp>, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,Op::SInfo,Op::Info>>::Outc<Out>;
+pub type PBType<Op, SolId, Obj, Opt, Cod, Out, Scp> = <Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType;
+pub type CBType<Op, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::SInfo,<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::Info>>::Comp<Cod,Out>;
+pub type OBType<Op, SolId, Obj, Opt, Cod, Out, Scp> = <<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp>>::SInfo,<Op as Optimizer<SolId, Obj, Opt, Cod, Out, Scp >>::Info>>::Outc<Out>;
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
@@ -85,4 +80,9 @@ where
 
     /// Return an instance of the [`Optimizer`]  from an [`OptState`].
     fn from_state(state: Self::State) -> Self;
+
+    fn to_exp<>(&self, mode: RunMode);
+
+    fn load(proc: &MPIProcess, searchspace: Scp, objective: FnWrap, saver: Sv) -> Self;
+
 }

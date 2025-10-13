@@ -1,6 +1,7 @@
 use tantale::core::{
-    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, experiment::{Evaluate, MPIThrEvaluator, mpi::tools}, stop::Calls
+    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, experiment::{ThrEvaluator, mpi::tools}, stop::Calls
 };
+use tantale_core::{experiment::{ThrEvaluate, mpi::tools::MPIProcess}, solution::Batch};
 
 use std::{
     collections::HashMap,
@@ -82,11 +83,13 @@ fn main() {
         return;
     }
 
+    let proc = MPIProcess::new();    
+
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
     let obj = Arc::new(Objective::new(cod, func));
 
-    if !tools::launch_worker(&obj){
+    if !tools::launch_worker(&proc, &obj){
         eprintln!("TEEESST");
         let sp = sp_evaluator::get_searchspace();
         let sinfo = std::sync::Arc::new(EmptyInfo {});
@@ -95,14 +98,16 @@ fn main() {
         let mut rng = rand::rng();
         let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
         let sopt = sp.vec_onto_obj(sobj.clone());
-        let mut eval: MPIThrEvaluator<SId, _, _, _, _> = MPIThrEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+        let batch = Batch::new(sobj, sopt, sinfo.clone());
+        let mut eval: ThrEvaluator<SId, _, _, _, _> = ThrEvaluator::new(batch);
 
-        let ((cobj, copt), linked) = <MPIThrEvaluator<_, _, _, _, _> as Evaluate<
+        let (batch_raw,batch_comp) = <ThrEvaluator<_, _, _, _, _> as ThrEvaluate<
             Calls,
             _,
             _,
             OutEvaluator,
             SingleCodomain<OutEvaluator>,
+            _,
             _,
             _,
             _,
@@ -115,11 +120,11 @@ fn main() {
         let mut hsopt = HashMap::new();
         let mut hlink = HashMap::new();
 
-        cobj.iter()
-            .zip(sobj.iter())
-            .zip(&linked)
-            .zip(copt.iter())
-            .zip(sopt.iter())
+        batch_comp.cobj.iter()
+            .zip(eval.batch.sobj.iter())
+            .zip(batch_raw.robj.iter())
+            .zip(batch_comp.copt.iter())
+            .zip(eval.batch.sopt.iter())
             .for_each(|((((c, s), l), x), y)| {
                 let cid = c.get_id().id;
                 let sid = s.get_id().id;
@@ -133,11 +138,12 @@ fn main() {
                 hlink.insert(lid, l);
             });
 
-        assert_eq!(cobj.len(), 20, "Number of solutions is wrong for cobj");
-        assert_eq!(sobj.len(), 20, "Number of solutions is wrong for sobj");
-        assert_eq!(copt.len(), 20, "Number of solutions is wrong for copt");
-        assert_eq!(sopt.len(), 20, "Number of solutions is wrong for sopt");
-        assert_eq!(linked.len(), 20, "Number of solutions is wrong for link");
+        assert_eq!(batch_comp.cobj.len(), 20, "Number of solutions is wrong for cobj");
+        assert_eq!(eval.batch.sobj.len(), 20, "Number of solutions is wrong for sobj");
+        assert_eq!(batch_comp.copt.len(), 20, "Number of solutions is wrong for copt");
+        assert_eq!(eval.batch.sopt.len(), 20, "Number of solutions is wrong for sopt");
+        assert_eq!(batch_raw.robj.len(), 20, "Number of solutions is wrong for robj");
+        assert_eq!(batch_raw.ropt.len(), 20, "Number of solutions is wrong for ropt");
 
         assert_eq!(
             hcobj.len(),
@@ -172,7 +178,7 @@ fn main() {
         );
 
         assert!(
-            cobj.iter().all(|sol| {
+            batch_comp.cobj.iter().all(|sol| {
                 let id = sol.get_id().id;
                 let c = &hcobj.get(&id).unwrap();
                 let s = &hsobj.get(&id).unwrap();
@@ -185,7 +191,7 @@ fn main() {
         );
 
         assert!(
-            copt.iter().all(|sol| {
+            batch_comp.copt.iter().all(|sol| {
                 let id = sol.get_id().id;
                 let c = &hcopt.get(&id).unwrap();
                 let s = &hsopt.get(&id).unwrap();
@@ -194,7 +200,7 @@ fn main() {
             "Computed and Partial do not point to the same Opt solution."
         );
 
-        assert!(cobj.iter().all(
+        assert!(batch_comp.cobj.iter().all(
             |sol|
             {
                 let id = sol.get_id().id;

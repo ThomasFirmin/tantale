@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug,sync::Arc};
 
 
+pub type BatchElem<SolId,ADom,BDom,SInfo> = (Arc<Partial<SolId,ADom,SInfo>>,Arc<Partial<SolId,BDom,SInfo>>);
+pub type RawBatchElem<SolId,ADom,BDom,Out,SInfo> = (Arc<RawSol<SolId,ADom,Out,SInfo>>,Arc<RawSol<SolId,BDom,Out,SInfo>>);
+pub type CompBatchElem<SolId,ADom,BDom,Cod,Out,SInfo> = (Arc<Computed<SolId,ADom,Cod,Out,SInfo>>,Arc<Computed<SolId,BDom,Cod,Out,SInfo>>);
+
 /// A [`BatchType`] describes the output of an [`Optimizer`], made of [`Partial`].
 /// It is associated with:
 ///  * a [`CompBatchType`] describing the input of that optimizer made of [`Computed`].
@@ -159,7 +163,7 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->(Arc<Partial<SolId,ADom,SInfo>>,Arc<Partial<SolId,BDom,SInfo>>){
+    pub fn index(&self, index:usize)->BatchElem<SolId,ADom,BDom,SInfo>{
         (self.sobj[index].clone(),self.sopt[index].clone())
     }
 }
@@ -201,7 +205,7 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`RawSol`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->(Arc<RawSol<SolId,ADom,Out,SInfo>>,Arc<RawSol<SolId,BDom,Out,SInfo>>){
+    pub fn index(&self, index:usize)->RawBatchElem<SolId,ADom,BDom,Out,SInfo>{
         (self.robj[index].clone(),self.ropt[index].clone())
     }
 }
@@ -245,7 +249,7 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->(Arc<Computed<SolId,ADom,Cod,Out,SInfo>>,Arc<Computed<SolId,BDom,Cod,Out,SInfo>>){
+    pub fn index(&self, index:usize)->CompBatchElem<SolId,ADom,BDom,Cod,Out,SInfo>{
         (self.cobj[index].clone(),self.copt[index].clone())
     }
 }

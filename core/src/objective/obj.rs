@@ -34,7 +34,7 @@ pub enum FidelState {
 ///
 /// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
 /// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. It takes a vector
-///    containing the point to be evaluated.
+///   containing the point to be evaluated.
 pub struct Objective<Obj, Cod, Out>
 where
     Obj: Domain,

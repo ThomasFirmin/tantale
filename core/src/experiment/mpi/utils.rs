@@ -7,6 +7,7 @@ use crate::{
 
 use bincode::{self, config::Configuration, serde::Compat};
 use mpi::traits::{Communicator, Destination, Source};
+use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap, sync::{Arc, Mutex}
@@ -95,7 +96,7 @@ where
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
-    pub idle: Arc<Mutex<Vec<i32>>>,
+    pub idle: Arc<Mutex<Vec<usize>>>,
     pub waiting: ArcMutexHash<SolId, Obj, Opt, SInfo>,
 }
 
@@ -159,7 +160,7 @@ where
 }
 
 pub fn par_send_to_worker<SolId, Obj, Opt, SInfo>(
-    params: &mut ThrSendRecParam<Obj, Opt, SInfo, SolId>,
+    params: &ThrSendRecParam<Obj, Opt, SInfo, SolId>,
     pair: PartPair<SolId,Obj,Opt,SInfo>
 ) -> bool
 where
@@ -172,7 +173,7 @@ where
     let has_idl = !idl.is_empty();
     if has_idl {
         let sid = pair.0.id;
-        let rank = idl.pop().unwrap();
+        let rank = idl.pop().unwrap().as_();
         let x = pair.0.get_x();
         let msg_struct = Compat((sid, x.as_ref()));
         let msg = bincode::encode_to_vec(msg_struct, params.config).unwrap();
@@ -188,11 +189,11 @@ where
 
 // Send as much solutions as possible to idle workers without waiting for a result.
 pub fn par_fill_workers<SolId, Obj, Opt, SInfo, Info, St>(
-    params: &mut ThrSendRecParam<Obj, Opt, SInfo, SolId>,
+    params: &ThrSendRecParam<Obj, Opt, SInfo, SolId>,
     stop: Arc<Mutex<St>>,
-    batch:Batch<SolId,Obj,Opt,SInfo,Info>,
-    idx: usize,
-) -> usize
+    batch:&Batch<SolId,Obj,Opt,SInfo,Info>,
+    idx: Arc<Mutex<Vec<usize>>>,
+)
 where
     St: Stop,
     Obj: Domain,
@@ -201,19 +202,18 @@ where
     Info:OptInfo,
     SolId: Id,
 {
-    let mut i = idx;
     let mut st = stop.lock().unwrap();
     let mut at_least_one_idle = true;
-    while at_least_one_idle && i < batch.size() && !st.stop() {
+    let mut idx_list = idx.lock().unwrap();
+    while at_least_one_idle && !idx_list.is_empty() && !st.stop() {
+        let i = idx_list.pop().unwrap();
         let has_idle = par_send_to_worker(params, batch.index(i));
         if has_idle {
             st.update(ExpStep::Distribution);
-            i += 1;
         } else {
             at_least_one_idle = false
         }
     }
-    i
 }
 
 pub fn receive_obj_computed<'a, Obj, Opt, SInfo, Info, SolId, Cod, Out>(

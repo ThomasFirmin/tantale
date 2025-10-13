@@ -1,5 +1,5 @@
 use tantale::core::{
-    Objective, experiment::{Runable, mpi::tools, MPIThrExperiment}, load, saver::CSVSaver, stop::Calls
+    Objective, experiment::{Runable, mpi::tools, SyncExperiment}, load, saver::CSVSaver, stop::Calls
 };
 use tantale::algos::RandomSearch;
 
@@ -157,19 +157,20 @@ fn main() {
         return;
     }
     
-    drop(Cleaner {path:String::from("tmp_test_parseqrun")});
-
+    let proc = tools::MPIProcess::new();
+    
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-
-    if !tools::launch_worker(&obj){
+    
+    if !tools::launch_worker(&proc, &obj){
+        drop(Cleaner {path:String::from("tmp_test_parseqrun")});
         let opt = RandomSearch::new(7);
         let sp = sp_evaluator::get_searchspace();
         let stop = Calls::new(50);
-        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
+        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true,true, 1);
 
-        let exp = MPIThrExperiment::new(sp, obj, opt, stop, saver);
+        let exp = SyncExperiment::new(sp, obj, opt, stop, saver);
         exp.run();
 
         run_reader("tmp_test_parseqrun", 50);
@@ -179,10 +180,10 @@ fn main() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
 
-    if !tools::launch_worker(&obj){
+    if !tools::launch_worker(&proc, &obj){
         let sp = sp_evaluator::get_searchspace();
-        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
-        let mut exp= load!(MPIThrExperiment, RandomSearch, Calls | sp, obj, saver);
+        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+        let mut exp = load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
     
         assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
         assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -196,7 +197,7 @@ fn main() {
         let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
         let obj = Objective::new(cod, func);
         let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
-        let exp= load!(MPIThrExperiment, RandomSearch, Calls | sp, obj, saver);
+        let exp= load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
         run_reader("tmp_test_parseqrun", 100);
         assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
         assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");

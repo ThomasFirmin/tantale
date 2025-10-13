@@ -1,14 +1,7 @@
 use tantale_core::{
-    domain::Domain,
-    objective::{codomain::SingleCodomain, outcome::Outcome},
-    optimizer::{
-        opt::{OptOutput, SolPairs, Optimizer},
-        EmptyInfo, OptInfo, OptState,
-    },
-    saver::CSVWritable,
-    searchspace::Searchspace,
-    solution::SId,
-    Criteria,
+    Criteria, domain::Domain, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
+        CBType, EmptyInfo, OptInfo, OptState, opt::Optimizer
+    }, saver::CSVWritable, searchspace::Searchspace, solution::{Batch, SId}
 };
 
 use rand::prelude::ThreadRng;
@@ -23,7 +16,7 @@ pub struct RSState {
 impl OptState for RSState
 {}
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Debug)]
 pub struct RSInfo {
     pub iteration: usize,
 }
@@ -59,7 +52,7 @@ impl RandomSearch {
 fn rs_iter<Obj, Opt, Scp>(
     opt: &mut RandomSearch,
     sp: Arc<Scp>,
-) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo>
+) -> Batch<SId,Obj,Opt,EmptyInfo,RSInfo>
 where
     Obj: Domain,
     Opt: Domain,
@@ -71,7 +64,7 @@ where
         iteration: opt.0.iteration,
     });
     opt.0.iteration += 1;
-    (samples, opt_samples, info)
+    Batch::new(samples, opt_samples, info)
 }
 
 impl<Obj, Opt, Out, Scp>
@@ -86,18 +79,19 @@ where
     type SInfo = EmptyInfo;
     type Info = RSInfo;
     type State = RSState;
+    type BType= Batch<SId,Obj,Opt,EmptyInfo,RSInfo>;
 
     fn init(&mut self) {}
 
-    fn first_step(&mut self, sp: Arc<Scp>) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
+    fn first_step(&mut self, sp: Arc<Scp>) -> Self::BType {
         rs_iter::<Obj, Opt, Scp>(self, sp.clone())
     }
 
     fn step(
         &mut self,
-        _x: SolPairs<SId, Obj, Opt, SingleCodomain<Out>, Out, EmptyInfo>,
+        _x: CBType<Self,SId,Obj,Opt,SingleCodomain<Out>,Out,Scp>,
         sp: Arc<Scp>,
-    ) -> OptOutput<SId, Obj, Opt, EmptyInfo, RSInfo> {
+    ) -> Batch<SId, Obj, Opt, EmptyInfo, RSInfo> {
         rs_iter::<Obj, Opt, Scp>(self, sp.clone())
     }
 
@@ -108,4 +102,5 @@ where
     fn from_state(state:RSState) -> Self {
         RandomSearch(state, rand::rng())
     }
+    
 }
