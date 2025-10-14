@@ -259,30 +259,30 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
-    Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
+impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
+    Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
-    Cod::TypeCodom: Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
-        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-        + Send
-        + Sync,
-    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+    + Send
+    + Sync,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
+    Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Cod,Out>,
+    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
 {
-    fn init(&mut self, sp: &Scp, cod: &Cod) {
+    fn init(&mut self, sp: &Scp, cod: &Op::Cod) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             panic!("The folder path already exists, {}.", self.path.display())
@@ -332,7 +332,7 @@ where
             {
                 let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Cod::header(cod));
+                idstr.extend(Op::Cod::header(cod));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -344,7 +344,7 @@ where
         }
     }
 
-    fn after_load(&mut self, _sp: &Scp, _cod: &Cod) {
+    fn after_load(&mut self, _sp: &Scp, _cod: &Op::Cod) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             let path_evals = self.path.join(Path::new("evaluations"));
@@ -433,7 +433,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -446,9 +446,9 @@ where
 
     fn save_codom(
         &self,
-        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Out,Scp>,
         _sp: Arc<Scp>,
-        cod: Arc<Cod>,
+        cod: Arc<Op::Cod>,
     ) {
         let file = OpenOptions::new()
             .append(true)
@@ -457,7 +457,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -491,7 +491,7 @@ where
         std::fs::remove_dir_all(&self.path).unwrap();
     }
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod) -> Result<St, CheckpointError> {
+    fn load_stop(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<St, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -511,7 +511,7 @@ where
         }
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod) -> Result<Op, CheckpointError> {
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<Op, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -531,7 +531,7 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<Eval, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -551,7 +551,7 @@ where
         }
     }
 
-    fn load_parameters(&self, _sp: &Scp, _cod: &Cod) -> Result<GlobalParameters, CheckpointError> {
+    fn load_parameters(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<GlobalParameters, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -571,21 +571,21 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Cod) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters =
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_parameters(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_parameters(
                 self, _sp, _cod,
             )?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_stop(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_stop(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_optimizer(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_optimizer(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>>::load_evaluate(
+            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_evaluate(
                 self, _sp, _cod,
             )?,
         ))
@@ -622,30 +622,30 @@ where
 ///   * state_param.json    (Various global parameters as the [`Id`] or experiment identifier.)
 /// 
 #[cfg(feature = "mpi")]
-impl<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>
-    DistributedSaver<SolId, St, Obj, Opt, Cod, Out, Scp, Op, Eval> for CSVSaver
+impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
+    DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
-    Cod::TypeCodom: Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
-        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-        + Send
-        + Sync,
-    Op: Optimizer<SolId, Obj, Opt, Cod, Out, Scp>,
+    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+    + Send
+    + Sync,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
+    Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Cod,Out>,
+    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
 {
-    fn init(&mut self, sp: &Scp, cod: &Cod, rank: Rank) {
+    fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             if rank == 0 {
@@ -711,7 +711,7 @@ where
                 let nppcod = path_evals.join(Path::new("cod.csv"));
                 let mut wrt = csv::Writer::from_path(nppcod.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Cod::header(cod));
+                idstr.extend(Op::Cod::header(cod));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
                 self.path_codom = nppcod;
@@ -729,7 +729,7 @@ where
         }
     }
 
-    fn after_load(&mut self, _sp: &Scp, _cod: &Cod, rank: Rank) {
+    fn after_load(&mut self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
             let path_evals = self
@@ -837,7 +837,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {
+    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -850,9 +850,9 @@ where
 
     fn save_codom(
         &self,
-        batch: &CBType<Op,SolId,Obj,Opt,Cod,Out,Scp>,
+        batch: &CBType<Op,SolId,Obj,Opt,Out,Scp>,
         _sp: Arc<Scp>,
-        cod: Arc<Cod>,
+        cod: Arc<Op::Cod>,
         _rank:Rank,
     ) {
         let file = OpenOptions::new()
@@ -862,7 +862,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Cod,Out,Scp>, _sp: Arc<Scp>,_rank:Rank) {
+    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>,_rank:Rank) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -893,7 +893,7 @@ where
     }
 
 
-    fn load_stop(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<St, CheckpointError> {
+    fn load_stop(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<St, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -913,7 +913,7 @@ where
         }
     }
 
-    fn load_optimizer(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<Op, CheckpointError> {
+    fn load_optimizer(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<Op, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -933,7 +933,7 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<Eval, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -956,7 +956,7 @@ where
     fn load_parameters(
         &self,
         _sp: &Scp,
-        _cod: &Cod,
+        _cod: &Op::Cod,
         rank: Rank,
     ) -> Result<GlobalParameters, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
@@ -978,13 +978,12 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Cod, rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters = <CSVSaver as DistributedSaver<
             SolId,
             St,
             Obj,
             Opt,
-            Cod,
             Out,
             Scp,
             Op,
@@ -1000,7 +999,6 @@ where
                     St,
                     Obj,
                     Opt,
-                    Cod,
                     Out,
                     Scp,
                     Op,
@@ -1011,7 +1009,6 @@ where
                     St,
                     Obj,
                     Opt,
-                    Cod,
                     Out,
                     Scp,
                     Op,
@@ -1022,7 +1019,6 @@ where
                     St,
                     Obj,
                     Opt,
-                    Cod,
                     Out,
                     Scp,
                     Op,

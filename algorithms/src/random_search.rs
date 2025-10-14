@@ -1,6 +1,6 @@
 use tantale_core::{
-    Criteria, domain::Domain, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
-        CBType, EmptyInfo, OptInfo, OptState, opt::Optimizer
+    Criteria, Objective, domain::Domain, experiment::{Runable, SyncExperiment}, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
+        CBType, EmptyInfo, OptInfo, OptState, opt::{IterMode, Optimizer}
     }, saver::CSVWritable, searchspace::Searchspace, solution::{Batch, SId}
 };
 
@@ -12,9 +12,18 @@ use std::sync::Arc;
 pub struct RSState {
     pub batch: usize,
     pub iteration: usize,
+    iter_lvl: IterMode,
 }
 impl OptState for RSState
-{}
+{
+    fn set_iter_lvl(&mut self, mode: IterMode){
+        self.iter_lvl = mode;
+    }
+
+    fn get_iter_lvl(&self) -> &IterMode{
+        &self.iter_lvl
+    }
+}
 
 #[derive(Serialize,Deserialize,Debug)]
 pub struct RSInfo {
@@ -38,6 +47,7 @@ impl RandomSearch {
             RSState {
                 batch,
                 iteration: 0,
+                iter_lvl: IterMode::Monothreaded,
             },
             rng,
         )
@@ -80,6 +90,7 @@ where
     type Info = RSInfo;
     type State = RSState;
     type BType= Batch<SId,Obj,Opt,EmptyInfo,RSInfo>;
+    type FnWrap = Objective<Obj,SingleCodomain<Out>,Out>;
 
     fn init(&mut self) {}
 
@@ -103,4 +114,19 @@ where
         RandomSearch(state, rand::rng())
     }
     
+    #[allow(unreachable_patterns)]
+    fn to_exp<Run,St,Sv,Eval>(self, searchspace: Scp, objective: Objective<Obj,SingleCodomain<Out>,Out>, stop: St, saver:Sv) -> Run
+    where
+        Run : tantale_core::experiment::Runable<SId,Scp,Self,St,Sv,Obj,Opt,Out,SingleCodomain<Out>,Eval, Objective<Obj,SingleCodomain<Out>,Out>>,
+        St: tantale_core::Stop,
+        Sv: tantale_core::saver::Saver<SId,St,Obj,Opt,SingleCodomain<Out>,Out,Scp,Self,Eval>,
+        Eval:tantale_core::experiment::Evaluate,
+    {
+        match self.0.iter_lvl{
+            IterMode::Monothreaded => SyncExperiment::new(searchspace, objective, self, stop, saver),
+            IterMode::Threaded => todo!(),
+            IterMode::Distributed => todo!(),
+            _ => std::unimplemented!("The specified IterMode is not implemented."),
+        }
+    }
 }

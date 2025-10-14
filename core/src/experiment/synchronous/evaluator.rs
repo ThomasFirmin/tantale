@@ -1,10 +1,5 @@
 use crate::{
-    Id, OptInfo, SolInfo, Solution,
-    domain::Domain,
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults},
-    objective::{Codomain, Objective, Outcome},
-    solution::{Batch, BatchType, CompBatch, RawBatch},
-    stop::{ExpStep, Stop}
+    Id, OptInfo, Optimizer, Searchspace, SolInfo, Solution, domain::Domain, experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults}, objective::{Codomain, Objective, Outcome}, solution::{Batch, BatchType, CompBatch, RawBatch}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -14,23 +9,14 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::experiment::{
-    utils::PartPair,
-    mpi::{
+use crate::{experiment::{
+    DistEvaluate, EvaluateOut, mpi::{
         tools::MPIProcess,
         utils::{
-            fill_workers,
-            receive_obj_computed,
-            send_to_worker,
-            ArcMutexHash,
-            ThrSendRecParam,
-            par_fill_workers,
-            par_send_to_worker,
-            SendRecParam,
+            ArcMutexHash, SendRecParam, ThrSendRecParam, fill_workers, par_fill_workers, par_send_to_worker, receive_obj_computed, send_to_worker
         },
-    },
-    DistEvaluate,
-};
+    }, utils::PartPair
+}, optimizer::opt::{OpCodType, OpInfType, OpSInfType}};
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
 #[cfg(feature = "mpi")]
@@ -86,25 +72,28 @@ where
 {
 }
 
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>, Batch<SolId,Obj,Opt,SInfo,Info>>
-    for MonoEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<Op, St, Obj, Opt, Out,SolId, Scp>
+    MonoEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
+    for MonoEvaluator<SolId,Obj,Opt,Op::Info,Op::SInfo>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+    >,
+    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
     SolId: Id,
-    Info: OptInfo,
-    SInfo: SolInfo,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Objective<Obj, Cod, Out>>,
+        ob: Arc<Objective<Obj, Op::Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
+    ) -> (RawBatch<SolId,Obj,Opt,Op::SInfo,Op::Info,Out>,CompBatch<SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>)
     
     {
         let mut batch_res = BatchResults::new(self.batch.get_info());
@@ -123,38 +112,41 @@ where
         (batch_res.rbatch, batch_res.cbatch)
     }
     
-    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>) {
         self.batch = batch;
         self.idx=0;
     }
 }
 
 #[cfg(feature = "mpi")]
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>, Batch<SolId,Obj,Opt,SInfo,Info>>
-    for MonoEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<Op, Scp, St, Obj, Opt, Out, SolId>
+    DistEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
+    for MonoEvaluator<SolId, Obj, Opt, Op::Info, Op::SInfo>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+    >,
+    Scp:Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
     SolId: Id,
-    Info: OptInfo,
-    SInfo: SolInfo,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
         proc: &MPIProcess,
-        ob: Arc<Objective<Obj, Cod, Out>>,
+        ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp>
     {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
-        let mut waiting: HashMap<SolId, PartPair<SolId, Obj, Opt, SInfo>> = HashMap::new(); // solution being evaluated
+        let mut waiting: HashMap<SolId, PartPair<SolId, Obj, Opt, Op::SInfo>> = HashMap::new(); // solution being evaluated
         let mut sendrec_params = SendRecParam {
             config,
             proc,
@@ -192,7 +184,7 @@ where
         (results.rbatch,results.cbatch)
     }
 
-    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>) {
         self.batch = batch;
         self.idx=0;
     }
@@ -248,28 +240,34 @@ where
 {
 }
 
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>,Batch<SolId,Obj,Opt,SInfo,Info>>
-    for ThrEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<Op,Scp,St, Obj, Opt, Out, SolId>
+    ThrEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
+    for ThrEvaluator<SolId, Obj, Opt, Op::Info, Op::SInfo>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+    >,
+    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
     SolId: Id + Send + Sync,
-    Info: OptInfo + Send + Sync,
-    SInfo: SolInfo + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
-    Cod::TypeCodom: Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
+    Op::Cod : Send + Sync,
+    Op::Info : Send + Sync,
+    Op::SInfo : Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Objective<Obj, Cod, Out>>,
+        ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp> {
         let results = Arc::new(Mutex::new(BatchResults::new(self.batch.info.clone())));
         let length = self.idx_list.lock().unwrap().len();
         (0..length).into_par_iter().for_each(|_| {
@@ -287,42 +285,47 @@ where
         let res = Arc::try_unwrap(results).unwrap().into_inner().unwrap();
         (res.rbatch,res.cbatch)
     }
-    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>) {
         self.batch = batch;
         self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));
     }
 }
 
 #[cfg(feature="mpi")]
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId>
-    DistEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Objective<Obj, Cod, Out>,Batch<SolId,Obj,Opt,SInfo,Info>>
-    for ThrEvaluator<SolId, Obj, Opt, Info, SInfo>
+impl<Op,Scp,St, Obj, Opt, Out, SolId>
+    DistEvaluate<Op, St, Obj, Opt, Out, SolId,Scp>
+    for ThrEvaluator<SolId, Obj, Opt, Op::Info, Op::SInfo>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+    >,
+    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
     SolId: Id + Send + Sync,
-    Info: OptInfo + Send + Sync,
-    SInfo: SolInfo + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
-    Cod::TypeCodom: Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
+    Op::Info: OptInfo + Send + Sync,
+    Op::SInfo: SolInfo + Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
         proc:&MPIProcess,
-        ob: Arc<Objective<Obj, Cod, Out>>,
+        ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp> {
         // Define send/rec utilitaries and parameters
 
         use num::cast::AsPrimitive;
         let config = bincode::config::standard(); // Bytes encoding config
         let idle_process: Arc<Mutex<Vec<usize>>> = Arc::new(Mutex::new((1..proc.size.as_()).collect())); // [1..SIZE] because of master process / Processes doing nothing
-        let waiting: ArcMutexHash<SolId, Obj, Opt, SInfo> = Arc::new(Mutex::new(HashMap::new())); // solution being evaluated
+        let waiting: ArcMutexHash<SolId, Obj, Opt, Op::SInfo> = Arc::new(Mutex::new(HashMap::new())); // solution being evaluated
         let sendrec_params = ThrSendRecParam {
             config,
             proc,
@@ -366,7 +369,7 @@ where
         (results.rbatch,results.cbatch)
     }
 
-    fn update(&mut self,batch: Batch<SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self,batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>) {
         self.batch = batch;
         self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));
     }

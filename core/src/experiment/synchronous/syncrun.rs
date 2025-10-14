@@ -1,5 +1,5 @@
 use crate::{
-    domain::Domain, experiment::{Evaluate, MonoEvaluate, MonoEvaluator, Runable, ThrEvaluate, ThrEvaluator}, objective::{Codomain, Objective, Outcome}, optimizer::{CBType, OBType, Optimizer}, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
+    domain::Domain, experiment::{Evaluate, MonoEvaluate, MonoEvaluator, Runable, ThrEvaluate, ThrEvaluator}, objective::{Codomain, Objective, Outcome}, optimizer::{CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType}}, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -15,43 +15,38 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub struct SyncExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+pub struct SyncExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out>
 where
     Eval: Evaluate,
-    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
+    Op: Optimizer<SId, Obj, Opt, Out, Scp>,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SId, St, Obj, Opt, Cod, Out, Scp, Op, Eval>,
+    Sv: Saver<SId, St, Obj, Opt, Out, Scp, Op, Eval>,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
 {
     pub searchspace: Scp,
-    pub objective: Objective<Obj, Cod, Out>,
+    pub objective: Objective<Obj, Op::Cod, Out>,
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
     evaluator: Option<Eval>,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
-    _codom: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out>
     Runable<
         SId,
         Scp,
         Op,
         St,
         Sv,
+        Out,
         Obj,
         Opt,
-        Out,
-        Cod,
-        MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-        Objective<Obj, Cod, Out>,
     >
     for SyncExperiment<
         MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
@@ -62,10 +57,13 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
         Obj,
         Opt,
         Out,
-        Cod,
     >
 where
-    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp, BType = Batch<SId, Obj, Opt, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::SInfo, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::Info>>,
+    Op:Optimizer<
+        SId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
+    >,
     St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
@@ -73,7 +71,6 @@ where
         St,
         Obj,
         Opt,
-        Cod,
         Out,
         Scp,
         Op,
@@ -82,11 +79,12 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
 {
+    type Eval = MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>;
+
     fn new(
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Objective<Obj, Op::Cod, Out>,
         optimizer: Op,
         stop: St,
         mut saver: Sv,
@@ -101,7 +99,6 @@ where
             evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }
@@ -121,8 +118,8 @@ where
         };
 
         let mut batch: Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
-        let mut batch_raw: OBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
-        let mut batch_comp: CBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
+        let mut batch_raw: OBType<Op,SId,Obj,Opt,Out,Scp>;
+        let mut batch_comp: CBType<Op,SId,Obj,Opt,Out,Scp>;
         'main: loop {
             {
                 let mut st = st.lock().unwrap();
@@ -135,19 +132,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw,batch_comp) =
-                <MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as MonoEvaluate<
-                    St,
-                    Obj,
-                    Opt,
-                    Out,
-                    Cod,
-                    Op::Info,
-                    Op::SInfo,
-                    SId,
-                    Objective<Obj, Cod, Out>,
-                    _
-                >>::evaluate(&mut eval, ob.clone(), st.clone());
+            (batch_raw,batch_comp) = <Self::Eval as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp,>>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             self.saver.save_partial(
@@ -168,18 +153,7 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
-            <MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as MonoEvaluate<
-                St,
-                Obj,
-                Opt,
-                Out,
-                Cod,
-                Op::Info,
-                Op::SInfo,
-                SId,
-                Objective<Obj, Cod, Out>,
-                _,
-            >>::update(&mut eval, batch);
+            <Self::Eval as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp,>>::update(&mut eval, batch);
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(
@@ -193,7 +167,7 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Op::FnWrap, mut saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
@@ -207,25 +181,21 @@ where
             evaluator: Some(evaluator),
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out>
     Runable<
         SId,
         Scp,
         Op,
         St,
         Sv,
+        Out,
         Obj,
         Opt,
-        Out,
-        Cod,
-        ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-        Objective<Obj, Cod, Out>,
     >
     for SyncExperiment<
         ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
@@ -236,38 +206,42 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
         Obj,
         Opt,
         Out,
-        Cod,
     >
 where
-    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp, BType = Batch<SId, Obj, Opt, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::SInfo, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::Info>>,
-    St: Stop + Send + Sync,
+    Op:Optimizer<
+        SId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
+    >,
+    St: Stop,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
-            SId,
-            St,
-            Obj,
-            Opt,
-            Cod,
-            Out,
-            Scp,
-            Op,
-            ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-        > + Send
-        + Sync,
+        SId,
+        St,
+        Obj,
+        Opt,
+        Out,
+        Scp,
+        Op,
+        ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
+    > + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
+    Out: Outcome,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Codomain<Out> + Send + Sync,
-    Cod::TypeCodom: Send + Sync,
+    Op::Cod: Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
     Op::State: Send + Sync,
 {
+    type Eval = ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>;
+
     fn new(
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Op::FnWrap,
         optimizer: Op,
         stop: St,
         mut saver: Sv,
@@ -282,7 +256,6 @@ where
             evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }
