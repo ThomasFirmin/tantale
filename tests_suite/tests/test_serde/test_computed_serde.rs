@@ -49,91 +49,91 @@ get_test!(
         | sp_ms_nosamp::_TantaleMixedObj
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_real
         | tantale_core::Real
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_int
         | tantale_core::Int
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_nat
         | tantale_core::Nat
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_unit
         | tantale_core::Unit
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_bool
         | tantale_core::Bool
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_cat
         | tantale_core::Cat
         | [
             SingleCodomain | get_elemsingle,
-            FidelCodomain | get_elemfidel,
+            CostCodomain | get_elemfidel,
             ConstCodomain | get_elemconst,
-            FidelConstCodomain | get_elemfidelconst,
+            CostConstCodomain | get_elemfidelconst,
             MultiCodomain | get_elemmulti,
-            FidelMultiCodomain | get_elemfidelmulti,
+            CostMultiCodomain | get_elemfidelmulti,
             ConstMultiCodomain | get_elemconstmulti,
-            FidelConstMultiCodomain | get_elemfidelconstmulti,
+            CostConstMultiCodomain | get_elemfidelconstmulti,
         ]
         | |(a, b)| a == b
 );

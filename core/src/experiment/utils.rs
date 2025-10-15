@@ -4,11 +4,13 @@ use crate::{
 };
 use std::{fmt::Debug,sync::Arc};
 
-pub type PartPair<SolId,Obj,Opt,SInfo> = (Arc<Partial<SolId, Obj, SInfo>>,Arc<Partial<SolId, Opt, SInfo>>);
+pub type PartPair<PSolA,PSolB> = (Arc<PSolA>,Arc<PSolB>);
 
 #[derive(Debug)]
-pub struct BatchResults<SolId, Obj, Opt, Cod, Out, SInfo, Info>
+pub struct BatchResults<PSolA,PSolB,SolId, Obj, Opt, Cod, Out, SInfo, Info>
 where
+    PSolA: Partial<SolId,Obj,SInfo,Twin<Opt>=PSolB>,
+    PSolB: Partial<SolId,Opt,SInfo,Twin<Obj>=PSolA>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
@@ -17,12 +19,14 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub rbatch: RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,
-    pub cbatch: CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>,
+    pub rbatch: RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>,
+    pub cbatch: CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>,
 }
 
-impl<SolId, Obj, Opt, Cod, Out, SInfo, Info> BatchResults<SolId, Obj, Opt, Cod, Out, SInfo, Info>
+impl<PSolA,PSolB,SolId, Obj, Opt, Cod, Out, SInfo, Info> BatchResults<PSolA,PSolB,SolId, Obj, Opt, Cod, Out, SInfo, Info>
 where
+    PSolA: Partial<SolId,Obj,SInfo,Twin<Opt>=PSolB>,
+    PSolB: Partial<SolId,Opt,SInfo,Twin<Obj>=PSolA>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
@@ -38,7 +42,7 @@ where
         }
     }
 
-    pub fn add(&mut self, pair:PartPair<SolId,Obj,Opt,SInfo>,out:Arc<Out>,y:Arc<Cod::TypeCodom>){
+    pub fn add(&mut self, pair:PartPair<PSolA,PSolB>,out:Arc<Out>,y:Arc<Cod::TypeCodom>){
         self.rbatch.add(
                 Arc::new(RawSol::new(pair.0.clone(), out.clone())),
                 Arc::new(RawSol::new(pair.1.clone(), out))

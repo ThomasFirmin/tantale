@@ -116,14 +116,16 @@ use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-type ComputedOut<SolId, ADom, BDom, Cod, Out, Info> = (
-    Arc<Computed<SolId, ADom, Cod, Out, Info>>,
-    Arc<Computed<SolId, BDom, Cod, Out, Info>>,
+type ComputedOut<PSolA,PSolB,SolId, ADom, BDom, Cod, Out, Info> = (
+    Arc<Computed<PSolA,SolId, ADom, Cod, Out, Info>>,
+    Arc<Computed<PSolB,SolId, BDom, Cod, Out, Info>>,
 );
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<SolId, Obj, Opt, SInfo>
+pub trait Searchspace<PSol,PSolB,SolId, Obj, Opt, SInfo>
 where
+    PSolA: Partial<SolId,Obj,SInfo, Twin<Opt> = PSolB>,
+    PSolB: Partial<SolId,Opt,SInfo, Twin<Obj> = PSolA>,
     SInfo: SolInfo,
     Obj: Domain,
     Opt: Domain,
@@ -167,7 +169,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_opt(&self, inp: Arc<Partial<SolId, Obj, SInfo>>) -> Arc<Partial<SolId, Opt, SInfo>>;
+    fn onto_opt(&self, inp: Arc<PSolA>) -> Arc<PSolB>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -206,7 +208,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_obj(&self, inp: Arc<Partial<SolId, Opt, SInfo>>) -> Arc<Partial<SolId, Obj, SInfo>>;
+    fn onto_obj(&self, inp: Arc<PSolB>) -> Arc<PSolA>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -248,7 +250,7 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<Partial<SolId, Obj, SInfo>>;
+    ) -> Arc<PSolA>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -290,7 +292,7 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<Partial<SolId, Opt, SInfo>>;
+    ) -> Arc<PSolB>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -407,8 +409,8 @@ where
     /// ```
     fn vec_onto_obj(
         &self,
-        inp: VecArc<Partial<SolId, Opt, SInfo>>,
-    ) -> VecArc<Partial<SolId, Obj, SInfo>>;
+        inp: VecArc<PSolB>,
+    ) -> VecArc<PSolA>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -453,8 +455,8 @@ where
     /// ```
     fn vec_onto_opt(
         &self,
-        inp: VecArc<Partial<SolId, Obj, SInfo>>,
-    ) -> VecArc<Partial<SolId, Opt, SInfo>>;
+        inp: VecArc<PSolA>,
+    ) -> VecArc<PSolB>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -498,7 +500,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<Partial<SolId, Obj, SInfo>>;
+    ) -> VecArc<PSolA>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -539,7 +541,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<Partial<SolId, Opt, SInfo>>;
+    ) -> VecArc<PSolB>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -617,10 +619,10 @@ where
     /// from a pair of [`twin`](Partial::twin) [`Partial`] of types `A` and `B`, and a shared [`Codomain`].
     fn computed<Cod, Out>(
         &self,
-        xa: Arc<Partial<SolId, Obj, SInfo>>,
-        xb: Arc<Partial<SolId, Opt, SInfo>>,
+        xa: Arc<PSolA>,
+        xb: Arc<PSolB>,
         y: Arc<Cod::TypeCodom>,
-    ) -> ComputedOut<SolId, Obj, Opt, Cod, Out, SInfo>
+    ) -> ComputedOut<PSolA,PSolB,SolId, Obj, Opt, Cod, Out, SInfo>
     where
         Cod: Codomain<Out>,
         Out: Outcome,

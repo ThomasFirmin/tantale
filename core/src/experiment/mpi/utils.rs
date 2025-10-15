@@ -1,23 +1,20 @@
 use crate::{
-    Codomain, Computed, Domain, Id, Objective, OptInfo, Outcome, SolInfo, Solution,
-    experiment::{mpi::tools::MPIProcess, utils::{BatchResults,PartPair}},
-    solution::Batch,
-    stop::{ExpStep, Stop}
+    Codomain, Computed, Domain, Id, Objective, OptInfo, Outcome, Partial, SolInfo, Solution, experiment::{mpi::tools::MPIProcess, utils::{BatchResults,PartPair}}, solution::Batch, stop::{ExpStep, Stop}
 };
 
-use bincode::{self, config::Configuration, serde::Compat};
+use bincode::{self, config::{self, Configuration}, serde::Compat};
 use mpi::traits::{Communicator, Destination, Source};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap, sync::{Arc, Mutex}
+    collections::HashMap, marker::PhantomData, sync::{Arc, Mutex}
 };
 
-pub type VecArcComputed<SolId, Obj, Cod, Out, SInfo> =
-    Vec<Arc<Computed<SolId, Obj, Cod, Out, SInfo>>>;
+pub type VecArcComputed<PSol,SolId, Dom, Cod, Out, SInfo> =
+    Vec<Arc<Computed<PSol,SolId, Dom, Cod, Out, SInfo>>>;
 
-pub type ArcMutexHash<SolId, Obj, Opt, SInfo> =
-    Arc<Mutex<HashMap<SolId, PartPair<SolId, Obj, Opt, SInfo>>>>;
+pub type ArcMutexHash<PSolA,PSolB,SolId> =
+    Arc<Mutex<HashMap<SolId, PartPair<PSolA,PSolB>>>>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -73,8 +70,10 @@ where
 }
 
 /// A structure containing utilitaries to send [`Partial`] to workers.
-pub struct SendRecParam<'a, Obj, Opt, SInfo, SolId>
+pub struct SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
 where
+    PSolA: Partial<SolId,Obj,SInfo>,
+    PSolB: Partial<SolId,Opt,SInfo>,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
@@ -83,12 +82,31 @@ where
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: &'a mut Vec<i32>,
-    pub waiting: &'a mut HashMap<SolId, PartPair<SolId, Obj, Opt, SInfo>>,
+    pub waiting: &'a mut HashMap<SolId, PartPair<PSolA,PSolB>>,
+    _obj: PhantomData<Obj>,
+    _opt: PhantomData<Opt>,
+    _sinfo: PhantomData<SInfo>,
+}
+
+impl<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId> SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+where
+    PSolA: Partial<SolId,Obj,SInfo>,
+    PSolB: Partial<SolId,Opt,SInfo>,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    SolId: Id,
+{
+    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:&'a mut Vec<i32>,waiting: &'a mut HashMap<SolId, PartPair<PSolA,PSolB>>)->Self{
+        SendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
+    }
 }
 
 /// A structure containing utilitaries to send [`Partial`] to workers while using multi-threading.
-pub struct ThrSendRecParam<'a, Obj, Opt, SInfo, SolId>
+pub struct ThrSendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
 where
+    PSolA: Partial<SolId,Obj,SInfo>,
+    PSolB: Partial<SolId,Opt,SInfo>,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
@@ -97,15 +115,36 @@ where
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: Arc<Mutex<Vec<usize>>>,
-    pub waiting: ArcMutexHash<SolId, Obj, Opt, SInfo>,
+    pub waiting: ArcMutexHash<PSolA,PSolB,SolId>,
+    _obj: PhantomData<Obj>,
+    _opt: PhantomData<Opt>,
+    _sinfo: PhantomData<SInfo>,
 }
 
+impl<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId> ThrSendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+where
+    PSolA: Partial<SolId,Obj,SInfo>,
+    PSolB: Partial<SolId,Opt,SInfo>,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    SolId: Id,
+{
+    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:Arc<Mutex<Vec<usize>>>,waiting: ArcMutexHash<PSolA,PSolB,SolId>)->Self{
+        ThrSendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
+    }
+}
+
+
+
 /// Send an Obj [`Solution`] to a worker
-pub fn send_to_worker<'a, SolId, Obj, Opt, SInfo>(
-    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
-    pair: PartPair<SolId, Obj, Opt, SInfo>,
+pub fn send_to_worker<'a, PSolA,PSolB,SolId, Obj, Opt, SInfo>(
+    params: &mut SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>,
+    pair: PartPair<PSolA,PSolB>,
 ) -> bool
 where
+    PSolA: Partial<SolId,Obj,SInfo>,
+    PSolB: Partial<SolId,Opt,SInfo>,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,

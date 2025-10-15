@@ -65,11 +65,29 @@ where
     }
 }
 
+pub enum Fidelity {
+    Discard,
+    Continue(f64),
+    New,
+}
+
+pub trait FidelitySolution<SolId,Dom,Info> : Solution<SolId,Dom,Info>
+where
+    Self: Sized + Serialize + for<'de> Deserialize<'de>,
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id + PartialEq,
+{
+    fn get_fidelity(&self)->Fidelity;
+    fn set_fidelity(&self)->Fidelity;
+}
+
+
 pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::Partial;
+pub use partial::{Partial,BasePartial};
 
 pub mod computed;
 pub use computed::Computed;

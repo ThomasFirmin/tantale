@@ -2,7 +2,7 @@
 //! [`Objective`](tantale::core::Objective) function should be used within the [`Optimizer`](tanta::core::Optimizer).
 //! It allows to extract from the [`Output`](tantale::core::Outcome) the [`Single`](tantale::core::Single) objective to minimize, $f(x)=y$.
 //! Moreover, a [`Codomain`](tantale::core::Codomain) can express more complex behaviors, like [`Constrained`](tantale::core::Constrained),
-//! [`Multi`](tantale::core::Multi)-objective, or multi-[`Fidelity`](tantale::core::Fidelity) optimization.
+//! [`Multi`](tantale::core::Multi)-objective, or [`Cost`](tantale::core::Cost)-aware optimization.
 //! The extracted elements from [`Outcome`](tantale::core::Outcome) form the [`TypeCodom`](tantale::core::Codomain::TypeCodom), a type
 //! associated to a [`Codomain`](tantale::core::Codomain). These values are extracted from the [`Outcome`](tantale::core::Outcome) by using
 //! closures named [`Citeria`](tantale::core::objective::codomain::Criteria), a type alias for `fn(&Out)->f64`.
@@ -13,7 +13,7 @@
 //!
 //! ```
 //! // An example of a multi-objective, constrained and multi-fidelity codomain.
-//! use tantale::core::{Codomain, FidelConstMultiCodomain};
+//! use tantale::core::{Codomain, CostConstMultiCodomain};
 //! use tantale::macros::Outcome;
 //! use serde::{Serialize,Deserialize};
 //!
@@ -45,7 +45,7 @@
 //!         info: 10.0,
 //!     };
 //!
-//! let codom = FidelConstMultiCodomain::new(
+//! let codom = CostConstMultiCodomain::new(
 //!         // Define multi-objective
 //!         vec![
 //!             |h : &OutExample| h.mul1,
@@ -141,7 +141,7 @@ pub enum ConsType {
     Both,
 }
 
-pub trait Fidelity<Out: Outcome>: Codomain<Out> {
+pub trait Cost<Out: Outcome>: Codomain<Out> {
     fn get_criteria(&self) -> Criteria<Out>;
     fn get_fidelity(&self, o: &Out) -> f64 {
         (self.get_criteria())(o)
@@ -199,62 +199,62 @@ impl<Out: Outcome> Single<Out> for SingleCodomain<Out> {
     }
 }
 
-/// A [`Single`] and [`Fidelity`] [`Codomain`].
+/// A [`Single`] and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidelCodomain<Out: Outcome> {
+pub struct CostCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
     pub f_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> FidelCodomain<Out> {
+impl<Out: Outcome> CostCodomain<Out> {
     pub fn new(crit: Criteria<Out>, fid: Criteria<Out>) -> Self {
-        FidelCodomain {
+        CostCodomain {
             y_criteria: crit,
             f_criteria: fid,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidelCodomain<Out>, ElemFidelCodomain> for FidelCodomain<Out> {
-    fn header(_elem: &FidelCodomain<Out>) -> Vec<String> {
+impl<Out: Outcome> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodomain<Out> {
+    fn header(_elem: &CostCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("fidelity")])
     }
 
-    fn write(&self, comp: &ElemFidelCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemCostCodomain) -> Vec<String> {
         Vec::from([comp.value.to_string(), comp.fidelity.to_string()])
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelCodomain`].
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`CostCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidelCodomain {
+pub struct ElemCostCodomain {
     pub value: f64,
     pub fidelity: f64,
 }
 
-impl PartialEq for ElemFidelCodomain {
+impl PartialEq for ElemCostCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.fidelity == other.fidelity
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidelCodomain<Out> {
-    type TypeCodom = ElemFidelCodomain;
+impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
+    type TypeCodom = ElemCostCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidelCodomain {
+        ElemCostCodomain {
             value: self.get_y(o),
             fidelity: self.get_fidelity(o),
         }
     }
 }
 
-impl<Out: Outcome> Single<Out> for FidelCodomain<Out> {
+impl<Out: Outcome> Single<Out> for CostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidelCodomain<Out> {
+impl<Out: Outcome> Cost<Out> for CostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.f_criteria
     }
@@ -330,17 +330,17 @@ impl<Out: Outcome> Constrained<Out, ConsType> for ConstCodomain<Out> {
     }
 }
 
-/// A [`Single`], [`Constrained`], and [`Fidelity`] [`Codomain`].
+/// A [`Single`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidelConstCodomain<Out: Outcome> {
+pub struct CostConstCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
     pub f_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidelConstCodomain<Out> {
+impl<Out: Outcome> CostConstCodomain<Out> {
     pub fn new(crit: Criteria<Out>, fid: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
-        FidelConstCodomain {
+        CostConstCodomain {
             y_criteria: crit,
             f_criteria: fid,
             c_criteria: con,
@@ -348,10 +348,10 @@ impl<Out: Outcome> FidelConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidelConstCodomain<Out>, ElemFidelConstCodomain>
-    for FidelConstCodomain<Out>
+impl<Out: Outcome> CSVWritable<CostConstCodomain<Out>, ElemCostConstCodomain>
+    for CostConstCodomain<Out>
 {
-    fn header(elem: &FidelConstCodomain<Out>) -> Vec<String> {
+    fn header(elem: &CostConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([String::from("y"), String::from("fidelity")]);
         v.extend(
             elem.c_criteria
@@ -362,7 +362,7 @@ impl<Out: Outcome> CSVWritable<FidelConstCodomain<Out>, ElemFidelConstCodomain>
         v
     }
 
-    fn write(&self, comp: &ElemFidelConstCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemCostConstCodomain) -> Vec<String> {
         let mut v = Vec::from([comp.value.to_string(), comp.fidelity.to_string()]);
         v.extend(comp.constraints.iter().map(|c| c.to_string()));
         v
@@ -371,13 +371,13 @@ impl<Out: Outcome> CSVWritable<FidelConstCodomain<Out>, ElemFidelConstCodomain>
 
 /// A element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidelConstCodomain {
+pub struct ElemCostConstCodomain {
     pub value: f64,
     pub fidelity: f64,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidelConstCodomain {
+impl PartialEq for ElemCostConstCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
             && self.fidelity == other.fidelity
@@ -385,34 +385,34 @@ impl PartialEq for ElemFidelConstCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidelConstCodomain<Out> {
-    type TypeCodom = ElemFidelConstCodomain;
+impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
+    type TypeCodom = ElemCostConstCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidelConstCodomain {
+        ElemCostConstCodomain {
             value: self.get_y(o),
             fidelity: self.get_fidelity(o),
             constraints: self.get_constraints(o),
         }
     }
 }
-impl<Out: Outcome> Single<Out> for FidelConstCodomain<Out> {
+impl<Out: Outcome> Single<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidelConstCodomain<Out> {
+impl<Out: Outcome> Cost<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.f_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out, ConsType> for FidelConstCodomain<Out> {
+impl<Out: Outcome> Constrained<Out, ConsType> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
 
-pub type ConstFidelCodomain<Out> = FidelConstCodomain<Out>;
+pub type ConstCostCodomain<Out> = CostConstCodomain<Out>;
 
 // MULTI OBJECTIVE CODOMAINS
 
@@ -469,26 +469,26 @@ impl<Out: Outcome> Multi<Out> for MultiCodomain<Out> {
     }
 }
 
-/// A [`Multi`] objective and [`Fidelity`] [`Codomain`].
+/// A [`Multi`] objective and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidelMultiCodomain<Out: Outcome> {
+pub struct CostMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub f_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> FidelMultiCodomain<Out> {
+impl<Out: Outcome> CostMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, fid: Criteria<Out>) -> Self {
-        FidelMultiCodomain {
+        CostMultiCodomain {
             y_criteria: crit,
             f_criteria: fid,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidelMultiCodomain<Out>, ElemFidelMultiCodomain>
-    for FidelMultiCodomain<Out>
+impl<Out: Outcome> CSVWritable<CostMultiCodomain<Out>, ElemCostMultiCodomain>
+    for CostMultiCodomain<Out>
 {
-    fn header(elem: &FidelMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &CostMultiCodomain<Out>) -> Vec<String> {
         let mut v: Vec<String> = elem
             .y_criteria
             .iter()
@@ -499,42 +499,42 @@ impl<Out: Outcome> CSVWritable<FidelMultiCodomain<Out>, ElemFidelMultiCodomain>
         v
     }
 
-    fn write(&self, comp: &ElemFidelMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemCostMultiCodomain) -> Vec<String> {
         let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
         v.extend([comp.fidelity.to_string()]);
         v
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelMultiCodomain`].
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`CostMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidelMultiCodomain {
+pub struct ElemCostMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
 }
 
-impl PartialEq for ElemFidelMultiCodomain {
+impl PartialEq for ElemCostMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.fidelity == other.fidelity
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidelMultiCodomain<Out> {
-    type TypeCodom = ElemFidelMultiCodomain;
+impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
+    type TypeCodom = ElemCostMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidelMultiCodomain {
+        ElemCostMultiCodomain {
             value: self.get_y(o),
             fidelity: self.get_fidelity(o),
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for FidelMultiCodomain<Out> {
+impl<Out: Outcome> Multi<Out> for CostMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidelMultiCodomain<Out> {
+impl<Out: Outcome> Cost<Out> for CostMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.f_criteria
     }
@@ -619,17 +619,17 @@ impl<Out: Outcome> Constrained<Out, ConsType> for ConstMultiCodomain<Out> {
     }
 }
 
-/// A [`Multi`] objective, [`Constrained`], and [`Fidelity`] [`Codomain`].
+/// A [`Multi`] objective, [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidelConstMultiCodomain<Out: Outcome> {
+pub struct CostConstMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub f_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidelConstMultiCodomain<Out> {
+impl<Out: Outcome> CostConstMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, fid: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
-        FidelConstMultiCodomain {
+        CostConstMultiCodomain {
             y_criteria: crit,
             f_criteria: fid,
             c_criteria: con,
@@ -637,10 +637,10 @@ impl<Out: Outcome> FidelConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidelConstMultiCodomain<Out>, ElemFidelConstMultiCodomain>
-    for FidelConstMultiCodomain<Out>
+impl<Out: Outcome> CSVWritable<CostConstMultiCodomain<Out>, ElemCostConstMultiCodomain>
+    for CostConstMultiCodomain<Out>
 {
-    fn header(elem: &FidelConstMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &CostConstMultiCodomain<Out>) -> Vec<String> {
         let mut v: Vec<String> = elem
             .y_criteria
             .iter()
@@ -658,7 +658,7 @@ impl<Out: Outcome> CSVWritable<FidelConstMultiCodomain<Out>, ElemFidelConstMulti
         v
     }
 
-    fn write(&self, comp: &ElemFidelConstMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemCostConstMultiCodomain) -> Vec<String> {
         let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
         v.extend([comp.fidelity.to_string()]);
         let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
@@ -667,15 +667,15 @@ impl<Out: Outcome> CSVWritable<FidelConstMultiCodomain<Out>, ElemFidelConstMulti
     }
 }
 
-/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`FidelConstMultiCodomain`].
+/// A element ([`TypeCodom`](Codomain::TypeDom)) from [`CostConstMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidelConstMultiCodomain {
+pub struct ElemCostConstMultiCodomain {
     pub value: Box<[f64]>,
     pub fidelity: f64,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidelConstMultiCodomain {
+impl PartialEq for ElemCostConstMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
             && self.fidelity == other.fidelity
@@ -683,33 +683,33 @@ impl PartialEq for ElemFidelConstMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidelConstMultiCodomain<Out> {
-    type TypeCodom = ElemFidelConstMultiCodomain;
+impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
+    type TypeCodom = ElemCostConstMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidelConstMultiCodomain {
+        ElemCostConstMultiCodomain {
             value: self.get_y(o),
             fidelity: self.get_fidelity(o),
             constraints: self.get_constraints(o),
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for FidelConstMultiCodomain<Out> {
+impl<Out: Outcome> Multi<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
 
-impl<Out: Outcome> Fidelity<Out> for FidelConstMultiCodomain<Out> {
+impl<Out: Outcome> Cost<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.f_criteria
     }
 }
 
-impl<Out: Outcome> Constrained<Out, ConsType> for FidelConstMultiCodomain<Out> {
+impl<Out: Outcome> Constrained<Out, ConsType> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
 
-pub type ConstFidelMultiCodomain<Out> = FidelConstMultiCodomain<Out>;
+pub type ConstCostMultiCodomain<Out> = CostConstMultiCodomain<Out>;

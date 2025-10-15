@@ -1,10 +1,8 @@
 use crate::{
-    Fidelity, Id, OptInfo, SolInfo, Solution, domain::Domain, experiment::{
-        Evaluate,
-        MonoEvaluate,
-        ThrEvaluate, utils::BatchResults,
+    Codomain, Cost, Id, OptInfo, Optimizer, Searchspace, SolInfo, Solution, domain::Domain, experiment::{
+        Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults
         // DistEvaluate,
-    }, objective::{Outcome, Stepped, outcome::FuncState}, solution::{Batch, CompBatch, RawBatch}, stop::{ExpStep, Stop}
+    }, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::opt::{OpCodType, OpInfType, OpSInfType}, solution::Batch, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -65,26 +63,29 @@ where
 {
 }
 
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
-    MonoEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>,Batch<SolId,Obj,Opt,SInfo,Info>>
-    for FidEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
+impl<Op, St, Obj, Opt, Out,SolId, Scp,FnState>
+    MonoEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
+    for FidEvaluator<SolId,Obj,Opt,Op::Info,Op::SInfo,FnState>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Stepped<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out,FnState>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>,
+    >,
+    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Fidelity<Out>,
     SolId: Id,
-    Info: OptInfo,
-    SInfo: SolInfo,
-    FnState: FuncState,
+    FnState:FuncState,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Stepped<Obj, Cod, Out, FnState>>,
+        ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>) {
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp> {
         let mut results = BatchResults::new(self.batch.info.clone());
         let mut st = stop.lock().unwrap();
 
@@ -105,7 +106,7 @@ where
     }
     fn update(
         &mut self,
-        batch:Batch<SolId,Obj,Opt,SInfo,Info>
+        batch:Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>
     ) {
         self.batch=batch;
         self.idx = 0;
@@ -163,29 +164,35 @@ where
 {
 }
 
-impl<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, FnState>
-    ThrEvaluate<St, Obj, Opt, Out, Cod, Info, SInfo, SolId, Stepped<Obj, Cod, Out, FnState>,Batch<SolId,Obj,Opt,SInfo,Info>>
-    for FidThrEvaluator<SolId, Obj, Opt, Info, SInfo, FnState>
+impl<Op, Scp, St, Obj, Opt, Out, SolId, FnState>
+    ThrEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
+    for FidThrEvaluator<SolId, Obj, Opt, Op::Info, Op::SInfo, FnState>
 where
+    Op:Optimizer<
+        SolId,Obj,Opt,Out,Scp,
+        FnWrap = Stepped<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out,FnState>,
+        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+    >,
+    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
     St: Stop + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + Send + Sync,
-    Cod: Fidelity<Out> + Send + Sync,
     SolId: Id + Send + Sync,
-    Info: OptInfo + Send + Sync,
-    SInfo: SolInfo + Send + Sync,
-    FnState: FuncState + Send + Sync,
+    FnState:FuncState + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
-    Cod::TypeCodom: Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
+    Op::Cod : Cost<Out> + Send + Sync,
+    Op::Info : Send + Sync,
+    Op::SInfo : Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Stepped<Obj, Cod, Out, FnState>>,
+        ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,SInfo,Info,Out>,CompBatch<SolId,Obj,Opt,SInfo,Info,Cod,Out>)
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp>
     {
         let hash_state = Arc::new(Mutex::new(&mut self.states));
         let results = Arc::new(Mutex::new(BatchResults::new(self.batch.info.clone())));
@@ -212,7 +219,7 @@ where
     }
     fn update(
         &mut self,
-        batch: Batch<SolId,Obj,Opt,SInfo,Info>
+        batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>
     ) {
         self.batch = batch;
         self.idx_list = Arc::new(Mutex::new((0..self.batch.size()).collect()));

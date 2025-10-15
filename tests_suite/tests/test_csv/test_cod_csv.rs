@@ -11,7 +11,7 @@ fn test_elemsingle_header() {
 #[test]
 fn test_elemfidel_header() {
     let (cod, _) = get_elemfidel();
-    let head = FidelCodomain::header(&cod);
+    let head = CostCodomain::header(&cod);
     let str_true = Vec::from([String::from("y"), String::from("fidelity")]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
@@ -25,7 +25,7 @@ fn test_elemconst_header() {
 #[test]
 fn test_elemfidelconst_header() {
     let (cod, _) = get_elemfidelconst();
-    let head = FidelConstCodomain::header(&cod);
+    let head = CostConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
         String::from("fidelity"),
@@ -44,7 +44,7 @@ fn test_elemmulti_header() {
 #[test]
 fn test_elemfidelmulti_header() {
     let (cod, _) = get_elemfidelmulti();
-    let head = FidelMultiCodomain::header(&cod);
+    let head = CostMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
@@ -67,7 +67,7 @@ fn test_elemconstmulti_header() {
 #[test]
 fn test_elemfidelconstmulti_header() {
     let (cod, _) = get_elemfidelconstmulti();
-    let head = FidelConstMultiCodomain::header(&cod);
+    let head = CostConstMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),

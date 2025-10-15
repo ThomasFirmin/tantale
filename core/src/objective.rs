@@ -3,8 +3,8 @@ pub use obj::{FidelState, FuncWrapper, Objective, Stepped};
 
 pub mod codomain;
 pub use codomain::{
-    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, FidelCodomain,
-    FidelConstCodomain, FidelConstMultiCodomain, FidelMultiCodomain, Fidelity, Multi,
+    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Criteria, CostCodomain,
+    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Cost, Multi,
     MultiCodomain, Single, SingleCodomain,
 };
 

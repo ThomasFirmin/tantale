@@ -3,7 +3,7 @@ use tantale_macros::Outcome;
 
 #[test]
 fn mixed_derive() {
-    use tantale::core::FidelConstMultiCodomain;
+    use tantale::core::CostConstMultiCodomain;
     use tantale_core::Codomain;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ fn mixed_derive() {
         }
     }
 
-    let codom = FidelConstMultiCodomain::new(
+    let codom = CostConstMultiCodomain::new(
         // Define multi-objective
         vec![
             |h: &OutExample| h.mul6,

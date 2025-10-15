@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 pub use tantale::core::objective::codomain::{
     ConstCodomain, ConstMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain,
-    ElemFidelCodomain, ElemFidelConstCodomain, ElemFidelConstMultiCodomain, ElemFidelMultiCodomain,
-    ElemMultiCodomain, ElemSingleCodomain, FidelCodomain, FidelConstCodomain,
-    FidelConstMultiCodomain, FidelMultiCodomain, MultiCodomain, SingleCodomain,
+    ElemCostCodomain, ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain,
+    ElemMultiCodomain, ElemSingleCodomain, CostCodomain, CostConstCodomain,
+    CostConstMultiCodomain, CostMultiCodomain, MultiCodomain, SingleCodomain,
 };
 use tantale_macros::Outcome;
 
@@ -28,10 +28,10 @@ pub fn get_elemsingle() -> (SingleCodomain<OutCod>, ElemSingleCodomain) {
         ElemSingleCodomain { value: 1.1 },
     )
 }
-pub fn get_elemfidel() -> (FidelCodomain<OutCod>, ElemFidelCodomain) {
+pub fn get_elemfidel() -> (CostCodomain<OutCod>, ElemCostCodomain) {
     (
-        FidelCodomain::new(|a| a.obj1, |a| a.fid2),
-        ElemFidelCodomain {
+        CostCodomain::new(|a| a.obj1, |a| a.fid2),
+        ElemCostCodomain {
             value: 1.1,
             fidelity: 2.2,
         },
@@ -49,14 +49,14 @@ pub fn get_elemconst() -> (ConstCodomain<OutCod>, ElemConstCodomain) {
         },
     )
 }
-pub fn get_elemfidelconst() -> (FidelConstCodomain<OutCod>, ElemFidelConstCodomain) {
+pub fn get_elemfidelconst() -> (CostConstCodomain<OutCod>, ElemCostConstCodomain) {
     (
-        FidelConstCodomain::new(
+        CostConstCodomain::new(
             |a| a.obj1,
             |a| a.fid2,
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidelConstCodomain {
+        ElemCostConstCodomain {
             value: 1.1,
             fidelity: 2.2,
             constraints: Box::from([3.3, 4.4]),
@@ -71,13 +71,13 @@ pub fn get_elemmulti() -> (MultiCodomain<OutCod>, ElemMultiCodomain) {
         },
     )
 }
-pub fn get_elemfidelmulti() -> (FidelMultiCodomain<OutCod>, ElemFidelMultiCodomain) {
+pub fn get_elemfidelmulti() -> (CostMultiCodomain<OutCod>, ElemCostMultiCodomain) {
     (
-        FidelMultiCodomain::new(
+        CostMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
             |a| a.fid2,
         ),
-        ElemFidelMultiCodomain {
+        ElemCostMultiCodomain {
             value: Box::from([1.1, 2.2]),
             fidelity: 3.3,
         },
@@ -95,14 +95,14 @@ pub fn get_elemconstmulti() -> (ConstMultiCodomain<OutCod>, ElemConstMultiCodoma
         },
     )
 }
-pub fn get_elemfidelconstmulti() -> (FidelConstMultiCodomain<OutCod>, ElemFidelConstMultiCodomain) {
+pub fn get_elemfidelconstmulti() -> (CostConstMultiCodomain<OutCod>, ElemCostConstMultiCodomain) {
     (
-        FidelConstMultiCodomain::new(
+        CostConstMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
             |a| a.fid2,
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidelConstMultiCodomain {
+        ElemCostConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
             fidelity: 3.3,
             constraints: Box::from([4.4, 5.5]),

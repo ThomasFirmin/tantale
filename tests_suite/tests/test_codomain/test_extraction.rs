@@ -1,8 +1,8 @@
 use super::init_outcome::{get_struct, OutExample};
 
 use tantale::core::objective::codomain::{
-    Codomain, ConstCodomain, ConstMultiCodomain, FidelCodomain, FidelConstCodomain,
-    FidelConstMultiCodomain, FidelMultiCodomain, MultiCodomain, SingleCodomain,
+    Codomain, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain,
+    CostConstMultiCodomain, CostMultiCodomain, MultiCodomain, SingleCodomain,
 };
 
 use paste::paste;
@@ -35,7 +35,7 @@ test_const!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstcodomain, FidelConstCodomain::new(
+    struct_fidelconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -57,7 +57,7 @@ test_const!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstmulticodomain, FidelConstMultiCodomain::new(
+    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -91,7 +91,7 @@ macro_rules! test_fid {
 
 test_fid!(
     get_struct |
-    struct_fidelconstcodomain, FidelConstCodomain::new(
+    struct_fidelconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -100,7 +100,7 @@ test_fid!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstmulticodomain, FidelConstMultiCodomain::new(
+    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -114,11 +114,11 @@ test_fid!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelcodomain , FidelCodomain::new(
+    struct_fidelcodomain , CostCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
     );
-    struct_fidelmulticodomain , FidelMultiCodomain::new(
+    struct_fidelmulticodomain , CostMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -150,7 +150,7 @@ test_single!(
     struct_singlecodomain, SingleCodomain::new(
         |h : &OutExample| h.obj1,
     );
-    struct_fidelcodomain, FidelCodomain::new(
+    struct_fidelcodomain, CostCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
     );
@@ -163,7 +163,7 @@ test_single!(
             ].into_boxed_slice(),
 
     );
-    struct_fidelconstcodomain, FidelConstCodomain::new(
+    struct_fidelconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -204,7 +204,7 @@ test_multi!(
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
     );
-    struct_fidelmulticodomain, FidelMultiCodomain::new(
+    struct_fidelmulticodomain, CostMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -227,7 +227,7 @@ test_multi!(
             ].into_boxed_slice(),
 
     );
-    struct_fidelconstmulticodomain, FidelConstMultiCodomain::new(
+    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,

@@ -21,7 +21,7 @@ pub type EvaluateOut<Op,SolId, Obj, Opt, Out, Scp> = (
 pub trait Runable<SolId, Scp, Op, St, Sv, Out, Obj, Opt>
 where
     SolId: Id,
-    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Self::Eval>,
@@ -39,7 +39,7 @@ where
 pub trait DistRunable<SolId, Scp, Op, St, Sv, Out, Obj, Opt>
 where
     SolId: Id,
-    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Self::Eval>,
@@ -48,9 +48,9 @@ where
     Out:Outcome,
 {
     type Eval: Evaluate;
-    fn new(searchspace: Scp,objective: Op::FnWrap,optimizer: Op,stop: St, saver: Sv) -> Self;
+    fn new(proc:&MPIProcess,searchspace: Scp,objective: Op::FnWrap,optimizer: Op,stop: St, saver: Sv) -> Self;
     fn run(self,proc:&MPIProcess);
-    fn load(searchspace: Scp, objective: Op::FnWrap, saver: Sv) -> Self;
+    fn load(proc:&MPIProcess, searchspace: Scp, objective: Op::FnWrap, saver: Sv) -> Self;
 }
 
 pub trait Evaluate
@@ -69,7 +69,7 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -90,7 +90,7 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -111,7 +111,7 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -133,7 +133,7 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(

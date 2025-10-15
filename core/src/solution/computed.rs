@@ -5,7 +5,7 @@ use crate::solution::{Id, Partial, SolInfo, Solution};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -25,23 +25,25 @@ use std::{
     serialize = "Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
 ))]
-pub struct Computed<SolId, Dom, Cod, Out, Info>
+pub struct Computed<PSol,SolId, Dom, Cod, Out, Info>
 where
+    PSol: Partial<SolId,Dom,Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
-    pub sol: Arc<Partial<SolId, Dom, Info>>,
+    pub sol: Arc<PSol>,
     pub y: Arc<Cod::TypeCodom>,
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
     _info: PhantomData<Info>,
 }
 
-impl<SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info> for Computed<SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info> for Computed<PSol,SolId, Dom, Cod, Out, Info>
 where
+    PSol: Partial<SolId,Dom,Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
@@ -61,8 +63,9 @@ where
     }
 }
 
-impl<SolId, Dom, Info, Cod, Out> Computed<SolId, Dom, Cod, Out, Info>
+impl<PSol,SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
+    PSol: Partial<SolId,Dom,Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
@@ -71,7 +74,7 @@ where
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(
-        sol: Arc<Partial<SolId, Dom, Info>>,
+        sol: Arc<PSol>,
         y: Arc<<Cod as Codomain<Out>>::TypeCodom>,
     ) -> Self {
         Computed {
@@ -87,7 +90,7 @@ where
     /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Arc<Self>>
     where
-        I: IntoIterator<Item = Arc<Partial<SolId, Dom, Info>>>,
+        I: IntoIterator<Item = Arc<PSol>>,
         J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
     {
         sol.into_iter()
@@ -97,61 +100,12 @@ where
     }
 
     /// Returns the [`Partial`] [`Solution`].
-    pub fn get_sol(&self) -> Arc<Partial<SolId, Dom, Info>> {
+    pub fn get_sol(&self) -> Arc<PSol> {
         self.sol.clone()
     }
 
     /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
     pub fn get_y(&self) -> Arc<<Cod as Codomain<Out>>::TypeCodom> {
         self.y.clone()
-    }
-
-    /// Given a [`Computed`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
-    /// creates the twin [`Computed`] of type [`B`].
-    /// A twin, has the same `id` as [`Self`], but has a diffferent type.
-    /// It is mostly used in [`onto_opt`](tantale::core::searchspace::onto_opt)
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tantale::core::{Solution,Computed,Partial,Real,Int,SingleCodomain,EmptyInfo,SId,Id};
-    /// use tantale::core::objective::codomain::ElemSingleCodomain;
-    /// use std::sync::Arc;
-    ///
-    /// # use tantale::core::Outcome;
-    /// # use serde::{Serialize,Deserialize};
-    /// # #[derive(Serialize,Deserialize)]
-    /// # struct OutExample(i32);
-    /// # impl Outcome for OutExample{}
-    ///
-    /// let x_1 = vec![0.0,1.0,2.0,3.0,4.0].into_boxed_slice();
-    /// let x_2 = vec![5,6,7,8].into_boxed_slice();
-    /// let info = Arc::new(EmptyInfo{});
-    ///
-    /// let partial = Arc::new(Partial::new(SId::generate(),x_1,info));
-    /// let y = Arc::new(ElemSingleCodomain{value:1.0});
-    ///
-    /// let real_sol = Computed::<_,Real,SingleCodomain<OutExample>,OutExample,_>::new(partial,y);
-    /// let int_sol : Computed<_,Int,SingleCodomain<OutExample>,OutExample,_> = real_sol.twin(x_2);
-    ///
-    /// let id_r = real_sol.get_id();
-    /// let id_i = int_sol.get_id();
-    ///
-    /// println!("REAL ID : {}", id_r.id);
-    /// println!("INT ID : {}", id_i.id);
-    ///
-    /// for (elem1, elem2) in real_sol.get_x().iter().zip(int_sol.get_x().iter()){
-    ///     println!("{},{}", elem1, elem2);
-    /// }
-    ///
-    /// ```
-    pub fn twin<B, T>(&self, x: T) -> Computed<SolId, B, Cod, Out, Info>
-    where
-        B: Domain + Clone + Display + Debug,
-        T: AsRef<[TypeDom<B>]>,
-    {
-        let info = self.get_sol().get_info();
-        let partial = Arc::new(Partial::new(self.get_sol().get_id(), x, info));
-        Computed::new(partial, self.get_y())
     }
 }

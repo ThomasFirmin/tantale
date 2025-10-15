@@ -213,7 +213,7 @@ where
         FnWrap = Objective<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out>,
         BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
     >,
-    St: Stop,
+    St: Stop + Send + Sync,
     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
         SId,
@@ -227,10 +227,9 @@ where
     > + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
-    Out: Outcome,
+    Out: Outcome + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
-    Out: Outcome + Send + Sync,
     Op::Cod: Send + Sync,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
@@ -275,8 +274,8 @@ where
         };
 
         let mut batch: Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
-        let mut batch_raw: OBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
-        let mut batch_comp: CBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
+        let mut batch_raw: OBType<Op,SId,Obj,Opt,Out,Scp>;
+        let mut batch_comp: CBType<Op,SId,Obj,Opt,Out,Scp>;
         'main: loop {
             {
                 let mut st = st.lock().unwrap();
@@ -289,19 +288,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw,batch_comp) =
-                <ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as ThrEvaluate<
-                    St,
-                    Obj,
-                    Opt,
-                    Out,
-                    Cod,
-                    Op::Info,
-                    Op::SInfo,
-                    SId,
-                    Objective<Obj, Cod, Out>,
-                    _,
-                >>::evaluate(&mut eval, ob.clone(), st.clone());
+            (batch_raw,batch_comp) =<Self::Eval as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             rayon::join(
@@ -343,18 +330,7 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
-            <ThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as ThrEvaluate<
-                St,
-                Obj,
-                Opt,
-                Out,
-                Cod,
-                Op::Info,
-                Op::SInfo,
-                SId,
-                Objective<Obj, Cod, Out>,
-                _,
-            >>::update(&mut eval, batch);
+            <Self::Eval as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::update(&mut eval, batch);
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(
@@ -368,7 +344,7 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
+    fn load(searchspace: Scp, objective: Op::FnWrap, mut saver: Sv) -> Self {
         let (stop, optimizer, evaluator) = saver
             .load(&searchspace, objective.get_codomain().as_ref())
             .unwrap();
@@ -382,26 +358,22 @@ where
             evaluator: Some(evaluator),
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }
 }
 
 #[cfg(feature = "mpi")]
-impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
+impl<Scp, Op, St, Sv, Obj, Opt, Out>
     DistRunable<
         SId,
         Scp,
         Op,
         St,
         Sv,
+        Out,
         Obj,
         Opt,
-        Out,
-        Cod,
-        MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-        Objective<Obj, Cod, Out>,
     >
     for SyncExperiment<
         MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
@@ -412,18 +384,20 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
         Obj,
         Opt,
         Out,
-        Cod,
     >
 where
-    Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp, BType = Batch<SId, Obj, Opt, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::SInfo, <Op as Optimizer<SId, Obj, Opt, Cod, Out, Scp>>::Info>>,
+    Op:Optimizer<
+        SId,Obj,Opt,Out,Scp,
+        FnWrap = Objective<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out>,
+        BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
+    >,
     St: Stop,
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: DistributedSaver<
         SId,
         St,
         Obj,
         Opt,
-        Cod,
         Out,
         Scp,
         Op,
@@ -432,17 +406,17 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
 {
+    type Eval = MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>;
     fn new(
         proc: &MPIProcess,
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Op::FnWrap,
         optimizer: Op,
         stop: St,
         mut saver: Sv,
     ) -> Self {
-        <Sv as DistributedSaver<_,_,_,_,_,_,_,_,_>>::init(&mut saver, &searchspace, objective.get_codomain().as_ref(),proc.rank);
+        <Sv as DistributedSaver<_,_,_,_,_,_,_,_>>::init(&mut saver, &searchspace, objective.get_codomain().as_ref(),proc.rank);
         SyncExperiment {
             searchspace,
             objective,
@@ -452,7 +426,6 @@ where
             evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }
@@ -472,8 +445,8 @@ where
         };
 
         let mut batch: Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
-        let mut batch_raw: OBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
-        let mut batch_comp: CBType<Op,SId,Obj,Opt,Cod,Out,Scp>;
+        let mut batch_raw: OBType<Op,SId,Obj,Opt,Out,Scp>;
+        let mut batch_comp: CBType<Op,SId,Obj,Opt,Out,Scp>;
 
         'main: loop {
             {
@@ -493,20 +466,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw,batch_comp) =
-                <MonoEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as DistEvaluate<
-                    St,
-                    Obj,
-                    Opt,
-                    Out,
-                    Cod,
-                    Op::Info,
-                    Op::SInfo,
-                    SId,
-                    Objective<Obj, Cod, Out>,
-                    _,
-                >>::evaluate(&mut eval, proc, ob.clone(), st.clone());
-
+            (batch_raw,batch_comp) = <Self::Eval as DistEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::evaluate(&mut eval, proc, ob.clone(), st.clone());
             // DistributedSaver part
             DistributedSaver::save_partial(
                 &self.saver,
@@ -535,7 +495,7 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
-            eval = MonoEvaluator::new(batch);
+            <Self::Eval as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp,>>::update(&mut eval, batch);
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 DistributedSaver::save_state(
@@ -559,7 +519,7 @@ where
     fn load(
         proc: &MPIProcess,
         searchspace: Scp,
-        objective: Objective<Obj, Cod, Out>,
+        objective: Op::FnWrap,
         mut saver: Sv,
     ) -> Self {
         let (stop, optimizer, evaluator) = DistributedSaver::load(
@@ -584,7 +544,6 @@ where
             evaluator: Some(evaluator),
             _domobj: PhantomData,
             _domopt: PhantomData,
-            _codom: PhantomData,
             _out: PhantomData,
         }
     }

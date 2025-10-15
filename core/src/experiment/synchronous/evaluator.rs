@@ -1,5 +1,10 @@
 use crate::{
-    Id, OptInfo, Optimizer, Searchspace, SolInfo, Solution, domain::Domain, experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults}, objective::{Codomain, Objective, Outcome}, solution::{Batch, BatchType, CompBatch, RawBatch}, stop::{ExpStep, Stop}
+    Id, OptInfo, Optimizer, Searchspace, SolInfo, Solution,
+    domain::Domain,
+    experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults},
+    objective::{Codomain, Objective, Outcome},
+    solution::{Batch, BatchType, CompBatch, RawBatch,BasePartial},
+    stop::{ExpStep, Stop},
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -37,7 +42,7 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub batch: Batch<SolId,Obj,Opt,SInfo,Info>,
+    pub batch: Batch<BasePartial<SolId,Obj,SInfo>,BasePartial<SolId,Opt,SInfo>,SolId,Obj,Opt,SInfo,Info>,
     size:usize,
     idx: usize,
 }
@@ -51,7 +56,7 @@ where
     SInfo: SolInfo,
 {
     pub fn new(
-        batch: Batch<SolId,Obj,Opt,SInfo,Info>
+        batch: Batch<BasePartial<SolId,Obj,SInfo>,BasePartial<SolId,Opt,SInfo>,SolId,Obj,Opt,SInfo,Info>
     ) -> Self {
         let size=batch.sobj.len();
         MonoEvaluator {
@@ -79,9 +84,9 @@ where
     Op:Optimizer<
         SolId,Obj,Opt,Out,Scp,
         FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
-        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+        BType = Batch<BasePartial<SolId,Obj,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>>,BasePartial<SolId,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>>,SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
     >,
-    Scp: Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
@@ -93,8 +98,7 @@ where
         &mut self,
         ob: Arc<Objective<Obj, Op::Cod, Out>>,
         stop: Arc<Mutex<St>>,
-    ) -> (RawBatch<SolId,Obj,Opt,Op::SInfo,Op::Info,Out>,CompBatch<SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>)
-    
+    ) -> EvaluateOut<Op,SolId,Obj,Opt,Out,Scp>
     {
         let mut batch_res = BatchResults::new(self.batch.get_info());
         let mut st = stop.lock().unwrap();
@@ -112,23 +116,24 @@ where
         (batch_res.rbatch, batch_res.cbatch)
     }
     
-    fn update(&mut self,batch: Batch<SolId,Obj,Opt,Op::SInfo,Op::Info>) {
+    fn update(&mut self,batch: Op::BType) {
         self.batch = batch;
         self.idx=0;
     }
+    
 }
 
 #[cfg(feature = "mpi")]
-impl<Op, Scp, St, Obj, Opt, Out, SolId>
+impl<Op, St, Obj, Opt, Out,SolId, Scp>
     DistEvaluate<Op,St,Obj,Opt,Out,SolId,Scp>
-    for MonoEvaluator<SolId, Obj, Opt, Op::Info, Op::SInfo>
+    for MonoEvaluator<SolId,Obj,Opt,Op::Info,Op::SInfo>
 where
     Op:Optimizer<
         SolId,Obj,Opt,Out,Scp,
         FnWrap = Objective<Obj, OpCodType<Op,SolId,Obj,Opt,Out,Scp>, Out>,
-        BType = Batch<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
+        BType = Batch<BasePartial<SolId,Obj,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>>,BasePartial<SolId,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>>,SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>
     >,
-    Scp:Searchspace<SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
     St: Stop,
     Obj: Domain,
     Opt: Domain,
@@ -146,7 +151,7 @@ where
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
-        let mut waiting: HashMap<SolId, PartPair<SolId, Obj, Opt, Op::SInfo>> = HashMap::new(); // solution being evaluated
+        let mut waiting: HashMap<SolId, PartPair<Op::Sol<Obj,Opt>,Op::Sol<Obj,Opt>>> = HashMap::new(); // solution being evaluated
         let mut sendrec_params = SendRecParam {
             config,
             proc,

@@ -1,12 +1,5 @@
 use crate::{
-    GlobalParameters, OPT_ID, OptInfo, RUN_ID, SOL_ID, SolInfo,
-    domain::Domain,
-    experiment::Evaluate,
-    objective::{Codomain, Outcome},
-    optimizer::{Optimizer, opt::{CBType, OBType, PBType}},
-    saver::{CheckpointError, Saver}, searchspace::Searchspace,
-    solution::{Batch, BatchType, Id, Solution},
-    stop::Stop
+    GlobalParameters, OPT_ID, OptInfo, Partial, RUN_ID, SOL_ID, SolInfo, domain::Domain, experiment::Evaluate, objective::{Codomain, Outcome}, optimizer::{Optimizer, opt::{CBType, OBType, PBType}}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}, stop::Stop
 };
 
 use rayon::prelude::*;
@@ -36,15 +29,17 @@ pub trait CSVLeftRight<H, L, R> {
 }
 
 /// A [`CSVWrite`] describes a [`BatchType`] and its associated types that can be written within a CSV file.
-pub trait BatchCSVWrite<Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out>:
+pub trait BatchCSVWrite<PSolA,PSolB,Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out>:
 where
     Self: BatchType<SolId,Obj,Opt,SInfo,Info>,
+    PSolA: Partial<SolId,Obj,SInfo,Twin<Opt> = PSolB>,
+    PSolB: Partial<SolId,Opt,SInfo,Twin<Obj> = PSolA>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<SolId, Obj, Opt, SInfo>
+    Scp: Searchspace<PSolA,PSolB,SolId, Obj, Opt, SInfo>
     + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
     + Send
     + Sync,
@@ -62,14 +57,15 @@ where
 }
 
 
-impl <Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out> BatchCSVWrite<Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out> for Batch<SolId,Obj,Opt,SInfo,Info>
+impl <Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out> BatchCSVWrite<BasePartial<SolId,Obj,SInfo>,BasePartial<SolId,Opt,SInfo>,Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+for Batch<BasePartial<SolId,Obj,SInfo>,BasePartial<SolId,Opt,SInfo>,SolId,Obj,Opt,SInfo,Info>
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<SolId, Obj, Opt, SInfo>
+    Scp: Searchspace<BasePartial<SolId,Obj,SInfo>,BasePartial<SolId,Opt,SInfo>,SolId, Obj, Opt, SInfo>
     + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
     + Send
     + Sync,
@@ -267,7 +263,7 @@ where
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>
     + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
     + Send
     + Sync,
@@ -280,7 +276,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
+    Op::BType: BatchCSVWrite<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
 {
     fn init(&mut self, sp: &Scp, cod: &Op::Cod) {
         let does_exist = self.path.try_exists().unwrap();
@@ -630,7 +626,7 @@ where
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<SolId, Obj, Opt, Op::SInfo>
+    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>
     + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
     + Send
     + Sync,
@@ -643,7 +639,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
+    Op::BType: BatchCSVWrite<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
 {
     fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
