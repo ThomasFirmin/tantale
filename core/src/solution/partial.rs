@@ -8,7 +8,7 @@ use std::{fmt::Debug, sync::Arc};
 /// A non-evaluated [`Solution`].
 pub trait Partial<SolId, Dom, Info> : Solution<SolId,Dom,Info>
 where
-Self: Sized + Serialize + for<'a> Deserialize<'a>,
+    Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
     SolId: Id,
     Dom: Domain,
     Info: SolInfo,

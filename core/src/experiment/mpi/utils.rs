@@ -1,8 +1,11 @@
 use crate::{
-    Codomain, Computed, Domain, Id, Objective, OptInfo, Outcome, Partial, SolInfo, Solution, experiment::{mpi::tools::MPIProcess, utils::{BatchResults,PartPair}}, solution::Batch, stop::{ExpStep, Stop}
+    Codomain, Computed, Domain, Id, Objective, OptInfo, Outcome, Partial, SolInfo, experiment::{
+            mpi::tools::MPIProcess,
+            utils::{BatchResults,PartPair}
+        }, solution::Batch, stop::{ExpStep, Stop}
 };
 
-use bincode::{self, config::{self, Configuration}, serde::Compat};
+use bincode::{self, config::Configuration, serde::Compat};
 use mpi::traits::{Communicator, Destination, Source};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -70,89 +73,87 @@ where
 }
 
 /// A structure containing utilitaries to send [`Partial`] to workers.
-pub struct SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+pub struct SendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: &'a mut Vec<i32>,
-    pub waiting: &'a mut HashMap<SolId, PartPair<PSolA,PSolB>>,
+    pub waiting: &'a mut HashMap<SolId, PartPair<PSol,PSol::Twin<Opt>>>,
     _obj: PhantomData<Obj>,
     _opt: PhantomData<Opt>,
-    _sinfo: PhantomData<SInfo>,
 }
 
-impl<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId> SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+impl<'a, PSol, Obj, Opt, SolId,SInfo> SendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
-    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:&'a mut Vec<i32>,waiting: &'a mut HashMap<SolId, PartPair<PSolA,PSolB>>)->Self{
-        SendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
+    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:&'a mut Vec<i32>,waiting: &'a mut HashMap<SolId, PartPair<PSol,PSol::Twin<Opt>>>)->Self{
+        SendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData}
     }
 }
 
 /// A structure containing utilitaries to send [`Partial`] to workers while using multi-threading.
-pub struct ThrSendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+pub struct ThrSendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: Arc<Mutex<Vec<usize>>>,
-    pub waiting: ArcMutexHash<PSolA,PSolB,SolId>,
+    pub waiting: ArcMutexHash<PSol,PSol::Twin<Opt>,SolId>,
     _obj: PhantomData<Obj>,
     _opt: PhantomData<Opt>,
-    _sinfo: PhantomData<SInfo>,
 }
 
-impl<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId> ThrSendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>
+impl<'a, PSol, Obj, Opt, SolId,SInfo> ThrSendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
-    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:Arc<Mutex<Vec<usize>>>,waiting: ArcMutexHash<PSolA,PSolB,SolId>)->Self{
-        ThrSendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
+    pub fn new(config:Configuration,proc:&'a MPIProcess, idle:Arc<Mutex<Vec<usize>>>,waiting: ArcMutexHash<PSol,PSol::Twin<Opt>,SolId>)->Self{
+        ThrSendRecParam { config, proc, idle, waiting, _obj: PhantomData, _opt: PhantomData }
     }
 }
 
 
 
 /// Send an Obj [`Solution`] to a worker
-pub fn send_to_worker<'a, PSolA,PSolB,SolId, Obj, Opt, SInfo>(
-    params: &mut SendRecParam<'a, PSolA, PSolB, Obj, Opt, SInfo, SolId>,
-    pair: PartPair<PSolA,PSolB>,
+pub fn send_to_worker<'a, PSol, Obj, Opt, SolId,SInfo>(
+    params: &mut SendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>,
+    pair: PartPair<PSol,PSol::Twin<Opt>>,
 ) -> bool
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
     let has_idl = !params.idle.is_empty();
     if has_idl {
-        let sid = pair.0.id;
+        let sid = pair.0.get_id();
         let rank = params.idle.pop().unwrap();
         let raw_msg: XMessage<SolId, Obj> = XMessage(sid, pair.0.get_x());
         let msg_struct = Compat(raw_msg);
@@ -168,20 +169,21 @@ where
 }
 
 // Send as much solutions as possible to idle workers without waiting for a result.
-pub fn fill_workers<'a, SolId, Obj, Opt, SInfo, Info, St>(
-    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
+pub fn fill_workers<'a, PSol, Obj, Opt, SolId,SInfo,Info,St>(
+    params: &mut SendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>,
     stop: Arc<Mutex<St>>,
-    batch:&Batch<SolId,Obj,Opt,SInfo,Info>,
+    batch:&Batch<PSol,SolId,Obj,Opt,SInfo,Info>,
     idx: usize,
 ) -> usize
 where
-    SolId: Id,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    St: Stop,
-    
+    SolId: Id,
+    SInfo:SolInfo,
+    Info:OptInfo,
+    St:Stop,
 {
     let mut i: usize = idx;
     let mut st = stop.lock().unwrap();
@@ -198,20 +200,22 @@ where
     i
 }
 
-pub fn par_send_to_worker<SolId, Obj, Opt, SInfo>(
-    params: &ThrSendRecParam<Obj, Opt, SInfo, SolId>,
-    pair: PartPair<SolId,Obj,Opt,SInfo>
+pub fn par_send_to_worker<'a, PSol, Obj, Opt, SolId,SInfo>(
+    params: &ThrSendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>,
+    pair: PartPair<PSol,PSol::Twin<Opt>>
 ) -> bool
 where
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
     SolId: Id,
+    SInfo:SolInfo,
 {
     let mut idl = params.idle.lock().unwrap();
     let has_idl = !idl.is_empty();
     if has_idl {
-        let sid = pair.0.id;
+        let sid = pair.0.get_id();
         let rank = idl.pop().unwrap().as_();
         let x = pair.0.get_x();
         let msg_struct = Compat((sid, x.as_ref()));
@@ -227,19 +231,21 @@ where
 }
 
 // Send as much solutions as possible to idle workers without waiting for a result.
-pub fn par_fill_workers<SolId, Obj, Opt, SInfo, Info, St>(
-    params: &ThrSendRecParam<Obj, Opt, SInfo, SolId>,
+pub fn par_fill_workers<'a, PSol, Obj, Opt, SolId,SInfo,Info,St>(
+    params: &ThrSendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>,
     stop: Arc<Mutex<St>>,
-    batch:&Batch<SolId,Obj,Opt,SInfo,Info>,
+    batch:&Batch<PSol,SolId,Obj,Opt,SInfo,Info>,
     idx: Arc<Mutex<Vec<usize>>>,
 )
 where
-    St: Stop,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    SInfo: SolInfo,
-    Info:OptInfo,
     SolId: Id,
+    SInfo:SolInfo,
+    Info:OptInfo,
+    St:Stop,
 {
     let mut st = stop.lock().unwrap();
     let mut at_least_one_idle = true;
@@ -255,18 +261,21 @@ where
     }
 }
 
-pub fn receive_obj_computed<'a, Obj, Opt, SInfo, Info, SolId, Cod, Out>(
-    params: &mut SendRecParam<'a, Obj, Opt, SInfo, SolId>,
-    res: &mut BatchResults<SolId, Obj, Opt, Cod, Out, SInfo,Info>,
-    ob: &Objective<Obj, Cod, Out>,
-) where
-    SolId: Id,
+pub fn receive_obj_computed<'a, PSol, Obj, Opt, SolId,SInfo,Info,Cod,Out>(
+    params: &mut SendRecParam<'a, PSol, Obj, Opt, SolId,SInfo>,
+    res: &mut BatchResults<PSol,SolId,Obj,Opt,Cod,Out,SInfo,Info>,
+    ob: &Objective<Obj,Cod, Out>,
+) 
+where
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>:Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     Obj: Domain,
     Opt: Domain,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
-    Info: OptInfo,
+    SolId: Id,
+    SInfo:SolInfo,
+    Info:OptInfo,
+    Cod:Codomain<Out>,
+    Out:Outcome,
 {
     // Recv / sendv loop
     let (bytes, status): (Vec<u8>, _) = params.proc.world.any_process().receive_vec();

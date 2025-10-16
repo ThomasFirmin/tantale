@@ -37,7 +37,7 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
 {
@@ -97,7 +97,7 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
 {

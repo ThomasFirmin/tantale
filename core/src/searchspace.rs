@@ -122,10 +122,10 @@ type ComputedOut<PSolA,PSolB,SolId, ADom, BDom, Cod, Out, Info> = (
 );
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<PSol,PSolB,SolId, Obj, Opt, SInfo>
+pub trait Searchspace<PSol,SolId, Obj, Opt, SInfo>
 where
-    PSolA: Partial<SolId,Obj,SInfo, Twin<Opt> = PSolB>,
-    PSolB: Partial<SolId,Opt,SInfo, Twin<Obj> = PSolA>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>: Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
     SInfo: SolInfo,
     Obj: Domain,
     Opt: Domain,
@@ -169,7 +169,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_opt(&self, inp: Arc<PSolA>) -> Arc<PSolB>;
+    fn onto_opt(&self, inp: Arc<PSol>) -> Arc<PSol::Twin<Opt>>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -208,7 +208,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_obj(&self, inp: Arc<PSolB>) -> Arc<PSolA>;
+    fn onto_obj(&self, inp: Arc<PSol::Twin<Opt>>) -> Arc<PSol>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -250,7 +250,7 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PSolA>;
+    ) -> Arc<PSol>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -292,7 +292,7 @@ where
         &self,
         rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PSolB>;
+    ) -> Arc<PSol::Twin<Opt>>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -409,8 +409,8 @@ where
     /// ```
     fn vec_onto_obj(
         &self,
-        inp: VecArc<PSolB>,
-    ) -> VecArc<PSolA>;
+        inp: VecArc<PSol::Twin<Opt>>,
+    ) -> VecArc<PSol>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -455,8 +455,8 @@ where
     /// ```
     fn vec_onto_opt(
         &self,
-        inp: VecArc<PSolA>,
-    ) -> VecArc<PSolB>;
+        inp: VecArc<PSol>,
+    ) -> VecArc<PSol::Twin<Opt>>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -500,7 +500,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<PSolA>;
+    ) -> VecArc<PSol>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -541,7 +541,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<PSolB>;
+    ) -> VecArc<PSol::Twin<Opt>>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -619,10 +619,10 @@ where
     /// from a pair of [`twin`](Partial::twin) [`Partial`] of types `A` and `B`, and a shared [`Codomain`].
     fn computed<Cod, Out>(
         &self,
-        xa: Arc<PSolA>,
-        xb: Arc<PSolB>,
+        xa: Arc<PSol>,
+        xb: Arc<PSol::Twin<Opt>>,
         y: Arc<Cod::TypeCodom>,
-    ) -> ComputedOut<PSolA,PSolB,SolId, Obj, Opt, Cod, Out, SInfo>
+    ) -> ComputedOut<PSol,PSol::Twin<Opt>,SolId, Obj, Opt, Cod, Out, SInfo>
     where
         Cod: Codomain<Out>,
         Out: Outcome,

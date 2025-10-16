@@ -1,5 +1,11 @@
 use crate::{
-    Partial, Stop, domain::Domain, experiment::Runable, objective::{Codomain, FuncWrapper, Outcome}, saver::{CSVWritable, Saver}, searchspace::Searchspace, solution::{BatchType, Id, SolInfo}
+    Partial, Stop, 
+    domain::Domain,
+    experiment::Runable,
+    objective::{Codomain, FuncWrapper, Outcome},
+    saver::{CSVWritable, Saver},
+    searchspace::Searchspace,
+    solution::{BatchType, Id, SolInfo}
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug,sync::Arc};
@@ -8,8 +14,7 @@ pub type OpInfType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt,
 pub type OpSInfType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::SInfo;
 pub type OpCodType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::Cod;
 pub type OpBatchType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::BType;
-pub type OpSolType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::Sol<Obj,Opt>;
-pub type ROpSolType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::Sol<Opt,Obj>;
+pub type OpSolType<Op,SolId,Obj,Opt,Out,Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::Sol;
 
 /// Computed [`BatchType`], the associated type of a [`BatchType`] knwowing the optimizer.
 pub type PBType<Op, SolId, Obj, Opt, Out, Scp> = <Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::BType;
@@ -96,16 +101,16 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol<Obj,Opt>,Self::Sol<Opt,Obj>,SolId, Obj, Opt, Self::SInfo>,
+    Scp: Searchspace<Self::Sol,SolId, Obj, Opt, Self::SInfo>,
+    <Self::Sol as Partial<SolId,Obj,Self::SInfo>>::Twin<Opt>: Partial<SolId,Opt,Self::SInfo, Twin<Obj> = Self::Sol>,
 {
+    type Sol: Partial<SolId,Obj,Self::SInfo>;
+    type BType: BatchType<SolId,Obj,Opt,Self::SInfo,Self::Info>;
     type State: OptState;
     type FnWrap: FuncWrapper;
-    type Sol<A:Domain,B:Domain>: Partial<SolId,A,Self::SInfo, Twin<B>=Self::Sol<B,A>>;
     type Cod: Codomain<Out>;
-    type BType: BatchType<SolId,Obj,Opt,Self::SInfo,Self::Info>;
     type SInfo: SolInfo;
     type Info: OptInfo;
-
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
 
@@ -144,7 +149,7 @@ where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol<Obj,Opt>,Self::Sol<Opt,Obj>,SolId, Obj, Opt, Self::SInfo>,
+    Scp: Searchspace<Self::Sol,SolId, Obj, Opt, Self::SInfo>,
 {   
     fn set_algo_lvl(&mut self, mode: AlgoMode);
     fn interact(&self);

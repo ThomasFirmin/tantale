@@ -18,10 +18,10 @@ pub struct ParSp<Obj: Domain, Opt: Domain> {
     pub variables: Box<[Var<Obj, Opt>]>,
 }
 
-impl<PSolA,PSolB,SolId, Obj, Opt, SInfo> Searchspace<PSolA,PSolB,SolId, Obj, Opt, SInfo> for ParSp<Obj, Opt>
+impl<PSol,SolId, Obj, Opt, SInfo> Searchspace<PSol,SolId, Obj, Opt, SInfo> for ParSp<Obj, Opt>
 where
-    PSolA: Partial<SolId,Obj,SInfo,Twin<Opt> = PSolB> + Send + Sync,
-    PSolB: Partial<SolId,Opt,SInfo,Twin<Obj> = PSolA> + Send + Sync,
+    PSol: Partial<SolId,Obj,SInfo> + Send + Sync,
+    PSol::Twin<Opt>: Partial<SolId,Opt,SInfo, Twin<Obj> = PSol> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     TypeDom<Obj>: Send + Sync,
@@ -29,7 +29,7 @@ where
     SInfo: SolInfo + Send + Sync,
     SolId: Id + Send + Sync,
 {
-    fn onto_obj(&self, inp: Arc<PSolB>) -> Arc<PSolA> {
+    fn onto_obj(&self, inp: Arc<PSol::Twin<Opt>>) -> Arc<PSol> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = inp
             .get_x()
@@ -37,10 +37,10 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_obj(i).unwrap())
             .collect();
-        Arc::new(inp.twin::<Obj, Vec<<Obj as Domain>::TypeDom>>(outx))
+        Arc::new(inp.twin::<Obj,_>(outx))
     }
 
-    fn onto_opt(&self, inp: Arc<PSolA>) -> Arc<PSolB> {
+    fn onto_opt(&self, inp: Arc<PSol>) -> Arc<PSol::Twin<Opt>> {
         let var_it = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = inp
             .get_x()
@@ -48,7 +48,7 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_opt(i).unwrap())
             .collect();
-        Arc::new(inp.twin::<Opt, Vec<<Opt as Domain>::TypeDom>>(outx))
+        Arc::new(inp.twin::<Opt,_>(outx))
     }
 
     /// [`None`] should be used for `_rng`.
@@ -56,7 +56,7 @@ where
         &self,
         _rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PSolA> {
+    ) -> Arc<PSol> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Obj>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
@@ -73,7 +73,7 @@ where
         &self,
         _rng: Option<&mut ThreadRng>,
         info: Arc<SInfo>,
-    ) -> Arc<PSolB> {
+    ) -> Arc<PSol::Twin<Opt>> {
         let variter = self.variables.par_iter();
         let outx: Vec<TypeDom<Opt>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
@@ -87,15 +87,15 @@ where
 
     fn vec_onto_obj(
         &self,
-        inp: VecArc<PSolB>,
-    ) -> VecArc<PSolA> {
+        inp: VecArc<PSol::Twin<Opt>>,
+    ) -> VecArc<PSol> {
         inp.par_iter().map(|sol| self.onto_obj(sol.clone())).collect()
     }
 
     fn vec_onto_opt(
         &self,
-        inp: VecArc<PSolA>,
-    ) -> VecArc<PSolB> {
+        inp: VecArc<PSol>,
+    ) -> VecArc<PSol::Twin<Opt>> {
         inp.par_iter().map(|sol| self.onto_opt(sol.clone())).collect()
     }
 
@@ -105,7 +105,7 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<PSolA> {
+    ) -> VecArc<PSol> {
         (0..size).into_par_iter().map(|_| self.sample_obj(None, info.clone())).collect()
     }
 
@@ -115,8 +115,8 @@ where
         _rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> VecArc<PSolB> {
-        (0..size).into_par_iter().map(|_| self.sample_opt(None, info.clone())).collect()
+    ) -> VecArc<PSol::Twin<Opt>> {
+        (0..size).into_par_iter().map(|_| <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::sample_opt(self, None, info.clone())).collect()
     }
 
     fn is_in_obj<S>(&self, inp: Arc<S>) -> bool
@@ -145,14 +145,14 @@ where
     where
         S: Solution<SolId, Obj, SInfo> + Send + Sync,
     {
-        inp.iter().all(|sol| <ParSp<Obj, Opt> as Searchspace<PSolA, PSolB, SolId, Obj, Opt, SInfo>>::is_in_obj::<S>(self, sol.clone()))
+        inp.iter().all(|sol| <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_obj::<S>(self, sol.clone()))
     }
 
     fn vec_is_in_opt<S>(&self, inp: VecArc<S>) -> bool
     where
         S: Solution<SolId, Opt, SInfo> + Send + Sync,
     {
-        inp.iter().all(|sol| <ParSp<Obj, Opt> as Searchspace<PSolA, PSolB, SolId, Obj, Opt, SInfo>>::is_in_opt::<S>(self, sol.clone()))
+        inp.iter().all(|sol| <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_opt::<S>(self, sol.clone()))
     }
 }
 

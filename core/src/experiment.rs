@@ -2,7 +2,7 @@ use crate::{
     Searchspace,
     domain::Domain,
     objective::Outcome,
-    optimizer::{Optimizer, opt::{OpCodType, OpInfType, OpSInfType}},
+    optimizer::Optimizer,
     saver::Saver,
     solution::{BatchType, Id},
     stop::Stop
@@ -13,15 +13,15 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::tools::MPIProcess;
 
-pub type EvaluateOut<Op,SolId, Obj, Opt, Out, Scp> = (
-    <<Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>>::Outc<Out>,
-    <<Op as Optimizer<SolId, Obj, Opt, Out, Scp>>::BType as BatchType<SolId,Obj,Opt,OpSInfType<Op,SolId,Obj,Opt,Out,Scp>,OpInfType<Op,SolId,Obj,Opt,Out,Scp>>>::Comp<OpCodType<Op,SolId,Obj,Opt,Out,Scp>,Out>,
+pub type EvaluateOut<BType,SolId, Obj, Opt, Cod, Out, SInfo, Info> = (
+    <BType as BatchType<SolId,Obj,Opt,SInfo,Info>>::Outc<Out>,
+    <BType as BatchType<SolId,Obj,Opt,SInfo,Info>>::Comp<Cod,Out>,
 );
 
 pub trait Runable<SolId, Scp, Op, St, Sv, Out, Obj, Opt>
 where
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Self::Eval>,
@@ -39,7 +39,7 @@ where
 pub trait DistRunable<SolId, Scp, Op, St, Sv, Out, Obj, Opt>
 where
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Self::Eval>,
@@ -69,14 +69,14 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
         ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<Op,SolId, Obj, Opt,Out,Scp>;
+    ) -> EvaluateOut<Op::BType,SolId,Obj,Opt,Op::Cod,Out,Op::SInfo,Op::Info>;
     fn update(&mut self,batch: Op::BType);
 }
 
@@ -90,14 +90,14 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
         ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<Op,SolId, Obj, Opt,Out,Scp>;
+    ) -> EvaluateOut<Op::BType,SolId,Obj,Opt,Op::Cod,Out,Op::SInfo,Op::Info>;
     fn update(&mut self,batch: Op::BType);
 }
 
@@ -111,14 +111,14 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
         ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<Op,SolId, Obj, Opt,Out,Scp>;
+    ) -> EvaluateOut<Op::BType,SolId,Obj,Opt,Op::Cod,Out,Op::SInfo,Op::Info>;
     fn update(&mut self,batch: Op::BType);
 }
 
@@ -133,15 +133,15 @@ where
     Opt: Domain,
     Out: Outcome,
     SolId: Id,
-    Scp: Searchspace<Op::Sol<Obj,Opt>,Op::Sol<Opt,Obj>,SolId,Obj,Opt,Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
-        proc: &MPIProcess,
+        proc:&MPIProcess,
         ob: Arc<Op::FnWrap>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<Op,SolId, Obj, Opt,Out,Scp>;
+    ) -> EvaluateOut<Op::BType,SolId,Obj,Opt,Op::Cod,Out,Op::SInfo,Op::Info>;
     fn update(&mut self,batch: Op::BType);
 }
 

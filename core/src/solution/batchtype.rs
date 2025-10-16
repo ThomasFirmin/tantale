@@ -71,18 +71,17 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct Batch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+pub struct Batch<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
     SInfo: SolInfo,
     Info: OptInfo
 {
-    pub sobj : VecArc<PSolA>,
-    pub sopt : VecArc<PSolB>,
+    pub sobj : VecArc<PSol>,
+    pub sopt : VecArc<PSol::Twin<Opt>>,
     pub info : Arc<Info>,
     _id:PhantomData<SolId>,
     _obj:PhantomData<Obj>,
@@ -97,10 +96,9 @@ where
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+pub struct RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -108,8 +106,8 @@ where
     Info: OptInfo,
     Out:Outcome,
 {
-    pub robj : VecArc<RawSol<PSolA,SolId,Obj,Out,SInfo>>,
-    pub ropt : VecArc<RawSol<PSolB,SolId,Opt,Out,SInfo>>,
+    pub robj : VecArc<RawSol<PSol,SolId,Obj,Out,SInfo>>,
+    pub ropt : VecArc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>,
     pub info : Arc<Info>,
 }
 
@@ -120,10 +118,9 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+pub struct CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -132,15 +129,14 @@ where
     Cod:Codomain<Out>,
     Out:Outcome,
 {
-    pub cobj : VecArc<Computed<PSolA,SolId,Obj,Cod,Out,SInfo>>,
-    pub copt : VecArc<Computed<PSolB,SolId,Opt,Cod,Out,SInfo>>,
+    pub cobj : VecArc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>,
+    pub copt : VecArc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>,
     pub info : Arc<Info>
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info> Batch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+impl <PSol,SolId,Obj,Opt,SInfo,Info> Batch<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -148,7 +144,7 @@ where
     Info: OptInfo
 {   
     /// Creates a new [`Batch`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
-    pub fn new(sobj: VecArc<PSolA>,sopt: VecArc<PSolB>,info: Arc<Info>)->Self{
+    pub fn new(sobj: VecArc<PSol>,sopt: VecArc<PSol::Twin<Opt>>,info: Arc<Info>)->Self{
         Batch { sobj, sopt, info, _id: PhantomData, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
     }
 
@@ -158,13 +154,13 @@ where
     }
     
     /// Add a new `Obj` and `Opt` pair of [`Partial`] to the batch.
-    pub fn add(&mut self, sobj: Arc<PSolA>, sopt:Arc<PSolB>){
+    pub fn add(&mut self, sobj: Arc<PSol>, sopt:Arc<PSol::Twin<Opt>>){
         self.sobj.push(sobj);
         self.sopt.push(sopt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Partial`] to the batch.
-    pub fn add_vec(&mut self, sobj: VecArc<PSolA>, sopt:VecArc<PSolB>){
+    pub fn add_vec(&mut self, sobj: VecArc<PSol>, sopt:VecArc<PSol::Twin<Opt>>){
         self.sobj.extend(sobj);
         self.sopt.extend(sopt);
     }
@@ -175,15 +171,14 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->BatchElem<PSolA,PSolB>{
+    pub fn index(&self, index:usize)->BatchElem<PSol,PSol::Twin<Opt>>{
         (self.sobj[index].clone(),self.sopt[index].clone())
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out> RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -192,7 +187,7 @@ where
     Out:Outcome,
 {
     /// Creates a new [`OutBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
-    pub fn new(robj: VecArc<RawSol<PSolA,SolId, Obj, Out,SInfo>>,ropt: VecArc<RawSol<PSolB,SolId, Opt, Out,SInfo>>, info :Arc<Info> )->Self{
+    pub fn new(robj: VecArc<RawSol<PSol,SolId, Obj, Out,SInfo>>,ropt: VecArc<RawSol<PSol::Twin<Opt>,SolId, Opt, Out,SInfo>>, info :Arc<Info> )->Self{
         RawBatch { robj, ropt, info }
     }
 
@@ -202,13 +197,13 @@ where
     }
 
     /// Add a new `Obj` and `Opt` pair of [`RawSol`] to the batch.
-    pub fn add(&mut self, robj: Arc<RawSol<PSolA,SolId, Obj, Out, SInfo>>, ropt:Arc<RawSol<PSolB,SolId, Opt, Out, SInfo>>){
+    pub fn add(&mut self, robj: Arc<RawSol<PSol,SolId, Obj, Out, SInfo>>, ropt:Arc<RawSol<PSol::Twin<Opt>,SolId, Opt, Out, SInfo>>){
         self.robj.push(robj);
         self.ropt.push(ropt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
-    pub fn add_vec(&mut self, robj: VecArc<RawSol<PSolA,SolId, Obj, Out, SInfo>>, ropt:VecArc<RawSol<PSolB,SolId, Opt, Out, SInfo>>){
+    pub fn add_vec(&mut self, robj: VecArc<RawSol<PSol,SolId, Obj, Out, SInfo>>, ropt:VecArc<RawSol<PSol::Twin<Opt>,SolId, Opt, Out, SInfo>>){
         self.robj.extend(robj);
         self.ropt.extend(ropt);
     }
@@ -219,16 +214,15 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`RawSol`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->RawBatchElem<PSolA,PSolB,SolId,Obj,Opt,Out,SInfo>{
+    pub fn index(&self, index:usize)->RawBatchElem<PSol,PSol::Twin<Opt>,SolId,Obj,Opt,Out,SInfo>{
         (self.robj[index].clone(),self.ropt[index].clone())
     }
 }
 
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -238,7 +232,7 @@ where
     Out:Outcome,
 {
     /// Creates a new [`CompBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
-    pub fn new(cobj: VecArc<Computed<PSolA,SolId, Obj, Cod, Out, SInfo>> , copt: VecArc<Computed<PSolB,SolId, Opt, Cod, Out, SInfo>> , info :Arc<Info> )->Self{
+    pub fn new(cobj: VecArc<Computed<PSol,SolId, Obj, Cod, Out, SInfo>> , copt: VecArc<Computed<PSol::Twin<Opt>,SolId, Opt, Cod, Out, SInfo>> , info :Arc<Info> )->Self{
         CompBatch { cobj, copt, info }
     }
 
@@ -248,13 +242,13 @@ where
     }
 
     /// Add a new `Obj` and `Opt` pair of [`Computed`] to the batch.
-    pub fn add(&mut self, cobj: Arc<Computed<PSolA,SolId, Obj, Cod, Out, SInfo>>, copt:Arc<Computed<PSolB,SolId, Opt, Cod, Out, SInfo>>){
+    pub fn add(&mut self, cobj: Arc<Computed<PSol,SolId, Obj, Cod, Out, SInfo>>, copt:Arc<Computed<PSol::Twin<Opt>,SolId, Opt, Cod, Out, SInfo>>){
         self.cobj.push(cobj);
         self.copt.push(copt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Computed`] to the batch.
-    pub fn add_vec(&mut self, cobj: VecArc<Computed<PSolA,SolId, Obj, Cod, Out, SInfo>>, copt:VecArc<Computed<PSolB,SolId, Opt, Cod, Out, SInfo>>){
+    pub fn add_vec(&mut self, cobj: VecArc<Computed<PSol,SolId, Obj, Cod, Out, SInfo>>, copt:VecArc<Computed<PSol::Twin<Opt>,SolId, Opt, Cod, Out, SInfo>>){
         self.cobj.extend(cobj);
         self.copt.extend(copt);
     }
@@ -265,23 +259,22 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
-    pub fn index(&self, index:usize)->CompBatchElem<PSolA,PSolB,SolId,Obj,Opt,Cod,Out,SInfo>{
+    pub fn index(&self, index:usize)->CompBatchElem<PSol,PSol::Twin<Opt>,SolId,Obj,Opt,Cod,Out,SInfo>{
         (self.cobj[index].clone(),self.copt[index].clone())
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info> BatchType<SolId,Obj,Opt,SInfo,Info> for Batch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+impl <PSol,SolId,Obj,Opt,SInfo,Info> BatchType<SolId,Obj,Opt,SInfo,Info> for Batch<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
-    type Outc<Out:Outcome> = RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>;
+    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
+    type Outc<Out:Outcome> = RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>;
     
     fn get_info(&self)->Arc<Info> {
         self.info.clone()
@@ -289,10 +282,9 @@ where
     
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out> RawBatchType<SolId,Obj,Opt,SInfo,Info,Out> for RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawBatchType<SolId,Obj,Opt,SInfo,Info,Out> for RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -300,14 +292,13 @@ where
     Info: OptInfo,
     Out:Outcome,
 {
-    type Part = Batch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>;
-    type Comp<Cod:Codomain<Out>> = CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
+    type Part = Batch<PSol,SolId,Obj,Opt,SInfo,Info>;
+    type Comp<Cod:Codomain<Out>> = CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatchType<SolId,Obj,Opt,SInfo,Info,Cod,Out> for CompBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatchType<SolId,Obj,Opt,SInfo,Info,Cod,Out> for CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -316,8 +307,8 @@ where
     Cod:Codomain<Out>,
     Out:Outcome,
 {
-    type Part = Batch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>;
-    type Outc = RawBatch<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>;
+    type Part = Batch<PSol,SolId,Obj,Opt,SInfo,Info>;
+    type Outc = RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>;
 }
 
 
@@ -332,18 +323,17 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct Single<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+pub struct Single<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub sobj : Arc<PSolA>,
-    pub sopt : Arc<PSolB>,
+    pub sobj : Arc<PSol>,
+    pub sopt : Arc<PSol::Twin<Opt>>,
     pub info : Arc<Info>,
     _id:PhantomData<SolId>,
     _obj:PhantomData<Obj>,
@@ -357,10 +347,9 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct RawSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+pub struct RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -368,8 +357,8 @@ where
     Info: OptInfo,
     Out:Outcome,
 {
-    pub robj : Arc<RawSol<PSolA,SolId,Obj,Out,SInfo>>,
-    pub ropt : Arc<RawSol<PSolB,SolId,Opt,Out,SInfo>>,
+    pub robj : Arc<RawSol<PSol,SolId,Obj,Out,SInfo>>,
+    pub ropt : Arc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>,
     pub info : Arc<Info>
 }
 
@@ -379,10 +368,9 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct CompSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+pub struct CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -391,15 +379,14 @@ where
     Cod:Codomain<Out>,
     Out:Outcome,
 {
-    pub cobj : Arc<Computed<PSolA,SolId,Obj,Cod,Out,SInfo>>,
-    pub copt : Arc<Computed<PSolB,SolId,Opt,Cod,Out,SInfo>>,
+    pub cobj : Arc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>,
+    pub copt : Arc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>,
     pub info : Arc<Info>
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info> Single<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+impl <PSol,SolId,Obj,Opt,SInfo,Info> Single<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -407,15 +394,14 @@ where
     Info: OptInfo
 {   
     /// Creates a new [`Single`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
-    pub fn new(sobj: Arc<PSolA>,sopt: Arc<PSolB>,info: Arc<Info>)->Self{
+    pub fn new(sobj: Arc<PSol>,sopt: Arc<PSol::Twin<Opt>>,info: Arc<Info>)->Self{
         Single { sobj, sopt, info, _id: PhantomData, _obj: PhantomData, _opt: PhantomData, _sinfo: PhantomData }
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out> RawSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -424,15 +410,14 @@ where
     Out:Outcome,
 {
     /// Creates a new [`RawSingle`] from paired `Obj` and `Opt` [`Raw`] and an [`OptInfo`].
-    pub fn new(robj: Arc<RawSol<PSolA,SolId, Obj, Out, SInfo>> , ropt: Arc<RawSol<PSolB,SolId, Opt, Out, SInfo>>, info :Arc<Info> )->Self{
+    pub fn new(robj: Arc<RawSol<PSol,SolId, Obj, Out, SInfo>> , ropt: Arc<RawSol<PSol::Twin<Opt>,SolId, Opt, Out, SInfo>>, info :Arc<Info> )->Self{
         RawSingle { robj, ropt, info }
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -442,33 +427,31 @@ where
     Out:Outcome,
 {
     /// Creates a new [`CompSingle`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
-    pub fn new(cobj: Arc<Computed<PSolA,SolId, Obj, Cod, Out, SInfo>> , copt: Arc<Computed<PSolB,SolId, Opt, Cod, Out, SInfo>> , info :Arc<Info> )->Self{
+    pub fn new(cobj: Arc<Computed<PSol,SolId, Obj, Cod, Out, SInfo>> , copt: Arc<Computed<PSol::Twin<Opt>,SolId, Opt, Cod, Out, SInfo>> , info :Arc<Info> )->Self{
         CompSingle { cobj, copt, info }
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info> BatchType<SolId,Obj,Opt,SInfo,Info> for Single<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>
+impl <PSol,SolId,Obj,Opt,SInfo,Info> BatchType<SolId,Obj,Opt,SInfo,Info> for Single<PSol,SolId,Obj,Opt,SInfo,Info>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
-    type Outc<Out:Outcome> = RawSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>;
+    type Comp<Cod:Codomain<Out>,Out:Outcome> = CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
+    type Outc<Out:Outcome> = RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>;
     
     fn get_info(&self)->Arc<Info> {
         self.info.clone()
     }
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out> RawBatchType<SolId,Obj,Opt,SInfo,Info,Out> for RawSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawBatchType<SolId,Obj,Opt,SInfo,Info,Out> for RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -476,14 +459,13 @@ where
     Info: OptInfo,
     Out:Outcome,
 {
-    type Part = Single<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>;
-    type Comp<Cod:Codomain<Out>> = CompSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
+    type Part = Single<PSol,SolId,Obj,Opt,SInfo,Info>;
+    type Comp<Cod:Codomain<Out>> = CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>;
 }
 
-impl <PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatchType<SolId,Obj,Opt,SInfo,Info,Cod,Out> for CompSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Cod,Out>
+impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatchType<SolId,Obj,Opt,SInfo,Info,Cod,Out> for CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
-    PSolA: Partial<SolId,Obj,SInfo>,
-    PSolB: Partial<SolId,Opt,SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId:Id,
     Obj:Domain,
     Opt:Domain,
@@ -492,6 +474,6 @@ where
     Cod:Codomain<Out>,
     Out:Outcome,
 {
-    type Part = Single<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info>;
-    type Outc = RawSingle<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info,Out>;
+    type Part = Single<PSol,SolId,Obj,Opt,SInfo,Info>;
+    type Outc = RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>;
 }
