@@ -1,5 +1,5 @@
 use crate::{
-    Codomain, Cost, domain::Domain, experiment::{Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable, ThrEvaluate}, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::{CBType, OBType, opt::{OpCodType, OpInfType, OpSInfType, Optimizer}}, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
+    Codomain, Cost, Partial, domain::Domain, experiment::{Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable, ThrEvaluate}, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::{CBType, OBType, opt::{OpCodType, OpInfType, OpSInfType, OpSolType, Optimizer}}, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
 };
 
 use std::{
@@ -9,9 +9,9 @@ use std::{
 pub struct FidExperiment<Eval, Scp, Op, St, Sv, Obj, Opt, Out, FnState>
 where
     Eval: Evaluate,
-    Op: Optimizer<SId, Obj, Opt, Out, Scp>,
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,FnWrap = Stepped<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out, FnState>>,
     St: Stop,
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo>,
+    Scp: Searchspace<Op::Sol,SId,Obj,Opt,Op::SInfo>,
     Sv: Saver<SId, St, Obj, Opt, Out, Scp, Op, Eval>,
     Obj: Domain,
     Opt: Domain,
@@ -19,7 +19,7 @@ where
     FnState: FuncState,
 {
     pub searchspace: Scp,
-    pub objective: Stepped<Obj, Op::Cod, Out, FnState>,
+    pub objective: Op::FnWrap,
     pub optimizer: Op,
     pub stop: St,
     pub saver: Sv,
@@ -29,8 +29,9 @@ where
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     Runable<
+        FidEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
         SId,
         Scp,
         Op,
@@ -41,7 +42,7 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
         Opt,
     >
     for FidExperiment<
-        FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState>,
+        FidEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
         Scp,
         Op,
         St,
@@ -52,13 +53,17 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
         FnState,
     >
 where
-    Op:Optimizer<
-        SId,Obj,Opt,Out,Scp,
-        FnWrap = Stepped<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out,FnState>,
-        BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
+    Op: Optimizer<SId, Obj, Opt, Out, Scp,
+            FnWrap = Stepped<Obj,OpCodType<Op,SId,Obj,Opt,Out,Scp>,Out,FnState>,
+            BType = Batch<
+                        OpSolType<Op,SId,Obj,Opt,Out,Scp>,
+                        SId,Obj,Opt,
+                        OpSInfType<Op,SId,Obj,Opt,Out,Scp>,
+                        OpInfType<Op,SId,Obj,Opt,Out,Scp>
+                    >
     >,
+    Scp: Searchspace<Op::Sol,SId,Obj,Opt,Op::SInfo>,
     St: Stop,
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
         SId,
         St,
@@ -67,7 +72,7 @@ where
         Out,
         Scp,
         Op,
-        FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState>,
+        FidEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
     >,
     Obj: Domain,
     Opt: Domain,
@@ -75,7 +80,6 @@ where
     FnState:FuncState,
     Op::Cod: Cost<Out>,
 {
-    type Eval = FidEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState>;
     fn new(
         searchspace: Scp,
         objective: Op::FnWrap,
@@ -111,7 +115,7 @@ where
             }
         };
 
-        let mut batch: Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
+        let mut batch: Op::BType;
         let mut batch_raw: OBType<Op,SId,Obj,Opt,Out,Scp>;
         let mut batch_comp: CBType<Op,SId,Obj,Opt,Out,Scp>;
         'main: loop {
@@ -126,7 +130,10 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw,batch_comp) = <Self::Eval as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::evaluate(&mut eval, ob.clone(), st.clone());
+            (batch_raw,batch_comp) = <
+                FidEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
+                as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp>
+            >::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             self.saver.save_partial(
@@ -146,7 +153,11 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
-            <Self::Eval as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::update(&mut eval, batch);
+            
+            <FidEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
+                as MonoEvaluate<Op,St,Obj,Opt,Out,SId,Scp>
+            >::update(&mut eval, batch);
+            
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(
@@ -179,8 +190,9 @@ where
     }
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
+impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     Runable<
+        FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
         SId,
         Scp,
         Op,
@@ -191,7 +203,7 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
         Opt,
     >
     for FidExperiment<
-        FidThrEvaluator<SId,Obj,Opt,Op::Info,Op::SInfo,FnState>,
+        FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
         Scp,
         Op,
         St,
@@ -202,13 +214,17 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out,FnState>
         FnState,
     >
 where
-    Op:Optimizer<
-        SId,Obj,Opt,Out,Scp,
-        FnWrap = Stepped<Obj, OpCodType<Op,SId,Obj,Opt,Out,Scp>, Out,FnState>,
-        BType = Batch<SId,Obj,Opt,OpSInfType<Op,SId,Obj,Opt,Out,Scp>,OpInfType<Op,SId,Obj,Opt,Out,Scp>>
-    >,
+    Op: Optimizer<SId, Obj, Opt, Out, Scp,
+            FnWrap = Stepped<Obj,OpCodType<Op,SId,Obj,Opt,Out,Scp>,Out,FnState>,
+            BType = Batch<
+                        OpSolType<Op,SId,Obj,Opt,Out,Scp>,
+                        SId,Obj,Opt,
+                        OpSInfType<Op,SId,Obj,Opt,Out,Scp>,
+                        OpInfType<Op,SId,Obj,Opt,Out,Scp>
+                    >
+    > + Send + Sync,
+    Scp: Searchspace<Op::Sol,SId,Obj,Opt,Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
-    Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
     Sv: Saver<
         SId,
         St,
@@ -217,11 +233,12 @@ where
         Out,
         Scp,
         Op,
-        FidThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo,FnState>,
+        FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>,
     > + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + Send + Sync,
+    FnState:FuncState + Send + Sync,
     FnState: FuncState + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
@@ -230,8 +247,9 @@ where
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
     Op::State: Send + Sync,
+    Op::Sol: Send + Sync,
+    <Op::Sol as Partial<SId,Obj,Op::SInfo>>::Twin<Opt>: Send + Sync,
 {
-    type Eval = FidThrEvaluator<SId,Obj,Opt,Op::Info,Op::SInfo,FnState>;
     fn new(
         searchspace: Scp,
         objective: Op::FnWrap,
@@ -267,7 +285,7 @@ where
             }
         };
 
-        let mut batch: Batch<SId,Obj,Opt,Op::SInfo,Op::Info>;
+        let mut batch: Op::BType;
         let mut batch_raw: OBType<Op,SId,Obj,Opt,Out,Scp>;
         let mut batch_comp: CBType<Op,SId,Obj,Opt,Out,Scp>;
         'main: loop {
@@ -282,7 +300,10 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw,batch_comp) =<Self::Eval as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::evaluate(&mut eval, ob.clone(), st.clone());
+            (batch_raw,batch_comp) =<
+                FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
+                as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>
+            >::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
             rayon::join(
@@ -324,7 +345,11 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
-            <Self::Eval as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>>::update(&mut eval, batch);
+            
+            <FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
+                as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>
+            >::update(&mut eval, batch);
+            
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
                 self.saver.save_state(

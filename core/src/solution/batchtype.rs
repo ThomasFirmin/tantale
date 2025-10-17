@@ -96,6 +96,7 @@ where
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
+#[allow(clippy::type_complexity)]
 pub struct RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -118,6 +119,7 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
+#[allow(clippy::type_complexity)]
 pub struct CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -176,6 +178,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawBatch<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -220,6 +223,7 @@ where
 }
 
 
+#[allow(clippy::type_complexity)]
 impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -347,6 +351,7 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
+#[allow(clippy::type_complexity)]
 pub struct RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -368,6 +373,7 @@ where
     serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
+#[allow(clippy::type_complexity)]
 pub struct CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -399,6 +405,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl <PSol,SolId,Obj,Opt,SInfo,Info,Out> RawSingle<PSol,SolId,Obj,Opt,SInfo,Info,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,
@@ -415,6 +422,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl <PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out> CompSingle<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>
 where
     PSol: Partial<SolId,Obj,SInfo>,

@@ -1,5 +1,5 @@
 use tantale::core::{
-    Objective, experiment::{Runable, mpi::tools, SyncExperiment}, load, saver::CSVSaver, stop::Calls
+    Objective,experiment::{Runable, mpi::tools}, experiment, load, saver::CSVSaver, stop::Calls
 };
 use tantale::algos::RandomSearch;
 
@@ -170,7 +170,7 @@ fn main() {
         let stop = Calls::new(50);
         let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true,true, 1);
 
-        let exp = SyncExperiment::new(sp, obj, opt, stop, saver);
+        let exp = experiment!(Distributed,&proc,sp,obj,opt,stop,saver);
         exp.run();
 
         run_reader("tmp_test_parseqrun", 50);

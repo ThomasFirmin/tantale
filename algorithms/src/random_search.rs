@@ -1,5 +1,5 @@
 use tantale_core::{
-    Criteria, Objective, domain::Domain, experiment::{Runable, SyncExperiment}, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
+    BasePartial, Criteria, Objective, domain::Domain, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
         CBType, EmptyInfo, OptInfo, OptState, opt::{IterMode, Optimizer}
     }, saver::CSVWritable, searchspace::Searchspace, solution::{Batch, SId}
 };
@@ -59,14 +59,14 @@ impl RandomSearch {
     }
 }
 
-fn rs_iter<Obj, Opt, Scp>(
+fn rs_iter<Obj,Opt,Scp>(
     opt: &mut RandomSearch,
     sp: Arc<Scp>,
-) -> Batch<SId,Obj,Opt,EmptyInfo,RSInfo>
+) -> Batch<BasePartial<SId,Obj,EmptyInfo>,SId,Obj,Opt,EmptyInfo,RSInfo>
 where
     Obj: Domain,
     Opt: Domain,
-    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
+    Scp: Searchspace<BasePartial<SId,Obj,EmptyInfo>,SId,Obj,Opt,EmptyInfo>,
 {
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
     let opt_samples = sp.vec_onto_opt(samples.clone());
@@ -78,19 +78,21 @@ where
 }
 
 impl<Obj, Opt, Out, Scp>
-    Optimizer<SId, Obj, Opt, SingleCodomain<Out>, Out, Scp>
+    Optimizer<SId, Obj, Opt, Out, Scp>
     for RandomSearch
 where
     Obj: Domain,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<SId, Obj, Opt, EmptyInfo>,
+    Scp: Searchspace<BasePartial<SId,Obj,EmptyInfo>,SId, Obj, Opt, EmptyInfo>,
 {
+    type Sol = BasePartial<SId,Obj,EmptyInfo>;
+    type BType= Batch<Self::Sol,SId,Obj,Opt,EmptyInfo,RSInfo>;
+    type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
     type Info = RSInfo;
     type State = RSState;
-    type BType= Batch<SId,Obj,Opt,EmptyInfo,RSInfo>;
-    type FnWrap = Objective<Obj,SingleCodomain<Out>,Out>;
+    type FnWrap = Objective<Obj,Self::Cod,Out>;
 
     fn init(&mut self) {}
 
@@ -100,9 +102,9 @@ where
 
     fn step(
         &mut self,
-        _x: CBType<Self,SId,Obj,Opt,SingleCodomain<Out>,Out,Scp>,
+        _x: CBType<Self,SId,Obj,Opt,Out,Scp>,
         sp: Arc<Scp>,
-    ) -> Batch<SId, Obj, Opt, EmptyInfo, RSInfo> {
+    ) -> Batch<Self::Sol,SId, Obj, Opt, EmptyInfo, RSInfo> {
         rs_iter::<Obj, Opt, Scp>(self, sp.clone())
     }
 
@@ -112,21 +114,5 @@ where
 
     fn from_state(state:RSState) -> Self {
         RandomSearch(state, rand::rng())
-    }
-    
-    #[allow(unreachable_patterns)]
-    fn to_exp<Run,St,Sv,Eval>(self, searchspace: Scp, objective: Objective<Obj,SingleCodomain<Out>,Out>, stop: St, saver:Sv) -> Run
-    where
-        Run : tantale_core::experiment::Runable<SId,Scp,Self,St,Sv,Obj,Opt,Out,SingleCodomain<Out>,Eval, Objective<Obj,SingleCodomain<Out>,Out>>,
-        St: tantale_core::Stop,
-        Sv: tantale_core::saver::Saver<SId,St,Obj,Opt,SingleCodomain<Out>,Out,Scp,Self,Eval>,
-        Eval:tantale_core::experiment::Evaluate,
-    {
-        match self.0.iter_lvl{
-            IterMode::Monothreaded => SyncExperiment::new(searchspace, objective, self, stop, saver),
-            IterMode::Threaded => todo!(),
-            IterMode::Distributed => todo!(),
-            _ => std::unimplemented!("The specified IterMode is not implemented."),
-        }
     }
 }

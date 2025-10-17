@@ -1,5 +1,11 @@
 use crate::{
-    Id, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{Evaluate, MonoEvaluate, ThrEvaluate, utils::BatchResults}, objective::{Codomain, Objective, Outcome}, optimizer::opt::OpSolType, solution::{Batch, BatchType}, stop::{ExpStep, Stop}};
+    Id, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, 
+    domain::Domain, 
+    experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults},
+    objective::{Codomain, Objective, Outcome},
+    optimizer::opt::{OpSolType,OpCodType, OpInfType, OpSInfType},
+    solution::{Batch, BatchType},
+    stop::{ExpStep, Stop}};
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -9,13 +15,13 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::{experiment::{
-    DistEvaluate, EvaluateOut, mpi::{
+    DistEvaluate, mpi::{
         tools::MPIProcess,
         utils::{
             SendRecParam, ThrSendRecParam, fill_workers, par_fill_workers, par_send_to_worker, receive_obj_computed, send_to_worker
         },
     },
-}, optimizer::opt::{OpCodType, OpInfType, OpSInfType}};
+}};
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
 #[cfg(feature = "mpi")]

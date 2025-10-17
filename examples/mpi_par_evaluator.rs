@@ -1,7 +1,9 @@
 use tantale::core::{
-    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, experiment::{ThrEvaluator, mpi::tools}, stop::Calls
+    EmptyInfo, Objective, Searchspace, SingleCodomain, Solution,
+    experiment::{ThrEvaluator, mpi::tools}, stop::Calls
 };
-use tantale_core::{experiment::{ThrEvaluate, mpi::tools::MPIProcess}, solution::Batch};
+use tantale_algos::{RSInfo, RandomSearch};
+use tantale_core::{Sp, experiment::{ThrEvaluate, mpi::tools::MPIProcess}, solution::Batch};
 
 use std::{
     collections::HashMap,
@@ -92,26 +94,26 @@ fn main() {
     if !tools::launch_worker(&proc, &obj){
         eprintln!("TEEESST");
         let sp = sp_evaluator::get_searchspace();
-        let sinfo = std::sync::Arc::new(EmptyInfo {});
+        let sinfo = std::sync::Arc::new(EmptyInfo{});
+        let info = std::sync::Arc::new(RSInfo{iteration:0});
         let stop = Arc::new(Mutex::new(Calls::new(50)));
 
         let mut rng = rand::rng();
         let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
         let sopt = sp.vec_onto_obj(sobj.clone());
-        let batch = Batch::new(sobj, sopt, sinfo.clone());
-        let mut eval: ThrEvaluator<SId, _, _, _, _> = ThrEvaluator::new(batch);
+        let batch = Batch::new(sobj, sopt, info.clone());
+        let mut eval = ThrEvaluator::new(batch);
 
-        let (batch_raw,batch_comp) = <ThrEvaluator<_, _, _, _, _> as ThrEvaluate<
+        let (batch_raw,batch_comp) = <
+        ThrEvaluator<_,_, _, _, _, _>
+        as ThrEvaluate<
+            RandomSearch,
             Calls,
             _,
             _,
             OutEvaluator,
-            SingleCodomain<OutEvaluator>,
             _,
-            _,
-            _,
-            _,
-            _,
+            Sp<_,_>,
         >>::evaluate(&mut eval, obj.clone(), stop.clone());
 
         let mut hcobj = HashMap::new();

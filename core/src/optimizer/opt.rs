@@ -1,9 +1,8 @@
 use crate::{
-    Partial, Stop, 
+    Partial, 
     domain::Domain,
-    experiment::Runable,
     objective::{Codomain, FuncWrapper, Outcome},
-    saver::{CSVWritable, Saver},
+    saver::CSVWritable,
     searchspace::Searchspace,
     solution::{BatchType, Id, SolInfo}
 };
@@ -39,12 +38,12 @@ pub enum IterMode {
 }
 
 /// Describes the type of the optimizer execution:
-/// * Monothreaded: A single instance of the algorithm is executed.
+/// * Mono: A single instance of the algorithm is executed.
 /// * Threaded: Multiple instances of the optimizer are executed within different threads, and can interact with eachothers ([`MultiInstanceOptimizer`]).
 /// * Distributed: Multiple instances of the optimizer are MPI-distributed, and can interact with eachothers ([`MultiInstanceOptimizer`]).
 #[derive(Serialize, Deserialize)]
 pub enum AlgoMode {
-    Monothreaded,
+    Mono,
     Threaded,
     Distributed
 }
@@ -131,13 +130,6 @@ where
 
     /// Return an instance of the [`Optimizer`]  from an [`OptState`].
     fn from_state(state: Self::State) -> Self;
-
-    fn to_exp<Run,St,Sv>(self, searchspace: Scp, objective: Self::FnWrap, stop: St, saver:Sv)->Run
-    where
-        Run : Runable<SolId, Scp, Self, St, Sv, Out, Obj, Opt>,
-        St: Stop,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Run::Eval>,
-    ;
 }
 
 /// A parallel [`Optimizer`] with multi-processing.

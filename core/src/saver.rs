@@ -15,16 +15,6 @@ pub use nosaver::NoSaver;
 pub mod serror;
 pub use serror::CheckpointError;
 
-#[macro_export]
-macro_rules! load {
-    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_,_,$optimizer, $stop, _, _, _, _, _, _, _>::load($searchspace, $objective, $saver)
-    };
-    ($experiment: ident, $optimizer : ident, $stop : ident | $process : expr, $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_,_,$optimizer, $stop, _, _, _, _, _, _, _>::load($process, $searchspace, $objective, $saver)
-    };
-}
-
 pub trait Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
 where
     Self: Sized,
