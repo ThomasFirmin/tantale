@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
+use crate::objective::{extract_var, reconstruct_mixed, reconstruct_simple, CustomFunction};
 use crate::searchspace::{get_sp_tokens, parse_sp, LineStream};
-use crate::objective::{reconstruct_mixed,reconstruct_simple,CustomFunction,extract_var};
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -48,10 +48,10 @@ pub fn obj(input: TokenStream) -> TokenStream {
                 ).to_compile_error().into(),
     };
 
-    if outtuple.elems.len() != 2{
+    if outtuple.elems.len() != 2 {
         return syn::Error::new(outspan,
                  "When defining the objective function, it should output a tuple made of an Outcome and a FuncState."
-                ).to_compile_error().into()
+                ).to_compile_error().into();
     }
 
     let fnstatety = &outtuple.elems[0];
@@ -74,9 +74,14 @@ pub fn obj(input: TokenStream) -> TokenStream {
         repeats,
     ) = parse_sp(variables).unwrap();
 
-
-    fn_item.sig.inputs.push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
-    fn_item.sig.inputs.push(parse_quote! {mut tantale_state : #fnstatety});
+    fn_item
+        .sig
+        .inputs
+        .push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
+    fn_item
+        .sig
+        .inputs
+        .push(parse_quote! {mut tantale_state : #fnstatety});
 
     let mut new_stream = TokenStream::new();
 

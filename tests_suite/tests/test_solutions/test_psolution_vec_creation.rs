@@ -25,7 +25,11 @@ fn _test_solution_assertion<Dom>(
             std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
             "Solution `x` mismatch."
         );
-        assert_eq!(s.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution `pid` mismatch.");
+        assert_eq!(
+            s.get_id().pid,
+            <u32 as AsPrimitive<usize>>::as_(pid),
+            "Solution `pid` mismatch."
+        );
         assert_eq!(
             s.get_info().info,
             42.0,

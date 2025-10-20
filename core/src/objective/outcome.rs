@@ -67,8 +67,8 @@
 //! println!("FIDELITY : {}",extracted.fidelity);
 //! ```
 
-use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.

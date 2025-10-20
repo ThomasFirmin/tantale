@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::{Outcome, objective::outcome::FuncState};
+use tantale_core::{objective::outcome::FuncState, Outcome};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OutExample {
@@ -29,11 +29,11 @@ pub struct OutUnique {
 }
 impl Outcome for OutUnique {}
 
-#[derive(Serialize,Deserialize)]
-pub struct FnState{
+#[derive(Serialize, Deserialize)]
+pub struct FnState {
     pub state: usize,
 }
-impl FuncState for FnState{}
+impl FuncState for FnState {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Point {
@@ -277,7 +277,7 @@ pub mod sp_sm_samp {
             let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
             let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
             let d = [! d | Real(0.0,1.0) | Bool() !];
-            
+
             let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
             let f = float_plus_float([! f | Real(0.0,1.0) | Int(0,100) !], [! g | Real(0.0,1.0) | Nat(0,100) !]);
 
@@ -388,8 +388,6 @@ pub mod sp_evaluator {
     );
 }
 
-
-
 // //***********************************//
 // // FIDELITY //
 // //***********************************//
@@ -417,7 +415,6 @@ pub mod sp_evaluator {
 //             };
 
 //             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
-
 
 //             OutExample{
 //                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -458,7 +455,6 @@ pub mod sp_evaluator {
 
 //             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
 
-
 //             OutExample{
 //                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
 //                 int_v: a,
@@ -498,7 +494,6 @@ pub mod sp_evaluator {
 
 //             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
 
-
 //             OutExample{
 //                 obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
 //                 int_v: a,
@@ -537,7 +532,6 @@ pub mod sp_evaluator {
 //             };
 
 //             let k = [! k_{4} | Nat(0,100) | !];
-
 
 //             OutExample{
 //                 obj: [! j | Real(1000.0,2000.0) | !],
@@ -593,7 +587,7 @@ pub mod sp_evaluator {
 //                     neuron: layer,
 //                     vec: k.iter().map(|i| *i).collect(),
 //                 }
-                
+
 //             )
 //         }
 //     );
@@ -613,7 +607,7 @@ pub mod sp_evaluator {
 //             let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
 //             let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
 //             let d = [! d | Real(0.0,1.0) | Bool() !];
-            
+
 //             let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
 //             let f = float_plus_float([! f | Real(0.0,1.0) | Int(0,100) !], [! g | Real(0.0,1.0) | Nat(0,100) !]);
 
@@ -623,7 +617,6 @@ pub mod sp_evaluator {
 //             };
 
 //             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
-
 
 //             OutUnique{
 //                 obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
@@ -665,7 +658,6 @@ pub mod sp_evaluator {
 
 //             let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
 
-
 //             OutUnique{
 //                 obj: [! j | Real(0.0,1.0) | !],
 //                 int_v: a,
@@ -680,20 +672,3 @@ pub mod sp_evaluator {
 //         }
 //     );
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

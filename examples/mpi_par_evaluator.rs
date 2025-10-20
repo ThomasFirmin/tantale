@@ -1,18 +1,23 @@
 use tantale::core::{
+    experiment::{mpi::tools, ThrBatchEvaluator},
+    stop::Calls,
     EmptyInfo, Objective, Searchspace, SingleCodomain, Solution,
-    experiment::{ThrEvaluator, mpi::tools}, stop::Calls
 };
 use tantale_algos::{RSInfo, RandomSearch};
-use tantale_core::{Sp, experiment::{ThrEvaluate, mpi::tools::MPIProcess}, solution::Batch};
+use tantale_core::{
+    experiment::{mpi::tools::MPIProcess, DistEvaluate},
+    solution::Batch,
+    Sp,
+};
 
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-mod init_func{
-    use tantale::macros::Outcome;
+mod init_func {
     use serde::{Deserialize, Serialize};
+    use tantale::macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
@@ -75,46 +80,45 @@ mod init_func{
     }
 }
 
-use init_func::{sp_evaluator,OutEvaluator};
+use init_func::{sp_evaluator, OutEvaluator};
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
-    
+
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
         eprintln!("Skipping MPI test (not under mpirun)");
         return;
     }
 
-    let proc = MPIProcess::new();    
+    let proc = MPIProcess::new();
 
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
     let obj = Arc::new(Objective::new(cod, func));
 
-    if !tools::launch_worker(&proc, &obj){
+    if !tools::launch_worker(&proc, &obj) {
         eprintln!("TEEESST");
         let sp = sp_evaluator::get_searchspace();
-        let sinfo = std::sync::Arc::new(EmptyInfo{});
-        let info = std::sync::Arc::new(RSInfo{iteration:0});
+        let sinfo = std::sync::Arc::new(EmptyInfo {});
+        let info = std::sync::Arc::new(RSInfo { iteration: 0 });
         let stop = Arc::new(Mutex::new(Calls::new(50)));
 
         let mut rng = rand::rng();
         let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
         let sopt = sp.vec_onto_obj(sobj.clone());
         let batch = Batch::new(sobj, sopt, info.clone());
-        let mut eval = ThrEvaluator::new(batch);
+        let mut eval = ThrBatchEvaluator::new(batch);
 
-        let (batch_raw,batch_comp) = <
-        ThrEvaluator<_,_, _, _, _, _>
-        as ThrEvaluate<
-            RandomSearch,
-            Calls,
-            _,
-            _,
-            OutEvaluator,
-            _,
-            Sp<_,_>,
-        >>::evaluate(&mut eval, obj.clone(), stop.clone());
+        let (batch_raw, batch_comp) =
+            <ThrBatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
+                RandomSearch,
+                Calls,
+                _,
+                _,
+                OutEvaluator,
+                _,
+                Sp<_, _>,
+            >>::evaluate(&mut eval, &proc, obj.clone(), stop.clone());
 
         let mut hcobj = HashMap::new();
         let mut hsobj = HashMap::new();
@@ -122,7 +126,9 @@ fn main() {
         let mut hsopt = HashMap::new();
         let mut hlink = HashMap::new();
 
-        batch_comp.cobj.iter()
+        batch_comp
+            .cobj
+            .iter()
             .zip(eval.batch.sobj.iter())
             .zip(batch_raw.robj.iter())
             .zip(batch_comp.copt.iter())
@@ -140,12 +146,36 @@ fn main() {
                 hlink.insert(lid, l);
             });
 
-        assert_eq!(batch_comp.cobj.len(), 20, "Number of solutions is wrong for cobj");
-        assert_eq!(eval.batch.sobj.len(), 20, "Number of solutions is wrong for sobj");
-        assert_eq!(batch_comp.copt.len(), 20, "Number of solutions is wrong for copt");
-        assert_eq!(eval.batch.sopt.len(), 20, "Number of solutions is wrong for sopt");
-        assert_eq!(batch_raw.robj.len(), 20, "Number of solutions is wrong for robj");
-        assert_eq!(batch_raw.ropt.len(), 20, "Number of solutions is wrong for ropt");
+        assert_eq!(
+            batch_comp.cobj.len(),
+            20,
+            "Number of solutions is wrong for cobj"
+        );
+        assert_eq!(
+            eval.batch.sobj.len(),
+            20,
+            "Number of solutions is wrong for sobj"
+        );
+        assert_eq!(
+            batch_comp.copt.len(),
+            20,
+            "Number of solutions is wrong for copt"
+        );
+        assert_eq!(
+            eval.batch.sopt.len(),
+            20,
+            "Number of solutions is wrong for sopt"
+        );
+        assert_eq!(
+            batch_raw.robj.len(),
+            20,
+            "Number of solutions is wrong for robj"
+        );
+        assert_eq!(
+            batch_raw.ropt.len(),
+            20,
+            "Number of solutions is wrong for ropt"
+        );
 
         assert_eq!(
             hcobj.len(),

@@ -71,23 +71,22 @@ pub enum Fidelity {
     New,
 }
 
-pub trait FidelitySolution<SolId,Dom,Info> : Solution<SolId,Dom,Info>
+pub trait FidelitySolution<SolId, Dom, Info>: Solution<SolId, Dom, Info>
 where
     Self: Sized + Serialize + for<'de> Deserialize<'de>,
     Dom: Domain,
     Info: SolInfo,
     SolId: Id + PartialEq,
 {
-    fn get_fidelity(&self)->Fidelity;
-    fn set_fidelity(&self)->Fidelity;
+    fn get_fidelity(&self) -> Fidelity;
+    fn set_fidelity(&self) -> Fidelity;
 }
-
 
 pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::{Partial,BasePartial};
+pub use partial::{BasePartial, Partial};
 
 pub mod computed;
 pub use computed::Computed;
@@ -96,4 +95,7 @@ pub mod raw;
 pub use raw::RawSol;
 
 pub mod batchtype;
-pub use batchtype::{BatchType,Batch,Single,CompBatchType,CompBatch,CompSingle,RawBatch,RawBatchType,RawSingle};
+pub use batchtype::{
+    Batch, BatchType, CompBatch, CompBatchType, CompSingle, RawBatch, RawBatchType, RawSingle,
+    Single,
+};

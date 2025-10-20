@@ -1,18 +1,15 @@
-use tantale_core::{
-    Objective, experiment::Runable, load, saver::CSVSaver, stop::Calls
-};
+use tantale_core::{experiment, experiment::Runable, load, saver::CSVSaver, stop::Calls, Objective};
 
 use tantale_algos::RandomSearch;
 
 use super::init_func::sp_evaluator;
 use crate::init_func::OutEvaluator;
 
-use std::{
-    collections::HashSet,
-    path::Path
-};
+use std::{collections::HashSet, path::Path};
 
-struct Cleaner{path:String}
+struct Cleaner {
+    path: String,
+}
 
 impl Drop for Cleaner {
     fn drop(&mut self) {
@@ -27,12 +24,14 @@ pub fn run_reader(path: &str, size: usize) {
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
     let path_cod = eval_path.join("cod.csv");
+    let path_info = eval_path.join("info.csv");
 
     let mut hash_id = HashSet::new();
     let mut size_obj = 0;
     let mut size_opt = 0;
     let mut size_cod = 0;
     let mut size_out = 0;
+    let mut size_info = 0;
 
     // Check `Obj`
     let mut rdr = csv::Reader::from_path(path_obj).unwrap();
@@ -67,6 +66,16 @@ pub fn run_reader(path: &str, size: usize) {
         hash_id.insert(id);
     }
 
+    // Check `Info`
+    let mut rdr = csv::Reader::from_path(path_info).unwrap();
+    for l in rdr.records() {
+        size_info += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+
+    }
+
     assert_eq!(
         size_obj, size,
         "Some solutions are missing within recorded obj save."
@@ -83,13 +92,18 @@ pub fn run_reader(path: &str, size: usize) {
         size_out, size,
         "Some solutions are missing within recorded out save."
     );
+    assert_eq!(
+        size_info, size,
+        "Some solutions are missing within recorded info save."
+    );
     assert_eq!(hash_id.len(), size, "Some IDs are duplicated.");
 }
 
 #[test]
 fn test_seq_run() {
-    use tantale::core::experiment::SyncExperiment;
-    drop(Cleaner {path:String::from("tmp_test_seqrun")});
+    drop(Cleaner {
+        path: String::from("tmp_test_seqrun"),
+    });
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -97,9 +111,9 @@ fn test_seq_run() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
     let stop = Calls::new(50);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
 
-    let exp = SyncExperiment::new(sp, obj, opt, stop, saver);
+    let exp = experiment!(Mono, RandomSearch | sp, obj, opt, stop, saver);
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -108,8 +122,8 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-    let mut exp= load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
+    let mut exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -122,23 +136,27 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-    let exp= load!(SyncExperiment, RandomSearch, Calls | sp, obj, saver);
+    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
+    let exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
     run_reader("tmp_test_seqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
+    assert_eq!(
+        exp.optimizer.0.iteration, 15,
+        "Number of iteration is wrong"
+    );
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-    drop(Cleaner {path:String::from("tmp_test_seqrun")});
+    drop(Cleaner {
+        path: String::from("tmp_test_seqrun"),
+    });
 }
-
-
 
 #[test]
 fn test_seq_parrun() {
-    use tantale::core::experiment::ThrExperiment;
 
-    drop(Cleaner {path:String::from("tmp_test_parseqrun")});
+    drop(Cleaner {
+        path: String::from("tmp_test_parseqrun"),
+    });
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -146,9 +164,9 @@ fn test_seq_parrun() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
     let stop = Calls::new(50);
-    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
 
-    let exp = ThrExperiment::new(sp, obj, opt, stop, saver);
+    let exp = experiment!(Threaded, RandomSearch | sp, obj, opt, stop, saver);
     exp.run();
 
     run_reader("tmp_test_parseqrun", 50);
@@ -157,8 +175,8 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
-    let mut exp= load!(ThrExperiment, RandomSearch, Calls | sp, obj, saver);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+    let mut exp = load!(Threaded, RandomSearch, Calls | sp, obj, saver);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -171,13 +189,17 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, 1);
-    let exp= load!(ThrExperiment, RandomSearch, Calls | sp, obj, saver);
+    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+    let exp = load!(Threaded, RandomSearch, Calls | sp, obj, saver);
     run_reader("tmp_test_parseqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
+    assert_eq!(
+        exp.optimizer.0.iteration, 15,
+        "Number of iteration is wrong"
+    );
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-    drop(Cleaner {path:String::from("tmp_test_parseqrun")});
-
+    drop(Cleaner {
+        path: String::from("tmp_test_parseqrun"),
+    });
 }

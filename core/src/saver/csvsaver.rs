@@ -1,12 +1,25 @@
 use crate::{
-    GlobalParameters, OPT_ID, OptInfo, Partial, RUN_ID, SOL_ID, SolInfo, domain::Domain, experiment::Evaluate, objective::{Codomain, Outcome}, optimizer::{Optimizer, opt::{CBType, OBType, PBType}}, saver::{CheckpointError, Saver}, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}, stop::Stop
+    domain::Domain,
+    experiment::Evaluate,
+    objective::{Codomain, Outcome},
+    optimizer::{
+        opt::{CBType, OBType, PBType},
+        Optimizer,
+    },
+    saver::{CheckpointError, Saver},
+    searchspace::Searchspace,
+    solution::{partial::BasePartial, Batch, BatchType, Id, Solution},
+    stop::Stop,
+    GlobalParameters, OptInfo, Partial, SolInfo, OPT_ID, RUN_ID, SOL_ID,
 };
 
 use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::{
-    fs::{File, OpenOptions, create_dir, create_dir_all}, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::Ordering}
+    fs::{create_dir, create_dir_all, File, OpenOptions},
+    path::{Path, PathBuf},
+    sync::{atomic::Ordering, Arc, Mutex},
 };
 
 #[cfg(feature = "mpi")]
@@ -29,68 +42,67 @@ pub trait CSVLeftRight<H, L, R> {
 }
 
 /// A [`CSVWrite`] describes a [`BatchType`] and its associated types that can be written within a CSV file.
-pub trait BatchCSVWrite<PSol,Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out>:
+pub trait BatchCSVWrite<PSol, Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
 where
-    Self: BatchType<SolId,Obj,Opt,SInfo,Info>,
-    PSol: Partial<SolId,Obj,SInfo>,
+    Self: BatchType<SolId, Obj, Opt, SInfo, Info>,
+    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<PSol,SolId, Obj, Opt, SInfo>
-    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    + Send
-    + Sync,
+    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
-    PSol::Twin<Opt>: Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
 {
-    fn write_partial_obj(&self, wrt : csv::Writer<File>, scp: Arc<Scp>);
-    fn write_partial_opt(&self, wrt : csv::Writer<File>, scp: Arc<Scp>);
-    fn write_info(&self, wrt : csv::Writer<File>);
-    fn write_codom(cbatch : &Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod: Arc<Cod>);
-    fn write_out(obatch: &Self::Outc<Out>, wrt : csv::Writer<File>);
+    fn write_partial_obj(&self, wrt: csv::Writer<File>, scp: Arc<Scp>);
+    fn write_partial_opt(&self, wrt: csv::Writer<File>, scp: Arc<Scp>);
+    fn write_info(&self, wrt: csv::Writer<File>);
+    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: Arc<Cod>);
+    fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>);
 }
 
-
-impl <Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out>
-    BatchCSVWrite<BasePartial<SolId,Obj,SInfo>,Scp,SolId,Obj,Opt,SInfo,Info,Cod,Out> for
-    Batch<BasePartial<SolId,Obj,SInfo>,SolId,Obj,Opt,SInfo,Info>
+impl<Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    BatchCSVWrite<BasePartial<SolId, Obj, SInfo>, Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    for Batch<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<BasePartial<SolId,Obj,SInfo>,SolId, Obj, Opt, SInfo>
-    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    + Send
-    + Sync,
+    Scp: Searchspace<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
 {
-    fn write_partial_obj(&self, wrt : csv::Writer<File>, scp: Arc<Scp>) {
+    fn write_partial_obj(&self, wrt: csv::Writer<File>, scp: Arc<Scp>) {
         let amwrt = Arc::new(Mutex::new(wrt));
         self.sobj.par_iter().for_each(|op| {
-                let id = op.get_id();
-                let mut idstr = id.write(&());
-                idstr.extend(scp.write_left(&op.get_x().clone()));
-                {
-                    let mut wrt_local = amwrt.lock().unwrap();
-                    wrt_local.write_record(&idstr).unwrap();
-                    wrt_local.flush().unwrap();
-                }
-            });
+            let id = op.get_id();
+            let mut idstr = id.write(&());
+            idstr.extend(scp.write_left(&op.get_x().clone()));
+            {
+                let mut wrt_local = amwrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
     }
-    
-    fn write_partial_opt(&self, wrt : csv::Writer<File>, scp: Arc<Scp>) {
+
+    fn write_partial_opt(&self, wrt: csv::Writer<File>, scp: Arc<Scp>) {
         let amwrt = Arc::new(Mutex::new(wrt));
         self.sopt.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -103,8 +115,8 @@ where
             }
         });
     }
-    
-    fn write_info(&self, wrt : csv::Writer<File>) {
+
+    fn write_info(&self, wrt: csv::Writer<File>) {
         let amwrt = Arc::new(Mutex::new(wrt));
         self.sobj.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -120,7 +132,7 @@ where
         });
     }
 
-    fn write_codom(cbatch : &Self::Comp<Cod,Out>, wrt : csv::Writer<File>, cod:Arc<Cod>) {
+    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: Arc<Cod>) {
         let wrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -134,8 +146,8 @@ where
             }
         });
     }
-    
-    fn write_out(obatch: &Self::Outc<Out>, wrt : csv::Writer<File>) {
+
+    fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>) {
         let wrt = Arc::new(Mutex::new(wrt));
         obatch.robj.par_iter().for_each(|s| {
             let id = s.get_id();
@@ -149,9 +161,7 @@ where
             }
         });
     }
-    
 }
-
 
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
 /// The computed [`Codomain`] are always saved by default.
@@ -165,11 +175,11 @@ where
 /// * `save_info` : bool - If `true` [`SolInfo`] and [`OptInfo`] from computed [`Solution`] will be saved.
 /// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
 /// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
-/// 
+///
 /// # Notes on File hierarchy
-/// 
+///
 /// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
-/// 
+///
 /// * `path`
 ///  * evaluations
 ///   * obj.csv             (points from the [`Objective`] view)
@@ -181,7 +191,7 @@ where
 ///   * state_stp.json      ([`Stop`])
 ///   * state_eval.json     ([`Evaluate`])
 ///   * state_param.json    (Various global parameters as the [`Id`] or experiment identifier.)
-/// 
+///
 #[derive(Serialize, Deserialize)]
 pub struct CSVSaver {
     pub path: PathBuf,
@@ -256,28 +266,29 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
-    Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVSaver
+impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval> Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
+    for CSVSaver
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>
-    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    + Send
-    + Sync,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
-    Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
+    Op::Cod:
+        Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
+    Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {
     fn init(&mut self, sp: &Scp, cod: &Op::Cod) {
         let does_exist = self.path.try_exists().unwrap();
@@ -409,11 +420,7 @@ where
         }
     }
 
-    fn save_partial(
-        &self,
-        batch : &Op::BType,
-        sp: Arc<Scp>,
-    ) {
+    fn save_partial(&self, batch: &Op::BType, sp: Arc<Scp>) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
                 .append(true)
@@ -430,7 +437,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_info(&self, batch: &PBType<Op, SolId, Obj, Opt, Out, Scp>, _sp: Arc<Scp>) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -438,12 +445,11 @@ where
                 .unwrap();
             batch.write_info(csv::Writer::from_writer(file));
         }
-
     }
 
     fn save_codom(
         &self,
-        batch: &CBType<Op,SolId,Obj,Opt,Out,Scp>,
+        batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>,
         _sp: Arc<Scp>,
         cod: Arc<Op::Cod>,
     ) {
@@ -454,7 +460,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>) {
+    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, _sp: Arc<Scp>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -548,7 +554,11 @@ where
         }
     }
 
-    fn load_parameters(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<GlobalParameters, CheckpointError> {
+    fn load_parameters(
+        &self,
+        _sp: &Scp,
+        _cod: &Op::Cod,
+    ) -> Result<GlobalParameters, CheckpointError> {
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -601,11 +611,11 @@ where
 /// * `save_info` : bool - If `true` [`SolInfo`] and [`OptInfo`] from computed [`Solution`] will be saved.
 /// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
 /// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
-/// 
+///
 /// # Notes on File hierarchy
-/// 
+///
 /// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
-/// 
+///
 /// * `path`
 ///  * evaluations
 ///   * obj.csv             (points from the [`Objective`] view)
@@ -617,7 +627,7 @@ where
 ///   * state_stp.json      ([`Stop`])
 ///   * state_eval.json     ([`Evaluate`])
 ///   * state_param.json    (Various global parameters as the [`Id`] or experiment identifier.)
-/// 
+///
 #[cfg(feature = "mpi")]
 impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
     DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVSaver
@@ -627,20 +637,21 @@ where
     Obj: Domain + Send + Sync,
     Opt: Domain + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<Op::Sol,SolId, Obj, Opt, Op::SInfo>
-    + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
-    + Send
-    + Sync,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
-    Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
+    Op::Cod:
+        Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::State: Serialize + DeserializeOwned,
-    Op::BType: BatchCSVWrite<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Info,Op::Cod,Out>,
+    Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {
     fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank: Rank) {
         let does_exist = self.path.try_exists().unwrap();
@@ -693,7 +704,7 @@ where
                 wrt.flush().unwrap();
                 self.path_out.replace(nppout);
             }
-            
+
             if self.path_out.is_some() {
                 let nppout = path_evals.join(Path::new("out.csv"));
                 let mut wrt = csv::Writer::from_path(nppout.as_path()).unwrap();
@@ -812,12 +823,7 @@ where
         }
     }
 
-    fn save_partial(
-        &self,
-        batch : &Op::BType,
-        sp: Arc<Scp>,
-        _rank: Rank,
-    ) {
+    fn save_partial(&self, batch: &Op::BType, sp: Arc<Scp>, _rank: Rank) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
                 .append(true)
@@ -834,7 +840,7 @@ where
         }
     }
 
-    fn save_info(&self, batch: &PBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>, _rank:Rank) {
+    fn save_info(&self, batch: &PBType<Op, SolId, Obj, Opt, Out, Scp>, _sp: Arc<Scp>, _rank: Rank) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
@@ -842,15 +848,14 @@ where
                 .unwrap();
             batch.write_info(csv::Writer::from_writer(file));
         }
-
     }
 
     fn save_codom(
         &self,
-        batch: &CBType<Op,SolId,Obj,Opt,Out,Scp>,
+        batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>,
         _sp: Arc<Scp>,
         cod: Arc<Op::Cod>,
-        _rank:Rank,
+        _rank: Rank,
     ) {
         let file = OpenOptions::new()
             .append(true)
@@ -859,7 +864,7 @@ where
         Op::BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: &OBType<Op,SolId,Obj,Opt,Out,Scp>, _sp: Arc<Scp>,_rank:Rank) {
+    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, _sp: Arc<Scp>, _rank: Rank) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
@@ -869,7 +874,7 @@ where
         }
     }
 
-    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, _rank:Rank) {
+    fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, _rank: Rank) {
         if let Some(path) = &self.path_check {
             let wrt = File::create(path.0.as_path()).unwrap();
             serde_json::to_writer(wrt, state).unwrap();
@@ -888,7 +893,6 @@ where
             serde_json::to_writer(wrt, &global).unwrap();
         }
     }
-
 
     fn load_stop(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<St, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
@@ -930,7 +934,12 @@ where
         }
     }
 
-    fn load_evaluate(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<Eval, CheckpointError> {
+    fn load_evaluate(
+        &self,
+        _sp: &Scp,
+        _cod: &Op::Cod,
+        rank: Rank,
+    ) -> Result<Eval, CheckpointError> {
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
@@ -975,7 +984,12 @@ where
         }
     }
 
-    fn load(&self, _sp: &Scp, _cod: &Op::Cod, rank: Rank) -> Result<(St, Op, Eval), CheckpointError> {
+    fn load(
+        &self,
+        _sp: &Scp,
+        _cod: &Op::Cod,
+        rank: Rank,
+    ) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters = <CSVSaver as DistributedSaver<
             SolId,
             St,

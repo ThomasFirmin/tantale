@@ -4,14 +4,15 @@ use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
-use tantale_core::Objective;
-use tantale_core::experiment::Evaluator;
+use tantale_core::BasePartial;
+use tantale_core::experiment::BatchEvaluator;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
 use tantale_core::saver::Saver;
+use tantale_core::solution::RawSol;
 use tantale_core::stop::{Calls, Stop};
 use tantale_core::EmptyInfo;
-use tantale_core::LinkedOutcome;
+use tantale_core::Objective;
 use tantale_core::Solution;
 use tantale_core::Sp;
 use tantale_core::{OptInfo, SolInfo};
@@ -52,32 +53,34 @@ mod infos {
 
 use infos::OutExample;
 
-type EvalType<Info,SInfo> = Evaluator<SId,sp_m_equal_allmsamp::_TantaleMixedObj,sp_m_equal_allmsamp::_TantaleMixedObj,Info,SInfo>;
+type BPart<SInfo> = BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>;
+type BaseRawSol<SInfo> = RawSol<BPart<SInfo>,SId, sp_m_equal_allmsamp::_TantaleMixedObj,OutExample,SInfo>;
+type BaseCompSol<SInfo> = Computed<BPart<SInfo>,SId, sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample,SInfo>;
+type EvalType<SType, Info, SInfo> = BatchEvaluator<
+    SType,
+    SId,
+    sp_m_equal_allmsamp::_TantaleMixedObj,
+    sp_m_equal_allmsamp::_TantaleMixedObj,
+    Info,
+    SInfo,
+>;
 
 pub fn run_saver<'a, Scp, Op, St, Sv>(
     hash_obj: &mut HashMap<
         usize,
-        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+        Arc<BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
     >,
     hash_opt: &mut HashMap<
         usize,
-        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+        Arc<BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
     >,
     hash_out: &mut HashMap<
         usize,
-        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+        Arc<BaseRawSol<Op::SInfo>>,
     >,
     hash_cod: &mut HashMap<
         usize,
-        Arc<
-            Computed<
-                SId,
-                sp_m_equal_allmsamp::_TantaleMixedObj,
-                SingleCodomain<OutExample>,
-                OutExample,
-                Op::SInfo,
-            >,
-        >,
+        Arc<BaseCompSol<Op::SInfo>>,
     >,
     hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
     sp: Arc<Scp>,
@@ -86,9 +89,10 @@ pub fn run_saver<'a, Scp, Op, St, Sv>(
     stop: &mut St,
     saver: &mut Sv,
     size: usize,
-) -> (St, &'a Op::State, Op, EvalType<Op::Info,Op::SInfo>)
+) -> (St, &'a Op::State, Op, EvalType<Op::Sol, Op::Info, Op::SInfo>)
 where
     Scp: Searchspace<
+        Op::Sol,
         SId,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
@@ -98,7 +102,6 @@ where
         SId,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        SingleCodomain<OutExample>,
         OutExample,
         Scp,
     >,
@@ -108,18 +111,16 @@ where
         St,
         sp_m_equal_allmsamp::_TantaleMixedObj,
         sp_m_equal_allmsamp::_TantaleMixedObj,
-        SingleCodomain<OutExample>,
         OutExample,
         Scp,
         Op,
-        EvalType<Op::Info,Op::SInfo>,
-        Objective<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>
+        EvalType<Op::Sol,Op::Info, Op::SInfo>,
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let (sobj, sopt, infos) = opt.first_step(sp.clone());
-    let eval: EvalType<Op::Info,Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone(),infos.clone());
+    let batch = opt.first_step(sp.clone());
+    let eval: EvalType<Op::Info, Op::SInfo> = BatchEvaluator::new(batch);
     let (cobj, copt, vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -165,7 +166,8 @@ where
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
     let (sobj, sopt, infos) = opt.step((cobj.clone(), copt.clone()), sp.clone());
-    let eval: EvalType<Op::Info,Op::SInfo> = Evaluator::new(sobj.clone(), sopt.clone(), infos.clone());
+    let eval: EvalType<Op::Info, Op::SInfo> =
+        Evaluator::new(sobj.clone(), sopt.clone(), infos.clone());
     let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
         .iter()
         .zip(sopt.iter())
@@ -191,7 +193,7 @@ where
             (r.0, r.1, linked)
         })
         .collect();
-    
+
     let cobj = Arc::new(computed.0);
     let copt = Arc::new(computed.1);
     saver.save_partial(
@@ -386,8 +388,8 @@ fn test_csv_func() {
             sp_m_equal_allmsamp::_TantaleMixedObj,
         >,
         RandomSearch,
-        EvalType<RSInfo,EmptyInfo>,
-        Objective<sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample>,
+        EvalType<RSInfo, EmptyInfo>,
+        Objective<sp_m_equal_allmsamp::_TantaleMixedObj, SingleCodomain<OutExample>, OutExample>,
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
     let mut hash_obj: HashMap<
@@ -406,7 +408,7 @@ fn test_csv_func() {
 
     let mut hash_info: HashMap<usize, Arc<RSInfo>> = HashMap::new();
 
-    let (mut nstop, rstate, mut nopt,_):(_,_,_,EvalType<RSInfo,EmptyInfo>) = run_saver(
+    let (mut nstop, rstate, mut nopt, _): (_, _, _, EvalType<RSInfo, EmptyInfo>) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,

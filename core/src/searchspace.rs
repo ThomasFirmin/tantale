@@ -116,16 +116,16 @@ use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-type ComputedOut<PSolA,PSolB,SolId, ADom, BDom, Cod, Out, Info> = (
-    Arc<Computed<PSolA,SolId, ADom, Cod, Out, Info>>,
-    Arc<Computed<PSolB,SolId, BDom, Cod, Out, Info>>,
+type ComputedOut<PSolA, PSolB, SolId, ADom, BDom, Cod, Out, Info> = (
+    Arc<Computed<PSolA, SolId, ADom, Cod, Out, Info>>,
+    Arc<Computed<PSolB, SolId, BDom, Cod, Out, Info>>,
 );
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<PSol,SolId, Obj, Opt, SInfo>
+pub trait Searchspace<PSol, SolId, Obj, Opt, SInfo>
 where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt>: Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
+    PSol: Partial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     SInfo: SolInfo,
     Obj: Domain,
     Opt: Domain,
@@ -246,11 +246,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(
-        &self,
-        rng: Option<&mut ThreadRng>,
-        info: Arc<SInfo>,
-    ) -> Arc<PSol>;
+    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<PSol>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -288,11 +284,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(
-        &self,
-        rng: Option<&mut ThreadRng>,
-        info: Arc<SInfo>,
-    ) -> Arc<PSol::Twin<Opt>>;
+    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Arc<PSol::Twin<Opt>>;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -407,10 +399,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_obj(
-        &self,
-        inp: VecArc<PSol::Twin<Opt>>,
-    ) -> VecArc<PSol>;
+    fn vec_onto_obj(&self, inp: VecArc<PSol::Twin<Opt>>) -> VecArc<PSol>;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -453,10 +442,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_opt(
-        &self,
-        inp: VecArc<PSol>,
-    ) -> VecArc<PSol::Twin<Opt>>;
+    fn vec_onto_opt(&self, inp: VecArc<PSol>) -> VecArc<PSol::Twin<Opt>>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -622,7 +608,7 @@ where
         xa: Arc<PSol>,
         xb: Arc<PSol::Twin<Opt>>,
         y: Arc<Cod::TypeCodom>,
-    ) -> ComputedOut<PSol,PSol::Twin<Opt>,SolId, Obj, Opt, Cod, Out, SInfo>
+    ) -> ComputedOut<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo>
     where
         Cod: Codomain<Out>,
         Out: Outcome,

@@ -4,10 +4,7 @@ use crate::solution::{Id, Partial, SolInfo, Solution};
 
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 /// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer)
 /// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
@@ -25,9 +22,9 @@ use std::{
     serialize = "Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
 ))]
-pub struct Computed<PSol,SolId, Dom, Cod, Out, Info>
+pub struct Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
@@ -41,9 +38,10 @@ where
     _info: PhantomData<Info>,
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info> for Computed<PSol,SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
+    for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
@@ -63,9 +61,9 @@ where
     }
 }
 
-impl<PSol,SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Cod: Codomain<Out>,
@@ -73,10 +71,7 @@ where
     SolId: Id,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(
-        sol: Arc<PSol>,
-        y: Arc<<Cod as Codomain<Out>>::TypeCodom>,
-    ) -> Self {
+    pub fn new(sol: Arc<PSol>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
         Computed {
             sol,
             y,

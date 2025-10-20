@@ -1,10 +1,12 @@
+use tantale_core::BasePartial;
+
 #[test]
 fn obj_test() {
     mod searchspace {
         use serde::{Deserialize, Serialize};
         use tantale::core::domain::sampler::{uniform_int, uniform_real};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale::macros::{Outcome,objective};
+        use tantale::macros::{objective, Outcome};
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutExample {
@@ -67,13 +69,13 @@ fn obj_test() {
     }
 
     use std::sync::Arc;
-    use tantale::core::{EmptyInfo, Partial, SId, Searchspace, Solution};
+    use tantale::core::{EmptyInfo, SId, Searchspace, Solution};
     let sp = searchspace::get_searchspace();
     let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
     let rng = Some(&mut rng);
 
-    let sample: Arc<Partial<SId, _, _>> = sp.sample_obj(rng, info);
+    let sample:Arc<BasePartial<SId,_,_>> = sp.sample_obj(rng, info);
     searchspace::example(sample.get_x().as_ref());
 }

@@ -1,18 +1,18 @@
+use tantale::algos::RandomSearch;
 use tantale::core::{
-    Objective, experiment::{Runable, MPIExperiment, mpi::tools}, load, saver::CSVSaver, stop::Calls
+    experiment,
+    experiment::{mpi::tools, Runable},
+    load,
+    saver::CSVSaver,
+    stop::Calls,
+    Objective,
 };
 
-use tantale_algos::RandomSearch;
-use tantale_core::MPI_RANK;
+use std::{collections::HashSet, path::Path};
 
-use std::{
-    collections::HashSet,
-    path::Path
-};
-
-mod init_func{
-    use tantale::macros::Outcome;
+mod init_func {
     use serde::{Deserialize, Serialize};
+    use tantale::macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
@@ -75,9 +75,11 @@ mod init_func{
     }
 }
 
-use init_func::{sp_evaluator,OutEvaluator};
+use init_func::{sp_evaluator, OutEvaluator};
 
-struct Cleaner{path:String}
+struct Cleaner {
+    path: String,
+}
 
 impl Drop for Cleaner {
     fn drop(&mut self) {
@@ -87,17 +89,19 @@ impl Drop for Cleaner {
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("evaluations_rk0"));
+    let eval_path = true_path.join(Path::new("evaluations"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
     let path_cod = eval_path.join("cod.csv");
+    let path_info = eval_path.join("info.csv");
 
     let mut hash_id = HashSet::new();
     let mut size_obj = 0;
     let mut size_opt = 0;
     let mut size_cod = 0;
     let mut size_out = 0;
+    let mut size_info = 0;
 
     // Check `Obj`
     let mut rdr = csv::Reader::from_path(path_obj).unwrap();
@@ -132,6 +136,16 @@ pub fn run_reader(path: &str, size: usize) {
         hash_id.insert(id);
     }
 
+    // Check `Info`
+    let mut rdr = csv::Reader::from_path(path_info).unwrap();
+    for l in rdr.records() {
+        size_info += 1;
+        let record = l.unwrap();
+        let id: usize = record[0].parse().unwrap();
+        hash_id.insert(id);
+
+    }
+
     assert_eq!(
         size_obj, size,
         "Some solutions are missing within recorded obj save."
@@ -148,38 +162,50 @@ pub fn run_reader(path: &str, size: usize) {
         size_out, size,
         "Some solutions are missing within recorded out save."
     );
+    assert_eq!(
+        size_info, size,
+        "Some solutions are missing within recorded info save."
+    );
     assert_eq!(hash_id.len(), size, "Some IDs are duplicated.");
 }
 
 fn main() {
-    eprintln!("INFO : Running test_seq_run.");
+    eprintln!("INFO : Running test_seq_parrun.");
+
+    if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
+        eprintln!("Skipping MPI test (not under mpirun)");
+        return;
+    }
+
+    let proc = tools::MPIProcess::new();
 
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    
-    if !tools::launch_worker(&obj){
-        drop(Cleaner {path:String::from("tmp_test_seqrun")});
-        
-        let sp = sp_evaluator::get_searchspace();
-        let opt = RandomSearch::new(7);
-        let stop = Calls::new(50);
-        let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
 
-        let exp = MPIExperiment::new(sp, obj, opt, stop, saver);
+    if !tools::launch_worker(&proc, &obj) {
+        drop(Cleaner {
+            path: String::from("tmp_test_parseqrun"),
+        });
+        let opt = RandomSearch::new(7);
+        let sp = sp_evaluator::get_searchspace();
+        let stop = Calls::new(50);
+        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+
+        let exp = experiment!(Distributed, RandomSearch | &proc, sp, obj, opt, stop, saver);
         exp.run();
 
-        run_reader("tmp_test_seqrun", 50);
+        run_reader("tmp_test_parseqrun", 50);
     }
 
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    
-    if !tools::launch_worker(&obj){
+
+    if !tools::launch_worker(&proc, &obj) {
         let sp = sp_evaluator::get_searchspace();
-        let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-        let mut exp= load!(MPIExperiment, RandomSearch, Calls | sp, obj, saver);
+        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+        let mut exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
 
         assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
         assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -188,23 +214,22 @@ fn main() {
         exp.stop.1 = 100;
         exp.run();
 
-        println!("LFKJHDIUQHGFIUHIUDSFHIKLOUHEDFD");
-        
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
         let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
         let obj = Objective::new(cod, func);
-        let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, 1);
-        let exp= load!(MPIExperiment, RandomSearch, Calls | sp, obj, saver);
-        run_reader("tmp_test_seqrun", 100);
+        let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
+        let exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
+        run_reader("tmp_test_parseqrun", 100);
         assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
-        assert_eq!(exp.optimizer.0.iteration, 15, "Number of iteration is wrong");
+        assert_eq!(
+            exp.optimizer.0.iteration, 15,
+            "Number of iteration is wrong"
+        );
         assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
-        println!("35456654654353435456453");
-
-        // drop(Cleaner {path:String::from("tmp_test_seqrun")});
+        drop(Cleaner {
+            path: String::from("tmp_test_parseqrun"),
+        });
     }
-    tools::finalize();
-    println!("JE SUIS LE RANG {} et j'ai termine",{*MPI_RANK.get().unwrap()});
 }

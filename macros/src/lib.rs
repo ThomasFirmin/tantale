@@ -2,9 +2,9 @@ extern crate proc_macro;
 
 mod mixed;
 mod objective;
-mod stepped;
 mod outcome;
 mod searchspace;
+mod stepped;
 
 #[proc_macro_derive(Mixed)]
 pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

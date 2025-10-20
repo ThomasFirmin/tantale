@@ -32,7 +32,11 @@ where
             42.0,
             "Wrong solution info from TestSInfo."
         );
-        assert_eq!(s.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
+        assert_eq!(
+            s.get_id().pid,
+            <u32 as AsPrimitive<usize>>::as_(pid),
+            "Solution PID mismatch."
+        );
     }
 }
 

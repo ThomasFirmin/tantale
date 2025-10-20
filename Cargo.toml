@@ -29,7 +29,7 @@ tantale_macros.workspace = true
 tantale_algos.workspace = true
 
 [features]
-mpi = ["tantale_core/mpi"]
+mpi = ["tantale_core/mpi", "tantale_algos/mpi"]
 
 [dev-dependencies]
 tantale_tests.workspace = true

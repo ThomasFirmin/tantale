@@ -1,7 +1,6 @@
 use tantale_core::{
-    experiment::Evaluate,
-    stop::Calls,
-    EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution,
+    experiment::Evaluate, stop::Calls, EmptyInfo, Objective, SId, Searchspace, SingleCodomain,
+    Solution,
 };
 
 use super::init_func::sp_evaluator;
@@ -26,7 +25,8 @@ fn test_seq_evaluator() {
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: Evaluator<SId, _, _, _, _> = Evaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+    let mut eval: Evaluator<SId, _, _, _, _> =
+        Evaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
     let ((cobj, copt), linked) = <Evaluator<_, _, _, _, _> as Evaluate<
         Calls,
@@ -142,15 +142,9 @@ fn test_seq_evaluator() {
     );
 }
 
-
-
-
-
-
 #[test]
 fn test_seq_par_evaluator() {
-
-    use tantale::core::experiment::ThrEvaluator;
+    use tantale::core::experiment::ThrBatchEvaluator;
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -162,9 +156,10 @@ fn test_seq_par_evaluator() {
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: ThrEvaluator<SId, _, _, _, _> = ThrEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+    let mut eval: ThrBatchEvaluator<SId, _, _, _, _> =
+        ThrBatchEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
 
-    let ((cobj, copt), linked) = <ThrEvaluator<_, _, _, _, _> as Evaluate<
+    let ((cobj, copt), linked) = <ThrBatchEvaluator<_, _, _, _, _> as Evaluate<
         Calls,
         _,
         _,

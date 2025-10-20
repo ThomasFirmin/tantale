@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 pub use tantale::core::objective::codomain::{
-    ConstCodomain, ConstMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain,
-    ElemCostCodomain, ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain,
-    ElemMultiCodomain, ElemSingleCodomain, CostCodomain, CostConstCodomain,
-    CostConstMultiCodomain, CostMultiCodomain, MultiCodomain, SingleCodomain,
+    ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
+    CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
+    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain,
+    ElemSingleCodomain, MultiCodomain, SingleCodomain,
 };
 use tantale_macros::Outcome;
 

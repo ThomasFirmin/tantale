@@ -20,7 +20,11 @@ where
         std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
         "Solution `x` mismatch."
     );
-    assert_eq!(sol.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
+    assert_eq!(
+        sol.get_id().pid,
+        <u32 as AsPrimitive<usize>>::as_(pid),
+        "Solution PID mismatch."
+    );
     assert_eq!(
         sol.get_info().info,
         42.0,

@@ -6,15 +6,15 @@ use crate::solution::{Id, SolInfo, Solution};
 use std::{fmt::Debug, sync::Arc};
 
 /// A non-evaluated [`Solution`].
-pub trait Partial<SolId, Dom, Info> : Solution<SolId,Dom,Info>
+pub trait Partial<SolId, Dom, Info>: Solution<SolId, Dom, Info>
 where
     Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
     SolId: Id,
     Dom: Domain,
     Info: SolInfo,
 {
-    type Twin<B:Domain> : Partial<SolId,B,Info>;
-    
+    type Twin<B: Domain>: Partial<SolId, B, Info>;
+
     /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
     ///
     /// # Attributes
@@ -153,9 +153,8 @@ where
     where
         B: Domain,
         T: AsRef<[TypeDom<B>]>;
-
 }
-    
+
 /// A non-evaluated [`Solution`].
 ///
 /// # Attributes
@@ -167,7 +166,7 @@ where
     serialize = "Dom::TypeDom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct BasePartial<SolId,Dom,Info>
+pub struct BasePartial<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -178,7 +177,7 @@ where
     pub info: Arc<Info>,
 }
 
-impl<SolId,Dom,Info> BasePartial<SolId,Dom,Info>
+impl<SolId, Dom, Info> BasePartial<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -215,7 +214,7 @@ where
     }
 }
 
-impl<SolId,Dom,Info> Solution<SolId,Dom,Info> for BasePartial<SolId,Dom,Info>
+impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -234,15 +233,14 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for BasePartial<SolId,Dom,Info>
+impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    
-    type Twin<B:Domain> = BasePartial<SolId,B,Info>;
-    
+    type Twin<B: Domain> = BasePartial<SolId, B, Info>;
+
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
         T: AsRef<[TypeDom<Dom>]>,
@@ -254,7 +252,7 @@ where
     fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
         vec![TypeDom::<Dom>::default(); n]
     }
-    
+
     fn new_default(n: usize, info: Arc<Info>) -> Self {
         Self::new(SolId::generate(), Self::default_x(n), info)
     }
@@ -270,11 +268,11 @@ where
         }
         v
     }
-    
+
     fn twin<B, T>(&self, x: T) -> Self::Twin<B>
     where
         B: Domain,
-        T: AsRef<[TypeDom<B>]> 
+        T: AsRef<[TypeDom<B>]>,
     {
         Self::Twin::new(self.get_id(), x, self.get_info())
     }

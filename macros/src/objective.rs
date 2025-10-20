@@ -325,8 +325,11 @@ pub fn obj(input: TokenStream) -> TokenStream {
         tobj_vec,
         repeats,
     ) = parse_sp(variables).unwrap();
-    
-    fn_item.sig.inputs.push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
+
+    fn_item
+        .sig
+        .inputs
+        .push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
 
     let mut new_stream = TokenStream::new();
 

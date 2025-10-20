@@ -1,14 +1,11 @@
-use crate::{Codomain, Computed};
 use crate::domain::{Domain, TypeDom};
 use crate::objective::Outcome;
 use crate::solution::{Id, Partial, SolInfo, Solution};
+use crate::{Codomain, Computed};
 
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 /// A [`RawSol`] describes a [`Partial`] linked to a computed [`Outcome`].
 ///
@@ -21,9 +18,9 @@ use std::{
     serialize = "Dom::TypeDom: Serialize, Out: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, Out: for<'a> Deserialize<'a>",
 ))]
-pub struct RawSol<PSol,SolId, Dom, Out, Info>
+pub struct RawSol<PSol, SolId, Dom, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Out: Outcome,
@@ -38,7 +35,7 @@ where
 
 impl<PSol, SolId, Dom, Out, Info> Solution<SolId, Dom, Info> for RawSol<PSol, SolId, Dom, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Out: Outcome,
@@ -59,17 +56,14 @@ where
 
 impl<PSol, SolId, Dom, Info, Out> RawSol<PSol, SolId, Dom, Out, Info>
 where
-    PSol: Partial<SolId,Dom,Info>,
+    PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
     Out: Outcome,
     SolId: Id,
 {
     /// Creates a new [`RawSol`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(
-        sol: Arc<PSol>,
-        out:Arc<Out>,
-    ) -> Self {
+    pub fn new(sol: Arc<PSol>, out: Arc<Out>) -> Self {
         RawSol {
             sol,
             out,
@@ -98,11 +92,14 @@ where
     }
 
     /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    pub fn get_out(&self) -> Arc<Out>{
+    pub fn get_out(&self) -> Arc<Out> {
         self.out.clone()
     }
 
-    pub fn get_computed<Cod:Codomain<Out>>(&self, cod:Arc<Cod>) -> Computed<PSol,SolId,Dom,Cod,Out,Info>{
+    pub fn get_computed<Cod: Codomain<Out>>(
+        &self,
+        cod: Arc<Cod>,
+    ) -> Computed<PSol, SolId, Dom, Cod, Out, Info> {
         let y = Arc::new(cod.get_elem(&self.out));
         Computed::new(self.get_sol(), y)
     }

@@ -30,7 +30,11 @@ where
         42.0,
         "Wrong solution info from TestSInfo."
     );
-    assert_eq!(sol.get_id().pid, <u32 as AsPrimitive<usize>>::as_(pid), "Solution PID mismatch.");
+    assert_eq!(
+        sol.get_id().pid,
+        <u32 as AsPrimitive<usize>>::as_(pid),
+        "Solution PID mismatch."
+    );
 }
 
 // BOTH DOMAINS ARE DEFINED
