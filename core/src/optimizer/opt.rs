@@ -119,6 +119,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
     <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
@@ -156,6 +157,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
     <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
@@ -197,6 +199,7 @@ where
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo> + Send + Sync,
+    Self::Sol: Partial<SolId, Obj, Self::SInfo> + Send + Sync,
     <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
@@ -241,6 +244,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
     <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
@@ -299,6 +303,9 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
+    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
+        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
     fn interact(&self);
     fn update(&self);

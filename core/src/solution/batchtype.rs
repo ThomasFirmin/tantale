@@ -1,8 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Outcome},
-    solution::{Computed, Id, Partial, RawSol, SolInfo},
-    OptInfo, VecArc,
+    OptInfo, VecArc, domain::Domain, objective::{Codomain, Outcome}, solution::{Computed, Id, Partial, RawSol, SolInfo}
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};

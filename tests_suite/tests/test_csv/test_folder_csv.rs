@@ -1,21 +1,24 @@
-use super::init_sp::sp_m_equal_allmsamp;
+use super::init_sp::sp_m_equal_allmsamp::{_TantaleMixedObj,_TantaleMixedObjTypeDom,get_searchspace};
 
 use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
-use tantale_algos::RSInfo;
 use tantale_algos::RandomSearch;
 use tantale_core::BasePartial;
 use tantale_core::experiment::BatchEvaluator;
+use tantale_core::optimizer::opt::OpInfType;
+use tantale_core::optimizer::opt::OpSInfType;
+use tantale_core::optimizer::opt::OpSolType;
 use tantale_core::saver::CSVSaver;
 use tantale_core::saver::CSVWritable;
 use tantale_core::saver::Saver;
+use tantale_core::solution::Batch;
+use tantale_core::solution::BatchType;
+use tantale_core::solution::CompBatch;
+use tantale_core::solution::RawBatch;
 use tantale_core::solution::RawSol;
 use tantale_core::stop::{Calls, Stop};
-use tantale_core::EmptyInfo;
-use tantale_core::Objective;
 use tantale_core::Solution;
 use tantale_core::Sp;
-use tantale_core::{OptInfo, SolInfo};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -53,14 +56,14 @@ mod infos {
 
 use infos::OutExample;
 
-type BPart<SInfo> = BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>;
-type BaseRawSol<SInfo> = RawSol<BPart<SInfo>,SId, sp_m_equal_allmsamp::_TantaleMixedObj,OutExample,SInfo>;
-type BaseCompSol<SInfo> = Computed<BPart<SInfo>,SId, sp_m_equal_allmsamp::_TantaleMixedObj,SingleCodomain<OutExample>,OutExample,SInfo>;
+type BPart<SInfo> = BasePartial<SId, _TantaleMixedObj, SInfo>;
+type BaseRawSol<SInfo> = RawSol<BPart<SInfo>,SId, _TantaleMixedObj,OutExample,SInfo>;
+type BaseCompSol<SInfo> = Computed<BPart<SInfo>,SId, _TantaleMixedObj,SingleCodomain<OutExample>,OutExample,SInfo>;
 type EvalType<SType, Info, SInfo> = BatchEvaluator<
     SType,
     SId,
-    sp_m_equal_allmsamp::_TantaleMixedObj,
-    sp_m_equal_allmsamp::_TantaleMixedObj,
+    _TantaleMixedObj,
+    _TantaleMixedObj,
     Info,
     SInfo,
 >;
@@ -68,182 +71,191 @@ type EvalType<SType, Info, SInfo> = BatchEvaluator<
 pub fn run_saver<'a, Scp, Op, St, Sv>(
     hash_obj: &mut HashMap<
         usize,
-        Arc<BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+        Arc<Op::Sol>,
     >,
     hash_opt: &mut HashMap<
         usize,
-        Arc<BasePartial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, Op::SInfo>>,
+        Arc<<Op::Sol as Partial<SId,_TantaleMixedObj,Op::SInfo>>::Twin<_TantaleMixedObj>>,
     >,
     hash_out: &mut HashMap<
         usize,
-        Arc<BaseRawSol<Op::SInfo>>,
+        Arc<RawSol<Op::Sol,SId,_TantaleMixedObj,OutExample,Op::SInfo>>,
     >,
     hash_cod: &mut HashMap<
         usize,
-        Arc<BaseCompSol<Op::SInfo>>,
+        Arc<Computed<Op::Sol, SId, _TantaleMixedObj,Op::Cod,OutExample,Op::SInfo>>,
     >,
     hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
     sp: Arc<Scp>,
-    cod: Arc<SingleCodomain<OutExample>>,
+    cod: Arc<Op::Cod>,
     opt: &'a mut Op,
     stop: &mut St,
     saver: &mut Sv,
     size: usize,
-) -> (St, &'a Op::State, Op, EvalType<Op::Sol, Op::Info, Op::SInfo>)
+) -> (St, &'a Op::State, Op, Op::BType)
 where
     Scp: Searchspace<
         Op::Sol,
         SId,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
         Op::SInfo,
     >,
     Op: Optimizer<
         SId,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
         OutExample,
         Scp,
+        BType = Batch<OpSolType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,SId,_TantaleMixedObj,_TantaleMixedObj,OpSInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,OpInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>>
     >,
     St: Stop + Send + Sync,
     Sv: Saver<
         SId,
         St,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
         OutExample,
         Scp,
         Op,
-        EvalType<Op::Sol,Op::Info, Op::SInfo>,
+        EvalType<Op::Sol,Op::SInfo,Op::Info>,
     >,
+    Op::Cod: CSVWritable<Op::Cod,<Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let batch = opt.first_step(sp.clone());
-    let eval: EvalType<Op::Info, Op::SInfo> = BatchEvaluator::new(batch);
-    let (cobj, copt, vinfos): (Vec<_>, Vec<_>, Vec<_>) = sobj
-        .iter()
-        .zip(sopt.iter())
-        .map(|(a, b)| {
+    let mut batchr = RawBatch::empty(batch.get_info().clone());
+    let mut batchc = CompBatch::empty(batch.get_info().clone());
+    (0..batch.size()).for_each(
+        |idx|
+        {
+            let (a,b) = batch.index(idx);
             let id = a.get_id().id;
             let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
-                sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(ae) => ae,
+                _TantaleMixedObjTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
             };
             let outcome = Arc::new(infos::get_out(id, aelem));
-            let mut codel = cod.get_elem(&outcome);
-            codel.value = id as f64;
-            let r =
-                sp.computed::<SingleCodomain<_>, OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let linked = LinkedOutcome::new(outcome.clone(), a.clone());
+            let codel = cod.get_elem(&outcome);
+            let (acomp,bcomp) =
+                sp.computed::<Op::Cod,OutExample>(a.clone(), b.clone(), Arc::new(codel));
+            let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
+            let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
             hash_obj.insert(id, a.clone());
             hash_opt.insert(id, b.clone());
-            hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
-            hash_cod.insert(id, r.0.clone());
-            hash_inf.insert(id, infos.clone());
-            (r.0, r.1, linked)
-        })
-        .collect();
-
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-    stop.update(tantale_core::stop::ExpStep::Distribution);
-
-    let (cobj, copt, vinfos) = (Arc::new(cobj), Arc::new(copt), vinfos);
-    saver.save_partial(
-        cobj.clone(),
-        copt.clone(),
-        sp.clone(),
-        cod.clone(),
-        infos.clone(),
+            hash_out.insert(id, araw.clone());
+            hash_cod.insert(id, acomp.clone());
+            hash_inf.insert(id, batch.get_info());
+            batchr.add(araw.clone(), braw.clone());
+            batchc.add(acomp.clone(), bcomp.clone());
+        }
     );
-    saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
-    saver.save_out(vinfos, sp.clone());
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    
+    saver.save_partial(&batch,sp.clone());
+    saver.save_codom(&batchc, sp.clone(),cod.clone());
+    saver.save_out(&batchr, sp.clone());
+    saver.save_info(&batch, sp.clone());
+    let eval:BatchEvaluator<_,_,_,_,_,_>  = BatchEvaluator::new(batch);
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
-    let (sobj, sopt, infos) = opt.step((cobj.clone(), copt.clone()), sp.clone());
-    let eval: EvalType<Op::Info, Op::SInfo> =
-        Evaluator::new(sobj.clone(), sopt.clone(), infos.clone());
-    let computed: (Vec<_>, Vec<_>, Vec<_>) = sobj
-        .iter()
-        .zip(sopt.iter())
-        .map(|(a, b)| {
+    let batch = opt.step(batchc, sp.clone());
+    let mut batchr = RawBatch::empty(batch.get_info().clone());
+    let mut batchc = CompBatch::empty(batch.get_info().clone());
+    (0..batch.size()).for_each(
+        |idx|
+        {
+            let (a,b) = batch.index(idx);
             let id = a.get_id().id;
             let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
-                sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(ae) => ae,
+                _TantaleMixedObjTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
             };
             let outcome = Arc::new(infos::get_out(id, aelem));
-            let cod = SingleCodomain::new(|x: &OutExample| x.mul6);
-            let mut codel = cod.get_elem(&outcome);
-            codel.value = id as f64;
-            let r =
-                sp.computed::<SingleCodomain<_>, OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let linked = LinkedOutcome::new(outcome.clone(), a.clone());
+            let codel = cod.get_elem(&outcome);
+            let (acomp,bcomp) =
+                sp.computed::<Op::Cod,OutExample>(a.clone(), b.clone(), Arc::new(codel));
+            let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
+            let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
             hash_obj.insert(id, a.clone());
             hash_opt.insert(id, b.clone());
-            hash_out.insert(id, Arc::new(LinkedOutcome::new(outcome.clone(), a.clone())));
-            hash_cod.insert(id, r.0.clone());
-            hash_inf.insert(id, infos.clone());
-            (r.0, r.1, linked)
-        })
-        .collect();
-
-    let cobj = Arc::new(computed.0);
-    let copt = Arc::new(computed.1);
-    saver.save_partial(
-        cobj.clone(),
-        copt.clone(),
-        sp.clone(),
-        cod.clone(),
-        infos.clone(),
+            hash_out.insert(id, araw.clone());
+            hash_cod.insert(id, acomp.clone());
+            hash_inf.insert(id, batch.get_info());
+            batchr.add(araw.clone(), braw.clone());
+            batchc.add(acomp.clone(), bcomp.clone());
+        }
     );
-    saver.save_codom(cobj.clone(), sp.clone(), cod.clone());
-    saver.save_out(computed.2, sp.clone());
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    stop.update(tantale_core::stop::ExpStep::Distribution);
+    
+    saver.save_partial(&batch,sp.clone());
+    saver.save_codom(&batchc, sp.clone(),cod.clone());
+    saver.save_out(&batchr, sp.clone());
+    saver.save_info(&batch, sp.clone());
+    let eval:BatchEvaluator<_,_,_,_,_,_>  = BatchEvaluator::new(batch);
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
-    run_reader(
-        "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, size,
+    run_reader::<Op,Scp>(
+        "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, cod.clone(), size,
     );
-    let nstop = saver.load_stop(&sp, &cod).unwrap();
-    let nopt = saver.load_optimizer(&sp, &cod).unwrap();
-    let neval = saver.load_evaluate(&sp, &cod).unwrap();
+    let nstop = saver.load_stop(&sp, cod.as_ref()).unwrap();
+    let nopt = saver.load_optimizer(&sp, cod.as_ref()).unwrap();
+    let neval = saver.load_evaluate(&sp, cod.as_ref()).unwrap();
 
-    (nstop, opt.get_state(), nopt, neval)
+    (nstop, opt.get_state(), nopt, neval.batch)
 }
 
-pub fn run_reader<SInfo, Info>(
+pub fn run_reader<Op, Scp>(
     path: &str,
-    hash_obj: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
-    hash_opt: &HashMap<usize, Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>>,
+    hash_obj: &HashMap<usize, Arc<Op::Sol>>,
+    hash_opt: &HashMap<usize, Arc<<Op::Sol as Partial<SId,_TantaleMixedObj,Op::SInfo>>::Twin<_TantaleMixedObj>>>,
     hash_out: &HashMap<
         usize,
-        Arc<LinkedOutcome<OutExample, SId, sp_m_equal_allmsamp::_TantaleMixedObj, SInfo>>,
+        Arc<RawSol<Op::Sol,SId,_TantaleMixedObj,OutExample,Op::SInfo>>,
     >,
     hash_cod: &HashMap<
         usize,
         Arc<
-            Computed<
-                SId,
-                sp_m_equal_allmsamp::_TantaleMixedObj,
-                SingleCodomain<OutExample>,
-                OutExample,
-                SInfo,
-            >,
+            Computed<Op::Sol,SId,_TantaleMixedObj,Op::Cod,OutExample,Op::SInfo>
         >,
     >,
-    hash_inf: &HashMap<usize, Arc<Info>>,
+    hash_inf: &HashMap<usize, Arc<Op::Info>>,
+    cod: Arc<Op::Cod>,
     size: usize,
-) where
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    Info: OptInfo + CSVWritable<(), ()>,
+)
+where
+    Scp: Searchspace<
+        Op::Sol,
+        SId,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
+        Op::SInfo,
+    >,
+    Op: Optimizer<
+        SId,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
+        OutExample,
+        Scp,
+        BType = Batch<OpSolType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,SId,_TantaleMixedObj,_TantaleMixedObj,OpSInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,OpInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>>
+    >,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::Cod: CSVWritable<Op::Cod,<Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
 {
-    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
 
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("evaluations"));
@@ -329,7 +341,7 @@ pub fn run_reader<SInfo, Info>(
         let content = hash_out.get(&id).unwrap();
         let con: i64 = record[2].parse().unwrap();
         let true_con = match content.sol.get_x()[0] {
-            sp_m_equal_allmsamp::_TantaleMixedObjTypeDom::Int(f) => f,
+            _TantaleMixedObjTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.sol.get_id().id)]);
@@ -370,45 +382,38 @@ pub fn run_reader<SInfo, Info>(
 }
 
 fn test_csv_func() {
-    let sp = Arc::new(sp_m_equal_allmsamp::get_searchspace());
+    let sp = Arc::new(get_searchspace());
     let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
 
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
-    let mut saver = CSVSaver::new("tmp_test", true, true, true, 1);
+    let mut saver = CSVSaver::new("tmp_test", true, true, true, true,1);
     <CSVSaver as Saver<
         SId,
         Calls,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        SingleCodomain<OutExample>,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
         OutExample,
-        tantale_core::Sp<
-            sp_m_equal_allmsamp::_TantaleMixedObj,
-            sp_m_equal_allmsamp::_TantaleMixedObj,
-        >,
+        Sp<_TantaleMixedObj,
+        _TantaleMixedObj>,
         RandomSearch,
-        EvalType<RSInfo, EmptyInfo>,
-        Objective<sp_m_equal_allmsamp::_TantaleMixedObj, SingleCodomain<OutExample>, OutExample>,
+        BatchEvaluator<
+            OpSolType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
+            SId,
+            _TantaleMixedObj,
+            _TantaleMixedObj,
+            OpSInfType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
+            OpInfType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
+        >
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
-    let mut hash_obj: HashMap<
-        usize,
-        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
-    > = HashMap::new();
-    let mut hash_opt: HashMap<
-        usize,
-        Arc<Partial<SId, sp_m_equal_allmsamp::_TantaleMixedObj, EmptyInfo>>,
-    > = HashMap::new();
-    let mut hash_outcome: HashMap<usize, Arc<LinkedOutcome<OutExample, _, _, _>>> = HashMap::new();
-    let mut hash_codom: HashMap<
-        usize,
-        Arc<Computed<_, _, SingleCodomain<OutExample>, OutExample, _>>,
-    > = HashMap::new();
+    let mut hash_obj= HashMap::new();
+    let mut hash_opt = HashMap::new();
+    let mut hash_outcome = HashMap::new();
+    let mut hash_codom = HashMap::new();
+    let mut hash_info = HashMap::new();
 
-    let mut hash_info: HashMap<usize, Arc<RSInfo>> = HashMap::new();
-
-    let (mut nstop, rstate, mut nopt, _): (_, _, _, EvalType<RSInfo, EmptyInfo>) = run_saver(
+    let (mut nstop, rstate, mut nopt, _) = run_saver(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
@@ -423,11 +428,10 @@ fn test_csv_func() {
     );
     let nstate = <RandomSearch as Optimizer<
         SId,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        SingleCodomain<OutExample>,
-        _,
-        Sp<sp_m_equal_allmsamp::_TantaleMixedObj, sp_m_equal_allmsamp::_TantaleMixedObj>,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
+        OutExample,
+        Sp<_,_>,
     >>::get_state(&mut nopt);
 
     assert_eq!(
@@ -465,11 +469,10 @@ fn test_csv_func() {
     );
     let nstate = <RandomSearch as Optimizer<
         SId,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        sp_m_equal_allmsamp::_TantaleMixedObj,
-        SingleCodomain<OutExample>,
-        _,
-        Sp<sp_m_equal_allmsamp::_TantaleMixedObj, sp_m_equal_allmsamp::_TantaleMixedObj>,
+        _TantaleMixedObj,
+        _TantaleMixedObj,
+        OutExample,
+        Sp<_,_>,
     >>::get_state(&mut nopt);
 
     assert_eq!(
