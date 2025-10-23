@@ -1,15 +1,7 @@
 use tantale_core::{
-    domain::Domain,
-    experiment::{BatchEvaluator, Runable, SyncExperiment, ThrBatchEvaluator},
-    objective::{codomain::SingleCodomain, outcome::Outcome},
-    optimizer::{
-        opt::{MonoOptimizer, Optimizer, ThrOptimizer},
-        CBType, EmptyInfo, OptInfo, OptState,
-    },
-    saver::{CSVWritable, Saver},
-    searchspace::Searchspace,
-    solution::{Batch, SId},
-    BasePartial, Criteria, Objective, Stop,
+    BasePartial, Criteria, Objective, Stop, domain::onto::OntoDom, experiment::{BatchEvaluator, Runable, SyncExperiment, ThrBatchEvaluator}, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
+        CBType, EmptyInfo, OptInfo, OptState, opt::{MonoOptimizer, Optimizer, ThrOptimizer}
+    }, saver::{CSVWritable, Saver}, searchspace::Searchspace, solution::{Batch, SId}
 };
 #[cfg(feature = "mpi")]
 use tantale_core::{
@@ -65,8 +57,8 @@ fn rs_iter<Obj, Opt, Scp>(
     sp: Arc<Scp>,
 ) -> Batch<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo, RSInfo>
 where
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
@@ -80,8 +72,8 @@ where
 
 impl<Obj, Opt, Out, Scp> Optimizer<SId, Obj, Opt, Out, Scp> for RandomSearch
 where
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {
@@ -118,8 +110,8 @@ where
 
 impl<Obj, Opt, Out, Scp> MonoOptimizer<SId, Obj, Opt, Out, Scp> for RandomSearch
 where
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {
@@ -147,9 +139,9 @@ where
 
 impl<Obj, Opt, Out, Scp> ThrOptimizer<SId, Obj, Opt, Out, Scp> for RandomSearch
 where
-    Obj: Domain + Send + Sync,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
     Obj::TypeDom: Send + Sync,
-    Opt: Domain + Send + Sync,
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo> + Send + Sync,
@@ -180,8 +172,8 @@ where
 #[cfg(feature = "mpi")]
 impl<Obj, Opt, Out, Scp> DistOptimizer<SId, Obj, Opt, Out, Scp> for RandomSearch
 where
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {

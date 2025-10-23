@@ -5,8 +5,9 @@ use super::init_sp::{
 };
 use paste::paste;
 use serde_json;
+use tantale_core::BaseDom;
 use std::sync::Arc;
-use tantale::core::{searchspace::Searchspace, Computed, EmptyInfo, Partial, SId, Solution};
+use tantale::core::{searchspace::Searchspace, Computed, EmptyInfo, BasePartial, SId, Solution};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($cod : ident | $func : ident ,)+] | $comp : expr ),*) => {
@@ -18,13 +19,13 @@ macro_rules! get_test {
                 use tantale::core::$cod;
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample : Arc<Partial<SId,_,_>> = sp.sample_obj(None,info.clone());
+                let sample : Arc<BasePartial<SId,_,_>> = sp.sample_obj(None,info.clone());
                 let (_,elem) = $func();
-                let computed : Computed<_,_,$cod<OutExample>,_,_> = Computed::new(sample,Arc::new(elem));
+                let computed: Computed<_,SId,$dom,$cod<OutExample>,_,EmptyInfo> = Computed::new(sample,Arc::new(elem));
 
 
                 let st_ser = serde_json::to_string(&computed).unwrap();
-                let ncomputed : Computed<SId,$dom,$cod<OutExample>,_,EmptyInfo> = serde_json::from_str(&st_ser).unwrap();
+                let ncomputed : Computed<BasePartial<SId,_,EmptyInfo>,SId,$dom,$cod<OutExample>,_,EmptyInfo> = serde_json::from_str(&st_ser).unwrap();
 
                 let id = computed.get_id();
                 let nid = ncomputed.get_id();
@@ -46,7 +47,7 @@ macro_rules! get_test {
 
 get_test!(
     sp_ms_nosamp
-        | sp_ms_nosamp::_TantaleMixedObj
+        | BaseDom
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemfidel,

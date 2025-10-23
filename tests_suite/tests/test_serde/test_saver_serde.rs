@@ -3,7 +3,7 @@ use tantale::core::saver::csvsaver::CSVSaver;
 
 #[test]
 fn test_calls_json() {
-    let saver = CSVSaver::new("tmp_test", true, true, true, 4);
+    let saver = CSVSaver::new("tmp_test", true, true, true, true, 4);
     let st_ser = serde_json::to_string(&saver).unwrap();
     let nsaver: CSVSaver = serde_json::from_str(&st_ser).unwrap();
 
@@ -26,5 +26,9 @@ fn test_calls_json() {
     assert_eq!(
         saver.save_out, nsaver.save_out,
         "Serde mismatch on loaded saver save_out"
+    );
+    assert_eq!(
+        saver.save_info, nsaver.save_info,
+        "Serde mismatch on loaded saver save_info"
     );
 }

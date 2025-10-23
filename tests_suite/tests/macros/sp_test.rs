@@ -1,5 +1,6 @@
 mod test {
     use serde::{Deserialize, Serialize};
+    use tantale_core::domain::TypeDom;
 
     #[test]
     pub fn main() {
@@ -8,11 +9,11 @@ mod test {
             uniform_cat, uniform_nat, uniform_real, Bool, Cat, EmptyInfo, Nat, BasePartial, Real, SId,
             Searchspace, Solution,
         };
-        use tantale::macros::sp;
+        use tantale::macros::hpo;
 
         static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
-        sp!(
+        hpo!(
             a | Real(0.0,1.0)                   |                               ;
             b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
             c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
@@ -36,21 +37,21 @@ mod test {
         }
 
         // _TantaleMixedObj is automatically created by sp!
-        fn compute_obj(tantale_in: Arc<[<_TantaleMixedObj as Domain>::TypeDom]>) -> OutStruct {
+        fn compute_obj(tantale_in: Arc<[TypeDom<BaseDom>]>) -> OutStruct {
             let a = match tantale_in[0] {
-                _TantaleMixedObjTypeDom::Real(value) => value,
+                BaseTypeDom::Real(value) => value,
                 _ => unreachable!(""),
             };
             let b = match tantale_in[1] {
-                _TantaleMixedObjTypeDom::Nat(value) => value,
+                BaseTypeDom::Nat(value) => value,
                 _ => unreachable!(""),
             };
             let c = match tantale_in[2] {
-                _TantaleMixedObjTypeDom::Cat(ref value) => value,
+                BaseTypeDom::Cat(ref value) => value,
                 _ => unreachable!(""),
             };
             let d = match tantale_in[3] {
-                _TantaleMixedObjTypeDom::Bool(value) => value,
+                BaseTypeDom::Bool(value) => value,
                 _ => unreachable!(""),
             };
             println!("a {}, b {}, c {}, d {}", a, b, c, d);

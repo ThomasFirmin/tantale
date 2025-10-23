@@ -1,11 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::Outcome,
-    optimizer::Optimizer,
-    saver::Saver,
-    solution::{BatchType, Id},
-    stop::Stop,
-    Searchspace,
+    Onto, Searchspace, domain::Domain, objective::Outcome, optimizer::Optimizer, saver::Saver, solution::{BatchType, Id}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -127,8 +121,8 @@ where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
     fn new(searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, saver: Sv) -> Self;
@@ -145,8 +139,8 @@ where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
     fn new_dist(
@@ -173,8 +167,8 @@ pub trait SingleEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -194,8 +188,8 @@ pub trait MonoEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -215,8 +209,8 @@ pub trait ThrEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -237,8 +231,8 @@ pub trait DistEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,

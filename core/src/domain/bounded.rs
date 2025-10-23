@@ -28,14 +28,7 @@
 //! ```
 
 use crate::domain::{
-    base::{BaseDom, BaseTypeDom},
-    bool::Bool,
-    cat::Cat,
-    derrors::{DomainError, DomainOoBError},
-    onto::Onto,
-    sampler::uniform,
-    unit::Unit,
-    Domain, TypeDom,
+    Domain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, cat::Cat, derrors::OntoError, onto::{Onto, OntoDom}, sampler::uniform, unit::Unit
 };
 use crate::saver::CSVWritable;
 
@@ -209,6 +202,8 @@ where
     Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<Bounded<Out>>;
     /// [`Onto`] function between [`Bounded`] [`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$, $l_{out}$ and $u_{out}$ the lower and upper bounds of
@@ -224,11 +219,11 @@ where
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Bounded<Out>) -> Result<Out, DomainError> {
+    fn onto(&self, item: &Self::Item, target: &Bounded<Out>) -> Result<Self::TargetItem, OntoError>{
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -238,25 +233,27 @@ where
             if target.is_in(&mapped) {
                 Ok(mapped)
             } else {
-                Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} -> {} mapped input not in {}",
-                    item, mapped, target
-                ))))
+                Err(OntoError(format!("{} input not in {}", item, self)))
             }
         } else {
-            Err(DomainError::OoB(DomainOoBError(format!(
-                "{} input not in {}",
-                item, self
-            ))))
+            Err(OntoError(format!("{} input not in {}", item, self)))
         }
     }
 }
+impl<In,Out> OntoDom<Bounded<Out>> for Bounded<In>
+where
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    f64: AsPrimitive<Out>,
+{}
 
 impl<In> Onto<Bool> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<Bool>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bool`][`Domain`].
     ///
     /// Considering $l_{in}$ and $u_{in}$ the lower and upper bounds of
@@ -273,23 +270,27 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, _target: &Bool) -> Result<TypeDom<Bool>, DomainError> {
+    fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError>{
         if self.is_in(item) {
             Ok(*item > self.mid())
         } else {
-            Err(DomainError::OoB(DomainOoBError(format!(
-                "{} input not in {}",
-                item, self
-            ))))
+            Err(OntoError(format!("{} input not in {}", item, self)))
         }
     }
 }
+impl<In> OntoDom<Bool> for Bounded<In>
+where
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    f64: AsPrimitive<In>,
+{}
 
 impl<In> Onto<Cat> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<Cat>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Cat`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -310,11 +311,11 @@ where
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Cat) -> Result<TypeDom<Cat>, DomainError> {
+    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError>{
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -327,18 +328,22 @@ where
             };
             Ok(target.values()[idx].clone())
         } else {
-            Err(DomainError::OoB(DomainOoBError(format!(
-                "{} input not in {}",
-                item, self
-            ))))
+            Err(OntoError(format!("{} input not in {}", item, self)))
         }
     }
 }
+impl<In> OntoDom<Cat> for Bounded<In>
+where
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    f64: AsPrimitive<In>,
+{}
 
 impl<In> Onto<Unit> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
 {
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<Unit>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Unit`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -354,11 +359,11 @@ where
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &Unit) -> Result<f64, DomainError> {
+    fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError>{
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -367,25 +372,26 @@ where
             if target.is_in(&mapped) {
                 Ok(mapped)
             } else {
-                Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} -> {} mapped input not in {}",
-                    item, mapped, target
-                ))))
+                Err(OntoError(format!("{} input not in {}", item, self)))
             }
         } else {
-            Err(DomainError::OoB(DomainOoBError(format!(
-                "{} input not in {}",
-                item, self
-            ))))
+            Err(OntoError(format!("{} input not in {}", item, self)))
         }
     }
 }
+impl<In> OntoDom<Unit> for Bounded<In>
+where
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    f64: AsPrimitive<In>,
+{}
 
 impl<In> Onto<BaseDom> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
 {
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
     //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and (`onto`)[`Onto::onto`] of [`Self`].
@@ -397,11 +403,11 @@ where
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &In, target: &BaseDom) -> Result<TypeDom<BaseDom>, DomainError> {
+    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError>{
         match target {
             BaseDom::Real(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Real(i)),
@@ -430,6 +436,11 @@ where
         }
     }
 }
+impl<In> OntoDom<BaseDom> for Bounded<In>
+where
+    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    f64: AsPrimitive<In>,
+{}
 
 impl From<BaseDom> for Real {
     fn from(value: BaseDom) -> Self {

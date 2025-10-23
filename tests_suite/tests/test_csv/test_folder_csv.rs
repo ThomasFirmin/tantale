@@ -1,9 +1,10 @@
-use super::init_sp::sp_m_equal_allmsamp::{_TantaleMixedObj,_TantaleMixedObjTypeDom,get_searchspace};
+use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 
 use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RandomSearch;
-use tantale_core::BasePartial;
+use tantale_core::BaseDom;
+use tantale_core::BaseTypeDom;
 use tantale_core::experiment::BatchEvaluator;
 use tantale_core::optimizer::opt::OpInfType;
 use tantale_core::optimizer::opt::OpSInfType;
@@ -56,14 +57,11 @@ mod infos {
 
 use infos::OutExample;
 
-type BPart<SInfo> = BasePartial<SId, _TantaleMixedObj, SInfo>;
-type BaseRawSol<SInfo> = RawSol<BPart<SInfo>,SId, _TantaleMixedObj,OutExample,SInfo>;
-type BaseCompSol<SInfo> = Computed<BPart<SInfo>,SId, _TantaleMixedObj,SingleCodomain<OutExample>,OutExample,SInfo>;
 type EvalType<SType, Info, SInfo> = BatchEvaluator<
     SType,
     SId,
-    _TantaleMixedObj,
-    _TantaleMixedObj,
+    BaseDom,
+    BaseDom,
     Info,
     SInfo,
 >;
@@ -75,15 +73,15 @@ pub fn run_saver<'a, Scp, Op, St, Sv>(
     >,
     hash_opt: &mut HashMap<
         usize,
-        Arc<<Op::Sol as Partial<SId,_TantaleMixedObj,Op::SInfo>>::Twin<_TantaleMixedObj>>,
+        Arc<<Op::Sol as Partial<SId,BaseDom,Op::SInfo>>::Twin<BaseDom>>,
     >,
     hash_out: &mut HashMap<
         usize,
-        Arc<RawSol<Op::Sol,SId,_TantaleMixedObj,OutExample,Op::SInfo>>,
+        Arc<RawSol<Op::Sol,SId,BaseDom,OutExample,Op::SInfo>>,
     >,
     hash_cod: &mut HashMap<
         usize,
-        Arc<Computed<Op::Sol, SId, _TantaleMixedObj,Op::Cod,OutExample,Op::SInfo>>,
+        Arc<Computed<Op::Sol, SId, BaseDom,Op::Cod,OutExample,Op::SInfo>>,
     >,
     hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
     sp: Arc<Scp>,
@@ -97,24 +95,24 @@ where
     Scp: Searchspace<
         Op::Sol,
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         Op::SInfo,
     >,
     Op: Optimizer<
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
         Scp,
-        BType = Batch<OpSolType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,SId,_TantaleMixedObj,_TantaleMixedObj,OpSInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,OpInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>>
+        BType = Batch<OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,SId,BaseDom,BaseDom,OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>>
     >,
     St: Stop + Send + Sync,
     Sv: Saver<
         SId,
         St,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
         Scp,
         Op,
@@ -134,7 +132,7 @@ where
             let id = a.get_id().id;
             let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
-                _TantaleMixedObjTypeDom::Int(ae) => ae,
+                BaseTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
             };
             let outcome = Arc::new(infos::get_out(id, aelem));
@@ -176,7 +174,7 @@ where
             let id = a.get_id().id;
             let aelem = a.get_x()[0].clone();
             let aelem = match aelem {
-                _TantaleMixedObjTypeDom::Int(ae) => ae,
+                BaseTypeDom::Int(ae) => ae,
                 _ => panic!("Should be a Int."),
             };
             let outcome = Arc::new(infos::get_out(id, aelem));
@@ -221,15 +219,15 @@ where
 pub fn run_reader<Op, Scp>(
     path: &str,
     hash_obj: &HashMap<usize, Arc<Op::Sol>>,
-    hash_opt: &HashMap<usize, Arc<<Op::Sol as Partial<SId,_TantaleMixedObj,Op::SInfo>>::Twin<_TantaleMixedObj>>>,
+    hash_opt: &HashMap<usize, Arc<<Op::Sol as Partial<SId,BaseDom,Op::SInfo>>::Twin<BaseDom>>>,
     hash_out: &HashMap<
         usize,
-        Arc<RawSol<Op::Sol,SId,_TantaleMixedObj,OutExample,Op::SInfo>>,
+        Arc<RawSol<Op::Sol,SId,BaseDom,OutExample,Op::SInfo>>,
     >,
     hash_cod: &HashMap<
         usize,
         Arc<
-            Computed<Op::Sol,SId,_TantaleMixedObj,Op::Cod,OutExample,Op::SInfo>
+            Computed<Op::Sol,SId,BaseDom,Op::Cod,OutExample,Op::SInfo>
         >,
     >,
     hash_inf: &HashMap<usize, Arc<Op::Info>>,
@@ -240,17 +238,17 @@ where
     Scp: Searchspace<
         Op::Sol,
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         Op::SInfo,
     >,
     Op: Optimizer<
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
         Scp,
-        BType = Batch<OpSolType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,SId,_TantaleMixedObj,_TantaleMixedObj,OpSInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>,OpInfType<Op,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Scp>>
+        BType = Batch<OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,SId,BaseDom,BaseDom,OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>>
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
@@ -263,11 +261,13 @@ where
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
     let path_cod = eval_path.join("cod.csv");
+    let path_info = eval_path.join("info.csv");
 
     let mut size_obj: usize = 0;
     let mut size_opt: usize = 0;
     let mut size_out: usize = 0;
     let mut size_cod: usize = 0;
+    let mut size_info: usize = 0;
 
     // Check `Obj`
     let mut rdr = csv::Reader::from_path(path_obj).unwrap();
@@ -279,8 +279,6 @@ where
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.get_id().id)]);
         let x_str: Vec<String> = content.get_x().iter().map(|x| format!("{}", x)).collect();
         str_content.extend(x_str);
-        let info_str = hash_inf.get(&id).unwrap();
-        str_content.extend(info_str.write(&()));
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
             str_content, record_str,
@@ -299,8 +297,6 @@ where
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.get_id().id)]);
         let x_str: Vec<String> = content.get_x().iter().map(|x| format!("{}", x)).collect();
         str_content.extend(x_str);
-        let info_str = hash_inf.get(&id).unwrap().write(&());
-        str_content.extend(info_str);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
             str_content, record_str,
@@ -322,10 +318,6 @@ where
 
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
-            record[0], record[1],
-            "Wrong ID associated with the codomain"
-        );
-        assert_eq!(
             str_content, record_str,
             "True baseline and CSV record do not match."
         );
@@ -341,7 +333,7 @@ where
         let content = hash_out.get(&id).unwrap();
         let con: i64 = record[2].parse().unwrap();
         let true_con = match content.sol.get_x()[0] {
-            _TantaleMixedObjTypeDom::Int(f) => f,
+            BaseTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> = Vec::from([format!("{}", content.sol.get_id().id)]);
@@ -363,6 +355,24 @@ where
         );
     }
 
+    // Check `Info`
+    let mut rdr = csv::Reader::from_path(path_info).unwrap();
+    let mut record = StringRecord::new();
+    while rdr.read_record(&mut record).unwrap() {
+        size_info += 1;
+
+        let id: usize = record[0].parse().unwrap();
+        let content = hash_opt.get(&id).unwrap();
+        let mut str_content: Vec<String> = Vec::from([format!("{}", content.get_id().id)]);
+        let info_str = hash_inf.get(&id).unwrap().write(&());
+        str_content.extend(info_str);
+        let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
+        assert_eq!(
+            str_content, record_str,
+            "True baseline and CSV record do not match."
+        );
+    }
+
     assert_eq!(
         size_obj, size,
         "Some solutions are missing within recorded obj save."
@@ -379,6 +389,10 @@ where
         size_out, size,
         "Some solutions are missing within recorded out save."
     );
+    assert_eq!(
+        size_info, size,
+        "Some solutions are missing within recorded info save."
+    );
 }
 
 fn test_csv_func() {
@@ -391,19 +405,19 @@ fn test_csv_func() {
     <CSVSaver as Saver<
         SId,
         Calls,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
-        Sp<_TantaleMixedObj,
-        _TantaleMixedObj>,
+        Sp<BaseDom,
+        BaseDom>,
         RandomSearch,
         BatchEvaluator<
-            OpSolType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
+            OpSolType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
             SId,
-            _TantaleMixedObj,
-            _TantaleMixedObj,
-            OpSInfType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
-            OpInfType<RandomSearch,SId,_TantaleMixedObj,_TantaleMixedObj,OutExample,Sp<_,_>>,
+            BaseDom,
+            BaseDom,
+            OpSInfType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
+            OpInfType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
         >
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
@@ -428,8 +442,8 @@ fn test_csv_func() {
     );
     let nstate = <RandomSearch as Optimizer<
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
         Sp<_,_>,
     >>::get_state(&mut nopt);
@@ -442,8 +456,8 @@ fn test_csv_func() {
         stop.1, nstop.1,
         "States of calls in Calls are different after loading."
     );
-    assert_eq!(stop.0, 6, "Wrong number of Calls before loading");
-    assert_eq!(nstop.0, 6, "Wrong number of Calls after loading");
+    assert_eq!(stop.0, 12, "Wrong number of Calls before loading");
+    assert_eq!(nstop.0, 12, "Wrong number of Calls after loading");
 
     assert_eq!(
         rstate.batch, nstate.batch,
@@ -469,8 +483,8 @@ fn test_csv_func() {
     );
     let nstate = <RandomSearch as Optimizer<
         SId,
-        _TantaleMixedObj,
-        _TantaleMixedObj,
+        BaseDom,
+        BaseDom,
         OutExample,
         Sp<_,_>,
     >>::get_state(&mut nopt);
@@ -483,8 +497,8 @@ fn test_csv_func() {
         nstop.1, nnstop.1,
         "States of calls in Calls are different after loading."
     );
-    assert_eq!(nstop.0, 12, "Wrong number of Calls before loading");
-    assert_eq!(nnstop.0, 12, "Wrong number of Calls after loading");
+    assert_eq!(nstop.0, 24, "Wrong number of Calls before loading");
+    assert_eq!(nnstop.0, 24, "Wrong number of Calls after loading");
 
     assert_eq!(
         rstate.batch, nstate.batch,

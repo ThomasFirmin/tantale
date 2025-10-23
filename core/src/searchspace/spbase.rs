@@ -1,10 +1,5 @@
 use crate::{
-    domain::{Domain, TypeDom},
-    optimizer::VecArc,
-    saver::CSVLeftRight,
-    searchspace::{ParSp, Searchspace, SolInfo},
-    solution::{Id, Partial, Solution},
-    variable::Var,
+    Onto, domain::{Domain, TypeDom}, optimizer::VecArc, saver::CSVLeftRight, searchspace::{ParSp, Searchspace, SolInfo}, solution::{Id, Partial, Solution}, variable::Var
 };
 
 use rand::prelude::ThreadRng;
@@ -23,8 +18,8 @@ impl<PSol, SolId, Obj, Opt, SInfo> Searchspace<PSol, SolId, Obj, Opt, SInfo> for
 where
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     SInfo: SolInfo,
     SolId: Id,
 {

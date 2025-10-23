@@ -106,10 +106,7 @@
 //! ```
 
 use crate::{
-    domain::Domain,
-    optimizer::VecArc,
-    solution::{Computed, Id, Partial, SolInfo, Solution},
-    Codomain, Outcome,
+    Codomain, Onto, Outcome, domain::Domain, optimizer::VecArc, solution::{Computed, Id, Partial, SolInfo, Solution}
 };
 
 use rand::prelude::ThreadRng;
@@ -127,8 +124,8 @@ where
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     SolId: Id,
 {
     /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.

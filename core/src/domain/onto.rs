@@ -18,12 +18,11 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::domain::derrors::DomainError;
-use crate::domain::Domain;
+use crate::{Domain, domain::derrors::OntoError};
 
-pub type OntoOutput<Tgt> = Result<<Tgt as Domain>::TypeDom, DomainError>;
-
-pub trait Onto<Tgt: Domain>: Domain {
+pub trait Onto<Target> {
+    type TargetItem;
+    type Item;
     /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].
     /// If [`Self`] is equal to the targetted domain, then the input `item` should be cloned.
     /// By default if the input and targetted domain are the same (same pointer), returns a clone of `item`.
@@ -35,9 +34,16 @@ pub trait Onto<Tgt: Domain>: Domain {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, _item: &Self::TypeDom, _target: &Tgt) -> OntoOutput<Tgt>;
+    fn onto(&self, item: &Self::Item, target: &Target) -> Result<Self::TargetItem, OntoError>;
+}
+
+pub trait OntoDom<B>:Domain
+where
+    Self: Onto<B, TargetItem = B::TypeDom, Item = Self::TypeDom>,
+    B: Domain,
+{
 }

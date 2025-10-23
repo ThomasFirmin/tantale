@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use crate::searchspace::{get_sp_tokens, parse_sp, LineStream};
+use crate::hpo::{get_sp_tokens, parse_sp, LineStream};
 
 use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use quote::quote;
@@ -314,10 +314,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
     let (
-        mixed_obj,
-        mixed_opt,
         sampler_functions,
-        onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
         ident_mixedt_obj,
@@ -356,10 +353,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     .into();
 
     let mut sp_tokens = get_sp_tokens(
-        mixed_obj,
-        mixed_opt,
         sampler_functions,
-        onto_functions,
         ident_mixed_obj,
         ident_mixed_opt,
         push_statements,

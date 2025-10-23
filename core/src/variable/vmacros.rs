@@ -165,7 +165,7 @@ macro_rules! var {
     // Defining both samplers
     ($name:literal ; $domobj:expr => $sampobj:expr ; $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
-            $name,
+            ($name,None),
             std::sync::Arc::new($domobj),
             std::sync::Arc::new($domopt),
             Some($sampobj),
@@ -175,7 +175,7 @@ macro_rules! var {
     // Solely defining objective sampler
     ($name:literal ; $domobj:expr => $sampobj:expr ; $domopt:expr) => {{
         $crate::variable::Var::new_double(
-            $name,
+            ($name,None),
             std::sync::Arc::new($domobj),
             std::sync::Arc::new($domopt),
             Some($sampobj),
@@ -185,7 +185,7 @@ macro_rules! var {
     // Solely defining optimizer sampler
     ($name:literal ; $domobj:expr ; $domopt:expr => $sampopt:expr) => {{
         $crate::variable::Var::new_double(
-            $name,
+            ($name,None),
             std::sync::Arc::new($domobj),
             std::sync::Arc::new($domopt),
             None,
@@ -195,7 +195,7 @@ macro_rules! var {
     // No sampler
     ($name:literal ; $domobj:expr ; $domopt:expr) => {{
         $crate::variable::Var::new_double(
-            $name,
+            ($name,None),
             std::sync::Arc::new($domobj),
             std::sync::Arc::new($domopt),
             None,
@@ -207,7 +207,7 @@ macro_rules! var {
     // Defining both samplers
     ($name:literal ; $domobj:expr => $sampobj:expr ; => $sampopt:expr) => {{
         $crate::variable::Var::new_single(
-            $name,
+            ($name,None),
             std::sync::Arc::new($domobj),
             Some($sampobj),
             Some($sampopt),
@@ -215,14 +215,14 @@ macro_rules! var {
     }};
     // Solely defining objective sampler
     ($name:literal ; $domobj:expr => $sampobj:expr) => {{
-        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), Some($sampobj), None)
+        $crate::variable::Var::new_single(($name,None), std::sync::Arc::new($domobj), Some($sampobj), None)
     }};
     // Solely defining optimizer sampler
     ($name:literal ;  $domobj:expr ; => $sampopt:expr) => {{
-        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, Some($sampopt))
+        $crate::variable::Var::new_single(($name,None), std::sync::Arc::new($domobj), None, Some($sampopt))
     }};
     // No sampler
     ($name:literal ; $domobj:expr) => {{
-        $crate::variable::Var::new_single($name, std::sync::Arc::new($domobj), None, None)
+        $crate::variable::Var::new_single(($name,None), std::sync::Arc::new($domobj), None, None)
     }};
 }

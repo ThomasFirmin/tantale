@@ -1,11 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::{utils::BatchResults, Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
-    objective::{Codomain, Objective, Outcome},
-    optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-    solution::{Batch, BatchType},
-    stop::{ExpStep, Stop},
-    Id, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
+    Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults}, objective::{Codomain, Objective, Outcome}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType}, solution::{Batch, BatchType}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -117,8 +111,8 @@ where
     >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
 {
@@ -171,8 +165,8 @@ where
         >,
     >,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -258,7 +252,7 @@ where
         ThrBatchEvaluator {
             batch,
             size,
-            idx_list: Arc::new(Mutex::new(Vec::new())),
+            idx_list: Arc::new(Mutex::new((0..size).collect())),
             _id: PhantomData,
             _obj: PhantomData,
             _opt: PhantomData,
@@ -302,8 +296,8 @@ where
     >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     St: Stop + Send + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
     SolId: Id + Send + Sync,
     Obj::TypeDom: Send + Sync,
@@ -366,8 +360,8 @@ where
     >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     St: Stop + Send + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
     SolId: Id + Send + Sync,
     Obj::TypeDom: Send + Sync,

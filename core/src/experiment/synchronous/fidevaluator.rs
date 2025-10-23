@@ -1,17 +1,7 @@
 use crate::{
-    domain::Domain,
-    experiment::{
-        utils::BatchResults, // DistEvaluate,
-        Evaluate,
-        EvaluateOut,
-        MonoEvaluate,
-        ThrEvaluate,
-    },
-    objective::{outcome::FuncState, Outcome, Stepped},
-    optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-    solution::Batch,
-    stop::{ExpStep, Stop},
-    Codomain, Id, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
+    Codomain, Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{
+        Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults
+    }, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType}, solution::Batch, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -112,8 +102,8 @@ where
     >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     SolId: Id,
     FnState: FuncState,
@@ -208,8 +198,8 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
 where
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -239,8 +229,8 @@ where
         + Sync,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
     SolId: Id + Send + Sync,
     FnState: FuncState + Send + Sync,

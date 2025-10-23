@@ -1,19 +1,10 @@
 use crate::{
-    domain::Domain,
-    experiment::{
+    Id, Onto, Partial, Stepped, domain::Domain, experiment::{
         BatchEvaluator, Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable,
         ThrBatchEvaluator, ThrEvaluate,
-    },
-    objective::{outcome::FuncState, Codomain, Objective, Outcome},
-    optimizer::{
-        opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-        CBType, OBType, Optimizer,
-    },
-    saver::Saver,
-    searchspace::Searchspace,
-    solution::{Batch, SId},
-    stop::{ExpStep, Stop},
-    Id, Partial, Stepped,
+    }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
+        CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
+    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -37,8 +28,8 @@ where
     St: Stop,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
     pub searchspace: Scp,
@@ -104,8 +95,8 @@ where
         Op,
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
     >,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
     fn new(
@@ -170,8 +161,8 @@ where
                 >>::evaluate(&mut eval, ob.clone(), st.clone());
 
             // Saver part
-            self.saver.save_partial(&eval.batch, sp.clone());
-            self.saver.save_info(&eval.batch, sp.clone());
+            self.saver.save_partial_with_raw(&batch_raw, sp.clone());
+            self.saver.save_info_with_raw(&batch_raw, sp.clone());
             self.saver.save_out(&batch_raw, sp.clone());
             self.saver.save_codom(&batch_comp, sp.clone(), cod.clone());
 
@@ -279,8 +270,8 @@ where
             ThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         > + Send
         + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
@@ -358,10 +349,10 @@ where
                 || {
                     rayon::join(
                         || {
-                            let _ = &self.saver.save_partial(&eval.batch, sp.clone());
+                            let _ = &self.saver.save_partial_with_raw(&batch_raw, sp.clone());
                         },
                         || {
-                            let _ = &self.saver.save_info(&eval.batch, sp.clone());
+                            let _ = &self.saver.save_info_with_raw(&batch_raw, sp.clone());
                         },
                     );
                 },
@@ -483,8 +474,8 @@ where
         Op,
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
     >,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
     fn new_dist(
@@ -562,8 +553,8 @@ where
                 >>::evaluate(&mut eval, proc, ob.clone(), st.clone());
 
             // DistributedSaver part
-            DistributedSaver::save_partial(&self.saver, &eval.batch, sp.clone(), proc.rank);
-            DistributedSaver::save_info(&self.saver, &eval.batch, sp.clone(), proc.rank);
+            DistributedSaver::save_partial_with_raw(&self.saver, &batch_raw, sp.clone(), proc.rank);
+            DistributedSaver::save_info_with_raw(&self.saver, &batch_raw, sp.clone(), proc.rank);
             DistributedSaver::save_out(&self.saver, &batch_raw, sp.clone(), proc.rank);
             DistributedSaver::save_codom(
                 &self.saver,
@@ -864,8 +855,8 @@ where
         Op,
         FidEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
     >,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     FnState: FuncState,
 {
@@ -934,7 +925,7 @@ where
             );
 
             // Saver part
-            self.saver.save_partial(&eval.batch, sp.clone());
+            self.saver.save_partial_with_raw(&batch_raw, sp.clone());
             self.saver.save_out(&batch_raw, sp.clone());
             self.saver.save_codom(&batch_comp, sp.clone(), cod.clone());
 
@@ -1045,8 +1036,8 @@ where
             FidThrEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         > + Send
         + Sync,
-    Obj: Domain + Send + Sync,
-    Opt: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
     FnState: FuncState + Send + Sync,
     FnState: FuncState + Send + Sync,
@@ -1129,10 +1120,10 @@ where
                 || {
                     rayon::join(
                         || {
-                            let _ = &self.saver.save_partial(&eval.batch, sp.clone());
+                            let _ = &self.saver.save_partial_with_raw(&batch_raw, sp.clone());
                         },
                         || {
-                            let _ = &self.saver.save_info(&eval.batch, sp.clone());
+                            let _ = &self.saver.save_info_with_raw(&batch_raw, sp.clone());
                         },
                     );
                 },

@@ -5,7 +5,7 @@ use super::init_sp::{
 use paste::paste;
 use serde_json;
 use std::sync::Arc;
-use tantale::core::{searchspace::Searchspace, EmptyInfo, Partial, SId, Solution};
+use tantale::core::{searchspace::Searchspace, BaseDom, EmptyInfo, BasePartial, SId, Solution};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | $comp : expr),*) => {
@@ -15,10 +15,10 @@ macro_rules! get_test {
             fn [< test_ $sp _json >](){
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample : Arc<Partial<SId,$dom,EmptyInfo>> = sp.sample_obj(None,info.clone());
+                let sample : Arc<BasePartial<SId,$dom,_>> = sp.sample_obj(None,info.clone());
 
                 let st_ser = serde_json::to_string(&sample).unwrap();
-                let nsample : Arc<Partial<SId,$dom,EmptyInfo>> = serde_json::from_str(&st_ser).unwrap();
+                let nsample : Arc<Arc<BasePartial<SId,$dom,EmptyInfo>>> = serde_json::from_str(&st_ser).unwrap();
 
                 let x = sample.get_x();
                 let nx = nsample.get_x();
@@ -35,7 +35,7 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp | sp_ms_nosamp::_TantaleMixedObj | |(a, b)| a == b,
+    sp_ms_nosamp | BaseDom | |(a, b)| a == b,
     sp_only_real
         | tantale_core::Real
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),

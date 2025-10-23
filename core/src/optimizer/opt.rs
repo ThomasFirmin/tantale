@@ -1,11 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::{MonoEvaluate, Runable, ThrEvaluate},
-    objective::{Codomain, FuncWrapper, Outcome},
-    saver::{CSVWritable, Saver},
-    searchspace::Searchspace,
-    solution::{BatchType, Id, SolInfo},
-    Partial, Stop,
+    Onto, Partial, Stop, domain::Domain, experiment::{MonoEvaluate, Runable, ThrEvaluate}, objective::{Codomain, FuncWrapper, Outcome}, saver::{CSVWritable, Saver}, searchspace::Searchspace, solution::{BatchType, Id, SolInfo}
 };
 #[cfg(feature = "mpi")]
 use crate::{
@@ -115,8 +109,8 @@ pub trait Optimizer<SolId, Obj, Opt, Out, Scp>
 where
     Self: Sized,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
     Self::Sol: Partial<SolId, Obj, Self::SInfo>,
@@ -153,8 +147,8 @@ pub trait MonoOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, O
 where
     Self: Sized,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
     Self::Sol: Partial<SolId, Obj, Self::SInfo>,
@@ -193,9 +187,9 @@ pub trait ThrOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, Ou
 where
     Self: Sized,
     SolId: Id + Send + Sync,
-    Obj: Domain + Send + Sync,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
     Obj::TypeDom: Send + Sync,
-    Opt: Domain + Send + Sync,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Opt::TypeDom: Send + Sync,
     Out: Outcome + Send + Sync,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo> + Send + Sync,
@@ -240,8 +234,8 @@ pub trait DistOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, O
 where
     Self: Sized,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
     Self::Sol: Partial<SolId, Obj, Self::SInfo>,
@@ -299,8 +293,8 @@ pub trait MultiInstanceOptimizer<SolId, Obj, Opt, Out, Scp>:
 where
     Self: Sized,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
     Self::Sol: Partial<SolId, Obj, Self::SInfo>,

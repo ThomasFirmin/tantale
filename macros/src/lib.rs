@@ -4,6 +4,7 @@ mod mixed;
 mod objective;
 mod outcome;
 mod searchspace;
+mod hpo;
 mod stepped;
 
 #[proc_macro_derive(Mixed)]
@@ -29,4 +30,9 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn stepped(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     stepped::obj(input)
+}
+
+#[proc_macro]
+pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    hpo::hpo(input)
 }

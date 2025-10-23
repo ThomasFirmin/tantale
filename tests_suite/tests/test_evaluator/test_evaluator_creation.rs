@@ -1,6 +1,6 @@
+use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    experiment::Evaluate, stop::Calls, EmptyInfo, Objective, SId, Searchspace, SingleCodomain,
-    Solution,
+    BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp, experiment::{BatchEvaluator, MonoEvaluate, ThrEvaluate}, solution::Batch, stop::Calls
 };
 
 use super::init_func::sp_evaluator;
@@ -13,31 +13,28 @@ use std::{
 
 #[test]
 fn test_seq_evaluator() {
-    use tantale::core::experiment::Evaluator;
-
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
     let obj = Arc::new(Objective::new(cod, func));
+    let info = std::sync::Arc::new(RSInfo{ iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: Evaluator<SId, _, _, _, _> =
-        Evaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+    let batch = Batch::new(sobj, sopt, info.clone());
+    let mut eval = BatchEvaluator::new(batch);
 
-    let ((cobj, copt), linked) = <Evaluator<_, _, _, _, _> as Evaluate<
+    let (braw,bcomp) = <BatchEvaluator<BasePartial<SId,_,_>,_,_,_,_,_> as MonoEvaluate<
+        RandomSearch,
         Calls,
-        _,
-        _,
+        sp_evaluator::ObjType,
+        sp_evaluator::OptType,
         OutEvaluator,
-        SingleCodomain<OutEvaluator>,
         _,
-        _,
-        _,
-        _,
+        Sp<_,_>,
     >>::evaluate(&mut eval, obj.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
@@ -45,12 +42,12 @@ fn test_seq_evaluator() {
     let mut hcopt = HashMap::new();
     let mut hsopt = HashMap::new();
     let mut hlink = HashMap::new();
-
-    cobj.iter()
-        .zip(sobj.iter())
-        .zip(&linked)
-        .zip(copt.iter())
-        .zip(sopt.iter())
+    
+    bcomp.cobj.iter()
+        .zip(eval.batch.sobj.iter())
+        .zip(braw.robj.iter())
+        .zip(bcomp.copt.iter())
+        .zip(eval.batch.sopt.iter())
         .for_each(|((((c, s), l), x), y)| {
             let cid = c.get_id().id;
             let sid = s.get_id().id;
@@ -64,11 +61,15 @@ fn test_seq_evaluator() {
             hlink.insert(lid, l);
         });
 
-    assert_eq!(cobj.len(), 20, "Number of solutions is wrong for cobj");
-    assert_eq!(sobj.len(), 20, "Number of solutions is wrong for sobj");
-    assert_eq!(copt.len(), 20, "Number of solutions is wrong for copt");
-    assert_eq!(sopt.len(), 20, "Number of solutions is wrong for sopt");
-    assert_eq!(linked.len(), 20, "Number of solutions is wrong for link");
+    assert_eq!(bcomp.cobj.len(), 20, "Number of solutions is wrong for cobj");
+    assert_eq!(bcomp.copt.len(), 20, "Number of solutions is wrong for copt");
+    assert_eq!(bcomp.size(), 20, "Size of Computed batch is wrong");
+    assert_eq!(braw.robj.len(), 20, "Number of solutions is wrong for robj");
+    assert_eq!(braw.ropt.len(), 20, "Number of solutions is wrong for ropt");
+    assert_eq!(braw.size(), 20, "Size of RawSol batch is wrong");
+    assert_eq!(eval.batch.sobj.len(), 20, "Number of solutions is wrong for sobj");
+    assert_eq!(eval.batch.sopt.len(), 20, "Number of solutions is wrong for sopt");
+    assert_eq!(eval.batch.size(), 20, "Size of Partial batch is wrong");
 
     assert_eq!(
         hcobj.len(),
@@ -103,7 +104,7 @@ fn test_seq_evaluator() {
     );
 
     assert!(
-        cobj.iter().all(|sol| {
+        bcomp.cobj.iter().all(|sol| {
             let id = sol.get_id().id;
             let c = &hcobj.get(&id).unwrap();
             let s = &hsobj.get(&id).unwrap();
@@ -116,7 +117,7 @@ fn test_seq_evaluator() {
     );
 
     assert!(
-        copt.iter().all(|sol| {
+        bcomp.copt.iter().all(|sol| {
             let id = sol.get_id().id;
             let c = &hcopt.get(&id).unwrap();
             let s = &hsopt.get(&id).unwrap();
@@ -125,7 +126,7 @@ fn test_seq_evaluator() {
         "Computed and Partial do not point to the same Opt solution."
     );
 
-    assert!(cobj.iter().all(
+    assert!(bcomp.cobj.iter().all(
         |sol|
         {
             let id = sol.get_id().id;
@@ -150,38 +151,39 @@ fn test_seq_par_evaluator() {
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
     let obj = Arc::new(Objective::new(cod, func));
+    let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
     let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
-    let mut eval: ThrBatchEvaluator<SId, _, _, _, _> =
-        ThrBatchEvaluator::new(sobj.clone(), sopt.clone(), sinfo.clone());
+    let batch = Batch::new(sobj, sopt, info.clone());
+    let mut eval= ThrBatchEvaluator::new(batch);
 
-    let ((cobj, copt), linked) = <ThrBatchEvaluator<_, _, _, _, _> as Evaluate<
+    assert_eq!(eval.batch.sopt.len(),20,"PROBLEM");
+    assert_eq!(eval.batch.sobj.len(),20,"PROBLEMA");
+
+    let (braw,bcomp) = <ThrBatchEvaluator<_,_, _, _, _, _> as ThrEvaluate<
+        RandomSearch,
         Calls,
-        _,
-        _,
+        sp_evaluator::ObjType,
+        sp_evaluator::OptType,
         OutEvaluator,
-        SingleCodomain<OutEvaluator>,
         _,
-        _,
-        _,
-        _,
+        Sp<_,_>,
     >>::evaluate(&mut eval, obj.clone(), stop.clone());
-
     let mut hcobj = HashMap::new();
     let mut hsobj = HashMap::new();
     let mut hcopt = HashMap::new();
     let mut hsopt = HashMap::new();
     let mut hlink = HashMap::new();
-
-    cobj.iter()
-        .zip(sobj.iter())
-        .zip(&linked)
-        .zip(copt.iter())
-        .zip(sopt.iter())
+    
+    bcomp.cobj.iter()
+        .zip(eval.batch.sobj.iter())
+        .zip(braw.robj.iter())
+        .zip(bcomp.copt.iter())
+        .zip(eval.batch.sopt.iter())
         .for_each(|((((c, s), l), x), y)| {
             let cid = c.get_id().id;
             let sid = s.get_id().id;
@@ -195,11 +197,15 @@ fn test_seq_par_evaluator() {
             hlink.insert(lid, l);
         });
 
-    assert_eq!(cobj.len(), 20, "Number of solutions is wrong for cobj");
-    assert_eq!(sobj.len(), 20, "Number of solutions is wrong for sobj");
-    assert_eq!(copt.len(), 20, "Number of solutions is wrong for copt");
-    assert_eq!(sopt.len(), 20, "Number of solutions is wrong for sopt");
-    assert_eq!(linked.len(), 20, "Number of solutions is wrong for link");
+    assert_eq!(eval.batch.sobj.len(), 20, "Number of solutions is wrong for sobj");
+    assert_eq!(eval.batch.sopt.len(), 20, "Number of solutions is wrong for sopt");
+    assert_eq!(eval.batch.size(), 20, "Size of Partial batch is wrong");
+    assert_eq!(braw.robj.len(), 20, "Number of solutions is wrong for robj");
+    assert_eq!(braw.ropt.len(), 20, "Number of solutions is wrong for ropt");
+    assert_eq!(braw.size(), 20, "Size of RawSol batch is wrong");
+    assert_eq!(bcomp.cobj.len(), 20, "Number of solutions is wrong for cobj");
+    assert_eq!(bcomp.copt.len(), 20, "Number of solutions is wrong for copt");
+    assert_eq!(bcomp.size(), 20, "Size of Computed batch is wrong");
 
     assert_eq!(
         hcobj.len(),
@@ -234,7 +240,7 @@ fn test_seq_par_evaluator() {
     );
 
     assert!(
-        cobj.iter().all(|sol| {
+        bcomp.cobj.iter().all(|sol| {
             let id = sol.get_id().id;
             let c = &hcobj.get(&id).unwrap();
             let s = &hsobj.get(&id).unwrap();
@@ -247,7 +253,7 @@ fn test_seq_par_evaluator() {
     );
 
     assert!(
-        copt.iter().all(|sol| {
+        bcomp.copt.iter().all(|sol| {
             let id = sol.get_id().id;
             let c = &hcopt.get(&id).unwrap();
             let s = &hsopt.get(&id).unwrap();
@@ -256,7 +262,7 @@ fn test_seq_par_evaluator() {
         "Computed and Partial do not point to the same Opt solution."
     );
 
-    assert!(cobj.iter().all(
+    assert!(bcomp.cobj.iter().all(
         |sol|
         {
             let id = sol.get_id().id;

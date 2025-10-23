@@ -1,12 +1,5 @@
 use crate::{
-    domain::Domain,
-    experiment::Evaluate,
-    objective::Outcome,
-    optimizer::opt::{CBType, OBType, PBType},
-    searchspace::Searchspace,
-    solution::Id,
-    stop::Stop,
-    GlobalParameters, Optimizer,
+    GlobalParameters, Onto, Optimizer, domain::Domain, experiment::Evaluate, objective::Outcome, optimizer::opt::{CBType, OBType, PBType}, searchspace::Searchspace, solution::Id, stop::Stop
 };
 use std::sync::Arc;
 
@@ -27,8 +20,8 @@ where
     Self: Sized,
     SolId: Id,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
@@ -37,7 +30,11 @@ where
     fn init(&mut self, sp: &Scp, cod: &Op::Cod);
     fn after_load(&mut self, sp: &Scp, cod: &Op::Cod);
     fn save_partial(&self, batch: &PBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
+    fn save_partial_with_raw(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
+    fn save_partial_with_comp(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
     fn save_info(&self, batch: &PBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
+    fn save_info_with_raw(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
+    fn save_info_with_comp(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
     fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
     fn save_codom(
         &self,
@@ -62,8 +59,8 @@ where
     Self: Sized,
     SolId: Id,
     St: Stop,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
+    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
@@ -72,6 +69,8 @@ where
     fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank: Rank);
     fn after_load(&mut self, sp: &Scp, cod: &Op::Cod, rank: Rank);
     fn save_partial(&self, batch: &Op::BType, sp: Arc<Scp>, rank: Rank);
+    fn save_partial_with_raw(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
+    fn save_partial_with_comp(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
     fn save_codom(
         &self,
         batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>,
@@ -80,6 +79,8 @@ where
         rank: Rank,
     );
     fn save_info(&self, batch: &PBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank: Rank);
+    fn save_info_with_raw(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
+    fn save_info_with_comp(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
     fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank: Rank);
     fn save_state(&self, sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, rank: Rank);
     fn load(&self, sp: &Scp, cod: &Op::Cod, rank: Rank) -> Result<(St, Op, Eval), CheckpointError>;

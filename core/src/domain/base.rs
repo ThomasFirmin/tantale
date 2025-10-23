@@ -1,11 +1,5 @@
 use crate::domain::{
-    bool::Bool,
-    bounded::{Int, Nat, Real},
-    cat::Cat,
-    derrors::{DomainError, DomainOoBError},
-    onto::{Onto, OntoOutput},
-    unit::Unit,
-    Domain, TypeDom,
+    Domain, TypeDom, bool::Bool, bounded::{Int, Nat, Real}, cat::Cat, derrors::OntoError, onto::{Onto, OntoDom}, unit::Unit
 };
 use crate::saver::CSVWritable;
 
@@ -128,6 +122,8 @@ impl Domain for BaseDom {
 }
 
 impl Onto<Real> for BaseDom {
+    type TargetItem = TypeDom<Real>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Real`] [`Domain`].
     ///
     /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -138,55 +134,40 @@ impl Onto<Real> for BaseDom {
     /// * `target` : `&`[`Real`] - A borrowed targetted [`Domain`].
     ///
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Real) -> OntoOutput<Real> {
+    fn onto(&self, item: &Self::Item, target: &Real) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item {
-                Self::TypeDom::Real(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Real(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                Self::TypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Nat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                Self::TypeDom::Int(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Int(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                Self::TypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Unit(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                Self::TypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Bool(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                Self::TypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Cat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
+impl OntoDom<Real> for BaseDom{}
 
 impl Onto<Nat> for BaseDom {
+    type TargetItem = TypeDom<Nat>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Nat`] [`Domain`].
     ///
     /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -198,59 +179,44 @@ impl Onto<Nat> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Nat) -> OntoOutput<Nat> {
+    fn onto(&self, item: &Self::Item, target: &Nat) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item {
-                Self::TypeDom::Real(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Real(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                Self::TypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Nat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                Self::TypeDom::Int(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Int(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                Self::TypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Unit(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                Self::TypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Bool(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                Self::TypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Cat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
+impl OntoDom<Nat> for BaseDom{}
 
 impl Onto<Int> for BaseDom {
+    type TargetItem = TypeDom<Int>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Int`] [`Domain`].
     ///
     /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -262,59 +228,44 @@ impl Onto<Int> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Int) -> OntoOutput<Int> {
+    fn onto(&self, item: &Self::Item, target: &Int) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item {
-                Self::TypeDom::Real(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Real(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                Self::TypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Nat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                Self::TypeDom::Int(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Int(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                Self::TypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Unit(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                Self::TypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Bool(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                Self::TypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!(
-                    "{} input not in {}",
-                    item, d
-                )))),
+                BaseTypeDom::Cat(i) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
+impl OntoDom<Int> for BaseDom{}
 
 impl Onto<Unit> for BaseDom {
+    type TargetItem = TypeDom<Unit>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Unit`] [`Domain`].
     ///
     /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -327,38 +278,41 @@ impl Onto<Unit> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Unit) -> OntoOutput<Unit> {
+    fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item{
-                Self::TypeDom::Real(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Real(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item{
-                Self::TypeDom::Nat(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item{
-                Self::TypeDom::Int(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Int(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
             Self::Bool(d) => match item{
-                Self::TypeDom::Bool(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Bool(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item{
-                Self::TypeDom::Cat(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Cat(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
+impl OntoDom<Unit> for BaseDom{}
 
 impl Onto<Bool> for BaseDom {
+    type TargetItem = TypeDom<Bool>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Bool`] [`Domain`].
     ///
     /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -371,38 +325,41 @@ impl Onto<Bool> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Bool) -> OntoOutput<Bool> {
+    fn onto(&self, item: &Self::Item, target: &Bool) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item{
-                Self::TypeDom::Real(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Real(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item{
-                Self::TypeDom::Nat(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item{
-                Self::TypeDom::Int(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Int(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item{
-                Self::TypeDom::Unit(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Unit(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(_d) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
             Self::Cat(d) => match item{
-                Self::TypeDom::Cat(_i) => unreachable!("Converting a value from Cat onto Bool is not implemented, and it should not occur."),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Cat(_i) => unreachable!("Converting a value from Cat onto Bool is not implemented, and it should not occur."),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
+impl OntoDom<Bool> for BaseDom{}
 
 impl Onto<Cat> for BaseDom {
+    type TargetItem = TypeDom<Cat>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and a [`Cat`] [`Domain`].
     ///
     /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -415,38 +372,41 @@ impl Onto<Cat> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &Cat) -> OntoOutput<Cat> {
+    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError>{
         match self {
             Self::Real(d) => match item{
-                Self::TypeDom::Real(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Real(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item{
-                Self::TypeDom::Nat(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Nat(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item{
-                Self::TypeDom::Int(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Int(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item{
-                Self::TypeDom::Unit(i) => d.onto(i,target),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Unit(i) => d.onto(i,target),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item{
-                Self::TypeDom::Bool(_i) => unreachable!("Converting a value from Bool onto Cat is not implemented, and it should not occur."),
-                _ => Err(DomainError::OoB(DomainOoBError(format!("{} input not in {}", item, d)))),
+                BaseTypeDom::Bool(_i) => unreachable!("Converting a value from Bool onto Cat is not implemented, and it should not occur."),
+                _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(_d) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
         }
     }
 }
+impl OntoDom<Cat> for BaseDom{}
 
 impl Onto<BaseDom> for BaseDom {
+    type TargetItem = TypeDom<BaseDom>;
+    type Item = TypeDom<BaseDom>;
     /// [`Onto`] function between a [`BaseDom`] and another [`BaseDom`] [`Domain`].
     ///
     /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
@@ -459,61 +419,44 @@ impl Onto<BaseDom> for BaseDom {
     ///
     /// # Errors
     ///
-    /// * Returns a [`DomainError::OoB`]
+    /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &TypeDom<BaseDom>, target: &BaseDom) -> OntoOutput<BaseDom> {
+    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError>{
         if self == target {
             Ok(item.clone())
         } else {
             match self {
                 Self::Real(d) => match item {
-                    Self::TypeDom::Real(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Real(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
                 Self::Nat(d) => match item {
-                    Self::TypeDom::Nat(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Nat(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
                 Self::Int(d) => match item {
-                    Self::TypeDom::Int(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Int(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
                 Self::Unit(d) => match item {
-                    Self::TypeDom::Unit(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Unit(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
                 Self::Bool(d) => match item {
-                    Self::TypeDom::Bool(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Bool(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
                 Self::Cat(d) => match item {
-                    Self::TypeDom::Cat(i) => d.onto(i, target),
-                    _ => Err(DomainError::OoB(DomainOoBError(format!(
-                        "{} input not in {}",
-                        item, d
-                    )))),
+                    BaseTypeDom::Cat(i) => d.onto(i, target),
+                    _ => Err(OntoError(format!("{} input not in {}",item, d))),
                 },
             }
         }
     }
 }
+impl OntoDom<BaseDom> for BaseDom{}
 
 impl From<Real> for BaseDom {
     fn from(value: Real) -> Self {

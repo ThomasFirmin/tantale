@@ -2,7 +2,7 @@ use crate::{
     OptInfo, VecArc, domain::Domain, objective::{Codomain, Outcome}, solution::{Computed, Id, Partial, RawSol, SolInfo}
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{fmt::Debug, iter::Zip, marker::PhantomData, sync::Arc, vec::IntoIter};
 
 pub type BatchElem<PSolA, PSolB> = (Arc<PSolA>, Arc<PSolB>);
 pub type RawBatchElem<PSolA, PSolB, SolId, Obj, Opt, Out, SInfo> = (
@@ -236,21 +236,21 @@ where
     /// Add a new `Obj` and `Opt` pair of [`RawSol`] to the batch.
     pub fn add(
         &mut self,
-        robj: Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        ropt: Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        rawobj: Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
+        rawopt: Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
     ) {
-        self.robj.push(robj);
-        self.ropt.push(ropt);
+        self.robj.push(rawobj);
+        self.ropt.push(rawopt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
     pub fn add_vec(
         &mut self,
-        robj: VecArc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        ropt: VecArc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        rawobj: VecArc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
+        rawopt: VecArc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
     ) {
-        self.robj.extend(robj);
-        self.ropt.extend(ropt);
+        self.robj.extend(rawobj);
+        self.ropt.extend(rawopt);
     }
 
     /// Return the size of the [`RawBatch`]
@@ -301,21 +301,21 @@ where
     /// Add a new `Obj` and `Opt` pair of [`Computed`] to the batch.
     pub fn add(
         &mut self,
-        cobj: Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        copt: Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        compobj: Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        compopt: Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     ) {
-        self.cobj.push(cobj);
-        self.copt.push(copt);
+        self.cobj.push(compobj);
+        self.copt.push(compopt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Computed`] to the batch.
     pub fn add_vec(
         &mut self,
-        cobj: VecArc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        copt: VecArc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        compobj: VecArc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        compopt: VecArc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     ) {
-        self.cobj.extend(cobj);
-        self.copt.extend(copt);
+        self.cobj.extend(compobj);
+        self.copt.extend(compopt);
     }
 
     /// Return the size of the [`CompBatch`].
@@ -382,6 +382,68 @@ where
     type Part = Batch<PSol, SolId, Obj, Opt, SInfo, Info>;
     type Outc = RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
 }
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator
+    for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    type Item = (Arc<PSol>,Arc<PSol::Twin<Opt>>);
+
+    type IntoIter = Zip<IntoIter<Arc<PSol>>,IntoIter<Arc<PSol::Twin<Opt>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.sobj.into_iter().zip(self.sopt)
+    }
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> IntoIterator
+    for RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Out: Outcome,
+{
+    type Item = (Arc<RawSol<PSol,SolId,Obj,Out,SInfo>>,Arc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>);
+    type IntoIter = Zip<IntoIter<Arc<RawSol<PSol,SolId,Obj,Out,SInfo>>>,IntoIter<Arc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.robj.into_iter().zip(self.ropt)
+    }
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    IntoIterator
+    for CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+{
+    type Item = (Arc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>,Arc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>);
+    type IntoIter = Zip<IntoIter<Arc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>>,IntoIter<Arc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cobj.into_iter().zip(self.copt)
+    }
+}
+
+
+
 
 //-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-//
 // SINGLE BATCH MADE OF A SINGLE SOLUTION //

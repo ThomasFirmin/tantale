@@ -1,5 +1,6 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{ParSId, Partial, Solution};
+use tantale_core::BasePartial;
 use tantale_core::domain::TypeDom;
 
 use num::cast::AsPrimitive;
@@ -12,7 +13,7 @@ use super::init_sinfo::{get_sinfo, TestSInfo};
 
 fn _test_solution_assertion<Dom>(
     n: usize,
-    sol: &[std::sync::Arc<Partial<ParSId, Dom, TestSInfo>>],
+    sol: &[std::sync::Arc<BasePartial<ParSId, Dom, TestSInfo>>],
     pid: u32,
 ) where
     Dom: Domain + Clone + Display + Debug,

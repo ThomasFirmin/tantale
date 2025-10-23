@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{Codomain, Computed, ParSId, Partial, SingleCodomain};
+use tantale::core::{Codomain, Computed, ParSId, Partial, SingleCodomain,BasePartial};
 use tantale_core::Solution;
 
 use num::cast::AsPrimitive;
@@ -11,7 +11,7 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type TestComp<Dom> = Computed<ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
+type TestComp<Dom> = Computed<BasePartial<ParSId,Dom,TestSInfo>,ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &TestComp<Dom>, pid: u32)
 where
