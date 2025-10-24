@@ -33,7 +33,7 @@ pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
-pub use solution::{BasePartial, Computed, Id, ParSId, Partial, SId, SolInfo, Solution};
+pub use solution::{Fidelity, BasePartial, Computed, Id, ParSId, Partial, SId, SolInfo, Solution};
 
 pub mod searchspace;
 pub use searchspace::{Searchspace, Sp};
@@ -43,7 +43,7 @@ pub mod errors;
 pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
-    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidelState, Multi,
+    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Multi,
     MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped,
 };
 

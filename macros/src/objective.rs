@@ -296,17 +296,44 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let outtype = match output {
         syn::ReturnType::Default => return
             syn::Error::new(outspan,
-                 "When defining the objective function, it should have a single Outcome type. A single type path."
+                 "The output of the raw objective function,
+                            should be an Outcome or (Outcome,FuncState)."
                 ).to_compile_error().into(),
         syn::ReturnType::Type(_, ty) => ty,
     };
 
-    match outtype.as_ref(){
-        syn::Type::Path(_) => {},
+    let state = match outtype.as_ref(){
+        syn::Type::Path(_) => None,
+        syn::Type::Tuple(tuple) => {
+            let elems = &tuple.elems;
+            if elems.len() != 2{
+                return syn::Error::new(outspan,
+                 "If the output type of the raw objective function is a tuple,
+                            then it should only contain the Outcome and FuncState type."
+                ).to_compile_error().into();
+            }
+            else{
+                match &elems[0] {
+                    syn::Type::Path(_) => {},
+                    _ => { return syn::Error::new(outspan,
+                        "If the output type of the raw objective function is a tuple,
+                                    then it should only contain the Outcome and FuncState type."
+                        ).to_compile_error().into();}
+                };
+                let ste = match &elems[1] {
+                    syn::Type::Path(o) => o,
+                    _ => { return syn::Error::new(outspan,
+                        "If the output type of the raw objective function is a tuple,
+                                    then it should only contain the Outcome and FuncState type."
+                        ).to_compile_error().into();}
+                };
+                Some(ste)
+            }
+        },
         _ => return syn::Error::new(outspan,
                  "When defining the objective function, it should have a single Outcome type. A single type path."
                 ).to_compile_error().into(),
-    }
+    };
 
     let content = fn_item.block.stmts;
 
@@ -327,6 +354,14 @@ pub fn obj(input: TokenStream) -> TokenStream {
         .sig
         .inputs
         .push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
+
+    if state.is_some(){
+        fn_item
+        .sig
+        .inputs
+        .push(parse_quote! {state : Option<#state>});
+    }
+    
 
     let mut new_stream = TokenStream::new();
 

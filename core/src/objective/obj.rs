@@ -3,28 +3,18 @@
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
 //!
 
-use crate::domain::{Domain, TypeDom};
-use crate::objective::outcome::{FuncState, Outcome};
-use crate::objective::Codomain;
+use crate::{domain::{Domain, TypeDom},
+            objective::{Codomain,outcome::{FuncState, Outcome}},
+            solution::partial::Fidelity,
+};
+
 use std::sync::Arc;
 
 type OptimFn<TypeDom, Out> = fn(&[TypeDom]) -> Out;
-type SteppFn<TypeDom, Out, FnState> = fn(&[TypeDom], Option<FnState>) -> (Out, FnState);
+type SteppFn<TypeDom, Out, FnState> = fn(&[TypeDom], Fidelity, Option<FnState>) -> (Out, FnState);
 
 /// A wrapper arround the user-defined function to maximize.
 pub trait FuncWrapper {}
-
-/// Describes the fidelity state of a [`Partial`].
-///
-/// * [`New`](FidelState::New) : A newly created solution.
-/// * [`Resume`](FidelState::Resume) : Resume the evaluation of [`Partial`].
-/// * [`Discard`](FidelState::Discard) : Discard a [`Partial`] that has already been evaluated for a few steps.
-#[derive(Copy, Clone)]
-pub enum FidelState {
-    New,
-    Resume,
-    Discard,
-}
 
 /// [`Objective`] is the minimal wrapper for the raw function to maximize.
 /// This raw function must return an [`Outcome`],
@@ -136,16 +126,17 @@ where
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn raw_compute(&self, x: &[TypeDom<Obj>], state: Option<FnState>) -> (Out, FnState) {
-        (self.function)(x, state)
+    pub fn raw_compute(&self, x: &[TypeDom<Obj>], fidelity: Fidelity, state: Option<FnState>) -> (Out, FnState) {
+        (self.function)(x, fidelity, state)
     }
     /// Compute the outputs of a function to maximize according to an input `x`.    
     pub fn compute(
         &self,
         x: &[TypeDom<Obj>],
+        fidelity: Fidelity,
         state: Option<FnState>,
     ) -> (Arc<Cod::TypeCodom>, Arc<Out>, FnState) {
-        let (out, state) = self.raw_compute(x, state);
+        let (out, state) = self.raw_compute(x, fidelity, state);
         (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), state)
     }
 

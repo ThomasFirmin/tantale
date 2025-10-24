@@ -4,7 +4,7 @@ use crate::{
         ThrBatchEvaluator, ThrEvaluate,
     }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
         CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
-    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId}, stop::{ExpStep, Stop}
+    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId, partial::FidelityPartial}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -858,6 +858,8 @@ where
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
+    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo>,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo>,
     FnState: FuncState,
 {
     fn new(
@@ -1049,7 +1051,8 @@ where
     Op::State: Send + Sync,
     Op::Sol: Send + Sync,
     Op::Cod: Send + Sync,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: Send + Sync,
+    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo> + Send + Sync,
 {
     fn new(
         searchspace: Scp,

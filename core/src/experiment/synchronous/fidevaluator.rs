@@ -1,7 +1,8 @@
 use crate::{
     Codomain, Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{
         Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults
-    }, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType}, solution::Batch, stop::{ExpStep, Stop}
+    }, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
+    solution::{Batch, partial::FidelityPartial}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -19,8 +20,8 @@ use std::{
 ))]
 pub struct FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
@@ -42,8 +43,8 @@ where
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
     FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
@@ -70,8 +71,8 @@ where
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
     for FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
@@ -107,6 +108,8 @@ where
     Out: Outcome,
     SolId: Id,
     FnState: FuncState,
+    Op::Sol: FidelityPartial<SolId, Obj, Op::SInfo>,
+    <Op::Sol as Partial<SolId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SolId, Opt, Op::SInfo>,
 {
     fn init(&mut self) {}
     fn evaluate(
@@ -121,11 +124,27 @@ where
         while i < self.batch.size() && !st.stop() {
             let pair = self.batch.index(i);
             let sid = pair.0.get_id();
-            let prev_state = self.states.remove(&sid); // Get previous state
-            let (y, out, state) = ob.compute(pair.0.get_x().as_ref(), prev_state);
-            self.states.insert(sid, state);
-            results.add(pair, out, y);
-            st.update(ExpStep::Distribution);
+            let fidelity = pair.0.get_fidelity();
+            match fidelity{
+                crate::Fidelity::New =>{
+                    let x = pair.0.get_x();
+                    let fid = pair.0.get_fidelity();
+                    let (y, out, state) = ob.compute(x.as_ref(), fid, None);
+                    self.states.insert(sid, state);
+                    results.add(pair, out, y);
+                    st.update(ExpStep::Distribution);
+                },
+                crate::Fidelity::Resume(_) => {
+                    let x = pair.0.get_x();
+                    let fid = pair.0.get_fidelity();
+                    let state = self.states.remove(&sid);
+                    let (y, out, state) = ob.compute(x.as_ref(), fid, state);
+                    self.states.insert(sid, state);
+                    results.add(pair, out, y);
+                    st.update(ExpStep::Distribution);
+                },
+                crate::Fidelity::Discard => {self.states.remove(&sid);},
+            };
             i += 1
         }
         // For saving in case of early stopping before full evaluation of all elements
@@ -168,8 +187,8 @@ where
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
     FidThrEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
@@ -196,8 +215,8 @@ where
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
     for FidThrEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     SolId: Id,
@@ -240,8 +259,8 @@ where
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
-    Op::Sol: Send + Sync,
-    <Op::Sol as Partial<SolId, Obj, Op::SInfo>>::Twin<Opt>: Send + Sync,
+    Op::Sol: FidelityPartial<SolId, Obj, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SolId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SolId, Opt, Op::SInfo> + Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
@@ -255,15 +274,32 @@ where
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
             if !stplock.stop() {
-                stplock.update(ExpStep::Distribution);
-                drop(stplock);
                 let idx = self.idx_list.lock().unwrap().pop().unwrap();
                 let pair = self.batch.index(idx);
                 let sid = pair.0.get_id();
-                let prev_state = hash_state.lock().unwrap().remove(&sid);
-                let (y, out, state) = ob.clone().compute(pair.0.get_x().as_ref(), prev_state);
-                hash_state.lock().unwrap().insert(sid, state);
-                results.lock().unwrap().add(pair, out, y);
+                let fidelity = pair.0.get_fidelity();
+                match fidelity{
+                    crate::Fidelity::New =>{
+                        stplock.update(ExpStep::Distribution);
+                        drop(stplock);
+                        let x = pair.0.get_x();
+                        let fid = pair.0.get_fidelity();
+                        let (y, out, state) = ob.compute(x.as_ref(), fid, None);
+                        hash_state.lock().unwrap().insert(sid, state);
+                        results.lock().unwrap().add(pair, out, y);
+                    },
+                    crate::Fidelity::Resume(_) => {
+                        stplock.update(ExpStep::Distribution);
+                        drop(stplock);
+                        let x = pair.0.get_x();
+                        let fid = pair.0.get_fidelity();
+                        let state = hash_state.lock().unwrap().remove(&sid);
+                        let (y, out, state) = ob.compute(x.as_ref(), fid, state);
+                        hash_state.lock().unwrap().insert(sid, state);
+                        results.lock().unwrap().add(pair, out, y);
+                    },
+                    crate::Fidelity::Discard => {hash_state.lock().unwrap().remove(&sid);},
+                };
             }
         });
         let res = Arc::try_unwrap(results).unwrap().into_inner().unwrap();

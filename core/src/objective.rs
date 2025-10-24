@@ -1,5 +1,5 @@
 pub mod obj;
-pub use obj::{FidelState, FuncWrapper, Objective, Stepped};
+pub use obj::{FuncWrapper, Objective, Stepped};
 
 pub mod codomain;
 pub use codomain::{
