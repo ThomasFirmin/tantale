@@ -17,7 +17,14 @@
 //! ```
 
 use crate::domain::{
-    Domain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, bounded::{Bounded, BoundedBounds, DomainBounded}, cat::Cat, derrors::OntoError, onto::{Onto, OntoDom}, sampler::uniform
+    base::{BaseDom, BaseTypeDom},
+    bool::Bool,
+    bounded::{Bounded, BoundedBounds, DomainBounded},
+    cat::Cat,
+    derrors::OntoError,
+    onto::{Onto, OntoDom},
+    sampler::uniform,
+    Domain, TypeDom,
 };
 use crate::saver::CSVWritable;
 
@@ -127,7 +134,11 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &Bounded<Out>) -> Result<Self::TargetItem, OntoError>{
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &Bounded<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = *item;
             let c: f64 = target.width().as_();
@@ -143,11 +154,12 @@ where
         }
     }
 }
-impl <Out> OntoDom<Bounded<Out>> for Unit
+impl<Out> OntoDom<Bounded<Out>> for Unit
 where
     Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
-{}
+{
+}
 
 impl Onto<Bool> for Unit
 where
@@ -170,7 +182,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             Ok(*item > 0.5)
         } else {
@@ -178,7 +190,7 @@ where
         }
     }
 }
-impl OntoDom<Bool> for Unit{}
+impl OntoDom<Bool> for Unit {}
 
 impl Onto<Cat> for Unit {
     type Item = TypeDom<Unit>;
@@ -206,7 +218,7 @@ impl Onto<Cat> for Unit {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
             let c: f64 = target.values().len().as_();
@@ -228,7 +240,7 @@ impl Onto<Cat> for Unit {
         }
     }
 }
-impl OntoDom<Cat> for Unit{}
+impl OntoDom<Cat> for Unit {}
 
 impl Onto<BaseDom> for Unit {
     type Item = TypeDom<Unit>;
@@ -248,7 +260,7 @@ impl Onto<BaseDom> for Unit {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
         match target{
             BaseDom::Real(d) => {
                 match self.onto(item, d) {
@@ -284,7 +296,7 @@ impl Onto<BaseDom> for Unit {
         }
     }
 }
-impl OntoDom<BaseDom> for Unit{}
+impl OntoDom<BaseDom> for Unit {}
 
 impl From<BaseDom> for Unit {
     fn from(value: BaseDom) -> Self {
@@ -294,7 +306,6 @@ impl From<BaseDom> for Unit {
         }
     }
 }
-
 
 impl Onto<Unit> for Unit
 where
@@ -317,12 +328,11 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, _target: &Unit) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, _target: &Unit) -> Result<Self::TargetItem, OntoError> {
         Ok(*item)
     }
 }
-impl OntoDom<Unit> for Unit{}
-
+impl OntoDom<Unit> for Unit {}
 
 impl CSVWritable<(), f64> for Unit {
     fn header(_elem: &()) -> Vec<String> {

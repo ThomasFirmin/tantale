@@ -9,10 +9,10 @@ fn test_elemsingle_header() {
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
-fn test_elemfidel_header() {
-    let (cod, _) = get_elemfidel();
+fn test_elemcost_header() {
+    let (cod, _) = get_elemcost();
     let head = CostCodomain::header(&cod);
-    let str_true = Vec::from([String::from("y"), String::from("fidelity")]);
+    let str_true = Vec::from([String::from("y"), String::from("cost")]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
@@ -23,12 +23,12 @@ fn test_elemconst_header() {
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelconst_header() {
-    let (cod, _) = get_elemfidelconst();
+fn test_elemcostconst_header() {
+    let (cod, _) = get_elemcostconst();
     let head = CostConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
-        String::from("fidelity"),
+        String::from("cost"),
         String::from("c0"),
         String::from("c1"),
     ]);
@@ -42,14 +42,10 @@ fn test_elemmulti_header() {
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelmulti_header() {
-    let (cod, _) = get_elemfidelmulti();
+fn test_elemcostmulti_header() {
+    let (cod, _) = get_elemcostmulti();
     let head = CostMultiCodomain::header(&cod);
-    let str_true = Vec::from([
-        String::from("y0"),
-        String::from("y1"),
-        String::from("fidelity"),
-    ]);
+    let str_true = Vec::from([String::from("y0"), String::from("y1"), String::from("cost")]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
@@ -65,13 +61,13 @@ fn test_elemconstmulti_header() {
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelconstmulti_header() {
-    let (cod, _) = get_elemfidelconstmulti();
+fn test_elemcostconstmulti_header() {
+    let (cod, _) = get_elemcostconstmulti();
     let head = CostConstMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
-        String::from("fidelity"),
+        String::from("cost"),
         String::from("c0"),
         String::from("c1"),
     ]);
@@ -83,25 +79,25 @@ fn test_elemsingle_write() {
     let (cod, elem) = get_elemsingle();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string()]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
-fn test_elemfidel_write() {
-    let (cod, elem) = get_elemfidel();
+fn test_elemcost_write() {
+    let (cod, elem) = get_elemcost();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
 fn test_elemconst_write() {
     let (cod, elem) = get_elemconst();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelconst_write() {
-    let (cod, elem) = get_elemfidelconst();
+fn test_elemcostconst_write() {
+    let (cod, elem) = get_elemcostconst();
     let head = cod.write(&elem);
     let str_true = Vec::from([
         1.1.to_string(),
@@ -109,21 +105,21 @@ fn test_elemfidelconst_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
 fn test_elemmulti_write() {
     let (cod, elem) = get_elemmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelmulti_write() {
-    let (cod, elem) = get_elemfidelmulti();
+fn test_elemcostmulti_write() {
+    let (cod, elem) = get_elemcostmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
 fn test_elemconstmulti_write() {
@@ -135,11 +131,11 @@ fn test_elemconstmulti_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Header does not match the true baseline.");
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }
 #[test]
-fn test_elemfidelconstmulti_write() {
-    let (cod, elem) = get_elemfidelconstmulti();
+fn test_elemcostconstmulti_write() {
+    let (cod, elem) = get_elemcostconstmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([
         1.1.to_string(),
@@ -148,5 +144,185 @@ fn test_elemfidelconstmulti_write() {
         4.4.to_string(),
         5.5.to_string(),
     ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+
+#[test]
+fn test_elemfidfid_header() {
+    let (cod, _) = get_elemfid();
+    let head = FidCodomain::header(&cod);
+    let str_true = Vec::from([String::from("y"), String::from("fidelity")]);
+    assert_eq!(head, str_true, "Written linedoes not match the true baseline.");
+}
+#[test]
+fn test_elemfidcost_header() {
+    let (cod, _) = get_elemfidcost();
+    let head = FidCostCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y"),
+        String::from("fidelity"),
+        String::from("cost"),
+    ]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidconst_header() {
+    let (cod, _) = get_elemfidconst();
+    let head = FidConstCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y"),
+        String::from("fidelity"),
+        String::from("c0"),
+        String::from("c1"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostconst_header() {
+    let (cod, _) = get_elemfidcostconst();
+    let head = FidCostConstCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y"),
+        String::from("fidelity"),
+        String::from("cost"),
+        String::from("c0"),
+        String::from("c1"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidmulti_header() {
+    let (cod, _) = get_elemfidmulti();
+    let head = FidMultiCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y0"),
+        String::from("y1"),
+        String::from("fidelity"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostmulti_header() {
+    let (cod, _) = get_elemfidcostmulti();
+    let head = FidCostMultiCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y0"),
+        String::from("y1"),
+        String::from("fidelity"),
+        String::from("cost"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidconstmulti_header() {
+    let (cod, _) = get_elemfidconstmulti();
+    let head = FidConstMultiCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y0"),
+        String::from("y1"),
+        String::from("fidelity"),
+        String::from("c0"),
+        String::from("c1"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostconstmulti_header() {
+    let (cod, _) = get_elemfidcostconstmulti();
+    let head = FidCostConstMultiCodomain::header(&cod);
+    let str_true = Vec::from([
+        String::from("y0"),
+        String::from("y1"),
+        String::from("fidelity"),
+        String::from("cost"),
+        String::from("c0"),
+        String::from("c1"),
+    ]);
+    assert_eq!(head, str_true, "Header does not match the true baseline.");
+}
+
+#[test]
+fn test_elemfid_write() {
+    let (cod, elem) = get_elemfid();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([1.1.to_string(), "Completed".to_string()]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcost_write() {
+    let (cod, elem) = get_elemfidcost();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([1.1.to_string(), "Completed".to_string(), 2.2.to_string()]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidconst_write() {
+    let (cod, elem) = get_elemfidconst();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([
+        1.1.to_string(),
+        "Completed".to_string(),
+        2.2.to_string(),
+        3.3.to_string(),
+    ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostconst_write() {
+    let (cod, elem) = get_elemfidcostconst();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([
+        1.1.to_string(),
+        "Completed".to_string(),
+        2.2.to_string(),
+        3.3.to_string(),
+        4.4.to_string(),
+    ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidmulti_write() {
+    let (cod, elem) = get_elemfidmulti();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), "Completed".to_string()]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostmulti_write() {
+    let (cod, elem) = get_elemfidcostmulti();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([
+        1.1.to_string(),
+        2.2.to_string(),
+        "Completed".to_string(),
+        3.3.to_string(),
+    ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidconstmulti_write() {
+    let (cod, elem) = get_elemfidconstmulti();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([
+        1.1.to_string(),
+        2.2.to_string(),
+        "Completed".to_string(),
+        3.3.to_string(),
+        4.4.to_string(),
+    ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+}
+#[test]
+fn test_elemfidcostconstmulti_write() {
+    let (cod, elem) = get_elemfidcostconstmulti();
+    let head = cod.write(&elem);
+    let str_true = Vec::from([
+        1.1.to_string(),
+        2.2.to_string(),
+        "Completed".to_string(),
+        3.3.to_string(),
+        4.4.to_string(),
+        5.5.to_string(),
+    ]);
+    assert_eq!(head, str_true, "Written line does not match the true baseline.");
 }

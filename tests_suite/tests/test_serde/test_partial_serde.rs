@@ -5,7 +5,7 @@ use super::init_sp::{
 use paste::paste;
 use serde_json;
 use std::sync::Arc;
-use tantale::core::{searchspace::Searchspace, BaseDom, EmptyInfo, BasePartial, SId, Solution};
+use tantale::core::{searchspace::Searchspace, BaseDom, BasePartial, EmptyInfo, SId, Solution};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | $comp : expr),*) => {

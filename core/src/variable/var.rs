@@ -1,7 +1,5 @@
 use crate::{
-    domain::{
-        Domain, TypeDom, derrors::OntoError, onto::Onto
-    },
+    domain::{derrors::OntoError, onto::Onto, Domain, TypeDom},
     saver::CSVLeftRight,
 };
 
@@ -10,8 +8,7 @@ use std::sync::Arc;
 
 use crate::saver::CSVWritable;
 
-
-type OntoFunc<A,B> = fn(&A, &TypeDom<A>, &B) -> Result<TypeDom<B>, OntoError>;
+type OntoFunc<A, B> = fn(&A, &TypeDom<A>, &B) -> Result<TypeDom<B>, OntoError>;
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 #[derive(Clone)]
@@ -25,8 +22,8 @@ where
     domain_opt: Arc<Opt>,
     sampler_obj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
     sampler_opt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
-    onto_obj_fn: OntoFunc<Opt,Obj>,
-    onto_opt_fn: OntoFunc<Obj,Opt>,
+    onto_obj_fn: OntoFunc<Opt, Obj>,
+    onto_opt_fn: OntoFunc<Obj, Opt>,
 }
 
 /// Onto function when only the [`Objective`](crate::core::objective::Objective) [`Domain`] is define.
@@ -134,8 +131,8 @@ where
         domopt: Arc<Opt>,
         sampobj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
         sampopt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
-        ontoobj: OntoFunc<Opt,Obj>,
-        ontoopt: OntoFunc<Obj,Opt>,
+        ontoobj: OntoFunc<Opt, Obj>,
+        ontoopt: OntoFunc<Obj, Opt>,
     ) -> Var<Obj, Opt> {
         Var {
             name,
@@ -170,12 +167,12 @@ where
     }
     /// Getter method for the `onto_obj_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    pub fn get_onto_obj_fn(&self) -> OntoFunc<Opt,Obj> {
+    pub fn get_onto_obj_fn(&self) -> OntoFunc<Opt, Obj> {
         self.onto_obj_fn
     }
     /// Getter method for the `onto_opt_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Objective`](crate::core::objective::Objective) [`Domain`] onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    pub fn get_onto_opt_fn(&self) -> OntoFunc<Obj,Opt> {
+    pub fn get_onto_opt_fn(&self) -> OntoFunc<Obj, Opt> {
         self.onto_opt_fn
     }
 

@@ -1,5 +1,8 @@
 use crate::{
-    OptInfo, VecArc, domain::Domain, objective::{Codomain, Outcome}, solution::{Computed, Id, Partial, RawSol, SolInfo}
+    domain::Domain,
+    objective::{Codomain, Outcome},
+    solution::{Computed, Id, Partial, RawSol, SolInfo},
+    OptInfo, VecArc,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter::Zip, marker::PhantomData, sync::Arc, vec::IntoIter};
@@ -383,8 +386,7 @@ where
     type Outc = RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator
-    for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -393,9 +395,9 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Item = (Arc<PSol>,Arc<PSol::Twin<Opt>>);
+    type Item = (Arc<PSol>, Arc<PSol::Twin<Opt>>);
 
-    type IntoIter = Zip<IntoIter<Arc<PSol>>,IntoIter<Arc<PSol::Twin<Opt>>>>;
+    type IntoIter = Zip<IntoIter<Arc<PSol>>, IntoIter<Arc<PSol::Twin<Opt>>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.sobj.into_iter().zip(self.sopt)
@@ -413,16 +415,21 @@ where
     Info: OptInfo,
     Out: Outcome,
 {
-    type Item = (Arc<RawSol<PSol,SolId,Obj,Out,SInfo>>,Arc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>);
-    type IntoIter = Zip<IntoIter<Arc<RawSol<PSol,SolId,Obj,Out,SInfo>>>,IntoIter<Arc<RawSol<PSol::Twin<Opt>,SolId,Opt,Out,SInfo>>>>;
+    type Item = (
+        Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
+        Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+    );
+    type IntoIter = Zip<
+        IntoIter<Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>>,
+        IntoIter<Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>>,
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.robj.into_iter().zip(self.ropt)
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
-    IntoIterator
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoIterator
     for CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
 where
     PSol: Partial<SolId, Obj, SInfo>,
@@ -434,16 +441,19 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    type Item = (Arc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>,Arc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>);
-    type IntoIter = Zip<IntoIter<Arc<Computed<PSol,SolId,Obj,Cod,Out,SInfo>>>,IntoIter<Arc<Computed<PSol::Twin<Opt>,SolId,Opt,Cod,Out,SInfo>>>>;
+    type Item = (
+        Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    );
+    type IntoIter = Zip<
+        IntoIter<Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>>,
+        IntoIter<Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>>,
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.cobj.into_iter().zip(self.copt)
     }
 }
-
-
-
 
 //-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-//
 // SINGLE BATCH MADE OF A SINGLE SOLUTION //

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tantale_core::objective::codomain::EvalState;
 use tantale_macros::Outcome;
 
 #[test]
@@ -8,7 +9,7 @@ fn mixed_derive() {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {
-        pub fid2: f64,
+        pub cost2: f64,
         pub con3: f64,
         pub con4: f64,
         pub con5: f64,
@@ -16,11 +17,12 @@ fn mixed_derive() {
         pub mul7: f64,
         pub mul8: f64,
         pub mul9: f64,
+        pub fid10: EvalState,
     }
 
     pub fn get_struct() -> OutExample {
         OutExample {
-            fid2: 2.0,
+            cost2: 2.0,
             con3: 3.0,
             con4: 4.0,
             con5: 5.0,
@@ -28,6 +30,7 @@ fn mixed_derive() {
             mul7: 7.0,
             mul8: 8.0,
             mul9: 9.0,
+            fid10: EvalState::Partially,
         }
     }
 
@@ -41,7 +44,7 @@ fn mixed_derive() {
         ]
         .into_boxed_slice(),
         // Define fidelity
-        |h: &OutExample| h.fid2,
+        |h: &OutExample| h.cost2,
         // Define constraints
         vec![
             |h: &OutExample| h.con3,
@@ -84,7 +87,7 @@ fn mixed_derive() {
     );
 
     assert_eq!(
-        extracted.fidelity, 2.0,
-        "Wrong extraction of fid2 in derive Outcome."
+        extracted.cost, 2.0,
+        "Wrong extraction of cost2 in derive Outcome."
     );
 }

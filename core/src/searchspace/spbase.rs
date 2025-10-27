@@ -1,5 +1,11 @@
 use crate::{
-    Onto, domain::{Domain, TypeDom}, optimizer::VecArc, saver::CSVLeftRight, searchspace::{ParSp, Searchspace, SolInfo}, solution::{Id, Partial, Solution}, variable::Var
+    domain::{Domain, TypeDom},
+    optimizer::VecArc,
+    saver::CSVLeftRight,
+    searchspace::{ParSp, Searchspace, SolInfo},
+    solution::{Id, Partial, Solution},
+    variable::Var,
+    Onto,
 };
 
 use rand::prelude::ThreadRng;

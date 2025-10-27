@@ -1,5 +1,11 @@
 use crate::{
-    Onto, Partial, Stop, domain::Domain, experiment::{MonoEvaluate, Runable, ThrEvaluate}, objective::{Codomain, FuncWrapper, Outcome}, saver::{CSVWritable, Saver}, searchspace::Searchspace, solution::{BatchType, Id, SolInfo}
+    domain::Domain,
+    experiment::{MonoEvaluate, Runable, ThrEvaluate},
+    objective::{Codomain, FuncWrapper, Outcome},
+    saver::{CSVWritable, Saver},
+    searchspace::Searchspace,
+    solution::{BatchType, Id, SolInfo},
+    Onto, Partial, Stop,
 };
 #[cfg(feature = "mpi")]
 use crate::{

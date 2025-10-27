@@ -1,7 +1,7 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{ParSId, Partial, Solution};
-use tantale_core::BasePartial;
 use tantale_core::domain::TypeDom;
+use tantale_core::BasePartial;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

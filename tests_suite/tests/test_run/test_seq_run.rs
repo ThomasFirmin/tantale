@@ -1,4 +1,6 @@
-use tantale_core::{experiment, experiment::Runable, load, saver::CSVSaver, stop::Calls, Objective};
+use tantale_core::{
+    experiment, experiment::Runable, load, saver::CSVSaver, stop::Calls, Objective,
+};
 
 use tantale_algos::RandomSearch;
 
@@ -73,7 +75,6 @@ pub fn run_reader(path: &str, size: usize) {
         let record = l.unwrap();
         let id: usize = record[0].parse().unwrap();
         hash_id.insert(id);
-
     }
 
     assert_eq!(
@@ -153,7 +154,6 @@ fn test_seq_run() {
 
 #[test]
 fn test_seq_parrun() {
-
     drop(Cleaner {
         path: String::from("tmp_test_parseqrun"),
     });

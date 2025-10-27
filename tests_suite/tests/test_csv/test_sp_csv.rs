@@ -1,6 +1,6 @@
 use super::init_sp::*;
 use tantale::core::saver::CSVLeftRight;
-use tantale::core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, Sp};
+use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp};
 
 use paste::paste;
 use std::sync::Arc;

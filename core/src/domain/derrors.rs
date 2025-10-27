@@ -73,7 +73,6 @@ impl fmt::Debug for DomainError {
     }
 }
 
-
 pub struct OntoError(pub String);
 
 impl Error for OntoError {}

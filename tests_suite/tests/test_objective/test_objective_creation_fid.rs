@@ -1,7 +1,7 @@
 use paste::paste;
 
 use std::sync::Arc;
-use tantale_core::{BasePartial, BaseTypeDom, EmptyInfo, SId, Searchspace, Solution, Sp};
+use tantale_core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, BaseTypeDom, Sp};
 
 use super::init_func::*;
 
@@ -108,11 +108,11 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp,
-    sp_ms_samp,
-    sp_ms_samp_right,
-    sp_ms_noright,
-    sp_ms_samp_noright
+    sp_ms_nosamp_fid,
+    sp_ms_samp_fid,
+    sp_ms_samp_right_fid,
+    sp_ms_noright_fid,
+    sp_ms_samp_noright_fid
 );
 
 macro_rules! get_test_real {
@@ -213,4 +213,4 @@ macro_rules! get_test_real {
     };
 }
 
-get_test_real!(sp_sm_samp, sp_sm_samp_noright);
+get_test_real!(sp_sm_samp_fid, sp_sm_samp_noright_fid);

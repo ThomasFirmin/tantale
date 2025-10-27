@@ -1,5 +1,11 @@
 use crate::{
-    Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults}, objective::{Codomain, Objective, Outcome}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType}, solution::{Batch, BatchType}, stop::{ExpStep, Stop}
+    domain::Domain,
+    experiment::{utils::BatchResults, Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
+    objective::{Codomain, Objective, Outcome},
+    optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
+    solution::{Batch, BatchType},
+    stop::{ExpStep, Stop},
+    Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};

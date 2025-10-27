@@ -396,10 +396,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         );
         hashonto.insert(
             ontoopt_name,
-            (
-                ident_mixed_obj.clone(),
-                ident_mixed_opt.clone(),
-            ),
+            (ident_mixed_obj.clone(), ident_mixed_opt.clone()),
         );
 
         // OPT SAMP-ONTO TOKENS
@@ -416,10 +413,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         );
         hashonto.insert(
             ontoobj_name,
-            (
-                ident_mixed_opt.clone(),
-                ident_mixed_obj.clone(),
-            ),
+            (ident_mixed_opt.clone(), ident_mixed_obj.clone()),
         );
 
         let repeats = match vinf.repeats {
@@ -557,15 +551,8 @@ pub fn hpo(input: TokenStream) -> TokenStream {
 
     let lines: Vec<LineStream> = lines.into_iter().collect();
 
-    let (
-        sampler_functions,
-        ident_mixed_obj,
-        ident_mixed_opt,
-        _,
-        push_statements,
-        _,
-        _,
-    ) = parse_sp(lines).unwrap();
+    let (sampler_functions, ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _) =
+        parse_sp(lines).unwrap();
 
     get_sp_tokens(
         sampler_functions,

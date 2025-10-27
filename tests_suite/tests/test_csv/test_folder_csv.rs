@@ -3,8 +3,6 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
 use tantale_algos::RandomSearch;
-use tantale_core::BaseDom;
-use tantale_core::BaseTypeDom;
 use tantale_core::experiment::BatchEvaluator;
 use tantale_core::optimizer::opt::OpInfType;
 use tantale_core::optimizer::opt::OpSInfType;
@@ -18,6 +16,8 @@ use tantale_core::solution::CompBatch;
 use tantale_core::solution::RawBatch;
 use tantale_core::solution::RawSol;
 use tantale_core::stop::{Calls, Stop};
+use tantale_core::BaseDom;
+use tantale_core::BaseTypeDom;
 use tantale_core::Solution;
 use tantale_core::Sp;
 
@@ -57,31 +57,18 @@ mod infos {
 
 use infos::OutExample;
 
-type EvalType<SType, Info, SInfo> = BatchEvaluator<
-    SType,
-    SId,
-    BaseDom,
-    BaseDom,
-    Info,
-    SInfo,
->;
+type EvalType<SType, Info, SInfo> = BatchEvaluator<SType, SId, BaseDom, BaseDom, Info, SInfo>;
 
 pub fn run_saver<'a, Scp, Op, St, Sv>(
-    hash_obj: &mut HashMap<
-        usize,
-        Arc<Op::Sol>,
-    >,
+    hash_obj: &mut HashMap<usize, Arc<Op::Sol>>,
     hash_opt: &mut HashMap<
         usize,
-        Arc<<Op::Sol as Partial<SId,BaseDom,Op::SInfo>>::Twin<BaseDom>>,
+        Arc<<Op::Sol as Partial<SId, BaseDom, Op::SInfo>>::Twin<BaseDom>>,
     >,
-    hash_out: &mut HashMap<
-        usize,
-        Arc<RawSol<Op::Sol,SId,BaseDom,OutExample,Op::SInfo>>,
-    >,
+    hash_out: &mut HashMap<usize, Arc<RawSol<Op::Sol, SId, BaseDom, OutExample, Op::SInfo>>>,
     hash_cod: &mut HashMap<
         usize,
-        Arc<Computed<Op::Sol, SId, BaseDom,Op::Cod,OutExample,Op::SInfo>>,
+        Arc<Computed<Op::Sol, SId, BaseDom, Op::Cod, OutExample, Op::SInfo>>,
     >,
     hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
     sp: Arc<Scp>,
@@ -92,20 +79,21 @@ pub fn run_saver<'a, Scp, Op, St, Sv>(
     size: usize,
 ) -> (St, &'a Op::State, Op, Op::BType)
 where
-    Scp: Searchspace<
-        Op::Sol,
-        SId,
-        BaseDom,
-        BaseDom,
-        Op::SInfo,
-    >,
+    Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
     Op: Optimizer<
         SId,
         BaseDom,
         BaseDom,
         OutExample,
         Scp,
-        BType = Batch<OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,SId,BaseDom,BaseDom,OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>>
+        BType = Batch<
+            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+            SId,
+            BaseDom,
+            BaseDom,
+            OpSInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+            OpInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+        >,
     >,
     St: Stop + Send + Sync,
     Sv: Saver<
@@ -116,98 +104,99 @@ where
         OutExample,
         Scp,
         Op,
-        EvalType<Op::Sol,Op::SInfo,Op::Info>,
+        EvalType<Op::Sol, Op::SInfo, Op::Info>,
     >,
-    Op::Cod: CSVWritable<Op::Cod,<Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
+    Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let batch = opt.first_step(sp.clone());
     let mut batchr = RawBatch::empty(batch.get_info().clone());
     let mut batchc = CompBatch::empty(batch.get_info().clone());
-    (0..batch.size()).for_each(
-        |idx|
-        {
-            let (a,b) = batch.index(idx);
-            let id = a.get_id().id;
-            let aelem = a.get_x()[0].clone();
-            let aelem = match aelem {
-                BaseTypeDom::Int(ae) => ae,
-                _ => panic!("Should be a Int."),
-            };
-            let outcome = Arc::new(infos::get_out(id, aelem));
-            let codel = cod.get_elem(&outcome);
-            let (acomp,bcomp) =
-                sp.computed::<Op::Cod,OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
-            let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
-            hash_obj.insert(id, a.clone());
-            hash_opt.insert(id, b.clone());
-            hash_out.insert(id, araw.clone());
-            hash_cod.insert(id, acomp.clone());
-            hash_inf.insert(id, batch.get_info());
-            batchr.add(araw.clone(), braw.clone());
-            batchc.add(acomp.clone(), bcomp.clone());
-        }
-    );
+    (0..batch.size()).for_each(|idx| {
+        let (a, b) = batch.index(idx);
+        let id = a.get_id().id;
+        let aelem = a.get_x()[0].clone();
+        let aelem = match aelem {
+            BaseTypeDom::Int(ae) => ae,
+            _ => panic!("Should be a Int."),
+        };
+        let outcome = Arc::new(infos::get_out(id, aelem));
+        let codel = cod.get_elem(&outcome);
+        let (acomp, bcomp) =
+            sp.computed::<Op::Cod, OutExample>(a.clone(), b.clone(), Arc::new(codel));
+        let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
+        let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
+        hash_obj.insert(id, a.clone());
+        hash_opt.insert(id, b.clone());
+        hash_out.insert(id, araw.clone());
+        hash_cod.insert(id, acomp.clone());
+        hash_inf.insert(id, batch.get_info());
+        batchr.add(araw.clone(), braw.clone());
+        batchc.add(acomp.clone(), bcomp.clone());
+    });
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
-    
-    saver.save_partial(&batch,sp.clone());
-    saver.save_codom(&batchc, sp.clone(),cod.clone());
+
+    saver.save_partial(&batch, sp.clone());
+    saver.save_codom(&batchc, sp.clone(), cod.clone());
     saver.save_out(&batchr, sp.clone());
     saver.save_info(&batch, sp.clone());
-    let eval:BatchEvaluator<_,_,_,_,_,_>  = BatchEvaluator::new(batch);
+    let eval: BatchEvaluator<_, _, _, _, _, _> = BatchEvaluator::new(batch);
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
     let batch = opt.step(batchc, sp.clone());
     let mut batchr = RawBatch::empty(batch.get_info().clone());
     let mut batchc = CompBatch::empty(batch.get_info().clone());
-    (0..batch.size()).for_each(
-        |idx|
-        {
-            let (a,b) = batch.index(idx);
-            let id = a.get_id().id;
-            let aelem = a.get_x()[0].clone();
-            let aelem = match aelem {
-                BaseTypeDom::Int(ae) => ae,
-                _ => panic!("Should be a Int."),
-            };
-            let outcome = Arc::new(infos::get_out(id, aelem));
-            let codel = cod.get_elem(&outcome);
-            let (acomp,bcomp) =
-                sp.computed::<Op::Cod,OutExample>(a.clone(), b.clone(), Arc::new(codel));
-            let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
-            let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
-            hash_obj.insert(id, a.clone());
-            hash_opt.insert(id, b.clone());
-            hash_out.insert(id, araw.clone());
-            hash_cod.insert(id, acomp.clone());
-            hash_inf.insert(id, batch.get_info());
-            batchr.add(araw.clone(), braw.clone());
-            batchc.add(acomp.clone(), bcomp.clone());
-        }
-    );
+    (0..batch.size()).for_each(|idx| {
+        let (a, b) = batch.index(idx);
+        let id = a.get_id().id;
+        let aelem = a.get_x()[0].clone();
+        let aelem = match aelem {
+            BaseTypeDom::Int(ae) => ae,
+            _ => panic!("Should be a Int."),
+        };
+        let outcome = Arc::new(infos::get_out(id, aelem));
+        let codel = cod.get_elem(&outcome);
+        let (acomp, bcomp) =
+            sp.computed::<Op::Cod, OutExample>(a.clone(), b.clone(), Arc::new(codel));
+        let araw = Arc::new(RawSol::new(a.clone(), outcome.clone()));
+        let braw = Arc::new(RawSol::new(b.clone(), outcome.clone()));
+        hash_obj.insert(id, a.clone());
+        hash_opt.insert(id, b.clone());
+        hash_out.insert(id, araw.clone());
+        hash_cod.insert(id, acomp.clone());
+        hash_inf.insert(id, batch.get_info());
+        batchr.add(araw.clone(), braw.clone());
+        batchc.add(acomp.clone(), bcomp.clone());
+    });
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
-    
-    saver.save_partial(&batch,sp.clone());
-    saver.save_codom(&batchc, sp.clone(),cod.clone());
+
+    saver.save_partial(&batch, sp.clone());
+    saver.save_codom(&batchc, sp.clone(), cod.clone());
     saver.save_out(&batchr, sp.clone());
     saver.save_info(&batch, sp.clone());
-    let eval:BatchEvaluator<_,_,_,_,_,_>  = BatchEvaluator::new(batch);
+    let eval: BatchEvaluator<_, _, _, _, _, _> = BatchEvaluator::new(batch);
     saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
 
-    run_reader::<Op,Scp>(
-        "tmp_test", hash_obj, hash_opt, hash_out, hash_cod, hash_inf, cod.clone(), size,
+    run_reader::<Op, Scp>(
+        "tmp_test",
+        hash_obj,
+        hash_opt,
+        hash_out,
+        hash_cod,
+        hash_inf,
+        cod.clone(),
+        size,
     );
     let nstop = saver.load_stop(&sp, cod.as_ref()).unwrap();
     let nopt = saver.load_optimizer(&sp, cod.as_ref()).unwrap();
@@ -219,42 +208,33 @@ where
 pub fn run_reader<Op, Scp>(
     path: &str,
     hash_obj: &HashMap<usize, Arc<Op::Sol>>,
-    hash_opt: &HashMap<usize, Arc<<Op::Sol as Partial<SId,BaseDom,Op::SInfo>>::Twin<BaseDom>>>,
-    hash_out: &HashMap<
-        usize,
-        Arc<RawSol<Op::Sol,SId,BaseDom,OutExample,Op::SInfo>>,
-    >,
-    hash_cod: &HashMap<
-        usize,
-        Arc<
-            Computed<Op::Sol,SId,BaseDom,Op::Cod,OutExample,Op::SInfo>
-        >,
-    >,
+    hash_opt: &HashMap<usize, Arc<<Op::Sol as Partial<SId, BaseDom, Op::SInfo>>::Twin<BaseDom>>>,
+    hash_out: &HashMap<usize, Arc<RawSol<Op::Sol, SId, BaseDom, OutExample, Op::SInfo>>>,
+    hash_cod: &HashMap<usize, Arc<Computed<Op::Sol, SId, BaseDom, Op::Cod, OutExample, Op::SInfo>>>,
     hash_inf: &HashMap<usize, Arc<Op::Info>>,
     cod: Arc<Op::Cod>,
     size: usize,
-)
-where
-    Scp: Searchspace<
-        Op::Sol,
-        SId,
-        BaseDom,
-        BaseDom,
-        Op::SInfo,
-    >,
+) where
+    Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
     Op: Optimizer<
         SId,
         BaseDom,
         BaseDom,
         OutExample,
         Scp,
-        BType = Batch<OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,SId,BaseDom,BaseDom,OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>,OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp>>
+        BType = Batch<
+            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+            SId,
+            BaseDom,
+            BaseDom,
+            OpSInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+            OpInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp>,
+        >,
     >,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Op::Cod: CSVWritable<Op::Cod,<Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
+    Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
 {
-
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("evaluations"));
     let path_obj = eval_path.join("obj.csv");
@@ -401,27 +381,26 @@ fn test_csv_func() {
 
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
-    let mut saver = CSVSaver::new("tmp_test", true, true, true, true,1);
+    let mut saver = CSVSaver::new("tmp_test", true, true, true, true, 1);
     <CSVSaver as Saver<
         SId,
         Calls,
         BaseDom,
         BaseDom,
         OutExample,
-        Sp<BaseDom,
-        BaseDom>,
+        Sp<BaseDom, BaseDom>,
         RandomSearch,
         BatchEvaluator<
-            OpSolType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
+            OpSolType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
             SId,
             BaseDom,
             BaseDom,
-            OpSInfType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
-            OpInfType<RandomSearch,SId,BaseDom,BaseDom,OutExample,Sp<_,_>>,
-        >
+            OpSInfType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
+            OpInfType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
+        >,
     >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
 
-    let mut hash_obj= HashMap::new();
+    let mut hash_obj = HashMap::new();
     let mut hash_opt = HashMap::new();
     let mut hash_outcome = HashMap::new();
     let mut hash_codom = HashMap::new();
@@ -440,13 +419,10 @@ fn test_csv_func() {
         &mut saver,
         6,
     );
-    let nstate = <RandomSearch as Optimizer<
-        SId,
-        BaseDom,
-        BaseDom,
-        OutExample,
-        Sp<_,_>,
-    >>::get_state(&mut nopt);
+    let nstate =
+        <RandomSearch as Optimizer<SId, BaseDom, BaseDom, OutExample, Sp<_, _>>>::get_state(
+            &mut nopt,
+        );
 
     assert_eq!(
         stop.0, nstop.0,
@@ -481,13 +457,10 @@ fn test_csv_func() {
         &mut saver,
         12,
     );
-    let nstate = <RandomSearch as Optimizer<
-        SId,
-        BaseDom,
-        BaseDom,
-        OutExample,
-        Sp<_,_>,
-    >>::get_state(&mut nopt);
+    let nstate =
+        <RandomSearch as Optimizer<SId, BaseDom, BaseDom, OutExample, Sp<_, _>>>::get_state(
+            &mut nopt,
+        );
 
     assert_eq!(
         nstop.0, nnstop.0,

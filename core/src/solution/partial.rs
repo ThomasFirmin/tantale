@@ -169,20 +169,20 @@ where
 }
 
 /// Describes a [`Partial`] associated to a [`Fidelity`].
-pub trait FidelityPartial<SolId, Dom, Info> : Partial<SolId, Dom, Info>
+pub trait FidelityPartial<SolId, Dom, Info>: Partial<SolId, Dom, Info>
 where
     Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
     SolId: Id,
     Dom: Domain,
     Info: SolInfo,
 {
-    fn get_fidelity(&self)->Fidelity;
+    fn get_fidelity(&self) -> Fidelity;
 
     /// Modifies the [`Fidelity`] of a [`FidPartial`] to [`Resume`](Fidelity::Resume).
-    fn resume<B:Domain>(&mut self, twin: &mut Self::Twin<B>, value: f64);
+    fn resume<B: Domain>(&mut self, twin: &mut Self::Twin<B>, value: f64);
 
     /// Modifies the [`Fidelity`] of a [`FidPartial`] to [`Discard`](Fidelity::Discard).
-    fn discard<B:Domain>(&mut self, twin: &mut Self::Twin<B>);
+    fn discard<B: Domain>(&mut self, twin: &mut Self::Twin<B>);
 }
 
 /// A non-evaluated [`Solution`].
@@ -293,13 +293,9 @@ where
     }
 }
 
-
-
-
 //---------------------//
 //----- FIDELITY -----//
 //---------------------//
-
 
 /// A non-evaluated [`Solution`] containing a [`Fidelity`].
 ///
@@ -354,12 +350,17 @@ where
     /// }
     ///
     /// ```
-    pub fn _new<T>(id: SolId, x: T, fid:Fidelity, info: Arc<Info>) -> Self
+    pub fn _new<T>(id: SolId, x: T, fid: Fidelity, info: Arc<Info>) -> Self
     where
         T: AsRef<[TypeDom<Dom>]>,
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
-        FidPartial { id, x: xarc, fid, info }
+        FidPartial {
+            id,
+            x: xarc,
+            fid,
+            info,
+        }
     }
 }
 
@@ -396,7 +397,12 @@ where
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
         let fid = Fidelity::New;
-        FidPartial { id, x: xarc, fid, info }
+        FidPartial {
+            id,
+            x: xarc,
+            fid,
+            info,
+        }
     }
 
     fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
@@ -427,5 +433,3 @@ where
         Self::Twin::_new(self.get_id(), x, self.fid, self.get_info())
     }
 }
-
-

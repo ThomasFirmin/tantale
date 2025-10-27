@@ -1,6 +1,6 @@
 use paste::paste;
 
-use tantale::core::{Sp, VecArc, EmptyInfo, BasePartial, SId, Searchspace, Solution};
+use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp, VecArc};
 
 use super::init_sp::*;
 

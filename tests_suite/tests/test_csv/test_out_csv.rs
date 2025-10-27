@@ -2,6 +2,7 @@ use tantale::core::saver::csvsaver::CSVWritable;
 
 mod outcome {
     use serde::{Deserialize, Serialize};
+    use tantale_core::objective::codomain::EvalState;
     use tantale_macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -14,6 +15,7 @@ mod outcome {
         pub mul7: f64,
         pub mul8: f64,
         pub mul9: f64,
+        pub fid10: EvalState,
         pub tvec: Vec<f64>,
     }
 
@@ -27,6 +29,7 @@ mod outcome {
             mul7: 7.7,
             mul8: 8.8,
             mul9: 9.9,
+            fid10: EvalState::Completed,
             tvec: Vec::from([1.1, 2.2, 3.3]),
         }
     }
@@ -44,6 +47,7 @@ fn out_header() {
         String::from("mul7"),
         String::from("mul8"),
         String::from("mul9"),
+        String::from("fid10"),
         String::from("tvec"),
     ]);
     assert_eq!(
@@ -65,6 +69,7 @@ fn out_write() {
         String::from("7.7"),
         String::from("8.8"),
         String::from("9.9"),
+        "Completed".to_string(),
         String::from("[1.1, 2.2, 3.3]"),
     ]);
     assert_eq!(

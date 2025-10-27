@@ -143,7 +143,6 @@ pub fn run_reader(path: &str, size: usize) {
         let record = l.unwrap();
         let id: usize = record[0].parse().unwrap();
         hash_id.insert(id);
-
     }
 
     assert_eq!(

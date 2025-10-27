@@ -69,7 +69,7 @@ pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::{BasePartial, Partial, Fidelity};
+pub use partial::{BasePartial, Fidelity, Partial};
 
 pub mod computed;
 pub use computed::Computed;

@@ -35,7 +35,7 @@ test_const!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstcodomain, CostConstCodomain::new(
+    struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -57,7 +57,7 @@ test_const!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
+    struct_costconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -73,25 +73,25 @@ test_const!(
     )
 );
 
-macro_rules! test_fid {
+macro_rules! test_cost {
     ($object:ident | $($name : ident , $codom : expr);*) => {
         $(
             paste!{
                 #[test]
-                fn [< $name _fidelity>] (){
+                fn [< $name _cost>] (){
                     let out = $object ();
                     let elem = $codom .get_elem(&out);
 
-                    assert_eq!(elem.fidelity , 2.0, "Fidelity not equal.");
+                    assert_eq!(elem.cost , 2.0, "Cost not equal.");
                 }
             }
         )*
     };
 }
 
-test_fid!(
+test_cost!(
     get_struct |
-    struct_fidelconstcodomain, CostConstCodomain::new(
+    struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -100,7 +100,7 @@ test_fid!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
+    struct_costconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -114,11 +114,11 @@ test_fid!(
             |h : &OutExample| h.con5,
             ].into_boxed_slice(),
     );
-    struct_fidelcodomain , CostCodomain::new(
+    struct_costcodomain , CostCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
     );
-    struct_fidelmulticodomain , CostMultiCodomain::new(
+    struct_costmulticodomain , CostMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -138,7 +138,7 @@ macro_rules! test_single {
                     let out = $object ();
                     let elem = $codom .get_elem(&out);
 
-                    assert_eq!(elem.value , 1.0, "Fidelity not equal.");
+                    assert_eq!(elem.value , 1.0, "costity not equal.");
                 }
             }
         )*
@@ -150,7 +150,7 @@ test_single!(
     struct_singlecodomain, SingleCodomain::new(
         |h : &OutExample| h.obj1,
     );
-    struct_fidelcodomain, CostCodomain::new(
+    struct_costcodomain, CostCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
     );
@@ -163,7 +163,7 @@ test_single!(
             ].into_boxed_slice(),
 
     );
-    struct_fidelconstcodomain, CostConstCodomain::new(
+    struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
         |h : &OutExample| h.fid2,
         vec![
@@ -204,7 +204,7 @@ test_multi!(
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
     );
-    struct_fidelmulticodomain, CostMultiCodomain::new(
+    struct_costmulticodomain, CostMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,
@@ -227,7 +227,7 @@ test_multi!(
             ].into_boxed_slice(),
 
     );
-    struct_fidelconstmulticodomain, CostConstMultiCodomain::new(
+    struct_costconstmulticodomain, CostConstMultiCodomain::new(
         vec![
             |h : &OutExample| h.mul6,
             |h : &OutExample| h.mul7,

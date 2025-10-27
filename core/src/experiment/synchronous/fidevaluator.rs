@@ -1,8 +1,11 @@
 use crate::{
-    Codomain, Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution, domain::Domain, experiment::{
-        Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults
-    }, objective::{Outcome, Stepped, outcome::FuncState}, optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-    solution::{Batch, partial::FidelityPartial}, stop::{ExpStep, Stop}
+    domain::Domain,
+    experiment::{utils::BatchResults, Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
+    objective::{outcome::FuncState, Outcome, Stepped},
+    optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
+    solution::{partial::FidelityPartial, Batch},
+    stop::{ExpStep, Stop},
+    Codomain, Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -125,15 +128,15 @@ where
             let pair = self.batch.index(i);
             let sid = pair.0.get_id();
             let fidelity = pair.0.get_fidelity();
-            match fidelity{
-                crate::Fidelity::New =>{
+            match fidelity {
+                crate::Fidelity::New => {
                     let x = pair.0.get_x();
                     let fid = pair.0.get_fidelity();
                     let (y, out, state) = ob.compute(x.as_ref(), fid, None);
                     self.states.insert(sid, state);
                     results.add(pair, out, y);
                     st.update(ExpStep::Distribution);
-                },
+                }
                 crate::Fidelity::Resume(_) => {
                     let x = pair.0.get_x();
                     let fid = pair.0.get_fidelity();
@@ -142,8 +145,10 @@ where
                     self.states.insert(sid, state);
                     results.add(pair, out, y);
                     st.update(ExpStep::Distribution);
-                },
-                crate::Fidelity::Discard => {self.states.remove(&sid);},
+                }
+                crate::Fidelity::Discard => {
+                    self.states.remove(&sid);
+                }
             };
             i += 1
         }
@@ -260,7 +265,8 @@ where
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Sol: FidelityPartial<SolId, Obj, Op::SInfo> + Send + Sync,
-    <Op::Sol as Partial<SolId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SolId, Opt, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SolId, Obj, Op::SInfo>>::Twin<Opt>:
+        FidelityPartial<SolId, Opt, Op::SInfo> + Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
@@ -278,8 +284,8 @@ where
                 let pair = self.batch.index(idx);
                 let sid = pair.0.get_id();
                 let fidelity = pair.0.get_fidelity();
-                match fidelity{
-                    crate::Fidelity::New =>{
+                match fidelity {
+                    crate::Fidelity::New => {
                         stplock.update(ExpStep::Distribution);
                         drop(stplock);
                         let x = pair.0.get_x();
@@ -287,7 +293,7 @@ where
                         let (y, out, state) = ob.compute(x.as_ref(), fid, None);
                         hash_state.lock().unwrap().insert(sid, state);
                         results.lock().unwrap().add(pair, out, y);
-                    },
+                    }
                     crate::Fidelity::Resume(_) => {
                         stplock.update(ExpStep::Distribution);
                         drop(stplock);
@@ -297,8 +303,10 @@ where
                         let (y, out, state) = ob.compute(x.as_ref(), fid, state);
                         hash_state.lock().unwrap().insert(sid, state);
                         results.lock().unwrap().add(pair, out, y);
-                    },
-                    crate::Fidelity::Discard => {hash_state.lock().unwrap().remove(&sid);},
+                    }
+                    crate::Fidelity::Discard => {
+                        hash_state.lock().unwrap().remove(&sid);
+                    }
                 };
             }
         });

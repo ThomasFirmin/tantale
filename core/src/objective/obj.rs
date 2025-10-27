@@ -3,9 +3,13 @@
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
 //!
 
-use crate::{domain::{Domain, TypeDom},
-            objective::{Codomain,outcome::{FuncState, Outcome}},
-            solution::partial::Fidelity,
+use crate::{
+    domain::{Domain, TypeDom},
+    objective::{
+        outcome::{FuncState, Outcome},
+        Codomain,
+    },
+    solution::partial::Fidelity,
 };
 
 use std::sync::Arc;
@@ -126,7 +130,12 @@ where
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn raw_compute(&self, x: &[TypeDom<Obj>], fidelity: Fidelity, state: Option<FnState>) -> (Out, FnState) {
+    pub fn raw_compute(
+        &self,
+        x: &[TypeDom<Obj>],
+        fidelity: Fidelity,
+        state: Option<FnState>,
+    ) -> (Out, FnState) {
         (self.function)(x, fidelity, state)
     }
     /// Compute the outputs of a function to maximize according to an input `x`.    

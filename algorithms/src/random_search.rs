@@ -1,7 +1,15 @@
 use tantale_core::{
-    BasePartial, Criteria, Objective, Stop, domain::onto::OntoDom, experiment::{BatchEvaluator, Runable, SyncExperiment, ThrBatchEvaluator}, objective::{codomain::SingleCodomain, outcome::Outcome}, optimizer::{
-        CBType, EmptyInfo, OptInfo, OptState, opt::{MonoOptimizer, Optimizer, ThrOptimizer}
-    }, saver::{CSVWritable, Saver}, searchspace::Searchspace, solution::{Batch, SId}
+    domain::onto::OntoDom,
+    experiment::{BatchEvaluator, Runable, SyncExperiment, ThrBatchEvaluator},
+    objective::{codomain::SingleCodomain, outcome::Outcome},
+    optimizer::{
+        opt::{MonoOptimizer, Optimizer, ThrOptimizer},
+        CBType, EmptyInfo, OptInfo, OptState,
+    },
+    saver::{CSVWritable, Saver},
+    searchspace::Searchspace,
+    solution::{Batch, SId},
+    BasePartial, Criteria, Objective, Stop,
 };
 #[cfg(feature = "mpi")]
 use tantale_core::{

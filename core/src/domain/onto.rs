@@ -18,7 +18,7 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{Domain, domain::derrors::OntoError};
+use crate::{domain::derrors::OntoError, Domain};
 
 pub trait Onto<Target> {
     type TargetItem;
@@ -41,7 +41,7 @@ pub trait Onto<Target> {
     fn onto(&self, item: &Self::Item, target: &Target) -> Result<Self::TargetItem, OntoError>;
 }
 
-pub trait OntoDom<B>:Domain
+pub trait OntoDom<B>: Domain
 where
     Self: Onto<B, TargetItem = B::TypeDom, Item = Self::TypeDom>,
     B: Domain,

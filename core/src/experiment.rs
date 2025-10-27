@@ -1,5 +1,11 @@
 use crate::{
-    Onto, Searchspace, domain::Domain, objective::Outcome, optimizer::Optimizer, saver::Saver, solution::{BatchType, Id}, stop::Stop
+    domain::Domain,
+    objective::Outcome,
+    optimizer::Optimizer,
+    saver::Saver,
+    solution::{BatchType, Id},
+    stop::Stop,
+    Onto, Searchspace,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};

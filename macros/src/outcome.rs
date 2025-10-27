@@ -10,7 +10,7 @@ fn is_vec_type(ty: &Type) -> bool {
 fn is_numeric_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if {
         let ident = &p.path.segments.last().unwrap().ident;
-        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64" | "String" | "bool")
+        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64" | "String" | "bool" | "EvalState")
     })
 }
 

@@ -28,7 +28,14 @@
 //! ```
 
 use crate::domain::{
-    Domain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, cat::Cat, derrors::OntoError, onto::{Onto, OntoDom}, sampler::uniform, unit::Unit
+    base::{BaseDom, BaseTypeDom},
+    bool::Bool,
+    cat::Cat,
+    derrors::OntoError,
+    onto::{Onto, OntoDom},
+    sampler::uniform,
+    unit::Unit,
+    Domain, TypeDom,
 };
 use crate::saver::CSVWritable;
 
@@ -223,7 +230,11 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &Bounded<Out>) -> Result<Self::TargetItem, OntoError>{
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &Bounded<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -240,12 +251,13 @@ where
         }
     }
 }
-impl<In,Out> OntoDom<Bounded<Out>> for Bounded<In>
+impl<In, Out> OntoDom<Bounded<Out>> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
-{}
+{
+}
 
 impl<In> Onto<Bool> for Bounded<In>
 where
@@ -270,7 +282,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             Ok(*item > self.mid())
         } else {
@@ -282,7 +294,8 @@ impl<In> OntoDom<Bool> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
-{}
+{
+}
 
 impl<In> Onto<Cat> for Bounded<In>
 where
@@ -315,7 +328,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -336,7 +349,8 @@ impl<In> OntoDom<Cat> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
-{}
+{
+}
 
 impl<In> Onto<Unit> for Bounded<In>
 where
@@ -363,7 +377,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - self.lower()).as_();
             let b: f64 = self.width().as_();
@@ -383,7 +397,8 @@ impl<In> OntoDom<Unit> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
-{}
+{
+}
 
 impl<In> Onto<BaseDom> for Bounded<In>
 where
@@ -407,7 +422,7 @@ where
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError>{
+    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
         match target {
             BaseDom::Real(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Real(i)),
@@ -440,7 +455,8 @@ impl<In> OntoDom<BaseDom> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<In>,
-{}
+{
+}
 
 impl From<BaseDom> for Real {
     fn from(value: BaseDom) -> Self {

@@ -1,10 +1,10 @@
 extern crate proc_macro;
 
+mod hpo;
 mod mixed;
 mod objective;
 mod outcome;
 mod searchspace;
-mod hpo;
 mod stepped;
 
 #[proc_macro_derive(Mixed)]

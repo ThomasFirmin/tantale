@@ -294,11 +294,15 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let output = &fn_item.sig.output;
     let outspan = output.span();
     let outtype = match output {
-        syn::ReturnType::Default => return
-            syn::Error::new(outspan,
-                 "The output of the raw objective function,
-                            should be an Outcome or (Outcome,FuncState)."
-                ).to_compile_error().into(),
+        syn::ReturnType::Default => {
+            return syn::Error::new(
+                outspan,
+                "The output of the raw objective function,
+                            should be an Outcome or (Outcome,FuncState).",
+            )
+            .to_compile_error()
+            .into()
+        }
         syn::ReturnType::Type(_, ty) => ty,
     };
 
@@ -355,13 +359,12 @@ pub fn obj(input: TokenStream) -> TokenStream {
         .inputs
         .push(parse_quote! {tantale_in : &[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]});
 
-    if state.is_some(){
+    if state.is_some() {
         fn_item
-        .sig
-        .inputs
-        .push(parse_quote! {state : Option<#state>});
+            .sig
+            .inputs
+            .push(parse_quote! {state : Option<#state>});
     }
-    
 
     let mut new_stream = TokenStream::new();
 

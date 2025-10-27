@@ -393,7 +393,7 @@ pub mod sp_evaluator {
 //***********************************//
 
 pub mod sp_ms_nosamp_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample, FnState};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
 
@@ -440,7 +440,7 @@ pub mod sp_ms_nosamp_fid {
 }
 
 pub mod sp_ms_samp_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample, FnState};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
     use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
 
@@ -463,23 +463,31 @@ pub mod sp_ms_samp_fid {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
 
-            OutExample{
-                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
-                int_v: a,
-                poi: e,
-                nat_v: b,
-                ipn: f,
-                cat_v: c,
-                bool_v: d,
-                neuron: layer,
-                vec: k.iter().map(|i| *i).collect(),
-            }
+            let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            (
+                OutExample{
+                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    int_v: a,
+                    poi: e,
+                    nat_v: b,
+                    ipn: f,
+                    cat_v: c,
+                    bool_v: d,
+                    neuron: layer,
+                    vec: k.iter().map(|i| *i).collect(),
+                },
+                state
+            )
         }
     );
 }
 
 pub mod sp_ms_samp_right_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample, FnState};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
     use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
 
@@ -502,23 +510,31 @@ pub mod sp_ms_samp_right_fid {
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
 
-            OutExample{
-                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
-                int_v: a,
-                poi: e,
-                nat_v: b,
-                ipn: f,
-                cat_v: c,
-                bool_v: d,
-                neuron: layer,
-                vec: k.iter().map(|i| *i).collect(),
-            }
+            let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            (
+                OutExample{
+                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    int_v: a,
+                    poi: e,
+                    nat_v: b,
+                    ipn: f,
+                    cat_v: c,
+                    bool_v: d,
+                    neuron: layer,
+                    vec: k.iter().map(|i| *i).collect(),
+                },
+                state
+            )
         }
     );
 }
 
 pub mod sp_ms_noright_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample, FnState};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
     use tantale_core::{Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
 
@@ -541,23 +557,31 @@ pub mod sp_ms_noright_fid {
 
             let k = [! k_{4} | Nat(0,100) | !];
 
-            OutExample{
-                obj: [! j | Real(1000.0,2000.0) | !],
-                int_v: a,
-                poi: e,
-                nat_v: b,
-                ipn: f,
-                cat_v: c,
-                bool_v: d,
-                neuron: layer,
-                vec: k.iter().map(|i| *i).collect(),
-            }
+           let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            (
+                OutExample{
+                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    int_v: a,
+                    poi: e,
+                    nat_v: b,
+                    ipn: f,
+                    cat_v: c,
+                    bool_v: d,
+                    neuron: layer,
+                    vec: k.iter().map(|i| *i).collect(),
+                },
+                state
+            )
         }
     );
 }
 
 pub mod sp_ms_samp_noright_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample, FnState};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
     use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
 
@@ -580,12 +604,14 @@ pub mod sp_ms_samp_noright_fid {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
 
-            if let Some(s) = tantale_state{s.state += 1;}
-            else{}
-
+            let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
             (
                 OutExample{
-                    obj: [! j | Real(1000.0,2000.0) | !],
+                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -594,23 +620,22 @@ pub mod sp_ms_samp_noright_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
-                }
-
+                },
+                state
             )
         }
     );
 }
 
 pub mod sp_sm_samp_fid {
+    use super::{float_plus_float, plus_one_float, FnState, OutUnique, Point};
     use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
     use tantale_macros::objective;
-
-    use super::{float_plus_float, plus_one_float, OutUnique, Point};
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> OutUnique {
+        pub fn example() -> (OutUnique,FnState) {
             let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
             let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
             let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
@@ -626,17 +651,25 @@ pub mod sp_sm_samp_fid {
 
             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
 
-            OutUnique{
-                obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
-                int_v: a,
-                poi: e,
-                nat_v: b,
-                ipn: f,
-                cat_v: c,
-                bool_v: d,
-                point: p,
-                vec: k.iter().map(|i| **i).collect(),
-            }
+            let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            (
+                OutUnique{
+                    obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                    int_v: a,
+                    poi: e,
+                    nat_v: b,
+                    ipn: f,
+                    cat_v: c,
+                    bool_v: d,
+                    point: p,
+                    vec: k.iter().map(|i| **i).collect(),
+                },
+                state
+            )
         }
     );
 }
@@ -645,12 +678,12 @@ pub mod sp_sm_samp_noright_fid {
     use tantale_core::{uniform_real, Real};
     use tantale_macros::objective;
 
-    use super::{float_plus_float, plus_one_float, OutUnique, Point};
+    use super::{float_plus_float, plus_one_float, FnState, OutUnique, Point};
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> OutUnique {
+        pub fn example() -> (OutUnique,FnState) {
             let a = [! a | Real(0.0,1.0) | => uniform_real !];
             let b = [! b | Real(0.0,1.0) => uniform_real | !];
             let c = [! c | Real(0.0,1.0) |!];
@@ -666,17 +699,25 @@ pub mod sp_sm_samp_noright_fid {
 
             let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
 
-            OutUnique{
-                obj: [! j | Real(0.0,1.0) | !],
-                int_v: a,
-                poi: e,
-                nat_v: b,
-                ipn: f,
-                cat_v: c,
-                bool_v: d,
-                point: p,
-                vec: k.iter().map(|i| **i).collect(),
-            }
+            let mut state = match state {
+                Some(ste) => ste,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            (
+                OutUnique{
+                    obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                    int_v: a,
+                    poi: e,
+                    nat_v: b,
+                    ipn: f,
+                    cat_v: c,
+                    bool_v: d,
+                    point: p,
+                    vec: k.iter().map(|i| **i).collect(),
+                },
+                state
+            )
         }
     );
 }

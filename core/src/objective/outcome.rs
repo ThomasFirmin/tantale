@@ -4,21 +4,24 @@
 //! linked to the evaluation (e.g. computation time), or internal state.
 //!
 //! # Notes
+//! ## Supported types
 //!  An [`Outcome`](tantale::core::Outcome) is [`CSVWritable`](tantale::core::saver::csvsaver::CSVWritable), ['Serializable'](serde::Serializable), ['Deserializable'](serde::Deserializable).
 //!  But only following types are writable [`isize`], [`i32`], [`i64`], [`f32`], [`f64`], [`usize`], [`u32`], [`u64`], [`String`], [`bool`]. [`Vec`] can also be written if it implements [`Debug`](std::fmt::Debug).
 //!  Other fields should be ['Serializable'](serde::Serializable) and ['Deserializable'](serde::Deserializable) for checkpointing.
-//!
+//! ## Multi-fidelity
+//!  A [`FidOutcome`] is an [`Outcome`] containing an [`EvalState`] attribute describing the current state of the evaluation.
+//!  It is used in multi-[`Fidelity`] optimization.
 //! # Example
 //!
 //! ```
 //! use tantale::macros::Outcome;
-//! use tantale::core::{Codomain, FidelConstMultiCodomain};
+//! use tantale::core::{Codomain, CostConstMultiCodomain};
 //! use std::fmt::Debug;
 //! use serde::{Serialize,Deserialize};
 //!
 //! #[derive(Outcome,Debug,Serialize,Deserialize)]
 //! pub struct OutExample {
-//!     pub fid2: f64,
+//!     pub cost2: f64,
 //!     pub con3: f64,
 //!     pub con4: f64,
 //!     pub con5: f64,
@@ -30,7 +33,7 @@
 //!
 //! // An mock output of an objective function
 //! let out = OutExample {
-//!              fid2: 2.0,
+//!              cost2: 2.0,
 //!              con3: 3.0,
 //!              con4: 4.0,
 //!              con5: 5.0,
@@ -42,7 +45,7 @@
 //!
 //!
 //! // Relation between Outcome and Codomain
-//! let codom = FidelConstMultiCodomain::new(
+//! let codom = CostConstMultiCodomain::new(
 //!        // Define multi-objective
 //!        vec![
 //!            |h: &OutExample| h.mul6,
@@ -51,8 +54,8 @@
 //!            |h: &OutExample| h.mul9,
 //!        ]
 //!        .into_boxed_slice(),
-//!        // Define fidelity
-//!        |h: &OutExample| h.fid2,
+//!        // Define Cost
+//!        |h: &OutExample| h.cost2,
 //!        // Define constraints
 //!        vec![
 //!            |h: &OutExample| h.con3,
@@ -64,11 +67,13 @@
 //! let extracted = codom.get_elem(&out);
 //! println!("MULTI : {:?}",extracted.value);
 //! println!("CONSTRAINT : {:?}",extracted.constraints);
-//! println!("FIDELITY : {}",extracted.fidelity);
+//! println!("Cost : {}",extracted.cost);
 //! ```
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+use crate::objective::codomain::EvalState;
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
@@ -78,6 +83,15 @@ pub trait Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
+}
+
+/// [`FidOutcome`] is a trait describing an [`Outcome`] containing an [`EvalState`] for
+/// multi-[`Fidelity`] optimiaztion.
+pub trait FidOutcome : Outcome
+where
+    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
+{
+    fn get_fidelity(&self)->EvalState;
 }
 
 /// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the

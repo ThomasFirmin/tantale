@@ -106,7 +106,10 @@
 //! ```
 
 use crate::{
-    Codomain, Onto, Outcome, domain::Domain, optimizer::VecArc, solution::{Computed, Id, Partial, SolInfo, Solution}
+    domain::Domain,
+    optimizer::VecArc,
+    solution::{Computed, Id, Partial, SolInfo, Solution},
+    Codomain, Onto, Outcome,
 };
 
 use rand::prelude::ThreadRng;

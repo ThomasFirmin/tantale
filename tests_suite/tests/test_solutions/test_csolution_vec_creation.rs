@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{Computed, ParSId, Partial, BasePartial, Solution};
+use tantale::core::{BasePartial, Computed, ParSId, Partial, Solution};
 use tantale_core::domain::TypeDom;
 use tantale_core::{Codomain, SingleCodomain};
 
@@ -12,8 +12,16 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type SlcArcComp<Dom> =
-    std::sync::Arc<Computed<BasePartial<ParSId,Dom,TestSInfo>,ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>>;
+type SlcArcComp<Dom> = std::sync::Arc<
+    Computed<
+        BasePartial<ParSId, Dom, TestSInfo>,
+        ParSId,
+        Dom,
+        SingleCodomain<OutExample>,
+        OutExample,
+        TestSInfo,
+    >,
+>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &[SlcArcComp<Dom>], pid: u32)
 where

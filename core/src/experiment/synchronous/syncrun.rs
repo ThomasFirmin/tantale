@@ -1,10 +1,19 @@
 use crate::{
-    Id, Onto, Partial, Stepped, domain::Domain, experiment::{
+    domain::Domain,
+    experiment::{
         BatchEvaluator, Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable,
         ThrBatchEvaluator, ThrEvaluate,
-    }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
-        CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
-    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId, partial::FidelityPartial}, stop::{ExpStep, Stop}
+    },
+    objective::{outcome::FuncState, Codomain, Objective, Outcome},
+    optimizer::{
+        opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
+        CBType, OBType, Optimizer,
+    },
+    saver::Saver,
+    searchspace::Searchspace,
+    solution::{partial::FidelityPartial, Batch, SId},
+    stop::{ExpStep, Stop},
+    Id, Onto, Partial, Stepped,
 };
 
 #[cfg(feature = "mpi")]
@@ -1052,7 +1061,8 @@ where
     Op::Sol: Send + Sync,
     Op::Cod: Send + Sync,
     Op::Sol: FidelityPartial<SId, Obj, Op::SInfo> + Send + Sync,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>:
+        FidelityPartial<SId, Opt, Op::SInfo> + Send + Sync,
 {
     fn new(
         searchspace: Scp,
