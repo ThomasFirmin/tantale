@@ -15,7 +15,7 @@ use crate::{
 
 use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json;
+use rmp_serde;
 use std::{
     fs::{create_dir, create_dir_all, File, OpenOptions},
     path::{Path, PathBuf},
@@ -297,10 +297,10 @@ where
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
 ///  * checkpoint
-///   * state_opt.json      ([`OptState`])
-///   * state_stp.json      ([`Stop`])
-///   * state_eval.json     ([`Evaluate`])
-///   * state_param.json    (Various global parameters as the [`Id`] or experiment identifier.)
+///   * state_opt.mp      ([`OptState`])
+///   * state_stp.mp      ([`Stop`])
+///   * state_eval.mp     ([`Evaluate`])
+///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[derive(Serialize, Deserialize)]
 pub struct CSVSaver {
@@ -349,10 +349,10 @@ impl CSVSaver {
 
         let path_check = if checkpoint > 0 {
             let path = true_path.join(Path::new("checkpoint"));
-            let pste = path.join(Path::new("state_opt.json"));
-            let pstp = path.join(Path::new("state_stp.json"));
-            let peva = path.join(Path::new("state_eval.json"));
-            let ppar = path.join(Path::new("state_param.json"));
+            let pste = path.join(Path::new("state_opt.mp"));
+            let pstp = path.join(Path::new("state_stp.mp"));
+            let peva = path.join(Path::new("state_eval.mp"));
+            let ppar = path.join(Path::new("state_param.mp"));
             Some((pste, pstp, peva, ppar))
         } else {
             None
@@ -650,12 +650,12 @@ where
 
     fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval) {
         if let Some(path) = &self.path_check {
-            let wrt = File::create(path.0.as_path()).unwrap();
-            serde_json::to_writer(wrt, state).unwrap();
-            let wrt = File::create(path.1.as_path()).unwrap();
-            serde_json::to_writer(wrt, stop).unwrap();
-            let wrt = File::create(path.2.as_path()).unwrap();
-            serde_json::to_writer(wrt, eval).unwrap();
+            let mut wrt = File::create(path.0.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, state).unwrap();
+            let mut wrt = File::create(path.1.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, stop).unwrap();
+            let mut wrt = File::create(path.2.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, eval).unwrap();
 
             let global = GlobalParameters {
                 sold_id: SOL_ID.load(Ordering::Relaxed),
@@ -663,8 +663,8 @@ where
                 run_id: RUN_ID.load(Ordering::Relaxed),
             };
 
-            let wrt = File::create(path.3.as_path()).unwrap();
-            serde_json::to_writer(wrt, &global).unwrap();
+            let mut wrt = File::create(path.3.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, &global).unwrap();
         }
     }
 
@@ -676,13 +676,13 @@ where
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_stp = path_check.join(Path::new("state_stp.json"));
+            let path_stp = path_check.join(Path::new("state_stp.mp"));
             if path_stp.is_file() {
                 let rdrstp = File::open(path_stp).unwrap();
-                Ok(serde_json::from_reader(rdrstp).unwrap())
+                Ok(rmp_serde::decode::from_read(rdrstp).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Stop state file state_stp.json does not exists.",
+                    "Stop state file state_stp.mp does not exists.",
                 )))
             }
         } else {
@@ -696,13 +696,13 @@ where
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_opt = path_check.join(Path::new("state_opt.json"));
+            let path_opt = path_check.join(Path::new("state_opt.mp"));
             if path_opt.is_file() {
                 let rdropt = File::open(path_opt).unwrap();
-                Ok(Op::from_state(serde_json::from_reader(rdropt).unwrap()))
+                Ok(Op::from_state(rmp_serde::decode::from_read(rdropt).unwrap()))
             } else {
                 Err(CheckpointError(String::from(
-                    "Optimizer state file state_opt.json does not exists.",
+                    "Optimizer state file state_opt.mp does not exists.",
                 )))
             }
         } else {
@@ -716,13 +716,13 @@ where
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_eva = path_check.join(Path::new("state_eval.json"));
+            let path_eva = path_check.join(Path::new("state_eval.mp"));
             if path_eva.is_file() {
                 let rdreva = File::open(path_eva).unwrap();
-                Ok(serde_json::from_reader(rdreva).unwrap())
+                Ok(rmp_serde::decode::from_read(rdreva).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Evaluator state file state_eval.json does not exists.",
+                    "Evaluator state file state_eval.mp does not exists.",
                 )))
             }
         } else {
@@ -740,13 +740,13 @@ where
         let path_check = self.path.join(Path::new("checkpoint"));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_par = path_check.join(Path::new("state_param.json"));
+            let path_par = path_check.join(Path::new("state_param.mp"));
             if path_par.is_file() {
                 let rdrpar = File::open(path_par).unwrap();
-                Ok(serde_json::from_reader(rdrpar).unwrap())
+                Ok(rmp_serde::decode::from_read(rdrpar).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Parameters state file state_param.json does not exists.",
+                    "Parameters state file state_param.mp does not exists.",
                 )))
             }
         } else {
@@ -801,10 +801,10 @@ where
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
 ///  * checkpoint
-///   * state_opt.json      ([`OptState`])
-///   * state_stp.json      ([`Stop`])
-///   * state_eval.json     ([`Evaluate`])
-///   * state_param.json    (Various global parameters as the [`Id`] or experiment identifier.)
+///   * state_opt.mp      ([`OptState`])
+///   * state_stp.mp      ([`Stop`])
+///   * state_eval.mp     ([`Evaluate`])
+///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[cfg(feature = "mpi")]
 impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
@@ -905,10 +905,10 @@ where
 
             if self.path_check.is_some() {
                 let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
-                let pste = path.join(Path::new("state_opt.json"));
-                let pstp = path.join(Path::new("state_stp.json"));
-                let peva = path.join(Path::new("state_eval.json"));
-                let ppar = path.join(Path::new("state_param.json"));
+                let pste = path.join(Path::new("state_opt.mp"));
+                let pstp = path.join(Path::new("state_stp.mp"));
+                let peva = path.join(Path::new("state_eval.mp"));
+                let ppar = path.join(Path::new("state_param.mp"));
                 self.path_check.replace((pste, pstp, peva, ppar));
                 create_dir(path.as_path()).unwrap();
             }
@@ -990,10 +990,10 @@ where
                         path.display()
                     )
                 }
-                let pste = path.join(Path::new("state_opt.json"));
-                let pstp = path.join(Path::new("state_stp.json"));
-                let peva = path.join(Path::new("state_eval.json"));
-                let ppar = path.join(Path::new("state_param.json"));
+                let pste = path.join(Path::new("state_opt.mp"));
+                let pstp = path.join(Path::new("state_stp.mp"));
+                let peva = path.join(Path::new("state_eval.mp"));
+                let ppar = path.join(Path::new("state_param.mp"));
                 self.path_check.replace((pste, pstp, peva, ppar));
             }
         } else {
@@ -1141,12 +1141,12 @@ where
 
     fn save_state(&self, _sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, _rank: Rank) {
         if let Some(path) = &self.path_check {
-            let wrt = File::create(path.0.as_path()).unwrap();
-            serde_json::to_writer(wrt, state).unwrap();
-            let wrt = File::create(path.1.as_path()).unwrap();
-            serde_json::to_writer(wrt, stop).unwrap();
-            let wrt = File::create(path.2.as_path()).unwrap();
-            serde_json::to_writer(wrt, eval).unwrap();
+            let mut wrt = File::create(path.0.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, state).unwrap();
+            let mut wrt = File::create(path.1.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, stop).unwrap();
+            let mut wrt = File::create(path.2.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, eval).unwrap();
 
             let global = GlobalParameters {
                 sold_id: SOL_ID.load(Ordering::Relaxed),
@@ -1154,8 +1154,8 @@ where
                 run_id: RUN_ID.load(Ordering::Relaxed),
             };
 
-            let wrt = File::create(path.3.as_path()).unwrap();
-            serde_json::to_writer(wrt, &global).unwrap();
+            let mut wrt = File::create(path.3.as_path()).unwrap();
+            rmp_serde::encode::write(&mut wrt, &global).unwrap();
         }
     }
 
@@ -1163,13 +1163,13 @@ where
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_stp = path_check.join(Path::new("state_stp.json"));
+            let path_stp = path_check.join(Path::new("state_stp.mp"));
             if path_stp.is_file() {
                 let rdrstp = File::open(path_stp).unwrap();
-                Ok(serde_json::from_reader(rdrstp).unwrap())
+                Ok(rmp_serde::from_read(rdrstp).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Stop state file state_stp.json does not exists.",
+                    "Stop state file state_stp.mp does not exists.",
                 )))
             }
         } else {
@@ -1183,13 +1183,13 @@ where
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_opt = path_check.join(Path::new("state_opt.json"));
+            let path_opt = path_check.join(Path::new("state_opt.mp"));
             if path_opt.is_file() {
                 let rdropt = File::open(path_opt).unwrap();
-                Ok(Op::from_state(serde_json::from_reader(rdropt).unwrap()))
+                Ok(Op::from_state(rmp_serde::from_read(rdropt).unwrap()))
             } else {
                 Err(CheckpointError(String::from(
-                    "Optimizer state file state_opt.json does not exists.",
+                    "Optimizer state file state_opt.mp does not exists.",
                 )))
             }
         } else {
@@ -1208,13 +1208,13 @@ where
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_eva = path_check.join(Path::new("state_eval.json"));
+            let path_eva = path_check.join(Path::new("state_eval.mp"));
             if path_eva.is_file() {
                 let rdreva = File::open(path_eva).unwrap();
-                Ok(serde_json::from_reader(rdreva).unwrap())
+                Ok(rmp_serde::from_read(rdreva).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Evaluator state file state_eval.json does not exists.",
+                    "Evaluator state file state_eval.mp does not exists.",
                 )))
             }
         } else {
@@ -1233,13 +1233,13 @@ where
         let path_check = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
         let does_exist = path_check.try_exists().unwrap();
         if does_exist {
-            let path_par = path_check.join(Path::new("state_param.json"));
+            let path_par = path_check.join(Path::new("state_param.mp"));
             if path_par.is_file() {
                 let rdrpar = File::open(path_par).unwrap();
-                Ok(serde_json::from_reader(rdrpar).unwrap())
+                Ok(rmp_serde::from_read(rdrpar).unwrap())
             } else {
                 Err(CheckpointError(String::from(
-                    "Parameters state file state_param.json does not exists.",
+                    "Parameters state file state_param.mp does not exists.",
                 )))
             }
         } else {

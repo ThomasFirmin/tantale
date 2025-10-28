@@ -363,6 +363,10 @@ pub fn obj(input: TokenStream) -> TokenStream {
         fn_item
             .sig
             .inputs
+            .push(parse_quote! {fidelity : tantale::core::solution::partial::Fidelity});
+        fn_item
+            .sig
+            .inputs
             .push(parse_quote! {state : Option<#state>});
     }
 

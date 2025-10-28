@@ -7,8 +7,8 @@ pub use codomain::{
     CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCodomain,
     FidConstCodomain, FidConstMultiCodomain, FidCostCodomain, FidCostConstCodomain,
     FidCostConstMultiCodomain, FidCostMultiCodomain, FidCriteria, FidMultiCodomain, Fidelity,
-    Multi, MultiCodomain, Single, SingleCodomain,
+    Multi, MultiCodomain, Single, SingleCodomain,EvalState
 };
 
 pub mod outcome;
-pub use outcome::Outcome;
+pub use outcome::{Outcome,FidOutcome};

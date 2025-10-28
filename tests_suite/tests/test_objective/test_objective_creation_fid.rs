@@ -1,7 +1,7 @@
 use paste::paste;
 
 use std::sync::Arc;
-use tantale_core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, BaseTypeDom, Sp};
+use tantale_core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, BaseTypeDom, Sp, FidOutcome, solution::Fidelity};
 
 use super::init_func::*;
 
@@ -23,7 +23,10 @@ macro_rules! get_test {
                 let sample_obj : Arc<BasePartial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x().as_ref());
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
+
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 1,"The state should be == 1");
 
                 assert!(sp.variables[0].is_in_obj(&BaseTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&BaseTypeDom::Nat(out.nat_v)),"Element [1] of tantale_in not int variable [1].");
@@ -67,7 +70,10 @@ macro_rules! get_test {
                 let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp, sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let out = func(converted_obj.get_x().as_ref());
+                let (out, state) = func(converted_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
+
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 2,"The state should be == 2");
 
                 assert!(sp.variables[0].is_in_obj(&BaseTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&BaseTypeDom::Nat(out.nat_v)),"Element [1] of tantale_in not int variable [1].");
@@ -101,6 +107,28 @@ macro_rules! get_test {
                 assert!(sp.variables[12].is_in_obj(&BaseTypeDom::Nat(k3)), "Element [12] of tantale_in not int variable [12].");
 
                 assert!(sp.variables[13].is_in_obj(&BaseTypeDom::Real(out.obj)), "Element [13] of tantale_in not int variable [13].");
+
+                // 3
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 3,"The state should be == 3");
+                // 4
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 4,"The state should be == 4");
+                // 5
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
+                assert!(out.get_fidelity().is_completed(),"The EvalState should be completed");
+                assert!(state.state == 5,"The state should be == 5");
+                // 1
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard");
+                assert!(state.state == 1,"The state should be == 1 after Discard");
+                // 1
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, None);
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard and None");
+                assert!(state.state == 1,"The state should be == 1 after Discard and None");
+
             }
         }
     )+
@@ -133,7 +161,10 @@ macro_rules! get_test_real {
                 let sample_obj : Arc<BasePartial<SId,_,_>> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x().as_ref());
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
+
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 1,"The state should be == 1");
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&out.nat_v),"Element [1] of tantale_in not int variable [1].");
@@ -174,7 +205,10 @@ macro_rules! get_test_real {
                 let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp,sample_opt.clone());
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let out = func(converted_obj.get_x().as_ref());
+                let (out, state) = func(converted_obj.get_x().as_ref(),Fidelity::Resume(100.0), Some(state));
+
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 2,"The state should be == 2");
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.variables[1].is_in_obj(&out.nat_v),"Element [1] of tantale_in not int variable [1].");
@@ -207,6 +241,28 @@ macro_rules! get_test_real {
                 assert!(sp.variables[12].is_in_obj(&k3), "Element [12] of tantale_in not int variable [12].");
 
                 assert!(sp.variables[13].is_in_obj(&out.obj), "Element [13] of tantale_in not int variable [13].");
+
+                // 3
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 3,"The state should be == 3");
+                // 4
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(state.state == 4,"The state should be == 4");
+                // 5
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
+                assert!(out.get_fidelity().is_completed(),"The EvalState should be partial");
+                assert!(state.state == 5,"The state should be == 5");
+                // 1
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, Some(state));
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard");
+                assert!(state.state == 1,"The state should be == 1 after Discard");
+                // 1
+                let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, None);
+                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard and None");
+                assert!(state.state == 1,"The state should be == 1 after Discard and None");
+
             }
         }
     )+

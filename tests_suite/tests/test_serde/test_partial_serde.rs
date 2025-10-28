@@ -3,7 +3,7 @@ use super::init_sp::{
 };
 
 use paste::paste;
-use serde_json;
+use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{searchspace::Searchspace, BaseDom, BasePartial, EmptyInfo, SId, Solution};
 
@@ -17,8 +17,8 @@ macro_rules! get_test {
                 let info = Arc::new(EmptyInfo{});
                 let sample : Arc<BasePartial<SId,$dom,_>> = sp.sample_obj(None,info.clone());
 
-                let st_ser = serde_json::to_string(&sample).unwrap();
-                let nsample : Arc<Arc<BasePartial<SId,$dom,EmptyInfo>>> = serde_json::from_str(&st_ser).unwrap();
+                let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
+                let nsample : Arc<Arc<BasePartial<SId,$dom,EmptyInfo>>> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
                 let x = sample.get_x();
                 let nx = nsample.get_x();

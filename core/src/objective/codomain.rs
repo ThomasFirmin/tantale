@@ -88,7 +88,7 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::{objective::outcome::Outcome, saver::csvsaver::CSVWritable};
+use crate::{FidOutcome, objective::outcome::Outcome, saver::csvsaver::CSVWritable};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
@@ -112,6 +112,18 @@ pub enum EvalState {
 impl PartialEq for EvalState {
     fn eq(&self, other: &Self) -> bool {
         core::mem::discriminant(self) == core::mem::discriminant(other)
+    }
+}
+
+impl EvalState{
+    pub fn is_partially(&self)->bool{
+        matches!(self, EvalState::Partially)
+    }
+    pub fn is_completed(&self)->bool{
+        matches!(self, EvalState::Completed)
+    }
+    pub fn is_error(&self)->bool{
+        matches!(self, EvalState::Error)
     }
 }
 
@@ -169,10 +181,9 @@ pub trait Cost<Out: Outcome>: Codomain<Out> {
 }
 
 /// Defines a [`Codomain`] containing the current [`EvalState`] of an evaluation.
-pub trait Fidelity<Out: Outcome>: Codomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out>;
+pub trait Fidelity<Out: FidOutcome>: Codomain<Out> {
     fn get_fidelity(&self, o: &Out) -> EvalState {
-        (self.get_criteria())(o)
+        o.get_fidelity()
     }
 }
 
@@ -760,21 +771,19 @@ pub type ConstCostMultiCodomain<Out> = CostConstMultiCodomain<Out>;
 
 /// A [`Single`] and [`Fidelity`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCodomain<Out: Outcome> {
+pub struct FidCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
-    pub f_criteria: FidCriteria<Out>,
 }
 
-impl<Out: Outcome> FidCodomain<Out> {
-    pub fn new(crit: Criteria<Out>, fid: FidCriteria<Out>) -> Self {
+impl<Out: FidOutcome> FidCodomain<Out> {
+    pub fn new(crit: Criteria<Out>) -> Self {
         FidCodomain {
             y_criteria: crit,
-            f_criteria: fid,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidCodomain<Out>, ElemFidCodomain> for FidCodomain<Out> {
+impl<Out: FidOutcome> CSVWritable<FidCodomain<Out>, ElemFidCodomain> for FidCodomain<Out> {
     fn header(_elem: &FidCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("fidelity")])
     }
@@ -797,7 +806,7 @@ impl PartialEq for ElemFidCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidCodomain<Out> {
     type TypeCodom = ElemFidCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -808,36 +817,30 @@ impl<Out: Outcome> Codomain<Out> for FidCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for FidCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for FidCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidConstCodomain<Out: Outcome> {
+pub struct FidConstCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
-    pub f_criteria: FidCriteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidConstCodomain<Out> {
-    pub fn new(crit: Criteria<Out>, fid: FidCriteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
+impl<Out: FidOutcome> FidConstCodomain<Out> {
+    pub fn new(crit: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
         FidConstCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidConstCodomain<Out>, ElemFidConstCodomain>
+impl<Out: FidOutcome> CSVWritable<FidConstCodomain<Out>, ElemFidConstCodomain>
     for FidConstCodomain<Out>
 {
     fn header(elem: &FidConstCodomain<Out>) -> Vec<String> {
@@ -874,7 +877,7 @@ impl PartialEq for ElemFidConstCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidConstCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidConstCodomain<Out> {
     type TypeCodom = ElemFidConstCodomain;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidConstCodomain {
@@ -885,19 +888,15 @@ impl<Out: Outcome> Codomain<Out> for FidConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for FidConstCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for FidConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
 
-impl<Out: Outcome> Fidelity<Out> for FidConstCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidConstCodomain<Out> {}
 
-impl<Out: Outcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -905,23 +904,21 @@ impl<Out: Outcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
 
 /// A [`Single`], [`Fidelity`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostCodomain<Out: Outcome> {
+pub struct FidCostCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
-    pub f_criteria: FidCriteria<Out>,
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> FidCostCodomain<Out> {
-    pub fn new(crit: Criteria<Out>, fid: FidCriteria<Out>, cost: Criteria<Out>) -> Self {
+impl<Out: FidOutcome> FidCostCodomain<Out> {
+    pub fn new(crit: Criteria<Out>, cost: Criteria<Out>) -> Self {
         FidCostCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             co_criteria: cost,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidCostCodomain<Out>, ElemFidCostCodomain> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> CSVWritable<FidCostCodomain<Out>, ElemFidCostCodomain> for FidCostCodomain<Out> {
     fn header(_elem: &FidCostCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("fidelity"), String::from("cost")])
     }
@@ -945,7 +942,7 @@ impl PartialEq for ElemFidCostCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidCostCodomain<Out> {
     type TypeCodom = ElemFidCostCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -957,48 +954,41 @@ impl<Out: Outcome> Codomain<Out> for FidCostCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for FidCostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for FidCostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidCostCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidCostCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostConstCodomain<Out: Outcome> {
+pub struct FidCostConstCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
-    pub f_criteria: FidCriteria<Out>,
     pub co_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> FidCostConstCodomain<Out> {
     pub fn new(
         crit: Criteria<Out>,
-        fid: FidCriteria<Out>,
         cost: Criteria<Out>,
-        con: Box<[Criteria<Out>]>,
+        con: Box<[Criteria<Out>]>
     ) -> Self {
         FidCostConstCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             co_criteria: cost,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidCostConstCodomain<Out>, ElemFidCostConstCodomain>
+impl<Out: FidOutcome> CSVWritable<FidCostConstCodomain<Out>, ElemFidCostConstCodomain>
     for FidCostConstCodomain<Out>
 {
     fn header(elem: &FidCostConstCodomain<Out>) -> Vec<String> {
@@ -1044,7 +1034,7 @@ impl PartialEq for ElemFidCostConstCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidCostConstCodomain<Out> {
     type TypeCodom = ElemFidCostConstCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -1056,44 +1046,38 @@ impl<Out: Outcome> Codomain<Out> for FidCostConstCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Single<Out> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for FidCostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for FidCostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out, ConsType> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidCostConstCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidCostConstCodomain<Out> {}
 
 /// A [`Multi`]-objective, and [`Fidelity`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidMultiCodomain<Out: Outcome> {
+pub struct FidMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
-    pub f_criteria: FidCriteria<Out>,
 }
 
-impl<Out: Outcome> FidMultiCodomain<Out> {
-    pub fn new(crit: Box<[Criteria<Out>]>, fid: FidCriteria<Out>) -> Self {
+impl<Out: FidOutcome> FidMultiCodomain<Out> {
+    pub fn new(crit: Box<[Criteria<Out>]>) -> Self {
         FidMultiCodomain {
             y_criteria: crit,
-            f_criteria: fid,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidMultiCodomain<Out>, ElemFidMultiCodomain>
+impl<Out: FidOutcome> CSVWritable<FidMultiCodomain<Out>, ElemFidMultiCodomain>
     for FidMultiCodomain<Out>
 {
     fn header(elem: &FidMultiCodomain<Out>) -> Vec<String> {
@@ -1126,7 +1110,7 @@ impl PartialEq for ElemFidMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidMultiCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidMultiCodomain<Out> {
     type TypeCodom = ElemFidMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -1137,41 +1121,34 @@ impl<Out: Outcome> Codomain<Out> for FidMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Multi<Out> for FidMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for FidMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
 
-impl<Out: Outcome> Fidelity<Out> for FidMultiCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidConstMultiCodomain<Out: Outcome> {
+pub struct FidConstMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
-    pub f_criteria: FidCriteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> FidConstMultiCodomain<Out> {
     pub fn new(
         crit: Box<[Criteria<Out>]>,
-        fid: FidCriteria<Out>,
         con: Box<[Criteria<Out>]>,
     ) -> Self {
         FidConstMultiCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidConstMultiCodomain<Out>, ElemFidConstMultiCodomain>
+impl<Out: FidOutcome> CSVWritable<FidConstMultiCodomain<Out>, ElemFidConstMultiCodomain>
     for FidConstMultiCodomain<Out>
 {
     fn header(elem: &FidConstMultiCodomain<Out>) -> Vec<String> {
@@ -1217,7 +1194,7 @@ impl PartialEq for ElemFidConstMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidConstMultiCodomain<Out> {
     type TypeCodom = ElemFidConstMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -1229,41 +1206,35 @@ impl<Out: Outcome> Codomain<Out> for FidConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Multi<Out> for FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for FidConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out, ConsType> for FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidConstMultiCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidConstMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostMultiCodomain<Out: Outcome> {
+pub struct FidCostMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
-    pub f_criteria: FidCriteria<Out>,
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> FidCostMultiCodomain<Out> {
-    pub fn new(crit: Box<[Criteria<Out>]>, fid: FidCriteria<Out>, cost: Criteria<Out>) -> Self {
+impl<Out: FidOutcome> FidCostMultiCodomain<Out> {
+    pub fn new(crit: Box<[Criteria<Out>]>, cost: Criteria<Out>) -> Self {
         FidCostMultiCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             co_criteria: cost,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidCostMultiCodomain<Out>, ElemFidCostMultiCodomain>
+impl<Out: FidOutcome> CSVWritable<FidCostMultiCodomain<Out>, ElemFidCostMultiCodomain>
     for FidCostMultiCodomain<Out>
 {
     fn header(elem: &FidCostMultiCodomain<Out>) -> Vec<String> {
@@ -1298,7 +1269,7 @@ impl PartialEq for ElemFidCostMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidCostMultiCodomain<Out> {
     type TypeCodom = ElemFidCostMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -1309,48 +1280,41 @@ impl<Out: Outcome> Codomain<Out> for FidCostMultiCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for FidCostMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for FidCostMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: Outcome> Fidelity<Out> for FidCostMultiCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidCostMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostConstMultiCodomain<Out: Outcome> {
+pub struct FidCostConstMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
-    pub f_criteria: FidCriteria<Out>,
     pub co_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> FidCostConstMultiCodomain<Out> {
     pub fn new(
         crit: Box<[Criteria<Out>]>,
-        fid: FidCriteria<Out>,
         cost: Criteria<Out>,
         con: Box<[Criteria<Out>]>,
     ) -> Self {
         FidCostConstMultiCodomain {
             y_criteria: crit,
-            f_criteria: fid,
             co_criteria: cost,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: Outcome> CSVWritable<FidCostConstMultiCodomain<Out>, ElemFidCostConstMultiCodomain>
+impl<Out: FidOutcome> CSVWritable<FidCostConstMultiCodomain<Out>, ElemFidCostConstMultiCodomain>
     for FidCostConstMultiCodomain<Out>
 {
     fn header(elem: &FidCostConstMultiCodomain<Out>) -> Vec<String> {
@@ -1398,7 +1362,7 @@ impl PartialEq for ElemFidCostConstMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Codomain<Out> for FidCostConstMultiCodomain<Out> {
     type TypeCodom = ElemFidCostConstMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
@@ -1410,26 +1374,19 @@ impl<Out: Outcome> Codomain<Out> for FidCostConstMultiCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for FidCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-
-impl<Out: Outcome> Cost<Out> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for FidCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-
-impl<Out: Outcome> Constrained<Out, ConsType> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-
-impl<Out: Outcome> Fidelity<Out> for FidCostConstMultiCodomain<Out> {
-    fn get_criteria(&self) -> FidCriteria<Out> {
-        self.f_criteria
-    }
-}
+impl<Out: FidOutcome> Fidelity<Out> for FidCostConstMultiCodomain<Out> {}

@@ -91,7 +91,7 @@ pub trait FidOutcome : Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
-    fn get_fidelity(&self)->EvalState;
+    fn get_fidelity(&self) -> EvalState;
 }
 
 /// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the

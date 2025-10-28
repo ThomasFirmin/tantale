@@ -4,12 +4,9 @@
 //!
 
 use crate::{
-    domain::{Domain, TypeDom},
-    objective::{
-        outcome::{FuncState, Outcome},
-        Codomain,
-    },
-    solution::partial::Fidelity,
+    FidOutcome, domain::{Domain, TypeDom}, objective::{
+        Codomain, outcome::{FuncState, Outcome}
+    }, solution::partial::Fidelity
 };
 
 use std::sync::Arc;
@@ -98,7 +95,7 @@ pub struct Stepped<Obj, Cod, Out, FnState>
 where
     Obj: Domain,
     Cod: Codomain<Out>,
-    Out: Outcome,
+    Out: FidOutcome,
     FnState: FuncState,
 {
     pub codomain: Arc<Cod>,
@@ -108,7 +105,7 @@ where
 impl<Obj, Cod, Out, FnState> Stepped<Obj, Cod, Out, FnState>
 where
     Obj: Domain,
-    Out: Outcome,
+    Out: FidOutcome,
     Cod: Codomain<Out>,
     FnState: FuncState,
 {
@@ -157,7 +154,7 @@ where
 impl<Obj, Cod, Out, FnState> FuncWrapper for Stepped<Obj, Cod, Out, FnState>
 where
     Obj: Domain,
-    Out: Outcome,
+    Out: FidOutcome,
     Cod: Codomain<Out>,
     FnState: FuncState,
 {

@@ -1,11 +1,11 @@
-use serde_json;
+use rmp_serde;
 use tantale::core::saver::csvsaver::CSVSaver;
 
 #[test]
 fn test_calls_json() {
     let saver = CSVSaver::new("tmp_test", true, true, true, true, 4);
-    let st_ser = serde_json::to_string(&saver).unwrap();
-    let nsaver: CSVSaver = serde_json::from_str(&st_ser).unwrap();
+    let st_ser = rmp_serde::encode::to_vec(&saver).unwrap();
+    let nsaver: CSVSaver = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
     assert_eq!(
         saver.checkpoint, nsaver.checkpoint,

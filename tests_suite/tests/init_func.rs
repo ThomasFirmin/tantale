@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::{objective::outcome::FuncState, Outcome};
+use tantale_core::EvalState;
+use tantale_core::{objective::outcome::FuncState};
+use tantale_macros::Outcome;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
     pub obj: f64,
     pub int_v: i64,
@@ -13,9 +15,8 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
-impl Outcome for OutExample {}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutUnique {
     pub obj: f64,
     pub int_v: f64,
@@ -27,7 +28,35 @@ pub struct OutUnique {
     pub point: Point,
     pub vec: Vec<f64>,
 }
-impl Outcome for OutUnique {}
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct FidOutExample {
+    pub obj: f64,
+    pub int_v: i64,
+    pub poi: (i64, i64),
+    pub nat_v: u64,
+    pub ipn: (i64, u64, i64),
+    pub cat_v: String,
+    pub bool_v: bool,
+    pub neuron: Neuron,
+    pub vec: Vec<u64>,
+    pub fid: EvalState,
+}
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct FidOutUnique {
+    pub obj: f64,
+    pub int_v: f64,
+    pub poi: (f64, f64),
+    pub nat_v: f64,
+    pub ipn: (f64, f64, f64),
+    pub cat_v: f64,
+    pub bool_v: f64,
+    pub point: Point,
+    pub vec: Vec<f64>,
+    pub fid: EvalState,
+}
+
 
 #[derive(Serialize, Deserialize)]
 pub struct FnState {
@@ -345,7 +374,6 @@ pub mod sp_sm_samp_noright {
     );
 }
 
-use tantale_macros::Outcome;
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutEvaluator {
     pub obj: f64,
@@ -354,6 +382,18 @@ pub struct OutEvaluator {
 impl PartialEq for OutEvaluator {
     fn eq(&self, other: &Self) -> bool {
         self.obj == other.obj
+    }
+}
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct FidOutEvaluator {
+    pub obj: f64,
+    pub fid: EvalState,
+}
+
+impl PartialEq for FidOutEvaluator {
+    fn eq(&self, other: &Self) -> bool {
+        self.obj == other.obj && self.fid == other.fid
     }
 }
 
@@ -388,19 +428,63 @@ pub mod sp_evaluator {
     );
 }
 
-//***********************************//
-// FIDELITY //
-//***********************************//
-
-pub mod sp_ms_nosamp_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+pub mod sp_evaluator_fid {
+    use super::{int_plus_nat, plus_one_int, Neuron, FnState, FidOutEvaluator, EvalState};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutExample,FnState) {
+        pub fn example() -> (FidOutEvaluator, FnState) {
+            let _a = [! a | Int(0,100) | !];
+            let _b = [! b | Nat(0,100) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+            let _d = [! d | Bool() | !];
+
+            let _e = plus_one_int([! e | Int(0,100) | !]);
+            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100) | !];
+            
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+            
+        }
+    );
+}
+
+
+//***********************************//
+// FIDELITY //
+//***********************************//
+
+pub mod sp_ms_nosamp_fid {
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
+    use tantale_core::{EvalState, domain::{Bool, Cat, Int, Nat, Real}, solution::partial::Fidelity};
+    use tantale_macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100)  | Real(0.0,1.0) !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
             let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
@@ -416,13 +500,15 @@ pub mod sp_ms_nosamp_fid {
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutExample{
+                FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
@@ -432,6 +518,7 @@ pub mod sp_ms_nosamp_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -440,14 +527,14 @@ pub mod sp_ms_nosamp_fid {
 }
 
 pub mod sp_ms_samp_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutExample,FnState) {
+        pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100) => uniform_int  | Real(0.0,1.0) !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
             let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
@@ -463,13 +550,15 @@ pub mod sp_ms_samp_fid {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutExample{
+                FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
@@ -479,6 +568,7 @@ pub mod sp_ms_samp_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -487,14 +577,14 @@ pub mod sp_ms_samp_fid {
 }
 
 pub mod sp_ms_samp_right_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
-    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
+    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutExample,FnState) {
+        pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100) | Real(0.0,1.0) => uniform_real !];
             let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
             let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
@@ -510,13 +600,15 @@ pub mod sp_ms_samp_right_fid {
 
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutExample{
+                FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
@@ -526,6 +618,7 @@ pub mod sp_ms_samp_right_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -534,14 +627,14 @@ pub mod sp_ms_samp_right_fid {
 }
 
 pub mod sp_ms_noright_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
-    use tantale_core::{Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutExample,FnState) {
+        pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100) | !];
             let b = [! b | Nat(0,100) | !];
             let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
@@ -557,13 +650,15 @@ pub mod sp_ms_noright_fid {
 
             let k = [! k_{4} | Nat(0,100) | !];
 
-           let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+           let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutExample{
+                FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
@@ -573,6 +668,7 @@ pub mod sp_ms_noright_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -581,14 +677,14 @@ pub mod sp_ms_noright_fid {
 }
 
 pub mod sp_ms_samp_noright_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, OutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutExample,FnState) {
+        pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100) => uniform_int  | !];
             let b = [! b | Nat(0,100) | !];
             let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
@@ -604,13 +700,15 @@ pub mod sp_ms_samp_noright_fid {
 
             let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutExample{
+                FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
                     int_v: a,
                     poi: e,
@@ -620,6 +718,7 @@ pub mod sp_ms_samp_noright_fid {
                     bool_v: d,
                     neuron: layer,
                     vec: k.iter().map(|i| *i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -628,14 +727,14 @@ pub mod sp_ms_samp_noright_fid {
 }
 
 pub mod sp_sm_samp_fid {
-    use super::{float_plus_float, plus_one_float, FnState, OutUnique, Point};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
+    use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutUnique,FnState) {
+        pub fn example() -> (FidOutUnique,FnState) {
             let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
             let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
             let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
@@ -651,13 +750,15 @@ pub mod sp_sm_samp_fid {
 
             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutUnique{
+                FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
                     int_v: a,
                     poi: e,
@@ -667,6 +768,7 @@ pub mod sp_sm_samp_fid {
                     bool_v: d,
                     point: p,
                     vec: k.iter().map(|i| **i).collect(),
+                    fid: evalstate,
                 },
                 state
             )
@@ -675,15 +777,14 @@ pub mod sp_sm_samp_fid {
 }
 
 pub mod sp_sm_samp_noright_fid {
-    use tantale_core::{uniform_real, Real};
+    use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
+    use tantale_core::{uniform_real, Real, EvalState, Fidelity};
     use tantale_macros::objective;
-
-    use super::{float_plus_float, plus_one_float, FnState, OutUnique, Point};
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
-        pub fn example() -> (OutUnique,FnState) {
+        pub fn example() -> (FidOutUnique,FnState) {
             let a = [! a | Real(0.0,1.0) | => uniform_real !];
             let b = [! b | Real(0.0,1.0) => uniform_real | !];
             let c = [! c | Real(0.0,1.0) |!];
@@ -699,13 +800,15 @@ pub mod sp_sm_samp_noright_fid {
 
             let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
 
-            let mut state = match state {
-                Some(ste) => ste,
-                None => FnState { state: 0 },
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
+            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
             (
-                OutUnique{
+                FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
                     int_v: a,
                     poi: e,
@@ -715,6 +818,7 @@ pub mod sp_sm_samp_noright_fid {
                     bool_v: d,
                     point: p,
                     vec: k.iter().map(|i| **i).collect(),
+                    fid: evalstate,
                 },
                 state
             )

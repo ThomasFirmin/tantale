@@ -10,7 +10,14 @@ fn is_vec_type(ty: &Type) -> bool {
 fn is_numeric_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if {
         let ident = &p.path.segments.last().unwrap().ident;
-        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64" | "String" | "bool" | "EvalState")
+        matches!(ident.to_string().as_str(), "isize" | "i32" | "i64" | "f32" | "f64" | "usize" | "u32" | "u64" | "String" | "bool")
+    })
+}
+
+fn is_evalstate_type(ty: &Type) -> bool{
+    matches!(ty, Type::Path(p) if {
+        let ident = &p.path.segments.last().unwrap().ident;
+        matches!(ident.to_string().as_str(), "EvalState")
     })
 }
 
@@ -23,6 +30,8 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut to_string_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
     let mut to_header_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
+    let mut evalstate_stmt = quote! {};
+    let mut has_eval_stmt = false;
 
     input.fields.iter().for_each(|field| {
         let fty = &field.ty;
@@ -40,11 +49,31 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else if is_numeric_type(fty) {
             to_header_stmts.push(quote! {stringify!(#fident).to_string()});
             to_string_stmts.push(quote! {self.#fident.to_string()});
+        } else if is_evalstate_type(fty){
+            if has_eval_stmt{
+                panic!(
+                    "{:?}",
+                    syn::Error::new(field.span(), "Only one EvalState should be defined within an Outcome.")
+                );
+            } else {
+                to_header_stmts.push(quote! {stringify!(#fident).to_string()});
+                to_string_stmts.push(quote! {self.#fident.to_string()});
+                evalstate_stmt = quote! {
+                    impl #egenerics tantale::core::FidOutcome for #eident #egenerics #ewhere {
+                        fn get_fidelity(&self)->tantale::core::EvalState{
+                            self.#fident
+                        }
+                    }
+                };
+                has_eval_stmt = true;
+            }
         }
     });
 
     quote!{
         impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}
+
+        #evalstate_stmt
 
         impl #egenerics tantale::core::saver::csvsaver::CSVWritable<() , ()> for #eident #egenerics #ewhere
         {
@@ -56,6 +85,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 Vec::from([#(#to_string_stmts,)*])
             }
         }
+
 
     }.into()
 }

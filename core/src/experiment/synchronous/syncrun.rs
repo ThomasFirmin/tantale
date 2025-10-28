@@ -1,19 +1,10 @@
 use crate::{
-    domain::Domain,
-    experiment::{
+    FidOutcome, Id, Onto, Partial, Stepped, domain::Domain, experiment::{
         BatchEvaluator, Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable,
         ThrBatchEvaluator, ThrEvaluate,
-    },
-    objective::{outcome::FuncState, Codomain, Objective, Outcome},
-    optimizer::{
-        opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-        CBType, OBType, Optimizer,
-    },
-    saver::Saver,
-    searchspace::Searchspace,
-    solution::{partial::FidelityPartial, Batch, SId},
-    stop::{ExpStep, Stop},
-    Id, Onto, Partial, Stepped,
+    }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
+        CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
+    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId, partial::FidelityPartial}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -866,7 +857,7 @@ where
     >,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
-    Out: Outcome,
+    Out: FidOutcome,
     Op::Sol: FidelityPartial<SId, Obj, Op::SInfo>,
     <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo>,
     FnState: FuncState,
@@ -1049,7 +1040,7 @@ where
         + Sync,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
-    Out: Outcome + Send + Sync,
+    Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
     FnState: FuncState + Send + Sync,
     Obj::TypeDom: Send + Sync,

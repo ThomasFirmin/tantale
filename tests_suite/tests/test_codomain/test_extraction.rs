@@ -37,7 +37,7 @@ test_const!(
     );
     struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,
@@ -64,7 +64,7 @@ test_const!(
             |h : &OutExample| h.mul8,
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,
@@ -93,7 +93,7 @@ test_cost!(
     get_struct |
     struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,
@@ -107,7 +107,7 @@ test_cost!(
             |h : &OutExample| h.mul8,
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,
@@ -116,7 +116,7 @@ test_cost!(
     );
     struct_costcodomain , CostCodomain::new(
         |h : &OutExample| h.obj1,
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
     );
     struct_costmulticodomain , CostMultiCodomain::new(
         vec![
@@ -125,7 +125,7 @@ test_cost!(
             |h : &OutExample| h.mul8,
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
     )
 );
 
@@ -152,7 +152,7 @@ test_single!(
     );
     struct_costcodomain, CostCodomain::new(
         |h : &OutExample| h.obj1,
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
     );
     struct_constcodomain, ConstCodomain::new(
         |h : &OutExample| h.obj1,
@@ -165,7 +165,7 @@ test_single!(
     );
     struct_costconstcodomain, CostConstCodomain::new(
         |h : &OutExample| h.obj1,
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,
@@ -211,7 +211,7 @@ test_multi!(
             |h : &OutExample| h.mul8,
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
     );
     struct_constmulticodomain, ConstMultiCodomain::new(
         vec![
@@ -234,7 +234,7 @@ test_multi!(
             |h : &OutExample| h.mul8,
             |h : &OutExample| h.mul9,
         ].into_boxed_slice(),
-        |h : &OutExample| h.fid2,
+        |h : &OutExample| h.cost2,
         vec![
             |h : &OutExample| h.con3,
             |h : &OutExample| h.con4,

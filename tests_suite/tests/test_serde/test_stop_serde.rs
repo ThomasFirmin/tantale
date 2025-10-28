@@ -1,4 +1,4 @@
-use serde_json;
+use rmp_serde;
 use tantale::core::stop::{Calls, ExpStep};
 use tantale_core::Stop;
 
@@ -6,8 +6,8 @@ use tantale_core::Stop;
 fn test_calls_json() {
     let mut calls = Calls::new(10);
     calls.update(ExpStep::Distribution);
-    let st_ser = serde_json::to_string(&calls).unwrap();
-    let mut ncalls: Calls = serde_json::from_str(&st_ser).unwrap();
+    let st_ser = rmp_serde::encode::to_vec(&calls).unwrap();
+    let mut ncalls: Calls = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
     assert_eq!(calls.0, ncalls.0, "Serde mismatch on loaded Calls #calls");
     assert_eq!(calls.0, 1, "Serde on Calls wrong #calls");

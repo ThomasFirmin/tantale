@@ -4,7 +4,7 @@ use super::init_sp::{
     sp_ms_nosamp, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real, sp_only_unit,
 };
 use paste::paste;
-use serde_json;
+use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{searchspace::Searchspace, BasePartial, Computed, EmptyInfo, SId, Solution};
 use tantale_core::BaseDom;
@@ -24,8 +24,8 @@ macro_rules! get_test {
                 let computed: Computed<_,SId,$dom,$cod<OutExample>,_,EmptyInfo> = Computed::new(sample,Arc::new(elem));
 
 
-                let st_ser = serde_json::to_string(&computed).unwrap();
-                let ncomputed : Computed<BasePartial<SId,_,EmptyInfo>,SId,$dom,$cod<OutExample>,_,EmptyInfo> = serde_json::from_str(&st_ser).unwrap();
+                let st_ser = rmp_serde::encode::to_vec(&computed).unwrap();
+                let ncomputed : Computed<BasePartial<SId,_,EmptyInfo>,SId,$dom,$cod<OutExample>,_,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
                 let id = computed.get_id();
                 let nid = ncomputed.get_id();

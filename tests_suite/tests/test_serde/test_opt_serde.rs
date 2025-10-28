@@ -1,4 +1,4 @@
-use serde_json;
+use rmp_serde;
 use tantale::algos::RSState;
 
 #[test]
@@ -8,8 +8,8 @@ fn test_rsstate_json() {
         iteration: 3,
     };
 
-    let st_ser = serde_json::to_string(&state).unwrap();
-    let nstate: RSState = serde_json::from_str(&st_ser).unwrap();
+    let st_ser = rmp_serde::encode::to_vec(&state).unwrap();
+    let nstate: RSState = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
     assert_eq!(
         state.batch, nstate.batch,

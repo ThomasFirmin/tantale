@@ -46,7 +46,7 @@ pub use crate::objective::{
     CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCodomain,
     FidConstCodomain, FidConstMultiCodomain, FidCostCodomain, FidCostConstCodomain,
     FidCostConstMultiCodomain, FidCostMultiCodomain, FidCriteria, FidMultiCodomain, Multi,
-    MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped,
+    MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped, FidOutcome,EvalState
 };
 
 pub mod optimizer;
