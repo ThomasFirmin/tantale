@@ -1,6 +1,6 @@
 use crate::{
     FidOutcome, Id, Onto, Partial, Stepped, domain::Domain, experiment::{
-        BatchEvaluator, Evaluate, FidEvaluator, FidThrEvaluator, MonoEvaluate, Runable,
+        BatchEvaluator, Evaluate, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, Runable,
         ThrBatchEvaluator, ThrEvaluate,
     }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
         CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
@@ -9,7 +9,7 @@ use crate::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    experiment::{mpi::tools::MPIProcess, DistEvaluate, DistRunable},
+    experiment::{DistEvaluate, DistRunable, MasterWorker, mpi::{tools::MPIProcess, utils::{BaseWorker, NoWState}}},
     saver::DistributedSaver,
 };
 #[cfg(feature = "mpi")]
@@ -478,6 +478,7 @@ where
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     Out: Outcome,
 {
+    type WorkerType = BaseWorker<Op::FnWrap,NoWState>;
     fn new_dist(
         proc: &MPIProcess,
         searchspace: Scp,
@@ -485,27 +486,31 @@ where
         optimizer: Op,
         stop: St,
         mut saver: Sv,
-    ) -> Self {
+    ) -> MasterWorker<Self,BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,SId,Scp,Op,St,Sv,Out,Obj,Opt> {
         <Sv as DistributedSaver<_, _, _, _, _, _, _, _>>::init(
             &mut saver,
             &searchspace,
             objective.get_codomain().as_ref(),
             proc.rank,
         );
-        SyncExperiment {
-            searchspace,
-            objective,
-            optimizer,
-            stop,
-            saver,
-            evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
+        if proc.rank == 0{
+            MasterWorker::Master(SyncExperiment {
+                searchspace,
+                objective,
+                optimizer,
+                stop,
+                saver,
+                evaluator: None,
+                _domobj: PhantomData,
+                _domopt: PhantomData,
+                _out: PhantomData,
+            })
+        }else{
+            MasterWorker::Worker(BaseWorker::new(objective,NoWState))
         }
     }
 
-    fn run_dist(mut self, proc: &MPIProcess) {
+    fn run(mut self, proc: &MPIProcess) {
         let sp = Arc::new(self.searchspace);
         let ob = Arc::new(self.objective);
         let cod = ob.get_codomain();
@@ -805,7 +810,7 @@ where
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     Runable<
-        FidEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         SId,
         Scp,
         Op,
@@ -817,7 +822,7 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     >
     for SyncExperiment<
         SId,
-        FidEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         Scp,
         Op,
         St,
@@ -853,7 +858,7 @@ where
         Out,
         Scp,
         Op,
-        FidEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
     >,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
@@ -893,7 +898,7 @@ where
             Some(e) => e,
             None => {
                 let batch = self.optimizer.first_step(sp.clone());
-                FidEvaluator::new(batch)
+                FidBatchEvaluator::new(batch)
             }
         };
 
@@ -912,7 +917,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = <FidEvaluator<
+            (batch_raw, batch_comp) = <FidBatchEvaluator<
                 Op::Sol,
                 SId,
                 Obj,
@@ -942,7 +947,7 @@ where
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
 
-            <FidEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState> as MonoEvaluate<
+            <FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState> as MonoEvaluate<
                 Op,
                 St,
                 Obj,
@@ -986,7 +991,7 @@ where
 
 impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     Runable<
-        FidThrEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         SId,
         Scp,
         Op,
@@ -998,7 +1003,7 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out, FnState>
     >
     for SyncExperiment<
         SId,
-        FidThrEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         Scp,
         Op,
         St,
@@ -1023,8 +1028,7 @@ where
                 OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
                 OpInfType<Op, SId, Obj, Opt, Out, Scp>,
             >,
-        > + Send
-        + Sync,
+        >,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Sv: Saver<
@@ -1035,7 +1039,7 @@ where
             Out,
             Scp,
             Op,
-            FidThrEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+            FidThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         > + Send
         + Sync,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
@@ -1086,7 +1090,7 @@ where
             Some(e) => e,
             None => {
                 let batch = self.optimizer.first_step(sp.clone());
-                FidThrEvaluator::new(batch)
+                FidThrBatchEvaluator::new(batch)
             }
         };
 
@@ -1105,7 +1109,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = <FidThrEvaluator<
+            (batch_raw, batch_comp) = <FidThrBatchEvaluator<
                 Op::Sol,
                 SId,
                 Obj,
@@ -1154,7 +1158,7 @@ where
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
 
-            <FidThrEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
+            <FidThrBatchEvaluator<Op::Sol,SId,Obj,Opt,Op::SInfo,Op::Info, FnState>
                 as ThrEvaluate<Op,St,Obj,Opt,Out,SId,Scp>
             >::update(&mut eval, batch);
 

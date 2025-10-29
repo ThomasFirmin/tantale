@@ -6,7 +6,7 @@ use crate::{
         opt::{CBType, OBType, PBType},
         Optimizer,
     },
-    saver::{CheckpointError, Saver},
+    recorder::Recorder,
     searchspace::Searchspace,
     solution::{partial::BasePartial, Batch, BatchType, Id, Solution},
     stop::Stop,
@@ -23,7 +23,7 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::saver::DistributedSaver;
+use crate::recorder::DistRecorder;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
@@ -62,23 +62,9 @@ where
     Cod::TypeCodom: Send + Sync,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
 {
-    fn write_partial_obj(&self, wrt: csv::Writer<File>, scp: Arc<Scp>);
-    fn write_partial_opt(&self, wrt: csv::Writer<File>, scp: Arc<Scp>);
-    fn write_partial_obj_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>, scp: Arc<Scp>);
-    fn write_partial_opt_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>, scp: Arc<Scp>);
-    fn write_partial_obj_with_comp(
-        cbatch: &Self::Comp<Cod, Out>,
-        wrt: csv::Writer<File>,
-        scp: Arc<Scp>,
-    );
-    fn write_partial_opt_with_comp(
-        cbatch: &Self::Comp<Cod, Out>,
-        wrt: csv::Writer<File>,
-        scp: Arc<Scp>,
-    );
-    fn write_info(&self, wrt: csv::Writer<File>);
-    fn write_info_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>);
-    fn write_info_with_comp(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>);
+    fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>,wrt: csv::Writer<File>,scp: Arc<Scp>);
+    fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>,wrt: csv::Writer<File>,scp: Arc<Scp>);
+    fn write_info(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>);
     fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: Arc<Cod>);
     fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>);
 }
@@ -102,63 +88,7 @@ where
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
 {
-    fn write_partial_obj(&self, wrt: csv::Writer<File>, scp: Arc<Scp>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        self.sobj.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let mut idstr = id.write(&());
-            idstr.extend(scp.write_left(&op.get_x().clone()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_partial_opt(&self, wrt: csv::Writer<File>, scp: Arc<Scp>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        self.sopt.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let mut idstr = id.write(&());
-            idstr.extend(scp.write_right(&op.get_x().clone()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_partial_obj_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>, scp: Arc<Scp>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        obatch.robj.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let mut idstr = id.write(&());
-            idstr.extend(scp.write_left(&op.get_x().clone()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_partial_opt_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>, scp: Arc<Scp>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        obatch.ropt.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let mut idstr = id.write(&());
-            idstr.extend(scp.write_right(&op.get_x().clone()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_partial_obj_with_comp(
+    fn write_partial_obj(
         cbatch: &Self::Comp<Cod, Out>,
         wrt: csv::Writer<File>,
         scp: Arc<Scp>,
@@ -176,7 +106,7 @@ where
         });
     }
 
-    fn write_partial_opt_with_comp(
+    fn write_partial_opt(
         cbatch: &Self::Comp<Cod, Out>,
         wrt: csv::Writer<File>,
         scp: Arc<Scp>,
@@ -194,39 +124,7 @@ where
         });
     }
 
-    fn write_info(&self, wrt: csv::Writer<File>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        self.sobj.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let sinfo = op.get_info();
-            let mut idstr = id.write(&());
-            idstr.extend(sinfo.write(&()));
-            idstr.extend(self.info.write(&()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_info_with_raw(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>) {
-        let amwrt = Arc::new(Mutex::new(wrt));
-        obatch.robj.par_iter().for_each(|op| {
-            let id = op.get_id();
-            let sinfo = op.get_info();
-            let mut idstr = id.write(&());
-            idstr.extend(sinfo.write(&()));
-            idstr.extend(obatch.info.write(&()));
-            {
-                let mut wrt_local = amwrt.lock().unwrap();
-                wrt_local.write_record(&idstr).unwrap();
-                wrt_local.flush().unwrap();
-            }
-        });
-    }
-
-    fn write_info_with_comp(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>) {
+    fn write_info(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>) {
         let amwrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -303,7 +201,7 @@ where
 ///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[derive(Serialize, Deserialize)]
-pub struct CSVSaver {
+pub struct CSVRecorder {
     pub path: PathBuf,
     pub save_obj: bool,
     pub save_opt: bool,
@@ -318,7 +216,7 @@ pub struct CSVSaver {
     path_check: Option<(PathBuf, PathBuf, PathBuf, PathBuf)>,
 }
 
-impl CSVSaver {
+impl CSVRecorder {
     pub fn new(
         path: &str,
         save_obj: bool,
@@ -326,7 +224,7 @@ impl CSVSaver {
         save_info: bool,
         save_out: bool,
         checkpoint: usize,
-    ) -> CSVSaver {
+    ) -> CSVRecorder {
         let true_path = PathBuf::from(path);
         let path_evals = true_path.join(Path::new("evaluations"));
 
@@ -359,7 +257,7 @@ impl CSVSaver {
         };
         let path_codom = path_evals.join(Path::new("cod.csv"));
 
-        CSVSaver {
+        CSVRecorder {
             path: true_path,
             save_obj,
             save_opt,
@@ -376,11 +274,10 @@ impl CSVSaver {
     }
 }
 
-impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval> Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
-    for CSVSaver
+impl<SolId, Obj, Opt, Out, Scp, Op> Recorder<SolId, Obj, Opt, Out, Scp, Op>
+    for CSVRecorder
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    St: Stop + Serialize + DeserializeOwned,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
@@ -389,7 +286,6 @@ where
         + Send
         + Sync,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
-    Eval: Evaluate,
     Op::Cod:
         Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
@@ -400,6 +296,8 @@ where
     Op::State: Serialize + DeserializeOwned,
     Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {
+    type Config = FolderConfig;
+
     fn init(&mut self, sp: &Scp, cod: &Op::Cod) {
         let does_exist = self.path.try_exists().unwrap();
         if does_exist {
@@ -758,19 +656,19 @@ where
 
     fn load(&self, _sp: &Scp, _cod: &Op::Cod) -> Result<(St, Op, Eval), CheckpointError> {
         let global: GlobalParameters =
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_parameters(
+            <CSVRecorder as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_parameters(
                 self, _sp, _cod,
             )?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
         Ok((
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_stop(
+            <CSVRecorder as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_stop(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_optimizer(
+            <CSVRecorder as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_optimizer(
                 self, _sp, _cod,
             )?,
-            <CSVSaver as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_evaluate(
+            <CSVRecorder as Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>>::load_evaluate(
                 self, _sp, _cod,
             )?,
         ))
@@ -808,7 +706,7 @@ where
 ///
 #[cfg(feature = "mpi")]
 impl<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
-    DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVSaver
+    DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Op, Eval> for CSVRecorder
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     St: Stop + Serialize + DeserializeOwned,
@@ -1255,7 +1153,7 @@ where
         _cod: &Op::Cod,
         rank: Rank,
     ) -> Result<(St, Op, Eval), CheckpointError> {
-        let global: GlobalParameters = <CSVSaver as DistributedSaver<
+        let global: GlobalParameters = <CSVRecorder as DistributedSaver<
             SolId,
             St,
             Obj,
@@ -1270,7 +1168,7 @@ where
         RUN_ID.store(global.run_id, Ordering::Release);
         Ok(
             (
-                <CSVSaver as DistributedSaver<
+                <CSVRecorder as DistributedSaver<
                     SolId,
                     St,
                     Obj,
@@ -1280,7 +1178,7 @@ where
                     Op,
                     Eval,
                 >>::load_stop(self, _sp, _cod, rank)?,
-                <CSVSaver as DistributedSaver<
+                <CSVRecorder as DistributedSaver<
                     SolId,
                     St,
                     Obj,
@@ -1290,7 +1188,7 @@ where
                     Op,
                     Eval,
                 >>::load_optimizer(self, _sp, _cod, rank)?,
-                <CSVSaver as DistributedSaver<
+                <CSVRecorder as DistributedSaver<
                     SolId,
                     St,
                     Obj,

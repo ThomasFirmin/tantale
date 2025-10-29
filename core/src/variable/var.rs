@@ -1,12 +1,10 @@
 use crate::{
     domain::{derrors::OntoError, onto::Onto, Domain, TypeDom},
-    saver::CSVLeftRight,
+    recorder::csv::{CSVLeftRight,CSVWritable},
 };
 
 use rand::prelude::ThreadRng;
 use std::sync::Arc;
-
-use crate::saver::CSVWritable;
 
 type OntoFunc<A, B> = fn(&A, &TypeDom<A>, &B) -> Result<TypeDom<B>, OntoError>;
 

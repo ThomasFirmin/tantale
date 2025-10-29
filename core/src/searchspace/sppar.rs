@@ -1,7 +1,7 @@
 use crate::{
     domain::{Domain, TypeDom},
     optimizer::VecArc,
-    saver::CSVLeftRight,
+    recorder::csv::CSVLeftRight,
     searchspace::{Searchspace, SolInfo},
     solution::{Id, Partial, Solution},
     variable::Var,

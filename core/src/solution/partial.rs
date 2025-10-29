@@ -309,7 +309,7 @@ where
     serialize = "Dom::TypeDom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct FidPartial<SolId, Dom, Info>
+pub struct FidBasePartial<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -321,7 +321,7 @@ where
     pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> FidPartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> FidBasePartial<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -355,7 +355,7 @@ where
         T: AsRef<[TypeDom<Dom>]>,
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
-        FidPartial {
+        FidBasePartial {
             id,
             x: xarc,
             fid,
@@ -364,7 +364,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidPartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -383,13 +383,13 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for FidPartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type Twin<B: Domain> = FidPartial<SolId, B, Info>;
+    type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
 
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
@@ -397,7 +397,7 @@ where
     {
         let xarc: Arc<[TypeDom<Dom>]> = Arc::from(x.as_ref());
         let fid = Fidelity::New;
-        FidPartial {
+        FidBasePartial {
             id,
             x: xarc,
             fid,
@@ -431,5 +431,26 @@ where
         T: AsRef<[TypeDom<B>]>,
     {
         Self::Twin::_new(self.get_id(), x, self.fid, self.get_info())
+    }
+}
+
+impl<SolId,Dom,Info> FidelityPartial<SolId,Dom,Info> for FidBasePartial<SolId,Dom,Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn get_fidelity(&self) -> Fidelity {
+        self.fid
+    }
+
+    fn resume<B: Domain>(&mut self, twin: &mut Self::Twin<B>, value: f64) {
+        self.fid = Fidelity::Resume(value);
+        twin.fid = Fidelity::Resume(value);
+    }
+
+    fn discard<B: Domain>(&mut self, twin: &mut Self::Twin<B>) {
+        self.fid = Fidelity::Discard;
+        twin.fid = Fidelity::Discard;
     }
 }

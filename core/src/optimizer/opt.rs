@@ -1,16 +1,16 @@
 use crate::{
+    Onto, Partial, Stop,
     domain::Domain,
     experiment::{MonoEvaluate, Runable, ThrEvaluate},
     objective::{Codomain, FuncWrapper, Outcome},
-    saver::{CSVWritable, Saver},
+    recorder::{Recorder, csv::CSVWritable},
     searchspace::Searchspace,
-    solution::{BatchType, Id, SolInfo},
-    Onto, Partial, Stop,
+    solution::{BatchType, Id, SolInfo}
 };
 #[cfg(feature = "mpi")]
 use crate::{
     experiment::{mpi::tools::MPIProcess, DistEvaluate, DistRunable},
-    saver::DistributedSaver,
+    recorder::DistRecorder,
 };
 
 use serde::{Deserialize, Serialize};
@@ -107,6 +107,7 @@ impl CSVWritable<(), ()> for EmptyInfo {
 
 pub type ArcVecArc<T> = Arc<Vec<Arc<T>>>;
 pub type VecArc<T> = Vec<Arc<T>>;
+
 
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**

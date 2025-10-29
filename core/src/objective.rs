@@ -6,7 +6,7 @@ pub use codomain::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
     CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCodomain,
     FidConstCodomain, FidConstMultiCodomain, FidCostCodomain, FidCostConstCodomain,
-    FidCostConstMultiCodomain, FidCostMultiCodomain, FidCriteria, FidMultiCodomain, Fidelity,
+    FidCostConstMultiCodomain, FidCostMultiCodomain, FidCriteria, FidMultiCodomain, HasEvalState,
     Multi, MultiCodomain, Single, SingleCodomain,EvalState
 };
 

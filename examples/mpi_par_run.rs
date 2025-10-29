@@ -204,7 +204,7 @@ fn main() {
     if !tools::launch_worker(&proc, &obj) {
         let sp = sp_evaluator::get_searchspace();
         let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
-        let mut exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
+        let mut exp = load!(Distributed, RandomSearch, Calls | &proc, sp, obj, saver);
 
         assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
         assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -218,7 +218,7 @@ fn main() {
         let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
         let obj = Objective::new(cod, func);
         let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
-        let exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
+        let exp = load!(Distributed, RandomSearch, Calls | &proc, sp, obj, saver);
         run_reader("tmp_test_parseqrun", 100);
         assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
         assert_eq!(

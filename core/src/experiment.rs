@@ -1,22 +1,22 @@
 use crate::{
-    domain::Domain,
-    objective::Outcome,
-    optimizer::Optimizer,
-    saver::Saver,
-    solution::{BatchType, Id},
-    stop::Stop,
     Onto, Searchspace,
+    domain::{Domain, onto::OntoDom},
+    objective::Outcome, optimizer::Optimizer,
+    recorder::Recorder,
+    checkpointer::Checkpointer,
+    solution::{BatchType, Id},
+    stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::tools::MPIProcess;
+use crate::experiment::mpi::{tools::MPIProcess, utils::Worker};
 
 // SYNCHRONOUS
 pub mod synchronous;
 pub use synchronous::evaluator::{BatchEvaluator, ThrBatchEvaluator};
-pub use synchronous::fidevaluator::{FidEvaluator, FidThrEvaluator};
+pub use synchronous::fidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
 pub use synchronous::syncrun::SyncExperiment;
 
 // Utils
@@ -72,20 +72,11 @@ macro_rules! experiment {
 #[macro_export]
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
-    ($experiment: ident, $optimizer : ident, $stop : ident | $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_, _, $optimizer, $stop, _, _, _, _, _, _, _>::load(
-            $searchspace,
-            $objective,
-            $saver,
-        )
+    (Mono, $optname: ident, $stop: ident | $searchspace: expr ,$objective: expr, $saver: expr) => {
+        <$optname as tantale::core::optimizer::MonoOptimizer<_,_,_,_,_>>::load_mono::<$stop,_>($searchspace,$objective,$saver)
     };
-    ($experiment: ident, $optimizer : ident, $stop : ident | $process : expr, $searchspace : expr, $objective : expr , $saver : expr) => {
-        $experiment::<_, _, $optimizer, $stop, _, _, _, _, _, _, _>::load(
-            $process,
-            $searchspace,
-            $objective,
-            $saver,
-        )
+    (Threaded, $optname: ident, $stop: ident | $searchspace: expr ,$objective: expr, $saver: expr) => {
+        <$optname as tantale::core::optimizer::ThrOptimizer<_,_,_,_,_>>::load_threaded::<$stop,_>($searchspace,$objective,$saver)
     };
 }
 
@@ -98,7 +89,7 @@ macro_rules! load {
     (Threaded, $optname: ident, $stop: ident | $searchspace: expr ,$objective: expr, $saver: expr) => {
         <$optname as tantale::core::optimizer::ThrOptimizer<_,_,_,_,_>>::load_threaded::<$stop,_>($searchspace,$objective,$saver)
     };
-    (Distributed, $optname: ident, $stop: ident | $searchspace: expr ,$objective: expr, $saver: expr) => {
+    (Distributed, $optname: ident, $stop: ident | $proc: expr, $searchspace: expr ,$objective: expr, $saver: expr) => {
         <$optname as tantale::core::optimizer::DistOptimizer<_,_,_,_,_>>::load_distributed::<$stop,_>($proc,$searchspace,$objective,$saver)
     };
 }
@@ -119,46 +110,82 @@ pub type EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, Info> = (
     <BType as BatchType<SolId, Obj, Opt, SInfo, Info>>::Comp<Cod, Out>,
 );
 
-pub trait Runable<Eval, SolId, Scp, Op, St, Sv, Out, Obj, Opt>
+pub trait Runable<Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
 where
     Eval: Evaluate,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
 {
-    fn new(searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, saver: Sv) -> Self;
+    fn new(searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, recorder: Rec, checkpointer: Check) -> Self;
     fn run(self);
-    fn load(searchspace: Scp, objective: Op::FnWrap, saver: Sv) -> Self;
+    fn load(objective: Op::FnWrap, rec: Rec, checkpointer: Check) -> Self;
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistRunable<Eval, SolId, Scp, Op, St, Sv, Out, Obj, Opt>
+pub enum MasterWorker<DRun,Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+where
+    DRun: DistRunable<Eval,SolId,Scp,Op,St,Rec,Check, Out, Obj,Opt>,
+    Eval: Evaluate,
+    SolId: Id,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    St: Stop,
+    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: Outcome,
+{
+    Master(DRun),
+    Worker(DRun::WorkerType),
+}
+impl<DRun,Eval, SolId, Scp, Op, St, Rec,Check, Out, Obj, Opt> MasterWorker<DRun,Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+where
+    DRun: DistRunable<Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>,
+    Eval: Evaluate,
+    SolId: Id,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    St: Stop,
+    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: Outcome,
+{
+    pub fn run(self, proc:&MPIProcess){
+        match self {
+            MasterWorker::Master(exp) => exp.run_dist(proc),
+            MasterWorker::Worker(worker) => worker.run(proc),
+        }
+    }
+}
+
+#[cfg(feature = "mpi")]
+pub trait DistRunable<Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
 where
     Eval: Evaluate,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
 {
-    fn new_dist(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Op::FnWrap,
-        optimizer: Op,
-        stop: St,
-        saver: Sv,
-    ) -> Self;
+    type WorkerType: Worker<SolId,Op::FnWrap>;
+    fn new_dist(proc:&MPIProcess, searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, recorder: Rec, checkpointer: Check) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
     fn run_dist(self, proc: &MPIProcess);
-    fn load_dist(proc: &MPIProcess, searchspace: Scp, objective: Op::FnWrap, saver: Sv) -> Self;
+    fn load_dist(proc:&MPIProcess, objective: Op::FnWrap, rec: Rec, checkpointer: Check) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
 }
 
 pub trait Evaluate

@@ -21,7 +21,7 @@ use std::{
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+pub struct FidBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -44,7 +44,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
-    FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+    FidBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -57,7 +57,7 @@ where
 {
     pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
         let size = batch.sobj.len();
-        FidEvaluator {
+        FidBatchEvaluator {
             batch,
             idx: 0,
             states: HashMap::new(),
@@ -72,7 +72,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
-    for FidEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+    for FidBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -86,7 +86,7 @@ where
 }
 
 impl<Op, St, Obj, Opt, Out, SolId, Scp, FnState> MonoEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>
-    for FidEvaluator<Op::Sol, SolId, Obj, Opt, Op::SInfo, Op::Info, FnState>
+    for FidBatchEvaluator<Op::Sol, SolId, Obj, Opt, Op::SInfo, Op::Info, FnState>
 where
     Op: Optimizer<
         SolId,
@@ -167,7 +167,7 @@ where
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
     deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct FidThrEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+pub struct FidThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -190,7 +190,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
-    FidThrEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+    FidThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -203,7 +203,7 @@ where
 {
     pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
         let size = batch.sobj.len();
-        FidThrEvaluator {
+        FidThrBatchEvaluator {
             batch,
             idx_list: Arc::new(Mutex::new(Vec::new())),
             states: HashMap::new(),
@@ -218,7 +218,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
-    for FidThrEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+    for FidThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -232,7 +232,7 @@ where
 }
 
 impl<Op, Scp, St, Obj, Opt, Out, SolId, FnState> ThrEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>
-    for FidThrEvaluator<Op::Sol, SolId, Obj, Opt, Op::SInfo, Op::Info, FnState>
+    for FidThrBatchEvaluator<Op::Sol, SolId, Obj, Opt, Op::SInfo, Op::Info, FnState>
 where
     Op: Optimizer<
             SolId,
@@ -249,8 +249,7 @@ where
                 OpSInfType<Op, SolId, Obj, Opt, Out, Scp>,
                 OpInfType<Op, SolId, Obj, Opt, Out, Scp>,
             >,
-        > + Send
-        + Sync,
+        >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,

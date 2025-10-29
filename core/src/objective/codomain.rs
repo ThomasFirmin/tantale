@@ -181,8 +181,8 @@ pub trait Cost<Out: Outcome>: Codomain<Out> {
 }
 
 /// Defines a [`Codomain`] containing the current [`EvalState`] of an evaluation.
-pub trait Fidelity<Out: FidOutcome>: Codomain<Out> {
-    fn get_fidelity(&self, o: &Out) -> EvalState {
+pub trait HasEvalState<Out: FidOutcome>: Codomain<Out> {
+    fn get_evalstate(&self, o: &Out) -> EvalState {
         o.get_fidelity()
     }
 }
@@ -812,7 +812,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
         }
     }
 }
@@ -822,7 +822,7 @@ impl<Out: FidOutcome> Single<Out> for FidCodomain<Out> {
         self.y_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
@@ -882,7 +882,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidConstCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidConstCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             constraints: self.get_constraints(o),
         }
     }
@@ -894,7 +894,7 @@ impl<Out: FidOutcome> Single<Out> for FidConstCodomain<Out> {
     }
 }
 
-impl<Out: FidOutcome> Fidelity<Out> for FidConstCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidConstCodomain<Out> {}
 
 impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
@@ -948,7 +948,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidCostCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidCostCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             cost: self.get_cost(o),
         }
     }
@@ -964,7 +964,7 @@ impl<Out: FidOutcome> Cost<Out> for FidCostCodomain<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidCostCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidCostCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
@@ -1040,7 +1040,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidCostConstCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidCostConstCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             cost: self.get_cost(o),
             constraints: self.get_constraints(o),
         }
@@ -1061,7 +1061,7 @@ impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstCodomain<Out> {
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidCostConstCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidCostConstCodomain<Out> {}
 
 /// A [`Multi`]-objective, and [`Fidelity`] [`Codomain`].
 #[derive(Debug)]
@@ -1116,7 +1116,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidMultiCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
         }
     }
 }
@@ -1127,7 +1127,7 @@ impl<Out: FidOutcome> Multi<Out> for FidMultiCodomain<Out> {
     }
 }
 
-impl<Out: FidOutcome> Fidelity<Out> for FidMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
@@ -1200,7 +1200,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidConstMultiCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidConstMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             constraints: self.get_constraints(o),
         }
     }
@@ -1216,7 +1216,7 @@ impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstMultiCodomain<Out> 
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidConstMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidConstMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
@@ -1275,7 +1275,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidCostMultiCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidCostMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             cost: self.get_cost(o),
         }
     }
@@ -1290,7 +1290,7 @@ impl<Out: FidOutcome> Cost<Out> for FidCostMultiCodomain<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidCostMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidCostMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
@@ -1368,7 +1368,7 @@ impl<Out: FidOutcome> Codomain<Out> for FidCostConstMultiCodomain<Out> {
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemFidCostConstMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_fidelity(o),
+            fidelity: self.get_evalstate(o),
             cost: self.get_cost(o),
             constraints: self.get_constraints(o),
         }
@@ -1389,4 +1389,4 @@ impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstMultiCodomain<O
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> Fidelity<Out> for FidCostConstMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalState<Out> for FidCostConstMultiCodomain<Out> {}

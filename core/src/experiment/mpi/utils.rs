@@ -1,11 +1,8 @@
 use crate::{
-    experiment::{
+    Codomain, Computed, Domain, FidOutcome, Fidelity, Id, Objective, OptInfo, Outcome, Partial, SolInfo, Stepped, experiment::{
         mpi::tools::MPIProcess,
         utils::{BatchResults, PartPair},
-    },
-    solution::Batch,
-    stop::{ExpStep, Stop},
-    Codomain, Computed, Domain, Id, Objective, OptInfo, Outcome, Partial, SolInfo,
+    }, objective::{FuncWrapper, outcome::FuncState}, solution::Batch, stop::{ExpStep, Stop}
 };
 
 use bincode::{self, config::Configuration, serde::Compat};
@@ -32,48 +29,192 @@ pub struct XMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>);
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
+    serialize = "Dom::TypeDom: Serialize, SolId:Serialize",
+    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
+))]
+pub struct FXMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>, Fidelity);
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>",
+))]
+pub struct DiscardFXMessage<SolId: Id>(pub SolId);
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
     serialize = "Out: Serialize, SolId:Serialize",
     deserialize = "Out: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
 ))]
 pub struct OMessage<SolId: Id, Out: Outcome>(pub SolId, pub Out);
 
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "Out: Serialize, SolId:Serialize",
+    deserialize = "Out: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
+))]
+pub struct FOMessage<SolId: Id, Out: Outcome>(pub SolId, pub Out, pub Fidelity);
+
 //_______ //
 // WORKER //
 //_______ //
 
-pub fn launch_worker<SolId, Obj, Cod, Out>(proc: &MPIProcess, obj_func: &Objective<Obj, Cod, Out>)
+pub trait Worker<SolId,FnWrap>
+where
+    Self: Sized,
+    SolId: Id,
+    FnWrap: FuncWrapper,
+{
+    type State: WorkerState;
+    fn obj_func(&self) -> &FnWrap;
+    fn run(self, proc: &MPIProcess);
+}
+
+pub trait WorkerState
+where
+    Self:Sized + Serialize + for<'a> Deserialize<'a>
+{}
+
+pub struct BaseWorker<FnWrap:FuncWrapper,WState:WorkerState>(FnWrap,WState);
+impl <FnWrap:FuncWrapper,WState:WorkerState> BaseWorker<FnWrap,WState>{
+    pub fn new(objective:FnWrap, state: WState)->Self{
+        BaseWorker(objective, state)
+    }
+}
+
+#[derive(Serialize,Deserialize)]
+pub struct NoWState;
+impl WorkerState for NoWState{}
+
+impl<SolId,Obj,Cod,Out> Worker<SolId, Objective<Obj,Cod,Out>> for BaseWorker<Objective<Obj,Cod,Out>,NoWState>
 where
     SolId: Id,
-    Obj: Domain,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-{
-    // Master process is always Rank 0.
-    let config = bincode::config::standard();
-    loop {
-        // Receive X and compute
-        let (msg, status): (Vec<u8>, _) = proc.world.process_at_rank(0).receive_vec();
-        if status.tag() == 42 {
-            break;
-        } else {
-            let (id_x, _): (Compat<XMessage<SolId, Obj>>, _) =
-                bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
-            let msg = id_x.0;
-            let id = msg.0;
-            let x = msg.1.as_ref();
-            let out = obj_func.raw_compute(x);
-
-            // Send results
-            let raw_msg: OMessage<SolId, Out> = OMessage(id, out);
-            let msg_struct = Compat(raw_msg);
-            let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
-            proc.world.process_at_rank(0).send(&msg);
-        }
+    Obj:Domain,
+    Cod:Codomain<Out>,
+    Out:Outcome,
+{   
+    type State = NoWState;
+    
+    fn obj_func(&self) -> &Objective<Obj,Cod,Out> {
+        &self.0
     }
-    eprintln!(
-        "INFO : Process of rank {} exiting worker loop.",
-        proc.world.rank()
-    );
+
+    fn run(self, proc: &MPIProcess)
+    {
+        // Master process is always Rank 0.
+        let config = bincode::config::standard();
+        loop {
+            // Receive X and compute
+            let (msg, status): (Vec<u8>, _) = proc.world.process_at_rank(0).receive_vec();
+            if status.tag() == 42 {
+                break;
+            } else {
+                let (id_x, _): (Compat<XMessage<SolId, Obj>>, _) =
+                    bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
+                let msg = id_x.0;
+                let id = msg.0;
+                let x = msg.1.as_ref();
+                let out = self.0.raw_compute(x);
+
+                // Send results
+                let raw_msg: OMessage<SolId, Out> = OMessage(id, out);
+                let msg_struct = Compat(raw_msg);
+                let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
+                proc.world.process_at_rank(0).send(&msg);
+            }
+        }
+        eprintln!(
+            "INFO : Process of rank {} exiting worker loop.",
+            proc.world.rank()
+        );
+    }
+}
+
+#[derive(Serialize,Deserialize)]
+#[serde(bound(
+    serialize = "SolId: Serialize",
+    deserialize = "SolId: for<'a> Deserialize<'a>",
+))]
+pub struct FidWorkerState<SolId,FnState>
+where
+    SolId: Id,
+    FnState: FuncState,
+{
+    states: HashMap<SolId, FnState>,
+}
+impl<SolId:Id,FnState:FuncState> WorkerState for FidWorkerState<SolId,FnState>{}
+
+impl<SolId,Obj,Cod,Out,FnState> Worker<SolId, Stepped<Obj,Cod,Out,FnState>> for BaseWorker<Stepped<Obj,Cod,Out,FnState>,FidWorkerState<SolId,FnState>>
+where
+    SolId: Id,
+    Obj:Domain,
+    Cod:Codomain<Out>,
+    Out:FidOutcome,
+    FnState: FuncState,
+{
+    type State = FidWorkerState<SolId,FnState>;
+    fn obj_func(&self) -> &Stepped<Obj,Cod,Out,FnState> {
+        &self.0
+    }
+
+    fn run(mut self, proc: &MPIProcess)
+    {
+        // Master process is always Rank 0.
+        let config = bincode::config::standard();
+        loop {
+            // Receive X and compute
+            let (msg, status): (Vec<u8>, _) = proc.world.process_at_rank(0).receive_vec();
+            if status.tag() == 42 {
+                break;
+            } 
+            else if status.tag() == 104{
+                let (id_x, _): (Compat<DiscardFXMessage<SolId>>, _) =
+                    bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
+                    let msg = id_x.0;
+                    let id = msg.0;
+                    self.1.states.remove(&id);
+            }
+            else if status.tag() == 7{
+                
+            }
+            else {
+                let (id_x, _): (Compat<FXMessage<SolId, Obj>>, _) =
+                    bincode::borrow_decode_from_slice(msg.as_slice(), config).unwrap();
+                let msg = id_x.0;
+                let id = msg.0;
+                let fid = msg.2;
+                match fid{
+                    Fidelity::New => {
+                        let x = msg.1.as_ref();
+                        let (out,state) = self.0.raw_compute(x,fid,None);
+                        self.1.states.insert(id, state);
+                        // Send results
+                        let raw_msg: OMessage<SolId, Out> = OMessage(id, out);
+                        let msg_struct = Compat(raw_msg);
+                        let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
+                        proc.world.process_at_rank(0).send(&msg);
+                    },
+                    Fidelity::Resume(_) => {
+                        let x = msg.1.as_ref();
+                        let state = self.1.states.remove(&id);
+                        let (out,state) = self.0.raw_compute(x,fid,state);
+                        if out.get_fidelity().is_partially(){self.1.states.insert(id, state);}
+                        // Send results
+                        let raw_msg: OMessage<SolId, Out> = OMessage(id, out);
+                        let msg_struct = Compat(raw_msg);
+                        let msg = bincode::encode_to_vec(msg_struct, config).unwrap();
+                        proc.world.process_at_rank(0).send(&msg);
+                    },
+                    Fidelity::Discard => unreachable!("A Discarded solution should not reach this step."),
+                }
+            }
+        }
+        eprintln!(
+            "INFO : Process of rank {} exiting worker loop.",
+            proc.world.rank()
+        );
+    }
 }
 
 /// A structure containing utilitaries to send [`Partial`] to workers.

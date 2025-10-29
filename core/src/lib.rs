@@ -3,9 +3,12 @@
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 #[cfg(feature = "mpi")]
 use std::sync::OnceLock;
+#[cfg(feature="mpi")]
+use mpi::Rank;
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -21,6 +24,40 @@ pub struct GlobalParameters {
     pub opt_id: usize,
     pub run_id: usize,
 }
+
+pub trait SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
+    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
+    SolId: Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    fn get_sp(&self)->Arc<Scp>;
+    fn get_cod(&self)->Arc<Cod>;
+}
+
+#[cfg(feature="mpi")]
+pub trait DistSaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>: SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
+    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
+    SolId: Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SInfo: SolInfo,
+{
+    fn get_rank(&self)-> Rank;
+}
+
+pub struct FolderConfig;
 
 pub mod domain;
 pub use domain::{
@@ -41,6 +78,8 @@ pub use searchspace::{Searchspace, Sp};
 pub mod errors;
 
 pub mod objective;
+#[cfg(feature="mpi")]
+use crate::domain::onto::OntoDom;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
     CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCodomain,
@@ -57,5 +96,7 @@ pub use stop::Stop;
 
 pub mod experiment;
 
-pub mod saver;
-pub use saver::CSVSaver;
+pub mod recorder;
+pub use recorder::{CSVRecorder};
+
+pub mod checkpointer;

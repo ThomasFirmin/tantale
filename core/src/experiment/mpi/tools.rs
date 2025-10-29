@@ -1,5 +1,5 @@
 use crate::{
-    experiment::mpi::utils::launch_worker as worker, Codomain, Domain, Objective, Outcome, SId,
+    experiment::mpi::utils::Worker;, Codomain, Domain, Objective, Outcome, SId,
     MPI_RANK, MPI_SIZE,
 };
 use mpi::{environment::Universe, topology::SimpleCommunicator, traits::Communicator, Rank};

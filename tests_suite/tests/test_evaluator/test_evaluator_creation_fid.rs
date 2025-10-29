@@ -1,13 +1,12 @@
 use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    experiment::{BatchEvaluator, MonoEvaluate, FidThrEvaluator},
-    solution::Batch,
-    stop::Calls,
-    BasePartial, EmptyInfo, Stepped, SId, Searchspace, FidCodomain, Solution, Sp,
+    BasePartial, EmptyInfo, FidCodomain, SId, Searchspace, Solution, Sp, Stepped, 
+    experiment::{BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate},
+    solution::{Batch, partial::{FidBasePartial,FidelityPartial}}, stop::Calls
 };
 
 use super::init_func::sp_evaluator_fid;
-use crate::init_func::FidOutEvaluator;
+use crate::init_func::{FidOutEvaluator, FnState};
 
 use std::{
     collections::HashMap,
@@ -25,12 +24,12 @@ fn test_seq_evaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sobj  = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
     let sopt = sp.vec_onto_obj(sobj.clone());
     let batch = Batch::new(sobj, sopt, info.clone());
-    let mut eval = BatchEvaluator::new(batch);
+    let mut eval = FidBatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <BatchEvaluator<BasePartial<SId, _, _>, _, _, _, _, _> as MonoEvaluate<
+    let (braw, bcomp) = <FidBatchEvaluator<FidBasePartial<SId, _, _>, _, _, _, _, _, FnState> as MonoEvaluate<
         RandomSearch,
         Calls,
         sp_evaluator_fid::ObjType,

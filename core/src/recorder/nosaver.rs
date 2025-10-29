@@ -3,7 +3,7 @@ use crate::{
     experiment::Evaluate,
     objective::Outcome,
     optimizer::{CBType, OBType, Optimizer, PBType},
-    saver::{CheckpointError, Saver},
+    recorder::Recorder,
     searchspace::Searchspace,
     solution::Id,
     stop::Stop,
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[cfg(feature = "mpi")]
-use crate::saver::DistributedSaver;
+use crate::recorder::DistRecorder;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 

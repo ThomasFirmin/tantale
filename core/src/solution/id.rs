@@ -1,8 +1,4 @@
-#[cfg(feature = "mpi")]
-use crate::MPI_RANK;
-use crate::{saver::CSVWritable, SOL_ID};
-#[cfg(feature = "mpi")]
-use mpi::Rank;
+use crate::{recorder::csv::CSVWritable, SOL_ID};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -10,6 +6,11 @@ use std::{
     hash::{Hash, Hasher},
     sync::atomic::Ordering,
 };
+
+#[cfg(feature = "mpi")]
+use crate::MPI_RANK;
+#[cfg(feature = "mpi")]
+use mpi::Rank;
 
 /// Describes the [`Id`] of a [`Solution`]
 pub trait Id
