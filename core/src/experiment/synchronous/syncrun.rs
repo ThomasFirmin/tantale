@@ -1,56 +1,62 @@
 use crate::{
-    FidOutcome, Id, Onto, Partial, Stepped, domain::Domain, experiment::{
+    FidOutcome, Id, Onto, Partial, Stepped, checkpointer::Checkpointer, domain::{Domain, onto::OntoDom}, experiment::{
         BatchEvaluator, Evaluate, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, Runable,
         ThrBatchEvaluator, ThrEvaluate,
-    }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{
-        CBType, OBType, Optimizer, opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
-    }, saver::Saver, searchspace::Searchspace, solution::{Batch, SId, partial::FidelityPartial}, stop::{ExpStep, Stop}
+    }, objective::{Codomain, Objective, Outcome, outcome::FuncState}, optimizer::{CBType, OBType, Optimizer,
+        opt::{OpCodType, OpInfType, OpSInfType, OpSolType}}, recorder::Recorder, searchspace::Searchspace, solution::{Batch, SId, partial::FidelityPartial}, stop::{ExpStep, Stop}
 };
-
-#[cfg(feature = "mpi")]
-use crate::{
-    experiment::{DistEvaluate, DistRunable, MasterWorker, mpi::{tools::MPIProcess, utils::{BaseWorker, NoWState}}},
-    saver::DistributedSaver,
-};
-#[cfg(feature = "mpi")]
-use mpi::{topology::Communicator, traits::Destination};
 
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
 };
 
-pub struct SyncExperiment<SolId, Eval, Scp, Op, St, Sv, Obj, Opt, Out>
+#[cfg(feature = "mpi")]
+use crate::{
+    checkpointer::{self, DistCheckpointer}, experiment::{
+        DistEvaluate, DistRunable, MasterWorker,
+        mpi::{
+            tools::MPIProcess,
+            utils::{BaseWorker, NoWState}
+        }
+    }, recorder::DistRecorder
+};
+#[cfg(feature = "mpi")]
+use mpi::{topology::Communicator, traits::Destination};
+
+pub struct SyncExperiment<SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out>
 where
     SolId: Id,
     Eval: Evaluate,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Op, Eval>,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Rec: Recorder<SolId, Obj, Opt, Out, Scp, Op>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     pub searchspace: Scp,
     pub objective: Op::FnWrap,
     pub optimizer: Op,
     pub stop: St,
-    pub saver: Sv,
+    pub recorder: Option<Rec>,
+    pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
     _domobj: PhantomData<Obj>,
     _domopt: PhantomData<Opt>,
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out>
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
     Runable<
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         SId,
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Out,
         Obj,
         Opt,
@@ -61,7 +67,8 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out>
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Obj,
         Opt,
         Out,
@@ -85,18 +92,16 @@ where
     >,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Sv: Saver<
+    Rec: Recorder<
         SId,
-        St,
         Obj,
         Opt,
         Out,
         Scp,
         Op,
-        BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
     >,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     fn new(
@@ -104,15 +109,18 @@ where
         objective: Op::FnWrap,
         optimizer: Op,
         stop: St,
-        mut saver: Sv,
+        recorder: Option<Rec>,
+        checkpointer: Option<Check>,
     ) -> Self {
-        saver.init(&searchspace, objective.get_codomain().as_ref());
+        recorder.init();
+        checkpointer.init();
         SyncExperiment {
             searchspace,
             objective,
             optimizer,
             stop,
-            saver,
+            recorder,
+            checkpointer,
             evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
@@ -198,17 +206,23 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Op::FnWrap, mut saver: Sv) -> Self {
-        let (stop, optimizer, evaluator) = saver
-            .load(&searchspace, objective.get_codomain().as_ref())
+    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, checkpointer: Check) -> Self {
+        let (stop, optimizer, evaluator) = checkpointer
+            .load()
             .unwrap();
-        Saver::after_load(&mut saver, &searchspace, objective.get_codomain().as_ref());
+        match recorder {
+            Some(rec) => rec.after_load(),
+            None => {},
+        };
+        checkpointer.after_load();
+
         SyncExperiment {
             searchspace,
             objective,
             optimizer,
             stop,
-            saver,
+            recorder,
+            checkpointer,
             evaluator: Some(evaluator),
             _domobj: PhantomData,
             _domopt: PhantomData,
@@ -217,14 +231,15 @@ where
     }
 }
 
-impl<Scp, Op, St, Sv, Obj, Opt, Out>
+impl<Scp, Op, St, Obj, Opt, Out, Rec, Check>
     Runable<
         ThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         SId,
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Out,
         Obj,
         Opt,
@@ -235,7 +250,8 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out>
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Obj,
         Opt,
         Out,
@@ -259,17 +275,26 @@ where
     >,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
-    Sv: Saver<
+    Rec: Recorder<
             SId,
-            St,
             Obj,
             Opt,
             Out,
             Scp,
             Op,
-            ThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         > + Send
         + Sync,
+    Check: Checkpointer<
+        SId,
+        St,
+        Obj,
+        Opt,
+        Out,
+        Scp,
+        Op,
+        Op::BType,
+    > + Send
+    + Sync,
     Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
     Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
     Out: Outcome + Send + Sync,
@@ -288,15 +313,18 @@ where
         objective: Op::FnWrap,
         optimizer: Op,
         stop: St,
-        mut saver: Sv,
+        recorder: Rec,
+        checkpointer: Check,
     ) -> Self {
-        saver.init(&searchspace, objective.get_codomain().as_ref());
+        recorder.init();
+        checkpointer.init();
         SyncExperiment {
             searchspace,
             objective,
             optimizer,
             stop,
-            saver,
+            recorder,
+            checkpointer,
             evaluator: None,
             _domobj: PhantomData,
             _domopt: PhantomData,
@@ -402,17 +430,22 @@ where
         }
     }
 
-    fn load(searchspace: Scp, objective: Op::FnWrap, mut saver: Sv) -> Self {
-        let (stop, optimizer, evaluator) = saver
-            .load(&searchspace, objective.get_codomain().as_ref())
+    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, checkpointer:Check ) -> Self {
+        let (stop, optimizer, evaluator) = checkpointer
+            .load()
             .unwrap();
-        Saver::after_load(&mut saver, &searchspace, objective.get_codomain().as_ref());
+        match recorder{
+            Some(rec) => rec.after_load(),
+            None => {},
+        };
+        checkpointer.after_load();
         SyncExperiment {
             searchspace,
             objective,
             optimizer,
             stop,
-            saver,
+            recorder,
+            checkpointer,
             evaluator: Some(evaluator),
             _domobj: PhantomData,
             _domopt: PhantomData,
@@ -422,14 +455,15 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<Scp, Op, St, Sv, Obj, Opt, Out>
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
     DistRunable<
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         SId,
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Out,
         Obj,
         Opt,
@@ -440,7 +474,8 @@ impl<Scp, Op, St, Sv, Obj, Opt, Out>
         Scp,
         Op,
         St,
-        Sv,
+        Rec,
+        Check,
         Obj,
         Opt,
         Out,
@@ -464,7 +499,15 @@ where
     >,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Sv: DistributedSaver<
+    Rec: DistRecorder<
+        SId,
+        Obj,
+        Opt,
+        Out,
+        Scp,
+        Op,
+    >,
+    Check: DistCheckpointer<
         SId,
         St,
         Obj,
@@ -474,8 +517,8 @@ where
         Op,
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
     >,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     type WorkerType = BaseWorker<Op::FnWrap,NoWState>;
@@ -485,21 +528,27 @@ where
         objective: Op::FnWrap,
         optimizer: Op,
         stop: St,
-        mut saver: Sv,
-    ) -> MasterWorker<Self,BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,SId,Scp,Op,St,Sv,Out,Obj,Opt> {
-        <Sv as DistributedSaver<_, _, _, _, _, _, _, _>>::init(
-            &mut saver,
-            &searchspace,
-            objective.get_codomain().as_ref(),
-            proc.rank,
-        );
+        recorder: Option<Rec>,
+        checkpointer: Option<Check>,
+    ) -> MasterWorker<Self,BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,SId,Scp,Op,St,Rec,Check,Out,Obj,Opt> {
+        
+        match recorder {
+            Some(mut rec) => rec.init(proc.rank),
+            None => {},
+        }
+        match checkpointer {
+            Some(mut check) => check.init(proc.rank),
+            None => {},
+        }
+
         if proc.rank == 0{
             MasterWorker::Master(SyncExperiment {
                 searchspace,
                 objective,
                 optimizer,
                 stop,
-                saver,
+                recorder,
+                checkpointer,
                 evaluator: None,
                 _domobj: PhantomData,
                 _domopt: PhantomData,
@@ -510,7 +559,7 @@ where
         }
     }
 
-    fn run(mut self, proc: &MPIProcess) {
+    fn run_dist(mut self, proc: &MPIProcess) {
         let sp = Arc::new(self.searchspace);
         let ob = Arc::new(self.objective);
         let cod = ob.get_codomain();
@@ -532,51 +581,33 @@ where
             {
                 let mut st = st.lock().unwrap();
                 st.update(ExpStep::Evaluation);
-                DistributedSaver::save_state(
-                    &self.saver,
-                    sp.clone(),
-                    self.optimizer.get_state(),
-                    &st,
-                    &eval,
-                    proc.rank,
-                );
+                match self.checkpointer {
+                    Some(check) => check.save_state(self.optimizer.get_state(),&st,&eval,proc.rank),
+                    None => {},
+                }
                 if st.stop() {
                     break 'main;
                 };
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) =
-                <BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info> as DistEvaluate<
-                    Op,
-                    St,
-                    Obj,
-                    Opt,
-                    Out,
-                    SId,
-                    Scp,
-                >>::evaluate(&mut eval, proc, ob.clone(), st.clone());
+            (batch_raw, batch_comp) = eval.evaluate(proc, ob.clone(), st.clone());
 
             // DistributedSaver part
-            DistributedSaver::save_partial_with_raw(&self.saver, &batch_raw, sp.clone(), proc.rank);
-            DistributedSaver::save_info_with_raw(&self.saver, &batch_raw, sp.clone(), proc.rank);
-            DistributedSaver::save_out(&self.saver, &batch_raw, sp.clone(), proc.rank);
-            DistributedSaver::save_codom(
-                &self.saver,
-                &batch_comp,
-                sp.clone(),
-                cod.clone(),
-                proc.rank,
-            );
+            match self.recorder{
+                Some(rec) => {
+                    rec.save_partial( &batch_comp, proc.rank);
+                    rec.save_info( &batch_comp, proc.rank);
+                    rec.save_out( &batch_raw, proc.rank);
+                    rec.save_codom(&batch_comp,proc.rank);
+                },
+                None => {},
+            }
             if st.lock().unwrap().stop() {
-                DistributedSaver::save_state(
-                    &self.saver,
-                    sp.clone(),
-                    self.optimizer.get_state(),
-                    &st.lock().unwrap(),
-                    &eval,
-                    proc.rank,
-                );
+                match self.checkpointer {
+                    Some(check) => check.save_state(self.optimizer.get_state(),&st,&eval,proc.rank),
+                    None => {},
+                }
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, sp.clone());
@@ -593,14 +624,10 @@ where
 
             st.lock().unwrap().update(ExpStep::Optimization);
             if st.lock().unwrap().stop() {
-                DistributedSaver::save_state(
-                    &self.saver,
-                    sp.clone(),
-                    self.optimizer.get_state(),
-                    &st.lock().unwrap(),
-                    &eval,
-                    proc.rank,
-                );
+                match self.checkpointer {
+                    Some(check) => check.save_state(self.optimizer.get_state(),&st,&eval,proc.rank),
+                    None => {},
+                }
                 break 'main;
             };
         }
@@ -615,7 +642,8 @@ where
         proc: &MPIProcess,
         searchspace: Scp,
         objective: Op::FnWrap,
-        mut saver: Sv,
+        recorder: Option<Rec>,
+        checkpointer: Check,
     ) -> Self {
         let (stop, optimizer, evaluator) = DistributedSaver::load(
             &saver,

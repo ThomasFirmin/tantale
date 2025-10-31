@@ -88,7 +88,7 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::{FidOutcome, objective::outcome::Outcome, saver::csvsaver::CSVWritable};
+use crate::{FidOutcome, objective::outcome::Outcome, recorder::csv::CSVWritable};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning

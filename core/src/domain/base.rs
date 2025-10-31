@@ -7,7 +7,7 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
-use crate::saver::CSVWritable;
+use crate::recorder::csv::CSVWritable;
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};

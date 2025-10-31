@@ -7,15 +7,15 @@ use crate::{
     solution::Id,
     stop::Stop
 };
-use std::sync::Arc;
 
-#[cfg(feature = "mpi")]
-use crate::DistSaverConfig;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
 pub mod checkerror;
 pub use checkerror::CheckpointError;
+
+pub mod messagepack;
+pub use messagepack::MessagePack;
 
 pub trait Checkpointer<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
 where
@@ -29,19 +29,19 @@ where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
 {
-    type Config: SaverConfig;
-    fn init(&mut self, sp: &Scp, cod: &Op::Cod);
-    fn after_load(&mut self, sp: &Scp, cod: &Op::Cod);
-    fn save_state(&self, sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval);
-    fn load(&self, sp: &Scp, cod: &Op::Cod) -> Result<(St, Op, Eval), CheckpointError>;
-    fn load_stop(&self, sp: &Scp, cod: &Op::Cod) -> Result<St, CheckpointError>;
-    fn load_optimizer(&self, sp: &Scp, cod: &Op::Cod) -> Result<Op, CheckpointError>;
-    fn load_evaluate(&self, sp: &Scp, cod: &Op::Cod) -> Result<Eval, CheckpointError>;
-    fn load_parameters(&self,sp: &Scp,cod: &Op::Cod) -> Result<GlobalParameters, CheckpointError>;
+    type Config: SaverConfig<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Cod,Out>;
+    fn init(&mut self);
+    fn after_load(&mut self);
+    fn save_state(&self, state: &Op::State, stop: &St, eval: &Eval);
+    fn load(&self) -> Result<(St, Op, Eval), CheckpointError>;
+    fn load_stop(&self) -> Result<St, CheckpointError>;
+    fn load_optimizer(&self) -> Result<Op, CheckpointError>;
+    fn load_evaluate(&self) -> Result<Eval, CheckpointError>;
+    fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistCheckpointer<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
+pub trait DistCheckpointer<SolId, St, Obj, Opt, Out, Scp, Op, Eval>: Checkpointer<SolId, St, Obj, Opt, Out, Scp, Op, Eval>
 where
     Self: Sized,
     SolId: Id,
@@ -53,13 +53,12 @@ where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     Eval: Evaluate,
 {
-    type Config: DistSaverConfig;
-    fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank:Rank);
-    fn after_load(&mut self, sp: &Scp, cod: &Op::Cod, rank:Rank);
-    fn save_state(&self, sp: Arc<Scp>, state: &Op::State, stop: &St, eval: &Eval, rank:Rank);
-    fn load(&self, sp: &Scp, cod: &Op::Cod, rank:Rank) -> Result<(St, Op, Eval), CheckpointError>;
-    fn load_stop(&self, sp: &Scp, cod: &Op::Cod, rank:Rank) -> Result<St, CheckpointError>;
-    fn load_optimizer(&self, sp: &Scp, cod: &Op::Cod, rank:Rank) -> Result<Op, CheckpointError>;
-    fn load_evaluate(&self, sp: &Scp, cod: &Op::Cod, rank:Rank) -> Result<Eval, CheckpointError>;
-    fn load_parameters(&self,sp: &Scp,cod: &Op::Cod, rank:Rank) -> Result<GlobalParameters, CheckpointError>;
+    fn init(&mut self, rank:Rank);
+    fn after_load(&mut self, rank:Rank);
+    fn save_state(&self, state: &Op::State, stop: &St, eval: &Eval, rank:Rank);
+    fn load(&self, rank:Rank) -> Result<(St, Op, Eval), CheckpointError>;
+    fn load_stop(&self, rank:Rank) -> Result<St, CheckpointError>;
+    fn load_optimizer(&self, rank:Rank) -> Result<Op, CheckpointError>;
+    fn load_evaluate(&self, rank:Rank) -> Result<Eval, CheckpointError>;
+    fn load_parameters(&self, rank:Rank) -> Result<GlobalParameters, CheckpointError>;
 }

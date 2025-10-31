@@ -26,7 +26,7 @@ use crate::domain::{
     sampler::uniform,
     Domain, TypeDom,
 };
-use crate::saver::CSVWritable;
+use crate::recorder::csv::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;

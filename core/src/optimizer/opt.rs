@@ -1,16 +1,20 @@
 use crate::{
     Onto, Partial, Stop,
+    recorder::{Recorder, csv::CSVWritable},
+    checkpointer::Checkpointer,
     domain::Domain,
     experiment::{MonoEvaluate, Runable, ThrEvaluate},
     objective::{Codomain, FuncWrapper, Outcome},
-    recorder::{Recorder, csv::CSVWritable},
     searchspace::Searchspace,
     solution::{BatchType, Id, SolInfo}
 };
 #[cfg(feature = "mpi")]
 use crate::{
-    experiment::{mpi::tools::MPIProcess, DistEvaluate, DistRunable},
-    recorder::DistRecorder,
+    checkpointer::DistCheckpointer,
+    experiment::{DistEvaluate, DistRunable,
+        mpi::tools::MPIProcess
+    },
+    recorder::DistRecorder
 };
 
 use serde::{Deserialize, Serialize};
@@ -163,30 +167,43 @@ where
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
     type Eval<St: Stop>: MonoEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Sv>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Sv, Out, Obj, Opt>
+    type Exp<St, Rec, Check>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
     where
         St: Stop,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>;
-    fn get_mono<St, Sv>(
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>;
+    fn get_mono<St, Rec, Check>(
         searchspace: Scp,
         objective: Self::FnWrap,
         optimizer: Self,
         stop: St,
-        saver: Sv,
-    ) -> Self::Exp<St, Sv>
+        recorder: Option<Rec>,
+        checkpointer: Option<Check>,
+    ) -> Self::Exp<St, Rec, Check>
     where
         St: Stop,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>,
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>,
     {
-        Self::Exp::new(searchspace, objective, optimizer, stop, saver)
+        Self::Exp::new(searchspace, objective, optimizer, stop, recorder, checkpointer)
     }
-
-    fn load_mono<St, Sv>(searchspace: Scp, objective: Self::FnWrap, saver: Sv) -> Self::Exp<St, Sv>
+    fn load_mono<St, Rec, Check>(
+        searchspace: Scp,
+        objective: Self::FnWrap,
+        recorder: Option<Rec>,
+        checkpointer: Option<Check>
+    ) -> Self::Exp<St, Rec, Check>
     where
         St: Stop,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>,
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>,
     {
-        <Self::Exp<St,Sv> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Sv,Out,Obj,Opt>>::load(searchspace, objective, saver)
+        <Self::Exp<St,Rec,Check> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Rec,Check,Out,Obj,Opt>>::load(
+            searchspace,
+            objective,
+            recorder,
+            checkpointer,
+        )
     }
 }
 
@@ -205,34 +222,44 @@ where
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
     type Eval<St: Stop + Send + Sync>: ThrEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Sv>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Sv, Out, Obj, Opt>
+    type Exp<St, Rec, Check>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
     where
         St: Stop + Send + Sync,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>> + Send + Sync;
-    fn get_threaded<St, Sv>(
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync;
+    fn get_threaded<St, Rec, Check>(
         searchspace: Scp,
         objective: Self::FnWrap,
         optimizer: Self,
         stop: St,
-        saver: Sv,
-    ) -> Self::Exp<St, Sv>
+        recorder: Rec,
+        checkpointer: Check,
+    ) -> Self::Exp<St, Rec, Check>
     where
         St: Stop + Send + Sync,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>> + Send + Sync,
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
     {
-        Self::Exp::new(searchspace, objective, optimizer, stop, saver)
+        Self::Exp::new(searchspace, objective, optimizer, stop, recorder, checkpointer)
     }
 
-    fn load_threaded<St, Sv>(
+    fn load_threaded<St, Rec, Check>(
         searchspace: Scp,
         objective: Self::FnWrap,
-        saver: Sv,
-    ) -> Self::Exp<St, Sv>
+        recorder: Rec,
+        checkpointer: Check,
+    ) -> Self::Exp<St, Rec, Check>
     where
         St: Stop + Send + Sync,
-        Sv: Saver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>> + Send + Sync,
+        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
     {
-        <Self::Exp<St,Sv> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Sv,Out,Obj,Opt>>::load(searchspace, objective, saver)
+        <Self::Exp<St,Rec,Check> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Rec,Check,Out,Obj,Opt>>::load(
+            searchspace,
+            objective,
+            recorder,
+            checkpointer,
+        )
     }
 }
 
@@ -250,47 +277,53 @@ where
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
     type Eval<St: Stop>: DistEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Sv>: DistRunable<Self::Eval<St>, SolId, Scp, Self, St, Sv, Out, Obj, Opt>
+    type Exp<St, Rec, Check>: DistRunable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
     where
-        St: Stop,
-        Sv: DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>;
+        St: Stop + Send + Sync,
+        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync;
 
-    fn get_distributed<St, Sv>(
+    fn get_distributed<St, Rec, Check>(
         proc: &MPIProcess,
         searchspace: Scp,
         objective: Self::FnWrap,
         optimizer: Self,
         stop: St,
-        saver: Sv,
-    ) -> Self::Exp<St, Sv>
+        recorder: Rec,
+        checkpointer: Check,
+    ) -> Self::Exp<St, Rec, Check>
     where
-        St: Stop,
-        Sv: DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>,
+        St: Stop + Send + Sync,
+        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
     {
-        Self::Exp::new_dist(proc, searchspace, objective, optimizer, stop, saver)
+        Self::Exp::new_dist(proc, searchspace, objective, optimizer, stop, recorder, checkpointer)
     }
 
-    fn load_distributed<St, Sv>(
+    fn load_distributed<St, Rec, Check>(
         proc: &MPIProcess,
         searchspace: Scp,
         objective: Self::FnWrap,
-        saver: Sv,
-    ) -> Self::Exp<St, Sv>
+        recorder: Rec,
+        checkpointer: Check,
+    ) -> Self::Exp<St, Rec, Check>
     where
-        St: Stop,
-        Sv: DistributedSaver<SolId, St, Obj, Opt, Out, Scp, Self, Self::Eval<St>>,
+        St: Stop + Send + Sync,
+        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
+        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
     {
-        <Self::Exp<St, Sv> as DistRunable<
+        <Self::Exp<St, Rec, Check> as DistRunable<
             Self::Eval<St>,
             SolId,
             Scp,
             Self,
             St,
-            Sv,
+            Rec,
+            Check,
             Out,
             Obj,
             Opt,
-        >>::load_dist(proc, searchspace, objective, saver)
+        >>::load_dist(proc,objective,recorder,checkpointer)
     }
 }
 

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::{tools::MPIProcess, utils::Worker};
+use crate::{checkpointer::DistCheckpointer, experiment::mpi::{tools::MPIProcess, utils::Worker}, recorder::DistRecorder};
 
 // SYNCHRONOUS
 pub mod synchronous;
@@ -123,9 +123,9 @@ where
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
-    fn new(searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, recorder: Rec, checkpointer: Check) -> Self;
+    fn new(searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, recorder: Option<Rec>, checkpointer: Option<Check>) -> Self;
     fn run(self);
-    fn load(objective: Op::FnWrap, rec: Rec, checkpointer: Check) -> Self;
+    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, checkpointer: Check) -> Self;
 }
 
 #[cfg(feature = "mpi")]
@@ -137,8 +137,8 @@ where
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
@@ -154,8 +154,8 @@ where
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
@@ -176,16 +176,29 @@ where
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
+    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     type WorkerType: Worker<SolId,Op::FnWrap>;
-    fn new_dist(proc:&MPIProcess, searchspace: Scp, objective: Op::FnWrap, optimizer: Op, stop: St, recorder: Rec, checkpointer: Check) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
+    fn new_dist(
+        proc:&MPIProcess,
+        searchspace: Scp,
+        objective: Op::FnWrap,
+        optimizer: Op,
+        stop: St,
+        recorder: Option<Rec>,
+        checkpointer: Option<Check>
+    ) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
     fn run_dist(self, proc: &MPIProcess);
-    fn load_dist(proc:&MPIProcess, objective: Op::FnWrap, rec: Rec, checkpointer: Check) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
+    fn load_dist(
+        proc:&MPIProcess,
+        objective: Op::FnWrap,
+        recorder: Option<Rec>,
+        checkpointer: Check,
+    ) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
 }
 
 pub trait Evaluate

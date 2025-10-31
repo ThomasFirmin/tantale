@@ -22,7 +22,7 @@ use crate::domain::{
     unit::Unit,
     Domain, TypeDom,
 };
-use crate::saver::CSVWritable;
+use crate::recorder::csv::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;

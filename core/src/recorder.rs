@@ -1,13 +1,13 @@
 use crate::{
-    Codomain, Optimizer, Partial, SolInfo,
+    Optimizer, SaverConfig,
     domain::onto::OntoDom,
     objective::Outcome,
     optimizer::opt::{CBType, OBType},
     searchspace::Searchspace,
-    solution::Id,
+    solution::Id
 };
-use std::sync::Arc;
 
+use std::sync::Arc;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
@@ -27,17 +27,18 @@ where
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
 {
-    type Config: SaverConfig;
-    fn init(&mut self, sp: &Scp, cod: &Op::Cod);
-    fn after_load(&mut self, sp: &Scp, cod: &Op::Cod);
-    fn save_partial(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
-    fn save_info(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
-    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>);
-    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>,sp: Arc<Scp>,cod: Arc<Op::Cod>);
+    type Config: SaverConfig<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Cod,Out>;
+    fn get_config(&self)->Arc<Self::Config>;
+    fn init(&mut self);
+    fn after_load(&mut self);
+    fn save_partial(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>);
+    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>);
+    fn save_info(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>);
+    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>);
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistRecorder<SolId, Obj, Opt, Out, Scp, Op>
+pub trait DistRecorder<SolId, Obj, Opt, Out, Scp, Op>: Recorder<SolId, Obj, Opt, Out, Scp, Op>
 where
     Self: Sized,
     SolId: Id,
@@ -47,11 +48,11 @@ where
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
 {
-    type Config: DistSaverConfig;
-    fn init(&mut self, sp: &Scp, cod: &Op::Cod, rank:Rank);
-    fn after_load(&mut self, sp: &Scp, cod: &Op::Cod, rank:Rank);
-    fn save_partial(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
-    fn save_info(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
-    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>, rank:Rank);
-    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>,sp: Arc<Scp>,cod: Arc<Op::Cod>, rank:Rank);
+    fn get_config(&self, rank:Rank)->Arc<Self::Config>;
+    fn init(&mut self, rank:Rank);
+    fn after_load(&mut self, rank:Rank);
+    fn save_partial(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank);
+    fn save_info(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank);
+    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank);
+    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank);
 }
