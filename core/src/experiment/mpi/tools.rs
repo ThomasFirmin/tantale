@@ -1,7 +1,4 @@
-use crate::{
-    experiment::mpi::utils::Worker;, Codomain, Domain, Objective, Outcome, SId,
-    MPI_RANK, MPI_SIZE,
-};
+use crate::{MPI_RANK, MPI_SIZE};
 use mpi::{environment::Universe, topology::SimpleCommunicator, traits::Communicator, Rank};
 
 pub struct MPIProcess {
@@ -37,18 +34,5 @@ impl MPIProcess {
 impl Default for MPIProcess {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-pub fn launch_worker<Obj: Domain, Cod: Codomain<Out>, Out: Outcome>(
-    proc: &MPIProcess,
-    obj: &Objective<Obj, Cod, Out>,
-) -> bool {
-    println!("JE SUIS LE RANG {}", proc.rank);
-    if proc.rank != 0 {
-        worker::<SId, Obj, Cod, Out>(proc, obj);
-        true
-    } else {
-        false
     }
 }

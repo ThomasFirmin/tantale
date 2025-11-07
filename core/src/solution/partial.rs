@@ -289,7 +289,7 @@ where
         B: Domain,
         T: AsRef<[TypeDom<B>]>,
     {
-        Self::Twin::new(self.get_id(), x, self.get_info())
+        Self::Twin::new(self.id, x, self.info.clone())
     }
 }
 
@@ -430,7 +430,7 @@ where
         B: Domain,
         T: AsRef<[TypeDom<B>]>,
     {
-        Self::Twin::_new(self.get_id(), x, self.fid, self.get_info())
+        Self::Twin::_new(self.id, x, self.fid, self.info.clone())
     }
 }
 

@@ -1,20 +1,10 @@
 use crate::{
-    Onto, Partial, Stop,
-    recorder::{Recorder, csv::CSVWritable},
-    checkpointer::Checkpointer,
+    Onto, Partial,
     domain::Domain,
-    experiment::{MonoEvaluate, Runable, ThrEvaluate},
     objective::{Codomain, FuncWrapper, Outcome},
+    recorder::csv::CSVWritable,
     searchspace::Searchspace,
-    solution::{BatchType, Id, SolInfo}
-};
-#[cfg(feature = "mpi")]
-use crate::{
-    checkpointer::DistCheckpointer,
-    experiment::{DistEvaluate, DistRunable,
-        mpi::tools::MPIProcess
-    },
-    recorder::DistRecorder
+    solution::{BatchType, Id, SolInfo, partial::FidelityPartial}
 };
 
 use serde::{Deserialize, Serialize};
@@ -140,191 +130,18 @@ where
     fn init(&mut self);
 
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, sp: Arc<Scp>) -> Self::BType;
+    fn first_step(&mut self, sp: &Scp) -> Self::BType;
 
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: CBType<Self, SolId, Obj, Opt, Out, Scp>, sp: Arc<Scp>) -> Self::BType;
+    fn step(&mut self, x: CBType<Self, SolId, Obj, Opt, Out, Scp>, sp: &Scp) -> Self::BType;
 
     /// Returns the current [`OptState`] of the [`Optimizer`].
     fn get_state(&mut self) -> &Self::State;
 
     /// Return an instance of the [`Optimizer`]  from an [`OptState`].
     fn from_state(state: Self::State) -> Self;
-}
-
-pub trait MonoOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, Out, Scp>
-where
-    Self: Sized,
-    SolId: Id,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
-    Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
-    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
-    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
-        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
-{
-    type Eval<St: Stop>: MonoEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Rec, Check>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
-    where
-        St: Stop,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>;
-    fn get_mono<St, Rec, Check>(
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        optimizer: Self,
-        stop: St,
-        recorder: Option<Rec>,
-        checkpointer: Option<Check>,
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>,
-    {
-        Self::Exp::new(searchspace, objective, optimizer, stop, recorder, checkpointer)
-    }
-    fn load_mono<St, Rec, Check>(
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        recorder: Option<Rec>,
-        checkpointer: Option<Check>
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self>,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>>,
-    {
-        <Self::Exp<St,Rec,Check> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Rec,Check,Out,Obj,Opt>>::load(
-            searchspace,
-            objective,
-            recorder,
-            checkpointer,
-        )
-    }
-}
-
-pub trait ThrOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, Out, Scp>
-where
-    Self: Sized,
-    SolId: Id + Send + Sync,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
-    Obj::TypeDom: Send + Sync,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
-    Opt::TypeDom: Send + Sync,
-    Out: Outcome + Send + Sync,
-    Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo> + Send + Sync,
-    Self::Sol: Partial<SolId, Obj, Self::SInfo> + Send + Sync,
-    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
-        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
-{
-    type Eval<St: Stop + Send + Sync>: ThrEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Rec, Check>: Runable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
-    where
-        St: Stop + Send + Sync,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync;
-    fn get_threaded<St, Rec, Check>(
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        optimizer: Self,
-        stop: St,
-        recorder: Rec,
-        checkpointer: Check,
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop + Send + Sync,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
-    {
-        Self::Exp::new(searchspace, objective, optimizer, stop, recorder, checkpointer)
-    }
-
-    fn load_threaded<St, Rec, Check>(
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        recorder: Rec,
-        checkpointer: Check,
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop + Send + Sync,
-        Rec: Recorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
-    {
-        <Self::Exp<St,Rec,Check> as Runable<Self::Eval<St>,SolId,Scp,Self,St,Rec,Check,Out,Obj,Opt>>::load(
-            searchspace,
-            objective,
-            recorder,
-            checkpointer,
-        )
-    }
-}
-
-#[cfg(feature = "mpi")]
-pub trait DistOptimizer<SolId, Obj, Opt, Out, Scp>: Optimizer<SolId, Obj, Opt, Out, Scp>
-where
-    Self: Sized,
-    SolId: Id,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
-    Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
-    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
-    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
-        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
-{
-    type Eval<St: Stop>: DistEvaluate<Self, St, Obj, Opt, Out, SolId, Scp>;
-    type Exp<St, Rec, Check>: DistRunable<Self::Eval<St>, SolId, Scp, Self, St, Rec, Check, Out, Obj, Opt>
-    where
-        St: Stop + Send + Sync,
-        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync;
-
-    fn get_distributed<St, Rec, Check>(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        optimizer: Self,
-        stop: St,
-        recorder: Rec,
-        checkpointer: Check,
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop + Send + Sync,
-        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
-    {
-        Self::Exp::new_dist(proc, searchspace, objective, optimizer, stop, recorder, checkpointer)
-    }
-
-    fn load_distributed<St, Rec, Check>(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Self::FnWrap,
-        recorder: Rec,
-        checkpointer: Check,
-    ) -> Self::Exp<St, Rec, Check>
-    where
-        St: Stop + Send + Sync,
-        Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Self> + Send + Sync,
-        Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Self,Self::Eval<St>> + Send + Sync,
-    {
-        <Self::Exp<St, Rec, Check> as DistRunable<
-            Self::Eval<St>,
-            SolId,
-            Scp,
-            Self,
-            St,
-            Rec,
-            Check,
-            Out,
-            Obj,
-            Opt,
-        >>::load_dist(proc,objective,recorder,checkpointer)
-    }
 }
 
 /// A parallel [`Optimizer`] with multi-processing.

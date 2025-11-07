@@ -1,11 +1,11 @@
 use crate::{
-    domain::Domain,
-    experiment::{utils::BatchResults, Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
-    objective::{outcome::FuncState, FidOutcome, Stepped},
+    Codomain, Id, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
+    domain::onto::OntoDom,
+    experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate, utils::BatchResults},
+    objective::{FidOutcome, Stepped, outcome::FuncState},
     optimizer::opt::{OpCodType, OpInfType, OpSInfType, OpSolType},
-    solution::{partial::FidelityPartial, Batch},
-    stop::{ExpStep, Stop},
-    Codomain, Id, Onto, OptInfo, Optimizer, Partial, Searchspace, SolInfo, Solution,
+    solution::{Batch, partial::FidelityPartial},
+    stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -14,6 +14,15 @@ use std::{
     collections::HashMap,
     marker::PhantomData,
     sync::{Arc, Mutex},
+};
+
+#[cfg(feature = "mpi")]
+use crate::experiment::{
+    DistEvaluate,
+    mpi::{
+        tools::MPIProcess,
+        utils::{SendRec,fill_workers,receive_obj_computed,send_to_worker}
+    }
 };
 
 #[derive(Serialize, Deserialize)]
@@ -25,8 +34,8 @@ pub struct FidBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -48,8 +57,8 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -76,8 +85,8 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -106,8 +115,8 @@ where
     >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: FidOutcome,
     SolId: Id,
     FnState: FuncState,
@@ -117,14 +126,13 @@ where
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Op::FnWrap>,
-        stop: Arc<Mutex<St>>,
+        ob: &Op::FnWrap,
+        stop: &mut St,
     ) -> EvaluateOut<Op::BType, SolId, Obj, Opt, Op::Cod, Out, Op::SInfo, Op::Info> {
         let mut results = BatchResults::new(self.batch.info.clone());
-        let mut st = stop.lock().unwrap();
 
         let mut i = self.idx;
-        while i < self.batch.size() && !st.stop() {
+        while i < self.batch.size() && !stop.stop() {
             let pair = self.batch.index(i);
             let sid = pair.0.get_id();
             let fidelity = pair.0.get_fidelity();
@@ -135,7 +143,7 @@ where
                     let (y, out, state) = ob.compute(x.as_ref(), fid, None);
                     self.states.insert(sid, state);
                     results.add(pair, out, y);
-                    st.update(ExpStep::Distribution);
+                    stop.update(ExpStep::Distribution);
                 }
                 crate::Fidelity::Resume(_) => {
                     let x = pair.0.get_x();
@@ -144,7 +152,7 @@ where
                     let (y, out, state) = ob.compute(x.as_ref(), fid, state);
                     self.states.insert(sid, state);
                     results.add(pair, out, y);
-                    st.update(ExpStep::Distribution);
+                    stop.update(ExpStep::Distribution);
                 }
                 crate::Fidelity::Discard => {
                     self.states.remove(&sid);
@@ -162,6 +170,85 @@ where
     }
 }
 
+
+#[cfg(feature = "mpi")]
+impl<Op, St, Obj, Opt, Out, SolId, Scp, FnState> DistEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>
+    for FidBatchEvaluator<Op::Sol, SolId, Obj, Opt, Op::SInfo, Op::Info,FnState>
+where
+    Op: Optimizer<
+        SolId,
+        Obj,
+        Opt,
+        Out,
+        Scp,
+        FnWrap = Stepped<Obj, OpCodType<Op, SolId, Obj, Opt, Out, Scp>, Out,FnState>,
+        BType = Batch<
+            OpSolType<Op, SolId, Obj, Opt, Out, Scp>,
+            SolId,
+            Obj,
+            Opt,
+            OpSInfType<Op, SolId, Obj, Opt, Out, Scp>,
+            OpInfType<Op, SolId, Obj, Opt, Out, Scp>,
+        >,
+    >,
+    St: Stop,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: FidOutcome,
+    SolId: Id,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
+    FnState: FuncState,
+    Op::Sol: FidelityPartial<SolId,Obj,Op::SInfo>,
+    <Op::Sol as Partial<SolId,Obj,Op::SInfo>>::Twin<Opt>: FidelityPartial<SolId,Opt,Op::SInfo>,
+{
+    fn init(&mut self) {}
+    fn evaluate(
+        &mut self,
+        proc: &MPIProcess,
+        ob: &Op::FnWrap,
+        stop: &mut St,
+    ) -> EvaluateOut<Op::BType, SolId, Obj, Opt, Op::Cod, Out, Op::SInfo, Op::Info> {
+        // Define send/rec utilitaries and parameters
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
+        let mut waiting = HashMap::new(); // solution being evaluated
+        let mut sendrec_params = SendRec::new(config, proc, &mut idle_process, &mut waiting);
+
+        // Fill workers with first solutions
+        let mut i = fill_workers(&mut sendrec_params, stop, &self.batch, self.idx);
+
+        //Results
+        let mut results = BatchResults::new(self.batch.info.clone());
+
+        // Recv / sendv loop
+        while !sendrec_params.waiting.is_empty() {
+            receive_obj_computed(&mut sendrec_params, &mut results, ob);
+            if !stop.stop() && i < self.batch.size() {
+                let has_idl = send_to_worker(&mut sendrec_params, self.batch.index(i));
+                if has_idl {
+                    stop.update(ExpStep::Distribution);
+                    i += 1;
+                }
+            }
+        }
+        // For saving in case of early stopping before full evaluation of all elements
+        self.idx = i;
+        (results.rbatch, results.cbatch)
+    }
+
+    fn update(&mut self, batch: Op::BType) {
+        self.batch = batch;
+        self.idx = 0;
+    }
+}
+
+
+
+  //----------------//
+ //--- THREADED ---//
+//----------------//
+
+
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
@@ -171,8 +258,8 @@ pub struct FidThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -194,8 +281,8 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -222,8 +309,8 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, FnState> Evaluate
 where
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
@@ -252,8 +339,8 @@ where
         >,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom> + Send + Sync,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom> + Send + Sync,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
     Out: FidOutcome + Send + Sync,
     SolId: Id + Send + Sync,
     FnState: FuncState + Send + Sync,

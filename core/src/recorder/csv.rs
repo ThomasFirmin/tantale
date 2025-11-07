@@ -1,29 +1,23 @@
 use crate::{
-    FolderConfig, Onto, OptInfo, Partial, SaverConfig, SolInfo,
-    domain::{Domain, onto::OntoDom},
-    experiment::Evaluate,
+    FolderConfig, OptInfo, Partial, SolInfo,
+    domain::onto::OntoDom,
     objective::{Codomain, Outcome},
     optimizer::{Optimizer, opt::{CBType, OBType}},
     recorder::Recorder,
     searchspace::Searchspace,
     solution::{Batch, BatchType, Id, Solution, partial::BasePartial},
-    stop::Stop
 };
 
-use bincode::config::Config;
-#[cfg(feature = "mpi")]
-use mpi::Rank;
 use rayon::prelude::*;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
-    fs::{File, OpenOptions, create_dir, create_dir_all},
+    fs::{File, OpenOptions, create_dir_all},
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::{Arc, Mutex}
 };
 
 #[cfg(feature = "mpi")]
-use crate::{config::DistSaverConfig, recorder::DistRecorder};
+use crate::{experiment::mpi::tools::MPIProcess, recorder::DistRecorder};
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and how its components can be written as a [`Vec`] of [`String`].
@@ -69,11 +63,11 @@ impl<Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
     for Batch<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
+    Scp: Searchspace<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> + Send + Sync,
     SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Obj::TypeDom: Send + Sync,
@@ -184,22 +178,19 @@ where
 ///   * opt.csv             (points from the [`Optimizer`] view)
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "SolId: Serialize",
-    deserialize = "SolId: for<'a> Deserialize<'a>",
-))]
-pub struct CSVRecorder<Config,SolId,Obj,Opt,Out,Scp,Op>
+pub struct CSVRecorder<SolId,Obj,Opt,Cod,Out,Scp,Op>
 where
-    Config: SaverConfig<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Cod,Out>,
     SolId: Id,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
+    Cod: Codomain<Out>,
     Out:Outcome,
     Op: Optimizer<SolId,Obj,Opt,Out,Scp>,
     Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
-    pub config: Arc<Config>,
+    pub config: Arc<FolderConfig>,
+    pub scp: Arc<Scp>,
+    pub cod: Arc<Cod>,
     pub obj: bool,
     pub opt: bool,
     pub info: bool,
@@ -217,16 +208,17 @@ where
     p_op: PhantomData<Op>,
 }
 
-impl<SolId,Obj,Opt,Out,Scp,Op> CSVRecorder<FolderConfig<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Cod,Out>,SolId,Obj,Opt,Out,Scp,Op>
+impl<SolId,Obj,Opt,Cod,Out,Scp,Op> CSVRecorder<SolId,Obj,Opt,Cod,Out,Scp,Op>
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
+    Cod: Codomain<Out>,
     Out:Outcome,
     Op: Optimizer<SolId,Obj,Opt,Out,Scp>,
-    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>
+    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
 {
-    pub fn new(config: Arc<FolderConfig<Op::Sol,Scp,SolId,Obj,Opt,Op::SInfo,Op::Cod,Out>>,obj: bool,opt: bool,info: bool,out: bool) -> Self
+    pub fn new(config: Arc<FolderConfig>, scp: Arc<Scp>, cod: Arc<Cod>, obj: bool, opt: bool,info: bool,out: bool) -> Self
     {
         let path_pobj = match obj {
             true => Some(config.path_rec.join(Path::new("obj.csv"))),
@@ -249,6 +241,8 @@ where
 
         CSVRecorder {
             config,
+            scp,
+            cod,
             obj,
             opt,
             info,
@@ -269,7 +263,7 @@ where
 }
 
 impl<SolId, Obj, Opt, Out, Scp, Op> Recorder<SolId, Obj, Opt, Out, Scp, Op>
-    for CSVRecorder<FolderConfig<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Cod, Out>,SolId,Obj,Opt,Out,Scp,Op>
+    for CSVRecorder<SolId,Obj,Opt,Op::Cod,Out,Scp,Op>
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: OntoDom<Opt>,
@@ -285,29 +279,19 @@ where
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {
-    type Config = FolderConfig<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Cod, Out>;
-
-    fn get_config(&self)->Arc<Self::Config> {
-        self.config.clone()
-    }
-
     fn init(&mut self) {
         let does_exist = self.config.path_rec.try_exists().unwrap();
-
-        let sp = self.config.scp;
-        let cod = self.config.cod;
-
         if does_exist {
             panic!("The recorder folder path already exists, {}.", self.config.path_rec.display())
-        } else if self.path.is_file() {
+        } else if self.config.path.is_file() {
             panic!("The recorder path cant point to a file, {}.",self.config.path_rec.display())
         } else {
-            create_dir_all(self.config.path_rec).unwrap();
+            create_dir_all(&self.config.path_rec).unwrap();
 
             if let Some(ppobj) = &self.path_pobj {
                 let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(sp));
+                idstr.extend(Scp::header(self.scp.as_ref()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -315,7 +299,7 @@ where
             if let Some(ppopt) = &self.path_popt {
                 let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(sp));
+                idstr.extend(Scp::header(self.scp.as_ref()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -340,7 +324,7 @@ where
             {
                 let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Op::Cod::header(cod));
+                idstr.extend(Op::Cod::header(self.cod.as_ref()));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -403,10 +387,10 @@ where
                 .append(true)
                 .open(ppobj.as_path())
                 .unwrap();
-            Op::BType::write_partial_obj_with_comp(
+            Op::BType::write_partial_obj(
                 batch,
                 csv::Writer::from_writer(file),
-                self.config.sp,
+                self.scp.clone(),
             );
         }
         if let Some(ppopt) = &self.path_popt {
@@ -414,10 +398,10 @@ where
                 .append(true)
                 .open(ppopt.as_path())
                 .unwrap();
-            Op::BType::write_partial_opt_with_comp(
+            Op::BType::write_partial_opt(
                 batch,
                 csv::Writer::from_writer(file),
-                self.config.sp,
+                self.scp.clone(),
             );
         }
     }
@@ -428,7 +412,7 @@ where
                 .append(true)
                 .open(ppinfo.as_path())
                 .unwrap();
-            Op::BType::write_info_with_comp(batch, csv::Writer::from_writer(file));
+            Op::BType::write_info(batch, csv::Writer::from_writer(file));
         }
     }
 
@@ -437,7 +421,7 @@ where
             .append(true)
             .open(self.path_codom.as_path())
             .unwrap();
-        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.config.cod.clone());
+        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.cod.clone());
     }
 
     fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>) {
@@ -482,7 +466,7 @@ where
 ///
 #[cfg(feature = "mpi")]
 impl<SolId, Obj, Opt, Out, Scp, Op> DistRecorder<SolId, Obj, Opt, Out, Scp, Op>
-    for CSVRecorder<FolderConfig<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Cod, Out>,SolId,Obj,Opt,Out,Scp,Op>
+    for CSVRecorder<SolId,Obj,Opt,Op::Cod,Out,Scp,Op>
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: OntoDom<Opt>,
@@ -498,190 +482,120 @@ where
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {   
-    fn get_config(&self, rank:Rank)->Arc<Self::Config> {
-        self.config.clone()
+    fn init_dist(&mut self, _proc:&MPIProcess) {
+        if self.config.is_dist{
+            let does_exist = self.config.path_rec.try_exists().unwrap();
+            if does_exist {
+                panic!("The recorder folder path already exists, {}.", self.config.path_rec.display())
+            } else if self.config.path.is_file() {
+                panic!("The recorder path cant point to a file, {}.",self.config.path_rec.display())
+            } else {
+                create_dir_all(&self.config.path_rec).unwrap();
+    
+                if let Some(ppobj) = &self.path_pobj {
+                    let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
+                    let mut idstr = SolId::header(&());
+                    idstr.extend(Scp::header(self.scp.as_ref()));
+                    wrt.write_record(idstr).unwrap();
+                    wrt.flush().unwrap();
+                }
+    
+                if let Some(ppopt) = &self.path_popt {
+                    let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
+                    let mut idstr = SolId::header(&());
+                    idstr.extend(Scp::header(self.scp.as_ref()));
+                    wrt.write_record(idstr).unwrap();
+                    wrt.flush().unwrap();
+                }
+    
+                if let Some(ppinfo) = &self.path_info {
+                    let mut wrt = csv::Writer::from_path(ppinfo.as_path()).unwrap();
+                    let mut idstr = SolId::header(&());
+                    idstr.extend(Op::SInfo::header(&()));
+                    idstr.extend(Op::Info::header(&()));
+                    wrt.write_record(idstr).unwrap();
+                    wrt.flush().unwrap();
+                }
+    
+                if let Some(ppout) = &self.path_out {
+                    let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
+                    let mut idstr = SolId::header(&());
+                    idstr.extend(Out::header(&()));
+                    wrt.write_record(idstr).unwrap();
+                    wrt.flush().unwrap();
+                }
+    
+                {
+                    let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
+                    let mut idstr = SolId::header(&());
+                    idstr.extend(Op::Cod::header(self.cod.as_ref()));
+                    wrt.write_record(idstr).unwrap();
+                    wrt.flush().unwrap();
+                }
+            }
+        } else {panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")}
     }
 
-    fn init(&mut self, rank:Rank) {
-        let does_exist = self.path.try_exists().unwrap();
-        if does_exist {
-            if rank == 0 {
-                panic!("The folder path already exists, {}.", self.path.display())
-            }
-        } else if self.path.is_file() {
-            panic!(
-                "The given path cannot point to a file, {}.",
-                self.path.display()
-            )
-        } else if rank == 0 {
-            create_dir_all(self.path.as_path()).unwrap();
-            let path_evals = self
-                .path
-                .join(Path::new(&format!("evaluations_rk{}", rank)));
-            create_dir(path_evals.as_path()).unwrap();
-
-            if self.path_pobj.is_some() {
-                let nppobj = path_evals.join(Path::new("obj.csv"));
-                let mut wrt = csv::Writer::from_path(nppobj.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(self.config.sp));
-                idstr.extend(Op::SInfo::header(&()));
-                idstr.extend(Op::Info::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-                self.path_pobj.replace(nppobj);
+    fn after_load_dist(&mut self, _proc:&MPIProcess) {
+        // Check if all folder and files exist
+        if self.config.path_rec.try_exists().unwrap() {
+            if let Some(ppobj) = &self.path_pobj {
+                if !ppobj.try_exists().unwrap() {
+                    panic!(
+                        "The `Objective` recorder file does not exists, {}.",
+                        ppobj.display()
+                    )
+                }
             }
 
-            if self.path_popt.is_some() {
-                let nppopt = path_evals.join(Path::new("opt.csv"));
-                let mut wrt = csv::Writer::from_path(nppopt.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(self.config.sp));
-                idstr.extend(Op::SInfo::header(&()));
-                idstr.extend(Op::Info::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-                self.path_popt.replace(nppopt);
+            if let Some(ppopt) = &self.path_popt {
+                if !ppopt.try_exists().unwrap() {
+                    panic!(
+                        "The `Optimizer` recorder file  not exists, {}.",
+                        ppopt.display()
+                    )
+                }
             }
 
-            if self.path_info.is_some() {
-                let nppout = path_evals.join(Path::new("info.csv"));
-                let mut wrt = csv::Writer::from_path(nppout.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Out::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-                self.path_out.replace(nppout);
+            if let Some(ppinfo) = &self.path_info {
+                if !ppinfo.try_exists().unwrap() {
+                    panic!(
+                        "The `Info` file does not exists, {}.",
+                        ppinfo.display()
+                    )
+                }
             }
 
-            if self.path_out.is_some() {
-                let nppout = path_evals.join(Path::new("out.csv"));
-                let mut wrt = csv::Writer::from_path(nppout.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Out::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-                self.path_out.replace(nppout);
+            if let Some(ppout) = &self.path_out {
+                if !ppout.try_exists().unwrap() {
+                    panic!(
+                        "The `Output` recorder file does not exists, {}.",
+                        ppout.display()
+                    )
+                }
             }
 
-            {
-                let nppcod = path_evals.join(Path::new("cod.csv"));
-                let mut wrt = csv::Writer::from_path(nppcod.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Op::Cod::header(self.config.cod));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-                self.path_codom = nppcod;
-            }
-
-            if self.path_check.is_some() {
-                let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
-                let pste = path.join(Path::new("state_opt.mp"));
-                let pstp = path.join(Path::new("state_stp.mp"));
-                let peva = path.join(Path::new("state_eval.mp"));
-                let ppar = path.join(Path::new("state_param.mp"));
-                self.path_check.replace((pste, pstp, peva, ppar));
-                create_dir(path.as_path()).unwrap();
-            }
-        }
-    }
-
-    fn after_load(&mut self, rank:Rank) {
-        let does_exist = self.path.try_exists().unwrap();
-        if does_exist {
-            let path_evals = self
-                .path
-                .join(Path::new(&format!("evaluations_rk{}", rank)));
-
-            if !path_evals.try_exists().unwrap() {
+            if !self.path_codom.try_exists().unwrap() {
                 panic!(
-                    "The folder path for evaluations does not exists, {}.",
-                    path_evals.display()
+                    "The `Codomain` recorder file does not exists, {}.",
+                    self.path_codom.display()
                 )
-            }
-
-            if self.path_pobj.is_some() {
-                let nppobj = path_evals.join(Path::new("obj.csv"));
-                if !nppobj.try_exists().unwrap() {
-                    panic!(
-                        "The file path for Objective solutions does not exists, {}.",
-                        nppobj.display()
-                    )
-                }
-                self.path_pobj = Some(nppobj);
-            }
-
-            if self.path_popt.is_some() {
-                let nppopt = path_evals.join(Path::new("opt.csv"));
-                if !nppopt.try_exists().unwrap() {
-                    panic!(
-                        "The file path for Optimizer solutions does not exists, {}.",
-                        nppopt.display()
-                    )
-                }
-                self.path_popt = Some(nppopt);
-            }
-
-            if self.path_info.is_some() {
-                let nppinfo = path_evals.join(Path::new("info.csv"));
-                if !nppinfo.try_exists().unwrap() {
-                    panic!(
-                        "The file path for Output does not exists, {}.",
-                        nppinfo.display()
-                    )
-                }
-                self.path_out = Some(nppinfo);
-            }
-
-            if self.path_out.is_some() {
-                let nppout = path_evals.join(Path::new("out.csv"));
-                if !nppout.try_exists().unwrap() {
-                    panic!(
-                        "The file path for Output does not exists, {}.",
-                        nppout.display()
-                    )
-                }
-                self.path_out = Some(nppout);
-            }
-
-            let nppcod = path_evals.join(Path::new("cod.csv"));
-            if !nppcod.try_exists().unwrap() {
-                panic!(
-                    "The file path for Codomain does not exists, {}.",
-                    nppcod.display()
-                )
-            }
-            self.path_codom = nppcod;
-
-            if self.path_check.is_some() {
-                let path = self.path.join(Path::new(&format!("checkpoint_rk{}", rank)));
-                if !path.try_exists().unwrap() {
-                    panic!(
-                        "The folder path for checkpoints does not exists, {}.",
-                        path.display()
-                    )
-                }
-                let pste = path.join(Path::new("state_opt.mp"));
-                let pstp = path.join(Path::new("state_stp.mp"));
-                let peva = path.join(Path::new("state_eval.mp"));
-                let ppar = path.join(Path::new("state_param.mp"));
-                self.path_check.replace((pste, pstp, peva, ppar));
             }
         } else {
-            panic!("The folder path does not exists, {}.", self.path.display())
+            panic!("The recorder folder does not exists, {}.", self.config.path_rec.display());
         }
     }
 
-    fn save_partial(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank) {
+    fn save_partial_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppobj.as_path())
                 .unwrap();
-            Op::BType::write_partial_obj_with_comp(
+            Op::BType::write_partial_obj(
                 batch,
                 csv::Writer::from_writer(file),
-                self.config.sp,
+                self.scp.clone(),
             );
         }
         if let Some(ppopt) = &self.path_popt {
@@ -689,33 +603,33 @@ where
                 .append(true)
                 .open(ppopt.as_path())
                 .unwrap();
-            Op::BType::write_partial_opt_with_comp(
+            Op::BType::write_partial_opt(
                 batch,
                 csv::Writer::from_writer(file),
-                self.config.sp,
+                self.scp.clone(),
             );
         }
     }
 
-    fn save_info(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank) {
+    fn save_info_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppinfo.as_path())
                 .unwrap();
-            Op::BType::write_info_with_comp(batch, csv::Writer::from_writer(file));
+            Op::BType::write_info(batch, csv::Writer::from_writer(file));
         }
     }
 
-    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank) {
+    fn save_codom_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
         let file = OpenOptions::new()
             .append(true)
             .open(self.path_codom.as_path())
             .unwrap();
-        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.config.cod);
+        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.cod.clone());
     }
 
-    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>, rank:Rank) {
+    fn save_out_dist(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)

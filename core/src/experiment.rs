@@ -1,6 +1,6 @@
 use crate::{
-    Onto, Searchspace,
-    domain::{Domain, onto::OntoDom},
+    Searchspace,
+    domain::onto::OntoDom,
     objective::Outcome, optimizer::Optimizer,
     recorder::Recorder,
     checkpointer::Checkpointer,
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, experiment::mpi::{tools::MPIProcess, utils::Worker}, recorder::DistRecorder};
+use crate::{checkpointer::DistCheckpointer, experiment::mpi::{tools::MPIProcess, worker::Worker}, recorder::DistRecorder};
 
 // SYNCHRONOUS
 pub mod synchronous;
@@ -110,15 +110,14 @@ pub type EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, Info> = (
     <BType as BatchType<SolId, Obj, Opt, SInfo, Info>>::Comp<Cod, Out>,
 );
 
-pub trait Runable<Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+pub trait Runable<SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
 where
-    Eval: Evaluate,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Rec: Recorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: Checkpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Check: Checkpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
@@ -129,33 +128,33 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub enum MasterWorker<DRun,Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+pub enum MasterWorker<DRun, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt,>
 where
-    DRun: DistRunable<Eval,SolId,Scp,Op,St,Rec,Check, Out, Obj,Opt>,
-    Eval: Evaluate,
+    DRun: DistRunable<SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Check: DistCheckpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     Master(DRun),
-    Worker(DRun::WorkerType),
+    Worker(DRun::WType),
 }
-impl<DRun,Eval, SolId, Scp, Op, St, Rec,Check, Out, Obj, Opt> MasterWorker<DRun,Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+
+impl<DRun, SolId, Scp, Op, St, Rec,Check, Out, Obj, Opt>
+    MasterWorker<DRun, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
 where
-    DRun: DistRunable<Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>,
-    Eval: Evaluate,
+    DRun: DistRunable<SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Check: DistCheckpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
@@ -169,20 +168,20 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub trait DistRunable<Eval, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
+pub trait DistRunable<SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt>
 where
-    Eval: Evaluate,
+    Self:Sized,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
     Rec: DistRecorder<SolId,Obj,Opt,Out,Scp,Op>,
-    Check: DistCheckpointer<SolId,St,Obj,Opt,Out,Scp,Op,Eval>,
+    Check: DistCheckpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
-    type WorkerType: Worker<SolId,Op::FnWrap>;
+    type WType: Worker<SolId,Obj>;
     fn new_dist(
         proc:&MPIProcess,
         searchspace: Scp,
@@ -191,15 +190,20 @@ where
         stop: St,
         recorder: Option<Rec>,
         checkpointer: Option<Check>
-    ) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
+    ) -> MasterWorker<Self,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
     fn run_dist(self, proc: &MPIProcess);
     fn load_dist(
         proc:&MPIProcess,
+        searchspace: Scp,
         objective: Op::FnWrap,
         recorder: Option<Rec>,
         checkpointer: Check,
-    ) -> MasterWorker<Self,Eval,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
+    ) -> MasterWorker<Self,SolId,Scp,Op,St,Rec,Check,Out,Obj,Opt>;
 }
+
+  //------------------------//
+ //-------EVALUATOR--------//
+//------------------------//
 
 pub trait Evaluate
 where
@@ -208,13 +212,13 @@ where
 }
 
 /// [`SingleEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
-/// generating a single [`Partial`] at each step.
+/// generating a **single** [`Partial`] at each step.
 pub trait SingleEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -229,23 +233,19 @@ where
 }
 
 /// [`MonoEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
-/// generating a batch of [`Partial`] at each step.
+/// generating a **batch** of [`Partial`] at each step.
 pub trait MonoEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
 {
     fn init(&mut self);
-    fn evaluate(
-        &mut self,
-        ob: Arc<Op::FnWrap>,
-        stop: Arc<Mutex<St>>,
-    ) -> ExpOut<Op, SolId, Obj, Opt, Out, Scp>;
+    fn evaluate(&mut self,ob: &Op::FnWrap,stop: &mut St) -> ExpOut<Op, SolId, Obj, Opt, Out, Scp>;
     fn update(&mut self, batch: Op::BType);
 }
 
@@ -255,8 +255,8 @@ pub trait ThrEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -277,8 +277,8 @@ pub trait DistEvaluate<Op, St, Obj, Opt, Out, SolId, Scp>: Evaluate
 where
     Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
     St: Stop,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     Out: Outcome,
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -287,8 +287,8 @@ where
     fn evaluate(
         &mut self,
         proc: &MPIProcess,
-        ob: Arc<Op::FnWrap>,
-        stop: Arc<Mutex<St>>,
+        ob: &Op::FnWrap,
+        stop: &mut St,
     ) -> ExpOut<Op, SolId, Obj, Opt, Out, Scp>;
     fn update(&mut self, batch: Op::BType);
 }

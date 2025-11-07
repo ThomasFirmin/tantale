@@ -1,43 +1,20 @@
-use crate::domain::onto::OntoDom;
-use crate::{Codomain, Id, Outcome, Partial, Searchspace, SolInfo};
-
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[cfg(feature="mpi")]
+use mpi::Rank;
+
+#[cfg(feature="mpi")]
 use crate::experiment::mpi::tools::MPIProcess;
 
-pub trait SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
+pub trait SaverConfig
 {
     fn init(&mut self);
     fn after_load(&mut self);
-    fn get_sp(&self)->Arc<Scp>;
-    fn get_cod(&self)->Arc<Cod>;
 }
 
 #[cfg(feature="mpi")]
-pub trait DistSaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>: SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
+pub trait DistSaverConfig: SaverConfig
 {
     fn init(&mut self, proc:&MPIProcess);
     fn after_load(&mut self, proc:&MPIProcess);
@@ -60,187 +37,64 @@ where
 ///   * state_stp.mp      ([`Stop`])
 ///   * state_eval.mp     ([`Evaluate`])
 ///   * state_param.mp    (Various global parameters such as the [`Id`] or experiment identifier.)
-pub struct FolderConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
+pub struct FolderConfig
 {
     pub path: PathBuf,
-    pub scp: Arc<Scp>,
-    pub cod: Arc<Cod>,
     pub path_rec: PathBuf,
     pub path_check: PathBuf,
+    pub path_work: PathBuf,
     pub is_dist:bool,
-    psol: PhantomData<PSol>,
-    sid: PhantomData<SolId>,
-    obj: PhantomData<Obj>,
-    opt: PhantomData<Opt>,
-    sinfo: PhantomData<SInfo>,
-    out: PhantomData<Out>,
 }
 
-impl<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> FolderConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo
+impl FolderConfig
 {
     pub fn new(
         path: &str,
-        scp: Arc<Scp>,
-        cod: Arc<Cod>,
     ) -> Arc<Self> {
         let path = PathBuf::from(path);
         let path_rec = path.join(Path::new("recorder"));
         let path_check = path.join(Path::new("checkpointer"));
+        let path_work = path_check.join(Path::new("workers"));
         Arc::new(
             FolderConfig {
                 path,
-                scp,
-                cod,
                 path_rec,
                 path_check,
+                path_work,
                 is_dist: false,
-                psol: PhantomData,
-                sid: PhantomData,
-                obj: PhantomData,
-                opt: PhantomData,
-                sinfo: PhantomData,
-                out: PhantomData
         })
     }
 
     #[cfg(feature="mpi")]
-    pub fn new(
-        path: &str,
-        scp: Arc<Scp>,
-        cod: Arc<Cod>,
-        proc:&MPIProcess,
-    ) -> Arc<Self> {
-        let path = PathBuf::from(path);
-        let path_rec = path.join(Path::new(format!("recorder_rank{}",proc.rank)));
-        let path_check = path.join(Path::new(format!("checkpointer_rank{}",proc.rank)));
-        Arc::new(
-            FolderConfig {
-                path,
-                scp,
-                cod,
-                path_rec,
-                path_check,
-                is_dist: true,
-                psol: PhantomData,
-                sid: PhantomData,
-                obj: PhantomData,
-                opt: PhantomData,
-                sinfo: PhantomData,
-                out: PhantomData
-        })
+    pub fn to_dist(&mut self,rank:Rank){
+        self.path_rec = self.path.join(Path::new(&format!("recorder_rank{}",rank)));
+        self.path_check = self.path.join(Path::new(&format!("checkpointer_rank{}",rank)));
+        self.path_work = self.path_check.join(Path::new("workers"));
+        self.is_dist = true;
     }
 }
-impl<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> for FolderConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo
+impl SaverConfig for FolderConfig
 {
     fn init(&mut self) {}
-    
     fn after_load(&mut self) {}
-
-    fn get_sp(&self)->Arc<Scp> {
-        self.scp.clone()
-    }
-
-    fn get_cod(&self)->Arc<Cod> {
-        self.cod.clone()
-    }
 }
 
-impl<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> DistSaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> for FolderConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
+impl DistSaverConfig for FolderConfig
 {
-    fn init(&mut self, proc:&MPIProcess) {
-        todo!()
-    }
-
-    fn after_load(&mut self, proc:&MPIProcess) {
-        todo!()
-    }
+    fn init(&mut self, _proc:&MPIProcess) {}
+    fn after_load(&mut self, _proc:&MPIProcess) {}
 }
 
 
 pub struct NoConfig;
-impl<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> SaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out>for NoConfig
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo
+impl SaverConfig for NoConfig
 {
     fn init(&mut self) {}
-    
-    fn after_load(&mut self) {}
-
-    fn get_sp(&self)->Arc<Scp> {
-        unreachable!("The Searchspace should not be accessed with NoConfig")
-    }
-
-    fn get_cod(&self)->Arc<Cod> {
-        unreachable!("The Codomain should not be accessed with NoConfig")
-    }
-    
+    fn after_load(&mut self) {}    
 }
 
-impl<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> DistSaverConfig<PSol, Scp, SolId, Obj, Opt, SInfo, Cod, Out> for NoConfig
-where
-    PSol: Partial<SolId,Obj,SInfo>,
-    PSol::Twin<Opt> : Partial<SolId,Opt,SInfo, Twin<Obj> = PSol>,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    SInfo: SolInfo,
+impl DistSaverConfig for NoConfig
 {
-    fn init(&mut self, proc:&MPIProcess) {
-        todo!()
-    }
-
-    fn after_load(&mut self, proc:&MPIProcess) {
-        todo!()
-    }
+    fn init(&mut self, _proc:&MPIProcess) {}
+    fn after_load(&mut self, _proc:&MPIProcess) {}
 }

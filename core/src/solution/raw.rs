@@ -101,6 +101,6 @@ where
         cod: Arc<Cod>,
     ) -> Computed<PSol, SolId, Dom, Cod, Out, Info> {
         let y = Arc::new(cod.get_elem(&self.out));
-        Computed::new(self.get_sol(), y)
+        Computed::new(self.sol.clone(), y)
     }
 }

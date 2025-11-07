@@ -5,7 +5,10 @@ pub enum ExpStep {
     Never,
 }
 
-pub trait Stop {
+pub trait Stop
+where
+    Self: Serialize + for<'a> Deserialize<'a>
+{
     fn init(&mut self);
     fn stop(&self) -> bool;
     fn update(&mut self, step: ExpStep);
@@ -13,3 +16,4 @@ pub trait Stop {
 
 pub mod calls;
 pub use calls::Calls;
+use serde::{Deserialize, Serialize};
