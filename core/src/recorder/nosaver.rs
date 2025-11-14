@@ -1,10 +1,10 @@
 use crate::{
     domain::onto::OntoDom,
-    objective::Outcome,
-    optimizer::{CBType, OBType, Optimizer},
+    objective::{FuncWrapper, Outcome},
+    optimizer::Optimizer,
     recorder::Recorder,
     searchspace::Searchspace,
-    solution::Id,
+    solution::{BatchType, Id},
 };
 
 use serde::{Deserialize, Serialize};
@@ -22,37 +22,43 @@ impl NoSaver {
     }
 }
 
-impl<SolId, Obj, Opt, Out, Scp, Op> Recorder<SolId, Obj, Opt, Out, Scp, Op> for NoSaver
+impl<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> for NoSaver
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn, BType=BType>,
+    Fn: FuncWrapper,
+    BType: BatchType<SolId,Obj,Opt,Op::SInfo, Op::Sol, Op::Info>,
 {
-    fn init(&mut self){}
-    fn after_load(&mut self){}
-    fn save_partial(&self, _batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_codom(&self,_batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_info(&self, _batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_out(&self, _batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>){}
+    fn init(&mut self, _scp: &Scp, _cod: &Op::Cod) {}
+    fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_partial(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_codom(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_info(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_out(&self, _batch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save(&self, _cbatch: &BType::Comp<Op::Cod,Out>, _obatch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {}
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, Obj, Opt, Out, Scp, Op> DistRecorder<SolId, Obj, Opt, Out, Scp, Op> for NoSaver
+impl<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> for NoSaver
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn, BType=BType>,
+    Fn: FuncWrapper,
+    BType: BatchType<SolId,Obj,Opt,Op::SInfo, Op::Sol, Op::Info>,
 {
-    fn init_dist(&mut self, _proc:&MPIProcess){}
-    fn after_load_dist(&mut self, _proc:&MPIProcess){}
-    fn save_partial_dist(&self, _batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_info_dist(&self, _batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_out_dist(&self, _batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>){}
-    fn save_codom_dist(&self,_batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>){}
+    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {}
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_partial_dist(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_info_dist(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_out_dist(&self, _batch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_codom_dist(&self, _batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {}
+    fn save_dist(&self, _cbatch: &BType::Comp<Op::Cod,Out>, _obatch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {}
 }

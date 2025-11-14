@@ -1,6 +1,6 @@
 use super::init_dom::*;
 use paste::paste;
-use tantale_core::saver::CSVWritable;
+use tantale::core::recorder::csv::CSVWritable;
 
 macro_rules! get_test {
     ($($dom_func : ident ; $name : ident ; $in : expr ; $dom : ident),+) => {

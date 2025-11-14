@@ -1,5 +1,6 @@
+use rmp_serde::config;
 use tantale_core::{
-    experiment, experiment::Runable, load, saver::CSVSaver, stop::Calls, Objective,
+    CSVRecorder, FolderConfig, MessagePack, Objective, experiment::{self, Runable}, load, saver::CSVSaver, stop::Calls
 };
 
 use tantale_algos::RandomSearch;
@@ -112,9 +113,12 @@ fn test_seq_run() {
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
     let stop = Calls::new(50);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
 
-    let exp = experiment!(Mono, RandomSearch | sp, obj, opt, stop, saver);
+    let config = FolderConfig::new("tmp_test_seqrun");
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config,1);
+
+    let exp = experiment!(sp, obj, opt, stop, rec, check);
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -123,8 +127,13 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
-    let mut exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
+
+
+    let config = FolderConfig::new("tmp_test_seqrun");
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config,1);
+
+    let mut exp = load!(sp, obj, RandomSearch, Calls, rec, check);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -137,8 +146,9 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
+
     let saver = CSVSaver::new("tmp_test_seqrun", true, true, true, true, 1);
-    let exp = load!(Mono, RandomSearch, Calls | sp, obj, saver);
+    let exp = load!(Mono, sp, obj, RandomSearch, Calls, saver);
     run_reader("tmp_test_seqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(
@@ -175,8 +185,11 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
-    let mut exp = load!(Threaded, RandomSearch, Calls | sp, obj, saver);
+    
+    let config = FolderConfig::new("tmp_test_seqrun");
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config,1);
+    let mut exp = load!(Threaded, sp, obj, RandomSearch, Calls, rec, check);
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -189,8 +202,12 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(cod, func);
-    let saver = CSVSaver::new("tmp_test_parseqrun", true, true, true, true, 1);
-    let exp = load!(Threaded, RandomSearch, Calls | sp, obj, saver);
+    
+    let config = FolderConfig::new("tmp_test_seqrun");
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config,1);
+
+    let exp = load!(Threaded, sp, obj, RandomSearch, Calls, rec, check);
     run_reader("tmp_test_parseqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(

@@ -1,9 +1,7 @@
-use paste::paste;
-
-use std::sync::Arc;
 use tantale_core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, BaseTypeDom, Sp, FidOutcome, solution::Fidelity};
 
 use super::init_func::*;
+use paste::paste;
 
 macro_rules! get_test {
     ($($name : ident),+) => {
@@ -20,7 +18,7 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : Arc<BasePartial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj : BasePartial<SId,_,_> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
@@ -65,9 +63,9 @@ macro_rules! get_test {
 
 
 
-                let sample_opt : Arc<BasePartial<SId,_,_>> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_opt(&sp, Some(&mut rng),sinfo.clone());
+                let sample_opt : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_opt(&sp, Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
-                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp, sample_opt.clone());
+                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp, &sample_opt);
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(converted_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
@@ -158,7 +156,7 @@ macro_rules! get_test_real {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : Arc<BasePartial<SId,_,_>> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
+                let sample_obj : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
@@ -200,9 +198,9 @@ macro_rules! get_test_real {
 
 
 
-                let sample_opt : Arc<BasePartial<SId,_,_>> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_opt(&sp,Some(&mut rng),sinfo.clone());
+                let sample_opt : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::sample_opt(&sp,Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
-                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp,sample_opt.clone());
+                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,_,_,EmptyInfo>>::onto_obj(&sp,&sample_opt);
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(converted_obj.get_x().as_ref(),Fidelity::Resume(100.0), Some(state));

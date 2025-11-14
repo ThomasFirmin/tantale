@@ -15,10 +15,10 @@ macro_rules! get_test {
             fn [< test_ $sp _json >](){
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample : Arc<BasePartial<SId,$dom,_>> = sp.sample_obj(None,info.clone());
+                let sample : BasePartial<SId,$dom,_> = sp.sample_obj(None,info.clone());
 
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
-                let nsample : Arc<Arc<BasePartial<SId,$dom,EmptyInfo>>> = rmp_serde::decode::from_slice(&st_ser).unwrap();
+                let nsample : BasePartial<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
                 let x = sample.get_x();
                 let nx = nsample.get_x();

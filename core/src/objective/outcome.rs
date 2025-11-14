@@ -73,7 +73,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::objective::codomain::EvalState;
+use crate::objective::codomain::EvalStep;
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
@@ -87,11 +87,11 @@ where
 
 /// [`FidOutcome`] is a trait describing an [`Outcome`] containing an [`EvalState`] for
 /// multi-[`Fidelity`] optimiaztion.
-pub trait FidOutcome : Outcome
+pub trait FidOutcome: Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
-    fn get_fidelity(&self) -> EvalState;
+    fn get_fidelity(&self) -> EvalStep;
 }
 
 /// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the

@@ -79,6 +79,6 @@ pub use raw::RawSol;
 
 pub mod batchtype;
 pub use batchtype::{
-    Batch, BatchType, CompBatch, CompBatchType, CompSingle, RawBatch, RawBatchType, RawSingle,
+    Batch, BatchType, CompBatch, CompBatchType, CompSingle, OutBatch, OutBatchType, RawSingle,
     Single,
 };

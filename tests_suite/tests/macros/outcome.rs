@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::objective::codomain::EvalState;
+use tantale_core::objective::codomain::EvalStep;
 use tantale_macros::Outcome;
 
 #[test]
@@ -17,7 +17,7 @@ fn mixed_derive() {
         pub mul7: f64,
         pub mul8: f64,
         pub mul9: f64,
-        pub fid10: EvalState,
+        pub fid10: EvalStep,
     }
 
     pub fn get_struct() -> OutExample {
@@ -30,7 +30,7 @@ fn mixed_derive() {
             mul7: 7.0,
             mul8: 8.0,
             mul9: 9.0,
-            fid10: EvalState::Partially,
+            fid10: EvalStep::Partially,
         }
     }
 

@@ -1,6 +1,6 @@
 use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    BasePartial, EmptyInfo, FidCodomain, SId, Searchspace, Solution, Sp, Stepped, 
+    BasePartial, EmptyInfo, StepCodomain, SId, Searchspace, Solution, Sp, Stepped, 
     experiment::{BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate},
     solution::{Batch, partial::{FidBasePartial,FidelityPartial}}, stop::Calls
 };
@@ -17,7 +17,7 @@ use std::{
 fn test_seq_evaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let cod = FidCodomain::new(|o: &FidOutEvaluator| o.obj);
+    let cod = StepCodomain::new(|o: &FidOutEvaluator| o.obj);
     let obj = Arc::new(Stepped::new(cod, func));
     let info = Arc::new(RSInfo { iteration: 0 });
     let sinfo = Arc::new(EmptyInfo {});

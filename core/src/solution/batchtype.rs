@@ -1,45 +1,44 @@
 use crate::{
     domain::Domain,
     objective::{Codomain, Outcome},
-    solution::{Computed, Id, Partial, RawSol, SolInfo},
-    OptInfo, VecArc,
+    solution::{Computed, Id, Partial, SolInfo},
+    OptInfo,
 };
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
 use serde::{Deserialize, Serialize};
+use core::slice;
 use std::{fmt::Debug, iter::Zip, marker::PhantomData, sync::Arc, vec::IntoIter};
 
-pub type BatchElem<PSolA, PSolB> = (Arc<PSolA>, Arc<PSolB>);
-pub type RawBatchElem<PSolA, PSolB, SolId, Obj, Opt, Out, SInfo> = (
-    Arc<RawSol<PSolA, SolId, Obj, Out, SInfo>>,
-    Arc<RawSol<PSolB, SolId, Opt, Out, SInfo>>,
+pub type BatchElem<'a, PSolA, PSolB> = (&'a PSolA, &'a PSolB);
+pub type OutBatchElem<'a, SolId, Out> = (&'a SolId,&'a Out);
+pub type CompBatchElem<'a, PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
+    &'a Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
+    &'a Computed<PSolB, SolId, Opt, Cod, Out, SInfo>,
 );
-pub type CompBatchElem<PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
-    Arc<Computed<PSolA, SolId, Obj, Cod, Out, SInfo>>,
-    Arc<Computed<PSolB, SolId, Opt, Cod, Out, SInfo>>,
+
+pub type DerBatchElem<PSolA, PSolB> = (PSolA, PSolB);
+pub type DerOutBatchElem<SolId, Out> = (SolId,Out);
+pub type DerCompBatchElem<PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
+    Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
+    Computed<PSolB, SolId, Opt, Cod, Out, SInfo>,
 );
 
 /// A [`BatchType`] describes the output of an [`Optimizer`], made of [`Partial`].
 /// It is associated with:
 ///  * a [`CompBatchType`] describing the input of that optimizer made of [`Computed`].
 ///  * a [`OutBatchType`] describing the raw output of the [`Objective`] before getting a [`Computed`].
-pub trait BatchType<SolId, Obj, Opt, SInfo, Info>
+pub trait BatchType<SolId, Obj, Opt, SInfo, PSol, Info>
 where
     Self: Serialize + for<'de> Deserialize<'de>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Comp<Cod: Codomain<Out>, Out: Outcome>: CompBatchType<
-        SolId,
-        Obj,
-        Opt,
-        SInfo,
-        Info,
-        Cod,
-        Out,
-    >;
-    type Outc<Out: Outcome>: RawBatchType<SolId, Obj, Opt, SInfo, Info, Out>;
+    type Comp<Cod: Codomain<Out>, Out: Outcome>: CompBatchType<SolId,Obj,Opt,SInfo,PSol,Info,Cod,Out>;
+    type Outc<Out: Outcome>: OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>;
     fn get_info(&self) -> Arc<Info>;
 }
 
@@ -47,9 +46,10 @@ where
 /// It is associated with:
 ///  * a [`BatchType`] describing the output of an [`Optimizer`], made of [`Partial`].
 ///  * a [`CompBatchType`] describing the input of an [`Optimizer`], made of [`Computed`].
-pub trait CompBatchType<SolId, Obj, Opt, SInfo, Info, Cod, Out>
+pub trait CompBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Cod, Out>
 where
     Self: Serialize + for<'de> Deserialize<'de>,
+    PSol: Partial<SolId,Obj,SInfo>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
@@ -58,26 +58,27 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    type Part: BatchType<SolId, Obj, Opt, SInfo, Info>;
-    type Outc: RawBatchType<SolId, Obj, Opt, SInfo, Info, Out>;
+    type Part: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>;
+    type Outc: OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>;
 }
 
 /// A [`OutBatchType`]  describes the raw [`Outcome`] linked to its [`Partial`], before getting a [`Computed`].
 /// It is associated with:
 ///  * a [`BatchType`] describing the output of an [`Optimizer`], made of [`Partial`].
 ///  * a [`CompBatchType`] describing the input of an [`Optimizer`], made of [`Computed`].
-pub trait RawBatchType<SolId, Obj, Opt, SInfo, Info, Out>
+pub trait OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>
 where
-    Self: Serialize + for<'de> Deserialize<'de>,
+    Self: Debug,
     SolId: Id,
+    PSol: Partial<SolId,Obj,SInfo>,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
     Info: OptInfo,
     Out: Outcome,
 {
-    type Part: BatchType<SolId, Obj, Opt, SInfo, Info>;
-    type Comp<Cod: Codomain<Out>>: CompBatchType<SolId, Obj, Opt, SInfo, Info, Cod, Out>;
+    type Part: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>;
+    type Comp<Cod: Codomain<Out>>: CompBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Cod, Out>;
 }
 
 /// A [`Batch`] describes a collection of pairs of `Obj` and `Opt` [`Partial`] stored within 2 vectors.
@@ -95,34 +96,22 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub sobj: VecArc<PSol>,
-    pub sopt: VecArc<PSol::Twin<Opt>>,
+    pub sobj: Vec<PSol>,
+    pub sopt: Vec<PSol::Twin<Opt>>,
     pub info: Arc<Info>,
-    _id: PhantomData<SolId>,
-    _obj: PhantomData<Obj>,
-    _opt: PhantomData<Opt>,
-    _sinfo: PhantomData<SInfo>,
 }
 
-/// A [`RawBatch`] describes a collection of pairs of `Obj` and `Opt` [`RawSol`] stored within 2 vectors.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
-    deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
-))]
+/// A [`OutBatch`] describes a collection of pairs of `Obj` and `Opt` [`RawSol`] stored within 2 vectors.
+#[derive(Debug)]
 #[allow(clippy::type_complexity)]
-pub struct RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+pub struct OutBatch<SolId,Info,Out>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
     Info: OptInfo,
     Out: Outcome,
 {
-    pub robj: VecArc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-    pub ropt: VecArc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+    pub vid: Vec<SolId>,
+    pub vout: Vec<Out>,
     pub info: Arc<Info>,
 }
 
@@ -144,8 +133,8 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    pub cobj: VecArc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-    pub copt: VecArc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    pub cobj: Vec<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+    pub copt: Vec<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     pub info: Arc<Info>,
 }
 
@@ -159,39 +148,23 @@ where
     Info: OptInfo,
 {
     /// Creates a new [`Batch`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
-    pub fn new(sobj: VecArc<PSol>, sopt: VecArc<PSol::Twin<Opt>>, info: Arc<Info>) -> Self {
-        Batch {
-            sobj,
-            sopt,
-            info,
-            _id: PhantomData,
-            _obj: PhantomData,
-            _opt: PhantomData,
-            _sinfo: PhantomData,
-        }
+    pub fn new(sobj: Vec<PSol>, sopt: Vec<PSol::Twin<Opt>>, info: Arc<Info>) -> Self {
+        Batch {sobj,sopt,info}
     }
 
     /// Creates a new empty [`CompBatch`] from an [`OptInfo`].
     pub fn empty(info: Arc<Info>) -> Self {
-        Batch {
-            sobj: Vec::new(),
-            sopt: Vec::new(),
-            info,
-            _id: PhantomData,
-            _obj: PhantomData,
-            _opt: PhantomData,
-            _sinfo: PhantomData,
-        }
+        Batch {sobj: Vec::new(),sopt: Vec::new(),info}
     }
 
     /// Add a new `Obj` and `Opt` pair of [`Partial`] to the batch.
-    pub fn add(&mut self, sobj: Arc<PSol>, sopt: Arc<PSol::Twin<Opt>>) {
+    pub fn add(&mut self, sobj: PSol, sopt: PSol::Twin<Opt>) {
         self.sobj.push(sobj);
         self.sopt.push(sopt);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Partial`] to the batch.
-    pub fn add_vec(&mut self, sobj: VecArc<PSol>, sopt: VecArc<PSol::Twin<Opt>>) {
+    pub fn add_vec(&mut self, sobj: Vec<PSol>, sopt: Vec<PSol::Twin<Opt>>) {
         self.sobj.extend(sobj);
         self.sopt.extend(sopt);
     }
@@ -201,37 +174,53 @@ where
         self.sobj.len()
     }
 
-    /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
-    pub fn index(&self, index: usize) -> BatchElem<PSol, PSol::Twin<Opt>> {
-        (self.sobj[index].clone(), self.sopt[index].clone())
+    /// Return `true` if [`Batch`] is empty.
+    pub fn is_empty(&self) -> bool {
+        self.sobj.len() == 0
     }
+
+    /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
+    pub fn index(&self, index: usize) -> BatchElem<'_, PSol, PSol::Twin<Opt>> {
+        (&self.sobj[index], &self.sopt[index])
+    }
+
+    /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
+    pub fn remove(&mut self, index: usize) -> (PSol, PSol::Twin<Opt>) {
+        (self.sobj.remove(index), self.sopt.remove(index))
+    }
+
+    /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
+    pub fn pop(&mut self) -> Option<(PSol, PSol::Twin<Opt>)> {
+        let xobj = self.sobj.pop();
+        match xobj {
+            Some(x) => Some((x,self.sopt.pop().unwrap())),
+            None => None,
+        }
+    }
+
 }
 
 #[allow(clippy::type_complexity)]
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+impl<SolId,Info,Out> OutBatch<SolId,Info,Out>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
     Info: OptInfo,
     Out: Outcome,
 {
     /// Creates a new [`OutBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
     pub fn new(
-        robj: VecArc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        ropt: VecArc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        vid: Vec<SolId>,
+        vout: Vec<Out>,
         info: Arc<Info>,
     ) -> Self {
-        RawBatch { robj, ropt, info }
+        OutBatch { vid, vout, info }
     }
 
     /// Creates a new empty [`OutBatch`] from an [`OptInfo`].
     pub fn empty(info: Arc<Info>) -> Self {
-        RawBatch {
-            robj: Vec::new(),
-            ropt: Vec::new(),
+        OutBatch {
+            vid: Vec::new(),
+            vout: Vec::new(),
             info,
         }
     }
@@ -239,35 +228,55 @@ where
     /// Add a new `Obj` and `Opt` pair of [`RawSol`] to the batch.
     pub fn add(
         &mut self,
-        rawobj: Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        rawopt: Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        id: SolId,
+        out: Out,
     ) {
-        self.robj.push(rawobj);
-        self.ropt.push(rawopt);
+        self.vid.push(id);
+        self.vout.push(out);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
     pub fn add_vec(
         &mut self,
-        rawobj: VecArc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        rawopt: VecArc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        vid: Vec<SolId>,
+        vout: Vec<Out>,
     ) {
-        self.robj.extend(rawobj);
-        self.ropt.extend(rawopt);
+        self.vid.extend(vid);
+        self.vout.extend(vout);
     }
 
-    /// Return the size of the [`RawBatch`]
+    /// Return the size of the [`OutBatch`]
     pub fn size(&self) -> usize {
-        self.robj.len()
+        self.vid.len()
     }
 
-    /// Return the `Obj` and `Opt` [`RawSol`] at position `index` within the batch.
+    /// Return `true` if [`OutBatch`] is empty.
+    pub fn is_empty(&self) -> bool {
+        self.vid.len() == 0
+    }
+
+    /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
     pub fn index(
         &self,
         index: usize,
-    ) -> RawBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Out, SInfo> {
-        (self.robj[index].clone(), self.ropt[index].clone())
+    ) -> OutBatchElem<'_, SolId, Out> {
+        (&self.vid[index], &self.vout[index])
     }
+
+    /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
+    pub fn remove(&mut self, index: usize) -> DerOutBatchElem<SolId, Out> {
+        (self.vid.remove(index), self.vout.remove(index))
+    }
+
+    /// Pop the last [`Id`] and [`Outcome`] within the batch.
+    pub fn pop(&mut self) -> Option<(SolId, Out)> {
+        let id = self.vid.pop();
+        match id {
+            Some(i) => Some((i,self.vout.pop().unwrap())),
+            None => None,
+        }
+    }
+
 }
 
 #[allow(clippy::type_complexity)]
@@ -285,8 +294,8 @@ where
 {
     /// Creates a new [`CompBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
     pub fn new(
-        cobj: VecArc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        copt: VecArc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        cobj: Vec<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        copt: Vec<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
         info: Arc<Info>,
     ) -> Self {
         CompBatch { cobj, copt, info }
@@ -304,8 +313,8 @@ where
     /// Add a new `Obj` and `Opt` pair of [`Computed`] to the batch.
     pub fn add(
         &mut self,
-        compobj: Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        compopt: Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        compobj: Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        compopt: Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
     ) {
         self.cobj.push(compobj);
         self.copt.push(compopt);
@@ -314,11 +323,24 @@ where
     /// Add a new vec of pairs `Obj` and `Opt` [`Computed`] to the batch.
     pub fn add_vec(
         &mut self,
-        compobj: VecArc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        compopt: VecArc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        compobj: Vec<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        compopt: Vec<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     ) {
         self.cobj.extend(compobj);
         self.copt.extend(compopt);
+    }
+
+    /// Add a new `Obj` and `Opt` pair of [`CompSol`] to the batch from a pair of [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+    pub fn add_res(
+        &mut self,
+        pobj: PSol,
+        popt: PSol::Twin<Opt>,
+        y: Cod::TypeCodom,
+    ) {
+        let o = Arc::new(y);
+        let compobj = Computed::new(pobj, o.clone());
+        let compopt = Computed::new(popt, o);
+        self.add(compobj, compopt);
     }
 
     /// Return the size of the [`CompBatch`].
@@ -326,16 +348,35 @@ where
         self.cobj.len()
     }
 
+    /// Return `true` if [`CompBatch`] is empty.
+    pub fn is_empty(&self) -> bool {
+        self.cobj.len() == 0
+    }
+
     /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
     pub fn index(
         &self,
         index: usize,
-    ) -> CompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo> {
-        (self.cobj[index].clone(), self.copt[index].clone())
+    ) -> CompBatchElem<'_, PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo> {
+        (&self.cobj[index], &self.copt[index])
+    }
+
+    /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
+    pub fn remove(&mut self, index: usize) -> DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo> {
+        (self.cobj.remove(index), self.copt.remove(index))
+    }
+
+    /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
+    pub fn pop(&mut self) -> Option<DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo>> {
+        let xobj = self.cobj.pop();
+        match xobj {
+            Some(x) => Some((x,self.copt.pop().unwrap())),
+            None => None,
+        }
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info> BatchType<SolId, Obj, Opt, SInfo, Info>
+impl<PSol, SolId, Obj, Opt, SInfo, Info> BatchType<SolId, Obj, Opt, SInfo, PSol, Info>
     for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
@@ -347,15 +388,15 @@ where
 {
     type Comp<Cod: Codomain<Out>, Out: Outcome> =
         CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>;
-    type Outc<Out: Outcome> = RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
+    type Outc<Out: Outcome> = OutBatch<SolId, Info, Out>;
 
     fn get_info(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> RawBatchType<SolId, Obj, Opt, SInfo, Info, Out>
-    for RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>
+    for OutBatch<SolId, Info, Out>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -370,7 +411,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
-    CompBatchType<SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    CompBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Cod, Out>
     for CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
 where
     PSol: Partial<SolId, Obj, SInfo>,
@@ -383,8 +424,12 @@ where
     Out: Outcome,
 {
     type Part = Batch<PSol, SolId, Obj, Opt, SInfo, Info>;
-    type Outc = RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
+    type Outc = OutBatch<SolId, Info, Out>;
 }
+
+  //--------------------//
+ //--- INTOITERATOR ---//
+//--------------------//
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
@@ -395,17 +440,15 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Item = (Arc<PSol>, Arc<PSol::Twin<Opt>>);
-
-    type IntoIter = Zip<IntoIter<Arc<PSol>>, IntoIter<Arc<PSol::Twin<Opt>>>>;
+    type Item = (PSol, PSol::Twin<Opt>);
+    type IntoIter = Zip<IntoIter<PSol>, IntoIter<PSol::Twin<Opt>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.sobj.into_iter().zip(self.sopt)
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> IntoIterator
-    for RawBatch<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -413,19 +456,71 @@ where
     Opt: Domain,
     SInfo: SolInfo,
     Info: OptInfo,
-    Out: Outcome,
 {
-    type Item = (
-        Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
-    );
-    type IntoIter = Zip<
-        IntoIter<Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>>,
-        IntoIter<Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>>,
-    >;
+    type Item = (&'a PSol, &'a PSol::Twin<Opt>);
+    type IntoIter = Zip<slice::Iter<'a,PSol>, slice::Iter<'a, PSol::Twin<Opt>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.robj.into_iter().zip(self.ropt)
+        self.sobj.iter().zip(self.sopt.iter())
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    type Item = (&'a mut PSol, &'a mut PSol::Twin<Opt>);
+    type IntoIter = Zip<slice::IterMut<'a,PSol>, slice::IterMut<'a, PSol::Twin<Opt>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.sobj.iter_mut().zip(self.sopt.iter_mut())
+    }
+}
+
+impl<SolId, Info, Out> IntoIterator for OutBatch<SolId, Info, Out>
+where
+    SolId: Id,
+    Info: OptInfo,
+    Out: Outcome,
+{
+    type Item = (SolId,Out);
+    type IntoIter = Zip<IntoIter<SolId>,IntoIter<Out>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vid.into_iter().zip(self.vout)
+    }
+}
+
+impl<'a, SolId, Info, Out> IntoIterator for &'a OutBatch<SolId, Info, Out>
+where
+    SolId: Id,
+    Info: OptInfo,
+    Out: Outcome,
+{
+    type Item = (&'a SolId,&'a Out);
+    type IntoIter = Zip<slice::Iter<'a, SolId>,slice::Iter<'a, Out>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vid.iter().zip(self.vout.iter())
+    }
+}
+
+impl<'a, SolId, Info, Out> IntoIterator for &'a mut OutBatch<SolId, Info, Out>
+where
+    SolId: Id,
+    Info: OptInfo,
+    Out: Outcome,
+{
+    type Item = (&'a mut SolId, &'a mut Out);
+    type IntoIter = Zip<slice::IterMut<'a,SolId>,slice::IterMut<'a,Out>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vid.iter_mut().zip(self.vout.iter_mut())
     }
 }
 
@@ -442,18 +537,288 @@ where
     Out: Outcome,
 {
     type Item = (
-        Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
     );
     type IntoIter = Zip<
-        IntoIter<Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>>,
-        IntoIter<Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>>,
+        IntoIter<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        IntoIter<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.cobj.into_iter().zip(self.copt)
     }
 }
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoIterator
+    for &'a CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+{
+    type Item = (
+        &'a Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        &'a Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
+    );
+    type IntoIter = Zip<
+        slice::Iter<'a, Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        slice::Iter<'a, Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cobj.iter().zip(self.copt.iter())
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoIterator
+    for &'a mut CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+{
+    type Item = (
+        &'a mut Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        &'a mut Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
+    );
+    type IntoIter = Zip<
+        slice::IterMut<'a,Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        slice::IterMut<'a,Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cobj.iter_mut().zip(self.copt.iter_mut())
+    }
+}
+
+  //-----------------------//
+ //--- INTOPARITERATOR ---//
+//-----------------------//
+
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    type Item = (PSol, PSol::Twin<Opt>);
+    type Iter = rayon::iter::Zip<
+                            rayon::vec::IntoIter<PSol>,
+                            rayon::vec::IntoIter<<PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.sobj.into_par_iter().zip(self.sopt)
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Info: OptInfo,
+{
+    type Item = (&'a PSol, &'a PSol::Twin<Opt>);
+    type Iter = rayon::iter::Zip<
+                            rayon::slice::Iter<'a, PSol>,
+                            rayon::slice::Iter<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&[_]>::into_par_iter(&self.sobj);
+        let b = <&[_]>::into_par_iter(&self.sopt);
+        a.zip(b)
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+    Info: OptInfo,
+{
+    type Item = (&'a mut PSol, &'a mut PSol::Twin<Opt>);
+    type Iter = rayon::iter::Zip<
+                            rayon::slice::IterMut<'a, PSol>,
+                            rayon::slice::IterMut<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&mut [_]>::into_par_iter(&mut self.sobj);
+        let b = <&mut [_]>::into_par_iter(&mut self.sopt);
+        a.zip(b)
+    }
+}
+
+impl<SolId, Info, Out> IntoParallelIterator for OutBatch<SolId, Info, Out>
+where
+    SolId: Id + Send,
+    Info: OptInfo,
+    Out: Outcome + Send,
+{
+    type Item = (SolId, Out);
+    type Iter = rayon::iter::Zip<
+                            rayon::vec::IntoIter<SolId>,
+                            rayon::vec::IntoIter<Out>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.vid.into_par_iter().zip(self.vout)
+    }
+}
+
+impl<'a, SolId, Info, Out> IntoParallelIterator for &'a OutBatch<SolId, Info, Out>
+where
+    SolId: Id + Send + Sync,
+    Info: OptInfo,
+    Out: Outcome + Send + Sync,
+{
+    type Item = (&'a SolId, &'a Out);
+    type Iter = rayon::iter::Zip<
+                            rayon::slice::Iter<'a, SolId>,
+                            rayon::slice::Iter<'a, Out>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&[_]>::into_par_iter(&self.vid);
+        let b = <&[_]>::into_par_iter(&self.vout);
+        a.zip(b)
+    }
+}
+
+impl<'a, SolId, Info, Out> IntoParallelIterator for &'a mut OutBatch<SolId, Info, Out>
+where
+    SolId: Id + Send + Sync,
+    Info: OptInfo,
+    Out: Outcome + Send + Sync,
+{
+    type Item = (&'a mut SolId, &'a mut Out);
+    type Iter = rayon::iter::Zip<
+                            rayon::slice::IterMut<'a, SolId>,
+                            rayon::slice::IterMut<'a, Out>
+                        >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&mut [_]>::into_par_iter(&mut self.vid);
+        let b = <&mut [_]>::into_par_iter(&mut self.vout);
+        a.zip(b)
+    }
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoParallelIterator
+    for CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send,
+    SolId: Id + Send,
+    Obj: Domain + Send,
+    Opt: Domain + Send,
+    SInfo: SolInfo + Send,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Send + Sync,
+    Out: Outcome,
+{
+    type Item = (
+        Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
+    );
+    type Iter = rayon::iter::Zip<
+        rayon::vec::IntoIter<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        rayon::vec::IntoIter<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.cobj.into_par_iter().zip(self.copt)
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoParallelIterator
+    for &'a CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
+    SolId: Id + Send + Sync,
+    Obj: Domain + Send + Sync,
+    Opt: Domain + Send + Sync,
+    SInfo: SolInfo + Send + Sync,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Send + Sync,
+    Out: Outcome,
+{
+    type Item = (
+        &'a Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        &'a Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
+    );
+    type Iter = rayon::iter::Zip<
+        rayon::slice::Iter<'a, Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        rayon::slice::Iter<'a, Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&[_]>::into_par_iter(&self.cobj);
+        let b = <&[_]>::into_par_iter(&self.copt);
+        a.zip(b)
+    }
+}
+
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out> IntoParallelIterator
+    for &'a mut CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+where
+    PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
+    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
+    SolId: Id + Send + Sync,
+    Obj: Domain + Send + Sync,
+    Opt: Domain + Send + Sync,
+    SInfo: SolInfo + Send + Sync,
+    Info: OptInfo,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Send + Sync,
+    Out: Outcome,
+{
+    type Item = (
+        &'a mut Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        &'a mut Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
+    );
+    type Iter = rayon::iter::Zip<
+        rayon::slice::IterMut<'a, Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        rayon::slice::IterMut<'a, Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    >;
+
+    fn into_par_iter(self) -> Self::Iter {
+        let a = <&mut [_]>::into_par_iter(&mut self.cobj);
+        let b = <&mut [_]>::into_par_iter(&mut self.copt);
+        a.zip(b)
+    }
+}
+
 
 //-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-//
 // SINGLE BATCH MADE OF A SINGLE SOLUTION //
@@ -474,8 +839,8 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub sobj: Arc<PSol>,
-    pub sopt: Arc<PSol::Twin<Opt>>,
+    pub sobj: PSol,
+    pub sopt: PSol::Twin<Opt>,
     pub info: Arc<Info>,
     _id: PhantomData<SolId>,
     _obj: PhantomData<Obj>,
@@ -483,25 +848,17 @@ where
     _sinfo: PhantomData<SInfo>,
 }
 
-/// A [`RawBatch`] describes a single pair of `Obj` and `Opt` [`RawSol`].
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Obj::TypeDom: Serialize,Opt::TypeDom: Serialize",
-    deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>,Opt::TypeDom: for<'a> Deserialize<'a>",
-))]
+/// A [`OutBatch`] describes a single pair of `Obj` and `Opt` [`RawSol`].
+#[derive(Debug)]
 #[allow(clippy::type_complexity)]
-pub struct RawSingle<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+pub struct RawSingle<SolId, Info, Out>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
     Info: OptInfo,
     Out: Outcome,
 {
-    pub robj: Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-    pub ropt: Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+    pub id: SolId,
+    pub out: Out,
     pub info: Arc<Info>,
 }
 
@@ -523,8 +880,8 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-    pub cobj: Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-    pub copt: Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+    pub cobj: Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+    pub copt: Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
     pub info: Arc<Info>,
 }
 
@@ -538,7 +895,7 @@ where
     Info: OptInfo,
 {
     /// Creates a new [`Single`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
-    pub fn new(sobj: Arc<PSol>, sopt: Arc<PSol::Twin<Opt>>, info: Arc<Info>) -> Self {
+    pub fn new(sobj: PSol, sopt: PSol::Twin<Opt>, info: Arc<Info>) -> Self {
         Single {
             sobj,
             sopt,
@@ -552,23 +909,19 @@ where
 }
 
 #[allow(clippy::type_complexity)]
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> RawSingle<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+impl<SolId, Info, Out> RawSingle<SolId, Info, Out>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
     Info: OptInfo,
     Out: Outcome,
 {
     /// Creates a new [`RawSingle`] from paired `Obj` and `Opt` [`Raw`] and an [`OptInfo`].
     pub fn new(
-        robj: Arc<RawSol<PSol, SolId, Obj, Out, SInfo>>,
-        ropt: Arc<RawSol<PSol::Twin<Opt>, SolId, Opt, Out, SInfo>>,
+        id: SolId,
+        out: Out,
         info: Arc<Info>,
     ) -> Self {
-        RawSingle { robj, ropt, info }
+        RawSingle { id, out, info }
     }
 }
 
@@ -587,15 +940,15 @@ where
 {
     /// Creates a new [`CompSingle`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
     pub fn new(
-        cobj: Arc<Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        copt: Arc<Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        cobj: Computed<PSol, SolId, Obj, Cod, Out, SInfo>,
+        copt: Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
         info: Arc<Info>,
     ) -> Self {
         CompSingle { cobj, copt, info }
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info> BatchType<SolId, Obj, Opt, SInfo, Info>
+impl<PSol, SolId, Obj, Opt, SInfo, Info> BatchType<SolId, Obj, Opt, SInfo, PSol, Info>
     for Single<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
@@ -606,16 +959,16 @@ where
     Info: OptInfo,
 {
     type Comp<Cod: Codomain<Out>, Out: Outcome> =
-        CompSingle<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>;
-    type Outc<Out: Outcome> = RawSingle<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
+        CompSingle<PSol, SolId, Obj, Opt, SInfo, Info, Cod,Out>;
+    type Outc<Out: Outcome> = RawSingle<SolId, Info, Out>;
 
     fn get_info(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> RawBatchType<SolId, Obj, Opt, SInfo, Info, Out>
-    for RawSingle<PSol, SolId, Obj, Opt, SInfo, Info, Out>
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Out> OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>
+    for RawSingle<SolId, Info, Out>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -630,7 +983,7 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
-    CompBatchType<SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    CompBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Cod, Out>
     for CompSingle<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>
 where
     PSol: Partial<SolId, Obj, SInfo>,
@@ -643,5 +996,5 @@ where
     Out: Outcome,
 {
     type Part = Single<PSol, SolId, Obj, Opt, SInfo, Info>;
-    type Outc = RawSingle<PSol, SolId, Obj, Opt, SInfo, Info, Out>;
+    type Outc = RawSingle<SolId, Info, Out>;
 }

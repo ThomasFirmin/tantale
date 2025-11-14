@@ -55,7 +55,7 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = std::sync::Arc::new(Partial::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone()));
+                let psol = Partial::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
                 let sol = Computed::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().id);

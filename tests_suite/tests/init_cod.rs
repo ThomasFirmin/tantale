@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 pub use tantale::core::objective::codomain::{
     ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
     CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
-    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemFidCodomain,
-    ElemFidConstCodomain, ElemFidConstMultiCodomain, ElemFidCostCodomain, ElemFidCostConstCodomain,
-    ElemFidCostConstMultiCodomain, ElemFidCostMultiCodomain, ElemFidMultiCodomain,
-    ElemMultiCodomain, ElemSingleCodomain, FidCodomain, FidConstCodomain, FidConstMultiCodomain,
-    FidCostCodomain, FidCostConstCodomain, FidCostConstMultiCodomain, FidCostMultiCodomain,
-    FidCriteria, FidMultiCodomain, MultiCodomain, SingleCodomain,
+    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemStepCodomain,
+    ElemStepConstCodomain, ElemStepConstMultiCodomain, ElemStepCostCodomain, ElemStepCostConstCodomain,
+    ElemStepCostConstMultiCodomain, ElemStepCostMultiCodomain, ElemStepMultiCodomain,
+    ElemMultiCodomain, ElemSingleCodomain, StepCodomain, StepConstCodomain, StepConstMultiCodomain,
+    StepCostCodomain, StepCostConstCodomain, StepCostConstMultiCodomain, StepCostMultiCodomain,
+    FidCriteria, StepMultiCodomain, MultiCodomain, SingleCodomain,
 };
-use tantale_core::objective::codomain::EvalState;
+use tantale_core::objective::codomain::EvalStep;
 use tantale_macros::Outcome;
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub struct OutCod {
     pub mul7: f64,
     pub mul8: f64,
     pub mul9: f64,
-    pub fid10: EvalState,
+    pub fid10: EvalStep,
     pub more: f64,
     pub info: f64,
 }
@@ -116,103 +116,103 @@ pub fn get_elemcostconstmulti() -> (CostConstMultiCodomain<OutCod>, ElemCostCons
     )
 }
 
-pub fn get_elemfid() -> (FidCodomain<OutCod>, ElemFidCodomain) {
+pub fn get_elemfid() -> (StepCodomain<OutCod>, ElemStepCodomain) {
     (
-        FidCodomain::new(|a| a.obj1),
-        ElemFidCodomain {
+        StepCodomain::new(|a| a.obj1),
+        ElemStepCodomain {
             value: 1.1,
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
         }
     )
 }
-pub fn get_elemfidcost() -> (FidCostCodomain<OutCod>, ElemFidCostCodomain) {
+pub fn get_elemfidcost() -> (StepCostCodomain<OutCod>, ElemStepCostCodomain) {
     (
-        FidCostCodomain::new(|a| a.obj1, |a| a.cost2),
-        ElemFidCostCodomain {
+        StepCostCodomain::new(|a| a.obj1, |a| a.cost2),
+        ElemStepCostCodomain {
             value: 1.1,
             cost: 2.2,
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
         }
     )
 }
-pub fn get_elemfidconst() -> (FidConstCodomain<OutCod>, ElemFidConstCodomain) {
+pub fn get_elemfidconst() -> (StepConstCodomain<OutCod>, ElemStepConstCodomain) {
     (
-        FidConstCodomain::new(
+        StepConstCodomain::new(
             |a| a.obj1,
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidConstCodomain {
+        ElemStepConstCodomain {
             value: 1.1,
             constraints: Box::from([2.2, 3.3]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
         }
     )
 }
-pub fn get_elemfidcostconst() -> (FidCostConstCodomain<OutCod>, ElemFidCostConstCodomain) {
+pub fn get_elemfidcostconst() -> (StepCostConstCodomain<OutCod>, ElemStepCostConstCodomain) {
     (
-        FidCostConstCodomain::new(
+        StepCostConstCodomain::new(
             |a| a.obj1,
             |a| a.cost2,
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidCostConstCodomain {
+        ElemStepCostConstCodomain {
             value: 1.1,
             cost: 2.2,
             constraints: Box::from([3.3, 4.4]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
         }
     )
 }
-pub fn get_elemfidmulti() -> (FidMultiCodomain<OutCod>, ElemFidMultiCodomain) {
+pub fn get_elemfidmulti() -> (StepMultiCodomain<OutCod>, ElemStepMultiCodomain) {
     (
-        FidMultiCodomain::new(
+        StepMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
         ),
-        ElemFidMultiCodomain {
+        ElemStepMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
         }
     )
 }
-pub fn get_elemfidcostmulti() -> (FidCostMultiCodomain<OutCod>, ElemFidCostMultiCodomain) {
+pub fn get_elemfidcostmulti() -> (StepCostMultiCodomain<OutCod>, ElemStepCostMultiCodomain) {
     (
-        FidCostMultiCodomain::new(
+        StepCostMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
             |a| a.cost2,
         ),
-        ElemFidCostMultiCodomain {
+        ElemStepCostMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
             cost: 3.3,
         }
     )
 }
-pub fn get_elemfidconstmulti() -> (FidConstMultiCodomain<OutCod>, ElemFidConstMultiCodomain) {
+pub fn get_elemfidconstmulti() -> (StepConstMultiCodomain<OutCod>, ElemStepConstMultiCodomain) {
     (
-        FidConstMultiCodomain::new(
+        StepConstMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidConstMultiCodomain {
+        ElemStepConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
             constraints: Box::from([3.3, 4.4]),
         }
     )
 }
 pub fn get_elemfidcostconstmulti() -> (
-    FidCostConstMultiCodomain<OutCod>,
-    ElemFidCostConstMultiCodomain,
+    StepCostConstMultiCodomain<OutCod>,
+    ElemStepCostConstMultiCodomain,
 ) {
     (
-        FidCostConstMultiCodomain::new(
+        StepCostConstMultiCodomain::new(
             vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
             |a| a.cost2,
             vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
         ),
-        ElemFidCostConstMultiCodomain {
+        ElemStepCostConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            fidelity: EvalState::Completed,
+            step: EvalStep::Completed,
             cost: 3.3,
             constraints: Box::from([4.4, 5.5]),
         }

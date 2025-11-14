@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::EvalState;
+use tantale_core::EvalStep;
 use tantale_core::{objective::outcome::FuncState};
 use tantale_macros::Outcome;
 
@@ -40,7 +40,7 @@ pub struct FidOutExample {
     pub bool_v: bool,
     pub neuron: Neuron,
     pub vec: Vec<u64>,
-    pub fid: EvalState,
+    pub fid: EvalStep,
 }
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ pub struct FidOutUnique {
     pub bool_v: f64,
     pub point: Point,
     pub vec: Vec<f64>,
-    pub fid: EvalState,
+    pub fid: EvalStep,
 }
 
 
@@ -388,7 +388,7 @@ impl PartialEq for OutEvaluator {
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutEvaluator {
     pub obj: f64,
-    pub fid: EvalState,
+    pub fid: EvalStep,
 }
 
 impl PartialEq for FidOutEvaluator {
@@ -429,7 +429,7 @@ pub mod sp_evaluator {
 }
 
 pub mod sp_evaluator_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, FnState, FidOutEvaluator, EvalState};
+    use super::{int_plus_nat, plus_one_int, Neuron, FnState, FidOutEvaluator, EvalStep};
     use tantale_core::{Bool, Cat, Int, Nat, Real, Fidelity};
     use tantale_macros::objective;
 
@@ -458,7 +458,7 @@ pub mod sp_evaluator_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -478,7 +478,7 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_ms_nosamp_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{EvalState, domain::{Bool, Cat, Int, Nat, Real}, solution::partial::Fidelity};
+    use tantale_core::{EvalStep, domain::{Bool, Cat, Int, Nat, Real}, solution::partial::Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -506,7 +506,7 @@ pub mod sp_ms_nosamp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -528,7 +528,7 @@ pub mod sp_ms_nosamp_fid {
 
 pub mod sp_ms_samp_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -556,7 +556,7 @@ pub mod sp_ms_samp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -578,7 +578,7 @@ pub mod sp_ms_samp_fid {
 
 pub mod sp_ms_samp_right_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
+    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -606,7 +606,7 @@ pub mod sp_ms_samp_right_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -628,7 +628,7 @@ pub mod sp_ms_samp_right_fid {
 
 pub mod sp_ms_noright_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -656,7 +656,7 @@ pub mod sp_ms_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -678,7 +678,7 @@ pub mod sp_ms_noright_fid {
 
 pub mod sp_ms_samp_noright_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -706,7 +706,7 @@ pub mod sp_ms_samp_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -728,7 +728,7 @@ pub mod sp_ms_samp_noright_fid {
 
 pub mod sp_sm_samp_fid {
     use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalState, Fidelity};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -756,7 +756,7 @@ pub mod sp_sm_samp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
@@ -778,7 +778,7 @@ pub mod sp_sm_samp_fid {
 
 pub mod sp_sm_samp_noright_fid {
     use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
-    use tantale_core::{uniform_real, Real, EvalState, Fidelity};
+    use tantale_core::{uniform_real, Real, EvalStep, Fidelity};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -806,7 +806,7 @@ pub mod sp_sm_samp_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalState::Completed} else{EvalState::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],

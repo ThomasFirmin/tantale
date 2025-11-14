@@ -1,19 +1,14 @@
 use crate::{
-    FolderConfig, OptInfo, Partial, SolInfo,
-    domain::onto::OntoDom,
-    objective::{Codomain, Outcome},
-    optimizer::{Optimizer, opt::{CBType, OBType}},
-    recorder::Recorder,
-    searchspace::Searchspace,
-    solution::{Batch, BatchType, Id, Solution, partial::BasePartial},
+    FolderConfig, OptInfo, Partial, SolInfo, domain::onto::OntoDom, objective::{Codomain, FuncWrapper, Outcome}, optimizer::{
+        Optimizer
+    }, recorder::Recorder, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}
 };
 
 use rayon::prelude::*;
 use std::{
-    fs::{File, OpenOptions, create_dir_all},
-    marker::PhantomData,
+    fs::{create_dir_all, File, OpenOptions},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
 };
 
 #[cfg(feature = "mpi")]
@@ -33,17 +28,38 @@ pub trait CSVLeftRight<H, L, R> {
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
+
+pub struct CSVFiles{
+    pub obj: Option<Arc<Mutex<csv::Writer<File>>>>,
+    pub opt: Option<Arc<Mutex<csv::Writer<File>>>>,
+    pub cod: Arc<Mutex<csv::Writer<File>>>,
+    pub info: Option<Arc<Mutex<csv::Writer<File>>>>,
+    pub out: Option<Arc<Mutex<csv::Writer<File>>>>,
+}
+
+impl CSVFiles{
+    pub fn new(obj: &Option<PathBuf>,opt: &Option<PathBuf>,cod: &PathBuf,info: &Option<PathBuf>,out: &Option<PathBuf>) -> Self{
+        let obj = obj.as_ref().map(|path| Arc::new(Mutex::new(csv::Writer::from_writer(OpenOptions::new().append(true).open(path).unwrap()))));
+        let opt = opt.as_ref().map(|path| Arc::new(Mutex::new(csv::Writer::from_writer(OpenOptions::new().append(true).open(path).unwrap()))));
+        let cod = Arc::new(Mutex::new(csv::Writer::from_writer(OpenOptions::new().append(true).open(cod).unwrap())));
+        let info = info.as_ref().map(|path| Arc::new(Mutex::new(csv::Writer::from_writer(OpenOptions::new().append(true).open(path).unwrap()))));
+        let out = out.as_ref().map(|path| Arc::new(Mutex::new(csv::Writer::from_writer(OpenOptions::new().append(true).open(path).unwrap()))));
+        CSVFiles{obj,opt,cod,info,out}
+    }
+}
+
 /// A [`CSVWrite`] describes a [`BatchType`] and its associated types that can be written within a CSV file.
 pub trait BatchCSVWrite<PSol, Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
 where
-    Self: BatchType<SolId, Obj, Opt, SInfo, Info>,
+    Self: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
+    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
     SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Obj::TypeDom: Send + Sync,
@@ -51,10 +67,11 @@ where
     Cod::TypeCodom: Send + Sync,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
 {
-    fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>,wrt: csv::Writer<File>,scp: Arc<Scp>);
-    fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>,wrt: csv::Writer<File>,scp: Arc<Scp>);
+    fn write(cbatch: &Self::Comp<Cod, Out>, obatch: &Self::Outc<Out>, wrts: CSVFiles, scp: &Scp, cod:&Cod);
+    fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp);
+    fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp);
+    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod:&Cod);
     fn write_info(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>);
-    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: Arc<Cod>);
     fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>);
 }
 
@@ -67,18 +84,17 @@ where
     Opt: OntoDom<Obj> + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>> + Send + Sync,
+    Scp: Searchspace<BasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
     SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
 {
-    fn write_partial_obj(
-        cbatch: &Self::Comp<Cod, Out>,
-        wrt: csv::Writer<File>,
-        scp: Arc<Scp>,
-    ) {
+    fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp) {
         let amwrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -92,11 +108,7 @@ where
         });
     }
 
-    fn write_partial_opt(
-        cbatch: &Self::Comp<Cod, Out>,
-        wrt: csv::Writer<File>,
-        scp: Arc<Scp>,
-    ) {
+    fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp) {
         let amwrt = Arc::new(Mutex::new(wrt));
         cbatch.copt.par_iter().for_each(|op| {
             let id = op.get_id();
@@ -126,13 +138,13 @@ where
         });
     }
 
-    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: Arc<Cod>) {
+    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: &Cod) {
         let wrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
             let codom = op.get_y();
             let mut idstr = id.write(&());
-            idstr.extend(cod.write(codom.as_ref()));
+            idstr.extend(cod.write(codom));
             {
                 let mut wrt_local = wrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -143,11 +155,9 @@ where
 
     fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>) {
         let wrt = Arc::new(Mutex::new(wrt));
-        obatch.robj.par_iter().for_each(|s| {
-            let id = s.get_id();
-            let output = s.get_out();
+        obatch.into_par_iter().for_each(|(id,out)| {
             let mut idstr = id.write(&());
-            idstr.extend(output.write(&()));
+            idstr.extend(out.write(&()));
             {
                 let mut wrt_local = wrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -155,6 +165,71 @@ where
             }
         });
     }
+    
+    fn write(cbatch: &Self::Comp<Cod, Out>, obatch: &Self::Outc<Out>, wrts: CSVFiles, scp: &Scp, cod:&Cod) {
+        cbatch.into_par_iter().zip_eq(obatch).for_each(
+            |((cobj,copt),(oid,out))|
+            {
+                let id = cobj.get_id();
+                let idstr = id.write(&());
+
+                // CODOM
+                let codstr = cod.write(cobj.get_y());
+                let fstr: Vec<&String> = idstr.iter().chain(codstr.iter()).collect();
+                {
+                    let mut wrt_local = wrts.cod.lock().unwrap();
+                    wrt_local.write_record(&fstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+                // OBJ
+                if let Some(f) = wrts.obj.clone()
+                {
+                    let xstr = scp.write_left(&cobj.get_x());
+                    let fstr: Vec<&String> = idstr.iter().chain(xstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // OPT
+                if let Some(f) = wrts.opt.clone()
+                {
+                    let xstr = scp.write_right(&copt.get_x());
+                    let fstr: Vec<&String> = idstr.iter().chain(xstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // INFO
+                if let Some(f) = wrts.info.clone()
+                {
+                    let sinfstr = cobj.get_info().write(&());
+                    let infstr = cbatch.info.write(&());
+                    let fstr: Vec<&String> = idstr.iter().chain(sinfstr.iter()).chain(infstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // OUT
+                if let Some(f) = wrts.out.clone()
+                {
+                    let mut idstr = oid.write(&());
+                    idstr.extend(out.write(&()));
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&idstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+            }
+        );
+    }
+
 }
 
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
@@ -167,7 +242,7 @@ where
 /// * `opt` : bool - If `true` computed `Opt` [`Solution`] will be saved.
 /// * `info` : bool - If `true` [`SolInfo`] and [`OptInfo`] from computed [`Solution`] will be saved.
 /// * `out` : bool - If `true` computed [`Outcome`] will be saved.
-/// 
+///
 /// # Notes on File hierarchy
 ///
 /// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
@@ -178,19 +253,9 @@ where
 ///   * opt.csv             (points from the [`Optimizer`] view)
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
-pub struct CSVRecorder<SolId,Obj,Opt,Cod,Out,Scp,Op>
-where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out:Outcome,
-    Op: Optimizer<SolId,Obj,Opt,Out,Scp>,
-    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
+pub struct CSVRecorder
 {
     pub config: Arc<FolderConfig>,
-    pub scp: Arc<Scp>,
-    pub cod: Arc<Cod>,
     pub obj: bool,
     pub opt: bool,
     pub info: bool,
@@ -200,26 +265,17 @@ where
     path_info: Option<PathBuf>,
     path_codom: PathBuf,
     path_out: Option<PathBuf>,
-    p_solid: PhantomData<SolId>,
-    p_obj: PhantomData<Obj>,
-    p_opt: PhantomData<Opt>,
-    p_out: PhantomData<Out>,
-    p_scp: PhantomData<Scp>,
-    p_op: PhantomData<Op>,
 }
 
-impl<SolId,Obj,Opt,Cod,Out,Scp,Op> CSVRecorder<SolId,Obj,Opt,Cod,Out,Scp,Op>
-where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Cod: Codomain<Out>,
-    Out:Outcome,
-    Op: Optimizer<SolId,Obj,Opt,Out,Scp>,
-    Scp: Searchspace<Op::Sol,SolId,Obj,Opt,Op::SInfo>,
+impl CSVRecorder
 {
-    pub fn new(config: Arc<FolderConfig>, scp: Arc<Scp>, cod: Arc<Cod>, obj: bool, opt: bool,info: bool,out: bool) -> Self
-    {
+    pub fn new(
+        config: Arc<FolderConfig>,
+        obj: bool,
+        opt: bool,
+        info: bool,
+        out: bool,
+    ) -> Self {
         let path_pobj = match obj {
             true => Some(config.path_rec.join(Path::new("obj.csv"))),
             false => None,
@@ -241,8 +297,6 @@ where
 
         CSVRecorder {
             config,
-            scp,
-            cod,
             obj,
             opt,
             info,
@@ -252,46 +306,48 @@ where
             path_info,
             path_codom,
             path_out,
-            p_solid: PhantomData,
-            p_obj: PhantomData,
-            p_opt: PhantomData,
-            p_out: PhantomData,
-            p_scp: PhantomData,
-            p_op: PhantomData,
         }
     }
 }
 
-impl<SolId, Obj, Opt, Out, Scp, Op> Recorder<SolId, Obj, Opt, Out, Scp, Op>
-    for CSVRecorder<SolId,Obj,Opt,Op::Cod,Out,Scp,Op>
+impl<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> for CSVRecorder
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn, BType=BType>,
+    Fn: FuncWrapper,
+    BType: BatchType<SolId,Obj,Opt,Op::SInfo, Op::Sol, Op::Info> 
+        + BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
     Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
 {
-    fn init(&mut self) {
+    fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
-            panic!("The recorder folder path already exists, {}.", self.config.path_rec.display())
+            panic!(
+                "The recorder folder path already exists, {}.",
+                self.config.path_rec.display()
+            )
         } else if self.config.path.is_file() {
-            panic!("The recorder path cant point to a file, {}.",self.config.path_rec.display())
+            panic!(
+                "The recorder path cant point to a file, {}.",
+                self.config.path_rec.display()
+            )
         } else {
             create_dir_all(&self.config.path_rec).unwrap();
 
             if let Some(ppobj) = &self.path_pobj {
                 let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(self.scp.as_ref()));
+                idstr.extend(Scp::header(scp));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -299,7 +355,7 @@ where
             if let Some(ppopt) = &self.path_popt {
                 let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(self.scp.as_ref()));
+                idstr.extend(Scp::header(scp));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
@@ -324,14 +380,14 @@ where
             {
                 let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
                 let mut idstr = SolId::header(&());
-                idstr.extend(Op::Cod::header(self.cod.as_ref()));
+                idstr.extend(Op::Cod::header(cod));
                 wrt.write_record(idstr).unwrap();
                 wrt.flush().unwrap();
             }
         }
     }
 
-    fn after_load(&mut self) {
+    fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj {
@@ -354,10 +410,7 @@ where
 
             if let Some(ppinfo) = &self.path_info {
                 if !ppinfo.try_exists().unwrap() {
-                    panic!(
-                        "The `Info` file does not exists, {}.",
-                        ppinfo.display()
-                    )
+                    panic!("The `Info` file does not exists, {}.", ppinfo.display())
                 }
             }
 
@@ -377,61 +430,67 @@ where
                 )
             }
         } else {
-            panic!("The recorder folder does not exists, {}.", self.config.path_rec.display());
+            panic!(
+                "The recorder folder does not exists, {}.",
+                self.config.path_rec.display()
+            );
         }
     }
 
-    fn save_partial(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_partial(&self, batch: &BType::Comp<Op::Cod,Out>, scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppobj.as_path())
                 .unwrap();
-            Op::BType::write_partial_obj(
-                batch,
-                csv::Writer::from_writer(file),
-                self.scp.clone(),
-            );
+            BType::write_partial_obj(batch, csv::Writer::from_writer(file), scp);
         }
         if let Some(ppopt) = &self.path_popt {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppopt.as_path())
                 .unwrap();
-            Op::BType::write_partial_opt(
-                batch,
-                csv::Writer::from_writer(file),
-                self.scp.clone(),
-            );
+            BType::write_partial_opt(batch, csv::Writer::from_writer(file), scp);
         }
     }
 
-    fn save_info(&self, batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_info(&self, batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppinfo.as_path())
                 .unwrap();
-            Op::BType::write_info(batch, csv::Writer::from_writer(file));
+            BType::write_info(batch, csv::Writer::from_writer(file));
         }
     }
 
-    fn save_codom(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_codom(&self, batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, cod: &Op::Cod) {
         let file = OpenOptions::new()
             .append(true)
             .open(self.path_codom.as_path())
             .unwrap();
-        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.cod.clone());
+        BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_out(&self, batch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppout.as_path())
                 .unwrap();
-            Op::BType::write_out(batch, csv::Writer::from_writer(file));
+            BType::write_out(batch, csv::Writer::from_writer(file));
         }
+    }
+    
+    fn save(&self, cbatch: &BType::Comp<Op::Cod,Out>, obatch: &BType::Outc<Out>, scp: &Scp, cod: &Op::Cod) {
+        let files = CSVFiles::new(
+            &self.path_pobj,
+             &self.path_popt,
+              &self.path_codom,
+               &self.path_info,
+                &self.path_out
+            );
+        BType::write(cbatch, obatch, files, scp, cod);
     }
 }
 
@@ -465,49 +524,57 @@ where
 ///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[cfg(feature = "mpi")]
-impl<SolId, Obj, Opt, Out, Scp, Op> DistRecorder<SolId, Obj, Opt, Out, Scp, Op>
-    for CSVRecorder<SolId,Obj,Opt,Op::Cod,Out,Scp,Op>
+impl<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, BType> for CSVRecorder
 where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo> + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn, BType = BType>,
+    Fn: FuncWrapper,
     Op::Cod: Codomain<Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>,
     <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Op::BType: BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
-{   
-    fn init_dist(&mut self, _proc:&MPIProcess) {
-        if self.config.is_dist{
+    BType: BatchType<SolId,Obj,Opt,Op::SInfo, Op::Sol, Op::Info>
+        + BatchCSVWrite<Op::Sol, Scp, SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Cod, Out>,
+{
+    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
+        if self.config.is_dist {
             let does_exist = self.config.path_rec.try_exists().unwrap();
             if does_exist {
-                panic!("The recorder folder path already exists, {}.", self.config.path_rec.display())
+                panic!(
+                    "The recorder folder path already exists, {}.",
+                    self.config.path_rec.display()
+                )
             } else if self.config.path.is_file() {
-                panic!("The recorder path cant point to a file, {}.",self.config.path_rec.display())
+                panic!(
+                    "The recorder path cant point to a file, {}.",
+                    self.config.path_rec.display()
+                )
             } else {
                 create_dir_all(&self.config.path_rec).unwrap();
-    
+
                 if let Some(ppobj) = &self.path_pobj {
                     let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
                     let mut idstr = SolId::header(&());
-                    idstr.extend(Scp::header(self.scp.as_ref()));
+                    idstr.extend(Scp::header(scp));
                     wrt.write_record(idstr).unwrap();
                     wrt.flush().unwrap();
                 }
-    
+
                 if let Some(ppopt) = &self.path_popt {
                     let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
                     let mut idstr = SolId::header(&());
-                    idstr.extend(Scp::header(self.scp.as_ref()));
+                    idstr.extend(Scp::header(scp));
                     wrt.write_record(idstr).unwrap();
                     wrt.flush().unwrap();
                 }
-    
+
                 if let Some(ppinfo) = &self.path_info {
                     let mut wrt = csv::Writer::from_path(ppinfo.as_path()).unwrap();
                     let mut idstr = SolId::header(&());
@@ -516,7 +583,7 @@ where
                     wrt.write_record(idstr).unwrap();
                     wrt.flush().unwrap();
                 }
-    
+
                 if let Some(ppout) = &self.path_out {
                     let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
                     let mut idstr = SolId::header(&());
@@ -524,19 +591,21 @@ where
                     wrt.write_record(idstr).unwrap();
                     wrt.flush().unwrap();
                 }
-    
+
                 {
                     let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
                     let mut idstr = SolId::header(&());
-                    idstr.extend(Op::Cod::header(self.cod.as_ref()));
+                    idstr.extend(Op::Cod::header(cod));
                     wrt.write_record(idstr).unwrap();
                     wrt.flush().unwrap();
                 }
             }
-        } else {panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")}
+        } else {
+            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+        }
     }
 
-    fn after_load_dist(&mut self, _proc:&MPIProcess) {
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj {
@@ -559,10 +628,7 @@ where
 
             if let Some(ppinfo) = &self.path_info {
                 if !ppinfo.try_exists().unwrap() {
-                    panic!(
-                        "The `Info` file does not exists, {}.",
-                        ppinfo.display()
-                    )
+                    panic!("The `Info` file does not exists, {}.", ppinfo.display())
                 }
             }
 
@@ -582,60 +648,66 @@ where
                 )
             }
         } else {
-            panic!("The recorder folder does not exists, {}.", self.config.path_rec.display());
+            panic!(
+                "The recorder folder does not exists, {}.",
+                self.config.path_rec.display()
+            );
         }
     }
 
-    fn save_partial_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_partial_dist(&self, batch: &BType::Comp<Op::Cod,Out>, scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppobj) = &self.path_pobj {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppobj.as_path())
                 .unwrap();
-            Op::BType::write_partial_obj(
-                batch,
-                csv::Writer::from_writer(file),
-                self.scp.clone(),
-            );
+            BType::write_partial_obj(batch, csv::Writer::from_writer(file), scp);
         }
         if let Some(ppopt) = &self.path_popt {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppopt.as_path())
                 .unwrap();
-            Op::BType::write_partial_opt(
-                batch,
-                csv::Writer::from_writer(file),
-                self.scp.clone(),
-            );
+            BType::write_partial_opt(batch, csv::Writer::from_writer(file), scp);
         }
     }
 
-    fn save_info_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_info_dist(&self, batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppinfo) = &self.path_info {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppinfo.as_path())
                 .unwrap();
-            Op::BType::write_info(batch, csv::Writer::from_writer(file));
+            BType::write_info(batch, csv::Writer::from_writer(file));
         }
     }
 
-    fn save_codom_dist(&self,batch: &CBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_codom_dist(&self, batch: &BType::Comp<Op::Cod,Out>, _scp: &Scp, cod: &Op::Cod) {
         let file = OpenOptions::new()
             .append(true)
             .open(self.path_codom.as_path())
             .unwrap();
-        Op::BType::write_codom(batch, csv::Writer::from_writer(file), self.cod.clone());
+        BType::write_codom(batch, csv::Writer::from_writer(file), cod);
     }
 
-    fn save_out_dist(&self, batch: &OBType<Op, SolId, Obj, Opt, Out, Scp>) {
+    fn save_out_dist(&self, batch: &BType::Outc<Out>, _scp: &Scp, _cod: &Op::Cod) {
         if let Some(ppout) = &self.path_out {
             let file = OpenOptions::new()
                 .append(true)
                 .open(ppout.as_path())
                 .unwrap();
-            Op::BType::write_out(batch, csv::Writer::from_writer(file));
+            BType::write_out(batch, csv::Writer::from_writer(file));
         }
+    }
+    
+    fn save_dist(&self, cbatch: &BType::Comp<Op::Cod,Out>, obatch: &BType::Outc<Out>, scp: &Scp, cod: &Op::Cod) {
+        let files = CSVFiles::new(
+            &self.path_pobj,
+             &self.path_popt,
+              &self.path_codom,
+               &self.path_info,
+                &self.path_out
+            );
+        BType::write(cbatch, obatch, files, scp, cod);
     }
 }

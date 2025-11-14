@@ -7,7 +7,7 @@ pub enum ExpStep {
 
 pub trait Stop
 where
-    Self: Serialize + for<'a> Deserialize<'a>
+    Self: Serialize + for<'a> Deserialize<'a>,
 {
     fn init(&mut self);
     fn stop(&self) -> bool;

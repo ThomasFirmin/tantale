@@ -88,51 +88,51 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::{FidOutcome, objective::outcome::Outcome, recorder::csv::CSVWritable};
+use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, FidOutcome};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
 /// one of its `f64` further used within a [`Codomain`].
 pub type Criteria<Out> = fn(&Out) -> f64;
 /// A fidelity criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
-/// one of its [`EvalState`] further used within a [`FidCodomain`].
-pub type FidCriteria<Out> = fn(&Out) -> EvalState;
+/// one of its [`EvalStep`] further used within a [`FidCodomain`].
+pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
 
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
-/// * [`Partially`](EvalState::Partially) - A not fully evaluated solution.
-/// * [`Completed`](EvalState::Completed) - A fully evaluated solution.
-/// * [`Error`](EvalState::Error) - A faulty evaluation.
+/// * [`Partially`](EvalStep::Partially) - A not fully evaluated solution.
+/// * [`Completed`](EvalStep::Completed) - A fully evaluated solution.
+/// * [`Error`](EvalStep::Error) - A faulty evaluation.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum EvalState {
+pub enum EvalStep {
     Partially,
     Completed,
     Error,
 }
 
-impl PartialEq for EvalState {
+impl PartialEq for EvalStep {
     fn eq(&self, other: &Self) -> bool {
         core::mem::discriminant(self) == core::mem::discriminant(other)
     }
 }
 
-impl EvalState{
-    pub fn is_partially(&self)->bool{
-        matches!(self, EvalState::Partially)
+impl EvalStep {
+    pub fn is_partially(&self) -> bool {
+        matches!(self, EvalStep::Partially)
     }
-    pub fn is_completed(&self)->bool{
-        matches!(self, EvalState::Completed)
+    pub fn is_completed(&self) -> bool {
+        matches!(self, EvalStep::Completed)
     }
-    pub fn is_error(&self)->bool{
-        matches!(self, EvalState::Error)
+    pub fn is_error(&self) -> bool {
+        matches!(self, EvalStep::Error)
     }
 }
 
-impl std::fmt::Display for EvalState {
+impl std::fmt::Display for EvalStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EvalState::Partially => write!(f, "Partially"),
-            EvalState::Completed => write!(f, "Completed"),
-            EvalState::Error => write!(f, "Error"),
+            EvalStep::Partially => write!(f, "Partially"),
+            EvalStep::Completed => write!(f, "Completed"),
+            EvalStep::Error => write!(f, "Error"),
         }
     }
 }
@@ -180,9 +180,9 @@ pub trait Cost<Out: Outcome>: Codomain<Out> {
     }
 }
 
-/// Defines a [`Codomain`] containing the current [`EvalState`] of an evaluation.
-pub trait HasEvalState<Out: FidOutcome>: Codomain<Out> {
-    fn get_evalstate(&self, o: &Out) -> EvalState {
+/// Defines a [`Codomain`] containing the current [`EvalStep`] of an evaluation.
+pub trait HasEvalStep<Out: FidOutcome>: Codomain<Out> {
+    fn get_evalstate(&self, o: &Out) -> EvalStep {
         o.get_fidelity()
     }
 }
@@ -771,79 +771,77 @@ pub type ConstCostMultiCodomain<Out> = CostConstMultiCodomain<Out>;
 
 /// A [`Single`] and [`Fidelity`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCodomain<Out: FidOutcome> {
+pub struct StepCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
 }
 
-impl<Out: FidOutcome> FidCodomain<Out> {
+impl<Out: FidOutcome> StepCodomain<Out> {
     pub fn new(crit: Criteria<Out>) -> Self {
-        FidCodomain {
-            y_criteria: crit,
-        }
+        StepCodomain { y_criteria: crit }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidCodomain<Out>, ElemFidCodomain> for FidCodomain<Out> {
-    fn header(_elem: &FidCodomain<Out>) -> Vec<String> {
+impl<Out: FidOutcome> CSVWritable<StepCodomain<Out>, ElemStepCodomain> for StepCodomain<Out> {
+    fn header(_elem: &StepCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("fidelity")])
     }
 
-    fn write(&self, comp: &ElemFidCodomain) -> Vec<String> {
-        Vec::from([comp.value.to_string(), comp.fidelity.to_string()])
+    fn write(&self, comp: &ElemStepCodomain) -> Vec<String> {
+        Vec::from([comp.value.to_string(), comp.step.to_string()])
     }
 }
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidCodomain {
+pub struct ElemStepCodomain {
     pub value: f64,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
 }
 
-impl PartialEq for ElemFidCodomain {
+impl PartialEq for ElemStepCodomain {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity
+        self.value == other.value && self.step == other.step
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidCodomain<Out> {
-    type TypeCodom = ElemFidCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepCodomain<Out> {
+    type TypeCodom = ElemStepCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidCodomain {
+        ElemStepCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
         }
     }
 }
 
-impl<Out: FidOutcome> Single<Out> for FidCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for StepCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidConstCodomain<Out: FidOutcome> {
+pub struct StepConstCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: FidOutcome> FidConstCodomain<Out> {
+impl<Out: FidOutcome> StepConstCodomain<Out> {
     pub fn new(crit: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
-        FidConstCodomain {
+        StepConstCodomain {
             y_criteria: crit,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidConstCodomain<Out>, ElemFidConstCodomain>
-    for FidConstCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepConstCodomain<Out>, ElemStepConstCodomain>
+    for StepConstCodomain<Out>
 {
-    fn header(elem: &FidConstCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(Vec::from([String::from("fidelity")]));
         v.extend(
@@ -855,9 +853,9 @@ impl<Out: FidOutcome> CSVWritable<FidConstCodomain<Out>, ElemFidConstCodomain>
         v
     }
 
-    fn write(&self, comp: &ElemFidConstCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepConstCodomain) -> Vec<String> {
         let mut v = Vec::from([comp.value.to_string()]);
-        v.extend(Vec::from([comp.fidelity.to_string()]));
+        v.extend(Vec::from([comp.step.to_string()]));
         v.extend(comp.constraints.iter().map(|c| c.to_string()));
         v
     }
@@ -865,38 +863,38 @@ impl<Out: FidOutcome> CSVWritable<FidConstCodomain<Out>, ElemFidConstCodomain>
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidConstCodomain`]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidConstCodomain {
+pub struct ElemStepConstCodomain {
     pub value: f64,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidConstCodomain {
+impl PartialEq for ElemStepConstCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.constraints == other.constraints
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidConstCodomain<Out> {
-    type TypeCodom = ElemFidConstCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepConstCodomain<Out> {
+    type TypeCodom = ElemStepConstCodomain;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidConstCodomain {
+        ElemStepConstCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             constraints: self.get_constraints(o),
         }
     }
 }
 
-impl<Out: FidOutcome> Single<Out> for FidConstCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for StepConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
 
-impl<Out: FidOutcome> HasEvalState<Out> for FidConstCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepConstCodomain<Out> {}
 
-impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for StepConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -904,83 +902,89 @@ impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstCodomain<Out> {
 
 /// A [`Single`], [`Fidelity`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostCodomain<Out: FidOutcome> {
+pub struct StepCostCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: FidOutcome> FidCostCodomain<Out> {
+impl<Out: FidOutcome> StepCostCodomain<Out> {
     pub fn new(crit: Criteria<Out>, cost: Criteria<Out>) -> Self {
-        FidCostCodomain {
+        StepCostCodomain {
             y_criteria: crit,
             co_criteria: cost,
         }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidCostCodomain<Out>, ElemFidCostCodomain> for FidCostCodomain<Out> {
-    fn header(_elem: &FidCostCodomain<Out>) -> Vec<String> {
-        Vec::from([String::from("y"), String::from("fidelity"), String::from("cost")])
+impl<Out: FidOutcome> CSVWritable<StepCostCodomain<Out>, ElemStepCostCodomain>
+    for StepCostCodomain<Out>
+{
+    fn header(_elem: &StepCostCodomain<Out>) -> Vec<String> {
+        Vec::from([
+            String::from("y"),
+            String::from("fidelity"),
+            String::from("cost"),
+        ])
     }
 
-    fn write(&self, comp: &ElemFidCostCodomain) -> Vec<String> {
-        Vec::from([comp.value.to_string(), comp.fidelity.to_string(), comp.cost.to_string()])
+    fn write(&self, comp: &ElemStepCostCodomain) -> Vec<String> {
+        Vec::from([
+            comp.value.to_string(),
+            comp.step.to_string(),
+            comp.cost.to_string(),
+        ])
     }
 }
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidCostCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidCostCodomain {
+pub struct ElemStepCostCodomain {
     pub value: f64,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub cost: f64,
 }
 
-impl PartialEq for ElemFidCostCodomain {
+impl PartialEq for ElemStepCostCodomain {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity && self.cost == other.cost
+        self.value == other.value && self.step == other.step && self.cost == other.cost
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidCostCodomain<Out> {
-    type TypeCodom = ElemFidCostCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepCostCodomain<Out> {
+    type TypeCodom = ElemStepCostCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidCostCodomain {
+        ElemStepCostCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             cost: self.get_cost(o),
         }
     }
 }
 
-impl<Out: FidOutcome> Single<Out> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for StepCostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: FidOutcome> Cost<Out> for FidCostCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for StepCostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidCostCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepCostCodomain<Out> {}
 
 /// A [`Single`], [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostConstCodomain<Out: FidOutcome> {
+pub struct StepCostConstCodomain<Out: FidOutcome> {
     pub y_criteria: Criteria<Out>,
     pub co_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: FidOutcome> FidCostConstCodomain<Out> {
-    pub fn new(
-        crit: Criteria<Out>,
-        cost: Criteria<Out>,
-        con: Box<[Criteria<Out>]>
-    ) -> Self {
-        FidCostConstCodomain {
+impl<Out: FidOutcome> StepCostConstCodomain<Out> {
+    pub fn new(crit: Criteria<Out>, cost: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
+        StepCostConstCodomain {
             y_criteria: crit,
             co_criteria: cost,
             c_criteria: con,
@@ -988,10 +992,10 @@ impl<Out: FidOutcome> FidCostConstCodomain<Out> {
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidCostConstCodomain<Out>, ElemFidCostConstCodomain>
-    for FidCostConstCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepCostConstCodomain<Out>, ElemStepCostConstCodomain>
+    for StepCostConstCodomain<Out>
 {
-    fn header(elem: &FidCostConstCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepCostConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([
             String::from("y"),
             String::from("fidelity"),
@@ -1006,10 +1010,10 @@ impl<Out: FidOutcome> CSVWritable<FidCostConstCodomain<Out>, ElemFidCostConstCod
         v
     }
 
-    fn write(&self, comp: &ElemFidCostConstCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepCostConstCodomain) -> Vec<String> {
         let mut v = Vec::from([
             comp.value.to_string(),
-            comp.fidelity.to_string(),
+            comp.step.to_string(),
             comp.cost.to_string(),
         ]);
         v.extend(comp.constraints.iter().map(|c| c.to_string()));
@@ -1019,14 +1023,14 @@ impl<Out: FidOutcome> CSVWritable<FidCostConstCodomain<Out>, ElemFidCostConstCod
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidCostConstCodomain {
+pub struct ElemStepCostConstCodomain {
     pub value: f64,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub cost: f64,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidCostConstCodomain {
+impl PartialEq for ElemStepCostConstCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
             && self.cost == other.cost
@@ -1034,53 +1038,51 @@ impl PartialEq for ElemFidCostConstCodomain {
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidCostConstCodomain<Out> {
-    type TypeCodom = ElemFidCostConstCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepCostConstCodomain<Out> {
+    type TypeCodom = ElemStepCostConstCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidCostConstCodomain {
+        ElemStepCostConstCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             cost: self.get_cost(o),
             constraints: self.get_constraints(o),
         }
     }
 }
-impl<Out: FidOutcome> Single<Out> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Single<Out> for StepCostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: FidOutcome> Cost<Out> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for StepCostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for StepCostConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidCostConstCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepCostConstCodomain<Out> {}
 
 /// A [`Multi`]-objective, and [`Fidelity`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidMultiCodomain<Out: FidOutcome> {
+pub struct StepMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: FidOutcome> FidMultiCodomain<Out> {
+impl<Out: FidOutcome> StepMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>) -> Self {
-        FidMultiCodomain {
-            y_criteria: crit,
-        }
+        StepMultiCodomain { y_criteria: crit }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidMultiCodomain<Out>, ElemFidMultiCodomain>
-    for FidMultiCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepMultiCodomain<Out>, ElemStepMultiCodomain>
+    for StepMultiCodomain<Out>
 {
-    fn header(elem: &FidMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepMultiCodomain<Out>) -> Vec<String> {
         let mut out: Vec<String> = elem
             .y_criteria
             .iter()
@@ -1091,67 +1093,64 @@ impl<Out: FidOutcome> CSVWritable<FidMultiCodomain<Out>, ElemFidMultiCodomain>
         out
     }
 
-    fn write(&self, comp: &ElemFidMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepMultiCodomain) -> Vec<String> {
         let mut out: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        out.push(comp.fidelity.to_string());
+        out.push(comp.step.to_string());
         out
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidMultiCodomain {
+pub struct ElemStepMultiCodomain {
     pub value: Box<[f64]>,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
 }
 
-impl PartialEq for ElemFidMultiCodomain {
+impl PartialEq for ElemStepMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.fidelity == other.fidelity
+        self.value == other.value && self.step == other.step
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidMultiCodomain<Out> {
-    type TypeCodom = ElemFidMultiCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepMultiCodomain<Out> {
+    type TypeCodom = ElemStepMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidMultiCodomain {
+        ElemStepMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
         }
     }
 }
 
-impl<Out: FidOutcome> Multi<Out> for FidMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for StepMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
 
-impl<Out: FidOutcome> HasEvalState<Out> for FidMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Constrained`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidConstMultiCodomain<Out: FidOutcome> {
+pub struct StepConstMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: FidOutcome> FidConstMultiCodomain<Out> {
-    pub fn new(
-        crit: Box<[Criteria<Out>]>,
-        con: Box<[Criteria<Out>]>,
-    ) -> Self {
-        FidConstMultiCodomain {
+impl<Out: FidOutcome> StepConstMultiCodomain<Out> {
+    pub fn new(crit: Box<[Criteria<Out>]>, con: Box<[Criteria<Out>]>) -> Self {
+        StepConstMultiCodomain {
             y_criteria: crit,
             c_criteria: con,
         }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidConstMultiCodomain<Out>, ElemFidConstMultiCodomain>
-    for FidConstMultiCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepConstMultiCodomain<Out>, ElemStepConstMultiCodomain>
+    for StepConstMultiCodomain<Out>
 {
-    fn header(elem: &FidConstMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepConstMultiCodomain<Out>) -> Vec<String> {
         let mut v: Vec<String> = elem
             .y_criteria
             .iter()
@@ -1169,9 +1168,9 @@ impl<Out: FidOutcome> CSVWritable<FidConstMultiCodomain<Out>, ElemFidConstMultiC
         v
     }
 
-    fn write(&self, comp: &ElemFidConstMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepConstMultiCodomain) -> Vec<String> {
         let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        v.push(comp.fidelity.to_string());
+        v.push(comp.step.to_string());
         let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
@@ -1180,64 +1179,64 @@ impl<Out: FidOutcome> CSVWritable<FidConstMultiCodomain<Out>, ElemFidConstMultiC
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidConstMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidConstMultiCodomain {
+pub struct ElemStepConstMultiCodomain {
     pub value: Box<[f64]>,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidConstMultiCodomain {
+impl PartialEq for ElemStepConstMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
             && self.constraints == other.constraints
-            && self.fidelity == other.fidelity
+            && self.step == other.step
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidConstMultiCodomain<Out> {
-    type TypeCodom = ElemFidConstMultiCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepConstMultiCodomain<Out> {
+    type TypeCodom = ElemStepConstMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidConstMultiCodomain {
+        ElemStepConstMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             constraints: self.get_constraints(o),
         }
     }
 }
 
-impl<Out: FidOutcome> Multi<Out> for FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for StepConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: FidOutcome> Constrained<Out, ConsType> for FidConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for StepConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidConstMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepConstMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostMultiCodomain<Out: FidOutcome> {
+pub struct StepCostMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: FidOutcome> FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> StepCostMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, cost: Criteria<Out>) -> Self {
-        FidCostMultiCodomain {
+        StepCostMultiCodomain {
             y_criteria: crit,
             co_criteria: cost,
         }
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidCostMultiCodomain<Out>, ElemFidCostMultiCodomain>
-    for FidCostMultiCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepCostMultiCodomain<Out>, ElemStepCostMultiCodomain>
+    for StepCostMultiCodomain<Out>
 {
-    fn header(elem: &FidCostMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepCostMultiCodomain<Out>) -> Vec<String> {
         let mut v: Vec<String> = elem
             .y_criteria
             .iter()
@@ -1248,65 +1247,61 @@ impl<Out: FidOutcome> CSVWritable<FidCostMultiCodomain<Out>, ElemFidCostMultiCod
         v
     }
 
-    fn write(&self, comp: &ElemFidCostMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepCostMultiCodomain) -> Vec<String> {
         let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        v.extend([comp.fidelity.to_string(), comp.cost.to_string()]);
+        v.extend([comp.step.to_string(), comp.cost.to_string()]);
         v
     }
 }
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidCostMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidCostMultiCodomain {
+pub struct ElemStepCostMultiCodomain {
     pub value: Box<[f64]>,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub cost: f64,
 }
 
-impl PartialEq for ElemFidCostMultiCodomain {
+impl PartialEq for ElemStepCostMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.cost == other.cost
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidCostMultiCodomain<Out> {
-    type TypeCodom = ElemFidCostMultiCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepCostMultiCodomain<Out> {
+    type TypeCodom = ElemStepCostMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidCostMultiCodomain {
+        ElemStepCostMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             cost: self.get_cost(o),
         }
     }
 }
-impl<Out: FidOutcome> Multi<Out> for FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for StepCostMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: FidOutcome> Cost<Out> for FidCostMultiCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for StepCostMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidCostMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepCostMultiCodomain<Out> {}
 
 /// A [`Multi`] objective, [`Fidelity`], [`Constrained`], and [`Cost`] [`Codomain`].
 #[derive(Debug)]
-pub struct FidCostConstMultiCodomain<Out: FidOutcome> {
+pub struct StepCostConstMultiCodomain<Out: FidOutcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
     pub co_criteria: Criteria<Out>,
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: FidOutcome> FidCostConstMultiCodomain<Out> {
-    pub fn new(
-        crit: Box<[Criteria<Out>]>,
-        cost: Criteria<Out>,
-        con: Box<[Criteria<Out>]>,
-    ) -> Self {
-        FidCostConstMultiCodomain {
+impl<Out: FidOutcome> StepCostConstMultiCodomain<Out> {
+    pub fn new(crit: Box<[Criteria<Out>]>, cost: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
+        StepCostConstMultiCodomain {
             y_criteria: crit,
             co_criteria: cost,
             c_criteria: con,
@@ -1314,10 +1309,10 @@ impl<Out: FidOutcome> FidCostConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: FidOutcome> CSVWritable<FidCostConstMultiCodomain<Out>, ElemFidCostConstMultiCodomain>
-    for FidCostConstMultiCodomain<Out>
+impl<Out: FidOutcome> CSVWritable<StepCostConstMultiCodomain<Out>, ElemStepCostConstMultiCodomain>
+    for StepCostConstMultiCodomain<Out>
 {
-    fn header(elem: &FidCostConstMultiCodomain<Out>) -> Vec<String> {
+    fn header(elem: &StepCostConstMultiCodomain<Out>) -> Vec<String> {
         let mut v: Vec<String> = elem
             .y_criteria
             .iter()
@@ -1335,9 +1330,9 @@ impl<Out: FidOutcome> CSVWritable<FidCostConstMultiCodomain<Out>, ElemFidCostCon
         v
     }
 
-    fn write(&self, comp: &ElemFidCostConstMultiCodomain) -> Vec<String> {
+    fn write(&self, comp: &ElemStepCostConstMultiCodomain) -> Vec<String> {
         let mut v: Vec<String> = comp.value.iter().map(|v| v.to_string()).collect();
-        v.extend([comp.fidelity.to_string(), comp.cost.to_string()]);
+        v.extend([comp.step.to_string(), comp.cost.to_string()]);
         let c: Vec<String> = comp.constraints.iter().map(|c| c.to_string()).collect();
         v.extend(c);
         v
@@ -1346,47 +1341,47 @@ impl<Out: FidOutcome> CSVWritable<FidCostConstMultiCodomain<Out>, ElemFidCostCon
 
 /// An element ([`TypeCodom`](Codomain::TypeDom)) from [`FidCostConstMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ElemFidCostConstMultiCodomain {
+pub struct ElemStepCostConstMultiCodomain {
     pub value: Box<[f64]>,
-    pub fidelity: EvalState,
+    pub step: EvalStep,
     pub cost: f64,
     pub constraints: Box<[f64]>,
 }
 
-impl PartialEq for ElemFidCostConstMultiCodomain {
+impl PartialEq for ElemStepCostConstMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
             && self.cost == other.cost
             && self.constraints == other.constraints
-            && self.fidelity == other.fidelity
+            && self.step == other.step
     }
 }
 
-impl<Out: FidOutcome> Codomain<Out> for FidCostConstMultiCodomain<Out> {
-    type TypeCodom = ElemFidCostConstMultiCodomain;
+impl<Out: FidOutcome> Codomain<Out> for StepCostConstMultiCodomain<Out> {
+    type TypeCodom = ElemStepCostConstMultiCodomain;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
-        ElemFidCostConstMultiCodomain {
+        ElemStepCostConstMultiCodomain {
             value: self.get_y(o),
-            fidelity: self.get_evalstate(o),
+            step: self.get_evalstate(o),
             cost: self.get_cost(o),
             constraints: self.get_constraints(o),
         }
     }
 }
-impl<Out: FidOutcome> Multi<Out> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Multi<Out> for StepCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: FidOutcome> Cost<Out> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Cost<Out> for StepCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: FidOutcome> Constrained<Out, ConsType> for FidCostConstMultiCodomain<Out> {
+impl<Out: FidOutcome> Constrained<Out, ConsType> for StepCostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
-impl<Out: FidOutcome> HasEvalState<Out> for FidCostConstMultiCodomain<Out> {}
+impl<Out: FidOutcome> HasEvalStep<Out> for StepCostConstMultiCodomain<Out> {}

@@ -1,25 +1,15 @@
 use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 
 use csv::StringRecord;
-use tantale::core::{Codomain, Computed, Optimizer, Partial, SId, Searchspace, SingleCodomain};
-use tantale_algos::RandomSearch;
-use tantale_core::experiment::BatchEvaluator;
-use tantale_core::optimizer::opt::OpInfType;
-use tantale_core::optimizer::opt::OpSInfType;
-use tantale_core::optimizer::opt::OpSolType;
-use tantale_core::saver::CSVSaver;
-use tantale_core::saver::CSVWritable;
-use tantale_core::saver::Saver;
-use tantale_core::solution::Batch;
-use tantale_core::solution::BatchType;
-use tantale_core::solution::CompBatch;
-use tantale_core::solution::RawBatch;
-use tantale_core::solution::RawSol;
-use tantale_core::stop::{Calls, Stop};
-use tantale_core::BaseDom;
-use tantale_core::BaseTypeDom;
-use tantale_core::Solution;
-use tantale_core::Sp;
+use tantale::core::{
+    Codomain, Computed, Optimizer, Partial, SId, Searchspace, BaseDom,BaseTypeDom,Solution,Sp,FolderConfig,
+    experiment::BatchEvaluator,
+    optimizer::opt::{OpInfType,OpSInfType,OpSolType},
+    recorder::{Recorder, csv::{CSVRecorder,CSVWritable}},
+    solution::{Batch,BatchType,CompBatch,OutBatch,RawSol},
+    stop::{Calls, Stop},
+};
+use tantale::algos::{RSState, RandomSearch};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -59,7 +49,7 @@ use infos::OutExample;
 
 type EvalType<SType, Info, SInfo> = BatchEvaluator<SType, SId, BaseDom, BaseDom, Info, SInfo>;
 
-pub fn run_saver<'a, Scp, Op, St, Sv>(
+pub fn run_recorder<'a, Scp, Op, St, Rec>(
     hash_obj: &mut HashMap<usize, Arc<Op::Sol>>,
     hash_opt: &mut HashMap<
         usize,
@@ -71,13 +61,13 @@ pub fn run_saver<'a, Scp, Op, St, Sv>(
         Arc<Computed<Op::Sol, SId, BaseDom, Op::Cod, OutExample, Op::SInfo>>,
     >,
     hash_inf: &mut HashMap<usize, Arc<Op::Info>>,
-    sp: Arc<Scp>,
-    cod: Arc<Op::Cod>,
+    sp: &Scp,
+    cod: &Op::Cod,
     opt: &'a mut Op,
     stop: &mut St,
-    saver: &mut Sv,
+    recorder: &mut Rec,
     size: usize,
-) -> (St, &'a Op::State, Op, Op::BType)
+)
 where
     Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
     Op: Optimizer<
@@ -96,22 +86,13 @@ where
         >,
     >,
     St: Stop + Send + Sync,
-    Sv: Saver<
-        SId,
-        St,
-        BaseDom,
-        BaseDom,
-        OutExample,
-        Scp,
-        Op,
-        EvalType<Op::Sol, Op::SInfo, Op::Info>,
-    >,
+    Rec: Recorder<SId,BaseDom,BaseDom,OutExample,Scp,Op>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let batch = opt.first_step(sp.clone());
-    let mut batchr = RawBatch::empty(batch.get_info().clone());
+    let batch = opt.first_step(sp);
+    let mut batchr = OutBatch::empty(batch.get_info().clone());
     let mut batchc = CompBatch::empty(batch.get_info().clone());
     (0..batch.size()).for_each(|idx| {
         let (a, b) = batch.index(idx);
@@ -142,15 +123,13 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
 
-    saver.save_partial(&batch, sp.clone());
-    saver.save_codom(&batchc, sp.clone(), cod.clone());
-    saver.save_out(&batchr, sp.clone());
-    saver.save_info(&batch, sp.clone());
-    let eval: BatchEvaluator<_, _, _, _, _, _> = BatchEvaluator::new(batch);
-    saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
+    recorder.save_partial(&batchc, sp, cod);
+    recorder.save_codom(&batchc, sp, cod);
+    recorder.save_out(&batchr, sp, cod);
+    recorder.save_info(&batchc, sp, cod);
 
-    let batch = opt.step(batchc, sp.clone());
-    let mut batchr = RawBatch::empty(batch.get_info().clone());
+    let batch = opt.step(batchc, sp);
+    let mut batchr = OutBatch::empty(batch.get_info().clone());
     let mut batchc = CompBatch::empty(batch.get_info().clone());
     (0..batch.size()).for_each(|idx| {
         let (a, b) = batch.index(idx);
@@ -181,12 +160,10 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution);
     stop.update(tantale_core::stop::ExpStep::Distribution);
 
-    saver.save_partial(&batch, sp.clone());
-    saver.save_codom(&batchc, sp.clone(), cod.clone());
-    saver.save_out(&batchr, sp.clone());
-    saver.save_info(&batch, sp.clone());
-    let eval: BatchEvaluator<_, _, _, _, _, _> = BatchEvaluator::new(batch);
-    saver.save_state(sp.clone(), opt.get_state(), stop, &eval);
+    recorder.save_partial(&batchc, sp, cod);
+    recorder.save_codom(&batchc, sp, cod);
+    recorder.save_info(&batchc, sp, cod);
+    recorder.save_out(&batchr, sp, cod);
 
     run_reader::<Op, Scp>(
         "tmp_test",
@@ -195,14 +172,9 @@ where
         hash_out,
         hash_cod,
         hash_inf,
-        cod.clone(),
+        cod,
         size,
     );
-    let nstop = saver.load_stop(&sp, cod.as_ref()).unwrap();
-    let nopt = saver.load_optimizer(&sp, cod.as_ref()).unwrap();
-    let neval = saver.load_evaluate(&sp, cod.as_ref()).unwrap();
-
-    (nstop, opt.get_state(), nopt, neval.batch)
 }
 
 pub fn run_reader<Op, Scp>(
@@ -212,7 +184,7 @@ pub fn run_reader<Op, Scp>(
     hash_out: &HashMap<usize, Arc<RawSol<Op::Sol, SId, BaseDom, OutExample, Op::SInfo>>>,
     hash_cod: &HashMap<usize, Arc<Computed<Op::Sol, SId, BaseDom, Op::Cod, OutExample, Op::SInfo>>>,
     hash_inf: &HashMap<usize, Arc<Op::Info>>,
-    cod: Arc<Op::Cod>,
+    cod: &Op::Cod,
     size: usize,
 ) where
     Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
@@ -376,29 +348,14 @@ pub fn run_reader<Op, Scp>(
 }
 
 fn test_csv_func() {
-    let sp = Arc::new(get_searchspace());
-    let cod = Arc::new(SingleCodomain::new(|x: &OutExample| x.mul6));
+    let sp = get_searchspace();
+    let cod = RandomSearch::codomain(|x: &OutExample| x.mul6);
 
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
-    let mut saver = CSVSaver::new("tmp_test", true, true, true, true, 1);
-    <CSVSaver as Saver<
-        SId,
-        Calls,
-        BaseDom,
-        BaseDom,
-        OutExample,
-        Sp<BaseDom, BaseDom>,
-        RandomSearch,
-        BatchEvaluator<
-            OpSolType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
-            SId,
-            BaseDom,
-            BaseDom,
-            OpSInfType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
-            OpInfType<RandomSearch, SId, BaseDom, BaseDom, OutExample, Sp<_, _>>,
-        >,
-    >>::init(&mut saver, sp.clone().as_ref(), cod.clone().as_ref());
+    let config = FolderConfig::new("tmp_test");
+    let mut recorder = CSVRecorder::new(config, true, true, true, true);
+    <CSVRecorder as Recorder<_,BaseDom,BaseDom,_,Sp<BaseDom,BaseDom>,RandomSearch<RSState>>>::init(&mut recorder, &sp, &cod);
 
     let mut hash_obj = HashMap::new();
     let mut hash_opt = HashMap::new();
@@ -406,80 +363,32 @@ fn test_csv_func() {
     let mut hash_codom = HashMap::new();
     let mut hash_info = HashMap::new();
 
-    let (mut nstop, rstate, mut nopt, _) = run_saver(
+    run_recorder(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
         &mut hash_codom,
         &mut hash_info,
-        sp.clone(),
-        cod.clone(),
+        &sp,
+        &cod,
         &mut rs,
         &mut stop,
-        &mut saver,
+        &mut recorder,
         6,
     );
-    let nstate =
-        <RandomSearch as Optimizer<SId, BaseDom, BaseDom, OutExample, Sp<_, _>>>::get_state(
-            &mut nopt,
-        );
-
-    assert_eq!(
-        stop.0, nstop.0,
-        "States of threshold in Calls are different after loading."
-    );
-    assert_eq!(
-        stop.1, nstop.1,
-        "States of calls in Calls are different after loading."
-    );
-    assert_eq!(stop.0, 12, "Wrong number of Calls before loading");
-    assert_eq!(nstop.0, 12, "Wrong number of Calls after loading");
-
-    assert_eq!(
-        rstate.batch, nstate.batch,
-        "Batch fields for RSState are different after loading."
-    );
-    assert_eq!(
-        rstate.iteration, nstate.iteration,
-        "Iteration fields for RSState are different after loading."
-    );
-
-    let (nnstop, rstate, mut nopt, _) = run_saver(
+    
+    run_recorder(
         &mut hash_obj,
         &mut hash_opt,
         &mut hash_outcome,
         &mut hash_codom,
         &mut hash_info,
-        sp.clone(),
-        cod.clone(),
+        &sp,
+        &cod,
         &mut rs,
-        &mut nstop,
-        &mut saver,
+        &mut stop,
+        &mut recorder,
         12,
-    );
-    let nstate =
-        <RandomSearch as Optimizer<SId, BaseDom, BaseDom, OutExample, Sp<_, _>>>::get_state(
-            &mut nopt,
-        );
-
-    assert_eq!(
-        nstop.0, nnstop.0,
-        "States of threshold in Calls are different after loading."
-    );
-    assert_eq!(
-        nstop.1, nnstop.1,
-        "States of calls in Calls are different after loading."
-    );
-    assert_eq!(nstop.0, 24, "Wrong number of Calls before loading");
-    assert_eq!(nnstop.0, 24, "Wrong number of Calls after loading");
-
-    assert_eq!(
-        rstate.batch, nstate.batch,
-        "Batch fields for RSState are different after loading."
-    );
-    assert_eq!(
-        rstate.iteration, nstate.iteration,
-        "Iteration fields for RSState are different after loading."
     );
     drop(Cleaner {});
 }

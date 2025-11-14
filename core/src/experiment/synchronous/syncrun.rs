@@ -1,19 +1,13 @@
 use crate::{
-    FidOutcome, Id, Partial, Stepped,
-    checkpointer::Checkpointer,
+    FidOutcome, Id, Partial, Stepped, 
+    checkpointer::Checkpointer, 
     domain::onto::OntoDom,
     experiment::{
-        BatchEvaluator, Evaluate, FidBatchEvaluator, FidThrBatchEvaluator,
-        MonoEvaluate, Runable,ThrBatchEvaluator, ThrEvaluate,
+        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, Runable,
+        ThrBatchEvaluator, ThrEvaluate,
     },
-    objective::{
-        Codomain, Objective, Outcome,
-        outcome::FuncState
-    },
-    optimizer::{
-        CBType, OBType, Optimizer,
-        opt::{OpCodType, OpInfType, OpSInfType, OpSolType}
-    },
+    objective::{Codomain, FuncWrapper, Objective, Outcome, outcome::FuncState},
+    optimizer::Optimizer,
     recorder::Recorder,
     searchspace::Searchspace,
     solution::{Batch, SId, partial::FidelityPartial},
@@ -27,33 +21,36 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    checkpointer::{DistCheckpointer, NoWCheck, WorkerCheckpointer, messagepack::WCheckMessagePack},
-    experiment::{
-        DistEvaluate, DistRunable, MasterWorker,
-        mpi::{
+    checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+        DistEvaluate, DistRunable, MasterWorker, mpi::{
             tools::MPIProcess,
-            worker::{BaseWorker, FidWState, FidWorker, NoWState}
+            utils::{checkpoint_order, stop_order},
+            worker::{BaseWorker, FidWorker},
         }
-    },
-    recorder::DistRecorder
+    }, recorder::DistRecorder
 };
-#[cfg(feature = "mpi")]
-use mpi::{topology::Communicator, traits::Destination};
 
-pub struct SyncExperiment<SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out>
+  //--------------------//
+ //--- MONOTHREADED ---//
+//--------------------//
+
+pub struct MonoExperiment<SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out, Fn>
 where
     SolId: Id,
-    Eval: Evaluate,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp>,
-    St: Stop,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Rec: Recorder<SolId, Obj, Opt, Out, Scp, Op>,
+    Eval: MonoEvaluate<SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Sol, St, Op::Cod, Out, Scp, Fn, Op::BType>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp,Fn>,
+    St: Stop,
+    Rec: Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Check: Checkpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
+    Fn: FuncWrapper,
 {
     pub searchspace: Scp,
-    pub objective: Op::FnWrap,
+    pub codomain: Op::Cod,
+    pub objective: Fn,
     pub optimizer: Op,
     pub stop: St,
     pub recorder: Option<Rec>,
@@ -64,9 +61,25 @@ where
     _out: PhantomData<Out>,
 }
 
-impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
-    Runable<SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    for SyncExperiment<
+type OpBatch<Op, Obj, Opt, Out, Scp> = 
+Batch<
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj, Out>>>::Sol,
+    SId, Obj, Opt,
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj, Out>>>::SInfo,
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj, Out>>>::Info
+>;
+
+type FOpBatch<Op, Obj, Opt, Out, Scp, FnState> = 
+Batch<
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>>::Sol,
+    SId, Obj, Opt,
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>>::SInfo,
+    <Op as Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>>::Info
+>;
+
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out> 
+    Runable<SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj,Out>>
+    for MonoExperiment<
         SId,
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         Scp,
@@ -77,50 +90,44 @@ impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
         Obj,
         Opt,
         Out,
+        Objective<Obj,Out>,
     >
 where
-    Op: Optimizer<
-        SId,
-        Obj,
-        Opt,
-        Out,
-        Scp,
-        FnWrap = Objective<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out>,
-        BType = Batch<
-            OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-            SId,
-            Obj,
-            Opt,
-            OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-            OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-        >,
-    >,
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Objective<Obj,Out>, BType = OpBatch<Op, Obj, Opt, Out, Scp>>,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Rec: Recorder<SId,Obj,Opt,Out,Scp,Op>,
+    Rec: Recorder<SId, Obj, Opt, Out, Scp, Op,Objective<Obj,Out>,Op::BType>,
     Check: Checkpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
     fn new(
-        searchspace: Scp,
-        objective: Op::FnWrap,
+        space: (Scp,Op::Cod),
+        objective:Objective<Obj, Out> ,
         optimizer: Op,
         stop: St,
-        recorder: Option<Rec>,
-        checkpointer: Option<Check>,
+        saver: (Option<Rec>,Option<Check>)
     ) -> Self {
-        let recorder = match recorder{
-            Some(mut r) => {r.init(); Some(r)},
+        let (recorder,checkpointer) = saver;
+        let (searchspace,codomain) = space;
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace, &codomain);
+                Some(r)
+            }
             None => None,
         };
-        let checkpointer = match checkpointer{
-            Some(mut c) => {c.init(); Some(c)},
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
             None => None,
         };
-        SyncExperiment {
+        MonoExperiment {
             searchspace,
+            codomain,
             objective,
             optimizer,
             stop,
@@ -134,54 +141,64 @@ where
     }
 
     fn run(mut self) {
-
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => BatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
         };
 
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
+        let mut batch;
+        let mut batch_raw ;
+        let mut batch_comp;
         'main: loop {
             self.stop.update(ExpStep::Evaluation);
-            if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &self.stop, &eval) }
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+            }
             if self.stop.stop() {
                 break 'main;
             };
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = MonoEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::evaluate(&mut eval, &self.objective, &mut self.stop);
+            (batch_raw, batch_comp) = MonoEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::evaluate(&mut eval,&self.objective,&self.codomain,&mut self.stop);
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_out(&batch_raw);
-                r.save_partial(&batch_comp);
-                r.save_info(&batch_comp);
-                r.save_codom(&batch_comp);
+                r.save(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
             }
 
             if self.stop.stop() {
-                if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &self.stop, &eval) }
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+                }
                 break 'main;
             };
             batch = self.optimizer.step(batch_comp, &self.searchspace);
-            MonoEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval,batch);
+            MonoEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::update(&mut eval, batch);
             self.stop.update(ExpStep::Optimization);
         }
     }
 
-    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, mut checkpointer: Check) -> Self {
+    fn load(
+        space: (Scp,Op::Cod),
+        objective: Objective<Obj, Out>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
         let (state, stop, evaluator) = checkpointer.load().unwrap();
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
-            Some(mut rec) => {rec.after_load(); Some(rec)},
+            Some(mut rec) => {
+                rec.after_load(&searchspace, &codomain);
+                Some(rec)
+            }
             None => None,
         };
         checkpointer.after_load();
 
-        SyncExperiment {
+        MonoExperiment {
             searchspace,
+            codomain,
             objective,
             optimizer,
             stop,
@@ -195,19 +212,180 @@ where
     }
 }
 
-impl<Scp, Op, St, Obj, Opt, Out, Rec, Check>
-    Runable<
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState>
+    Runable<SId, Scp, Op, St, Rec, Check, Out, Obj, Opt,Stepped<Obj,Out,FnState>>
+    for MonoExperiment<
         SId,
+        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
         Scp,
         Op,
         St,
         Rec,
         Check,
-        Out,
         Obj,
         Opt,
+        Out,
+        Stepped<Obj,Out,FnState>
     >
-    for SyncExperiment<
+where
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Stepped<Obj,Out,FnState>, BType = FOpBatch<Op, Obj, Opt, Out, Scp, FnState>>,
+    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder<SId, Obj, Opt, Out, Scp, Op,Stepped<Obj,Out,FnState>,Op::BType>,
+    Check: Checkpointer,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: FidOutcome,
+    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo>,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo>,
+    FnState: FuncState,
+{
+    fn new(
+        space: (Scp,Op::Cod),
+        objective:Stepped<Obj, Out, FnState> ,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>,Option<Check>)
+    ) -> Self {
+        let (recorder,checkpointer) = saver;
+        let (searchspace,codomain)= space;
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace,&codomain);
+                Some(r)
+            }
+            None => None,
+        };
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
+            None => None,
+        };
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer,
+            evaluator: None,
+            _domobj: PhantomData,
+            _domopt: PhantomData,
+            _out: PhantomData,
+        }
+    }
+
+    fn run(mut self) {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
+        };
+
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
+        'main: loop {
+            self.stop.update(ExpStep::Evaluation);
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+            }
+            if self.stop.stop() {
+                break 'main;
+            };
+
+            // Evaluate batch
+            (batch_raw, batch_comp) = MonoEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::evaluate(&mut eval,&self.objective, &self.codomain, &mut self.stop);
+
+            // Saver part
+            if let Some(r) = &self.recorder {
+                r.save(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
+            }
+
+            if self.stop.stop() {
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+                }
+                break 'main;
+            };
+
+            batch = self.optimizer.step(batch_comp, &self.searchspace);
+            MonoEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::update(&mut eval, batch);
+            self.stop.update(ExpStep::Optimization);
+        }
+    }
+
+    fn load(
+        space: (Scp,Op::Cod),
+        objective: Stepped<Obj, Out, FnState>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.after_load(&searchspace,&codomain);
+                Some(r)
+            }
+            None => None,
+        };
+        checkpointer.after_load();
+
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            evaluator: Some(evaluator),
+            _domobj: PhantomData,
+            _domopt: PhantomData,
+            _out: PhantomData,
+        }
+    }
+}
+
+
+  //---------------------//
+ //--- MULTITHREADED ---//
+//---------------------//
+
+pub struct ThrExperiment<SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out, Fn>
+where
+    SolId: Id,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
+    Eval: ThrEvaluate<SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Sol, St, Op::Cod, Out, Scp, Fn, Op::BType>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp,Fn>,
+    St: Stop,
+    Rec: Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Check: Checkpointer,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: Outcome,
+    Fn: FuncWrapper,
+{
+    pub searchspace: Scp,
+    pub codomain: Op::Cod,
+    pub objective: Fn,
+    pub optimizer: Op,
+    pub stop: St,
+    pub recorder: Option<Rec>,
+    pub checkpointer: Option<Check>,
+    evaluator: Option<Eval>,
+    _domobj: PhantomData<Obj>,
+    _domopt: PhantomData<Opt>,
+    _out: PhantomData<Out>,
+}
+
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out> 
+    Runable<SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj,Out>>
+    for ThrExperiment<
         SId,
         ThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         Scp,
@@ -218,52 +396,50 @@ impl<Scp, Op, St, Obj, Opt, Out, Rec, Check>
         Obj,
         Opt,
         Out,
+        Objective<Obj,Out>,
     >
 where
-    Op: Optimizer<
-            SId,
-            Obj,
-            Opt,
-            Out,
-            Scp,
-            FnWrap = Objective<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out>,
-            BType = Batch<
-                OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-                SId,
-                Obj,
-                Opt,
-                OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-                OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-            >,
-    >,
-    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    St: Stop + Send + Sync,
-    Rec: Recorder<SId,Obj,Opt,Out,Scp,Op,> + Send + Sync,
-    Check: Checkpointer + Send + Sync,
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Objective<Obj,Out>, BType = OpBatch<Op, Obj, Opt, Out, Scp>>,
     Obj: OntoDom<Opt> + Send + Sync,
     Opt: OntoDom<Obj> + Send + Sync,
-    Out: Outcome + Send + Sync,
-    Obj::TypeDom: Send + Sync,
-    Opt::TypeDom: Send + Sync,
-    Op::Cod: Send + Sync,
-    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
     Op::SInfo: Send + Sync,
     Op::Info: Send + Sync,
-    Op::State: Send + Sync,
-    Op::Sol: Send + Sync,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: Send + Sync,
+    Op::Sol: Partial<SId, Obj, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: Partial<SId, Opt, Op::SInfo, Twin<Obj> = Op::Sol> + Send + Sync,
+    St: Stop + Send + Sync,
+    Op::Cod: Codomain<Out> + Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
+    Out: Outcome + Send + Sync,
+    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Rec: Recorder<SId, Obj, Opt, Out, Scp, Op,Objective<Obj,Out>,Op::BType> + Send + Sync,
+    Check: Checkpointer,
 {
-    fn new(searchspace: Scp,objective: Op::FnWrap,optimizer: Op,stop: St,recorder: Option<Rec>,checkpointer: Option<Check>) -> Self {
+    fn new(
+        space: (Scp,Op::Cod),
+        objective:Objective<Obj, Out> ,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>,Option<Check>)
+    ) -> Self {
+        let (searchspace,codomain) = space;
+        let (recorder,checkpointer) = saver;
         let recorder = match recorder {
-            Some(mut r) => {r.init(); Some(r)},
+            Some(mut r) => {
+                r.init(&searchspace, &codomain);
+                Some(r)
+            }
             None => None,
         };
         let checkpointer = match checkpointer {
-            Some(mut c) => {c.init(); Some(c)},
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
             None => None,
         };
-        SyncExperiment {
+        ThrExperiment {
             searchspace,
+            codomain,
             objective,
             optimizer,
             stop,
@@ -278,77 +454,83 @@ where
 
     fn run(mut self) {
         let ob = Arc::new(self.objective);
+        let cod = Arc::new(self.codomain);
         let st = Arc::new(Mutex::new(self.stop));
+        let scp = Arc::new(self.searchspace);
 
         let mut eval = match self.evaluator {
             Some(e) => e,
-            None => ThrBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
+            None => ThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
         };
 
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
         'main: loop {
             {
                 let mut st = st.lock().unwrap();
                 st.update(ExpStep::Evaluation);
-                if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*st, &eval)
+                }
                 if st.stop() {
                     break 'main;
                 };
             }
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = ThrEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::evaluate(&mut eval, ob.clone(),st.clone());
+            (batch_raw, batch_comp) = ThrEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::
+                evaluate(&mut eval, ob.clone(), cod.clone(),st.clone());
 
             // Saver part
-            rayon::join(
-                || {
-                    rayon::join(
-                        || if let Some(r) = &self.recorder { r.save_partial(&batch_comp) },
-                        || if let Some(r) = &self.recorder { r.save_info(&batch_comp) }
-                    );
-                },
-                || {
-                    rayon::join(
-                        || if let Some(r) = &self.recorder { r.save_out(&batch_raw)},
-                        || if let Some(r) = &self.recorder { r.save_codom(&batch_comp)},
-                    );
-                },
-            );
+            if let Some(r) = &self.recorder{
+                r.save(&batch_comp, &batch_raw, &scp, &cod);
+            }
 
             {
                 let st = st.lock().unwrap();
                 if st.stop() {
-                    if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
+                    if let Some(c) = &self.checkpointer {
+                        c.save_state(self.optimizer.get_state(), &*st, &eval)
+                    }
                     break 'main;
                 };
             }
-            batch = self.optimizer.step(batch_comp, &self.searchspace);
-            ThrEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval, batch);
+            batch = self.optimizer.step(batch_comp, &scp);
+            ThrEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::update(&mut eval, batch);
             {
                 let mut st = st.lock().unwrap();
                 st.update(ExpStep::Optimization);
                 if st.stop() {
-                    if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
+                    if let Some(c) = &self.checkpointer {
+                        c.save_state(self.optimizer.get_state(), &*st, &eval)
+                    }
                     break 'main;
                 };
             }
         }
     }
 
-    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, mut checkpointer : Check ) -> Self {
-        let (state, stop, evaluator) = checkpointer
-            .load()
-            .unwrap();
+    fn load(
+        space: (Scp,Op::Cod),
+        objective: Objective<Obj, Out>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
         let optimizer = Op::from_state(state);
-        let recorder = match recorder{
-            Some(mut rec) => {rec.after_load(); Some(rec)},
+        let recorder = match recorder {
+            Some(mut rec) => {
+                rec.after_load(&searchspace,&codomain);
+                Some(rec)
+            }
             None => None,
         };
         checkpointer.after_load();
-        SyncExperiment {
+        ThrExperiment {
             searchspace,
+            codomain,
             objective,
             optimizer,
             stop,
@@ -362,10 +544,211 @@ where
     }
 }
 
+impl<Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState> 
+    Runable<SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Stepped<Obj,Out,FnState>>
+    for ThrExperiment<
+        SId,
+        FidThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info,FnState>,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Obj,
+        Opt,
+        Out,
+        Stepped<Obj,Out,FnState>,
+    >
+where
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Stepped<Obj,Out,FnState>, BType = FOpBatch<Op, Obj, Opt, Out, Scp, FnState>>,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
+    St: Stop + Send + Sync,
+    Out: FidOutcome + Send + Sync,
+    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
+    Rec: Recorder<SId, Obj, Opt, Out, Scp, Op,Stepped<Obj,Out,FnState>,Op::BType> + Send + Sync,
+    Check: Checkpointer,
+    FnState: FuncState + Send + Sync,
+    Op::SInfo: Send + Sync,
+    Op::Info: Send + Sync,
+    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo> + Send + Sync,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo, Twin<Obj> = Op::Sol> + Send + Sync,
+    Op::Cod: Codomain<Out> + Send + Sync,
+    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
+{
+    fn new(
+        space: (Scp,Op::Cod),
+        objective:Stepped<Obj, Out, FnState> ,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>,Option<Check>)
+    ) -> Self {
+        let (recorder, checkpointer) = saver;
+        let (searchspace, codomain) = space;
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace,&codomain);
+                Some(r)
+            }
+            None => None,
+        };
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
+            None => None,
+        };
+        ThrExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer,
+            evaluator: None,
+            _domobj: PhantomData,
+            _domopt: PhantomData,
+            _out: PhantomData,
+        }
+    }
+
+    fn run(mut self) {
+        let ob = Arc::new(self.objective);
+        let cod = Arc::new(self.codomain);
+        let st = Arc::new(Mutex::new(self.stop));
+        let scp = Arc::new(self.searchspace);
+
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
+        };
+
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
+        'main: loop {
+            {
+                let mut st = st.lock().unwrap();
+                st.update(ExpStep::Evaluation);
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*st, &eval)
+                }
+                if st.stop() {
+                    break 'main;
+                };
+            }
+
+            // Arc copy of data to send to evaluator thread.
+            (batch_raw, batch_comp) = ThrEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::evaluate(
+                &mut eval,
+                ob.clone(),
+                cod.clone(),
+                st.clone(),
+            );
+
+            // Saver part
+            if let Some(r) = &self.recorder{
+                r.save(&batch_comp, &batch_raw, &scp, &cod);
+            }
+
+            {
+                let st = st.lock().unwrap();
+                if st.stop() {
+                    if let Some(c) = &self.checkpointer {
+                        c.save_state(self.optimizer.get_state(), &*st, &eval)
+                    }
+                    break 'main;
+                };
+            }
+            batch = self.optimizer.step(batch_comp, &scp);
+            ThrEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::update(&mut eval, batch);
+            {
+                let mut st = st.lock().unwrap();
+                st.update(ExpStep::Optimization);
+                if st.stop() {
+                    if let Some(c) = &self.checkpointer {
+                        c.save_state(self.optimizer.get_state(), &*st, &eval)
+                    }
+                    break 'main;
+                };
+            }
+        }
+    }
+
+    fn load(
+        space: (Scp,Op::Cod),
+        objective: Stepped<Obj, Out, FnState>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut rec) => {
+                rec.after_load(&searchspace,&codomain);
+                Some(rec)
+            }
+            None => None,
+        };
+        checkpointer.after_load();
+        ThrExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            evaluator: Some(evaluator),
+            _domobj: PhantomData,
+            _domopt: PhantomData,
+            _out: PhantomData,
+        }
+    }
+}
+
+
+  //-------------------//
+ //--- DISTRIBUTED ---// 
+//-------------------//
+
 #[cfg(feature = "mpi")]
-impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
-    DistRunable<SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    for SyncExperiment<
+pub struct DistExperiment<'a, SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out, Fn>
+where
+    SolId: Id,
+    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
+    Eval: DistEvaluate<SolId, Obj, Opt, Op::SInfo, Op::Info, Op::Sol, St, Op::Cod, Out, Scp, Fn, Op::BType>,
+    Op: Optimizer<SolId, Obj, Opt, Out, Scp,Fn>,
+    St: Stop,
+    Rec: DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Check: DistCheckpointer,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: Outcome,
+    Fn: FuncWrapper,
+{
+    pub proc: &'a MPIProcess,
+    pub searchspace: Scp,
+    pub codomain: Op::Cod,
+    pub objective: Fn,
+    pub optimizer: Op,
+    pub stop: St,
+    pub recorder: Option<Rec>,
+    pub checkpointer: Option<Check>,
+    evaluator: Option<Eval>,
+    _domobj: PhantomData<Obj>,
+    _domopt: PhantomData<Opt>,
+    _out: PhantomData<Out>,
+}
+
+#[cfg(feature = "mpi")]
+impl<'a, Scp, Op, St, Rec, Check, Obj, Opt, Out> 
+    DistRunable<'a, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj,Out>>
+    for DistExperiment<
+        'a,
         SId,
         BatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         Scp,
@@ -376,60 +759,49 @@ impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
         Obj,
         Opt,
         Out,
+        Objective<Obj,Out>,
     >
 where
-    Op: Optimizer<
-        SId,
-        Obj,
-        Opt,
-        Out,
-        Scp,
-        FnWrap = Objective<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out>,
-        BType = Batch<
-            OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-            SId,
-            Obj,
-            Opt,
-            OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-            OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-        >,
-    >,
+    Self: 'a,
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Objective<Obj,Out>, BType = OpBatch<Op, Obj, Opt, Out, Scp>>,
     Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
     St: Stop,
-    Rec: DistRecorder<
-        SId,
-        Obj,
-        Opt,
-        Out,
-        Scp,
-        Op,
-    >,
+    Rec: DistRecorder<SId, Obj, Opt, Out, Scp, Op,Objective<Obj,Out>,Op::BType>,
     Check: DistCheckpointer,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: Outcome,
 {
-    type WType = BaseWorker<Obj,Op::Cod,Out>;
+    type WType = BaseWorker<'a, Obj, Out>;
     fn new_dist(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Op::FnWrap,
+        proc: &'a MPIProcess,
+        space: (Scp,Op::Cod),
+        objective:Objective<Obj, Out>,
         optimizer: Op,
         stop: St,
-        recorder: Option<Rec>,
-        checkpointer: Option<Check>,
-    ) -> MasterWorker<Self,SId,Scp,Op,St,Rec,Check,Out,Obj,Opt> {
-        if proc.rank == 0{
+        saver: (Option<Rec>,Option<Check>)
+    ) -> MasterWorker<'a, Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj,Out>> {
+        let (searchspace,codomain) = space;
+        let (recorder,checkpointer) = saver;
+        if proc.rank == 0 {
             let recorder = match recorder {
-                Some(mut r) => {r.init_dist(proc); Some(r)},
+                Some(mut r) => {
+                    r.init_dist(proc, &searchspace, &codomain);
+                    Some(r)
+                }
                 None => None,
             };
             let checkpointer = match checkpointer {
-                Some(mut c) => {c.init_dist(proc); Some(c)},
+                Some(mut c) => {
+                    c.init_dist(proc);
+                    Some(c)
+                }
                 None => None,
             };
-            MasterWorker::Master(SyncExperiment {
+            MasterWorker::Master(DistExperiment {
+                proc,
                 searchspace,
+                codomain,
                 objective,
                 optimizer,
                 stop,
@@ -440,13 +812,12 @@ where
                 _domopt: PhantomData,
                 _out: PhantomData,
             })
-        }else{
-            MasterWorker::Worker(BaseWorker::new(objective))
+        } else {
+            MasterWorker::Worker(BaseWorker::new(objective,proc))
         }
     }
 
-    fn run_dist(mut self, proc: &MPIProcess) {
-
+    fn run_dist(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -455,75 +826,263 @@ where
             }
         };
 
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
 
         'main: loop {
             self.stop.update(ExpStep::Evaluation);
-            if let Some(c) = &self.checkpointer { c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,proc.rank) }
+            if let Some(c) = &self.checkpointer {
+                c.save_state_dist(self.optimizer.get_state(), &self.stop, &eval, self.proc.rank);
+            }
             if self.stop.stop() {
                 break 'main;
             };
 
             // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = DistEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::evaluate(&mut eval, proc, &self.objective, &mut self.stop);
+            (batch_raw, batch_comp) = DistEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::evaluate(
+                &mut eval,
+                self.proc,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+            );
 
-            // DistributedSaver part
-            if let Some(rec) = &self.recorder {
-                rec.save_partial_dist(&batch_comp);
-                rec.save_info_dist(&batch_comp);
-                rec.save_codom_dist(&batch_comp);
-                rec.save_out_dist(&batch_raw);
+            // Saver part
+            if let Some(r) = &self.recorder{
+                r.save_dist(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
             }
-            
+
             if self.stop.stop() {
-                if let Some(c) = &self.checkpointer { c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,proc.rank) }
+                if let Some(c) = &self.checkpointer {
+                    c.save_state_dist(self.optimizer.get_state(), &self.stop, &eval, self.proc.rank);
+                }
                 break 'main;
             };
 
             batch = self.optimizer.step(batch_comp, &self.searchspace);
-            DistEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval, batch);
-            
+            DistEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Objective<Obj,Out>,Op::BType>::update(&mut eval, batch);
+
             self.stop.update(ExpStep::Optimization);
         }
-        (1..proc.size).for_each(|idx| {
-            proc.world
-                .process_at_rank(idx)
-                .send_with_tag(&Vec::<u8>::new(), 42);
-        });
+        stop_order(self.proc, 1..self.proc.size);
     }
 
-    fn load_dist(proc: &MPIProcess,searchspace: Scp,objective: Op::FnWrap,recorder: Option<Rec>,mut checkpointer: Check) -> MasterWorker<Self,SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    {
-        if proc.rank == 0{
+    fn load_dist(
+        proc: &'a MPIProcess,
+        space: (Scp,Op::Cod),
+        objective: Objective<Obj, Out>,
+        saver: (Option<Rec>, Check),
+    ) -> MasterWorker<'a, Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj,Out>> {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        if proc.rank == 0 {
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
-                Some(mut r) => {r.after_load_dist(proc); Some(r)},
+                Some(mut r) => {
+                    r.after_load_dist(proc, &searchspace, &codomain);
+                    Some(r)
+                }
                 None => None,
             };
             checkpointer.after_load_dist(proc);
-            MasterWorker::Master(
-                SyncExperiment {
-                    searchspace,
-                    objective,
-                    optimizer,
-                    stop,
-                    recorder,
-                    checkpointer: Some(checkpointer),
-                    evaluator: Some(evaluator),
-                    _domobj: PhantomData,
-                    _domopt: PhantomData,
-                    _out: PhantomData,
-                }
-            )
-        } else{
-            MasterWorker::Worker(BaseWorker::new(objective))
+            MasterWorker::Master(DistExperiment {
+                proc,
+                searchspace,
+                codomain,
+                objective,
+                optimizer,
+                stop,
+                recorder,
+                checkpointer: Some(checkpointer),
+                evaluator: Some(evaluator),
+                _domobj: PhantomData,
+                _domopt: PhantomData,
+                _out: PhantomData,
+            })
+        } else {
+            MasterWorker::Worker(BaseWorker::new(objective,proc))
         }
-        
     }
 }
+
+
+#[cfg(feature = "mpi")]
+impl<'a, Scp, Op, St, Rec, Check, Obj, Opt, Out,FnState> 
+    DistRunable<'a, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Stepped<Obj,Out,FnState>>
+    for DistExperiment<
+        'a,
+        SId,
+        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info,FnState>,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Obj,
+        Opt,
+        Out,
+        Stepped<Obj,Out,FnState>,
+    >
+where
+    Self: 'a,
+    Op: Optimizer<SId,Obj,Opt,Out,Scp,Stepped<Obj,Out,FnState>, BType = FOpBatch<Op, Obj, Opt, Out, Scp,FnState>>,
+    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
+    St: Stop,
+    Rec: DistRecorder<SId, Obj, Opt, Out, Scp, Op,Stepped<Obj,Out,FnState>,Op::BType>,
+    Check: DistCheckpointer,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    Out: FidOutcome,
+    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo>,
+    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo>,
+    FnState: FuncState,
+{
+    type WType = FidWorker<'a, SId, Obj, Out, FnState, Check>;
+    fn new_dist(
+        proc: &'a MPIProcess,
+        space: (Scp,Op::Cod),
+        objective:Stepped<Obj, Out, FnState> ,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>,Option<Check>)
+    ) -> MasterWorker<'a, Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Stepped<Obj,Out,FnState>> {
+        let (recorder,checkpointer)=saver;
+        let (searchspace,codomain) = space;
+        if proc.rank == 0 {
+            let recorder = match recorder {
+                Some(mut r) => {
+                    r.init_dist(proc, &searchspace, &codomain);
+                    Some(r)
+                }
+                None => None,
+            };
+            let checkpointer = match checkpointer {
+                Some(mut c) => {
+                    c.init();
+                    Some(c)
+                }
+                None => None,
+            };
+            MasterWorker::Master(DistExperiment {
+                proc,
+                searchspace,
+                codomain,
+                objective,
+                optimizer,
+                stop,
+                recorder,
+                checkpointer,
+                evaluator: None,
+                _domobj: PhantomData,
+                _domopt: PhantomData,
+                _out: PhantomData,
+            })
+        } else {
+            let check = match checkpointer {
+                Some(c) => {
+                    let mut wc = c.get_check_worker();
+                    wc.init(proc);
+                    Some(wc)
+                }
+                None => None,
+            };
+            MasterWorker::Worker(FidWorker::new(objective, check,proc))
+        }
+    }
+
+    fn run_dist(mut self) {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
+        };
+
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
+
+        'main: loop {
+            self.stop.update(ExpStep::Evaluation);
+            if let Some(c) = &self.checkpointer {
+                c.save_state_dist(self.optimizer.get_state(), &self.stop, &eval, self.proc.rank);
+                checkpoint_order(self.proc, 1..self.proc.size);
+            }
+            if self.stop.stop() {
+                break 'main;
+            };
+
+            // Arc copy of data to send to evaluator thread.
+            (batch_raw, batch_comp) = DistEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::evaluate(
+                &mut eval,
+                self.proc,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+            );
+
+            // Saver part
+            if let Some(r) = &self.recorder{
+                r.save_dist(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
+            }
+
+            if self.stop.stop() {
+                if let Some(c) = &self.checkpointer {
+                    c.save_state_dist(self.optimizer.get_state(), &self.stop, &eval, self.proc.rank);
+                    checkpoint_order(self.proc, 1..self.proc.size);
+                }
+                break 'main;
+            };
+
+            batch = self.optimizer.step(batch_comp, &self.searchspace);
+            DistEvaluate::<SId,Obj,Opt,Op::SInfo,Op::Info,Op::Sol,St,Op::Cod,Out,Scp,Stepped<Obj,Out,FnState>,Op::BType>::update(&mut eval, batch);
+
+            self.stop.update(ExpStep::Optimization);
+        }
+        stop_order(self.proc, 1..self.proc.size);
+    }
+
+    fn load_dist(
+        proc: &'a MPIProcess,
+        space: (Scp,Op::Cod),
+        objective: Stepped<Obj, Out, FnState>,
+        saver: (Option<Rec>, Check),
+    ) -> MasterWorker<'a,Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Stepped<Obj,Out,FnState>> {
+        let (searchspace,codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        if proc.rank == 0 {
+            let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
+            let optimizer = Op::from_state(state);
+            let recorder = match recorder {
+                Some(mut r) => {
+                    r.after_load_dist(proc, &searchspace, &codomain);
+                    Some(r)
+                }
+                None => None,
+            };
+            checkpointer.after_load_dist(proc);
+            MasterWorker::Master(DistExperiment {
+                proc,
+                searchspace,
+                codomain,
+                objective,
+                optimizer,
+                stop,
+                recorder,
+                checkpointer: Some(checkpointer),
+                evaluator: Some(evaluator),
+                _domobj: PhantomData,
+                _domopt: PhantomData,
+                _out: PhantomData,
+            })
+        } else {
+            let mut check = checkpointer.get_check_worker();
+            check.after_load(proc);
+            MasterWorker::Worker(FidWorker::new(objective, Some(check),proc))
+        }
+    }
+}
+
 
 // impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
 //     Runable<
@@ -688,453 +1247,3 @@ where
 //         }
 //     }
 // }
-
-impl<Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState>
-    Runable<SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    for SyncExperiment<
-        SId,
-        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Obj,
-        Opt,
-        Out,
-    >
-where
-    Op: Optimizer<
-        SId,
-        Obj,
-        Opt,
-        Out,
-        Scp,
-        FnWrap = Stepped<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out, FnState>,
-        BType = Batch<
-            OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-            SId,
-            Obj,
-            Opt,
-            OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-            OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-        >,
-    >,
-    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
-    St: Stop,
-    Rec: Recorder<SId,Obj,Opt,Out,Scp,Op>,
-    Check: Checkpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Out: FidOutcome,
-    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo>,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>: FidelityPartial<SId, Opt, Op::SInfo>,
-    FnState: FuncState,
-{
-    fn new(searchspace: Scp,objective: Op::FnWrap,optimizer: Op,stop: St,recorder:Option<Rec>,checkpointer:Option<Check>) -> Self {
-        let recorder = match recorder{
-            Some(mut r) => {r.init();Some(r)},
-            None => None,
-        };
-        let checkpointer = match checkpointer{
-            Some(mut c) => {c.init();Some(c)},
-            None => None,
-        };
-        SyncExperiment {
-            searchspace,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer,
-            evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
-        }
-    }
-
-    fn run(mut self) {
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
-        };
-
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
-        'main: loop {
-            self.stop.update(ExpStep::Evaluation);
-            if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &self.stop, &eval) }
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            // Evaluate batch
-            (batch_raw, batch_comp) = MonoEvaluate::<Op, St, Obj, Opt, Out, SId, Scp>::evaluate(&mut eval,&self.objective,&mut self.stop);
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_partial(&batch_comp);
-                r.save_codom(&batch_comp);
-                r.save_info(&batch_comp);
-                r.save_out(&batch_raw);
-            }
-
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &self.stop, &eval) }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(batch_comp, &self.searchspace);
-            MonoEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval, batch);
-            self.stop.update(ExpStep::Optimization);
-
-        }
-    }
-
-    fn load(searchspace: Scp, objective: Op::FnWrap, recorder:Option<Rec>, mut checkpointer: Check) -> Self {
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder {
-            Some(mut r) => {r.after_load(); Some(r)},
-            None => None,
-        };
-        checkpointer.after_load();
-
-        SyncExperiment {
-            searchspace,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
-        }
-    }
-}
-
-impl<Scp, Op, St, Rec,Check, Obj, Opt, Out, FnState>
-    Runable<SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    for SyncExperiment<
-        SId,
-        FidThrBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Obj,
-        Opt,
-        Out,
-    >
-where
-    Op: Optimizer<
-            SId,
-            Obj,
-            Opt,
-            Out,
-            Scp,
-            FnWrap = Stepped<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out, FnState>,
-            BType = Batch<
-                OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-                SId,
-                Obj,
-                Opt,
-                OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-                OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-            >,
-        >,
-    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo> + Send + Sync,
-    St: Stop + Send + Sync,
-    Rec: DistRecorder<SId,Obj,Opt,Out,Scp,Op> + Send + Sync,
-    Check: DistCheckpointer + Send + Sync,
-    Obj: OntoDom<Opt> + Send + Sync,
-    Opt: OntoDom<Obj> + Send + Sync,
-    Out: FidOutcome + Send + Sync,
-    FnState: FuncState + Send + Sync,
-    Obj::TypeDom: Send + Sync,
-    Opt::TypeDom: Send + Sync,
-    <Op::Cod as Codomain<Out>>::TypeCodom: Send + Sync,
-    Op::SInfo: Send + Sync,
-    Op::Info: Send + Sync,
-    Op::State: Send + Sync,
-    Op::Sol: Send + Sync,
-    Op::Cod: Send + Sync,
-    Op::Sol: FidelityPartial<SId, Obj, Op::SInfo> + Send + Sync,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>:
-        FidelityPartial<SId, Opt, Op::SInfo> + Send + Sync,
-{
-    fn new(searchspace: Scp,objective: Op::FnWrap,optimizer: Op,stop: St,recorder:Option<Rec>,checkpointer:Option<Check>) -> Self {
-        let recorder = match recorder{
-            Some(mut r) => {r.init();Some(r)},
-            None => None,
-        };
-        let checkpointer = match checkpointer{
-            Some(mut c) => {c.init();Some(c)},
-            None => None,
-        };
-        SyncExperiment {
-            searchspace,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer,
-            evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
-        }
-    }
-
-    fn run(mut self) {
-        let ob = Arc::new(self.objective);
-        let st = Arc::new(Mutex::new(self.stop));
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidThrBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
-        };
-
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
-        'main: loop {
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Evaluation);
-                if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
-                if st.stop() {
-                    break 'main;
-                };
-            }
-
-            // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = ThrEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::evaluate(&mut eval, ob.clone(),st.clone());
-
-            // Saver part
-            rayon::join(
-                || {
-                    rayon::join(
-                        || if let Some(r) = &self.recorder { r.save_partial(&batch_comp) },
-                        || if let Some(r) = &self.recorder { r.save_info(&batch_comp) }
-                    );
-                },
-                || {
-                    rayon::join(
-                        || if let Some(r) = &self.recorder { r.save_out(&batch_raw) },
-                        || if let Some(r) = &self.recorder { r.save_codom(&batch_comp) },
-                    );
-                },
-            );
-
-            {
-                let st = st.lock().unwrap();
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
-                    break 'main;
-                };
-            }
-            batch = self.optimizer.step(batch_comp, &self.searchspace);
-            ThrEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval, batch);
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Optimization);
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer { c.save_state(self.optimizer.get_state(), &*st, &eval) }
-                    break 'main;
-                };
-            }
-        }
-    }
-
-    fn load(searchspace: Scp, objective: Op::FnWrap, recorder: Option<Rec>, mut checkpointer : Check ) -> Self {
-        let (state, stop, evaluator) = checkpointer
-            .load()
-            .unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder{
-            Some(mut rec) => {rec.after_load(); Some(rec)},
-            None => None,
-        };
-        checkpointer.after_load();
-        SyncExperiment {
-            searchspace,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
-        }
-    }
-}
-
-
-#[cfg(feature = "mpi")]
-impl<Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState>
-    DistRunable<SId,Scp,Op,St,Rec,Check,Out,Obj,Opt>
-    for SyncExperiment<
-        SId,
-        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Obj,
-        Opt,
-        Out,
-    >
-where
-    Op: Optimizer<
-        SId,
-        Obj,
-        Opt,
-        Out,
-        Scp,
-        FnWrap = Stepped<Obj, OpCodType<Op, SId, Obj, Opt, Out, Scp>, Out, FnState>,
-        BType = Batch<
-            OpSolType<Op, SId, Obj, Opt, Out, Scp>,
-            SId,
-            Obj,
-            Opt,
-            OpSInfType<Op, SId, Obj, Opt, Out, Scp>,
-            OpInfType<Op, SId, Obj, Opt, Out, Scp>,
-        >,
-    >,
-    Scp: Searchspace<Op::Sol, SId, Obj, Opt, Op::SInfo>,
-    St: Stop,
-    Rec: DistRecorder<SId,Obj,Opt,Out,Scp,Op>,
-    Check: DistCheckpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Out: FidOutcome,
-    FnState: FuncState,
-    Op::Sol: FidelityPartial<SId,Obj,Op::SInfo>,
-    <Op::Sol as Partial<SId, Obj, Op::SInfo>>::Twin<Opt>:
-        FidelityPartial<SId, Opt, Op::SInfo>
-{
-    type WType = FidWorker<SId,Obj,Op::Cod,Out,FnState,Check>;
-    fn new_dist(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Op::FnWrap,
-        optimizer: Op,
-        stop: St,
-        recorder: Option<Rec>,
-        checkpointer: Option<Check>,
-    ) -> MasterWorker<Self,SId,Scp,Op,St,Rec,Check,Out,Obj,Opt> {
-        
-        if proc.rank == 0{
-            let recorder = match recorder {
-                Some(mut r) => {r.init_dist(proc); Some(r)},
-                None => None,
-            };
-            let checkpointer = match checkpointer {
-                Some(mut c) => {c.init();Some(c)},
-                None => None,
-            };
-            MasterWorker::Master(SyncExperiment::new(searchspace, objective, optimizer, stop, recorder, checkpointer))
-        }else{
-            let check = match checkpointer {
-                Some(c) => {
-                    let mut wc = c.get_check_worker(); wc.init(proc);Some(wc)
-                },
-                None => None,
-            };
-            MasterWorker::Worker(FidWorker::new(objective,check))
-        }
-    }
-
-    fn run_dist(mut self, proc: &MPIProcess) {
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace))
-        };
-
-        let mut batch: Op::BType;
-        let mut batch_raw: OBType<Op, SId, Obj, Opt, Out, Scp>;
-        let mut batch_comp: CBType<Op, SId, Obj, Opt, Out, Scp>;
-
-        'main: loop {
-            self.stop.update(ExpStep::Evaluation);
-            if let Some(c) = &self.checkpointer { c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,proc.rank) }
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = DistEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::evaluate(&mut eval, proc, &self.objective, &mut self.stop);
-
-            // DistributedSaver part
-            if let Some(rec) = &self.recorder {
-                rec.save_partial_dist(&batch_comp);
-                rec.save_info_dist(&batch_comp);
-                rec.save_codom_dist(&batch_comp);
-                rec.save_out_dist(&batch_raw);
-            }
-            
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer { c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,proc.rank) }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(batch_comp, &self.searchspace);
-            DistEvaluate::<Op,St,Obj,Opt,Out,SId,Scp>::update(&mut eval, batch);
-            
-            self.stop.update(ExpStep::Optimization);
-        }
-        (1..proc.size).for_each(|idx| {
-            proc.world
-                .process_at_rank(idx)
-                .send_with_tag(&Vec::<u8>::new(), 42);
-        });
-    }
-
-    fn load_dist(
-        proc: &MPIProcess,
-        searchspace: Scp,
-        objective: Op::FnWrap,
-        recorder: Option<Rec>,
-        mut checkpointer: Check,
-    ) -> MasterWorker<Self,SId,Scp,Op,St,Rec,Check,Out,Obj,Opt> {
-        if proc.rank == 0{
-            let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
-            let optimizer = Op::from_state(state);
-            let recorder = match recorder {
-                Some(mut r) => {r.after_load_dist(proc); Some(r)},
-                None => None,
-            };
-            checkpointer.after_load_dist(proc);
-            MasterWorker::Master(
-                SyncExperiment {
-                    searchspace,
-                    objective,
-                    optimizer,
-                    stop,
-                    recorder,
-                    checkpointer: Some(checkpointer),
-                    evaluator: Some(evaluator),
-                    _domobj: PhantomData,
-                    _domopt: PhantomData,
-                    _out: PhantomData,
-                }
-            )
-        } else{
-            let mut check = checkpointer.get_check_worker();
-            check.after_load(proc);
-            MasterWorker::Worker(FidWorker::new(objective,Some(check)))
-        }
-        
-    }
-}

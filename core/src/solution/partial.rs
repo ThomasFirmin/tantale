@@ -114,7 +114,7 @@ where
     /// }
     ///
     /// ```
-    fn new_vec(size: usize) -> Vec<Arc<Self>>;
+    fn new_vec(size: usize) -> Vec<Self>;
     /// Creates a [`Vec`] of [`Arc`][`<Partials>`](Partial) of `n` elements with default `x`.
     ///
     /// # Example
@@ -135,7 +135,7 @@ where
     /// }
     ///
     /// ```
-    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>>;
+    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self>;
 
     /// Given a [`BasePartial`] of type [`Self`] and a slice of type [`TypeDom`]`<B>`,
     /// creates the twin [`BasePartial`] of type `B`.
@@ -271,15 +271,15 @@ where
     fn new_default(n: usize, info: Arc<Info>) -> Self {
         Self::new(SolId::generate(), Self::default_x(n), info)
     }
-    fn new_vec(size: usize) -> Vec<Arc<Self>> {
+    fn new_vec(size: usize) -> Vec<Self> {
         let mut v = Vec::new();
         v.reserve_exact(size);
         v
     }
-    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>> {
+    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self> {
         let mut v = Self::new_vec(size);
         for _ in 0..size {
-            v.push(Arc::new(Self::new_default(n, info.clone())));
+            v.push(Self::new_default(n, info.clone()));
         }
         v
     }
@@ -412,15 +412,15 @@ where
     fn new_default(n: usize, info: Arc<Info>) -> Self {
         Self::_new(SolId::generate(), Self::default_x(n), Fidelity::New, info)
     }
-    fn new_vec(size: usize) -> Vec<Arc<Self>> {
+    fn new_vec(size: usize) -> Vec<Self> {
         let mut v = Vec::new();
         v.reserve_exact(size);
         v
     }
-    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Arc<Self>> {
+    fn new_default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self> {
         let mut v = Self::new_vec(size);
         for _ in 0..size {
-            v.push(Arc::new(Self::new_default(n, info.clone())));
+            v.push(Self::new_default(n, info.clone()));
         }
         v
     }
@@ -434,7 +434,7 @@ where
     }
 }
 
-impl<SolId,Dom,Info> FidelityPartial<SolId,Dom,Info> for FidBasePartial<SolId,Dom,Info>
+impl<SolId, Dom, Info> FidelityPartial<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,

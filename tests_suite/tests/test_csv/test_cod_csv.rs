@@ -1,5 +1,5 @@
 use super::init_cod::*;
-use tantale::core::saver::csvsaver::CSVWritable;
+use tantale::core::recorder::csv::CSVWritable;
 
 #[test]
 fn test_elemsingle_header() {
@@ -150,14 +150,14 @@ fn test_elemcostconstmulti_write() {
 #[test]
 fn test_elemfidfid_header() {
     let (cod, _) = get_elemfid();
-    let head = FidCodomain::header(&cod);
+    let head = StepCodomain::header(&cod);
     let str_true = Vec::from([String::from("y"), String::from("fidelity")]);
     assert_eq!(head, str_true, "Written linedoes not match the true baseline.");
 }
 #[test]
 fn test_elemfidcost_header() {
     let (cod, _) = get_elemfidcost();
-    let head = FidCostCodomain::header(&cod);
+    let head = StepCostCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
         String::from("fidelity"),
@@ -168,7 +168,7 @@ fn test_elemfidcost_header() {
 #[test]
 fn test_elemfidconst_header() {
     let (cod, _) = get_elemfidconst();
-    let head = FidConstCodomain::header(&cod);
+    let head = StepConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
         String::from("fidelity"),
@@ -180,7 +180,7 @@ fn test_elemfidconst_header() {
 #[test]
 fn test_elemfidcostconst_header() {
     let (cod, _) = get_elemfidcostconst();
-    let head = FidCostConstCodomain::header(&cod);
+    let head = StepCostConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
         String::from("fidelity"),
@@ -193,7 +193,7 @@ fn test_elemfidcostconst_header() {
 #[test]
 fn test_elemfidmulti_header() {
     let (cod, _) = get_elemfidmulti();
-    let head = FidMultiCodomain::header(&cod);
+    let head = StepMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
@@ -204,7 +204,7 @@ fn test_elemfidmulti_header() {
 #[test]
 fn test_elemfidcostmulti_header() {
     let (cod, _) = get_elemfidcostmulti();
-    let head = FidCostMultiCodomain::header(&cod);
+    let head = StepCostMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
@@ -216,7 +216,7 @@ fn test_elemfidcostmulti_header() {
 #[test]
 fn test_elemfidconstmulti_header() {
     let (cod, _) = get_elemfidconstmulti();
-    let head = FidConstMultiCodomain::header(&cod);
+    let head = StepConstMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
@@ -229,7 +229,7 @@ fn test_elemfidconstmulti_header() {
 #[test]
 fn test_elemfidcostconstmulti_header() {
     let (cod, _) = get_elemfidcostconstmulti();
-    let head = FidCostConstMultiCodomain::header(&cod);
+    let head = StepCostConstMultiCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),

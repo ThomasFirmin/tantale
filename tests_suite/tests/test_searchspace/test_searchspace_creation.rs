@@ -1,6 +1,6 @@
 use paste::paste;
 
-use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp, VecArc};
+use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp};
 
 use super::init_sp::*;
 
@@ -19,18 +19,18 @@ macro_rules! get_test {
 
                 let sample_obj = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::sample_obj(&sp, Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
-                let converted_opt = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::onto_opt(&sp, sample_obj.clone());
+                let converted_opt = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::onto_opt(&sp, &sample_obj);
                 assert_eq!(converted_opt.get_x().len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
 
                 let sample_opt = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::sample_opt(&sp, Some(&mut rng),sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
-                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::onto_obj(&sp, sample_opt.clone());
+                let converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::onto_obj(&sp, &sample_opt);
                 assert_eq!(converted_obj.get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_obj(&sp, sample_obj.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_opt(&sp, converted_opt.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_opt(&sp, sample_opt.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_obj(&sp, converted_obj.clone()));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_obj(&sp, &sample_obj));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_opt(&sp, &converted_opt));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_opt(&sp, &sample_opt));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::is_in_obj(&sp, &converted_obj));
             }
             #[test]
             fn [<$name _vec>]() {
@@ -39,16 +39,16 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: VecArc<BasePartial<SId,$name::ObjType,EmptyInfo>> = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng),3,sinfo.clone());
-                let vec_converted_opt = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj.clone());
+                let vec_sample_obj: Vec<BasePartial<SId,$name::ObjType,EmptyInfo>> = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng),3,sinfo.clone());
+                let vec_converted_opt = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj.as_slice());
 
-                let vec_sample_opt: VecArc<BasePartial<SId,$name::OptType,EmptyInfo>> = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_sample_opt(&sp, Some(&mut rng),3,sinfo.clone());
-                let vec_converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt.clone());
+                let vec_sample_opt: Vec<BasePartial<SId,$name::OptType,EmptyInfo>> = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_sample_opt(&sp, Some(&mut rng),3,sinfo.clone());
+                let vec_converted_obj = <Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt.as_slice());
 
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_obj(&sp, vec_sample_obj.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_opt(&sp, vec_converted_opt.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_opt(&sp, vec_sample_opt.clone()));
-                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_obj(&sp, vec_converted_obj.clone()));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_obj(&sp, vec_sample_obj.as_slice()));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_opt(&sp, vec_converted_opt.as_slice()));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_opt(&sp, vec_sample_opt.as_slice()));
+                assert!(<Sp<_,_> as Searchspace<BasePartial<SId,$name::ObjType,EmptyInfo>, SId, $name::ObjType, $name::OptType, EmptyInfo>>::vec_is_in_obj(&sp, vec_converted_obj.as_slice()));
             }
             }
         )+

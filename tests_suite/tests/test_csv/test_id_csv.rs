@@ -1,5 +1,5 @@
 use paste::paste;
-use tantale::core::saver::csvsaver::CSVWritable;
+use tantale::core::recorder::csv::CSVWritable;
 use tantale::core::solution::{
     id::{ParSId, SId},
     Id,

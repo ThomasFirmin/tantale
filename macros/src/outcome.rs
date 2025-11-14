@@ -17,7 +17,7 @@ fn is_numeric_type(ty: &Type) -> bool {
 fn is_evalstate_type(ty: &Type) -> bool{
     matches!(ty, Type::Path(p) if {
         let ident = &p.path.segments.last().unwrap().ident;
-        matches!(ident.to_string().as_str(), "EvalState")
+        matches!(ident.to_string().as_str(), "EvalStep")
     })
 }
 
@@ -53,14 +53,14 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             if has_eval_stmt{
                 panic!(
                     "{:?}",
-                    syn::Error::new(field.span(), "Only one EvalState should be defined within an Outcome.")
+                    syn::Error::new(field.span(), "Only one EvalStep should be defined within an Outcome.")
                 );
             } else {
                 to_header_stmts.push(quote! {stringify!(#fident).to_string()});
                 to_string_stmts.push(quote! {self.#fident.to_string()});
                 evalstate_stmt = quote! {
                     impl #egenerics tantale::core::FidOutcome for #eident #egenerics #ewhere {
-                        fn get_fidelity(&self)->tantale::core::EvalState{
+                        fn get_fidelity(&self)->tantale::core::EvalStep{
                             self.#fident
                         }
                     }
@@ -75,7 +75,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         #evalstate_stmt
 
-        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<() , ()> for #eident #egenerics #ewhere
+        impl #egenerics tantale::core::recorder::csv::CSVWritable<() , ()> for #eident #egenerics #ewhere
         {
             fn header(_elem:&())->Vec<String>{
                 Vec::from([#(#to_header_stmts,)*])

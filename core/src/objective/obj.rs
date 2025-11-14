@@ -4,12 +4,13 @@
 //!
 
 use crate::{
-    FidOutcome, domain::{Domain, TypeDom}, objective::{
-        Codomain, outcome::{FuncState, Outcome}
-    }, solution::partial::Fidelity
+    domain::{Domain, TypeDom},
+    objective::{
+        outcome::{FuncState, Outcome},
+    },
+    solution::partial::Fidelity,
+    FidOutcome,
 };
-
-use std::sync::Arc;
 
 type OptimFn<TypeDom, Out> = fn(&[TypeDom]) -> Out;
 type SteppFn<TypeDom, Out, FnState> = fn(&[TypeDom], Fidelity, Option<FnState>) -> (Out, FnState);
@@ -23,139 +24,86 @@ pub trait FuncWrapper {}
 ///
 /// # Attributes
 ///
-/// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
 /// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. It takes a vector
 ///   containing the point to be evaluated.
-pub struct Objective<Obj, Cod, Out>
+pub struct Objective<Obj, Out>(pub OptimFn<Obj::TypeDom, Out>)
 where
     Obj: Domain,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-{
-    pub codomain: Arc<Cod>,
-    pub function: OptimFn<Obj::TypeDom, Out>,
-}
+    Out: Outcome;
 
-impl<Obj, Cod, Out> Objective<Obj, Cod, Out>
+impl<Obj, Out> Objective<Obj, Out>
 where
     Obj: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
 {
     /// Creates an new instance of [`ObjBase`].
     ///
     /// # Parameters
     ///
-    /// * `cod`  :  `Cod` -  A [`Codomain`] of a corresponding [`Outcome`].
     /// * `func` : The objective function to be optimized and defined by the user.
     ///   It can be created side-by-side with the [`Searchspace`] using the
-    ///   [`objective!`](tantale::macros:objective) macro.
+    ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(cod: Cod, func: OptimFn<Obj::TypeDom, Out>) -> Self {
-        Self {
-            codomain: Arc::new(cod),
-            function: func,
-        }
-    }
+    pub fn new(func: OptimFn<Obj::TypeDom, Out>) -> Self {Objective(func)}
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn raw_compute(&self, x: &[TypeDom<Obj>]) -> Out {
-        (self.function)(x)
-    }
-    /// Compute the outputs of a function to maximize according to an input `x`.    
-    pub fn compute(&self, x: &[TypeDom<Obj>]) -> (Arc<Cod::TypeCodom>, Arc<Out>) {
-        let out = self.raw_compute(x);
-        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out))
-    }
-
-    pub fn get_codomain(&self) -> Arc<Cod> {
-        self.codomain.clone()
+    pub fn compute(&self, x: &[TypeDom<Obj>]) -> Out {
+        (self.0)(x)
     }
 }
 
-impl<Obj, Cod, Out> FuncWrapper for Objective<Obj, Cod, Out>
+impl<Obj, Out> FuncWrapper for Objective<Obj, Out>
 where
     Obj: Domain,
     Out: Outcome,
-    Cod: Codomain<Out>,
-{
-}
+{}
 
 /// The [`Stepped`] allows to define the minimal behavior of the wrapper.
-/// The [`Objective`] must return a [`Codomain`]'s [`TypeCodom`](Codomain::TypeCodom), and an [`Outcome`],
+/// The [`Objective`] must return an [`Outcome`],
 /// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
 ///
 /// # Attributes
 ///
-/// * `codomain` : `Cod` - A given [`Codomain`] extracted from an the function's [`Outcome`].
 /// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`]
 ///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
-pub struct Stepped<Obj, Cod, Out, FnState>
+pub struct Stepped<Obj, Out, FnState>(pub SteppFn<Obj::TypeDom, Out, FnState>)
 where
     Obj: Domain,
-    Cod: Codomain<Out>,
     Out: FidOutcome,
-    FnState: FuncState,
-{
-    pub codomain: Arc<Cod>,
-    pub function: SteppFn<Obj::TypeDom, Out, FnState>,
-}
+    FnState: FuncState;
 
-impl<Obj, Cod, Out, FnState> Stepped<Obj, Cod, Out, FnState>
+impl<Obj, Out, FnState> Stepped<Obj, Out, FnState>
 where
     Obj: Domain,
     Out: FidOutcome,
-    Cod: Codomain<Out>,
     FnState: FuncState,
 {
     /// Creates an new instance of [`ObjBase`].
     ///
     /// # Parameters
     ///
-    /// * `cod`  :  `Cod` -  A [`Codomain`] of a corresponding [`Outcome`].
     /// * `func` : The objective function to be optimized and defined by the user.
     ///   It can be created side-by-side with the [`Searchspace`] using the
-    ///   [`objective!`](tantale::macros:objective) macro.
+    ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(cod: Cod, func: SteppFn<Obj::TypeDom, Out, FnState>) -> Self {
-        Self {
-            codomain: Arc::new(cod),
-            function: func,
-        }
-    }
+    pub fn new(func: SteppFn<Obj::TypeDom, Out, FnState>) -> Self {Stepped(func)}
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn raw_compute(
-        &self,
-        x: &[TypeDom<Obj>],
-        fidelity: Fidelity,
-        state: Option<FnState>,
-    ) -> (Out, FnState) {
-        (self.function)(x, fidelity, state)
-    }
-    /// Compute the outputs of a function to maximize according to an input `x`.    
     pub fn compute(
         &self,
         x: &[TypeDom<Obj>],
         fidelity: Fidelity,
         state: Option<FnState>,
-    ) -> (Arc<Cod::TypeCodom>, Arc<Out>, FnState) {
-        let (out, state) = self.raw_compute(x, fidelity, state);
-        (Arc::new(self.codomain.get_elem(&out)), Arc::new(out), state)
-    }
-
-    pub fn get_codomain(&self) -> Arc<Cod> {
-        self.codomain.clone()
+    ) -> (Out, FnState) {
+        (self.0)(x, fidelity, state)
     }
 }
 
-impl<Obj, Cod, Out, FnState> FuncWrapper for Stepped<Obj, Cod, Out, FnState>
+impl<Obj, Out, FnState> FuncWrapper for Stepped<Obj, Out, FnState>
 where
     Obj: Domain,
     Out: FidOutcome,
-    Cod: Codomain<Out>,
     FnState: FuncState,
-{
-}
+{}

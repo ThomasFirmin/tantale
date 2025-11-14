@@ -31,7 +31,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    pub sol: Arc<PSol>,
+    pub sol: PSol,
     pub y: Arc<Cod::TypeCodom>,
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
@@ -71,7 +71,7 @@ where
     SolId: Id,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(sol: Arc<PSol>, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
+    pub fn new(sol: PSol, y: Arc<<Cod as Codomain<Out>>::TypeCodom>) -> Self {
         Computed {
             sol,
             y,
@@ -83,24 +83,24 @@ where
 
     /// Creates a vec of [`Computed`] from an iterator of [`Arc`] [`Partial`]
     /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Arc<Self>>
+    pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where
-        I: IntoIterator<Item = Arc<PSol>>,
+        I: IntoIterator<Item = PSol>,
         J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
     {
         sol.into_iter()
             .zip(y)
-            .map(|(s, cod)| Arc::new(Self::new(s.clone(), cod)))
+            .map(|(s, cod)| Self::new(s, cod))
             .collect()
     }
 
     /// Returns the [`Partial`] [`Solution`].
-    pub fn get_sol(&self) -> Arc<PSol> {
-        self.sol.clone()
+    pub fn get_sol(&self) -> &PSol {
+        &self.sol
     }
 
     /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    pub fn get_y(&self) -> Arc<<Cod as Codomain<Out>>::TypeCodom> {
-        self.y.clone()
+    pub fn get_y(&self) -> &<Cod as Codomain<Out>>::TypeCodom {
+        &self.y
     }
 }

@@ -37,7 +37,7 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         // DEFINITION OF MIXED DOMAIN
 
-        impl #egenerics tantale::core::saver::csvsaver::CSVWritable<() , #tident> for #eident #egenerics #ewhere{
+        impl #egenerics tantale::core::recorder::csv::CSVWritable<() , #tident> for #eident #egenerics #ewhere{
             fn header(_elem:&()) -> Vec<String> {
                 Vec::new()
             }
@@ -69,12 +69,12 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         #[derive(std::fmt::Debug, std::clone::Clone, std::cmp::PartialEq,serde::Serialize,serde::Deserialize)]
         pub enum #tident #egenerics #ewhere {
-            #(#idents(<#fields as tantale_core::Domain>::TypeDom)),*
+            #(#idents(<#fields as tantale::core::Domain>::TypeDom)),*
         }
 
         impl #egenerics std::default::Default for #tident #egenerics #ewhere{
             fn default() -> Self {
-                #tident::#def_field(<#def_field as tantale_core::Domain>::TypeDom::default())
+                #tident::#def_field(<#def_field as tantale::core::Domain>::TypeDom::default())
             }
         }
         impl #egenerics std::fmt::Display for #tident #egenerics #ewhere{
@@ -86,7 +86,7 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         // IMPL DOMAIN
-        impl #egenerics tantale_core::Domain for #eident #egenerics #ewhere {
+        impl #egenerics tantale::core::Domain for #eident #egenerics #ewhere {
             type TypeDom = #tident;
 
             fn sample(&self, rng: &mut rand::prelude::ThreadRng) -> Self::TypeDom {
@@ -108,7 +108,7 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         // IMPL MIXED
-        impl #egenerics tantale_core::domain::Mixed for #eident #egenerics #ewhere {}
+        impl #egenerics tantale::core::domain::Mixed for #eident #egenerics #ewhere {}
 
     }
     .into()

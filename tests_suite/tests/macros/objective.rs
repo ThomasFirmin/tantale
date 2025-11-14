@@ -68,7 +68,6 @@ fn obj_test() {
         );
     }
 
-    use std::sync::Arc;
     use tantale::core::{EmptyInfo, SId, Searchspace, Solution};
     let sp = searchspace::get_searchspace();
     let info = std::sync::Arc::new(EmptyInfo {});
@@ -76,6 +75,6 @@ fn obj_test() {
     let mut rng = rand::rng();
     let rng = Some(&mut rng);
 
-    let sample: Arc<BasePartial<SId, _, _>> = sp.sample_obj(rng, info);
+    let sample: BasePartial<SId, _, _> = sp.sample_obj(rng, info);
     searchspace::example(sample.get_x().as_ref());
 }

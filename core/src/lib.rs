@@ -23,9 +23,9 @@ pub struct GlobalParameters {
 }
 
 pub mod config;
-pub use config::{SaverConfig, FolderConfig};
-#[cfg(feature="mpi")]
+#[cfg(feature = "mpi")]
 pub use config::DistSaverConfig;
+pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
 pub use domain::{
@@ -48,14 +48,14 @@ pub mod errors;
 pub mod objective;
 pub use crate::objective::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
-    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCodomain,
-    FidConstCodomain, FidConstMultiCodomain, FidCostCodomain, FidCostConstCodomain,
-    FidCostConstMultiCodomain, FidCostMultiCodomain, FidCriteria, FidMultiCodomain, Multi,
-    MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped, FidOutcome,EvalState
+    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, EvalStep, StepCodomain,
+    StepConstCodomain, StepConstMultiCodomain, StepCostCodomain, StepCostConstCodomain,
+    StepCostConstMultiCodomain, StepCostMultiCodomain, FidCriteria, StepMultiCodomain, FidOutcome,
+    Multi, MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped,
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{ArcVecArc, EmptyInfo, OptInfo, Optimizer, VecArc};
+pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer};
 
 pub mod stop;
 pub use stop::Stop;
@@ -63,7 +63,7 @@ pub use stop::Stop;
 pub mod experiment;
 
 pub mod recorder;
-pub use recorder::{CSVRecorder};
+pub use recorder::CSVRecorder;
 
 pub mod checkpointer;
 pub use checkpointer::MessagePack;

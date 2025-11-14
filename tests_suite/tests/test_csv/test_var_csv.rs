@@ -1,5 +1,5 @@
 use super::init_dom::*;
-use tantale::core::saver::CSVLeftRight;
+use tantale::core::recorder::csv::CSVLeftRight;
 use tantale::core::{var, Var};
 
 use paste::paste;

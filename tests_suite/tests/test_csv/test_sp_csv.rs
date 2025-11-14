@@ -1,5 +1,5 @@
 use super::init_sp::*;
-use tantale::core::saver::CSVLeftRight;
+use tantale::core::recorder::csv::CSVLeftRight;
 use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp};
 
 use paste::paste;
