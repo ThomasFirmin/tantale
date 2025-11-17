@@ -74,7 +74,7 @@ where
     Obj: Domain,
     Out: Outcome,
 {
-    pub fn new(objective: Objective<Obj, Out>, proc:&'a MPIProcess) -> Self {
+    pub fn new(objective: Objective<Obj, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
     }
 }
@@ -143,7 +143,7 @@ where
     pub fn new(
         objective: Stepped<Obj, Out, FnState>,
         check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
-        proc:&'a MPIProcess,
+        proc: &'a MPIProcess,
     ) -> Self {
         FidWorker {
             proc,
@@ -209,7 +209,7 @@ where
                 self.state.0.remove(&msg.0);
             }
             // Checkpoint
-            else if tag == 7{
+            else if tag == 7 {
                 if let Some(c) = &self.check {
                     c.save_state(&self.state, self.proc.rank)
                 }

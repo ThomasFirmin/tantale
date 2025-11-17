@@ -114,10 +114,9 @@ where
     Self::Sol: Partial<SolId, Obj, Self::SInfo>,
     <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
         Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
-
 {
     type Sol: Partial<SolId, Obj, Self::SInfo>;
-    type BType: BatchType<SolId,Obj,Opt,Self::SInfo, Self::Sol, Self::Info>;
+    type BType: BatchType<SolId, Obj, Opt, Self::SInfo, Self::Sol, Self::Info>;
     type State: OptState;
     type Cod: Codomain<Out>;
     type SInfo: SolInfo;
@@ -132,7 +131,7 @@ where
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: CBType<Self,SolId,Obj,Opt,Out,Scp,Fn>, scp: &Scp) -> Self::BType;
+    fn step(&mut self, x: CBType<Self, SolId, Obj, Opt, Out, Scp, Fn>, scp: &Scp) -> Self::BType;
 
     /// Returns the current [`OptState`] of the [`Optimizer`].
     fn get_state(&mut self) -> &Self::State;

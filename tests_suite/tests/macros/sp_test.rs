@@ -26,7 +26,7 @@ mod test {
 
         let obj: BasePartial<SId, _, _> = sp.sample_obj(Some(&mut rng), info.clone());
         let opt: BasePartial<SId, _, _> = sp.onto_opt(&obj); // Map obj => opt
-                                                                         // Paired solutions have the same ID
+                                                             // Paired solutions have the same ID
         println!("Obj ID : {} <=> Opt ID : {}", obj.id.id, opt.id.id);
 
         use tantale::macros::Outcome;

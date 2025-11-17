@@ -4,20 +4,20 @@ use crate::{
     solution::{Computed, Id, Partial, SolInfo},
     OptInfo,
 };
+use core::slice;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
 use serde::{Deserialize, Serialize};
-use core::slice;
 use std::{fmt::Debug, iter::Zip, marker::PhantomData, sync::Arc, vec::IntoIter};
 
 pub type BatchElem<'a, PSolA, PSolB> = (&'a PSolA, &'a PSolB);
-pub type OutBatchElem<'a, SolId, Out> = (&'a SolId,&'a Out);
+pub type OutBatchElem<'a, SolId, Out> = (&'a SolId, &'a Out);
 pub type CompBatchElem<'a, PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
     &'a Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
     &'a Computed<PSolB, SolId, Opt, Cod, Out, SInfo>,
 );
 
 pub type DerBatchElem<PSolA, PSolB> = (PSolA, PSolB);
-pub type DerOutBatchElem<SolId, Out> = (SolId,Out);
+pub type DerOutBatchElem<SolId, Out> = (SolId, Out);
 pub type DerCompBatchElem<PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
     Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
     Computed<PSolB, SolId, Opt, Cod, Out, SInfo>,
@@ -30,14 +30,23 @@ pub type DerCompBatchElem<PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
 pub trait BatchType<SolId, Obj, Opt, SInfo, PSol, Info>
 where
     Self: Serialize + for<'de> Deserialize<'de>,
-    PSol: Partial<SolId,Obj,SInfo>,
+    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    type Comp<Cod: Codomain<Out>, Out: Outcome>: CompBatchType<SolId,Obj,Opt,SInfo,PSol,Info,Cod,Out>;
+    type Comp<Cod: Codomain<Out>, Out: Outcome>: CompBatchType<
+        SolId,
+        Obj,
+        Opt,
+        SInfo,
+        PSol,
+        Info,
+        Cod,
+        Out,
+    >;
     type Outc<Out: Outcome>: OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>;
     fn get_info(&self) -> Arc<Info>;
 }
@@ -49,7 +58,7 @@ where
 pub trait CompBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Cod, Out>
 where
     Self: Serialize + for<'de> Deserialize<'de>,
-    PSol: Partial<SolId,Obj,SInfo>,
+    PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
@@ -70,7 +79,7 @@ pub trait OutBatchType<SolId, Obj, Opt, SInfo, PSol, Info, Out>
 where
     Self: Debug,
     SolId: Id,
-    PSol: Partial<SolId,Obj,SInfo>,
+    PSol: Partial<SolId, Obj, SInfo>,
     Obj: Domain,
     Opt: Domain,
     SInfo: SolInfo,
@@ -104,7 +113,7 @@ where
 /// A [`OutBatch`] describes a collection of pairs of `Obj` and `Opt` [`RawSol`] stored within 2 vectors.
 #[derive(Debug)]
 #[allow(clippy::type_complexity)]
-pub struct OutBatch<SolId,Info,Out>
+pub struct OutBatch<SolId, Info, Out>
 where
     SolId: Id,
     Info: OptInfo,
@@ -149,12 +158,16 @@ where
 {
     /// Creates a new [`Batch`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
     pub fn new(sobj: Vec<PSol>, sopt: Vec<PSol::Twin<Opt>>, info: Arc<Info>) -> Self {
-        Batch {sobj,sopt,info}
+        Batch { sobj, sopt, info }
     }
 
     /// Creates a new empty [`CompBatch`] from an [`OptInfo`].
     pub fn empty(info: Arc<Info>) -> Self {
-        Batch {sobj: Vec::new(),sopt: Vec::new(),info}
+        Batch {
+            sobj: Vec::new(),
+            sopt: Vec::new(),
+            info,
+        }
     }
 
     /// Add a new `Obj` and `Opt` pair of [`Partial`] to the batch.
@@ -199,26 +212,21 @@ where
     pub fn pop(&mut self) -> Option<(PSol, PSol::Twin<Opt>)> {
         let xobj = self.sobj.pop();
         match xobj {
-            Some(x) => Some((x,self.sopt.pop().unwrap())),
+            Some(x) => Some((x, self.sopt.pop().unwrap())),
             None => None,
         }
     }
-
 }
 
 #[allow(clippy::type_complexity)]
-impl<SolId,Info,Out> OutBatch<SolId,Info,Out>
+impl<SolId, Info, Out> OutBatch<SolId, Info, Out>
 where
     SolId: Id,
     Info: OptInfo,
     Out: Outcome,
 {
     /// Creates a new [`OutBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
-    pub fn new(
-        vid: Vec<SolId>,
-        vout: Vec<Out>,
-        info: Arc<Info>,
-    ) -> Self {
+    pub fn new(vid: Vec<SolId>, vout: Vec<Out>, info: Arc<Info>) -> Self {
         OutBatch { vid, vout, info }
     }
 
@@ -232,17 +240,13 @@ where
     }
 
     /// Add a new `Obj` and `Opt` pair of [`RawSol`] to the batch.
-    pub fn add(
-        &mut self,
-        id: SolId,
-        out: Out,
-    ) {
+    pub fn add(&mut self, id: SolId, out: Out) {
         self.vid.push(id);
         self.vout.push(out);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
-    pub fn add_vec(&mut self,vid: Vec<SolId>,vout: Vec<Out>) {
+    pub fn add_vec(&mut self, vid: Vec<SolId>, vout: Vec<Out>) {
         self.vid.extend(vid);
         self.vout.extend(vout);
     }
@@ -264,10 +268,7 @@ where
     }
 
     /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
-    pub fn index(
-        &self,
-        index: usize,
-    ) -> OutBatchElem<'_, SolId, Out> {
+    pub fn index(&self, index: usize) -> OutBatchElem<'_, SolId, Out> {
         (&self.vid[index], &self.vout[index])
     }
 
@@ -280,11 +281,10 @@ where
     pub fn pop(&mut self) -> Option<(SolId, Out)> {
         let id = self.vid.pop();
         match id {
-            Some(i) => Some((i,self.vout.pop().unwrap())),
+            Some(i) => Some((i, self.vout.pop().unwrap())),
             None => None,
         }
     }
-
 }
 
 #[allow(clippy::type_complexity)]
@@ -345,12 +345,7 @@ where
     }
 
     /// Add a new `Obj` and `Opt` pair of [`CompSol`] to the batch from a pair of [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn add_res(
-        &mut self,
-        pobj: PSol,
-        popt: PSol::Twin<Opt>,
-        y: Cod::TypeCodom,
-    ) {
+    pub fn add_res(&mut self, pobj: PSol, popt: PSol::Twin<Opt>, y: Cod::TypeCodom) {
         let o = Arc::new(y);
         let compobj = Computed::new(pobj, o.clone());
         let compopt = Computed::new(popt, o);
@@ -376,15 +371,20 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
-    pub fn remove(&mut self, index: usize) -> DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo> {
+    pub fn remove(
+        &mut self,
+        index: usize,
+    ) -> DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo> {
         (self.cobj.remove(index), self.copt.remove(index))
     }
 
     /// Return the `Obj` and `Opt` [`Computed`] at position `index` within the batch.
-    pub fn pop(&mut self) -> Option<DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo>> {
+    pub fn pop(
+        &mut self,
+    ) -> Option<DerCompBatchElem<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo>> {
         let xobj = self.cobj.pop();
         match xobj {
-            Some(x) => Some((x,self.copt.pop().unwrap())),
+            Some(x) => Some((x, self.copt.pop().unwrap())),
             None => None,
         }
     }
@@ -441,8 +441,8 @@ where
     type Outc = OutBatch<SolId, Info, Out>;
 }
 
-  //--------------------//
- //--- INTOITERATOR ---//
+//--------------------//
+//--- INTOITERATOR ---//
 //--------------------//
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
@@ -462,7 +462,8 @@ where
     }
 }
 
-impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator
+    for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -472,14 +473,15 @@ where
     Info: OptInfo,
 {
     type Item = (&'a PSol, &'a PSol::Twin<Opt>);
-    type IntoIter = Zip<slice::Iter<'a,PSol>, slice::Iter<'a, PSol::Twin<Opt>>>;
+    type IntoIter = Zip<slice::Iter<'a, PSol>, slice::Iter<'a, PSol::Twin<Opt>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.sobj.iter().zip(self.sopt.iter())
     }
 }
 
-impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoIterator
+    for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo>,
     SolId: Id,
@@ -489,7 +491,7 @@ where
     Info: OptInfo,
 {
     type Item = (&'a mut PSol, &'a mut PSol::Twin<Opt>);
-    type IntoIter = Zip<slice::IterMut<'a,PSol>, slice::IterMut<'a, PSol::Twin<Opt>>>;
+    type IntoIter = Zip<slice::IterMut<'a, PSol>, slice::IterMut<'a, PSol::Twin<Opt>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.sobj.iter_mut().zip(self.sopt.iter_mut())
@@ -502,8 +504,8 @@ where
     Info: OptInfo,
     Out: Outcome,
 {
-    type Item = (SolId,Out);
-    type IntoIter = Zip<IntoIter<SolId>,IntoIter<Out>>;
+    type Item = (SolId, Out);
+    type IntoIter = Zip<IntoIter<SolId>, IntoIter<Out>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vid.into_iter().zip(self.vout)
@@ -516,8 +518,8 @@ where
     Info: OptInfo,
     Out: Outcome,
 {
-    type Item = (&'a SolId,&'a Out);
-    type IntoIter = Zip<slice::Iter<'a, SolId>,slice::Iter<'a, Out>>;
+    type Item = (&'a SolId, &'a Out);
+    type IntoIter = Zip<slice::Iter<'a, SolId>, slice::Iter<'a, Out>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vid.iter().zip(self.vout.iter())
@@ -531,7 +533,7 @@ where
     Out: Outcome,
 {
     type Item = (&'a mut SolId, &'a mut Out);
-    type IntoIter = Zip<slice::IterMut<'a,SolId>,slice::IterMut<'a,Out>>;
+    type IntoIter = Zip<slice::IterMut<'a, SolId>, slice::IterMut<'a, Out>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vid.iter_mut().zip(self.vout.iter_mut())
@@ -607,8 +609,8 @@ where
         &'a mut Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>,
     );
     type IntoIter = Zip<
-        slice::IterMut<'a,Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
-        slice::IterMut<'a,Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
+        slice::IterMut<'a, Computed<PSol, SolId, Obj, Cod, Out, SInfo>>,
+        slice::IterMut<'a, Computed<PSol::Twin<Opt>, SolId, Opt, Cod, Out, SInfo>>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -616,12 +618,12 @@ where
     }
 }
 
-  //-----------------------//
- //--- INTOPARITERATOR ---//
+//-----------------------//
+//--- INTOPARITERATOR ---//
 //-----------------------//
 
-
-impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator
+    for Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo> + Send,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send,
@@ -633,16 +635,17 @@ where
 {
     type Item = (PSol, PSol::Twin<Opt>);
     type Iter = rayon::iter::Zip<
-                            rayon::vec::IntoIter<PSol>,
-                            rayon::vec::IntoIter<<PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
-                        >;
+        rayon::vec::IntoIter<PSol>,
+        rayon::vec::IntoIter<<PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>,
+    >;
 
     fn into_par_iter(self) -> Self::Iter {
         self.sobj.into_par_iter().zip(self.sopt)
     }
 }
 
-impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator
+    for &'a Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
@@ -655,9 +658,9 @@ where
 {
     type Item = (&'a PSol, &'a PSol::Twin<Opt>);
     type Iter = rayon::iter::Zip<
-                            rayon::slice::Iter<'a, PSol>,
-                            rayon::slice::Iter<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
-                        >;
+        rayon::slice::Iter<'a, PSol>,
+        rayon::slice::Iter<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>,
+    >;
 
     fn into_par_iter(self) -> Self::Iter {
         let a = <&[_]>::into_par_iter(&self.sobj);
@@ -666,7 +669,8 @@ where
     }
 }
 
-impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<'a, PSol, SolId, Obj, Opt, SInfo, Info> IntoParallelIterator
+    for &'a mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     PSol: Partial<SolId, Obj, SInfo> + Send + Sync,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo> + Send + Sync,
@@ -679,9 +683,9 @@ where
 {
     type Item = (&'a mut PSol, &'a mut PSol::Twin<Opt>);
     type Iter = rayon::iter::Zip<
-                            rayon::slice::IterMut<'a, PSol>,
-                            rayon::slice::IterMut<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>
-                        >;
+        rayon::slice::IterMut<'a, PSol>,
+        rayon::slice::IterMut<'a, <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>>,
+    >;
 
     fn into_par_iter(self) -> Self::Iter {
         let a = <&mut [_]>::into_par_iter(&mut self.sobj);
@@ -697,10 +701,7 @@ where
     Out: Outcome + Send,
 {
     type Item = (SolId, Out);
-    type Iter = rayon::iter::Zip<
-                            rayon::vec::IntoIter<SolId>,
-                            rayon::vec::IntoIter<Out>
-                        >;
+    type Iter = rayon::iter::Zip<rayon::vec::IntoIter<SolId>, rayon::vec::IntoIter<Out>>;
 
     fn into_par_iter(self) -> Self::Iter {
         self.vid.into_par_iter().zip(self.vout)
@@ -714,10 +715,7 @@ where
     Out: Outcome + Send + Sync,
 {
     type Item = (&'a SolId, &'a Out);
-    type Iter = rayon::iter::Zip<
-                            rayon::slice::Iter<'a, SolId>,
-                            rayon::slice::Iter<'a, Out>
-                        >;
+    type Iter = rayon::iter::Zip<rayon::slice::Iter<'a, SolId>, rayon::slice::Iter<'a, Out>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let a = <&[_]>::into_par_iter(&self.vid);
@@ -733,10 +731,7 @@ where
     Out: Outcome + Send + Sync,
 {
     type Item = (&'a mut SolId, &'a mut Out);
-    type Iter = rayon::iter::Zip<
-                            rayon::slice::IterMut<'a, SolId>,
-                            rayon::slice::IterMut<'a, Out>
-                        >;
+    type Iter = rayon::iter::Zip<rayon::slice::IterMut<'a, SolId>, rayon::slice::IterMut<'a, Out>>;
 
     fn into_par_iter(self) -> Self::Iter {
         let a = <&mut [_]>::into_par_iter(&mut self.vid);
@@ -832,7 +827,6 @@ where
         a.zip(b)
     }
 }
-
 
 //-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-//
 // SINGLE BATCH MADE OF A SINGLE SOLUTION //
@@ -930,11 +924,7 @@ where
     Out: Outcome,
 {
     /// Creates a new [`RawSingle`] from paired `Obj` and `Opt` [`Raw`] and an [`OptInfo`].
-    pub fn new(
-        id: SolId,
-        out: Out,
-        info: Arc<Info>,
-    ) -> Self {
+    pub fn new(id: SolId, out: Out, info: Arc<Info>) -> Self {
         RawSingle { id, out, info }
     }
 }
@@ -973,7 +963,7 @@ where
     Info: OptInfo,
 {
     type Comp<Cod: Codomain<Out>, Out: Outcome> =
-        CompSingle<PSol, SolId, Obj, Opt, SInfo, Info, Cod,Out>;
+        CompSingle<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>;
     type Outc<Out: Outcome> = RawSingle<SolId, Info, Out>;
 
     fn get_info(&self) -> Arc<Info> {

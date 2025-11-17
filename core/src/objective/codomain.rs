@@ -130,14 +130,14 @@ impl EvalStep {
 impl std::fmt::Display for EvalStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EvalStep::Partially(v) => write!(f, "{}",v),
+            EvalStep::Partially(v) => write!(f, "{}", v),
             EvalStep::Completed => write!(f, "Completed"),
             EvalStep::Error => write!(f, "Error"),
         }
     }
 }
 
-impl CSVWritable<(),()> for EvalStep{
+impl CSVWritable<(), ()> for EvalStep {
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("step")])
     }
@@ -1396,60 +1396,71 @@ impl<Out: FidOutcome> Constrained<Out, ConsType> for StepCostConstMultiCodomain<
 }
 impl<Out: FidOutcome> HasEvalStep<Out> for StepCostConstMultiCodomain<Out> {}
 
-
-
-  //------------//
- //--- INTO ---//
+//------------//
+//--- INTO ---//
 //------------//
 
-
-impl<Out:FidOutcome> From<SingleCodomain<Out>> for StepCodomain<Out>{
+impl<Out: FidOutcome> From<SingleCodomain<Out>> for StepCodomain<Out> {
     fn from(val: SingleCodomain<Out>) -> Self {
-        StepCodomain { y_criteria: val.y_criteria }
+        StepCodomain {
+            y_criteria: val.y_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<ConstCodomain<Out>> for StepConstCodomain<Out>{
+impl<Out: FidOutcome> From<ConstCodomain<Out>> for StepConstCodomain<Out> {
     fn from(val: ConstCodomain<Out>) -> Self {
-        StepConstCodomain { y_criteria: val.y_criteria, c_criteria: val.c_criteria }
+        StepConstCodomain {
+            y_criteria: val.y_criteria,
+            c_criteria: val.c_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<CostCodomain<Out>> for StepCostCodomain<Out>{
+impl<Out: FidOutcome> From<CostCodomain<Out>> for StepCostCodomain<Out> {
     fn from(val: CostCodomain<Out>) -> Self {
-        StepCostCodomain { y_criteria: val.y_criteria, co_criteria: val.co_criteria }
+        StepCostCodomain {
+            y_criteria: val.y_criteria,
+            co_criteria: val.co_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<CostConstCodomain<Out>> for StepCostConstCodomain<Out>{
+impl<Out: FidOutcome> From<CostConstCodomain<Out>> for StepCostConstCodomain<Out> {
     fn from(val: CostConstCodomain<Out>) -> Self {
-        StepCostConstCodomain { y_criteria: val.y_criteria, co_criteria: val.co_criteria, c_criteria: val.c_criteria }
+        StepCostConstCodomain {
+            y_criteria: val.y_criteria,
+            co_criteria: val.co_criteria,
+            c_criteria: val.c_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<MultiCodomain<Out>> for StepMultiCodomain<Out>{
+impl<Out: FidOutcome> From<MultiCodomain<Out>> for StepMultiCodomain<Out> {
     fn from(val: MultiCodomain<Out>) -> Self {
-        StepMultiCodomain { y_criteria: val.y_criteria }
+        StepMultiCodomain {
+            y_criteria: val.y_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<ConstMultiCodomain<Out>> for StepConstMultiCodomain<Out>{
+impl<Out: FidOutcome> From<ConstMultiCodomain<Out>> for StepConstMultiCodomain<Out> {
     fn from(val: ConstMultiCodomain<Out>) -> Self {
-        StepConstMultiCodomain { y_criteria: val.y_criteria, c_criteria: val.c_criteria }
+        StepConstMultiCodomain {
+            y_criteria: val.y_criteria,
+            c_criteria: val.c_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<CostMultiCodomain<Out>> for StepCostMultiCodomain<Out>{
+impl<Out: FidOutcome> From<CostMultiCodomain<Out>> for StepCostMultiCodomain<Out> {
     fn from(val: CostMultiCodomain<Out>) -> Self {
-        StepCostMultiCodomain { y_criteria: val.y_criteria, co_criteria: val.co_criteria }
+        StepCostMultiCodomain {
+            y_criteria: val.y_criteria,
+            co_criteria: val.co_criteria,
+        }
     }
 }
-impl<Out:FidOutcome> From<CostConstMultiCodomain<Out>> for StepCostConstMultiCodomain<Out>{
+impl<Out: FidOutcome> From<CostConstMultiCodomain<Out>> for StepCostConstMultiCodomain<Out> {
     fn from(val: CostConstMultiCodomain<Out>) -> Self {
-        StepCostConstMultiCodomain { y_criteria: val.y_criteria, co_criteria: val.co_criteria, c_criteria: val.c_criteria }
+        StepCostConstMultiCodomain {
+            y_criteria: val.y_criteria,
+            co_criteria: val.co_criteria,
+            c_criteria: val.c_criteria,
+        }
     }
 }
-
-
-
-
-
-
-
-
-
-

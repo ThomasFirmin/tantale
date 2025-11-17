@@ -4,7 +4,10 @@ use crate::domain::{Domain, TypeDom};
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{Id, SolInfo, Solution};
 
-use std::{fmt::{Debug,Display}, sync::Arc};
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 /// Describes the fidelity of a [`Solution`].
 ///
@@ -19,17 +22,17 @@ pub enum Fidelity {
     Discard,
 }
 
-impl Display for Fidelity{
+impl Display for Fidelity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self{
-            Fidelity::New => write!(f,"New"),
-            Fidelity::Resume(v) => write!(f,"{}",v),
-            Fidelity::Discard => write!(f,"Discard"),
+        match self {
+            Fidelity::New => write!(f, "New"),
+            Fidelity::Resume(v) => write!(f, "{}", v),
+            Fidelity::Discard => write!(f, "Discard"),
         }
     }
 }
 
-impl CSVWritable<(),()> for Fidelity{
+impl CSVWritable<(), ()> for Fidelity {
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("fidelity")])
     }

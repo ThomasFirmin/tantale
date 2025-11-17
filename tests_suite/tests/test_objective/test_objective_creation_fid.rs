@@ -1,4 +1,7 @@
-use tantale_core::{EmptyInfo, BasePartial, SId, Searchspace, Solution, BaseTypeDom, Sp, FidOutcome, solution::Fidelity};
+use tantale_core::{
+    solution::Fidelity, BasePartial, BaseTypeDom, EmptyInfo, FidOutcome, SId, Searchspace,
+    Solution, Sp,
+};
 
 use super::init_func::*;
 use paste::paste;

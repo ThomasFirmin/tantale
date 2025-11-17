@@ -1,19 +1,23 @@
 use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 
 use csv::StringRecord;
-use tantale::core::{
-    Codomain, Optimizer, SId, Searchspace, BaseDom,BaseTypeDom,Solution,Sp,FolderConfig,
-    optimizer::opt::{OpInfType,OpSInfType,OpSolType},
-    recorder::{Recorder, csv::{CSVRecorder,CSVWritable}},
-    solution::{Batch,BatchType,CompBatch,OutBatch},
-    stop::{Calls, Stop},
-};
 use tantale::algos::RandomSearch;
-use tantale_core::{Fidelity, objective::FuncWrapper};
+use tantale::core::{
+    optimizer::opt::{OpInfType, OpSInfType, OpSolType},
+    recorder::{
+        csv::{CSVRecorder, CSVWritable},
+        Recorder,
+    },
+    solution::{Batch, BatchType, CompBatch, OutBatch},
+    stop::{Calls, Stop},
+    BaseDom, BaseTypeDom, Codomain, FolderConfig, Optimizer, SId, Searchspace, Solution, Sp,
+};
+use tantale_core::{objective::FuncWrapper, Fidelity};
 
-use std::{path::Path,sync::Arc};
+use std::{path::Path, sync::Arc};
 
-type Cbatch<Sol,SInfo,Info,Cod> = CompBatch<Sol,SId,BaseDom,BaseDom,SInfo,Info,Cod,OutExample>;
+type Cbatch<Sol, SInfo, Info, Cod> =
+    CompBatch<Sol, SId, BaseDom, BaseDom, SInfo, Info, Cod, OutExample>;
 
 mod infos {
     use serde::{Deserialize, Serialize};
@@ -56,19 +60,26 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn>(
     stop: &mut St,
     recorder: &mut Rec,
     size: usize,
-)
-where
+) where
     Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
-    Op: Optimizer<SId,BaseDom,BaseDom,OutExample,Scp,Fn,BType = 
-        Batch<
-            OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>
-            ,SId,BaseDom,BaseDom,
-            OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>,
-            OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>
-            >
+    Op: Optimizer<
+        SId,
+        BaseDom,
+        BaseDom,
+        OutExample,
+        Scp,
+        Fn,
+        BType = Batch<
+            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            SId,
+            BaseDom,
+            BaseDom,
+            OpSInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            OpInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
         >,
+    >,
     St: Stop + Send + Sync,
-    Rec: Recorder<SId,BaseDom,BaseDom,OutExample,Scp,Op,Fn,Op::BType>,
+    Rec: Recorder<SId, BaseDom, BaseDom, OutExample, Scp, Op, Fn, Op::BType>,
     Fn: FuncWrapper,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -87,9 +98,9 @@ where
         };
         let outcome = infos::get_out(id.id, aelem);
         let codel = Arc::new(cod.get_elem(&outcome));
-        let (acomp,bcomp) = sp.computed(a, b, codel.clone());
+        let (acomp, bcomp) = sp.computed(a, b, codel.clone());
         cbatch.add(acomp, bcomp);
-        obatch.add(id,outcome);
+        obatch.add(id, outcome);
     });
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
@@ -98,7 +109,7 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
 
-    recorder.save(&cbatch, &obatch,sp,cod);
+    recorder.save(&cbatch, &obatch, sp, cod);
 
     let mut batch = opt.first_step(sp);
     let mut tobatch = OutBatch::empty(batch.get_info());
@@ -113,9 +124,9 @@ where
         };
         let outcome = infos::get_out(id.id, aelem);
         let codel = Arc::new(cod.get_elem(&outcome));
-        let (acomp,bcomp) = sp.computed(a, b, codel.clone());
+        let (acomp, bcomp) = sp.computed(a, b, codel.clone());
         tcbatch.add(acomp, bcomp);
-        tobatch.add(id,outcome);
+        tobatch.add(id, outcome);
     });
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
@@ -124,37 +135,37 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
     stop.update(tantale_core::stop::ExpStep::Distribution(Fidelity::Discard));
 
-    recorder.save(&tcbatch,&tobatch,sp,cod);
-    run_reader::<Op, Scp, Fn>(
-        "tmp_test",
-        cbatch,
-        obatch,
-    tcbatch,
-    tobatch,
-        cod,
-        size,
-    );
+    recorder.save(&tcbatch, &tobatch, sp, cod);
+    run_reader::<Op, Scp, Fn>("tmp_test", cbatch, obatch, tcbatch, tobatch, cod, size);
 }
 
-pub fn run_reader<Op, Scp,Fn>(
+pub fn run_reader<Op, Scp, Fn>(
     path: &str,
-    cbatch: Cbatch<Op::Sol,Op::SInfo,Op::Info,Op::Cod>,
-    obatch: OutBatch<SId,Op::Info,OutExample>,
-    tcbatch: Cbatch<Op::Sol,Op::SInfo,Op::Info,Op::Cod>,
-    tobatch: OutBatch<SId,Op::Info,OutExample>,
+    cbatch: Cbatch<Op::Sol, Op::SInfo, Op::Info, Op::Cod>,
+    obatch: OutBatch<SId, Op::Info, OutExample>,
+    tcbatch: Cbatch<Op::Sol, Op::SInfo, Op::Info, Op::Cod>,
+    tobatch: OutBatch<SId, Op::Info, OutExample>,
     cod: &Op::Cod,
     size: usize,
 ) where
     Scp: Searchspace<Op::Sol, SId, BaseDom, BaseDom, Op::SInfo>,
-    Op: Optimizer<SId,BaseDom,BaseDom,OutExample,Scp,Fn,BType = 
-        Batch<
-            OpSolType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>
-            ,SId,BaseDom,BaseDom,
-            OpSInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>,
-            OpInfType<Op,SId,BaseDom,BaseDom,OutExample,Scp,Fn>
-            >
+    Op: Optimizer<
+        SId,
+        BaseDom,
+        BaseDom,
+        OutExample,
+        Scp,
+        Fn,
+        BType = Batch<
+            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            SId,
+            BaseDom,
+            BaseDom,
+            OpSInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            OpInfType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
         >,
-    Fn:FuncWrapper,
+    >,
+    Fn: FuncWrapper,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
@@ -176,7 +187,11 @@ pub fn run_reader<Op, Scp,Fn>(
     let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
     let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
 
-    let records = rdr_obj.records().zip(rdr_opt.records()).zip(rdr_cod.records()).zip(rdr_info.records());
+    let records = rdr_obj
+        .records()
+        .zip(rdr_opt.records())
+        .zip(rdr_cod.records())
+        .zip(rdr_info.records());
 
     let info = cbatch.info.clone();
     let tinfo = tcbatch.info.clone();
@@ -185,19 +200,26 @@ pub fn run_reader<Op, Scp,Fn>(
     let size_cout = obatch.size();
     let size_tcout = tobatch.size();
 
-    for (((line_obj,line_opt),line_cod), line_info) in records {
-        
-        let (computed_batch, computed_info) = if size_all < cbatch.size(){
-            (&cbatch,info.clone())
-        } else {(&tcbatch, tinfo.clone())};
+    for (((line_obj, line_opt), line_cod), line_info) in records {
+        let (computed_batch, computed_info) = if size_all < cbatch.size() {
+            (&cbatch, info.clone())
+        } else {
+            (&tcbatch, tinfo.clone())
+        };
         size_all += 1;
 
         let record = line_obj.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let (content_obj,_content_opt) = iter_cbatch.find(|(sobj,sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id)).unwrap();
+        let (content_obj, _content_opt) = iter_cbatch
+            .find(|(sobj, sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id))
+            .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", content_obj.get_id().id)]);
-        let x_str: Vec<String> = content_obj.get_x().iter().map(|x| format!("{}", x)).collect();
+        let x_str: Vec<String> = content_obj
+            .get_x()
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect();
         str_content.extend(x_str);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
@@ -208,9 +230,15 @@ pub fn run_reader<Op, Scp,Fn>(
         let record = line_opt.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let (_content_obj,content_opt) = iter_cbatch.find(|(sobj,sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id)).unwrap();
+        let (_content_obj, content_opt) = iter_cbatch
+            .find(|(sobj, sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id))
+            .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", content_opt.get_id().id)]);
-        let x_str: Vec<String> = content_opt.get_x().iter().map(|x| format!("{}", x)).collect();
+        let x_str: Vec<String> = content_opt
+            .get_x()
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect();
         str_content.extend(x_str);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
@@ -221,7 +249,9 @@ pub fn run_reader<Op, Scp,Fn>(
         let record = line_cod.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let (content_obj,_content_opt) = iter_cbatch.find(|(sobj,sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id)).unwrap();
+        let (content_obj, _content_opt) = iter_cbatch
+            .find(|(sobj, sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id))
+            .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", content_obj.get_id().id)]);
         let cod_str: Vec<String> = cod.write(content_obj.get_y());
         str_content.extend(cod_str);
@@ -231,12 +261,13 @@ pub fn run_reader<Op, Scp,Fn>(
             "True baseline and CSV record do not match for Codomain."
         );
 
-        
         let record = line_info.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let (content_obj,_content_opt) = iter_cbatch.find(|(sobj,sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id)).unwrap();
-        
+        let (content_obj, _content_opt) = iter_cbatch
+            .find(|(sobj, sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id))
+            .unwrap();
+
         let mut str_content: Vec<String> = Vec::from([format!("{}", content_obj.get_id().id)]);
         let sinfo_str = content_obj.get_info().write(&());
         str_content.extend(sinfo_str);
@@ -254,13 +285,16 @@ pub fn run_reader<Op, Scp,Fn>(
     let mut rdr = csv::Reader::from_path(path_out).unwrap();
     let mut record = StringRecord::new();
     while rdr.read_record(&mut record).unwrap() {
-
-        let computed_batch = if size_out < cbatch.size(){
+        let computed_batch = if size_out < cbatch.size() {
             &cbatch
-        } else {&tcbatch};
-        let output_batch = if size_out < obatch.size(){
+        } else {
+            &tcbatch
+        };
+        let output_batch = if size_out < obatch.size() {
             &obatch
-        } else {&tobatch};
+        } else {
+            &tobatch
+        };
 
         size_out += 1;
 
@@ -268,8 +302,12 @@ pub fn run_reader<Op, Scp,Fn>(
         let con: i64 = record[2].parse().unwrap();
         let mut iter_obatch = output_batch.into_iter();
         let mut iter_cbatch = computed_batch.into_iter();
-        let content = iter_obatch.find(|(sid,out)| (sid.id == id) && (out.fid2 == id)).unwrap();
-        let (content_obj,_content_opt) = iter_cbatch.find(|(sobj,sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id)).unwrap();
+        let content = iter_obatch
+            .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
+            .unwrap();
+        let (content_obj, _content_opt) = iter_cbatch
+            .find(|(sobj, sopt)| (sobj.get_id().id == id) && (sopt.get_id().id == id))
+            .unwrap();
         let true_con = match content_obj.sol.get_x()[0] {
             BaseTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
@@ -293,12 +331,10 @@ pub fn run_reader<Op, Scp,Fn>(
         );
     }
 
+    assert_eq!(size_all, size, "Some solutions are missing.");
     assert_eq!(
-        size_all, size,
-        "Some solutions are missing."
-    );
-    assert_eq!(
-        size_all, size_comp + size_tcomp,
+        size_all,
+        size_comp + size_tcomp,
         "Some solutions are missing within computed batch."
     );
     assert_eq!(
@@ -306,7 +342,8 @@ pub fn run_reader<Op, Scp,Fn>(
         "Some solutions are missing between out and all."
     );
     assert_eq!(
-        size_out, size_cout + size_tcout,
+        size_out,
+        size_cout + size_tcout,
         "Some solutions are missing within recorded out batch."
     );
 }
@@ -319,10 +356,19 @@ fn test_csv_func() {
     let mut stop = Calls::new(100);
     let config = FolderConfig::new("tmp_test");
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<SId, BaseDom, BaseDom, OutExample, Sp<BaseDom, BaseDom>, RandomSearch, _, _>>::init(&mut recorder, &sp, &cod);
+    <CSVRecorder as Recorder<
+        SId,
+        BaseDom,
+        BaseDom,
+        OutExample,
+        Sp<BaseDom, BaseDom>,
+        RandomSearch,
+        _,
+        _,
+    >>::init(&mut recorder, &sp, &cod);
 
-    run_recorder(&sp,&cod,&mut rs,&mut stop,&mut recorder,6);
-    
+    run_recorder(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
+
     // run_recorder(
     //     &sp,
     //     &cod,

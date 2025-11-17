@@ -1,5 +1,7 @@
 use crate::{
-    Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, experiment::mpi::tools::MPIProcess, solution::{CompBatch, OutBatch, partial::FidelityPartial}
+    experiment::mpi::tools::MPIProcess,
+    solution::{partial::FidelityPartial, CompBatch, OutBatch},
+    Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -8,11 +10,7 @@ use mpi::{
     Rank, Tag,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    marker::PhantomData,
-    sync::Arc,
-};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 // pub type VecArcComputed<PSol, SolId, Dom, Cod, Out, SInfo> =
 //     Vec<Arc<Computed<PSol, SolId, Dom, Cod, Out, SInfo>>>;
@@ -182,8 +180,8 @@ where
 
     pub fn rec_computed<Info: OptInfo, Cod: Codomain<Out>, Out: Outcome>(
         &mut self,
-        obatch: &mut OutBatch<SolId,Info,Out>,
-        cbatch: &mut CompBatch<PSol,SolId,Obj,Opt,SInfo,Info,Cod,Out>,
+        obatch: &mut OutBatch<SolId, Info, Out>,
+        cbatch: &mut CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>,
         cod: &Cod,
     ) {
         // Recv / sendv loop
@@ -191,7 +189,7 @@ where
         self.idle.push(status.source_rank());
         let msg = OMessage::from_bytes(bytes, self.config);
         // Unwrap all elements
-        let id=msg.0;
+        let id = msg.0;
         let out = msg.1;
         let y = cod.get_elem(&out);
         let (pobj, popt) = self.waiting.remove(&id).unwrap();

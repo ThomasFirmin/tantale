@@ -1,6 +1,9 @@
 use tantale_algos::RSInfo;
 use tantale_core::{
-    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp, experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::Batch, stop::Calls
+    experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate},
+    solution::Batch,
+    stop::Calls,
+    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp,
 };
 
 use super::init_func::sp_evaluator;
@@ -22,22 +25,52 @@ fn test_seq_evaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj
+        .iter()
+        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt
+        .iter()
+        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .collect();
     let batch = Batch::new(sobj, sopt, info.clone());
     let mut eval = BatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <BatchEvaluator<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo> as MonoEvaluate<SId, BaseDom, BaseDom, EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom, OutEvaluator>, Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>>>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (braw, bcomp) = <BatchEvaluator<
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        BaseDom,
+        BaseDom,
+        EmptyInfo,
+        RSInfo,
+    > as MonoEvaluate<
+        SId,
+        BaseDom,
+        BaseDom,
+        EmptyInfo,
+        RSInfo,
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        Calls,
+        SingleCodomain<OutEvaluator>,
+        OutEvaluator,
+        Sp<BaseDom, BaseDom>,
+        Objective<BaseDom, OutEvaluator>,
+        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
     let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
 
-    sobj_bis.into_iter().zip(sopt_bis).zip(bcomp.cobj.iter()).zip(bcomp.copt.iter())
-        .for_each(|(((sobj,sopt),cobj),copt)| {
+    sobj_bis
+        .into_iter()
+        .zip(sopt_bis)
+        .zip(bcomp.cobj.iter())
+        .zip(bcomp.copt.iter())
+        .for_each(|(((sobj, sopt), cobj), copt)| {
             hsobj.insert(sobj.0, sobj.1);
             hsopt.insert(sopt.0, sopt.1);
             hcobj.insert(cobj.get_id(), cobj);
@@ -77,11 +110,7 @@ fn test_seq_evaluator() {
         20,
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
-    assert_eq!(
-        stop.calls(),
-        20,
-        "Number of calls is wrong."
-    );
+    assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
 
     assert!(
         bcomp.cobj.iter().all(|sol| {
@@ -115,22 +144,52 @@ fn test_seq_par_evaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj
+        .iter()
+        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt
+        .iter()
+        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .collect();
     let batch = Batch::new(sobj, sopt, info.clone());
     let mut eval = ThrBatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <ThrBatchEvaluator<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo> as ThrEvaluate<SId,BaseDom,BaseDom,EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom,OutEvaluator>, Batch<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo>>>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let (braw, bcomp) = <ThrBatchEvaluator<
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        BaseDom,
+        BaseDom,
+        EmptyInfo,
+        RSInfo,
+    > as ThrEvaluate<
+        SId,
+        BaseDom,
+        BaseDom,
+        EmptyInfo,
+        RSInfo,
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        Calls,
+        SingleCodomain<OutEvaluator>,
+        OutEvaluator,
+        Sp<BaseDom, BaseDom>,
+        Objective<BaseDom, OutEvaluator>,
+        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
     let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
 
-    sobj_bis.into_iter().zip(sopt_bis).zip(bcomp.cobj.iter()).zip(bcomp.copt.iter())
-        .for_each(|(((sobj,sopt),cobj),copt)| {
+    sobj_bis
+        .into_iter()
+        .zip(sopt_bis)
+        .zip(bcomp.cobj.iter())
+        .zip(bcomp.copt.iter())
+        .for_each(|(((sobj, sopt), cobj), copt)| {
             hsobj.insert(sobj.0, sobj.1);
             hsopt.insert(sopt.0, sopt.1);
             hcobj.insert(cobj.get_id(), cobj);

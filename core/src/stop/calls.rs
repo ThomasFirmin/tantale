@@ -1,4 +1,7 @@
-use crate::{Fidelity, stop::{ExpStep, Stop}};
+use crate::{
+    stop::{ExpStep, Stop},
+    Fidelity,
+};
 use serde::{Deserialize, Serialize};
 
 /// A [`Stop`] criterion, returning false when the number of
@@ -16,7 +19,9 @@ impl Stop for Calls {
     }
 
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Fidelity::Discard) = step { self.0 += 1 }
+        if let ExpStep::Distribution(Fidelity::Discard) = step {
+            self.0 += 1
+        }
     }
 }
 

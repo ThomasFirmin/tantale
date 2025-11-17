@@ -1,8 +1,6 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective,
-    experiment::Runable, 
-    experiment, load,
-    stop::Calls
+    experiment, experiment::Runable, load, stop::Calls, CSVRecorder, FolderConfig, MessagePack,
+    Objective,
 };
 
 use tantale_algos::RandomSearch;
@@ -22,9 +20,7 @@ impl Drop for Cleaner {
     }
 }
 
-
-pub fn run_reader(path: &str,size: usize)
-{
+pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("recorder"));
     let path_obj = eval_path.join("obj.csv");
@@ -45,21 +41,20 @@ pub fn run_reader(path: &str,size: usize)
     let linescod = rdr_cod.records();
     let linesinfo = rdr_info.records();
     let linesout = rdr_out.records();
-    
-    let count_obj= linesobj.count();
-    let count_opt= linesopt.count();
-    let count_cod= linescod.count();
-    let count_info= linesinfo.count();
-    let count_out= linesout.count();
+
+    let count_obj = linesobj.count();
+    let count_opt = linesopt.count();
+    let count_cod = linescod.count();
+    let count_info = linesinfo.count();
+    let count_out = linesout.count();
 
     let linesobj = rdr_obj.records();
-    linesobj.for_each(|l| println!("{:?}",l));
+    linesobj.for_each(|l| println!("{:?}", l));
     assert_eq!(count_obj, size, "Some solutions are missing in obj.");
     assert_eq!(count_opt, size, "Some solutions are missing in opt.");
     assert_eq!(count_cod, size, "Some solutions are missing in cod.");
     assert_eq!(count_info, size, "Some solutions are missing in info.");
     assert_eq!(count_out, size, "Some solutions are missing in out.");
-
 }
 
 #[test]
@@ -67,7 +62,9 @@ fn test_seq_run() {
     drop(Cleaner {
         path: String::from("tmp_test_seqrun"),
     });
-    let _clean = Cleaner {path: String::from("tmp_test_seqrun")};
+    let _clean = Cleaner {
+        path: String::from("tmp_test_seqrun"),
+    };
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -77,9 +74,9 @@ fn test_seq_run() {
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_seqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1);
+    let check = MessagePack::new(config, 1);
 
-    let exp = experiment!(Mono, (sp,cod), obj, opt, stop, (rec,check));
+    let exp = experiment!(Mono, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -88,12 +85,12 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
-    
+
     let config = FolderConfig::new("tmp_test_seqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1).unwrap();
+    let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Mono, (sp,cod), obj, RandomSearch, Calls, (rec, check));
+    let mut exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -106,12 +103,12 @@ fn test_seq_run() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
-    
+
     let config = FolderConfig::new("tmp_test_seqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1).unwrap();
+    let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Mono, (sp,cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
     run_reader("tmp_test_seqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(
@@ -130,8 +127,10 @@ fn test_seq_parrun() {
     drop(Cleaner {
         path: String::from("tmp_test_parseqrun"),
     });
-    let _clean = Cleaner {path: String::from("tmp_test_parseqrun")};
-    
+    let _clean = Cleaner {
+        path: String::from("tmp_test_parseqrun"),
+    };
+
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = RandomSearch::new(7);
@@ -140,9 +139,9 @@ fn test_seq_parrun() {
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_parseqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1);
+    let check = MessagePack::new(config, 1);
 
-    let exp = experiment!(Threaded, (sp,cod), obj, opt, stop, (rec,check));
+    let exp = experiment!(Threaded, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_parseqrun", 50);
@@ -151,12 +150,12 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
-    
+
     let config = FolderConfig::new("tmp_test_parseqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1).unwrap();
+    let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Threaded, (sp,cod), obj, RandomSearch, Calls, (rec, check));
+    let mut exp = load!(Threaded, (sp, cod), obj, RandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -169,12 +168,12 @@ fn test_seq_parrun() {
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
-    
+
     let config = FolderConfig::new("tmp_test_parseqrun");
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config,1).unwrap();
+    let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Threaded, (sp,cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(Threaded, (sp, cod), obj, RandomSearch, Calls, (rec, check));
     run_reader("tmp_test_parseqrun", 100);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(

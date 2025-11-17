@@ -5,9 +5,7 @@
 
 use crate::{
     domain::{Domain, TypeDom},
-    objective::{
-        outcome::{FuncState, Outcome},
-    },
+    objective::outcome::{FuncState, Outcome},
     solution::partial::Fidelity,
     FidOutcome,
 };
@@ -44,7 +42,9 @@ where
     ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(func: OptimFn<Obj::TypeDom, Out>) -> Self {Objective(func)}
+    pub fn new(func: OptimFn<Obj::TypeDom, Out>) -> Self {
+        Objective(func)
+    }
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
@@ -57,7 +57,8 @@ impl<Obj, Out> FuncWrapper for Objective<Obj, Out>
 where
     Obj: Domain,
     Out: Outcome,
-{}
+{
+}
 
 /// The [`Stepped`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return an [`Outcome`],
@@ -87,7 +88,9 @@ where
     ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(func: SteppFn<Obj::TypeDom, Out, FnState>) -> Self {Stepped(func)}
+    pub fn new(func: SteppFn<Obj::TypeDom, Out, FnState>) -> Self {
+        Stepped(func)
+    }
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
@@ -106,4 +109,5 @@ where
     Obj: Domain,
     Out: FidOutcome,
     FnState: FuncState,
-{}
+{
+}

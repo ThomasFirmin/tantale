@@ -480,7 +480,12 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_obj(&self,rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PSol>;
+    fn vec_sample_obj(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<PSol>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -516,7 +521,12 @@ where
     /// }
     ///
     /// ```
-    fn vec_sample_opt(&self,rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PSol::Twin<Opt>>;
+    fn vec_sample_opt(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<PSol::Twin<Opt>>;
     /// Check if all [`Solutions`](tantale::core::Solution) from a given [`Vec`] of `Opt` [`Solution`] is in the [`Searchspace`].
     ///
     /// # Example
@@ -602,7 +612,9 @@ where
         Cod: Codomain<Out>,
         Out: Outcome,
         Cod::TypeCodom: Serialize + for<'a> Deserialize<'a>,
-    { (Computed::new(xa, y.clone()), Computed::new(xb, y)) }
+    {
+        (Computed::new(xa, y.clone()), Computed::new(xb, y))
+    }
 }
 
 pub mod spbase;

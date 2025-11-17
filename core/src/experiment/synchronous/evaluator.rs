@@ -1,5 +1,10 @@
 use crate::{
-    Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo, domain::onto::OntoDom, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate}, objective::{Codomain, Objective, Outcome}, solution::{Batch, BatchType, CompBatch, OutBatch}, stop::{ExpStep, Stop}
+    domain::onto::OntoDom,
+    experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
+    objective::{Codomain, Objective, Outcome},
+    solution::{Batch, BatchType, CompBatch, OutBatch},
+    stop::{ExpStep, Stop},
+    Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo,
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -8,14 +13,17 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
-    mpi::{tools::MPIProcess, utils::{SendRec,XMessage}},
+    mpi::{
+        tools::MPIProcess,
+        utils::{SendRec, XMessage},
+    },
     DistEvaluate,
 };
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
 
-type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> = Arc<Mutex<Batch<PSol, SolId, Obj, Opt, SInfo, Info>>>;
-
+type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =
+    Arc<Mutex<Batch<PSol, SolId, Obj, Opt, SInfo, Info>>>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -32,7 +40,7 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+    pub batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info> BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
@@ -46,7 +54,7 @@ where
     Info: OptInfo,
 {
     pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
-        BatchEvaluator {batch}
+        BatchEvaluator { batch }
     }
 }
 
@@ -63,9 +71,21 @@ where
 {
 }
 
-impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out> 
-    MonoEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp,Objective<Obj,Out>,Batch<PSol,SolId,Obj,Opt,SInfo,Info>>
-    for BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out>
+    MonoEvaluate<
+        SolId,
+        Obj,
+        Opt,
+        SInfo,
+        Info,
+        PSol,
+        St,
+        Cod,
+        Out,
+        Scp,
+        Objective<Obj, Out>,
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    > for BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
@@ -82,34 +102,56 @@ where
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: &Objective<Obj,Out>,
+        ob: &Objective<Obj, Out>,
         cod: &Cod,
         stop: &mut St,
-    ) -> EvaluateOut<Batch<PSol,SolId,Obj,Opt,SInfo,Info>, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info> {
+    ) -> EvaluateOut<
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+        SolId,
+        Obj,
+        Opt,
+        Cod,
+        Out,
+        SInfo,
+        PSol,
+        Info,
+    > {
         let mut rbatch = OutBatch::empty(self.batch.get_info());
         let mut cbatch = CompBatch::empty(self.batch.get_info());
 
         while !self.batch.is_empty() && !stop.stop() {
-            let (sobj,sopt) = self.batch.pop().unwrap();
+            let (sobj, sopt) = self.batch.pop().unwrap();
             let out = ob.compute(sobj.get_x().as_ref());
             let y = cod.get_elem(&out);
             rbatch.add(sobj.get_id(), out);
-            cbatch.add_res(sobj, sopt,y);
+            cbatch.add_res(sobj, sopt, y);
             stop.update(ExpStep::Distribution(Fidelity::Discard));
         }
         // For saving in case of early stopping before full evaluation of all elements
         (rbatch, cbatch)
     }
 
-    fn update(&mut self, batch:Batch<PSol,SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self, batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) {
         self.batch = batch;
     }
 }
 
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out>
-    DistEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Objective<Obj,Out>,Batch<PSol,SolId,Obj,Opt,SInfo,Info>>
-    for BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+    DistEvaluate<
+        SolId,
+        Obj,
+        Opt,
+        SInfo,
+        Info,
+        PSol,
+        St,
+        Cod,
+        Out,
+        Scp,
+        Objective<Obj, Out>,
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    > for BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
@@ -127,10 +169,20 @@ where
     fn evaluate(
         &mut self,
         proc: &MPIProcess,
-        _ob: &Objective<Obj,Out>,
-        cod:&Cod,
+        _ob: &Objective<Obj, Out>,
+        cod: &Cod,
         stop: &mut St,
-    ) -> EvaluateOut<Batch<PSol,SolId,Obj,Opt,SInfo,Info>, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info> {
+    ) -> EvaluateOut<
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+        SolId,
+        Obj,
+        Opt,
+        Cod,
+        Out,
+        SInfo,
+        PSol,
+        Info,
+    > {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
@@ -147,8 +199,11 @@ where
         let mut at_least_one_idle = true;
         while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
             let has_idle = sendrec.send_to_worker(self.batch.pop().unwrap());
-            if has_idle {stop.update(ExpStep::Distribution(Fidelity::Discard));}
-            else {at_least_one_idle = false;}
+            if has_idle {
+                stop.update(ExpStep::Distribution(Fidelity::Discard));
+            } else {
+                at_least_one_idle = false;
+            }
         }
 
         // Recv / sendv loop
@@ -156,14 +211,16 @@ where
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
             if !stop.stop() && !self.batch.is_empty() {
                 let has_idl = sendrec.send_to_worker(self.batch.pop().unwrap());
-                if has_idl {stop.update(ExpStep::Distribution(Fidelity::Discard));}
+                if has_idl {
+                    stop.update(ExpStep::Distribution(Fidelity::Discard));
+                }
             }
         }
         // For saving in case of early stopping before full evaluation of all elements
         (obatch, cbatch)
     }
 
-    fn update(&mut self, batch: Batch<PSol,SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self, batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) {
         self.batch = batch;
     }
 }
@@ -202,7 +259,7 @@ where
 {
     pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
         let batch = Arc::new(Mutex::new(batch));
-        ThrBatchEvaluator {batch}
+        ThrBatchEvaluator { batch }
     }
 }
 
@@ -220,8 +277,20 @@ where
 }
 
 impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out>
-    ThrEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Objective<Obj,Out>,Batch<PSol,SolId,Obj,Opt,SInfo,Info>>
-    for ThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+    ThrEvaluate<
+        SolId,
+        Obj,
+        Opt,
+        SInfo,
+        Info,
+        PSol,
+        St,
+        Cod,
+        Out,
+        Scp,
+        Objective<Obj, Out>,
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    > for ThrBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id + Send + Sync,
     Obj: OntoDom<Opt> + Send + Sync,
@@ -239,11 +308,20 @@ where
     fn init(&mut self) {}
     fn evaluate(
         &mut self,
-        ob: Arc<Objective<Obj,Out>>,
+        ob: Arc<Objective<Obj, Out>>,
         cod: Arc<Cod>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<Batch<PSol,SolId,Obj,Opt,SInfo,Info>, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info> {
-        
+    ) -> EvaluateOut<
+        Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+        SolId,
+        Obj,
+        Opt,
+        Cod,
+        Out,
+        SInfo,
+        PSol,
+        Info,
+    > {
         //Results
         let info = self.batch.lock().unwrap().get_info();
         let obatch = Arc::new(Mutex::new(OutBatch::empty(info.clone())));
@@ -254,19 +332,19 @@ where
             if !stplock.stop() {
                 stplock.update(ExpStep::Distribution(Fidelity::Discard));
                 drop(stplock);
-                let (pobj,popt) = self.batch.lock().unwrap().pop().unwrap();
+                let (pobj, popt) = self.batch.lock().unwrap().pop().unwrap();
                 let id = pobj.get_id();
                 let out = ob.clone().compute(&pobj.get_x());
-                let y= cod.clone().get_elem(&out);
-                obatch.lock().unwrap().add(id,out);
+                let y = cod.clone().get_elem(&out);
+                obatch.lock().unwrap().add(id, out);
                 cbatch.lock().unwrap().add_res(pobj, popt, y);
             }
         });
         let obatch = Arc::try_unwrap(obatch).unwrap().into_inner().unwrap();
         let cbatch = Arc::try_unwrap(cbatch).unwrap().into_inner().unwrap();
-        (obatch,cbatch)
+        (obatch, cbatch)
     }
-    fn update(&mut self, batch: Batch<PSol,SolId,Obj,Opt,SInfo,Info>) {
+    fn update(&mut self, batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) {
         self.batch = Arc::new(Mutex::new(batch));
     }
 }

@@ -56,7 +56,7 @@ where
         let outx: Vec<TypeDom<Obj>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
             .collect();
-        Partial::<SolId, Obj, SInfo>::new(SolId::generate(),outx,info)
+        Partial::<SolId, Obj, SInfo>::new(SolId::generate(), outx, info)
     }
 
     /// [`None`] should be used for `_rng`.
@@ -65,19 +65,15 @@ where
         let outx: Vec<TypeDom<Opt>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
             .collect();
-        Partial::<SolId, Opt, SInfo>::new(SolId::generate(),outx,info)
+        Partial::<SolId, Opt, SInfo>::new(SolId::generate(), outx, info)
     }
 
     fn vec_onto_obj(&self, inp: &[PSol::Twin<Opt>]) -> Vec<PSol> {
-        inp.par_iter()
-            .map(|sol| self.onto_obj(sol))
-            .collect()
+        inp.par_iter().map(|sol| self.onto_obj(sol)).collect()
     }
 
     fn vec_onto_opt(&self, inp: &[PSol]) -> Vec<PSol::Twin<Opt>> {
-        inp.par_iter()
-            .map(|sol| self.onto_opt(sol))
-            .collect()
+        inp.par_iter().map(|sol| self.onto_opt(sol)).collect()
     }
 
     /// [`None`] should be used for `_rng`.
@@ -138,18 +134,22 @@ where
     where
         S: Solution<SolId, Obj, SInfo> + Send + Sync,
     {
-        inp.iter().all(|sol| 
-            <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_obj::<S>(self,sol)
-        )
+        inp.iter().all(|sol| {
+            <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_obj::<S>(
+                self, sol,
+            )
+        })
     }
 
     fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Opt, SInfo> + Send + Sync,
     {
-        inp.iter().all(|sol| 
-            <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_opt::<S>(self,sol)
-        )
+        inp.iter().all(|sol| {
+            <ParSp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::is_in_opt::<S>(
+                self, sol,
+            )
+        })
     }
 }
 

@@ -11,11 +11,8 @@ use std::process;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Dom>(
-    n: usize,
-    sol: &[BasePartial<ParSId, Dom, TestSInfo>],
-    pid: u32,
-) where
+fn _test_solution_assertion<Dom>(n: usize, sol: &[BasePartial<ParSId, Dom, TestSInfo>], pid: u32)
+where
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>:
         Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,

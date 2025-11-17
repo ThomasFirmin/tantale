@@ -79,21 +79,30 @@ fn test_elemsingle_write() {
     let (cod, elem) = get_elemsingle();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemcost_write() {
     let (cod, elem) = get_elemcost();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemconst_write() {
     let (cod, elem) = get_elemconst();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemcostconst_write() {
@@ -105,21 +114,30 @@ fn test_elemcostconst_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemmulti_write() {
     let (cod, elem) = get_elemmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemcostmulti_write() {
     let (cod, elem) = get_elemcostmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), 3.3.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemconstmulti_write() {
@@ -131,7 +149,10 @@ fn test_elemconstmulti_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemcostconstmulti_write() {
@@ -144,7 +165,10 @@ fn test_elemcostconstmulti_write() {
         4.4.to_string(),
         5.5.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 
 #[test]
@@ -152,7 +176,10 @@ fn test_elemfidfid_header() {
     let (cod, _) = get_elemfid();
     let head = StepCodomain::header(&cod);
     let str_true = Vec::from([String::from("y"), String::from("step")]);
-    assert_eq!(head, str_true, "Written linedoes not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written linedoes not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidcost_header() {
@@ -194,11 +221,7 @@ fn test_elemfidcostconst_header() {
 fn test_elemfidmulti_header() {
     let (cod, _) = get_elemfidmulti();
     let head = StepMultiCodomain::header(&cod);
-    let str_true = Vec::from([
-        String::from("y0"),
-        String::from("y1"),
-        String::from("step"),
-    ]);
+    let str_true = Vec::from([String::from("y0"), String::from("y1"), String::from("step")]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
 #[test]
@@ -246,14 +269,20 @@ fn test_elemfid_write() {
     let (cod, elem) = get_elemfid();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), "Completed".to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidcost_write() {
     let (cod, elem) = get_elemfidcost();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), "Completed".to_string(), 2.2.to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidconst_write() {
@@ -265,7 +294,10 @@ fn test_elemfidconst_write() {
         2.2.to_string(),
         3.3.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidcostconst_write() {
@@ -278,14 +310,20 @@ fn test_elemfidcostconst_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidmulti_write() {
     let (cod, elem) = get_elemfidmulti();
     let head = cod.write(&elem);
     let str_true = Vec::from([1.1.to_string(), 2.2.to_string(), "Completed".to_string()]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidcostmulti_write() {
@@ -297,7 +335,10 @@ fn test_elemfidcostmulti_write() {
         "Completed".to_string(),
         3.3.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidconstmulti_write() {
@@ -310,7 +351,10 @@ fn test_elemfidconstmulti_write() {
         3.3.to_string(),
         4.4.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }
 #[test]
 fn test_elemfidcostconstmulti_write() {
@@ -324,5 +368,8 @@ fn test_elemfidcostconstmulti_write() {
         4.4.to_string(),
         5.5.to_string(),
     ]);
-    assert_eq!(head, str_true, "Written line does not match the true baseline.");
+    assert_eq!(
+        head, str_true,
+        "Written line does not match the true baseline."
+    );
 }

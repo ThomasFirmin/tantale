@@ -14,7 +14,7 @@ fn is_numeric_type(ty: &Type) -> bool {
     })
 }
 
-fn is_evalstate_type(ty: &Type) -> bool{
+fn is_evalstate_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if {
         let ident = &p.path.segments.last().unwrap().ident;
         matches!(ident.to_string().as_str(), "EvalStep")
@@ -49,11 +49,14 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else if is_numeric_type(fty) {
             to_header_stmts.push(quote! {stringify!(#fident).to_string()});
             to_string_stmts.push(quote! {self.#fident.to_string()});
-        } else if is_evalstate_type(fty){
-            if has_eval_stmt{
+        } else if is_evalstate_type(fty) {
+            if has_eval_stmt {
                 panic!(
                     "{:?}",
-                    syn::Error::new(field.span(), "Only one EvalStep should be defined within an Outcome.")
+                    syn::Error::new(
+                        field.span(),
+                        "Only one EvalStep should be defined within an Outcome."
+                    )
                 );
             } else {
                 to_header_stmts.push(quote! {stringify!(#fident).to_string()});

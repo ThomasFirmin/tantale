@@ -1,15 +1,20 @@
 use tantale_core::{
-    BasePartial, Criteria, EvalStep, FidOutcome, Objective, StepCodomain, Stepped,
     domain::onto::OntoDom,
     objective::{
         codomain::SingleCodomain,
-        outcome::{FuncState, Outcome}
+        outcome::{FuncState, Outcome},
     },
-    optimizer::{EmptyInfo, OptInfo, OptState, 
-        opt::{CBType, Optimizer}},
-        recorder::csv::CSVWritable,
-        searchspace::Searchspace,
-        solution::{Batch, SId, partial::{FidBasePartial, FidelityPartial}}
+    optimizer::{
+        opt::{CBType, Optimizer},
+        EmptyInfo, OptInfo, OptState,
+    },
+    recorder::csv::CSVWritable,
+    searchspace::Searchspace,
+    solution::{
+        partial::{FidBasePartial, FidelityPartial},
+        Batch, SId,
+    },
+    BasePartial, Criteria, EvalStep, FidOutcome, Objective, StepCodomain, Stepped,
 };
 
 use rand::prelude::ThreadRng;
@@ -57,8 +62,8 @@ impl RandomSearch {
     }
 }
 
-  //-----------------//
- //--- OBJECTIVE ---//
+//-----------------//
+//--- OBJECTIVE ---//
 //-----------------//
 
 fn rs_iter<Obj, Opt, Scp>(
@@ -79,7 +84,7 @@ where
     Batch::new(samples, opt_samples, info)
 }
 
-impl<Obj, Opt, Out, Scp> Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj,Out>> for RandomSearch
+impl<Obj, Opt, Out, Scp> Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj, Out>> for RandomSearch
 where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
@@ -99,7 +104,11 @@ where
         rs_iter::<Obj, Opt, Scp>(self, scp)
     }
 
-    fn step(&mut self, _x: CBType<Self,SId,Obj,Opt,Out,Scp,Objective<Obj,Out>>, scp: &Scp) -> Self::BType {
+    fn step(
+        &mut self,
+        _x: CBType<Self, SId, Obj, Opt, Out, Scp, Objective<Obj, Out>>,
+        scp: &Scp,
+    ) -> Self::BType {
         rs_iter::<Obj, Opt, Scp>(self, scp)
     }
 
@@ -110,11 +119,10 @@ where
     fn from_state(state: RSState) -> Self {
         RandomSearch(state, rand::rng())
     }
-    
 }
 
-  //---------------//
- //--- STEPPED ---//
+//---------------//
+//--- STEPPED ---//
 //---------------//
 
 fn fid_rs_iter<Obj, Opt, Scp>(
@@ -126,7 +134,6 @@ where
     Opt: OntoDom<Obj>,
     Scp: Searchspace<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {
-
     let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
     let opt_samples = sp.vec_onto_opt(&samples);
     let info = Arc::new(RSInfo {
@@ -136,13 +143,14 @@ where
     Batch::new(samples, opt_samples, info)
 }
 
-impl<Obj, Opt, Out, Scp, FnState> Optimizer<SId, Obj, Opt, Out, Scp,Stepped<Obj,Out,FnState>> for RandomSearch
+impl<Obj, Opt, Out, Scp, FnState> Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>
+    for RandomSearch
 where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Out: FidOutcome,
     Scp: Searchspace<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
-    FnState:FuncState,
+    FnState: FuncState,
 {
     type Sol = FidBasePartial<SId, Obj, EmptyInfo>;
     type BType = Batch<Self::Sol, SId, Obj, Opt, EmptyInfo, RSInfo>;
@@ -154,30 +162,35 @@ where
     fn init(&mut self) {}
 
     fn first_step(&mut self, scp: &Scp) -> Self::BType {
-        fid_rs_iter::<Obj,Opt,Scp>(self, scp)
+        fid_rs_iter::<Obj, Opt, Scp>(self, scp)
     }
 
-    fn step(&mut self, x: CBType<Self,SId,Obj,Opt,Out,Scp,Stepped<Obj,Out,FnState>>, scp: &Scp) -> Self::BType {
-        if x.size() > 0{
-            let (vobj, vopt) = x.into_iter().map(
-                |(obj,opt)|
-                {
+    fn step(
+        &mut self,
+        x: CBType<Self, SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>,
+        scp: &Scp,
+    ) -> Self::BType {
+        if x.size() > 0 {
+            let (vobj, vopt) = x
+                .into_iter()
+                .map(|(obj, opt)| {
                     let step = obj.get_y().step;
-                    let mut xobj =  obj.sol;
+                    let mut xobj = obj.sol;
                     let mut xopt = opt.sol;
                     match step {
                         EvalStep::Partially(_) => xobj.resume(&mut xopt, 0.0),
                         EvalStep::Completed => xobj.discard(&mut xopt),
                         EvalStep::Error => xobj.discard(&mut xopt),
                     };
-                    (xobj,xopt)
-                }
-            ).collect();
-            let info = Arc::new(RSInfo {iteration: self.0.iteration});
+                    (xobj, xopt)
+                })
+                .collect();
+            let info = Arc::new(RSInfo {
+                iteration: self.0.iteration,
+            });
             self.0.iteration += 1;
             Batch::new(vobj, vopt, info)
-        }
-        else{
+        } else {
             fid_rs_iter::<Obj, Opt, Scp>(self, scp)
         }
     }
@@ -189,5 +202,4 @@ where
     fn from_state(state: Self::State) -> Self {
         RandomSearch(state, rand::rng())
     }
-    
 }

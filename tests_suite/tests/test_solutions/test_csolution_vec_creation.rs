@@ -12,7 +12,14 @@ use std::process;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type SlcArcComp<Dom> = Computed<BasePartial<ParSId, Dom, TestSInfo>,ParSId,Dom,SingleCodomain<OutExample>,OutExample,TestSInfo>;
+type SlcArcComp<Dom> = Computed<
+    BasePartial<ParSId, Dom, TestSInfo>,
+    ParSId,
+    Dom,
+    SingleCodomain<OutExample>,
+    OutExample,
+    TestSInfo,
+>;
 
 fn _test_solution_assertion<Dom>(n: usize, sol: &[SlcArcComp<Dom>], pid: u32)
 where

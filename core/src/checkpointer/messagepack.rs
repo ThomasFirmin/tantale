@@ -1,8 +1,8 @@
 use crate::{
     checkpointer::{CheckpointError, Checkpointer},
+    experiment::Evaluate,
     optimizer::OptState,
     stop::Stop,
-    experiment::Evaluate,
     FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
 };
 
@@ -17,7 +17,7 @@ use std::{
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::{worker::WorkerState, tools::MPIProcess},
+    experiment::mpi::{tools::MPIProcess, worker::WorkerState},
 };
 #[cfg(feature = "mpi")]
 use mpi::{traits::CommunicatorCollectives, Rank};

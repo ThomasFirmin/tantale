@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
+use tantale_core::objective::outcome::FuncState;
 use tantale_core::EvalStep;
-use tantale_core::{objective::outcome::FuncState};
 use tantale_macros::Outcome;
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -56,7 +56,6 @@ pub struct FidOutUnique {
     pub vec: Vec<f64>,
     pub fid: EvalStep,
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct FnState {
@@ -428,13 +427,13 @@ pub mod sp_evaluator {
     );
 }
 
-  //---------------//
- //--- STEPPED ---//
+//---------------//
+//--- STEPPED ---//
 //---------------//
 
 pub mod sp_evaluator_fid {
-    use super::{int_plus_nat, plus_one_int, Neuron, FnState, FidOutEvaluator, EvalStep};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, Fidelity};
+    use super::{int_plus_nat, plus_one_int, EvalStep, FidOutEvaluator, FnState, Neuron};
+    use tantale_core::{Bool, Cat, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -455,7 +454,7 @@ pub mod sp_evaluator_fid {
             };
 
             let _k = [! k_{4} | Nat(0,100) | !];
-            
+
             let mut state = match fidelity{
                 Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
@@ -470,14 +469,18 @@ pub mod sp_evaluator_fid {
                 },
                 state
             )
-            
+
         }
     );
 }
 
 pub mod sp_ms_nosamp_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{EvalStep, domain::{Bool, Cat, Int, Nat, Real}, solution::partial::Fidelity};
+    use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
+    use tantale_core::{
+        domain::{Bool, Cat, Int, Nat, Real},
+        solution::partial::Fidelity,
+        EvalStep,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -526,8 +529,8 @@ pub mod sp_ms_nosamp_fid {
 }
 
 pub mod sp_ms_samp_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
+    use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -576,8 +579,8 @@ pub mod sp_ms_samp_fid {
 }
 
 pub mod sp_ms_samp_right_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
+    use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
+    use tantale_core::{uniform_real, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -626,8 +629,8 @@ pub mod sp_ms_samp_right_fid {
 }
 
 pub mod sp_ms_noright_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
+    use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
+    use tantale_core::{Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -676,8 +679,8 @@ pub mod sp_ms_noright_fid {
 }
 
 pub mod sp_ms_samp_noright_fid {
-    use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
+    use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -726,8 +729,8 @@ pub mod sp_ms_samp_noright_fid {
 }
 
 pub mod sp_sm_samp_fid {
-    use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real, EvalStep, Fidelity};
+    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
+    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -776,8 +779,8 @@ pub mod sp_sm_samp_fid {
 }
 
 pub mod sp_sm_samp_noright_fid {
-    use super::{float_plus_float, plus_one_float, FnState, FidOutUnique, Point};
-    use tantale_core::{uniform_real, Real, EvalStep, Fidelity};
+    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
+    use tantale_core::{uniform_real, EvalStep, Fidelity, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
