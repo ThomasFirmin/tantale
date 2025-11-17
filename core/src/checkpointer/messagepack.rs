@@ -44,20 +44,20 @@ pub struct MessagePack {
 }
 
 impl MessagePack {
-    pub fn new(config: Arc<FolderConfig>, checkpoint: usize) -> Self {
+    pub fn new(config: Arc<FolderConfig>, checkpoint: usize) -> Option<Self> {
         if checkpoint > 0 {
             let path_stop = config.path_check.join(Path::new("state_optim.mp"));
             let path_eval = config.path_check.join(Path::new("state_stop.mp"));
             let path_optim = config.path_check.join(Path::new("state_eval.mp"));
             let path_config = config.path_check.join(Path::new("state_config.mp"));
-            MessagePack {
+            Some(MessagePack {
                 config,
                 checkpoint,
                 path_stop,
                 path_eval,
                 path_optim,
                 path_config,
-            }
+            })
         } else {
             panic!("The `checkpoint` parameter should be >0, otherwise don't use any Checkpointer by passing None.");
         }

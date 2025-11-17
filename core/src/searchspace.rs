@@ -116,8 +116,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 type ComputedOut<PSolA, PSolB, SolId, ADom, BDom, Cod, Out, Info> = (
-    Arc<Computed<PSolA, SolId, ADom, Cod, Out, Info>>,
-    Arc<Computed<PSolB, SolId, BDom, Cod, Out, Info>>,
+    Computed<PSolA, SolId, ADom, Cod, Out, Info>,
+    Computed<PSolB, SolId, BDom, Cod, Out, Info>,
 );
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
@@ -602,12 +602,7 @@ where
         Cod: Codomain<Out>,
         Out: Outcome,
         Cod::TypeCodom: Serialize + for<'a> Deserialize<'a>,
-    {
-        (
-            Arc::new(Computed::new(xa, y.clone())),
-            Arc::new(Computed::new(xb, y)),
-        )
-    }
+    { (Computed::new(xa, y.clone()), Computed::new(xb, y)) }
 }
 
 pub mod spbase;

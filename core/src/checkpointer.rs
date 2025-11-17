@@ -13,6 +13,7 @@ pub use checkerror::CheckpointError;
 
 pub mod messagepack;
 pub use messagepack::MessagePack;
+#[cfg(feature = "mpi")]
 use serde::{Deserialize, Serialize};
 
 /// A [`Checkpointer`] is used to frequently create a checkpoint from the states of the

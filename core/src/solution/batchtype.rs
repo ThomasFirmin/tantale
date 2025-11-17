@@ -169,6 +169,12 @@ where
         self.sopt.extend(sopt);
     }
 
+    /// Extend [`Self`] with a new [`OutBach`].
+    pub fn extend(&mut self, batch: Self) {
+        self.sobj.extend(batch.sobj);
+        self.sopt.extend(batch.sopt);
+    }
+
     /// Return the size of the [`Batch`].
     pub fn size(&self) -> usize {
         self.sobj.len()
@@ -236,13 +242,15 @@ where
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
-    pub fn add_vec(
-        &mut self,
-        vid: Vec<SolId>,
-        vout: Vec<Out>,
-    ) {
+    pub fn add_vec(&mut self,vid: Vec<SolId>,vout: Vec<Out>) {
         self.vid.extend(vid);
         self.vout.extend(vout);
+    }
+
+    /// Extend [`Self`] with a new [`OutBach`].
+    pub fn extend(&mut self, batch: Self) {
+        self.vid.extend(batch.vid);
+        self.vout.extend(batch.vout);
     }
 
     /// Return the size of the [`OutBatch`]
@@ -328,6 +336,12 @@ where
     ) {
         self.cobj.extend(compobj);
         self.copt.extend(compopt);
+    }
+
+    /// Extend [`Self`] with a new [`OutBach`].
+    pub fn extend(&mut self, batch: Self) {
+        self.cobj.extend(batch.cobj);
+        self.copt.extend(batch.copt);
     }
 
     /// Add a new `Obj` and `Opt` pair of [`CompSol`] to the batch from a pair of [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).

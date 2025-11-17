@@ -26,13 +26,13 @@ pub use synchronous::syncrun::DistExperiment;
 #[cfg(not(feature = "mpi"))]
 macro_rules! experiment {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        ThrExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::ThrExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
 }
 
@@ -40,16 +40,16 @@ macro_rules! experiment {
 #[cfg(feature = "mpi")]
 macro_rules! experiment {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        ThrExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::ThrExperiment::new(($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        DistExperiment::new($proc, ($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
+        tantale::core::experiment::DistExperiment::new($proc, ($domain,$codomain), $objective, $optimizer, $stop, ($rec, $check))
     };
 }
 

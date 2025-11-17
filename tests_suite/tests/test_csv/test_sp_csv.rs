@@ -3,7 +3,6 @@ use tantale::core::recorder::csv::CSVLeftRight;
 use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp};
 
 use paste::paste;
-use std::sync::Arc;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_test {
@@ -24,13 +23,13 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj: Arc<BasePartial<SId,_,_>> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj: BasePartial<SId,_,_> = sp.sample_obj(Some(&mut rng),sinfo.clone());
                 let s_str : Vec<String> = sample_obj.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_left(&sample_obj.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
 
-                let sample_opt: Arc<BasePartial<SId,_,_>> = sp.onto_opt(sample_obj.clone());
+                let sample_opt: BasePartial<SId,_,_> = sp.onto_opt(&sample_obj);
                 let s_str : Vec<String> = sample_opt.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_right(&sample_opt.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Opt searchspace.");

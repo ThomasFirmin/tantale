@@ -17,8 +17,8 @@ use crate::{experiment::mpi::tools::MPIProcess, recorder::DistRecorder};
 pub struct NoSaver {}
 
 impl NoSaver {
-    pub fn new() -> NoSaver {
-        NoSaver {}
+    pub fn new() -> Option<NoSaver> {
+        Some(NoSaver {})
     }
 }
 

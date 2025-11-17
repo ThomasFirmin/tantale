@@ -1,12 +1,10 @@
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::RSInfo;
 use tantale_core::{
-    BasePartial, EmptyInfo, StepCodomain, SId, Searchspace, Solution, Sp, Stepped, 
-    experiment::{BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate},
-    solution::{Batch, partial::{FidBasePartial,FidelityPartial}}, stop::Calls
+    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp, experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::Batch, stop::Calls
 };
 
-use super::init_func::sp_evaluator_fid;
-use crate::init_func::{FidOutEvaluator, FnState};
+use super::init_func::sp_evaluator;
+use crate::init_func::OutEvaluator;
 
 use std::{
     collections::HashMap,
@@ -15,54 +13,35 @@ use std::{
 
 #[test]
 fn test_seq_evaluator() {
-    let sp = sp_evaluator_fid::get_searchspace();
-    let func = sp_evaluator_fid::example;
-    let cod = StepCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(cod, func));
-    let info = Arc::new(RSInfo { iteration: 0 });
-    let sinfo = Arc::new(EmptyInfo {});
-    let stop = Arc::new(Mutex::new(Calls::new(50)));
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
+    let obj = Arc::new(Objective::new(func));
+    let info = std::sync::Arc::new(RSInfo { iteration: 0 });
+    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj  = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt = sp.vec_onto_obj(sobj.clone());
+    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
     let batch = Batch::new(sobj, sopt, info.clone());
-    let mut eval = FidBatchEvaluator::new(batch);
+    let mut eval = BatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <FidBatchEvaluator<FidBasePartial<SId, _, _>, _, _, _, _, _, FnState> as MonoEvaluate<
-        RandomSearch,
-        Calls,
-        sp_evaluator_fid::ObjType,
-        sp_evaluator_fid::OptType,
-        FidOutEvaluator,
-        _,
-        Sp<_, _>,
-    >>::evaluate(&mut eval, obj.clone(), stop.clone());
+    let (braw, bcomp) = <BatchEvaluator<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo> as MonoEvaluate<SId, BaseDom, BaseDom, EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom, OutEvaluator>, Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>>>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
-    let mut hsobj = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt = HashMap::new();
-    let mut hlink = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
 
-    bcomp
-        .cobj
-        .iter()
-        .zip(eval.batch.sobj.iter())
-        .zip(braw.robj.iter())
-        .zip(bcomp.copt.iter())
-        .zip(eval.batch.sopt.iter())
-        .for_each(|((((c, s), l), x), y)| {
-            let cid = c.get_id().id;
-            let sid = s.get_id().id;
-            let xid = x.get_id().id;
-            let yid = y.get_id().id;
-            let lid = l.sol.get_id().id;
-            hcobj.insert(cid, c.clone());
-            hsobj.insert(sid, s.clone());
-            hcopt.insert(xid, x.clone());
-            hsopt.insert(yid, y.clone());
-            hlink.insert(lid, l);
+    sobj_bis.into_iter().zip(sopt_bis).zip(bcomp.cobj.iter()).zip(bcomp.copt.iter())
+        .for_each(|(((sobj,sopt),cobj),copt)| {
+            hsobj.insert(sobj.0, sobj.1);
+            hsopt.insert(sopt.0, sopt.1);
+            hcobj.insert(cobj.get_id(), cobj);
+            hcopt.insert(copt.get_id(), copt);
         });
 
     assert_eq!(
@@ -76,20 +55,7 @@ fn test_seq_evaluator() {
         "Number of solutions is wrong for copt"
     );
     assert_eq!(bcomp.size(), 20, "Size of Computed batch is wrong");
-    assert_eq!(braw.robj.len(), 20, "Number of solutions is wrong for robj");
-    assert_eq!(braw.ropt.len(), 20, "Number of solutions is wrong for ropt");
-    assert_eq!(braw.size(), 20, "Size of RawSol batch is wrong");
-    assert_eq!(
-        eval.batch.sobj.len(),
-        20,
-        "Number of solutions is wrong for sobj"
-    );
-    assert_eq!(
-        eval.batch.sopt.len(),
-        20,
-        "Number of solutions is wrong for sopt"
-    );
-    assert_eq!(eval.batch.size(), 20, "Size of Partial batch is wrong");
+    assert_eq!(braw.size(), 20, "Size of Out batch is wrong");
 
     assert_eq!(
         hcobj.len(),
@@ -112,127 +78,65 @@ fn test_seq_evaluator() {
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
     assert_eq!(
-        hlink.len(),
-        20,
-        "Some IDs might be duplicated. Number of solutions is wrong for hlink"
-    );
-
-    assert_eq!(
-        stop.lock().unwrap().calls(),
+        stop.calls(),
         20,
         "Number of calls is wrong."
     );
 
     assert!(
         bcomp.cobj.iter().all(|sol| {
-            let id = sol.get_id().id;
+            let id = sol.get_id();
             let c = &hcobj.get(&id).unwrap();
             let s = &hsobj.get(&id).unwrap();
-            let l = &hlink.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_sol(), s)
-                && Arc::ptr_eq(&l.sol, s)
-                && Arc::ptr_eq(&l.sol, &c.get_sol())
+            Arc::ptr_eq(&c.get_sol().x, s)
         }),
         "Computed, Partial and Linked do not point to the same Obj solution."
     );
 
     assert!(
         bcomp.copt.iter().all(|sol| {
-            let id = sol.get_id().id;
+            let id = sol.get_id();
             let c = &hcopt.get(&id).unwrap();
             let s = &hsopt.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_sol(), s)
+            Arc::ptr_eq(&c.get_sol().x, s)
         }),
         "Computed and Partial do not point to the same Opt solution."
-    );
-
-    assert!(bcomp.cobj.iter().all(
-        |sol|
-        {
-            let id = sol.get_id().id;
-            let c = &hcobj.get(&id).unwrap();
-            let s = &hcopt.get(&id).unwrap();
-            let l = &hlink.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_y(), &s.get_y()) &&
-            c.get_y().value == s.get_y().value &&
-            c.get_y().value == l.out.obj &&
-            s.get_y().value == l.out.obj
-        }
-        ),
-        "Computed Obj, Computed Opt, and Linked do not point to the same codomain, or codomains are not equal."
     );
 }
 
 #[test]
 fn test_seq_par_evaluator() {
-    use tantale::core::experiment::ThrBatchEvaluator;
-
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(Objective::new(cod, func));
+    let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));
+    let obj = Arc::new(Objective::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt = sp.vec_onto_obj(sobj.clone());
+    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
     let batch = Batch::new(sobj, sopt, info.clone());
     let mut eval = ThrBatchEvaluator::new(batch);
 
-    assert_eq!(eval.batch.sopt.len(), 20, "PROBLEM");
-    assert_eq!(eval.batch.sobj.len(), 20, "PROBLEMA");
+    let (braw, bcomp) = <ThrBatchEvaluator<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo> as ThrEvaluate<SId,BaseDom,BaseDom,EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom,OutEvaluator>, Batch<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo>>>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
-    let (braw, bcomp) = <ThrBatchEvaluator<_, _, _, _, _, _> as ThrEvaluate<
-        RandomSearch,
-        Calls,
-        sp_evaluator::ObjType,
-        sp_evaluator::OptType,
-        OutEvaluator,
-        _,
-        Sp<_, _>,
-    >>::evaluate(&mut eval, obj.clone(), stop.clone());
     let mut hcobj = HashMap::new();
-    let mut hsobj = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt = HashMap::new();
-    let mut hlink = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
 
-    bcomp
-        .cobj
-        .iter()
-        .zip(eval.batch.sobj.iter())
-        .zip(braw.robj.iter())
-        .zip(bcomp.copt.iter())
-        .zip(eval.batch.sopt.iter())
-        .for_each(|((((c, s), l), x), y)| {
-            let cid = c.get_id().id;
-            let sid = s.get_id().id;
-            let xid = x.get_id().id;
-            let yid = y.get_id().id;
-            let lid = l.sol.get_id().id;
-            hcobj.insert(cid, c.clone());
-            hsobj.insert(sid, s.clone());
-            hcopt.insert(xid, x.clone());
-            hsopt.insert(yid, y.clone());
-            hlink.insert(lid, l);
+    sobj_bis.into_iter().zip(sopt_bis).zip(bcomp.cobj.iter()).zip(bcomp.copt.iter())
+        .for_each(|(((sobj,sopt),cobj),copt)| {
+            hsobj.insert(sobj.0, sobj.1);
+            hsopt.insert(sopt.0, sopt.1);
+            hcobj.insert(cobj.get_id(), cobj);
+            hcopt.insert(copt.get_id(), copt);
         });
 
-    assert_eq!(
-        eval.batch.sobj.len(),
-        20,
-        "Number of solutions is wrong for sobj"
-    );
-    assert_eq!(
-        eval.batch.sopt.len(),
-        20,
-        "Number of solutions is wrong for sopt"
-    );
-    assert_eq!(eval.batch.size(), 20, "Size of Partial batch is wrong");
-    assert_eq!(braw.robj.len(), 20, "Number of solutions is wrong for robj");
-    assert_eq!(braw.ropt.len(), 20, "Number of solutions is wrong for ropt");
-    assert_eq!(braw.size(), 20, "Size of RawSol batch is wrong");
     assert_eq!(
         bcomp.cobj.len(),
         20,
@@ -244,6 +148,7 @@ fn test_seq_par_evaluator() {
         "Number of solutions is wrong for copt"
     );
     assert_eq!(bcomp.size(), 20, "Size of Computed batch is wrong");
+    assert_eq!(braw.size(), 20, "Size of Out batch is wrong");
 
     assert_eq!(
         hcobj.len(),
@@ -266,12 +171,6 @@ fn test_seq_par_evaluator() {
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
     assert_eq!(
-        hlink.len(),
-        20,
-        "Some IDs might be duplicated. Number of solutions is wrong for hlink"
-    );
-
-    assert_eq!(
         stop.lock().unwrap().calls(),
         20,
         "Number of calls is wrong."
@@ -279,40 +178,21 @@ fn test_seq_par_evaluator() {
 
     assert!(
         bcomp.cobj.iter().all(|sol| {
-            let id = sol.get_id().id;
+            let id = sol.get_id();
             let c = &hcobj.get(&id).unwrap();
             let s = &hsobj.get(&id).unwrap();
-            let l = &hlink.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_sol(), s)
-                && Arc::ptr_eq(&l.sol, s)
-                && Arc::ptr_eq(&l.sol, &c.get_sol())
+            Arc::ptr_eq(&c.get_sol().x, s)
         }),
         "Computed, Partial and Linked do not point to the same Obj solution."
     );
 
     assert!(
         bcomp.copt.iter().all(|sol| {
-            let id = sol.get_id().id;
+            let id = sol.get_id();
             let c = &hcopt.get(&id).unwrap();
             let s = &hsopt.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_sol(), s)
+            Arc::ptr_eq(&c.get_sol().x, s)
         }),
         "Computed and Partial do not point to the same Opt solution."
-    );
-
-    assert!(bcomp.cobj.iter().all(
-        |sol|
-        {
-            let id = sol.get_id().id;
-            let c = &hcobj.get(&id).unwrap();
-            let s = &hcopt.get(&id).unwrap();
-            let l = &hlink.get(&id).unwrap();
-            Arc::ptr_eq(&c.get_y(), &s.get_y()) &&
-            c.get_y().value == s.get_y().value &&
-            c.get_y().value == l.out.obj &&
-            s.get_y().value == l.out.obj
-        }
-        ),
-        "Computed Obj, Computed Opt, and Linked do not point to the same codomain, or codomains are not equal."
     );
 }

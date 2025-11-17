@@ -275,7 +275,7 @@ impl CSVRecorder
         opt: bool,
         info: bool,
         out: bool,
-    ) -> Self {
+    ) -> Option<Self> {
         let path_pobj = match obj {
             true => Some(config.path_rec.join(Path::new("obj.csv"))),
             false => None,
@@ -295,7 +295,7 @@ impl CSVRecorder
 
         let path_codom = config.path_rec.join(Path::new("cod.csv"));
 
-        CSVRecorder {
+        Some(CSVRecorder {
             config,
             obj,
             opt,
@@ -306,7 +306,7 @@ impl CSVRecorder
             path_info,
             path_codom,
             path_out,
-        }
+        })
     }
 }
 
