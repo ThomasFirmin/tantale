@@ -428,6 +428,10 @@ pub mod sp_evaluator {
     );
 }
 
+  //---------------//
+ //--- STEPPED ---//
+//---------------//
+
 pub mod sp_evaluator_fid {
     use super::{int_plus_nat, plus_one_int, Neuron, FnState, FidOutEvaluator, EvalStep};
     use tantale_core::{Bool, Cat, Int, Nat, Real, Fidelity};
@@ -458,7 +462,7 @@ pub mod sp_evaluator_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -470,11 +474,6 @@ pub mod sp_evaluator_fid {
         }
     );
 }
-
-
-//***********************************//
-// FIDELITY //
-//***********************************//
 
 pub mod sp_ms_nosamp_fid {
     use super::{int_plus_nat, plus_one_int, FnState, Neuron, FidOutExample};
@@ -506,7 +505,7 @@ pub mod sp_ms_nosamp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -556,7 +555,7 @@ pub mod sp_ms_samp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -606,7 +605,7 @@ pub mod sp_ms_samp_right_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -656,7 +655,7 @@ pub mod sp_ms_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -706,7 +705,7 @@ pub mod sp_ms_samp_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -756,7 +755,7 @@ pub mod sp_sm_samp_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
@@ -806,7 +805,7 @@ pub mod sp_sm_samp_noright_fid {
                 Fidelity::Discard => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially};
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],

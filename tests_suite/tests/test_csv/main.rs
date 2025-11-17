@@ -10,9 +10,13 @@ pub mod init_outcome;
 #[path = "../init_cod.rs"]
 pub mod init_cod;
 
+#[path = "../init_func.rs"]
+pub mod init_func;
+
 pub mod test_cod_csv;
 pub mod test_dom_csv;
 pub mod test_folder_csv;
+pub mod test_folder_csv_fid;
 pub mod test_id_csv;
 pub mod test_out_csv;
 pub mod test_sp_csv;

@@ -23,7 +23,7 @@ macro_rules! get_test {
 
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
 
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 1,"The state should be == 1");
 
                 assert!(sp.variables[0].is_in_obj(&BaseTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
@@ -70,7 +70,7 @@ macro_rules! get_test {
 
                 let (out, state) = func(converted_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
 
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 2,"The state should be == 2");
 
                 assert!(sp.variables[0].is_in_obj(&BaseTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
@@ -108,23 +108,23 @@ macro_rules! get_test {
 
                 // 3
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 3,"The state should be == 3");
                 // 4
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 4,"The state should be == 4");
                 // 5
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0), Some(state));
-                assert!(out.get_fidelity().is_completed(),"The EvalState should be completed");
+                assert!(out.get_step().is_completed(),"The EvalState should be completed");
                 assert!(state.state == 5,"The state should be == 5");
                 // 1
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial after Discard");
                 assert!(state.state == 1,"The state should be == 1 after Discard");
                 // 1
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, None);
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard and None");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial after Discard and None");
                 assert!(state.state == 1,"The state should be == 1 after Discard and None");
 
             }
@@ -161,7 +161,7 @@ macro_rules! get_test_real {
 
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::New, None);
 
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 1,"The state should be == 1");
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
@@ -205,7 +205,7 @@ macro_rules! get_test_real {
 
                 let (out, state) = func(converted_obj.get_x().as_ref(),Fidelity::Resume(100.0), Some(state));
 
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 2,"The state should be == 2");
 
                 assert!(sp.variables[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
@@ -242,23 +242,23 @@ macro_rules! get_test_real {
 
                 // 3
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 3,"The state should be == 3");
                 // 4
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial");
                 assert!(state.state == 4,"The state should be == 4");
                 // 5
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Resume(100.0),Some(state));
-                assert!(out.get_fidelity().is_completed(),"The EvalState should be partial");
+                assert!(out.get_step().is_completed(),"The EvalState should be partial");
                 assert!(state.state == 5,"The state should be == 5");
                 // 1
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, Some(state));
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial after Discard");
                 assert!(state.state == 1,"The state should be == 1 after Discard");
                 // 1
                 let (out, state) = func(sample_obj.get_x().as_ref(), Fidelity::Discard, None);
-                assert!(out.get_fidelity().is_partially(),"The EvalState should be partial after Discard and None");
+                assert!(out.get_step().is_partially(),"The EvalState should be partial after Discard and None");
                 assert!(state.state == 1,"The state should be == 1 after Discard and None");
 
             }

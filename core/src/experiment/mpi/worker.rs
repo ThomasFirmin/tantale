@@ -188,7 +188,7 @@ where
                     Fidelity::Resume(_) => {
                         let state = self.state.0.remove(&id);
                         let (out, state) = self.objective.compute(x, fid, state);
-                        if out.get_fidelity().is_partially() {
+                        if out.get_step().is_partially() {
                             self.state.0.insert(id, state);
                         }
                         // Send results

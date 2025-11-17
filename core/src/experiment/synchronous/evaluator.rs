@@ -1,10 +1,5 @@
 use crate::{
-    Id, OptInfo, Partial, Searchspace, SolInfo,
-    domain::onto::OntoDom,
-    experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate},
-    objective::{Codomain, Objective, Outcome},
-    solution::{Batch, BatchType, CompBatch, OutBatch},
-    stop::{ExpStep, Stop}
+    Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo, domain::onto::OntoDom, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate}, objective::{Codomain, Objective, Outcome}, solution::{Batch, BatchType, CompBatch, OutBatch}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -100,7 +95,7 @@ where
             let y = cod.get_elem(&out);
             rbatch.add(sobj.get_id(), out);
             cbatch.add_res(sobj, sopt,y);
-            stop.update(ExpStep::Distribution);
+            stop.update(ExpStep::Distribution(Fidelity::Discard));
         }
         // For saving in case of early stopping before full evaluation of all elements
         (rbatch, cbatch)
@@ -149,14 +144,19 @@ where
         let mut cbatch = CompBatch::empty(info);
 
         // Fill workers with first solutions
-        sendrec.fill_workers(stop, &mut self.batch);
+        let mut at_least_one_idle = true;
+        while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
+            let has_idle = sendrec.send_to_worker(self.batch.pop().unwrap());
+            if has_idle {stop.update(ExpStep::Distribution(Fidelity::Discard));}
+            else {at_least_one_idle = false;}
+        }
 
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
             if !stop.stop() && !self.batch.is_empty() {
                 let has_idl = sendrec.send_to_worker(self.batch.pop().unwrap());
-                if has_idl {stop.update(ExpStep::Distribution);}
+                if has_idl {stop.update(ExpStep::Distribution(Fidelity::Discard));}
             }
         }
         // For saving in case of early stopping before full evaluation of all elements
@@ -252,7 +252,7 @@ where
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
             if !stplock.stop() {
-                stplock.update(ExpStep::Distribution);
+                stplock.update(ExpStep::Distribution(Fidelity::Discard));
                 drop(stplock);
                 let (pobj,popt) = self.batch.lock().unwrap().pop().unwrap();
                 let id = pobj.get_id();

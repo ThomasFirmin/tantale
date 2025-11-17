@@ -151,7 +151,7 @@ fn test_elemcostconstmulti_write() {
 fn test_elemfidfid_header() {
     let (cod, _) = get_elemfid();
     let head = StepCodomain::header(&cod);
-    let str_true = Vec::from([String::from("y"), String::from("fidelity")]);
+    let str_true = Vec::from([String::from("y"), String::from("step")]);
     assert_eq!(head, str_true, "Written linedoes not match the true baseline.");
 }
 #[test]
@@ -160,7 +160,7 @@ fn test_elemfidcost_header() {
     let head = StepCostCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("cost"),
     ]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
@@ -171,7 +171,7 @@ fn test_elemfidconst_header() {
     let head = StepConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("c0"),
         String::from("c1"),
     ]);
@@ -183,7 +183,7 @@ fn test_elemfidcostconst_header() {
     let head = StepCostConstCodomain::header(&cod);
     let str_true = Vec::from([
         String::from("y"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("cost"),
         String::from("c0"),
         String::from("c1"),
@@ -197,7 +197,7 @@ fn test_elemfidmulti_header() {
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
-        String::from("fidelity"),
+        String::from("step"),
     ]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
 }
@@ -208,7 +208,7 @@ fn test_elemfidcostmulti_header() {
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("cost"),
     ]);
     assert_eq!(head, str_true, "Header does not match the true baseline.");
@@ -220,7 +220,7 @@ fn test_elemfidconstmulti_header() {
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("c0"),
         String::from("c1"),
     ]);
@@ -233,7 +233,7 @@ fn test_elemfidcostconstmulti_header() {
     let str_true = Vec::from([
         String::from("y0"),
         String::from("y1"),
-        String::from("fidelity"),
+        String::from("step"),
         String::from("cost"),
         String::from("c0"),
         String::from("c1"),

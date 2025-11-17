@@ -1,7 +1,5 @@
 use crate::{
-    FolderConfig, OptInfo, Partial, SolInfo, domain::onto::OntoDom, objective::{Codomain, FuncWrapper, Outcome}, optimizer::{
-        Optimizer
-    }, recorder::Recorder, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}
+    FidBasePartial, FolderConfig, OptInfo, Partial, SolInfo, domain::onto::OntoDom, objective::{Codomain, FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}
 };
 
 use rayon::prelude::*;
@@ -67,6 +65,11 @@ where
     Cod::TypeCodom: Send + Sync,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
 {
+    fn header_partial_obj(wrt: csv::Writer<File>, scp: &Scp);
+    fn header_partial_opt(wrt: csv::Writer<File>, scp: &Scp);
+    fn header_codom(wrt: csv::Writer<File>, cod:&Cod);
+    fn header_info(wrt: csv::Writer<File>);
+    fn header_out(wrt: csv::Writer<File>);
     fn write(cbatch: &Self::Comp<Cod, Out>, obatch: &Self::Outc<Out>, wrts: CSVFiles, scp: &Scp, cod:&Cod);
     fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp);
     fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp);
@@ -94,6 +97,42 @@ where
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
 {
+    fn header_partial_obj(mut wrt: csv::Writer<File>, scp: &Scp) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Scp::header(scp));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_partial_opt(mut wrt: csv::Writer<File>, scp: &Scp) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Scp::header(scp));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_codom(mut wrt: csv::Writer<File>, cod:&Cod) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Cod::header(cod));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_info(mut wrt: csv::Writer<File>) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(SInfo::header(&()));
+        idstr.extend(Info::header(&()));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_out(mut wrt: csv::Writer<File>) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Out::header(&()));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+
     fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp) {
         let amwrt = Arc::new(Mutex::new(wrt));
         cbatch.cobj.par_iter().for_each(|op| {
@@ -130,6 +169,201 @@ where
             let mut idstr = id.write(&());
             idstr.extend(sinfo.write(&()));
             idstr.extend(cbatch.info.write(&()));
+            {
+                let mut wrt_local = amwrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn write_codom(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, cod: &Cod) {
+        let wrt = Arc::new(Mutex::new(wrt));
+        cbatch.cobj.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let codom = op.get_y();
+            let mut idstr = id.write(&());
+            idstr.extend(cod.write(codom));
+            {
+                let mut wrt_local = wrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn write_out(obatch: &Self::Outc<Out>, wrt: csv::Writer<File>) {
+        let wrt = Arc::new(Mutex::new(wrt));
+        obatch.into_par_iter().for_each(|(id,out)| {
+            let mut idstr = id.write(&());
+            idstr.extend(out.write(&()));
+            {
+                let mut wrt_local = wrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+    
+    fn write(cbatch: &Self::Comp<Cod, Out>, obatch: &Self::Outc<Out>, wrts: CSVFiles, scp: &Scp, cod:&Cod) {
+        cbatch.into_par_iter().zip_eq(obatch).for_each(
+            |((cobj,copt),(oid,out))|
+            {
+                let id = cobj.get_id();
+                let idstr = id.write(&());
+
+                // CODOM
+                let codstr = cod.write(cobj.get_y());
+                let fstr: Vec<&String> = idstr.iter().chain(codstr.iter()).collect();
+                {
+                    let mut wrt_local = wrts.cod.lock().unwrap();
+                    wrt_local.write_record(&fstr).unwrap();
+                    wrt_local.flush().unwrap();
+                }
+                // OBJ
+                if let Some(f) = wrts.obj.clone()
+                {
+                    let xstr = scp.write_left(&cobj.get_x());
+                    let fstr: Vec<&String> = idstr.iter().chain(xstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // OPT
+                if let Some(f) = wrts.opt.clone()
+                {
+                    let xstr = scp.write_right(&copt.get_x());
+                    let fstr: Vec<&String> = idstr.iter().chain(xstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // INFO
+                if let Some(f) = wrts.info.clone()
+                {
+                    let sinfstr = cobj.get_info().write(&());
+                    let infstr = cbatch.info.write(&());
+                    let fstr: Vec<&String> = idstr.iter().chain(sinfstr.iter()).chain(infstr.iter()).collect();
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&fstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+                // OUT
+                if let Some(f) = wrts.out.clone()
+                {
+                    let mut idstr = oid.write(&());
+                    idstr.extend(out.write(&()));
+                    {
+                        let mut wrt_local = f.lock().unwrap();
+                        wrt_local.write_record(&idstr).unwrap();
+                        wrt_local.flush().unwrap();
+                    }
+                }
+            }
+        );
+    }
+}
+
+
+
+impl<Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    BatchCSVWrite<FidBasePartial<SolId, Obj, SInfo>, Scp, SolId, Obj, Opt, SInfo, Info, Cod, Out>
+    for Batch<FidBasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo, Info>
+where
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
+    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
+    Out: Outcome + CSVWritable<(), ()> + Send + Sync,
+    Scp: Searchspace<FidBasePartial<SolId, Obj, SInfo>, SolId, Obj, Opt, SInfo>
+        + CSVLeftRight<Scp, Arc<[Obj::TypeDom]>, Arc<[Opt::TypeDom]>>
+        + Send
+        + Sync,
+    SInfo: SolInfo + CSVWritable<(), ()> + Send + Sync,
+    Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
+    Obj::TypeDom: Send + Sync,
+    Opt::TypeDom: Send + Sync,
+    Cod::TypeCodom: Send + Sync,
+{
+    fn header_partial_obj(mut wrt: csv::Writer<File>, scp: &Scp) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Scp::header(scp));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_partial_opt(mut wrt: csv::Writer<File>, scp: &Scp) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Scp::header(scp));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_codom(mut wrt: csv::Writer<File>, cod:&Cod) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Cod::header(cod));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_info(mut wrt: csv::Writer<File>) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(SInfo::header(&()));
+        idstr.extend(Info::header(&()));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+    
+    fn header_out(mut wrt: csv::Writer<File>) {
+        let mut idstr = SolId::header(&());
+        idstr.extend(Out::header(&()));
+        wrt.write_record(idstr).unwrap();
+        wrt.flush().unwrap();
+    }
+
+    fn write_partial_obj(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp) {
+        let amwrt = Arc::new(Mutex::new(wrt));
+        cbatch.cobj.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let mut idstr = id.write(&());
+            idstr.extend(scp.write_left(&op.get_x().clone()));
+            {
+                let mut wrt_local = amwrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn write_partial_opt(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>, scp: &Scp) {
+        let amwrt = Arc::new(Mutex::new(wrt));
+        cbatch.copt.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let mut idstr = id.write(&());
+            idstr.extend(scp.write_right(&op.get_x().clone()));
+            {
+                let mut wrt_local = amwrt.lock().unwrap();
+                wrt_local.write_record(&idstr).unwrap();
+                wrt_local.flush().unwrap();
+            }
+        });
+    }
+
+    fn write_info(cbatch: &Self::Comp<Cod, Out>, wrt: csv::Writer<File>) {
+        let amwrt = Arc::new(Mutex::new(wrt));
+        cbatch.cobj.par_iter().for_each(|op| {
+            let id = op.get_id();
+            let sinfo = op.get_info();
+            let mut idstr = id.write(&());
+            idstr.extend(sinfo.write(&()));
+            idstr.extend(cbatch.info.write(&()));
+            idstr.extend(op.get_sol().fid.write(&()));
             {
                 let mut wrt_local = amwrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -345,45 +579,22 @@ where
             create_dir_all(&self.config.path_rec).unwrap();
 
             if let Some(ppobj) = &self.path_pobj {
-                let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(scp));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
+                BType::header_partial_obj(csv::Writer::from_path(ppobj.as_path()).unwrap(),scp);
             }
 
             if let Some(ppopt) = &self.path_popt {
-                let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Scp::header(scp));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
+                BType::header_partial_opt(csv::Writer::from_path(ppopt.as_path()).unwrap(),scp);
             }
 
             if let Some(ppinfo) = &self.path_info {
-                let mut wrt = csv::Writer::from_path(ppinfo.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Op::SInfo::header(&()));
-                idstr.extend(Op::Info::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
+                BType::header_info(csv::Writer::from_path(ppinfo.as_path()).unwrap());
             }
 
             if let Some(ppout) = &self.path_out {
-                let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Out::header(&()));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
+                BType::header_out(csv::Writer::from_path(ppout.as_path()).unwrap());
             }
-
-            {
-                let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
-                let mut idstr = SolId::header(&());
-                idstr.extend(Op::Cod::header(cod));
-                wrt.write_record(idstr).unwrap();
-                wrt.flush().unwrap();
-            }
+            
+            BType::header_codom(csv::Writer::from_path(self.path_codom.as_path()).unwrap(),cod);
         }
     }
 

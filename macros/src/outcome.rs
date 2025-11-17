@@ -60,7 +60,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 to_string_stmts.push(quote! {self.#fident.to_string()});
                 evalstate_stmt = quote! {
                     impl #egenerics tantale::core::FidOutcome for #eident #egenerics #ewhere {
-                        fn get_fidelity(&self)->tantale::core::EvalStep{
+                        fn get_step(&self)->tantale::core::EvalStep{
                             self.#fident
                         }
                     }

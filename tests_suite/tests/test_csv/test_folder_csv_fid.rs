@@ -1,6 +1,3 @@
-use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
-
-use csv::StringRecord;
 use tantale::core::{
     Codomain, Optimizer, SId, Searchspace, BaseDom,BaseTypeDom,Solution,Sp,FolderConfig,
     optimizer::opt::{OpInfType,OpSInfType,OpSolType},
@@ -9,14 +6,18 @@ use tantale::core::{
     stop::{Calls, Stop},
 };
 use tantale::algos::RandomSearch;
-use tantale_core::{Fidelity, objective::FuncWrapper};
+use tantale_core::{Fidelity, Stepped, objective::FuncWrapper};
 
+use csv::StringRecord;
 use std::{path::Path,sync::Arc};
+use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
+use super::init_func::FnState;
 
 type Cbatch<Sol,SInfo,Info,Cod> = CompBatch<Sol,SId,BaseDom,BaseDom,SInfo,Info,Cod,OutExample>;
 
 mod infos {
     use serde::{Deserialize, Serialize};
+    use tantale_core::EvalStep;
     use tantale_macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -30,6 +31,7 @@ mod infos {
         pub mul8: f64,
         pub mul9: f64,
         pub tvec: Vec<f64>,
+        pub state: EvalStep,
     }
 
     pub fn get_out(fid: usize, a: i64) -> OutExample {
@@ -43,6 +45,7 @@ mod infos {
             mul8: 8.8,
             mul9: 9.9,
             tvec: Vec::from([1.1, 2.2, 3.3]),
+            state: EvalStep::Partially(0.5),
         }
     }
 }
@@ -126,7 +129,7 @@ where
 
     recorder.save(&tcbatch,&tobatch,sp,cod);
     run_reader::<Op, Scp, Fn>(
-        "tmp_test",
+        "tmp_test_fid",
         cbatch,
         obatch,
     tcbatch,
@@ -313,18 +316,18 @@ pub fn run_reader<Op, Scp,Fn>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod = RandomSearch::codomain(|x: &OutExample| x.mul6);
+    let cod = RandomSearch::codomain(|x: &OutExample| x.mul6).into();
 
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
-    let config = FolderConfig::new("tmp_test");
+    let config = FolderConfig::new("tmp_test_fid");
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<SId, BaseDom, BaseDom, OutExample, Sp<BaseDom, BaseDom>, RandomSearch, _, _>>::init(&mut recorder, &sp, &cod);
+    <CSVRecorder as Recorder<SId, BaseDom, BaseDom, OutExample, Sp<BaseDom, BaseDom>, RandomSearch, Stepped<BaseDom,OutExample,FnState>, _>>::init(&mut recorder, &sp, &cod);
 
-    run_recorder(&sp,&cod,&mut rs,&mut stop,&mut recorder,6);
+    run_recorder::<Sp<BaseDom,BaseDom>,RandomSearch,Calls,CSVRecorder,Stepped<BaseDom,OutExample,FnState>>(&sp,&cod,&mut rs,&mut stop,&mut recorder,6);
     
     // run_recorder(
-    //     &sp,
+    //     &sp, 
     //     &cod,
     //     &mut rs,
     //     &mut stop,
@@ -337,7 +340,7 @@ struct Cleaner;
 
 impl Drop for Cleaner {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all("tmp_test");
+        let _ = std::fs::remove_dir_all("tmp_test_fid");
     }
 }
 

@@ -1,10 +1,12 @@
 use tantale_algos::RSInfo;
 use tantale_core::{
-    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp, experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::Batch, stop::Calls
+    BaseDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Solution, Sp, Stepped,
+    experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrEvaluate},
+    solution::Batch, stop::Calls
 };
 
-use super::init_func::sp_evaluator;
-use crate::init_func::OutEvaluator;
+use super::init_func::{sp_evaluator_fid,FnState};
+use crate::init_func::FidOutEvaluator;
 
 use std::{
     collections::HashMap,
@@ -13,23 +15,23 @@ use std::{
 
 #[test]
 fn test_seq_evaluator() {
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-    let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(Objective::new(func));
+    let sp = sp_evaluator_fid::get_searchspace();
+    let func = sp_evaluator_fid::example;
+    let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
+    let obj = Arc::new(Stepped::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sobj: Vec<FidBasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<FidBasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &FidBasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &FidBasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
     let batch = Batch::new(sobj, sopt, info.clone());
-    let mut eval = BatchEvaluator::new(batch);
+    let mut eval = FidBatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <BatchEvaluator<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo> as MonoEvaluate<SId, BaseDom, BaseDom, EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom, OutEvaluator>, Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>>>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (braw, bcomp) = <FidBatchEvaluator<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo,FnState> as MonoEvaluate<SId,BaseDom,BaseDom,EmptyInfo,RSInfo,FidBasePartial<SId,BaseDom,EmptyInfo>,Calls,SingleCodomain<FidOutEvaluator>,FidOutEvaluator, Sp<BaseDom,BaseDom>, Stepped<BaseDom,FidOutEvaluator,FnState>, Batch<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo>>>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
@@ -106,23 +108,23 @@ fn test_seq_evaluator() {
 
 #[test]
 fn test_seq_par_evaluator() {
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-    let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));
-    let obj = Arc::new(Objective::new(func));
+    let sp = sp_evaluator_fid::get_searchspace();
+    let func = sp_evaluator_fid::example;
+    let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
+    let obj = Arc::new(Stepped::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &BasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sobj: Vec<FidBasePartial<_,_,_>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+    let sopt: Vec<FidBasePartial<_,_,_>> = sp.vec_onto_obj(&sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj.iter().map(|s: &FidBasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt.iter().map(|s: &FidBasePartial<_,_,_>| (s.get_id(), s.x.clone())).collect();
     let batch = Batch::new(sobj, sopt, info.clone());
-    let mut eval = ThrBatchEvaluator::new(batch);
+    let mut eval = FidThrBatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <ThrBatchEvaluator<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo> as ThrEvaluate<SId,BaseDom,BaseDom,EmptyInfo, RSInfo, BasePartial<SId, BaseDom, EmptyInfo>, Calls, SingleCodomain<OutEvaluator>, OutEvaluator, Sp<BaseDom,BaseDom>, Objective<BaseDom,OutEvaluator>, Batch<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo>>>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let (braw, bcomp) = <FidThrBatchEvaluator<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom,BaseDom,EmptyInfo,RSInfo,FnState> as ThrEvaluate<SId, BaseDom,BaseDom,EmptyInfo,RSInfo,FidBasePartial<SId,BaseDom,EmptyInfo>, Calls,SingleCodomain<FidOutEvaluator>,FidOutEvaluator, Sp<BaseDom,BaseDom>,Stepped<BaseDom,FidOutEvaluator,FnState>,Batch<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,BaseDom,EmptyInfo,RSInfo>>>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();

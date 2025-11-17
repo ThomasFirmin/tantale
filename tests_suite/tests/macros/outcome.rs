@@ -30,7 +30,7 @@ fn mixed_derive() {
             mul7: 7.0,
             mul8: 8.0,
             mul9: 9.0,
-            fid10: EvalStep::Partially,
+            fid10: EvalStep::Partially(0.5),
         }
     }
 

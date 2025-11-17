@@ -166,7 +166,7 @@ where
                     let mut xobj =  obj.sol;
                     let mut xopt = opt.sol;
                     match step {
-                        EvalStep::Partially => xobj.resume(&mut xopt, 0.0),
+                        EvalStep::Partially(_) => xobj.resume(&mut xopt, 0.0),
                         EvalStep::Completed => xobj.discard(&mut xopt),
                         EvalStep::Error => xobj.discard(&mut xopt),
                     };

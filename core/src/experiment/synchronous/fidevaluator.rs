@@ -1,5 +1,5 @@
 use crate::{
-    Codomain, Id, OptInfo, Partial, Searchspace, SolInfo, domain::onto::OntoDom, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate}, objective::{FidOutcome, Stepped, outcome::FuncState}, solution::{Batch, BatchType, CompBatch, OutBatch, partial::FidelityPartial}, stop::{ExpStep, Stop}
+    Codomain, Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo, domain::onto::OntoDom, experiment::{Evaluate, EvaluateOut, MonoEvaluate, ThrEvaluate}, objective::{FidOutcome, Stepped, outcome::FuncState}, solution::{Batch, BatchType, CompBatch, OutBatch, partial::FidelityPartial}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -107,7 +107,7 @@ where
                     self.states.insert(sid, state);
                     obatch.add(sid, out);
                     cbatch.add_res(pobj, popt, y);
-                    stop.update(ExpStep::Distribution);
+                    
                 }
                 crate::Fidelity::Resume(_) => {
                     let x = pobj.get_x();
@@ -117,9 +117,9 @@ where
                     self.states.insert(sid, state);
                     obatch.add(sid, out);
                     cbatch.add_res(pobj, popt, y);
-                    stop.update(ExpStep::Distribution);
                 }
                 crate::Fidelity::Discard => {
+                    stop.update(ExpStep::Distribution(Fidelity::Discard));
                     self.states.remove(&sid);
                 }
             };
@@ -171,14 +171,23 @@ where
         let mut cbatch = CompBatch::empty(info);
 
         // Fill workers with first solutions
-        sendrec.fill_workers(stop, &mut self.batch);
+        let mut at_least_one_idle = true;
+        while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
+            let pair = self.batch.pop().unwrap();
+            let fidelity =pair.0.get_fidelity();
+            let has_idl = sendrec.send_to_worker(pair);
+            if has_idl {stop.update(ExpStep::Distribution(fidelity));}
+            else {at_least_one_idle = false;}
+        }
 
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
             if !stop.stop() && !self.batch.is_empty() {
-                let has_idl = sendrec.send_to_worker(self.batch.pop().unwrap());
-                if has_idl {stop.update(ExpStep::Distribution);}
+                let pair = self.batch.pop().unwrap();
+                let fidelity =pair.0.get_fidelity();
+                let has_idl = sendrec.send_to_worker(pair);
+                if has_idl {stop.update(ExpStep::Distribution(fidelity));}
             }
         }
         // For saving in case of early stopping before full evaluation of all elements
@@ -286,7 +295,6 @@ where
                 let fidelity = pobj.get_fidelity();
                 match fidelity {
                     crate::Fidelity::New => {
-                        stplock.update(ExpStep::Distribution);
                         drop(stplock);
                         let x = pobj.get_x();
                         let (out,state) = ob.compute(x.as_ref(), fidelity, None);
@@ -296,7 +304,6 @@ where
                         cbatch.lock().unwrap().add_res(pobj, popt, y);
                     }
                     crate::Fidelity::Resume(_) => {
-                        stplock.update(ExpStep::Distribution);
                         drop(stplock);
                         let x = pobj.get_x();
                         let state = hash_state.lock().unwrap().remove(&sid);
@@ -307,6 +314,7 @@ where
                         cbatch.lock().unwrap().add_res(pobj, popt, y);
                     }
                     crate::Fidelity::Discard => {
+                        stplock.update(ExpStep::Distribution(fidelity));
                         hash_state.lock().unwrap().remove(&sid);
                     }
                 };

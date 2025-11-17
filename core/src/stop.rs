@@ -1,6 +1,9 @@
+use crate::Fidelity;
+use serde::{Deserialize, Serialize};
+
 pub enum ExpStep {
-    Evaluation,
-    Distribution,
+    Distribution(Fidelity),
+    Iteration,
     Optimization,
     Never,
 }
@@ -16,4 +19,3 @@ where
 
 pub mod calls;
 pub use calls::Calls;
-use serde::{Deserialize, Serialize};

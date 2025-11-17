@@ -1,5 +1,5 @@
 use crate::{
-    Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, experiment::mpi::tools::MPIProcess, solution::{Batch, CompBatch, OutBatch, partial::FidelityPartial}, stop::{ExpStep, Stop}
+    Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, experiment::mpi::tools::MPIProcess, solution::{CompBatch, OutBatch, partial::FidelityPartial}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -178,20 +178,6 @@ where
             self.proc.world.process_at_rank(rank).send_with_tag(&msg, 1);
         }
         has_idl
-    }
-
-    // Send as much solutions as possible to idle workers without waiting for a result.
-    pub fn fill_workers<Info: OptInfo, St: Stop>(
-        &mut self,
-        stop: &mut St,
-        batch: &mut Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
-    ) {
-        let mut at_least_one_idle = true;
-        while at_least_one_idle && !batch.is_empty() && !stop.stop() {
-            let has_idle = self.send_to_worker(batch.pop().unwrap());
-            if has_idle {stop.update(ExpStep::Distribution);}
-            else {at_least_one_idle = false;}
-        }
     }
 
     pub fn rec_computed<Info: OptInfo, Cod: Codomain<Out>, Out: Outcome>(
