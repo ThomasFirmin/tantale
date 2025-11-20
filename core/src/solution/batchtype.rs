@@ -1,8 +1,5 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Outcome},
-    solution::{Computed, Id, Partial, SolInfo},
-    OptInfo,
+    Fidelity, OptInfo, domain::Domain, objective::{Codomain, Outcome}, solution::{Computed, Id, Partial, SolInfo, partial::FidelityPartial}
 };
 use core::slice;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
@@ -215,6 +212,40 @@ where
             Some(x) => Some((x, self.sopt.pop().unwrap())),
             None => None,
         }
+    }
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info> Batch<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    SolId: Id,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    /// Split the [`Batch`] made of [`FidPartial`] into three [`Batch`] according to [`Fidelity`].
+    pub fn chunk_by_fid(self)->(Self,Self,Self,Self){
+        let info = self.get_info();
+        self.into_iter().fold(
+            (
+                Self::empty(info.clone()),
+                Self::empty(info.clone()),
+                Self::empty(info.clone()),
+                Self::empty(info.clone()),
+            ),
+            |(mut d,mut r,mut n, mut dn),(sobj,sopt)|
+            {
+                let fid = sobj.get_fidelity();
+                match fid {
+                    Fidelity::New => n.add(sobj, sopt),
+                    Fidelity::Resume(_) => _ = r.add(sobj, sopt),
+                    Fidelity::Discard => d.add(sobj, sopt),
+                    Fidelity::Done => dn.add(sobj, sopt),
+                }
+                (d,r,n,dn)
+            }
+        )
     }
 }
 

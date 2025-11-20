@@ -7,6 +7,7 @@ use crate::{
     Codomain, Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo,
 };
 
+use mpi::Rank;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -151,8 +152,11 @@ where
                     cbatch.add_res(pobj, popt, y);
                 }
                 crate::Fidelity::Discard => {
-                    stop.update(ExpStep::Distribution(Fidelity::Discard));
+                    stop.update(ExpStep::Distribution(Fidelity::Done));
                     self.states.remove(&sid);
+                }
+                crate::Fidelity::Done => {
+                    stop.update(ExpStep::Distribution(Fidelity::Done));
                 }
             };
         }
@@ -162,6 +166,59 @@ where
     fn update(&mut self, batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) {
         self.batch = batch;
     }
+}
+
+
+#[cfg(feature="mpi")]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "Obj::TypeDom: Serialize, Opt::TypeDom: Serialize",
+    deserialize = "Obj::TypeDom: for<'a> Deserialize<'a>, Opt::TypeDom: for<'a> Deserialize<'a>",
+))]
+pub struct FidDistBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    pub dbatch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    pub rbatch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    pub nbatch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    where_is_id: HashMap<SolId, Rank>, // Which Rank contains the previous state of ID
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info>
+    FidDistBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
+        let (dbatch,rbatch,nbatch,_) = batch.chunk_by_fid();
+        FidDistBatchEvaluator {dbatch,rbatch,nbatch,where_is_id: HashMap::new()}
+    }
+}
+
+impl<PSol, SolId, Obj, Opt, SInfo, Info> Evaluate
+    for FidDistBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
+where
+    PSol: FidelityPartial<SolId, Obj, SInfo>,
+    PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
 }
 
 #[cfg(feature = "mpi")]
@@ -179,7 +236,7 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out, FnState>
         Scp,
         Stepped<Obj, Out, FnState>,
         Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
-    > for FidBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info, FnState>
+    > for FidDistBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id,
     Obj: OntoDom<Opt>,
@@ -214,23 +271,51 @@ where
     > {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
-        let mut waiting = HashMap::new(); // solution being evaluated
-        let mut sendrec: SendRec<'_, FXMessage<SolId, Obj>, PSol, Obj, Opt, SolId, SInfo> =
-            SendRec::new(config, proc, &mut idle_process, &mut waiting);
+        let mut sendrec: SendRec<'_, FXMessage<SolId, Obj>, PSol, Obj, Opt, SolId, SInfo> = SendRec::new(config, proc);
 
         //Results
-        let info = self.batch.get_info();
-        let mut obatch = OutBatch::empty(info.clone());
-        let mut cbatch = CompBatch::empty(info);
+        let mut obatch = OutBatch::empty(self.dbatch.get_info());
+        let mut cbatch = CompBatch::empty(self.dbatch.get_info());
 
         // Fill workers with first solutions
-        let mut at_least_one_idle = true;
-        while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
-            let pair = self.batch.pop().unwrap();
-            let fidelity = pair.0.get_fidelity();
-            let has_idl = sendrec.send_to_worker(pair);
-            if has_idl {
+        while sendrec.idle.has_idle() && !(self.dbatch.is_empty() || self.rbatch.is_empty() || self.nbatch.is_empty()) && !stop.stop() {
+
+            // To prevent states overlaod in workers.
+            // Discard Batch first
+            let mut batch =  if !self.dbatch.is_empty(){
+                let pair = self.dbatch.pop().unwrap();
+                let id = pair.0.get_id();
+                let rank = self.where_is_id.remove(&id).unwrap();
+                sendrec.discard_order(rank, id);
+            }
+            // Check for an idle process
+            else {
+                self.resume.iter().
+                for 
+                let i = 0;
+                let nothing_sent = true;
+                // Check if one idle worker has a state corresponding to a Partial
+                while i < self.rbatch.size() && nothing_sent{
+                    let pair = self.rbatch.index(i);
+                    let id = pair.0.get_id();
+                    let which_worker = self.where_is_it.get(&pair.0.get_id()).unwrap();
+                    let rank = sendrec.idle.get(which_worker);
+                    if let Some(r) = rank{
+                        let pair = self.rbatch.remove(i);
+                        let fidelity = pair.0.get_fidelity();
+                    }
+                }
+                let pair = self.rbatch.pop().unwrap();
+                let fidelity = pair.0.get_fidelity();
+                let rank = self.where_is_it.get(&pair.0.get_id()).unwrap();
+                let w_rank = sendrec.send_to_rank(rank,pair);
+            }
+            // New Batch third
+            else {
+                self.nbatch
+            };
+            
+            if let Some(rank) = w_rank {
                 stop.update(ExpStep::Distribution(fidelity));
             } else {
                 at_least_one_idle = false;
@@ -240,11 +325,11 @@ where
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
-            if !stop.stop() && !self.batch.is_empty() {
+            if !stop.stop() && !(self.dbatch.is_empty() || self.rbatch.is_empty() || self.nbatch.is_empty())  {
                 let pair = self.batch.pop().unwrap();
                 let fidelity = pair.0.get_fidelity();
-                let has_idl = sendrec.send_to_worker(pair);
-                if has_idl {
+                let w_rank = sendrec.send_to_worker(pair);
+                if let Some(rank) = w_rank {
                     stop.update(ExpStep::Distribution(fidelity));
                 }
             }

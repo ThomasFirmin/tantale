@@ -20,6 +20,7 @@ pub enum Fidelity {
     New,
     Resume(f64),
     Discard,
+    Done,
 }
 
 impl PartialEq for Fidelity {
@@ -37,6 +38,7 @@ impl Display for Fidelity {
             Fidelity::New => write!(f, "New"),
             Fidelity::Resume(v) => write!(f, "{}", v),
             Fidelity::Discard => write!(f, "Discard"),
+            Fidelity::Done => write!(f, "Done"),
         }
     }
 }

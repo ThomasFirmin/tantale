@@ -194,6 +194,9 @@ where
                     Fidelity::Discard => {
                         unreachable!("A Discarded solution should not reach this step.")
                     }
+                    Fidelity::Done => {
+                        unreachable!("A Done solution should not reach this step.")
+                    }
                 }
             }
             // Stop

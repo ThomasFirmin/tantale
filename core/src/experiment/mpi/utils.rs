@@ -4,6 +4,7 @@ use crate::{
 };
 
 use bincode::{config::Configuration, serde::Compat};
+use bitvec::{bitvec, vec::BitVec};
 use mpi::{
     traits::{Communicator, Destination, Source},
     Rank, Tag,
@@ -148,6 +149,25 @@ impl<SolId: Id, Out: Outcome> Msg for OMessage<SolId, Out> {}
 pub struct FOMessage<SolId: Id, Out: FidOutcome>(pub SolId, pub Out, pub Fidelity);
 impl<SolId: Id, Out: FidOutcome> Msg for FOMessage<SolId, Out> {}
 
+/// A structure allowing to know which worker is idle, and if there is at least one idle worker.
+pub struct IdleWorker{
+    pub idle: BitVec,
+}
+
+impl IdleWorker{
+    pub fn new(size:usize)->Self{ IdleWorker { idle: bitvec![0; size] } }
+    /// Return `true` if at least one worker is idle
+    pub fn has_idle(&self) -> bool { self.idle.any() }
+    /// Set a worker to idle.
+    pub fn set_idle(&mut self, rank:Rank){ self.idle.set(rank as usize, true) }
+    /// Set worker to busy.
+    pub fn set_busy(&mut self, rank:Rank){ self.idle.set(rank as usize, false) }
+    /// Does not really pop, but get the first index of an idle worker, and set it to busy.
+    pub fn pop(&mut self) -> Option<usize>{
+        self.idle.first_one()
+    }
+}
+
 /// A structure containing utilitaries to send and [`Partial`] to [`Worker`], and receive [`RawSol`]
 /// and [`Computed`] from [`Worker`].
 pub struct SendRec<'a, Msg, PSol, Obj, Opt, SolId, SInfo>
@@ -162,8 +182,8 @@ where
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
-    pub idle: &'a mut Vec<i32>,
-    pub waiting: &'a mut HashMap<SolId, (PSol, PSol::Twin<Opt>)>,
+    pub idle: IdleWorker,
+    pub waiting: HashMap<SolId, (PSol, PSol::Twin<Opt>)>,
     _msg: PhantomData<Msg>,
 }
 
@@ -180,20 +200,19 @@ where
     pub fn new(
         config: Configuration,
         proc: &'a MPIProcess,
-        idle: &'a mut Vec<i32>,
-        waiting: &'a mut HashMap<SolId, (PSol, PSol::Twin<Opt>)>,
     ) -> Self {
+        let size = proc.world.size() as usize;
         SendRec {
             config,
             proc,
-            idle,
-            waiting,
+            idle: IdleWorker::new(size),
+            waiting: HashMap::new(),
             _msg: PhantomData,
         }
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_worker(&mut self, pair: (PSol, PSol::Twin<Opt>)) -> bool
+    pub fn send_to_worker(&mut self, pair: (PSol, PSol::Twin<Opt>)) -> Option<Rank>
     where
         PSol: Partial<SolId, Obj, SInfo>,
         PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
@@ -201,17 +220,31 @@ where
         SolId: Id,
         SInfo: SolInfo,
     {
-        let has_idl = !self.idle.is_empty();
-        if has_idl {
-            let sid = pair.0.get_id();
-            let rank = self.idle.pop().unwrap();
-            let msg = Msg::new(&pair.0);
-            send_msg(self.proc, msg, rank, 0, self.config);
-            self.waiting.insert(sid, pair);
+        if let Some(rank) = self.idle.pop() {
+            let r = rank as Rank;
+            self.send_to_rank(r, pair);
+            Some(r)
+        } else{
+            None
         }
-        has_idl
     }
 
+    /// Send an Obj [`Solution`] to a worker
+    pub fn send_to_rank(&mut self, rank:Rank, pair: (PSol, PSol::Twin<Opt>))
+    where
+        PSol: Partial<SolId, Obj, SInfo>,
+        PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+        Opt: Domain,
+        SolId: Id,
+        SInfo: SolInfo,
+    {
+        let sid = pair.0.get_id();
+        let msg = Msg::new(&pair.0);
+        send_msg(self.proc, msg, rank, 0, self.config);
+        self.waiting.insert(sid, pair);
+    }
+
+    /// Receive an  [`Outcome`] from a [`Worker`].
     pub fn rec_computed<Info: OptInfo, Cod: Codomain<Out>, Out: Outcome>(
         &mut self,
         obatch: &mut OutBatch<SolId, Info, Out>,
@@ -220,7 +253,7 @@ where
     ) {
         // Recv / sendv loop
         let (bytes, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
-        self.idle.push(status.source_rank());
+        self.idle.set_idle(status.source_rank());
         let msg = OMessage::from_bytes(bytes, self.config);
         // Unwrap all elements
         let id = msg.0;
@@ -230,6 +263,11 @@ where
         // Update Out and Computed batches
         obatch.add(id, out);
         cbatch.add_res(pobj, popt, y);
+    }
+
+    /// Send a [`Discard`](Fidelity::Discard) order
+    pub fn discard_order(&mut self, rank: Rank, id: SolId) {
+        send_msg(self.proc, DiscardFXMessage(id), rank, 104, self.config);
     }
 }
 
@@ -249,11 +287,6 @@ pub fn stop_order<It: Iterator<Item = i32>>(proc: &MPIProcess, range: It) {
             .process_at_rank(idx)
             .send_with_tag(&Vec::<u8>::new(), 42);
     });
-}
-
-/// Send a [`Discard`](Fidelity::Discard) order
-pub fn discard_order<SolId: Id>(proc: &MPIProcess, rank: Rank, id: SolId, config: Configuration) {
-    send_msg(proc, DiscardFXMessage(id), rank, 104, config);
 }
 
 /// Send a [`Msg`] to a given MPI-process `rank`.

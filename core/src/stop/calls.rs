@@ -19,7 +19,7 @@ impl Stop for Calls {
     }
 
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Fidelity::Discard) = step {
+        if let ExpStep::Distribution(Fidelity::Done) = step {
             self.0 += 1
         }
     }

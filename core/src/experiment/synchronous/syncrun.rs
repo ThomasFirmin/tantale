@@ -24,7 +24,7 @@ use crate::{
         mpi::{
             utils::{MPIProcess,checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
-        },
+        }, synchronous::fidevaluator::FidDistBatchEvaluator,
     },
     recorder::DistRecorder,
 };
@@ -1098,7 +1098,7 @@ impl<'a, Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState>
     for DistExperiment<
         'a,
         SId,
-        FidBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info, FnState>,
+        FidDistBatchEvaluator<Op::Sol, SId, Obj, Opt, Op::SInfo, Op::Info>,
         Scp,
         Op,
         St,
@@ -1198,7 +1198,7 @@ where
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
-            None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
+            None => FidDistBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
         };
 
         let mut batch;

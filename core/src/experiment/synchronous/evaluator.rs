@@ -16,8 +16,6 @@ use crate::experiment::{
     DistEvaluate,
     mpi::utils::{MPIProcess, SendRec, XMessage},
 };
-#[cfg(feature = "mpi")]
-use std::collections::HashMap;
 
 type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =
     Arc<Mutex<Batch<PSol, SolId, Obj, Opt, SInfo, Info>>>;
@@ -122,7 +120,7 @@ where
             let y = cod.get_elem(&out);
             rbatch.add(sobj.get_id(), out);
             cbatch.add_res(sobj, sopt, y);
-            stop.update(ExpStep::Distribution(Fidelity::Discard));
+            stop.update(ExpStep::Distribution(Fidelity::Done));
         }
         // For saving in case of early stopping before full evaluation of all elements
         (rbatch, cbatch)
@@ -183,10 +181,7 @@ where
         println!("MEGAPROUT FROM {}",proc.rank);
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing
-        let mut waiting = HashMap::new(); // solution being evaluated
-        let mut sendrec: SendRec<'_, XMessage<SolId, Obj>, PSol, Obj, Opt, SolId, SInfo> =
-            SendRec::new(config, proc, &mut idle_process, &mut waiting);
+        let mut sendrec: SendRec<'_, XMessage<SolId, Obj>, PSol, Obj, Opt, SolId, SInfo> = SendRec::new(config, proc);
 
         //Results
         let info = self.batch.get_info();
@@ -196,9 +191,9 @@ where
         // Fill workers with first solutions
         let mut at_least_one_idle = true;
         while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
-            let has_idle = sendrec.send_to_worker(self.batch.pop().unwrap());
-            if has_idle {
-                stop.update(ExpStep::Distribution(Fidelity::Discard));
+            let w_rank = sendrec.send_to_worker(self.batch.pop().unwrap());
+            if w_rank.is_some() {
+                stop.update(ExpStep::Distribution(Fidelity::Done));
             } else {
                 at_least_one_idle = false;
             }
@@ -208,9 +203,9 @@ where
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
             if !stop.stop() && !self.batch.is_empty() {
-                let has_idl = sendrec.send_to_worker(self.batch.pop().unwrap());
-                if has_idl {
-                    stop.update(ExpStep::Distribution(Fidelity::Discard));
+                let w_rank = sendrec.send_to_worker(self.batch.pop().unwrap());
+                if w_rank.is_some() {
+                    stop.update(ExpStep::Distribution(Fidelity::Done));
                 }
             }
         }
@@ -328,7 +323,7 @@ where
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
             if !stplock.stop() {
-                stplock.update(ExpStep::Distribution(Fidelity::Discard));
+                stplock.update(ExpStep::Distribution(Fidelity::Done));
                 drop(stplock);
                 let (pobj, popt) = self.batch.lock().unwrap().pop().unwrap();
                 let id = pobj.get_id();
