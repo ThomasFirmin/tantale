@@ -74,8 +74,8 @@ pub use partial::{BasePartial, FidBasePartial, Fidelity, Partial};
 pub mod computed;
 pub use computed::Computed;
 
-pub mod raw;
-pub use raw::RawSol;
+pub mod outsol;
+pub use outsol::OutSol;
 
 pub mod batchtype;
 pub use batchtype::{

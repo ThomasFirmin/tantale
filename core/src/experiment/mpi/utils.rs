@@ -1,5 +1,4 @@
 use crate::{
-    experiment::mpi::tools::MPIProcess,
     solution::{partial::FidelityPartial, CompBatch, OutBatch},
     Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
 };
@@ -12,10 +11,45 @@ use mpi::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
-// pub type VecArcComputed<PSol, SolId, Dom, Cod, Out, SInfo> =
-//     Vec<Arc<Computed<PSol, SolId, Dom, Cod, Out, SInfo>>>;
 
-// pub type ArcMutexHash<PSolA, PSolB, SolId> = Arc<Mutex<HashMap<SolId, PartPair<PSolA, PSolB>>>>;
+use crate::{MPI_RANK, MPI_SIZE};
+use mpi::{environment::Universe, topology::SimpleCommunicator};
+
+pub struct MPIProcess {
+    pub universe: Universe,
+    pub world: SimpleCommunicator,
+    pub size: Rank,
+    pub rank: Rank,
+}
+
+impl MPIProcess {
+    pub fn new() -> Self {
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        let size = world.size();
+        let rank = world.rank();
+        if MPI_RANK.get().is_none() {
+            MPI_RANK.set(rank).unwrap();
+        } else {
+            panic!("MPIProcess cannot be created twice.")
+        }
+        if MPI_SIZE.get().is_none() {
+            MPI_SIZE.set(rank).unwrap();
+        }
+        MPIProcess {
+            universe,
+            world,
+            size,
+            rank,
+        }
+    }
+}
+
+impl Default for MPIProcess {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 //-----------------//
 // --- MESSAGES ---//
@@ -171,9 +205,9 @@ where
         if has_idl {
             let sid = pair.0.get_id();
             let rank = self.idle.pop().unwrap();
-            let msg = Msg::new(&pair.0).to_bytes(self.config);
+            let msg = Msg::new(&pair.0);
+            send_msg(self.proc, msg, rank, 0, self.config);
             self.waiting.insert(sid, pair);
-            self.proc.world.process_at_rank(rank).send_with_tag(&msg, 1);
         }
         has_idl
     }

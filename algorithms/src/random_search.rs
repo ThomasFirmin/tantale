@@ -14,7 +14,7 @@ use tantale_core::{
         partial::{FidBasePartial, FidelityPartial},
         Batch, SId,
     },
-    BasePartial, Criteria, EvalStep, FidOutcome, Objective, StepCodomain, Stepped,
+    BasePartial, Codomain, Criteria, EvalStep, FidOutcome, Objective, StepCodomain, Stepped,
 };
 
 use rand::prelude::ThreadRng;
@@ -55,10 +55,16 @@ impl RandomSearch {
             rng,
         )
     }
-    pub fn codomain<Out: Outcome>(extractor: Criteria<Out>) -> SingleCodomain<Out> {
-        SingleCodomain {
+
+    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+    where
+        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+        Out: Outcome,
+    {
+        let out = SingleCodomain {
             y_criteria: extractor,
-        }
+        };
+        out.into()
     }
 }
 
@@ -188,9 +194,9 @@ where
             let info = Arc::new(RSInfo {
                 iteration: self.0.iteration,
             });
-            self.0.iteration += 1;
             Batch::new(vobj, vopt, info)
         } else {
+            self.0.iteration += 1;
             fid_rs_iter::<Obj, Opt, Scp>(self, scp)
         }
     }

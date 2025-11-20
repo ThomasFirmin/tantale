@@ -5,14 +5,14 @@ use crate::solution::{Id, Partial, SolInfo};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-/// A [`RawSol`] describes a [`Partial`] linked to a computed [`Outcome`].
+/// A [`OutSol`] describes a [`Partial`] linked to a computed [`Outcome`].
 ///
 /// # Attributes
 /// * `sol` : [`Partial`]`<Dom,Info,N>` - A partial solution.
 /// * `out` : `Out` - An [`Outcome`] from the evaluation of `sol` by the [`Objective`] function,
 ///
 #[derive(Debug)]
-pub struct RawSol<'a, PSol, SolId, Dom, Out, Info>
+pub struct OutSol<'a, PSol, SolId, Dom, Out, Info>
 where
     PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
@@ -27,7 +27,7 @@ where
     _info: PhantomData<Info>,
 }
 
-impl<'a, PSol, SolId, Dom, Info, Out> RawSol<'a, PSol, SolId, Dom, Out, Info>
+impl<'a, PSol, SolId, Dom, Info, Out> OutSol<'a, PSol, SolId, Dom, Out, Info>
 where
     PSol: Partial<SolId, Dom, Info>,
     Dom: Domain,
@@ -35,9 +35,9 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Creates a new [`RawSol`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+    /// Creates a new [`OutSol`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(sol: &'a PSol, out: Arc<Out>) -> Self {
-        RawSol {
+        OutSol {
             sol,
             out,
             _id: PhantomData,
@@ -46,7 +46,7 @@ where
         }
     }
 
-    /// Creates a vec of [`RawSol`] from an iterator of [`Arc`] [`Partial`]
+    /// Creates a vec of [`OutSol`] from an iterator of [`Arc`] [`Partial`]
     /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where

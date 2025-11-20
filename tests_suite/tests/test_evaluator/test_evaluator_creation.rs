@@ -15,7 +15,7 @@ use std::{
 };
 
 #[test]
-fn test_seq_evaluator() {
+fn test_serde_batchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
@@ -134,7 +134,7 @@ fn test_seq_evaluator() {
 }
 
 #[test]
-fn test_seq_par_evaluator() {
+fn test_serde_thrbatchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));

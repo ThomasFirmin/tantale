@@ -1,11 +1,13 @@
 use tantale::core::{
-    experiment::BatchEvaluator,
+    experiment::FidBatchEvaluator,
     stop::Calls,
     EmptyInfo, Searchspace, SingleCodomain, Solution
 };
 use tantale_algos::RSInfo;
 use tantale_core::{
-    BaseDom, BasePartial, SId, Sp, experiment::{DistEvaluate, mpi::{utils::MPIProcess, worker::{BaseWorker, Worker}}}, solution::Batch
+    BaseDom, FidBasePartial, MessagePack, SId, Sp,
+    experiment::{DistEvaluate, mpi::{utils::MPIProcess, worker::{FidWorker, Worker}}},
+    solution::{Batch, partial::FidelityPartial}
 };
 
 use std::{
@@ -15,16 +17,25 @@ use std::{
 
 mod init_func {
     use serde::{Deserialize, Serialize};
+    use tantale::core::{EvalStep,objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
+    #[derive(Serialize, Deserialize)]
+    pub struct FnState {
+        pub state: usize,
+    }
+    impl FuncState for FnState {}
+
+
     #[derive(Outcome, Debug, Serialize, Deserialize)]
-    pub struct OutEvaluator {
+    pub struct FidOutEvaluator {
         pub obj: f64,
+        pub fid: EvalStep,
     }
 
-    impl PartialEq for OutEvaluator {
+    impl PartialEq for FidOutEvaluator {
         fn eq(&self, other: &Self) -> bool {
-            self.obj == other.obj
+            self.obj == other.obj && self.fid == other.fid
         }
     }
 
@@ -43,36 +54,48 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
-        use tantale::core::{Bool, Cat, Int, Nat, Real};
-        use tantale::macros::objective;
+        use super::{int_plus_nat, plus_one_int, EvalStep, FidOutEvaluator, FnState, Neuron};
+        use tantale_core::{Bool, Cat, Fidelity, Int, Nat, Real};
+        use tantale_macros::objective;
 
         objective!(
-            pub fn example() -> OutEvaluator {
-                let _a = [! a | Int(0,100) | !];
-                let _b = [! b | Nat(0,100) | !];
-                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-                let _d = [! d | Bool() | !];
+        pub fn example() -> (FidOutEvaluator, FnState) {
+            let _a = [! a | Int(0,100) | !];
+            let _b = [! b | Nat(0,100) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+            let _d = [! d | Bool() | !];
 
-                let _e = plus_one_int([! e | Int(0,100) | !]);
-                let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let _e = plus_one_int([! e | Int(0,100) | !]);
+            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
 
-                let _layer = Neuron{
-                    number: [! h | Int(0,100) | !],
-                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
-                };
+            let _layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+            };
 
-                let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{4} | Nat(0,100) | !];
 
-                OutEvaluator{
-                    obj: [! j | Real(1000.0,2000.0) | !]
-                }
-            }
-        );
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
     }
 }
 
-use init_func::{sp_evaluator, OutEvaluator};
+use init_func::{sp_evaluator, FidOutEvaluator, FnState};
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -85,33 +108,35 @@ fn main() {
     let proc = MPIProcess::new();
 
     if proc.rank != 0 {
-        let wkr = BaseWorker::new(sp_evaluator::get_function(), &proc);
-        <BaseWorker<'_, BaseDom, OutEvaluator> as Worker<SId, BaseDom>>::run(wkr);
+        let wkr = FidWorker::new(sp_evaluator::get_function(), None, &proc);
+        <FidWorker<'_, SId, BaseDom, FidOutEvaluator,FnState,MessagePack>
+            as Worker<SId, BaseDom>
+        >::run(wkr);
     }
     else{
         let sp = sp_evaluator::get_searchspace();
-        let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
+        let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
         let obj = sp_evaluator::get_function();
         let info = std::sync::Arc::new(RSInfo { iteration: 0 });
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
         
         let mut rng = rand::rng();
-        let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-        let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
+        let sobj: Vec<FidBasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
+        let sopt: Vec<FidBasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj
             .iter()
-            .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+            .map(|s: &FidBasePartial<_, _, _>| (s.get_id(), s.x.clone()))
             .collect();
         let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt
             .iter()
-            .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+            .map(|s: &FidBasePartial<_, _, _>| (s.get_id(), s.x.clone()))
             .collect();
         let batch = Batch::new(sobj, sopt, info.clone());
-        let mut eval = BatchEvaluator::new(batch);
+        let mut eval = FidBatchEvaluator::new(batch);
 
         let (braw, bcomp) =
-            <BatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
+            <FidBatchEvaluator<_, _, _, _, _, _, _> as DistEvaluate<
                 _,
                 _,
                 _,
@@ -120,7 +145,7 @@ fn main() {
                 _,
                 Calls,
                 _,
-                OutEvaluator,
+                FidOutEvaluator,
                 Sp<_, _>,
                 _,
                 _,
@@ -176,7 +201,7 @@ fn main() {
             20,
             "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
         );
-        assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
+        assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
 
         assert!(
             bcomp.cobj.iter().all(|sol| {
@@ -197,5 +222,33 @@ fn main() {
             }),
             "Computed and Partial do not point to the same Opt solution."
         );
+
+        let (vobj, vopt) = bcomp
+            .into_iter()
+            .map(|(sj, st)| {
+                let mut obj = sj.sol;
+                let mut opt = st.sol;
+                obj.discard(&mut opt);
+                (obj, opt)
+            })
+            .collect();
+        let batch = Batch::new(vobj, vopt, info.clone());
+        let mut eval = FidBatchEvaluator::new(batch);
+
+        <FidBatchEvaluator<_, _, _, _, _, _, _> as DistEvaluate<
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Calls,
+            _,
+            FidOutEvaluator,
+            Sp<_, _>,
+            _,
+            _,
+        >>::evaluate(&mut eval, &proc, &obj, &cod,&mut stop);
+        assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
     }
 }

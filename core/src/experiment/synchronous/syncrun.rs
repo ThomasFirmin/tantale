@@ -14,21 +14,17 @@ use crate::{
     FidOutcome, Id, Partial, Stepped,
 };
 
-use std::{
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
+        DistEvaluate, DistRunable, MasterWorker,
         mpi::{
-            tools::MPIProcess,
-            utils::{checkpoint_order, stop_order},
+            utils::{MPIProcess,checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-        DistEvaluate, DistRunable, MasterWorker,
     },
     recorder::DistRecorder,
 };
@@ -72,9 +68,6 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
-    _domobj: PhantomData<Obj>,
-    _domopt: PhantomData<Opt>,
-    _out: PhantomData<Out>,
 }
 
 type OpBatch<Op, Obj, Opt, Out, Scp> = Batch<
@@ -160,9 +153,6 @@ where
             recorder,
             checkpointer,
             evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 
@@ -259,9 +249,6 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 }
@@ -334,9 +321,6 @@ where
             recorder,
             checkpointer,
             evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 
@@ -434,9 +418,6 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 }
@@ -480,9 +461,6 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
-    _domobj: PhantomData<Obj>,
-    _domopt: PhantomData<Opt>,
-    _out: PhantomData<Out>,
 }
 
 impl<Scp, Op, St, Rec, Check, Obj, Opt, Out>
@@ -557,9 +535,6 @@ where
             recorder,
             checkpointer,
             evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 
@@ -674,9 +649,6 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 }
@@ -754,9 +726,6 @@ where
             recorder,
             checkpointer,
             evaluator: None,
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 
@@ -871,9 +840,6 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
-            _domobj: PhantomData,
-            _domopt: PhantomData,
-            _out: PhantomData,
         }
     }
 }
@@ -919,9 +885,6 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
-    _domobj: PhantomData<Obj>,
-    _domopt: PhantomData<Opt>,
-    _out: PhantomData<Out>,
 }
 
 #[cfg(feature = "mpi")]
@@ -961,7 +924,7 @@ where
     Out: Outcome,
 {
     type WType = BaseWorker<'a, Obj, Out>;
-    fn new_dist(
+    fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Objective<Obj, Out>,
@@ -997,16 +960,51 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
-                _domobj: PhantomData,
-                _domopt: PhantomData,
-                _out: PhantomData,
             })
         } else {
+            <Check as DistCheckpointer>::no_check_init(proc);
             MasterWorker::Worker(BaseWorker::new(objective, proc))
         }
     }
 
-    fn run_dist(mut self) {
+    fn load(
+        proc: &'a MPIProcess,
+        space: (Scp, Op::Cod),
+        objective: Objective<Obj, Out>,
+        saver: (Option<Rec>, Check),
+    ) -> MasterWorker<'a, Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj, Out>>
+    {
+        let (searchspace, codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        if proc.rank == 0 {
+            let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
+            let optimizer = Op::from_state(state);
+            let recorder = match recorder {
+                Some(mut r) => {
+                    r.after_load_dist(proc, &searchspace, &codomain);
+                    Some(r)
+                }
+                None => None,
+            };
+            checkpointer.after_load_dist(proc);
+            MasterWorker::Master(DistExperiment {
+                proc,
+                searchspace,
+                codomain,
+                objective,
+                optimizer,
+                stop,
+                recorder,
+                checkpointer: Some(checkpointer),
+                evaluator: Some(evaluator),
+            })
+        } else {
+            <Check as DistCheckpointer>::no_check_init(proc);
+            MasterWorker::Worker(BaseWorker::new(objective, proc))
+        }
+    }
+    
+    fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -1032,7 +1030,7 @@ where
             if self.stop.stop() {
                 break 'main;
             };
-
+            
             // Arc copy of data to send to evaluator thread.
             (batch_raw, batch_comp) = DistEvaluate::<
                 SId,
@@ -1092,45 +1090,6 @@ where
         }
         stop_order(self.proc, 1..self.proc.size);
     }
-
-    fn load_dist(
-        proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
-        objective: Objective<Obj, Out>,
-        saver: (Option<Rec>, Check),
-    ) -> MasterWorker<'a, Self, SId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Objective<Obj, Out>>
-    {
-        let (searchspace, codomain) = space;
-        let (recorder, mut checkpointer) = saver;
-        if proc.rank == 0 {
-            let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
-            let optimizer = Op::from_state(state);
-            let recorder = match recorder {
-                Some(mut r) => {
-                    r.after_load_dist(proc, &searchspace, &codomain);
-                    Some(r)
-                }
-                None => None,
-            };
-            checkpointer.after_load_dist(proc);
-            MasterWorker::Master(DistExperiment {
-                proc,
-                searchspace,
-                codomain,
-                objective,
-                optimizer,
-                stop,
-                recorder,
-                checkpointer: Some(checkpointer),
-                evaluator: Some(evaluator),
-                _domobj: PhantomData,
-                _domopt: PhantomData,
-                _out: PhantomData,
-            })
-        } else {
-            MasterWorker::Worker(BaseWorker::new(objective, proc))
-        }
-    }
 }
 
 #[cfg(feature = "mpi")]
@@ -1173,7 +1132,7 @@ where
     FnState: FuncState,
 {
     type WType = FidWorker<'a, SId, Obj, Out, FnState, Check>;
-    fn new_dist(
+    fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Stepped<Obj, Out, FnState>,
@@ -1206,7 +1165,7 @@ where
             };
             let checkpointer = match checkpointer {
                 Some(mut c) => {
-                    c.init();
+                    c.init_dist(proc);
                     Some(c)
                 }
                 None => None,
@@ -1221,14 +1180,12 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
-                _domobj: PhantomData,
-                _domopt: PhantomData,
-                _out: PhantomData,
             })
         } else {
             let check = match checkpointer {
                 Some(c) => {
-                    let mut wc = c.get_check_worker();
+                    let mut wc = c.get_check_worker(proc);
+                    println!("CHIOTE BITTE");
                     wc.init(proc);
                     Some(wc)
                 }
@@ -1238,7 +1195,7 @@ where
         }
     }
 
-    fn run_dist(mut self) {
+    fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
@@ -1324,7 +1281,7 @@ where
         stop_order(self.proc, 1..self.proc.size);
     }
 
-    fn load_dist(
+    fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Stepped<Obj, Out, FnState>,
@@ -1366,178 +1323,11 @@ where
                 recorder,
                 checkpointer: Some(checkpointer),
                 evaluator: Some(evaluator),
-                _domobj: PhantomData,
-                _domopt: PhantomData,
-                _out: PhantomData,
             })
         } else {
-            let mut check = checkpointer.get_check_worker();
+            let mut check = checkpointer.get_check_worker(proc);
             check.after_load(proc);
             MasterWorker::Worker(FidWorker::new(objective, Some(check), proc))
         }
     }
 }
-
-// impl<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-//     Runable<
-//         SId,
-//         Scp,
-//         Op,
-//         St,
-//         Sv,
-//         Obj,
-//         Opt,
-//         Out,
-//         Cod,
-//         MPIThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-//         Objective<Obj, Cod, Out>,
-//     > for MPIThrExperiment<Scp, Op, St, Sv, Obj, Opt, Out, Cod>
-// where
-//     Op: Optimizer<SId, Obj, Opt, Cod, Out, Scp>,
-//     St: Stop + Send + Sync,
-//     Scp: Searchspace<SId, Obj, Opt, Op::SInfo> + Send + Sync,
-//     Sv: DistributedSaver<
-//             SId,
-//             St,
-//             Obj,
-//             Opt,
-//             Cod,
-//             Out,
-//             Scp,
-//             Op,
-//             MPIThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo>,
-//             Objective<Obj, Cod, Out>,
-//         > + Send
-//         + Sync,
-//     Obj: Domain + Send + Sync,
-//     Opt: Domain + Send + Sync,
-//     Obj::TypeDom: Send + Sync,
-//     Opt::TypeDom: Send + Sync,
-//     Out: Outcome + Send + Sync,
-//     Cod: Codomain<Out> + Send + Sync,
-//     Cod::TypeCodom: Send + Sync,
-//     Op::SInfo: Send + Sync,
-//     Op::Info: Send + Sync,
-//     Op::State: Send + Sync,
-// {
-//     fn run(mut self) {
-//         if MPI_UNIVERSE.get().is_none() {
-//             panic!("The MPI Universe is not initialized.")
-//         }
-//         let rank = *MPI_RANK.get().unwrap();
-//         let sp = Arc::new(self.searchspace);
-//         let ob = Arc::new(self.objective);
-//         let cod = ob.get_codomain();
-//         let st = Arc::new(Mutex::new(self.stop));
-
-//         let mut eval = match self.evaluator {
-//             Some(e) => e,
-//             None => {
-//                 let (sobj, sopt, info) = self.optimizer.first_step(sp.clone());
-//                 MPIThrEvaluator::new(sobj.clone(), sopt.clone(), info)
-//             }
-//         };
-
-//         let (mut sobj, mut sopt, mut info): (_, _, Arc<Op::Info>);
-//         'main: loop {
-//             {
-//                 let mut st = st.lock().unwrap();
-//                 st.update(ExpStep::Iteration);
-//                 DistributedSaver::save_state(
-//                     &self.saver,
-//                     sp.clone(),
-//                     self.optimizer.get_state(),
-//                     &st,
-//                     &eval,
-//                     rank,
-//                 );
-//                 if st.stop() {
-//                     break 'main;
-//                 };
-//             }
-
-//             // Arc copy of data to send to evaluator thread.
-//             let ((cobj, copt), cout) =
-//                 <MPIThrEvaluator<SId, Obj, Opt, Op::Info, Op::SInfo> as DistEvaluate<
-//                     St,
-//                     Obj,
-//                     Opt,
-//                     Out,
-//                     Cod,
-//                     Op::Info,
-//                     Op::SInfo,
-//                     SId,
-//                     Objective<Obj, Cod, Out>,
-//                 >>::evaluate(&mut eval, ob.clone(), st.clone());
-
-//             // DistributedSaver part
-//             DistributedSaver::save_partial(
-//                 &self.saver,
-//                 cobj.clone(),
-//                 copt.clone(),
-//                 sp.clone(),
-//                 cod.clone(),
-//                 eval.info.clone(),
-//                 rank,
-//             );
-//             DistributedSaver::save_out(&self.saver, cout, sp.clone(), rank);
-//             DistributedSaver::save_codom(&self.saver, cobj.clone(), sp.clone(), cod.clone(), rank);
-//             if st.lock().unwrap().stop() {
-//                 DistributedSaver::save_state(
-//                     &self.saver,
-//                     sp.clone(),
-//                     self.optimizer.get_state(),
-//                     &st.lock().unwrap(),
-//                     &eval,
-//                     rank,
-//                 );
-//                 break 'main;
-//             };
-//             (sobj, sopt, info) = self.optimizer.step((cobj, copt), sp.clone());
-//             eval = MPIThrEvaluator::new(sobj.clone(), sopt.clone(), info);
-//             st.lock().unwrap().update(ExpStep::Optimization);
-//             if st.lock().unwrap().stop() {
-//                 DistributedSaver::save_state(
-//                     &self.saver,
-//                     sp.clone(),
-//                     self.optimizer.get_state(),
-//                     &st.lock().unwrap(),
-//                     &eval,
-//                     rank,
-//                 );
-//                 break 'main;
-//             };
-//         }
-//         let world = MPI_UNIVERSE.get().unwrap().world();
-//         (1..*MPI_SIZE.get().unwrap()).for_each(
-//             |idx|{
-//                 world.process_at_rank(idx).send_with_tag(&Vec::<u8>::new(),-1);
-//             }
-//         );
-//     }
-
-//     fn load(searchspace: Scp, objective: Objective<Obj, Cod, Out>, mut saver: Sv) -> Self {
-//         let rank = *MPI_RANK.get().unwrap();
-//         let (stop, optimizer, evaluator) =
-//             DistributedSaver::load(&saver, &searchspace, objective.get_codomain().as_ref(),rank)
-//                 .unwrap();
-//         DistributedSaver::after_load(
-//             &mut saver,
-//             &searchspace,
-//             objective.get_codomain().as_ref(),
-//             *MPI_RANK.get().unwrap(),
-//         );
-//         MPIThrExperiment {
-//             searchspace,
-//             objective,
-//             optimizer,
-//             stop,
-//             saver,
-//             evaluator: Some(evaluator),
-//             _domobj: PhantomData,
-//             _domopt: PhantomData,
-//             _codom: PhantomData,
-//             _out: PhantomData,
-//         }
-//     }
-// }

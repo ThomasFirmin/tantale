@@ -1,9 +1,6 @@
 use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::{
-        tools::MPIProcess,
-        utils::{send_msg, DiscardFXMessage, FXMessage, Msg, OMessage, XMessage},
-    },
+    experiment::mpi::utils::{MPIProcess, send_msg, DiscardFXMessage, FXMessage, Msg, OMessage, XMessage},
     objective::outcome::FuncState,
     Domain, FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
 };
@@ -216,7 +213,7 @@ where
             }
             // Compute
             else {
-                panic!("Unknown tag for message send to worker {}", self.proc.rank);
+                panic!("Unknown tag ({}) for message send to worker {}", tag, self.proc.rank);
             }
         }
         eprintln!(

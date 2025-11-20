@@ -354,7 +354,7 @@ fn test_csv_func() {
 
     let mut rs = RandomSearch::new(3);
     let mut stop = Calls::new(100);
-    let config = FolderConfig::new("tmp_test");
+    let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
     <CSVRecorder as Recorder<
         SId,

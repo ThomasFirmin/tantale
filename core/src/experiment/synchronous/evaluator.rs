@@ -13,11 +13,8 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
-    mpi::{
-        tools::MPIProcess,
-        utils::{SendRec, XMessage},
-    },
     DistEvaluate,
+    mpi::utils::{MPIProcess, SendRec, XMessage},
 };
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
@@ -183,6 +180,7 @@ where
         PSol,
         Info,
     > {
+        println!("MEGAPROUT FROM {}",proc.rank);
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut idle_process: Vec<i32> = (1..proc.size).collect(); // [1..SIZE] because of master process / Processes doing nothing

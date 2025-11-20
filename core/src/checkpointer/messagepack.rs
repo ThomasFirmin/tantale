@@ -17,7 +17,7 @@ use std::{
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::{tools::MPIProcess, worker::WorkerState},
+    experiment::mpi::{utils::MPIProcess, worker::WorkerState},
 };
 #[cfg(feature = "mpi")]
 use mpi::{traits::CommunicatorCollectives, Rank};
@@ -295,6 +295,10 @@ impl DistCheckpointer for MessagePack {
         proc.world.barrier();
     }
 
+    fn no_check_init(proc: &MPIProcess) {
+        proc.world.barrier();
+    }
+
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
@@ -408,9 +412,10 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
-    fn get_check_worker<WState: WorkerState>(&self) -> Self::WCheck<WState> {
-        todo!()
+    fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
+        WCheckMessagePack::new(self.config.clone(),proc)
     }
+    
 }
 
 #[cfg(feature = "mpi")]
@@ -426,19 +431,15 @@ impl DistCheckpointer for MessagePack {
 ///  * checkpoint
 ///   * workers
 ///     * `worker_state_rank{}` ([`WorkerState`])
-pub struct WCheckMessagePack {
-    pub config: Arc<FolderConfig>,
-    path_worker: PathBuf,
-}
+pub struct WCheckMessagePack(PathBuf);
 
 #[cfg(feature = "mpi")]
 impl WCheckMessagePack {
-    pub fn new(proc: &MPIProcess, config: Arc<FolderConfig>) -> Self {
-        let path_worker = config.path_work.join(format!("worker_rank{}", proc.rank));
-        WCheckMessagePack {
-            config,
-            path_worker,
+    pub fn new(config: Arc<FolderConfig>, proc: &MPIProcess) -> Self {
+        if !config.is_dist {
+            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
         }
+        WCheckMessagePack(config.path_work.join(format!("worker_rank{}.mp", proc.rank)))
     }
 }
 
@@ -446,45 +447,29 @@ impl WCheckMessagePack {
 impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     fn init(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
-        let path = &self.config.path_work;
-        if self.config.is_dist {
-            let does_exist = path.try_exists().unwrap();
-            if does_exist {
-                panic!("The worker folder path already exists, {}.", path.display())
-            } else if path.is_file() {
-                panic!("The worker path cant point to a file, {}.", path.display())
-            } else {
-                create_dir_all(&self.path_worker).unwrap();
-            }
-        } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+        if self.0.try_exists().unwrap() {
+            panic!("The Worker folder {} in checkpoint already exists.",self.0.display())
         }
     }
 
     fn after_load(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
-        if self.config.is_dist {
-            // Check if all folder and files exist
-            if !self.path_worker.try_exists().unwrap() {
-                panic!(
-                    "The Worker folder {} in checkpoint does not exists.",
-                    self.path_worker.display()
-                )
-            }
-        } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+        // Check if all folder and files exist
+        if !self.0.try_exists().unwrap() {
+            panic!("The Worker folder {} in checkpoint does not exists.",self.0.display())
         }
     }
 
     fn save_state(&self, state: &WState, _rank: Rank) {
-        let mut wrt = File::create(&self.path_worker).unwrap();
+        println!("FILE : {}",self.0.display());
+        let mut wrt = File::create(&self.0).unwrap();
         rmp_serde::encode::write(&mut wrt, state).unwrap();
     }
 
     fn load(&self, _rank: Rank) -> Result<WState, CheckpointError> {
         // Check if file exist
-        if self.path_worker.try_exists().unwrap() {
-            let rdr = File::open(&self.path_worker).unwrap();
+        if self.0.try_exists().unwrap() {
+            let rdr = File::open(&self.0).unwrap();
             Ok(rmp_serde::decode::from_read(rdr).unwrap())
         } else {
             Err(CheckpointError(String::from(

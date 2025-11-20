@@ -1,21 +1,16 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{path::{Path, PathBuf}};
 
 #[cfg(feature = "mpi")]
-use mpi::Rank;
-
-#[cfg(feature = "mpi")]
-use crate::experiment::mpi::tools::MPIProcess;
+use crate::experiment::mpi::utils::MPIProcess;
 
 pub trait SaverConfig {
-    fn init(&mut self);
-    fn after_load(&mut self);
+    fn init(self)->Arc<Self>;
 }
 
 #[cfg(feature = "mpi")]
 pub trait DistSaverConfig: SaverConfig {
-    fn init(&mut self, proc: &MPIProcess);
-    fn after_load(&mut self, proc: &MPIProcess);
+    fn init(self, proc: &MPIProcess) -> Arc<Self>;
 }
 
 /// Describes a folders and files hierarchy for file-based [`Recorder`] and [`Checkpointer`].
@@ -44,49 +39,41 @@ pub struct FolderConfig {
 }
 
 impl FolderConfig {
-    pub fn new(path: &str) -> Arc<Self> {
+    pub fn new(path: &str) -> Self {
         let path = PathBuf::from(path);
         let path_rec = path.join(Path::new("recorder"));
         let path_check = path.join(Path::new("checkpointer"));
         let path_work = path_check.join(Path::new("workers"));
-        Arc::new(FolderConfig {
+        FolderConfig {
             path,
             path_rec,
             path_check,
             path_work,
             is_dist: false,
-        })
-    }
-
-    #[cfg(feature = "mpi")]
-    pub fn to_dist(&mut self, rank: Rank) {
-        self.path_rec = self.path.join(Path::new(&format!("recorder_rank{}", rank)));
-        self.path_check = self
-            .path
-            .join(Path::new(&format!("checkpointer_rank{}", rank)));
-        self.path_work = self.path_check.join(Path::new("workers"));
-        self.is_dist = true;
+        }
     }
 }
 
 impl SaverConfig for FolderConfig {
-    fn init(&mut self) {}
-    fn after_load(&mut self) {}
+    fn init(self) -> Arc<Self> {Arc::new(self)}
 }
 pub struct NoConfig;
 impl SaverConfig for NoConfig {
-    fn init(&mut self) {}
-    fn after_load(&mut self) {}
+    fn init(self) -> Arc<Self> {Arc::new(self)}
 }
 
 #[cfg(feature = "mpi")]
 impl DistSaverConfig for FolderConfig {
-    fn init(&mut self, _proc: &MPIProcess) {}
-    fn after_load(&mut self, _proc: &MPIProcess) {}
+    fn init(mut self, proc: &MPIProcess) -> Arc<Self> {
+        self.path_rec = self.path_rec.join(Path::new(&format!("recorder_rank{}", proc.rank)));
+        self.path_work = self.path_check.join(Path::new("workers"));
+        self.path_check = self.path_check.join(Path::new(&format!("checkpointer_rank{}", proc.rank)));
+        self.is_dist = true;
+        Arc::new(self)
+    }
 }
 
 #[cfg(feature = "mpi")]
 impl DistSaverConfig for NoConfig {
-    fn init(&mut self, _proc: &MPIProcess) {}
-    fn after_load(&mut self, _proc: &MPIProcess) {}
+    fn init(self, _proc: &MPIProcess) -> Arc<Self> {Arc::new(self)}
 }

@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::tools::MPIProcess;
+use crate::experiment::mpi::utils::MPIProcess;
 
 pub mod csv;
 pub use csv::CSVRecorder;

@@ -1,8 +1,5 @@
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::{
-    tools::MPIProcess,
-    worker::{NoWState, WorkerState},
-};
+use crate::experiment::mpi::{utils::MPIProcess, worker::{NoWState, WorkerState}};
 use crate::{experiment::Evaluate, optimizer::OptState, stop::Stop, GlobalParameters, SaverConfig};
 
 #[cfg(feature = "mpi")]
@@ -97,6 +94,8 @@ where
     /// In that case it replaces the [`init`](DistCheckpointer::init), when the checkpoint already exists. While
     /// [`init`](DistCheckpointer::init) initializes an non-existing checkpoint.
     fn after_load_dist(&mut self, proc: &MPIProcess);
+    /// Define an initialiazation for [`Workers`] that do not have a [`Checkpointer`].
+    fn no_check_init(proc: &MPIProcess);
     /// Save the current state of the optimization.
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
@@ -119,5 +118,5 @@ where
     /// Load the [`GlobalParameters`] from an existing checkpoint.
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
     /// Return the checkpointer for the [`Worker`].
-    fn get_check_worker<WState: WorkerState>(&self) -> Self::WCheck<WState>;
+    fn get_check_worker<WState: WorkerState>(&self, proc:&MPIProcess) -> Self::WCheck<WState>;
 }

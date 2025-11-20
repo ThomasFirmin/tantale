@@ -1,11 +1,5 @@
 use crate::{
-    domain::onto::OntoDom,
-    objective::{Codomain, FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    searchspace::Searchspace,
-    solution::{partial::BasePartial, Batch, BatchType, Id, Solution},
-    FidBasePartial, FolderConfig, OptInfo, Partial, SolInfo,
+    FidBasePartial, Fidelity, FolderConfig, OptInfo, Partial, SolInfo, domain::onto::OntoDom, objective::{Codomain, FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::Searchspace, solution::{Batch, BatchType, Id, Solution, partial::BasePartial}
 };
 
 use rayon::prelude::*;
@@ -16,7 +10,7 @@ use std::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{experiment::mpi::tools::MPIProcess, recorder::DistRecorder};
+use crate::{experiment::mpi::utils::MPIProcess, recorder::DistRecorder};
 
 /// A [`CSVWritable`] is an object for wich a CSV header can be given,
 /// and how its components can be written as a [`Vec`] of [`String`].
@@ -361,6 +355,7 @@ where
         let mut idstr = SolId::header(&());
         idstr.extend(SInfo::header(&()));
         idstr.extend(Info::header(&()));
+        idstr.extend(Fidelity::header(&()));
         wrt.write_record(idstr).unwrap();
         wrt.flush().unwrap();
     }
@@ -491,10 +486,12 @@ where
                 if let Some(f) = wrts.info.clone() {
                     let sinfstr = cobj.get_info().write(&());
                     let infstr = cbatch.info.write(&());
+                    let fidstr = cobj.get_sol().fid.write(&());
                     let fstr: Vec<&String> = idstr
                         .iter()
                         .chain(sinfstr.iter())
                         .chain(infstr.iter())
+                        .chain(fidstr.iter())
                         .collect();
                     {
                         let mut wrt_local = f.lock().unwrap();
@@ -818,60 +815,40 @@ where
             let does_exist = self.config.path_rec.try_exists().unwrap();
             if does_exist {
                 panic!(
-                    "The recorder folder path already exists, {}.",
+                    "The folder path  already exists for the recorder.({}).",
                     self.config.path_rec.display()
                 )
             } else if self.config.path.is_file() {
                 panic!(
-                    "The recorder path cant point to a file, {}.",
+                    "The folder path cant point to a file for the recorder. ({}).",
                     self.config.path_rec.display()
                 )
             } else {
                 create_dir_all(&self.config.path_rec).unwrap();
 
                 if let Some(ppobj) = &self.path_pobj {
-                    let mut wrt = csv::Writer::from_path(ppobj.as_path()).unwrap();
-                    let mut idstr = SolId::header(&());
-                    idstr.extend(Scp::header(scp));
-                    wrt.write_record(idstr).unwrap();
-                    wrt.flush().unwrap();
+                    BType::header_partial_obj(csv::Writer::from_path(ppobj.as_path()).unwrap(), scp);
                 }
 
                 if let Some(ppopt) = &self.path_popt {
-                    let mut wrt = csv::Writer::from_path(ppopt.as_path()).unwrap();
-                    let mut idstr = SolId::header(&());
-                    idstr.extend(Scp::header(scp));
-                    wrt.write_record(idstr).unwrap();
-                    wrt.flush().unwrap();
+                    BType::header_partial_opt(csv::Writer::from_path(ppopt.as_path()).unwrap(), scp);
                 }
 
                 if let Some(ppinfo) = &self.path_info {
-                    let mut wrt = csv::Writer::from_path(ppinfo.as_path()).unwrap();
-                    let mut idstr = SolId::header(&());
-                    idstr.extend(Op::SInfo::header(&()));
-                    idstr.extend(Op::Info::header(&()));
-                    wrt.write_record(idstr).unwrap();
-                    wrt.flush().unwrap();
+                    BType::header_info(csv::Writer::from_path(ppinfo.as_path()).unwrap());
                 }
 
                 if let Some(ppout) = &self.path_out {
-                    let mut wrt = csv::Writer::from_path(ppout.as_path()).unwrap();
-                    let mut idstr = SolId::header(&());
-                    idstr.extend(Out::header(&()));
-                    wrt.write_record(idstr).unwrap();
-                    wrt.flush().unwrap();
+                    BType::header_out(csv::Writer::from_path(ppout.as_path()).unwrap());
                 }
 
-                {
-                    let mut wrt = csv::Writer::from_path(self.path_codom.as_path()).unwrap();
-                    let mut idstr = SolId::header(&());
-                    idstr.extend(Op::Cod::header(cod));
-                    wrt.write_record(idstr).unwrap();
-                    wrt.flush().unwrap();
-                }
+                BType::header_codom(
+                    csv::Writer::from_path(self.path_codom.as_path()).unwrap(),
+                    cod,
+                );
             }
         } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+            panic!("The FolderConfig should be set for Distribued environment.")
         }
     }
 

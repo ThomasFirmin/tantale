@@ -10,7 +10,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "mpi")]
-use crate::{experiment::mpi::tools::MPIProcess, recorder::DistRecorder};
+use crate::{experiment::mpi::utils::MPIProcess, recorder::DistRecorder};
 
 /// [`NoSaver`] does nothing, and does not save anything.
 #[derive(Default, Serialize, Deserialize)]

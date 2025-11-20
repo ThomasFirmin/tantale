@@ -306,32 +306,32 @@ pub fn obj(input: TokenStream) -> TokenStream {
         syn::ReturnType::Type(_, ty) => ty,
     };
 
-    let state = match outtype.as_ref(){
-        syn::Type::Path(_) => None,
+    let (otype,state) = match outtype.as_ref(){
+        syn::Type::Path(t) => (t,None),
         syn::Type::Tuple(tuple) => {
             let elems = &tuple.elems;
             if elems.len() != 2{
                 return syn::Error::new(outspan,
                  "If the output type of the raw objective function is a tuple,
-                            then it should only contain the Outcome and FuncState type."
+                            then it should only contain the Outcome and a FuncState."
                 ).to_compile_error().into();
             }
             else{
-                match &elems[0] {
-                    syn::Type::Path(_) => {},
+                let otype = match &elems[0] {
+                    syn::Type::Path(t) => t,
                     _ => { return syn::Error::new(outspan,
                         "If the output type of the raw objective function is a tuple,
-                                    then it should only contain the Outcome and FuncState type."
+                                    then it should only contain the Outcome and a FuncState."
                         ).to_compile_error().into();}
                 };
                 let ste = match &elems[1] {
                     syn::Type::Path(o) => o,
                     _ => { return syn::Error::new(outspan,
                         "If the output type of the raw objective function is a tuple,
-                                    then it should only contain the Outcome and FuncState type."
+                                    then it should only contain the Outcome and a FuncState."
                         ).to_compile_error().into();}
                 };
-                Some(ste)
+                (otype,Some(ste))
             }
         },
         _ => return syn::Error::new(outspan,
@@ -384,7 +384,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
 
     let attrs = fn_item.attrs;
     let vis = fn_item.vis;
-    let sig = fn_item.sig;
+    let sig = &fn_item.sig;
+    let fn_ident = &sig.ident;
 
     let fn_tokens: TokenStream = quote! {
         #(#attrs)*
@@ -393,6 +394,22 @@ pub fn obj(input: TokenStream) -> TokenStream {
         }
     }
     .into();
+    
+    let wraper_tokens = if state.is_some(){
+        quote! {
+            pub fn get_function() -> tantale::core::Stepped<#ident_mixed_obj,#otype,#state>
+            {
+                tantale::core::Stepped::new(#fn_ident)
+            }
+        }
+    } else{
+        quote! {
+            pub fn get_function() -> tantale::core::Objective<#ident_mixed_obj,#otype>
+            {
+                tantale::core::Objective::new(#fn_ident)
+            }
+        }
+    };
 
     let mut sp_tokens = get_sp_tokens(
         sampler_functions,
@@ -401,8 +418,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
         push_statements,
     )
     .unwrap();
-    sp_tokens.extend([fn_tokens]);
 
+    sp_tokens.extend([fn_tokens,wraper_tokens.into()]);
     sp_tokens
 }
 

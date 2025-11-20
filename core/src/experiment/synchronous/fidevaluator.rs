@@ -16,11 +16,8 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
-    mpi::{
-        tools::MPIProcess,
-        utils::{FXMessage, SendRec},
-    },
     DistEvaluate,
+    mpi::utils::{MPIProcess,FXMessage, SendRec},
 };
 
 type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =

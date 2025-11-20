@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::DistCheckpointer,
-    experiment::mpi::{tools::MPIProcess, worker::Worker},
+    experiment::mpi::{utils::MPIProcess, worker::Worker},
     recorder::DistRecorder,
 };
 
@@ -65,7 +65,8 @@ macro_rules! experiment {
 #[cfg(feature = "mpi")]
 macro_rules! experiment {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::new(
+        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -74,7 +75,8 @@ macro_rules! experiment {
         )
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::new(
+        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -83,7 +85,8 @@ macro_rules! experiment {
         )
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::ThrExperiment::new(
+        <tantale::core::experiment::ThrExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -92,7 +95,8 @@ macro_rules! experiment {
         )
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::DistExperiment::new(
+        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
+            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>>::new(
             $proc,
             ($domain, $codomain),
             $objective,
@@ -121,16 +125,24 @@ macro_rules! load {
 #[cfg(feature = "mpi")]
 macro_rules! load {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
-    (Distributed, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+    (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
+        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>
+            >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
     };
 }
 
@@ -203,7 +215,7 @@ where
 {
     pub fn run(self) {
         match self {
-            MasterWorker::Master(exp) => exp.run_dist(),
+            MasterWorker::Master(exp) => exp.run(),
             MasterWorker::Worker(worker) => worker.run(),
         }
     }
@@ -226,7 +238,7 @@ where
     Fn: FuncWrapper,
 {
     type WType: Worker<SolId, Obj>;
-    fn new_dist(
+    fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Fn,
@@ -234,8 +246,8 @@ where
         stop: St,
         saver: (Option<Rec>, Option<Check>),
     ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>;
-    fn run_dist(self);
-    fn load_dist(
+    fn run(self);
+    fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Fn,

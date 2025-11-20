@@ -22,6 +22,15 @@ pub enum Fidelity {
     Discard,
 }
 
+impl PartialEq for Fidelity {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Resume(l0), Self::Resume(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
 impl Display for Fidelity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

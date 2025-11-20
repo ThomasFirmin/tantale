@@ -1,6 +1,9 @@
 use tantale_algos::RSInfo;
 use tantale_core::{
-    BaseDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Solution, Sp, Stepped, experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrEvaluate}, solution::{Batch, partial::FidelityPartial}, stop::Calls
+    experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrEvaluate},
+    solution::{partial::FidelityPartial, Batch},
+    stop::Calls,
+    BaseDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Solution, Sp, Stepped,
 };
 
 use super::init_func::{sp_evaluator_fid, FnState};
@@ -12,7 +15,7 @@ use std::{
 };
 
 #[test]
-fn test_seq_evaluator() {
+fn test_serde_fidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
@@ -130,15 +133,15 @@ fn test_seq_evaluator() {
         "Computed and Partial do not point to the same Opt solution."
     );
 
-    let (vobj,vopt) = bcomp.into_iter().map(
-        |(sj,st)|
-        {
+    let (vobj, vopt) = bcomp
+        .into_iter()
+        .map(|(sj, st)| {
             let mut obj = sj.sol;
             let mut opt = st.sol;
             obj.discard(&mut opt);
-            (obj,opt)
-        }
-    ).collect();
+            (obj, opt)
+        })
+        .collect();
     let batch = Batch::new(vobj, vopt, info.clone());
     let mut eval = FidBatchEvaluator::new(batch);
 
@@ -165,16 +168,11 @@ fn test_seq_evaluator() {
         Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
-    assert_eq!(
-        stop.calls(),
-        20,
-        "Number of calls is wrong."
-    );
-
+    assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
 }
 
 #[test]
-fn test_seq_par_evaluator() {
+fn test_serde_thrfidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
@@ -269,11 +267,7 @@ fn test_seq_par_evaluator() {
         20,
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
-    assert_eq!(
-        stop.lock().unwrap().calls(),
-        0,
-        "Number of calls is wrong."
-    );
+    assert_eq!(stop.lock().unwrap().calls(), 0, "Number of calls is wrong.");
 
     assert!(
         bcomp.cobj.iter().all(|sol| {
@@ -295,15 +289,15 @@ fn test_seq_par_evaluator() {
         "Computed and Partial do not point to the same Opt solution."
     );
 
-    let (vobj,vopt) = bcomp.into_iter().map(
-        |(sj,st)|
-        {
+    let (vobj, vopt) = bcomp
+        .into_iter()
+        .map(|(sj, st)| {
             let mut obj = sj.sol;
             let mut opt = st.sol;
             obj.discard(&mut opt);
-            (obj,opt)
-        }
-    ).collect();
+            (obj, opt)
+        })
+        .collect();
     let batch = Batch::new(vobj, vopt, info.clone());
     let mut eval = FidThrBatchEvaluator::new(batch);
 
@@ -335,5 +329,4 @@ fn test_seq_par_evaluator() {
         20,
         "Number of calls is wrong."
     );
-
 }

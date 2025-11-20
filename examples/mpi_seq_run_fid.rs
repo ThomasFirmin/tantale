@@ -1,5 +1,5 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, DistSaverConfig, 
+    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Stepped, 
     experiment::{mpi::utils::MPIProcess}, experiment, load, stop::Calls
 };
 use tantale::algos::RandomSearch;
@@ -16,16 +16,25 @@ impl Drop for Cleaner {
 
 mod init_func {
     use serde::{Deserialize, Serialize};
+    use tantale::core::{EvalStep,objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
+    #[derive(Serialize, Deserialize)]
+    pub struct FnState {
+        pub state: usize,
+    }
+    impl FuncState for FnState {}
+
+
     #[derive(Outcome, Debug, Serialize, Deserialize)]
-    pub struct OutEvaluator {
+    pub struct FidOutEvaluator {
         pub obj: f64,
+        pub fid: EvalStep,
     }
 
-    impl PartialEq for OutEvaluator {
+    impl PartialEq for FidOutEvaluator {
         fn eq(&self, other: &Self) -> bool {
-            self.obj == other.obj
+            self.obj == other.obj && self.fid == other.fid
         }
     }
 
@@ -44,41 +53,53 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
-        use tantale::core::{Bool, Cat, Int, Nat, Real};
-        use tantale::macros::objective;
+        use super::{int_plus_nat, plus_one_int, EvalStep, FidOutEvaluator, FnState, Neuron};
+        use tantale_core::{Bool, Cat, Fidelity, Int, Nat, Real};
+        use tantale_macros::objective;
 
         objective!(
-            pub fn example() -> OutEvaluator {
-                let _a = [! a | Int(0,100) | !];
-                let _b = [! b | Nat(0,100) | !];
-                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-                let _d = [! d | Bool() | !];
+        pub fn example() -> (FidOutEvaluator, FnState) {
+            let _a = [! a | Int(0,100) | !];
+            let _b = [! b | Nat(0,100) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
+            let _d = [! d | Bool() | !];
 
-                let _e = plus_one_int([! e | Int(0,100) | !]);
-                let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let _e = plus_one_int([! e | Int(0,100) | !]);
+            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
 
-                let _layer = Neuron{
-                    number: [! h | Int(0,100) | !],
-                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
-                };
+            let _layer = Neuron{
+                number: [! h | Int(0,100) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+            };
 
-                let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{4} | Nat(0,100) | !];
 
-                OutEvaluator{
-                    obj: [! j | Real(1000.0,2000.0) | !]
-                }
-            }
-        );
+            let mut state = match fidelity{
+                Fidelity::New => FnState { state: 0 },
+                Fidelity::Resume(_) => state.unwrap(),
+                Fidelity::Discard => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
     }
 }
 
 
-use init_func::{sp_evaluator, OutEvaluator};
+use init_func::{sp_evaluator, FidOutEvaluator};
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder_rank0"));
+    let eval_path = true_path.join(Path::new("recorder")).join(Path::new("recorder_rank0"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
@@ -104,6 +125,8 @@ pub fn run_reader(path: &str, size: usize) {
     let count_info = linesinfo.count();
     let count_out = linesout.count();
 
+    let linesobj = rdr_obj.records();
+    linesobj.for_each(|l| println!("{:?}", l));
     assert_eq!(count_obj, size, "Some solutions are missing in obj.");
     assert_eq!(count_opt, size, "Some solutions are missing in opt.");
     assert_eq!(count_cod, size, "Some solutions are missing in cod.");
@@ -123,16 +146,16 @@ fn main() {
     let proc = MPIProcess::new();
 
     if proc.rank == 0{
-        drop(Cleaner("tmp_test_mpi_seqrun".into()));
-        let _clean = Cleaner("tmp_test_mpi_seqrun".into());
+        drop(Cleaner("tmp_test_mpi_seqrun_fid".into()));
+        let _clean = Cleaner("tmp_test_mpi_seqrun_fid".into());
     }
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new(7);
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_seqrun_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
@@ -140,15 +163,15 @@ fn main() {
     exp.run();
 
     if proc.rank ==0{
-        run_reader("tmp_test_mpi_seqrun", 50);
+        run_reader("tmp_test_mpi_seqrun_fid", 50);
     }
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = Objective::new(func);
+    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let obj = Stepped::new(func);
 
-    let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_seqrun_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
@@ -175,16 +198,16 @@ fn main() {
     
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = Objective::new(func);
+    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let obj = Stepped::new(func);
 
-    let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_seqrun_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
     let exp = load!(Distributed, &proc, (sp, cod), obj, RandomSearch, Calls, (rec, check));
     if proc.rank ==0{
-        run_reader("tmp_test_mpi_seqrun", 100);
+        run_reader("tmp_test_mpi_seqrun_fid", 100);
         match exp{
             experiment::MasterWorker::Master(e) =>{
                 assert_eq!(e.stop.0, 100, "Number of calls is wrong");
