@@ -30,8 +30,7 @@ pub use config::{FolderConfig, SaverConfig};
 pub mod domain;
 pub use domain::{
     uniform, uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real, BaseDom,
-    BaseTypeDom, Bool, Bounded, Cat, Domain, DomainBoundariesError, DomainBounded, DomainError,
-    DomainOoBError, Int, Nat, Onto, Real, Unit,
+    BaseTypeDom, Bool, Bounded, Cat, Domain, DomainBounded, Int, Nat, Onto, Real, Unit,
 };
 
 pub mod variable;

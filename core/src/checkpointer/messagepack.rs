@@ -461,7 +461,6 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     }
 
     fn save_state(&self, state: &WState, _rank: Rank) {
-        println!("FILE : {}",self.0.display());
         let mut wrt = File::create(&self.0).unwrap();
         rmp_serde::encode::write(&mut wrt, state).unwrap();
     }

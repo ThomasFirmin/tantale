@@ -1,5 +1,4 @@
-use serde::{Deserialize, Serialize};
-pub use tantale::core::objective::codomain::{
+pub use tantale::core::objective::{EvalStep, codomain::{
     ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
     CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
     ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain,
@@ -8,9 +7,10 @@ pub use tantale::core::objective::codomain::{
     ElemStepCostMultiCodomain, ElemStepMultiCodomain, FidCriteria, MultiCodomain, SingleCodomain,
     StepCodomain, StepConstCodomain, StepConstMultiCodomain, StepCostCodomain,
     StepCostConstCodomain, StepCostConstMultiCodomain, StepCostMultiCodomain, StepMultiCodomain,
-};
-use tantale_core::objective::codomain::EvalStep;
+}};
 use tantale_macros::Outcome;
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutCod {
@@ -121,7 +121,7 @@ pub fn get_elemfid() -> (StepCodomain<OutCod>, ElemStepCodomain) {
         StepCodomain::new(|a| a.obj1),
         ElemStepCodomain {
             value: 1.1,
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
         },
     )
 }
@@ -131,7 +131,7 @@ pub fn get_elemfidcost() -> (StepCostCodomain<OutCod>, ElemStepCostCodomain) {
         ElemStepCostCodomain {
             value: 1.1,
             cost: 2.2,
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
         },
     )
 }
@@ -144,7 +144,7 @@ pub fn get_elemfidconst() -> (StepConstCodomain<OutCod>, ElemStepConstCodomain) 
         ElemStepConstCodomain {
             value: 1.1,
             constraints: Box::from([2.2, 3.3]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
         },
     )
 }
@@ -159,7 +159,7 @@ pub fn get_elemfidcostconst() -> (StepCostConstCodomain<OutCod>, ElemStepCostCon
             value: 1.1,
             cost: 2.2,
             constraints: Box::from([3.3, 4.4]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
         },
     )
 }
@@ -168,7 +168,7 @@ pub fn get_elemfidmulti() -> (StepMultiCodomain<OutCod>, ElemStepMultiCodomain) 
         StepMultiCodomain::new(vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice()),
         ElemStepMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
         },
     )
 }
@@ -180,7 +180,7 @@ pub fn get_elemfidcostmulti() -> (StepCostMultiCodomain<OutCod>, ElemStepCostMul
         ),
         ElemStepCostMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
             cost: 3.3,
         },
     )
@@ -193,7 +193,7 @@ pub fn get_elemfidconstmulti() -> (StepConstMultiCodomain<OutCod>, ElemStepConst
         ),
         ElemStepConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
             constraints: Box::from([3.3, 4.4]),
         },
     )
@@ -210,7 +210,7 @@ pub fn get_elemfidcostconstmulti() -> (
         ),
         ElemStepCostConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            step: EvalStep::Completed,
+            step: EvalStep::completed(),
             cost: 3.3,
             constraints: Box::from([4.4, 5.5]),
         },

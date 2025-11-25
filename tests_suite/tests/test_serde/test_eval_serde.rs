@@ -9,7 +9,7 @@ use tantale_core::{
         ThrEvaluate,
     },
     solution::{partial::FidelityPartial, Batch},
-    BaseDom, BasePartial, EmptyInfo, EvalStep, FidBasePartial, Objective, SId, Searchspace,
+    BaseDom, BasePartial, EmptyInfo, FidBasePartial, Objective, SId, Searchspace,
     SingleCodomain, Sp, Stepped,
 };
 
@@ -331,12 +331,7 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {
-            match o.fid {
-                EvalStep::Partially(v) => v == 1.0,
-                _ => false,
-            }
-        }),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1.0}),
         "Error while serializing and deserializing function states."
     );
 
@@ -422,12 +417,7 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {
-            match o.fid {
-                EvalStep::Partially(v) => v == 2.0,
-                _ => false,
-            }
-        }),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2.0}),
         "Error while serializing and deserializing function states."
     );
 }
@@ -506,12 +496,7 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {
-            match o.fid {
-                EvalStep::Partially(v) => v == 1.0,
-                _ => false,
-            }
-        }),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1.0}),
         "Error while serializing and deserializing function states."
     );
 
@@ -599,12 +584,7 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {
-            match o.fid {
-                EvalStep::Partially(v) => v == 2.0,
-                _ => false,
-            }
-        }),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2.0}),
         "Error while serializing and deserializing function states."
     );
 }

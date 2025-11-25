@@ -168,9 +168,9 @@ where
     }
 
     /// Add a new `Obj` and `Opt` pair of [`Partial`] to the batch.
-    pub fn add(&mut self, sobj: PSol, sopt: PSol::Twin<Opt>) {
-        self.sobj.push(sobj);
-        self.sopt.push(sopt);
+    pub fn add(&mut self, pair: (PSol,PSol::Twin<Opt>)) {
+        self.sobj.push(pair.0);
+        self.sopt.push(pair.1);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Partial`] to the batch.
@@ -234,18 +234,33 @@ where
                 Self::empty(info.clone()),
                 Self::empty(info.clone()),
             ),
-            |(mut d,mut r,mut n, mut dn),(sobj,sopt)|
+            |(mut d,mut r,mut n, mut dn),pair|
             {
-                let fid = sobj.get_fidelity();
+                let fid = pair.0.get_fidelity();
                 match fid {
-                    Fidelity::New => n.add(sobj, sopt),
-                    Fidelity::Resume(_) => _ = r.add(sobj, sopt),
-                    Fidelity::Discard => d.add(sobj, sopt),
-                    Fidelity::Done => dn.add(sobj, sopt),
+                    Fidelity::New => {n.add(pair)},
+                    Fidelity::Resume(_) => {r.add(pair)},
+                    Fidelity::Discard => {d.add(pair)},
+                    Fidelity::Done => {dn.add(pair)},
                 }
                 (d,r,n,dn)
             }
         )
+    }
+
+    /// Sort by [`Fidelity`]:
+    /// * 1st [`New`](Fidelity::New)
+    /// * 2nd [`Resume`](Fidelity::Resume)
+    /// * 3rd [`Discard`](Fidelity::Discard)
+    /// * 4th [`Done`](Fidelity::Done)
+    pub fn sort_by_fid(self)->Self{
+        let mut fold = Self::empty(self.info.clone());
+        let (d,r,n, dn) = self.chunk_by_fid();
+        fold.extend(n);
+        fold.extend(r);
+        fold.extend(d);
+        fold.extend(dn);
+        fold
     }
 }
 

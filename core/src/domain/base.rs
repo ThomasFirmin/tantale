@@ -1,13 +1,15 @@
-use crate::domain::{
-    bool::Bool,
-    bounded::{Int, Nat, Real},
-    cat::Cat,
-    derrors::OntoError,
-    onto::{Onto, OntoDom},
-    unit::Unit,
-    Domain, TypeDom,
+use crate::{
+    domain::{
+        Domain, TypeDom,
+        bool::Bool,
+        bounded::{Int, Nat, Real},
+        cat::Cat,
+        onto::{Onto, OntoDom},
+        unit::Unit,
+    },
+    recorder::csv::CSVWritable,
+    errors::OntoError,
 };
-use crate::recorder::csv::CSVWritable;
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};

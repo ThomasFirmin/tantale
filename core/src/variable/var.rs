@@ -1,6 +1,7 @@
 use crate::{
-    domain::{derrors::OntoError, onto::Onto, Domain, TypeDom},
+    domain::{onto::Onto, Domain, TypeDom},
     recorder::csv::{CSVLeftRight, CSVWritable},
+    errors::OntoError,
 };
 
 use rand::prelude::ThreadRng;

@@ -13,16 +13,18 @@
 //! let sample = dom.sample(&mut rng);
 //! assert!(dom.is_in(&sample));
 //! ```
-use crate::domain::{
-    base::{BaseDom, BaseTypeDom},
-    bounded::{Bounded, BoundedBounds, DomainBounded},
-    derrors::OntoError,
-    onto::{Onto, OntoDom},
-    sampler::uniform_bool,
-    unit::Unit,
-    Domain, TypeDom,
+use crate::{
+    domain::{
+        Domain, TypeDom,
+        base::{BaseDom, BaseTypeDom},
+        bounded::{Bounded, BoundedBounds, DomainBounded},
+        onto::{Onto, OntoDom},
+        sampler::uniform_bool,
+        unit::Unit,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
 };
-use crate::recorder::csv::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::rngs::ThreadRng;

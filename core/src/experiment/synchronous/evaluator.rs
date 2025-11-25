@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::experiment::{
     DistEvaluate,
-    mpi::utils::{MPIProcess, SendRec, XMessage},
+    mpi::utils::{SendRec, XMsg},
 };
 
 type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =
@@ -161,9 +161,9 @@ where
     Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
 {
     fn init(&mut self) {}
-    fn evaluate(
+    fn evaluate<M:XMsg<PSol,SolId,Obj,SInfo>>(
         &mut self,
-        proc: &MPIProcess,
+        sendrec:&mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
         _ob: &Objective<Obj, Out>,
         cod: &Cod,
         stop: &mut St,
@@ -178,35 +178,24 @@ where
         PSol,
         Info,
     > {
-        println!("MEGAPROUT FROM {}",proc.rank);
-        // Define send/rec utilitaries and parameters
-        let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec: SendRec<'_, XMessage<SolId, Obj>, PSol, Obj, Opt, SolId, SInfo> = SendRec::new(config, proc);
-
         //Results
         let info = self.batch.get_info();
         let mut obatch = OutBatch::empty(info.clone());
         let mut cbatch = CompBatch::empty(info);
 
         // Fill workers with first solutions
-        let mut at_least_one_idle = true;
-        while at_least_one_idle && !self.batch.is_empty() && !stop.stop() {
-            let w_rank = sendrec.send_to_worker(self.batch.pop().unwrap());
-            if w_rank.is_some() {
-                stop.update(ExpStep::Distribution(Fidelity::Done));
-            } else {
-                at_least_one_idle = false;
+        while sendrec.idle.has_idle() && !self.batch.is_empty() && !stop.stop() {
+            if sendrec.send_to_worker(self.batch.pop().unwrap()).is_none(){
+                panic!("A New pair of solutions was poped, while no worker was idle.")
             }
         }
 
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
-            if !stop.stop() && !self.batch.is_empty() {
-                let w_rank = sendrec.send_to_worker(self.batch.pop().unwrap());
-                if w_rank.is_some() {
-                    stop.update(ExpStep::Distribution(Fidelity::Done));
-                }
+            stop.update(ExpStep::Distribution(Fidelity::Done));
+            if !stop.stop() && !self.batch.is_empty(){
+                sendrec.send_to_worker(self.batch.pop().unwrap());
             }
         }
         // For saving in case of early stopping before full evaluation of all elements

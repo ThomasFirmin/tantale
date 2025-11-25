@@ -88,7 +88,7 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, FidOutcome};
+use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, FidOutcome, EvalStep};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
@@ -97,55 +97,6 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 /// A fidelity criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
 /// one of its [`EvalStep`] further used within a [`FidCodomain`].
 pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
-
-/// The current state of the evaluation, defined by the user within the [`Outcome`].
-/// * [`Partially`](EvalStep::Partially) - A not fully evaluated solution.
-/// * [`Completed`](EvalStep::Completed) - A fully evaluated solution.
-/// * [`Error`](EvalStep::Error) - A faulty evaluation.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum EvalStep {
-    Partially(f64),
-    Completed,
-    Error,
-}
-
-impl PartialEq for EvalStep {
-    fn eq(&self, other: &Self) -> bool {
-        core::mem::discriminant(self) == core::mem::discriminant(other)
-    }
-}
-
-impl EvalStep {
-    pub fn is_partially(&self) -> bool {
-        matches!(self, EvalStep::Partially(_))
-    }
-    pub fn is_completed(&self) -> bool {
-        matches!(self, EvalStep::Completed)
-    }
-    pub fn is_error(&self) -> bool {
-        matches!(self, EvalStep::Error)
-    }
-}
-
-impl std::fmt::Display for EvalStep {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EvalStep::Partially(v) => write!(f, "{}", v),
-            EvalStep::Completed => write!(f, "Completed"),
-            EvalStep::Error => write!(f, "Error"),
-        }
-    }
-}
-
-impl CSVWritable<(), ()> for EvalStep {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("step")])
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.to_string()])
-    }
-}
 
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.

@@ -218,6 +218,9 @@ where
 
     /// Modifies the [`Fidelity`] of a [`FidPartial`] to [`Discard`](Fidelity::Discard).
     fn discard<B: Domain>(&mut self, twin: &mut Self::Twin<B>);
+
+    /// Modifies the [`Fidelity`] of a [`FidPartial`] to [`Done`](Fidelity::Done).
+    fn done<B: Domain>(&mut self, twin: &mut Self::Twin<B>);
 }
 
 /// A non-evaluated [`Solution`].
@@ -487,5 +490,10 @@ where
     fn discard<B: Domain>(&mut self, twin: &mut Self::Twin<B>) {
         self.fid = Fidelity::Discard;
         twin.fid = Fidelity::Discard;
+    }
+
+    fn done<B: Domain>(&mut self, twin: &mut Self::Twin<B>) {
+        self.fid = Fidelity::Done;
+        twin.fid = Fidelity::Done;
     }
 }

@@ -70,10 +70,10 @@
 //! println!("Cost : {}",extracted.cost);
 //! ```
 
+use crate::objective::EvalStep;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::objective::codomain::EvalStep;
 
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.

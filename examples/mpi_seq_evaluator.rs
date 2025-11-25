@@ -5,7 +5,7 @@ use tantale::core::{
 };
 use tantale_algos::RSInfo;
 use tantale_core::{
-    BaseDom, BasePartial, SId, Sp, experiment::{DistEvaluate, mpi::{utils::MPIProcess, worker::{BaseWorker, Worker}}}, solution::Batch
+    BaseDom, BasePartial, SId, Sp, experiment::{DistEvaluate, mpi::{utils::{MPIProcess,SendRec,XMessage}, worker::{BaseWorker, Worker}}}, solution::Batch
 };
 
 use std::{
@@ -89,6 +89,9 @@ fn main() {
         <BaseWorker<'_, BaseDom, OutEvaluator> as Worker<SId, BaseDom>>::run(wkr);
     }
     else{
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut sendrec: SendRec<'_, XMessage<SId, BaseDom>,_, BaseDom, BaseDom, SId, _> = SendRec::new(config, &proc);
+
         let sp = sp_evaluator::get_searchspace();
         let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
         let obj = sp_evaluator::get_function();
@@ -124,7 +127,7 @@ fn main() {
                 Sp<_, _>,
                 _,
                 _,
-            >>::evaluate(&mut eval, &proc, &obj, &cod,&mut stop);
+            >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);
 
         let mut hcobj = HashMap::new();
         let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();

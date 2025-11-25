@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::DistCheckpointer,
-    experiment::mpi::{utils::MPIProcess, worker::Worker},
+    experiment::mpi::{utils::{MPIProcess, SendRec, XMsg}, worker::Worker},
     recorder::DistRecorder,
 };
 
@@ -372,9 +372,9 @@ where
     BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
 {
     fn init(&mut self);
-    fn evaluate(
+    fn evaluate<M:XMsg<PSol,SolId,Obj,SInfo>>(
         &mut self,
-        proc: &MPIProcess,
+        sendrec: &mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
         ob: &Fn,
         cod: &Cod,
         stop: &mut St,

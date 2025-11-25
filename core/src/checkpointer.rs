@@ -5,13 +5,12 @@ use crate::{experiment::Evaluate, optimizer::OptState, stop::Stop, GlobalParamet
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
-pub mod checkerror;
-pub use checkerror::CheckpointError;
-
 pub mod messagepack;
 pub use messagepack::MessagePack;
 #[cfg(feature = "mpi")]
 use serde::{Deserialize, Serialize};
+
+pub use crate::errors::CheckpointError;
 
 /// A [`Checkpointer`] is used to frequently create a checkpoint from the states of the
 /// the various elements ([`Stop`], [`OptState`], [`Evaluate`], [`GlobalParameters`]), used during the optimization process.

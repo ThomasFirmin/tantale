@@ -9,6 +9,7 @@ use tantale::core::{
     stop::{Calls, Stop},
     BaseDom, BaseTypeDom, Codomain, FolderConfig, Optimizer, SId, Searchspace, Solution, Sp,
 };
+use tantale_core::solution::partial::FidelityPartial;
 use tantale_core::{objective::FuncWrapper, Fidelity, Stepped};
 
 use super::init_func::FnState;
@@ -49,7 +50,7 @@ mod infos {
             mul8: 8.8,
             mul9: 9.9,
             tvec: Vec::from([1.1, 2.2, 3.3]),
-            state: EvalStep::Partially(0.5),
+            state: EvalStep::partially(0.0),
         }
     }
 }
@@ -87,6 +88,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn>(
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::Sol: FidelityPartial<SId,BaseDom,Op::SInfo> + Send + Sync,
 {
     let mut batch = opt.first_step(sp);
     let mut obatch = OutBatch::empty(batch.get_info());
@@ -172,6 +174,7 @@ pub fn run_reader<Op, Scp, Fn>(
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
+    Op::Sol: FidelityPartial<SId,BaseDom,Op::SInfo> + Send + Sync,
 {
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("recorder"));
@@ -276,6 +279,8 @@ pub fn run_reader<Op, Scp, Fn>(
         str_content.extend(sinfo_str);
         let info_str = computed_info.write(&());
         str_content.extend(info_str);
+        let info_fid = content_obj.get_sol().get_fidelity().write(&());
+        str_content.extend(info_fid);
 
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(

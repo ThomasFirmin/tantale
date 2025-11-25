@@ -2,7 +2,7 @@ use tantale::core::recorder::csv::CSVWritable;
 
 mod outcome {
     use serde::{Deserialize, Serialize};
-    use tantale_core::objective::codomain::EvalStep;
+    use tantale_core::objective::EvalStep;
     use tantale_macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ mod outcome {
             mul7: 7.7,
             mul8: 8.8,
             mul9: 9.9,
-            fid10: EvalStep::Completed,
+            fid10: EvalStep::completed(),
             tvec: Vec::from([1.1, 2.2, 3.3]),
         }
     }

@@ -85,7 +85,4 @@ pub use onto::Onto;
 pub mod sampler;
 pub use sampler::{uniform, uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
 
-pub mod derrors;
-pub use derrors::{DomainBoundariesError, DomainError, DomainOoBError};
-
 pub mod dmacros;

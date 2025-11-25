@@ -1,6 +1,5 @@
 use crate::{
-    solution::{partial::FidelityPartial, CompBatch, OutBatch},
-    Codomain, Domain, FidOutcome, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
+    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, solution::{CompBatch, OutBatch, partial::FidelityPartial}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -141,21 +140,18 @@ impl<SolId: Id> Msg for DiscardFXMessage<SolId> {}
 pub struct OMessage<SolId: Id, Out: Outcome>(pub SolId, pub Out);
 impl<SolId: Id, Out: Outcome> Msg for OMessage<SolId, Out> {}
 
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "Out: Serialize, SolId:Serialize",
-    deserialize = "Out: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
-))]
-pub struct FOMessage<SolId: Id, Out: FidOutcome>(pub SolId, pub Out, pub Fidelity);
-impl<SolId: Id, Out: FidOutcome> Msg for FOMessage<SolId, Out> {}
-
 /// A structure allowing to know which worker is idle, and if there is at least one idle worker.
 pub struct IdleWorker{
     pub idle: BitVec,
 }
 
 impl IdleWorker{
-    pub fn new(size:usize)->Self{ IdleWorker { idle: bitvec![0; size] } }
+    /// Create a new [`IdleWorker`]. All worker are set to idle (`true`).
+    pub fn new(size:usize)->Self{
+        let mut r = IdleWorker { idle: bitvec![1; size] };
+        r.set_busy(0);
+        r
+    }
     /// Return `true` if at least one worker is idle
     pub fn has_idle(&self) -> bool { self.idle.any() }
     /// Set a worker to idle.
@@ -221,7 +217,7 @@ where
         SInfo: SolInfo,
     {
         if let Some(rank) = self.idle.pop() {
-            let r = rank as Rank;
+            let r = rank as Rank ;
             self.send_to_rank(r, pair);
             Some(r)
         } else{
@@ -241,6 +237,7 @@ where
         let sid = pair.0.get_id();
         let msg = Msg::new(&pair.0);
         send_msg(self.proc, msg, rank, 0, self.config);
+        self.idle.set_busy(rank);
         self.waiting.insert(sid, pair);
     }
 
@@ -250,19 +247,23 @@ where
         obatch: &mut OutBatch<SolId, Info, Out>,
         cbatch: &mut CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>,
         cod: &Cod,
-    ) {
+    ) -> Rank
+    {
         // Recv / sendv loop
         let (bytes, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
-        self.idle.set_idle(status.source_rank());
         let msg = OMessage::from_bytes(bytes, self.config);
         // Unwrap all elements
         let id = msg.0;
         let out = msg.1;
         let y = cod.get_elem(&out);
+        println!("REC / WAITING => ID : {:?}, LIST : {:?}",id, self.waiting.keys());
         let (pobj, popt) = self.waiting.remove(&id).unwrap();
         // Update Out and Computed batches
         obatch.add(id, out);
         cbatch.add_res(pobj, popt, y);
+        let rank = status.source_rank();
+        self.idle.set_idle(rank);
+        rank
     }
 
     /// Send a [`Discard`](Fidelity::Discard) order
@@ -296,106 +297,43 @@ pub fn send_msg<M: Msg>(proc: &MPIProcess, msg: M, rank: Rank, tag: Tag, config:
         .send_with_tag(&msg.to_bytes(config), tag);
 }
 
-// /// A structure containing utilitaries to send [`Partial`] to workers while using multi-threading.
-// pub struct ThrSendRecParam<'a, PSol, Obj, Opt, SolId, SInfo>
-// where
-//     PSol: Partial<SolId, Obj, SInfo>,
-//     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-//     Obj: Domain,
-//     Opt: Domain,
-//     SolId: Id,
-//     SInfo: SolInfo,
-// {
-//     pub config: Configuration,
-//     pub proc: &'a MPIProcess,
-//     pub idle: Arc<Mutex<Vec<usize>>>,
-//     pub waiting: ArcMutexHash<PSol, PSol::Twin<Opt>, SolId>,
-//     _obj: PhantomData<Obj>,
-//     _opt: PhantomData<Opt>,
-// }
+/// [`PriorityList`] defines a list of MPI-size WORLDSIZE.
+/// A list of elements `T` is associated to each rank. 
+pub struct PriorityList<T>
+{
+    pub list: Vec<Vec<T>>,
+    pub count: usize,
+}
 
-// impl<'a, PSol, Obj, Opt, SolId, SInfo> ThrSendRecParam<'a, PSol, Obj, Opt, SolId, SInfo>
-// where
-//     PSol: Partial<SolId, Obj, SInfo>,
-//     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-//     Obj: Domain,
-//     Opt: Domain,
-//     SolId: Id,
-//     SInfo: SolInfo,
-// {
-//     pub fn new(
-//         config: Configuration,
-//         proc: &'a MPIProcess,
-//         idle: Arc<Mutex<Vec<usize>>>,
-//         waiting: ArcMutexHash<PSol, PSol::Twin<Opt>, SolId>,
-//     ) -> Self {
-//         ThrSendRecParam {
-//             config,
-//             proc,
-//             idle,
-//             waiting,
-//             _obj: PhantomData,
-//             _opt: PhantomData,
-//         }
-//     }
-// }
+impl <T> PriorityList<T> {
+    pub fn new(size:usize)->Self{
+        PriorityList{list: (0..size).map(|_| Vec::new()).collect(), count: 0}
+    }
+    pub fn add(&mut self, elem: T, rank:Rank){
+        self.list[rank as usize].push(elem);
+        self.count += 1;
+    }
+    pub fn push(&mut self, elem: Vec<T>, rank:Rank){
+        self.list[rank as usize].extend(elem);
+        self.count += 1;
+    }
+    pub fn pop(&mut self, rank:Rank) -> Option<T>{
+        let res = self.list[rank as usize].pop();
+        if res.is_some(){self.count -=1}
+        res
+    }
+    pub fn is_empty(&self)-> bool{
+        self.count == 0
+    }
 
-// pub fn par_send_to_worker<'a, PSol, Obj, Opt, SolId, SInfo>(
-//     params: &ThrSendRecParam<'a, PSol, Obj, Opt, SolId, SInfo>,
-//     pair: PartPair<PSol, PSol::Twin<Opt>>,
-// ) -> bool
-// where
-//     PSol: Partial<SolId, Obj, SInfo>,
-//     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-//     Obj: Domain,
-//     Opt: Domain,
-//     SolId: Id,
-//     SInfo: SolInfo,
-// {
-//     let mut idl = params.idle.lock().unwrap();
-//     let has_idl = !idl.is_empty();
-//     if has_idl {
-//         let sid = pair.0.get_id();
-//         let rank = idl.pop().unwrap().as_();
-//         let x = pair.0.get_x();
-//         let msg_struct = Compat((sid, x.as_ref()));
-//         let msg = bincode::encode_to_vec(msg_struct, params.config).unwrap();
-//         params.waiting.lock().unwrap().insert(sid, pair);
-//         params
-//             .proc
-//             .world
-//             .process_at_rank(rank)
-//             .send_with_tag(&msg, 1);
-//     }
-//     has_idl
-// }
-
-// // Send as much solutions as possible to idle workers without waiting for a result.
-// pub fn par_fill_workers<'a, PSol, Obj, Opt, SolId, SInfo, Info, St>(
-//     params: &ThrSendRecParam<'a, PSol, Obj, Opt, SolId, SInfo>,
-//     stop: Arc<Mutex<St>>,
-//     batch: &Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
-//     idx: Arc<Mutex<Vec<usize>>>,
-// ) where
-//     PSol: Partial<SolId, Obj, SInfo>,
-//     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-//     Obj: Domain,
-//     Opt: Domain,
-//     SolId: Id,
-//     SInfo: SolInfo,
-//     Info: OptInfo,
-//     St: Stop,
-// {
-//     let mut st = stop.lock().unwrap();
-//     let mut at_least_one_idle = true;
-//     let mut idx_list = idx.lock().unwrap();
-//     while at_least_one_idle && !idx_list.is_empty() && !st.stop() {
-//         let i = idx_list.pop().unwrap();
-//         let has_idle = par_send_to_worker(params, batch.index(i));
-//         if has_idle {
-//             st.update(ExpStep::Distribution);
-//         } else {
-//             at_least_one_idle = false
-//         }
-//     }
-// }
+    pub fn extend(&mut self, other: PriorityList<T>){
+        if self.count != other.count{
+            panic!("The two PriorityList have different lengthes.");
+        }
+        else{
+            self.list.extend(other.list);
+            self.count += other.count;
+        }
+        
+    }
+}

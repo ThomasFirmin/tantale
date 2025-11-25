@@ -14,7 +14,7 @@ use tantale_core::{
         partial::{FidBasePartial, FidelityPartial},
         Batch, SId,
     },
-    BasePartial, Codomain, Criteria, EvalStep, FidOutcome, Objective, StepCodomain, Stepped,
+    BasePartial, Codomain, Criteria, FidOutcome, Objective, StepCodomain, Stepped,
 };
 
 use rand::prelude::ThreadRng;
@@ -183,11 +183,17 @@ where
                     let step = obj.get_y().step;
                     let mut xobj = obj.sol;
                     let mut xopt = opt.sol;
-                    match step {
-                        EvalStep::Partially(_) => xobj.resume(&mut xopt, 0.0),
-                        EvalStep::Completed => xobj.discard(&mut xopt),
-                        EvalStep::Error => xobj.discard(&mut xopt),
-                    };
+                    if step.is_partially(){
+                        xobj.resume(&mut xopt, 0.0)
+                    }
+                    else if step.is_completed()
+                    {
+                        xobj.done(&mut xopt)
+                    }
+                    else if step.is_error()
+                    {
+                        xobj.discard(&mut xopt)
+                    }
                     (xobj, xopt)
                 })
                 .collect();
@@ -195,7 +201,8 @@ where
                 iteration: self.0.iteration,
             });
             Batch::new(vobj, vopt, info)
-        } else {
+        } 
+        else {
             self.0.iteration += 1;
             fid_rs_iter::<Obj, Opt, Scp>(self, scp)
         }

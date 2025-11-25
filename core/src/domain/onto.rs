@@ -18,7 +18,7 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{domain::derrors::OntoError, Domain};
+use crate::{errors::OntoError, Domain};
 
 pub trait Onto<Target> {
     type TargetItem;

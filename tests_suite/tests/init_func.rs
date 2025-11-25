@@ -456,12 +456,11 @@ pub mod sp_evaluator_fid {
             let _k = [! k_{4} | Nat(0,100) | !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -503,12 +502,11 @@ pub mod sp_ms_nosamp_fid {
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -553,12 +551,11 @@ pub mod sp_ms_samp_fid {
             let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -603,12 +600,11 @@ pub mod sp_ms_samp_right_fid {
             let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -653,12 +649,11 @@ pub mod sp_ms_noright_fid {
             let k = [! k_{4} | Nat(0,100) | !];
 
            let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -703,12 +698,11 @@ pub mod sp_ms_samp_noright_fid {
             let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
@@ -753,12 +747,11 @@ pub mod sp_sm_samp_fid {
             let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
@@ -803,12 +796,11 @@ pub mod sp_sm_samp_noright_fid {
             let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],

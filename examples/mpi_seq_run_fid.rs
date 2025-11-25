@@ -75,12 +75,11 @@ mod init_func {
             let _k = [! k_{4} | Nat(0,100) | !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
-                Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                Fidelity::Resume(_) => {state.unwrap()},
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -96,6 +95,43 @@ mod init_func {
 
 
 use init_func::{sp_evaluator, FidOutEvaluator};
+
+#[derive(serde::Deserialize)]
+pub struct RowCod{
+    pub id: usize,
+    pub y: f64,
+    pub step: String,
+}
+#[derive(serde::Deserialize)]
+pub struct RowOut{
+    pub id: usize,
+    pub obj: f64,
+    pub fid: String,
+}
+#[derive(serde::Deserialize)]
+pub struct RowInfo{
+    pub id: usize,
+    pub iteration: usize,
+    pub fidelity: String,
+}
+#[derive(serde::Deserialize)]
+pub struct RowSol{
+    pub id: usize,
+    pub a: isize,
+    pub b: isize,
+    pub c: String,
+    pub d: bool,
+    pub e: isize,
+    pub f: isize,
+    pub g: isize,
+    pub h: isize,
+    pub i: String,
+    pub k_0: isize,
+    pub k_1: isize,
+    pub k_2: isize,
+    pub k_3: isize,
+    pub j: f64,
+}
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -119,19 +155,30 @@ pub fn run_reader(path: &str, size: usize) {
     let linesinfo = rdr_info.records();
     let linesout = rdr_out.records();
 
-    let count_obj = linesobj.count();
-    let count_opt = linesopt.count();
-    let count_cod = linescod.count();
-    let count_info = linesinfo.count();
-    let count_out = linesout.count();
+    let id_cod:Vec<usize> = linescod.filter_map(|s|
+        {
+            let line: RowCod = s.unwrap().deserialize(None).unwrap();
+            if line.step == "Completed"{
+                Some(line.id)
+            }else{None}
+        }).collect();
+
+    let count_obj = linesobj.map(
+        |s| {let line:RowSol = s.unwrap().deserialize(None).unwrap(); line}).filter(|line| id_cod.contains(&line.id)).count();
+    let count_opt = linesopt.map(
+        |s| {let line:RowSol = s.unwrap().deserialize(None).unwrap(); line}).filter(|line| id_cod.contains(&line.id)).count();
+    let count_info = linesinfo.map(
+        |s| {let line:RowInfo = s.unwrap().deserialize(None).unwrap(); line}).filter(|line| id_cod.contains(&line.id)).count();
+    let count_out = linesout.map(
+        |s| {let line:RowOut = s.unwrap().deserialize(None).unwrap(); line}).filter(|line| id_cod.contains(&line.id)).count();
 
     let linesobj = rdr_obj.records();
     linesobj.for_each(|l| println!("{:?}", l));
-    assert_eq!(count_obj, size, "Some solutions are missing in obj.");
-    assert_eq!(count_opt, size, "Some solutions are missing in opt.");
-    assert_eq!(count_cod, size, "Some solutions are missing in cod.");
-    assert_eq!(count_info, size, "Some solutions are missing in info.");
-    assert_eq!(count_out, size, "Some solutions are missing in out.");
+    assert_eq!(count_obj, size * 5, "Some solutions are missing in obj.");
+    assert_eq!(count_opt, size * 5, "Some solutions are missing in opt.");
+    assert_eq!(id_cod.len(), size, "Some solutions are missing in cod.");
+    assert_eq!(count_info, size * 5, "Some solutions are missing in info.");
+    assert_eq!(count_out, size * 5, "Some solutions are missing in out.");
 }
 
 fn main() {

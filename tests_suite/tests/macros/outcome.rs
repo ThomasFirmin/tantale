@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::objective::codomain::EvalStep;
+use tantale_core::objective::EvalStep;
 use tantale_macros::Outcome;
 
 #[test]
@@ -30,7 +30,7 @@ fn mixed_derive() {
             mul7: 7.0,
             mul8: 8.0,
             mul9: 9.0,
-            fid10: EvalStep::Partially(0.5),
+            fid10: EvalStep::partially(0.0),
         }
     }
 

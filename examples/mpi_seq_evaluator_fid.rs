@@ -1,12 +1,11 @@
 use tantale::core::{
-    experiment::FidBatchEvaluator,
     stop::Calls,
     EmptyInfo, Searchspace, SingleCodomain, Solution
 };
 use tantale_algos::RSInfo;
 use tantale_core::{
     BaseDom, FidBasePartial, MessagePack, SId, Sp,
-    experiment::{DistEvaluate, mpi::{utils::MPIProcess, worker::{FidWorker, Worker}}},
+    experiment::{DistEvaluate, mpi::{utils::{SendRec,FXMessage,MPIProcess}, worker::{FidWorker, Worker}}, synchronous::fidevaluator::FidDistBatchEvaluator},
     solution::{Batch, partial::FidelityPartial}
 };
 
@@ -76,12 +75,11 @@ mod init_func {
             let _k = [! k_{4} | Nat(0,100) | !];
 
             let mut state = match fidelity{
-                Fidelity::New => FnState { state: 0 },
                 Fidelity::Resume(_) => state.unwrap(),
-                Fidelity::Discard => FnState { state: 0 },
+                _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::Completed} else{EvalStep::Partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -114,6 +112,10 @@ fn main() {
         >::run(wkr);
     }
     else{
+        // Define send/rec utilitaries and parameters
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut sendrec: SendRec<'_, FXMessage<SId, BaseDom>,_, BaseDom, BaseDom, SId, _> = SendRec::new(config, &proc);
+
         let sp = sp_evaluator::get_searchspace();
         let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
         let obj = sp_evaluator::get_function();
@@ -133,10 +135,10 @@ fn main() {
             .map(|s: &FidBasePartial<_, _, _>| (s.get_id(), s.x.clone()))
             .collect();
         let batch = Batch::new(sobj, sopt, info.clone());
-        let mut eval = FidBatchEvaluator::new(batch);
+        let mut eval = FidDistBatchEvaluator::new(batch);
 
         let (braw, bcomp) =
-            <FidBatchEvaluator<_, _, _, _, _, _, _> as DistEvaluate<
+            <FidDistBatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
                 _,
                 _,
                 _,
@@ -149,7 +151,7 @@ fn main() {
                 Sp<_, _>,
                 _,
                 _,
-            >>::evaluate(&mut eval, &proc, &obj, &cod,&mut stop);
+            >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);
 
         let mut hcobj = HashMap::new();
         let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
@@ -233,9 +235,9 @@ fn main() {
             })
             .collect();
         let batch = Batch::new(vobj, vopt, info.clone());
-        let mut eval = FidBatchEvaluator::new(batch);
+        let mut eval = FidDistBatchEvaluator::new(batch);
 
-        <FidBatchEvaluator<_, _, _, _, _, _, _> as DistEvaluate<
+        <FidDistBatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
             _,
             _,
             _,
@@ -248,7 +250,7 @@ fn main() {
             Sp<_, _>,
             _,
             _,
-        >>::evaluate(&mut eval, &proc, &obj, &cod,&mut stop);
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);
         assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
     }
 }

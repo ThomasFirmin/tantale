@@ -16,16 +16,18 @@
 //! assert!(dom.is_in(&sample));
 //! assert_eq!(dom.values(), &check);
 //! ```
-use crate::domain::{
-    base::{BaseDom, BaseTypeDom},
-    bounded::{Bounded, BoundedBounds, DomainBounded},
-    derrors::OntoError,
-    onto::{Onto, OntoDom},
-    sampler::uniform_cat,
-    unit::Unit,
-    Domain, TypeDom,
+use crate::{
+    domain::{
+        base::{BaseDom, BaseTypeDom},
+        bounded::{Bounded, BoundedBounds, DomainBounded},
+        onto::{Onto, OntoDom},
+        sampler::uniform_cat,
+        unit::Unit,
+        Domain, TypeDom,
+    },
+    recorder::csv::CSVWritable,
+    errors::OntoError,
 };
-use crate::recorder::csv::CSVWritable;
 
 use num::cast::AsPrimitive;
 use rand::prelude::ThreadRng;

@@ -22,7 +22,7 @@ use crate::{
     experiment::{
         DistEvaluate, DistRunable, MasterWorker,
         mpi::{
-            utils::{MPIProcess,checkpoint_order, stop_order},
+            utils::{SendRec, XMessage, FXMessage, MPIProcess,checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
         }, synchronous::fidevaluator::FidDistBatchEvaluator,
     },
@@ -1012,7 +1012,10 @@ where
                 BatchEvaluator::new(batch)
             }
         };
-
+        // Define send/rec utilitaries and parameters
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut sendrec: SendRec<'_, XMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo> = SendRec::new(config, self.proc);
+        
         let mut batch;
         let mut batch_raw;
         let mut batch_comp;
@@ -1047,7 +1050,7 @@ where
                 Op::BType,
             >::evaluate(
                 &mut eval,
-                self.proc,
+                &mut sendrec,
                 &self.objective,
                 &self.codomain,
                 &mut self.stop,
@@ -1185,7 +1188,6 @@ where
             let check = match checkpointer {
                 Some(c) => {
                     let mut wc = c.get_check_worker(proc);
-                    println!("CHIOTE BITTE");
                     wc.init(proc);
                     Some(wc)
                 }
@@ -1200,6 +1202,9 @@ where
             Some(e) => e,
             None => FidDistBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
         };
+        // Define send/rec utilitaries and parameters
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut sendrec: SendRec<'_, FXMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo> = SendRec::new(config, self.proc);
 
         let mut batch;
         let mut batch_raw;
@@ -1236,7 +1241,7 @@ where
                 Op::BType,
             >::evaluate(
                 &mut eval,
-                self.proc,
+                &mut sendrec,
                 &self.objective,
                 &self.codomain,
                 &mut self.stop,

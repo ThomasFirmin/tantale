@@ -175,6 +175,7 @@ where
                 let x = msg.1.as_ref();
                 let id = msg.0;
                 let fid = msg.2;
+                println!("ID: {:?}, FID : {} at W {}", id, fid, self.proc.rank);
                 match fid {
                     Fidelity::New => {
                         let (out, state) = self.objective.compute(x, fid, None);
@@ -201,10 +202,12 @@ where
             }
             // Stop
             else if tag == 42 {
+                println!{"TAG : {} from W : {}",42,self.proc.rank};
                 break;
             }
             // Discard
             else if tag == 104 {
+                println!{"TAG : {} from W : {}",104,self.proc.rank};
                 let msg = DiscardFXMessage::from_bytes(raw, config);
                 self.state.0.remove(&msg.0);
             }
