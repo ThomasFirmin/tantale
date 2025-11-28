@@ -19,9 +19,8 @@
 use crate::{
     domain::{
         base::{BaseDom, BaseTypeDom},
-        bounded::{Bounded, BoundedBounds, DomainBounded},
+        bounded::{Bounded, BoundedBounds},
         onto::{Onto, OntoDom},
-        sampler::uniform_cat,
         unit::Unit,
         Domain, TypeDom,
     },
@@ -47,7 +46,7 @@ use std::fmt;
 /// ```
 #[derive(Clone)]
 pub struct Cat {
-    values: Vec<String>,
+    pub values: Vec<String>,
 }
 impl Cat {
     /// Fabric for a [`Cat`].
@@ -60,10 +59,6 @@ impl Cat {
         Cat {
             values: values.iter().map(|s| String::from(*s)).collect(),
         }
-    }
-    /// Getter for values
-    pub fn values(&self) -> &Vec<String> {
-        &self.values
     }
 }
 

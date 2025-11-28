@@ -17,9 +17,8 @@ use crate::{
     domain::{
         Domain, TypeDom,
         base::{BaseDom, BaseTypeDom},
-        bounded::{Bounded, BoundedBounds, DomainBounded},
+        bounded::{Bounded, BoundedBounds},
         onto::{Onto, OntoDom},
-        sampler::uniform_bool,
         unit::Unit,
     },
     errors::OntoError,

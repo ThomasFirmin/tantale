@@ -1,5 +1,6 @@
 use crate::{
-    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, solution::{CompBatch, OutBatch, partial::FidelityPartial}
+    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
+    solution::{CompBatch, OutBatch, batchtype::Pair, partial::FidelityPartial}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -110,7 +111,7 @@ where
     serialize = "Dom::TypeDom: Serialize, SolId:Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
 ))]
-pub struct FXMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>, pub Fidelity);
+pub struct FXMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>, pub Option<Fidelity>);
 impl<SolId: Id, Dom: Domain> Msg for FXMessage<SolId, Dom> {}
 impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, Dom>
 where
@@ -183,15 +184,15 @@ where
     _msg: PhantomData<Msg>,
 }
 
-impl<'a, Msg, PSol, Obj, Opt, SolId, SInfo> SendRec<'a, Msg, PSol, Obj, Opt, SolId, SInfo>
+impl<'a, M, PSol, Obj, Opt, SolId, SInfo> SendRec<'a, M, PSol, Obj, Opt, SolId, SInfo>
 where
-    Msg: XMsg<PSol, SolId, Obj, SInfo>,
     PSol: Partial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: Domain,
     Opt: Domain,
     SolId: Id,
     SInfo: SolInfo,
+    M: XMsg<PSol,SolId,Obj,SInfo>,
 {
     pub fn new(
         config: Configuration,
@@ -235,7 +236,7 @@ where
         SInfo: SolInfo,
     {
         let sid = pair.0.get_id();
-        let msg = Msg::new(&pair.0);
+        let msg = M::new(&pair.0);
         send_msg(self.proc, msg, rank, 0, self.config);
         self.idle.set_busy(rank);
         self.waiting.insert(sid, pair);
@@ -256,7 +257,6 @@ where
         let id = msg.0;
         let out = msg.1;
         let y = cod.get_elem(&out);
-        println!("REC / WAITING => ID : {:?}, LIST : {:?}",id, self.waiting.keys());
         let (pobj, popt) = self.waiting.remove(&id).unwrap();
         // Update Out and Computed batches
         obatch.add(id, out);
@@ -297,6 +297,7 @@ pub fn send_msg<M: Msg>(proc: &MPIProcess, msg: M, rank: Rank, tag: Tag, config:
         .send_with_tag(&msg.to_bytes(config), tag);
 }
 
+#[derive(Debug,Serialize,Deserialize)]
 /// [`PriorityList`] defines a list of MPI-size WORLDSIZE.
 /// A list of elements `T` is associated to each rank. 
 pub struct PriorityList<T>
@@ -337,3 +338,5 @@ impl <T> PriorityList<T> {
         
     }
 }
+
+pub type PrioritySolList<SolA,SolB> = PriorityList<Pair<SolA,SolB>>;

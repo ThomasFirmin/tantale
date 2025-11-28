@@ -72,7 +72,7 @@ pub enum AlgoMode {
 /// obtained  after each iteration of the [`Optimizer`].
 pub trait OptInfo
 where
-    Self: Serialize + for<'de> Deserialize<'de> + Debug,
+    Self: Serialize + for<'de> Deserialize<'de> + Debug + Default,
 {
 }
 
@@ -85,8 +85,8 @@ where
 }
 
 /// An empty [`OptInfo`] or [`SolInfo`].
-#[derive(Serialize, Deserialize, std::fmt::Debug)]
-pub struct EmptyInfo {}
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct EmptyInfo;
 impl SolInfo for EmptyInfo {}
 impl OptInfo for EmptyInfo {}
 impl CSVWritable<(), ()> for EmptyInfo {

@@ -1,13 +1,11 @@
 use crate::{
-    domain::{onto::Onto, Domain, TypeDom},
-    recorder::csv::{CSVLeftRight, CSVWritable},
-    errors::OntoError,
+    domain::{Domain, onto::OntoDom}, errors::OntoError, recorder::csv::{CSVLeftRight, CSVWritable}
 };
 
 use rand::prelude::ThreadRng;
 use std::sync::Arc;
 
-type OntoFunc<A, B> = fn(&A, &TypeDom<A>, &B) -> Result<TypeDom<B>, OntoError>;
+type OntoFunc<A, B,TypeA,TypeB> = fn(&A, &TypeA, &B) -> Result<TypeB, OntoError>;
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 #[derive(Clone)]
@@ -19,18 +17,16 @@ where
     name: (&'static str, Option<usize>), // NAME + SUFFIX
     domain_obj: Arc<Obj>,
     domain_opt: Arc<Opt>,
-    sampler_obj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
-    sampler_opt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
-    onto_obj_fn: OntoFunc<Opt, Obj>,
-    onto_opt_fn: OntoFunc<Obj, Opt>,
+    sampler_obj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
+    sampler_opt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
+    onto_obj_fn: OntoFunc<Opt, Obj,Opt::TypeDom, Obj::TypeDom>,
+    onto_opt_fn: OntoFunc<Obj, Opt,Obj::TypeDom, Opt::TypeDom>,
 }
 
 /// Onto function when only the [`Objective`](crate::core::objective::Objective) [`Domain`] is define.
 /// In that case, there is no need to map an input to the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 ///
-pub fn _single_onto<T>(_input: &T, item: &TypeDom<T>, _output: &T) -> Result<TypeDom<T>, OntoError>
-where
-    T: Domain,
+pub fn _single_onto<T:Domain>(_input: &T, item: &T::TypeDom, _output: &T) -> Result<T::TypeDom, OntoError>
 {
     Ok(item.clone())
 }
@@ -57,8 +53,8 @@ where
     pub fn new_single(
         name: (&'static str, Option<usize>),
         domobj: Arc<Obj>,
-        sampobj: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
-        sampopt: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> Obj::TypeDom>,
+        sampopt: Option<fn(&Obj, &mut ThreadRng) -> Obj::TypeDom>,
     ) -> Var<Obj> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Obj::sample);
@@ -77,8 +73,8 @@ where
 
 impl<Obj, Opt> Var<Obj, Opt>
 where
-    Obj: Domain + Onto<Opt, TargetItem = TypeDom<Opt>, Item = TypeDom<Obj>>,
-    Opt: Domain + Onto<Obj, TargetItem = TypeDom<Obj>, Item = TypeDom<Opt>>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
 {
     /// Creates a new instance of a [`Var`] when the [`Objective`](crate::core::objective::Objective) and [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`]s are defined.
     ///
@@ -101,8 +97,8 @@ where
         name: (&'static str, Option<usize>),
         domobj: Arc<Obj>,
         domopt: Arc<Opt>,
-        sampobj: Option<fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>>,
-        sampopt: Option<fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>>,
+        sampobj: Option<fn(&Obj, &mut ThreadRng) -> Obj::TypeDom>,
+        sampopt: Option<fn(&Opt, &mut ThreadRng) -> Opt::TypeDom>,
     ) -> Var<Obj, Opt> {
         let samplerobj_selected = sampobj.unwrap_or(Obj::sample);
         let sampleropt_selected = sampopt.unwrap_or(Opt::sample);
@@ -119,19 +115,16 @@ where
     }
 }
 
-impl<Obj, Opt> Var<Obj, Opt>
-where
-    Obj: Domain,
-    Opt: Domain,
+impl<Obj: Domain, Opt:Domain> Var<Obj, Opt>
 {
     pub fn _new(
         name: (&'static str, Option<usize>),
         domobj: Arc<Obj>,
         domopt: Arc<Opt>,
-        sampobj: fn(&Obj, &mut ThreadRng) -> TypeDom<Obj>,
-        sampopt: fn(&Opt, &mut ThreadRng) -> TypeDom<Opt>,
-        ontoobj: OntoFunc<Opt, Obj>,
-        ontoopt: OntoFunc<Obj, Opt>,
+        sampobj: fn(&Obj, &mut ThreadRng) -> Obj::TypeDom,
+        sampopt: fn(&Opt, &mut ThreadRng) -> Opt::TypeDom,
+        ontoobj: OntoFunc<Opt, Obj, Opt::TypeDom, Obj::TypeDom>,
+        ontoopt: OntoFunc<Obj, Opt, Obj::TypeDom, Opt::TypeDom>,
     ) -> Var<Obj, Opt> {
         Var {
             name,
@@ -157,21 +150,21 @@ where
         self.domain_opt.clone()
     }
     /// Getter method for the `sampler_obj` attribute of the [`Var`].
-    pub fn get_sampler_obj(&self) -> fn(&Obj, &mut ThreadRng) -> TypeDom<Obj> {
+    pub fn get_sampler_obj(&self) -> fn(&Obj, &mut ThreadRng) -> Obj::TypeDom {
         self.sampler_obj
     }
     /// Getter method for the `sampler_opt` attribute of the [`Var`].
-    pub fn get_sampler_opt(&self) -> fn(&Opt, &mut ThreadRng) -> TypeDom<Opt> {
+    pub fn get_sampler_opt(&self) -> fn(&Opt, &mut ThreadRng) -> Opt::TypeDom {
         self.sampler_opt
     }
     /// Getter method for the `onto_obj_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    pub fn get_onto_obj_fn(&self) -> OntoFunc<Opt, Obj> {
+    pub fn get_onto_obj_fn(&self) -> OntoFunc<Opt, Obj, Opt::TypeDom, Obj::TypeDom> {
         self.onto_obj_fn
     }
     /// Getter method for the `onto_opt_fn` attribute of the [`Var`].This the function used to map
     /// a point from the [`Objective`](crate::core::objective::Objective) [`Domain`] onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    pub fn get_onto_opt_fn(&self) -> OntoFunc<Obj, Opt> {
+    pub fn get_onto_opt_fn(&self) -> OntoFunc<Obj, Opt, Obj::TypeDom, Opt::TypeDom> {
         self.onto_opt_fn
     }
 
@@ -203,7 +196,7 @@ where
     ///
     /// ```
     ///
-    pub fn onto_obj(&self, item: &TypeDom<Opt>) -> Result<TypeDom<Obj>, OntoError> {
+    pub fn onto_obj(&self, item: &Opt::TypeDom) -> Result<Obj::TypeDom, OntoError> {
         (self.onto_obj_fn)(&self.domain_opt, item, &self.domain_obj)
     }
     /// Function to map an `item` from the [`Objective`](crate::core::objective::Objective) [`Domain`] onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -233,7 +226,7 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn onto_opt(&self, item: &TypeDom<Obj>) -> Result<TypeDom<Opt>, OntoError> {
+    pub fn onto_opt(&self, item: &Obj::TypeDom) -> Result<Opt::TypeDom, OntoError> {
         (self.onto_opt_fn)(&self.domain_obj, item, &self.domain_opt)
     }
     /// Function to sample a point from the [`Objective`](crate::core::objective::Objective) [`Domain`].
@@ -261,7 +254,7 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_obj(&self, rng: &mut ThreadRng) -> TypeDom<Obj> {
+    pub fn sample_obj(&self, rng: &mut ThreadRng) -> Obj::TypeDom {
         (self.sampler_obj)(&self.domain_obj, rng)
     }
     /// Function to sample a point from the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -290,7 +283,7 @@ where
     ///
     /// ```
     ///
-    pub fn sample_opt(&self, rng: &mut ThreadRng) -> TypeDom<Opt> {
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> Opt::TypeDom {
         (self.sampler_opt)(&self.domain_opt, rng)
     }
     /// Function to replicate a variable a certain number of times .
@@ -366,7 +359,7 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn is_in_obj(&self, item: &TypeDom<Obj>) -> bool {
+    pub fn is_in_obj(&self, item: &Obj::TypeDom) -> bool {
         self.domain_obj.is_in(item)
     }
 
@@ -395,7 +388,7 @@ where
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn is_in_opt(&self, item: &TypeDom<Opt>) -> bool {
+    pub fn is_in_opt(&self, item: &Opt::TypeDom) -> bool {
         self.domain_opt.is_in(item)
     }
 }

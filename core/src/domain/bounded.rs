@@ -33,7 +33,6 @@ use crate::{
         bool::Bool,
         cat::Cat,
         onto::{Onto, OntoDom},
-        sampler::uniform,
         unit::Unit,
         Domain, TypeDom,
     },
@@ -65,6 +64,8 @@ pub trait BoundedBounds:
     + Display
     + Debug
     + Default
+    + Serialize
+    + for<'a> Deserialize<'a>
 {
 }
 impl<T> BoundedBounds for T where
@@ -79,20 +80,9 @@ impl<T> BoundedBounds for T where
         + Display
         + Debug
         + Default
+        + Serialize
+        + for<'a> Deserialize<'a>
 {
-}
-
-/// Describes a peculiar trait for some of the domains that are numerically bounded by a
-/// `lower` and `upper` bound.
-pub trait DomainBounded: Domain {
-    /// Getter method for the lower bound.
-    fn lower(&self) -> Self::TypeDom;
-    /// Getter method for the upper bound.
-    fn upper(&self) -> Self::TypeDom;
-    /// Getter method for the middle point of the domain.
-    fn mid(&self) -> Self::TypeDom;
-    /// Getter method for the width of the domain.
-    fn width(&self) -> Self::TypeDom;
 }
 
 /// A generic [`Bounded`] [`Domain`] with a numerical `lower` and `upper` bounds, modeled
@@ -104,9 +94,9 @@ pub trait DomainBounded: Domain {
 /// * `width`: `T` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
 ///
 pub struct Bounded<T: BoundedBounds> {
-    bounds: RangeInclusive<T>,
-    mid: T,
-    width: T,
+    pub bounds: RangeInclusive<T>,
+    pub mid: T,
+    pub width: T,
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -136,7 +126,7 @@ impl<T: BoundedBounds> Bounded<T> {
 
 impl<T> PartialEq for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     fn eq(&self, other: &Self) -> bool {
         (self.lower() == other.lower()) && (self.upper() == other.upper())
@@ -145,7 +135,7 @@ where
 
 impl<T> Domain for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     type TypeDom = T;
 
@@ -160,27 +150,9 @@ where
     }
 }
 
-impl<T> DomainBounded for Bounded<T>
-where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
-{
-    fn lower(&self) -> Self::TypeDom {
-        *self.bounds.start()
-    }
-    fn upper(&self) -> Self::TypeDom {
-        *self.bounds.end()
-    }
-    fn mid(&self) -> Self::TypeDom {
-        self.mid
-    }
-    fn width(&self) -> Self::TypeDom {
-        self.width
-    }
-}
-
 impl<T> std::clone::Clone for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     fn clone(&self) -> Self {
         Bounded::new(*self.bounds.start(), *self.bounds.end())
@@ -189,7 +161,7 @@ where
 
 impl<T> fmt::Display for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -198,7 +170,7 @@ where
 
 impl<T> fmt::Debug for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
@@ -208,7 +180,7 @@ where
 impl<In, Out> Onto<Bounded<Out>> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
-    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
     type Item = TypeDom<Bounded<In>>;
@@ -256,7 +228,7 @@ where
 impl<In, Out> OntoDom<Bounded<Out>> for Bounded<In>
 where
     In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
-    Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
 }
@@ -562,7 +534,7 @@ pub type Int = Bounded<i64>;
 
 impl<T> CSVWritable<(), <Bounded<T> as Domain>::TypeDom> for Bounded<T>
 where
-    T: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    T: BoundedBounds,
 {
     fn header(_elem: &()) -> Vec<String> {
         Vec::new()

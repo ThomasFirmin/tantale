@@ -19,7 +19,7 @@ mod init_func {
     use tantale::core::{EvalStep,objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize,Debug)]
     pub struct FnState {
         pub state: usize,
     }
@@ -79,7 +79,7 @@ mod init_func {
                 _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -228,13 +228,13 @@ fn main() {
         match exp{
             experiment::MasterWorker::Master(mut e) =>{
                 assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 9, "Number of iteration is wrong");
+                assert_eq!(e.optimizer.0.iteration, 8, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
                 e.stop.1 = 100;
                 use tantale::core::experiment::DistRunable;
                 e.run();
             },
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
+            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a worker"),
         }
     }
     else{

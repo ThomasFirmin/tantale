@@ -103,13 +103,33 @@ where
         };
         (0..size)
             .map(|_| {
-                <Sp<Obj, Opt> as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::sample_opt(
+                <Self as Searchspace<PSol, SolId, Obj, Opt, SInfo>>::sample_opt(
                     self,
                     Some(rn),
                     info.clone(),
                 )
             })
             .collect()
+    }
+
+    fn sample_pair(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<(PSol,PSol::Twin<Opt>)>{
+        let rn = match rng {
+            Some(r) => r,
+            None => &mut rand::rng(),
+        };
+        (0..size).map(
+            |_|
+            {
+                let s = self.sample_obj(Some(rn), info.clone()); // sample
+                let c = self.onto_opt(&s); // converted
+                (s,c) // obj,opt
+            }
+        ).collect()
     }
 
     fn is_in_obj<S>(&self, inp: &S) -> bool

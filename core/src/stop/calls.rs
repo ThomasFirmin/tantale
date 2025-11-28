@@ -1,6 +1,6 @@
 use crate::{
-    stop::{ExpStep, Stop},
-    Fidelity,
+    objective::Step,
+    stop::{ExpStep, Stop}
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,11 +19,9 @@ impl Stop for Calls {
     }
 
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(fid) =  step{
-            match fid{
-                Fidelity::Discard => self.0 += 1,
-                Fidelity::Done => self.0 += 1,
-                _ => (),
+        if let ExpStep::Distribution(fnstep) =  step{
+            if let Step::Evaluated = fnstep{
+                self.0 += 1
             }
         }
     }

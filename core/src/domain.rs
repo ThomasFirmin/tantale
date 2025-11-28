@@ -21,21 +21,19 @@ use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
-/// Type alias to for [Domain::TypeDom]
-pub type TypeDom<D> = <D as Domain>::TypeDom;
-
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
 ///
 /// # Notes
 ///
-/// A [`Domain`] should always have a [`::new(...)->Self`] method.
+/// A [`Domain`] should always have a `::new(...)->Self` method.
 /// This method is used in the [`objective!`](../../../tantale/macros/macro.objective.html) and [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
 pub trait Domain: Sized + PartialEq + Debug {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
-    type TypeDom: PartialEq
+    type TypeDom: Sized
+        + PartialEq
         + Clone
         + Display
         + Debug
@@ -49,14 +47,14 @@ pub trait Domain: Sized + PartialEq + Debug {
     ///
     /// * `rng` : `&mut`[`ThreadRng`](rand::prelude::ThreadRng) - The RNG from [`rand`].
     ///
-    fn sample(&self, rng: &mut ThreadRng) -> TypeDom<Self>;
+    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom;
     /// Returns `true` if a given borrowed `point` is in the domain. Otherwise returns `false`.
     ///
     /// # Parameters
     ///
     /// * `point` : `&`[`Self`]`::`[`TypeDom`](Domain::TypeDom) - a borrowed point from the [`Domain`].
     ///
-    fn is_in(&self, point: &TypeDom<Self>) -> bool;
+    fn is_in(&self, point: &Self::TypeDom) -> bool;
 }
 
 /// [`Mixed`] trait defines a [`Domain`] which can be made of other [`Domains`](Domain).
@@ -64,8 +62,10 @@ pub trait Domain: Sized + PartialEq + Debug {
 /// This trait is mainly used by the derive macro [`#[derive(Mixed)]`](../../../tantale/derive.Mixed.html).
 pub trait Mixed: Domain {}
 
+pub type TypeDom<T> = <T as Domain>::TypeDom;
+
 pub mod bounded;
-pub use bounded::{Bounded, DomainBounded, Int, Nat, Real};
+pub use bounded::{Bounded, Int, Nat, Real};
 
 pub mod unit;
 pub use unit::Unit;
@@ -81,8 +81,5 @@ pub use base::{BaseDom, BaseTypeDom};
 
 pub mod onto;
 pub use onto::Onto;
-
-pub mod sampler;
-pub use sampler::{uniform, uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real};
 
 pub mod dmacros;

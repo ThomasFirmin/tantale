@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "mpi")]
 use crate::experiment::{
     DistEvaluate,
-    mpi::utils::{SendRec, XMsg},
+    mpi::utils::{SendRec, XMessage},
 };
 
 type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =
@@ -146,6 +146,7 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out>
         Scp,
         Objective<Obj, Out>,
         Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+        XMessage<SolId,Obj>,
     > for BatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id,
@@ -161,9 +162,9 @@ where
     Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
 {
     fn init(&mut self) {}
-    fn evaluate<M:XMsg<PSol,SolId,Obj,SInfo>>(
+    fn evaluate(
         &mut self,
-        sendrec:&mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
+        sendrec:&mut SendRec<'_,XMessage<SolId,Obj>,PSol,Obj,Opt,SolId,SInfo>,
         _ob: &Objective<Obj, Out>,
         cod: &Cod,
         stop: &mut St,
@@ -187,15 +188,17 @@ where
         while sendrec.idle.has_idle() && !self.batch.is_empty() && !stop.stop() {
             if sendrec.send_to_worker(self.batch.pop().unwrap()).is_none(){
                 panic!("A New pair of solutions was poped, while no worker was idle.")
+            }else{
+                stop.update(crate::stop::ExpStep::Distribution(Fidelity::Done));
             }
         }
 
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
-            stop.update(ExpStep::Distribution(Fidelity::Done));
             if !stop.stop() && !self.batch.is_empty(){
                 sendrec.send_to_worker(self.batch.pop().unwrap());
+                stop.update(crate::stop::ExpStep::Distribution(Fidelity::Done));
             }
         }
         // For saving in case of early stopping before full evaluation of all elements

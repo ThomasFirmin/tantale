@@ -42,7 +42,7 @@ impl WorkerState for NoWState {}
 /// [`FidWorkerState`] describes the [`WorkerState`] for [`Worker`] computing
 /// [`Stepped`] functions. The [`FidWorkerState`] stores the current [`FuncState`]
 /// of the function within a [`HashMap`].
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize,Debug)]
 #[serde(bound(
     serialize = "SolId: Serialize",
     deserialize = "SolId: for<'a> Deserialize<'a>"
@@ -175,7 +175,7 @@ where
                 let x = msg.1.as_ref();
                 let id = msg.0;
                 let fid = msg.2;
-                println!("ID: {:?}, FID : {} at W {}", id, fid, self.proc.rank);
+                println!("ID: {:?}, FID : {} at W {}, {:?}", id, fid, self.proc.rank, self.state.0.keys());
                 match fid {
                     Fidelity::New => {
                         let (out, state) = self.objective.compute(x, fid, None);
@@ -224,7 +224,7 @@ where
         }
         eprintln!(
             "INFO : Process of rank {} exiting worker loop.",
-            self.proc.world.rank()
+            self.proc.world.rank(),
         );
     }
 }

@@ -23,7 +23,7 @@
 //! becomes a [`Computed`](tantale::core::Computed) [`Solution`], made of a [`Partial`](tantale::core::Partial),
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
-use crate::domain::{Domain, TypeDom};
+use crate::{domain::{Domain, onto::OntoDom}, objective::Step, solution::partial::FidelityPartial};
 
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -44,24 +44,82 @@ where
     Info: SolInfo,
     SolId: Id + PartialEq,
 {
+    type Raw: Debug + Serialize;
+    type Twin<B: OntoDom<Dom>>: Solution<SolId, B, Info, Twin<Dom> = Self> where Dom:OntoDom<B>;
+
     /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
     /// This `id` can be shared with a twin [`Solution`].
     fn get_id(&self) -> SolId;
 
-    /// Returns the actual sampled point from the set of [`Domains`](Domain).
-    fn get_x(&self) -> Arc<[TypeDom<Dom>]>;
+    /// Returns the actual sampled point from the set of [`Domain`].
+    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T;
 
     /// Returns the [`SolInfo`] bounded to this [`Solution`].
     fn get_info(&self) -> Arc<Info>;
 
-    /// Checks if two [`Solutions`](Solution) are twins.
-    /// Twins [`Solutions`](Solution) share equal ids.
+    /// Checks if two [`Solution`] are twins.
+    /// Twins [`Solution`] share equal ids.
     fn is_twin<Twin, B>(&self, solb: Twin) -> bool
     where
         B: Domain,
         Twin: Solution<SolId, B, Info>,
     {
         self.get_id() == solb.get_id()
+    }
+}
+
+/// A pair made of a `Obj` [`Partial`] and its `Opt` [`Twin`](Partial::Twin).
+#[derive(Debug,Serialize,Deserialize)]
+#[serde(bound(
+    serialize = "P: Serialize, P::Twin<Opt>: Serialize",
+    deserialize = "P: for<'a> Deserialize<'a>, P::Twin<Opt>: for<'a> Deserialize<'a>",
+))]
+pub struct Pair<P,SolId,Obj,Opt,SInfo>(P,P::Twin<Opt>)
+where
+    SolId:Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SInfo:SolInfo,
+    P: Solution<SolId,Obj,SInfo>,
+    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>;
+
+impl<P,SolId,Obj,Opt,SInfo> Pair<P,SolId,Obj,Opt,SInfo>
+where
+    SolId:Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SInfo:SolInfo,
+    P: Solution<SolId,Obj,SInfo>,
+    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>,
+{
+    pub fn new(solobj:P,solopt:P::Twin<Opt>)->Self{Self(solobj,solopt)}
+    pub fn get_id(&self)->SolId{self.0.get_id()}
+    pub fn get_info(&self)->Arc<SInfo>{self.0.get_info()}
+}
+impl<P,SolId,Obj,Opt,SInfo> Pair<P,SolId,Obj,Opt,SInfo>
+where
+    SolId:Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SInfo:SolInfo,
+    P: FidelityPartial<SolId,Obj,SInfo>,
+    <P as FidelityPartial<SolId,Obj,SInfo>>::Twin<Opt>: FidelityPartial<SolId,Opt,SInfo, Twin<Obj>=P>,
+{
+    pub fn get_fidelity(&self)->Option<Fidelity>{self.0.get_fidelity()}
+    pub fn get_step(&self)->Step{self.0.get_step()}
+}
+
+impl<P,SolId,Obj,Opt,SInfo> From<(P,P::Twin<Opt>)> for Pair<P,SolId,Obj,Opt,SInfo>
+where
+    SolId:Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SInfo:SolInfo,
+    P: Solution<SolId,Obj,SInfo>,
+    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>
+{
+    fn from(value: (P,P::Twin<Opt>)) -> Self {
+        Self(value.0,value.1)
     }
 }
 

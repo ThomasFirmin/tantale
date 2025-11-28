@@ -90,7 +90,7 @@ fn main() {
     }
     else{
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec: SendRec<'_, XMessage<SId, BaseDom>,_, BaseDom, BaseDom, SId, _> = SendRec::new(config, &proc);
+        let mut sendrec = SendRec::<'_,XMessage<SId,_>,_,_,_,_,_>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
@@ -125,6 +125,7 @@ fn main() {
                 _,
                 OutEvaluator,
                 Sp<_, _>,
+                _,
                 _,
                 _,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);

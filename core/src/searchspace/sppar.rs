@@ -108,6 +108,22 @@ where
             .collect()
     }
 
+    fn sample_pair(
+        &self,
+        _rng: Option<&mut ThreadRng>,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<(PSol,PSol::Twin<Opt>)>{
+        (0..size).into_par_iter().map(
+            |_|
+            {
+                let s = self.sample_obj(None, info.clone()); // sample
+                let c = self.onto_opt(&s); // converted
+                (s,c) // obj,opt
+            }
+        ).collect()
+    }
+
     fn is_in_obj<S>(&self, inp: &S) -> bool
     where
         S: Solution<SolId, Obj, SInfo> + Send + Sync,

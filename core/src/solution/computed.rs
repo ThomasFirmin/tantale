@@ -1,4 +1,5 @@
-use crate::domain::{Domain, TypeDom};
+use crate::domain::Domain;
+use crate::domain::onto::OntoDom;
 use crate::objective::{Codomain, Outcome};
 use crate::solution::{Id, Partial, SolInfo, Solution};
 
@@ -29,7 +30,7 @@ where
     Info: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    SolId: Id,
+    SolId: Id, 
 {
     pub sol: PSol,
     pub y: Arc<Cod::TypeCodom>,
@@ -42,23 +43,27 @@ impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
     for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Partial<SolId, Dom, Info>,
+    SolId: Id,
     Dom: Domain,
-    Info: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    SolId: Id,
+    Info: SolInfo,
 {
+    type Raw = PSol::Raw;
+    type Twin<B: OntoDom<Dom>> =  Computed<<PSol as Partial<SolId, Dom, Info>>::Twin<B>, SolId, B, Cod, Out, Info> where Dom:OntoDom<B>;
+
     fn get_id(&self) -> SolId {
         self.sol.get_id()
     }
 
-    fn get_x(&self) -> Arc<[TypeDom<Dom>]> {
+    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T {
         self.sol.get_x()
     }
-
+    
     fn get_info(&self) -> Arc<Info> {
         self.sol.get_info()
     }
+    
 }
 
 impl<PSol, SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>

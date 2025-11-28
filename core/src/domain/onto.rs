@@ -20,13 +20,13 @@
 
 use crate::{errors::OntoError, Domain};
 
+/// [`Onto`] is a surjective function to map a point from an input [`Item`](Onto::Item) to an output [`TargetItem`](Onto::TargetItem)
+/// associated to `Target`.
+/// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using target [`Domain`].
+/// See [`OntoDom`] for more information.
 pub trait Onto<Target> {
     type TargetItem;
     type Item;
-    /// [`Onto`] is a surjective function to map a point from an input [`Domain`] to an output [`Domain`].
-    /// If [`Self`] is equal to the targetted domain, then the input `item` should be cloned.
-    /// By default if the input and targetted domain are the same (same pointer), returns a clone of `item`.
-    ///
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]``>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
@@ -41,9 +41,13 @@ pub trait Onto<Target> {
     fn onto(&self, item: &Self::Item, target: &Target) -> Result<Self::TargetItem, OntoError>;
 }
 
+/// A trait defining a [`Domain`] for which it's [`TypeDom`](Domain::TypeDom) can be mmaped onto another [`TypeDom`](Domain::TypeDom)
+/// from another [`Domain`] `B`.
 pub trait OntoDom<B>: Domain
 where
     Self: Onto<B, TargetItem = B::TypeDom, Item = Self::TypeDom>,
     B: Domain,
 {
 }
+
+impl<> Onto<

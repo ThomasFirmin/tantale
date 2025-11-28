@@ -1,8 +1,8 @@
-use crate::Fidelity;
+use crate::objective::Step;
 use serde::{Deserialize, Serialize};
 
 pub enum ExpStep {
-    Distribution(Fidelity),
+    Distribution(Step),
     Iteration,
     Optimization,
     Never,

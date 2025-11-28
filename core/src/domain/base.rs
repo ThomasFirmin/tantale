@@ -1,6 +1,6 @@
 use crate::{
     domain::{
-        Domain, TypeDom,
+        Domain,
         bool::Bool,
         bounded::{Int, Nat, Real},
         cat::Cat,
@@ -18,9 +18,9 @@ use std::fmt::{Debug, Display};
 // -_-_-_-_-_-_-_-
 // Grouped domains
 
-/// A [`enum`] [`BaseDom`] [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
-/// and [`Unit`]. Used for mixed [`Element`] and [`Solution`].
-/// The (`TypeDom`)[`Domain::TypeDom`] is an [`enum`] [`BaseTypeDom`].
+/// A mixed [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
+/// and [`Unit`].
+/// The [`TypeDom`](`Domain::TypeDom`) is a [`BaseTypeDom`].
 ///
 #[derive(Clone, PartialEq)]
 pub enum BaseDom {
@@ -57,8 +57,7 @@ impl Debug for BaseDom {
     }
 }
 
-/// Basic (`TypeDom`)[`Domain::TypeDom`] of [`BaseDom`].
-///
+/// Basic [`TypeDom`](`Domain::TypeDom`) of [`BaseDom`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BaseTypeDom {
     Real(TypeDom<Real>),

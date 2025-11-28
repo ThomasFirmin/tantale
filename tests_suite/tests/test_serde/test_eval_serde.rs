@@ -331,7 +331,7 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1.0}),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1}),
         "Error while serializing and deserializing function states."
     );
 
@@ -417,7 +417,7 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2.0}),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2}),
         "Error while serializing and deserializing function states."
     );
 }
@@ -496,7 +496,7 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1.0}),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 1}),
         "Error while serializing and deserializing function states."
     );
 
@@ -584,7 +584,7 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2.0}),
+        braw.into_iter().all(|(_i, o)| {o.fid.0 == 2}),
         "Error while serializing and deserializing function states."
     );
 }

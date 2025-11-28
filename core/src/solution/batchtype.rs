@@ -1,10 +1,17 @@
 use crate::{
-    Fidelity, OptInfo, domain::Domain, objective::{Codomain, Outcome}, solution::{Computed, Id, Partial, SolInfo, partial::FidelityPartial}
+    Fidelity, OptInfo, domain::{Domain, onto::OntoDom}, objective::{Codomain, Outcome, Step}, solution::{Computed, Id, Pair, Partial, SolInfo, partial::FidelityPartial}
 };
 use core::slice;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter::Zip, marker::PhantomData, sync::Arc, vec::IntoIter};
+
+#[cfg(feature ="mpi")]
+use crate::experiment::mpi::utils::PrioritySolList;
+#[cfg(feature ="mpi")]
+use std::collections::HashMap;
+#[cfg(feature ="mpi")]
+use mpi::Rank;
 
 pub type BatchElem<'a, PSolA, PSolB> = (&'a PSolA, &'a PSolB);
 pub type OutBatchElem<'a, SolId, Out> = (&'a SolId, &'a Out);
@@ -12,8 +19,6 @@ pub type CompBatchElem<'a, PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
     &'a Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
     &'a Computed<PSolB, SolId, Opt, Cod, Out, SInfo>,
 );
-
-pub type DerBatchElem<PSolA, PSolB> = (PSolA, PSolB);
 pub type DerOutBatchElem<SolId, Out> = (SolId, Out);
 pub type DerCompBatchElem<PSolA, PSolB, SolId, Obj, Opt, Cod, Out, SInfo> = (
     Computed<PSolA, SolId, Obj, Cod, Out, SInfo>,
@@ -95,15 +100,15 @@ where
 ))]
 pub struct Batch<PSol, SolId, Obj, Opt, SInfo, Info>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
+    PSol: Partial<SolId,Obj,SInfo>,
+    PSol::Twin<Opt>: Partial<SolId,Opt,SInfo, Twin<Obj>=PSol>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub sobj: Vec<PSol>,
-    pub sopt: Vec<PSol::Twin<Opt>>,
+    pub pair: Vec<Pair<PSol,SolId,Obj,Opt,SInfo>>,
     pub info: Arc<Info>,
 }
 
@@ -224,8 +229,14 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    /// Split the [`Batch`] made of [`FidPartial`] into three [`Batch`] according to [`Fidelity`].
-    pub fn chunk_by_fid(self)->(Self,Self,Self,Self){
+    /// Split the [`Batch`] made of [`FidPartial`] into four [`Batch`] according to [`Step`].
+    /// * 1st [`Error`](Step::Error)
+    /// * 2nd [`Evaluated`](Step::Evaluated)
+    /// * 3rd [`Penultimate`](Step::Penultimate)
+    /// * 4th [`Partially`](Step::Partially)
+    /// * 5th [`Pending`](Step::Pending)
+    /// * 6th [`Other`](Step::Other)
+    pub fn chunk_by_step(self)->(Self,Self,Self,Self,Self,Self){
         let info = self.get_info();
         self.into_iter().fold(
             (
@@ -233,34 +244,86 @@ where
                 Self::empty(info.clone()),
                 Self::empty(info.clone()),
                 Self::empty(info.clone()),
+                Self::empty(info.clone()),
+                Self::empty(info.clone()),
             ),
-            |(mut d,mut r,mut n, mut dn),pair|
+            |(mut er,mut ev,mut pe,mut pa,mut pen,mut ot),pair|
             {
-                let fid = pair.0.get_fidelity();
-                match fid {
-                    Fidelity::New => {n.add(pair)},
-                    Fidelity::Resume(_) => {r.add(pair)},
-                    Fidelity::Discard => {d.add(pair)},
-                    Fidelity::Done => {dn.add(pair)},
+                match pair.0.get_step() {
+                    Step::Pending => pen.add(pair),
+                    Step::Partially(_) => pa.add(pair),
+                    Step::Penultimate => pe.add(pair),
+                    Step::Evaluated => ev.add(pair),
+                    Step::Error => er.add(pair),
+                    Step::Other(_) => ot.add(pair),
                 }
-                (d,r,n,dn)
+                (er,ev,pe,pa,pen,ot)
             }
         )
     }
 
-    /// Sort by [`Fidelity`]:
-    /// * 1st [`New`](Fidelity::New)
+    /// Split the [`Batch`] made of [`FidPartial`] into four [`Batch`] according to [`Step`].
+    /// * 1st [`Discard`](Fidelity::Discard)
     /// * 2nd [`Resume`](Fidelity::Resume)
-    /// * 3rd [`Discard`](Fidelity::Discard)
-    /// * 4th [`Done`](Fidelity::Done)
-    pub fn sort_by_fid(self)->Self{
-        let mut fold = Self::empty(self.info.clone());
-        let (d,r,n, dn) = self.chunk_by_fid();
-        fold.extend(n);
-        fold.extend(r);
-        fold.extend(d);
-        fold.extend(dn);
-        fold
+    /// * 3rd [`None`]
+    pub fn chunk_by_fidelity(self)->(Self,Self,Self){
+        let info = self.get_info();
+        self.into_iter().fold(
+            (Self::empty(info.clone()),Self::empty(info.clone()),Self::empty(info.clone())),
+            |(mut d,mut r,mut n),pair|
+            {
+                if let Some(fid) = pair.0.get_fidelity(){
+                    match fid{
+                        Fidelity::Resume(_) => r.add(pair),
+                        Fidelity::Discard => d.add(pair),
+                    }
+                }
+                else{
+                    n.add(pair);
+                }
+                (r,d,n)
+            }
+        )
+    }
+
+    #[cfg(feature = "mpi")]
+    /// Split the [`Batch`] made of [`FidPartial`] into 3 [`PrioritySolList`] of size `size`,
+    /// and a [`Batch`], according to [`Fidelity`] and `wher_is_id` describing at wich rank
+    /// a previously partially computed solution's state is stored.
+    /// * 1st [`PrioritySolList`]: [`Discard`](Fidelity::New)
+    /// * 2nd [`PrioritySolList`]: [`Resume`](Fidelity::Last)
+    /// * 2nd [`PrioritySolList`]: [`Resume`](Fidelity::Resume)
+    /// * 3rd [`Batch`]: [`New`](Fidelity::Discard)
+    pub fn chunk_to_priority(
+        self,
+        where_is_id:&mut HashMap<SolId, Rank>,
+        priority_discard: &mut PrioritySolList<PSol,PSol::Twin<Opt>>,
+        priority_last: &mut PrioritySolList<PSol,PSol::Twin<Opt>>,
+        priority_resume: &mut PrioritySolList<PSol,PSol::Twin<Opt>>,
+        new_batch: &mut Self,
+    )
+    {
+        self.into_iter().for_each(
+            |pair|
+            {
+                match pair.0.get_fidelity() {
+                    Fidelity::New => new_batch.add(pair),
+                    Fidelity::Last => {
+                        let rank = where_is_id.remove(&pair.0.get_id()).unwrap();
+                        priority_last.add(pair,rank);
+                    },
+                    Fidelity::Resume(_) => {
+                        let rank = where_is_id.remove(&pair.0.get_id()).unwrap();
+                        priority_resume.add(pair,rank);
+                    },
+                    Fidelity::Discard => {
+                        let rank = where_is_id.remove(&pair.0.get_id()).unwrap();
+                        priority_discard.add(pair,rank);
+                    },
+                    Fidelity::Done => {},
+                }
+            }
+        )
     }
 }
 
@@ -871,6 +934,28 @@ where
         let a = <&mut [_]>::into_par_iter(&mut self.cobj);
         let b = <&mut [_]>::into_par_iter(&mut self.copt);
         a.zip(b)
+    }
+}
+
+
+/// Convert a [`Vec`] of pair of `Obj` and `Opt` [`Partial`].
+/// 
+/// # Notes
+/// 
+/// The [`OptInfo`] is set to default.
+impl<PSolA,PSolB,SolId,Obj,Opt,SInfo,Info> FromIterator<(PSolA,PSolB)> for Batch<PSolA,SolId,Obj,Opt,SInfo,Info>
+where
+    PSolA: Partial<SolId, Obj, SInfo, Twin<Opt> = PSolB>,
+    PSolB: Partial<SolId, Opt, SInfo, Twin<Obj> = PSolA>,
+    SolId: Id,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+    SInfo: SolInfo,
+    Info: OptInfo,
+{
+    fn from_iter<T: IntoIterator<Item = (PSolA,PSolB)>>(iter: T) -> Self {
+        let (vobj,vopt)=iter.into_iter().unzip();
+        Self::new(vobj, vopt, Arc::new(Info::default()))
     }
 }
 

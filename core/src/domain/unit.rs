@@ -20,10 +20,9 @@ use crate::{
     domain::{
         base::{BaseDom, BaseTypeDom},
         bool::Bool,
-        bounded::{Bounded, BoundedBounds, DomainBounded},
+        bounded::{Bounded, BoundedBounds},
         cat::Cat,
         onto::{Onto, OntoDom},
-        sampler::uniform,
         Domain, TypeDom,
     },
     errors::OntoError,
@@ -38,8 +37,11 @@ use std::{fmt, ops::RangeInclusive};
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
 ///
-pub struct Unit {
+pub struct Unit<Sampler> {
     bounds: RangeInclusive<f64>,
+    mid:f64,
+    width:f64,
+    sampler:
 }
 
 impl Unit {
@@ -47,6 +49,8 @@ impl Unit {
     pub fn new() -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
+            mid:0.5,
+            width:1.0,
         }
     }
 }
@@ -77,20 +81,6 @@ impl Domain for Unit {
     }
 }
 
-impl DomainBounded for Unit {
-    fn lower(&self) -> Self::TypeDom {
-        0.0
-    }
-    fn upper(&self) -> Self::TypeDom {
-        1.0
-    }
-    fn mid(&self) -> Self::TypeDom {
-        0.5
-    }
-    fn width(&self) -> Self::TypeDom {
-        1.0
-    }
-}
 
 impl std::clone::Clone for Unit {
     fn clone(&self) -> Self {
@@ -143,8 +133,8 @@ where
     ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = *item;
-            let c: f64 = target.width().as_();
-            let mapped: Out = (a * c).as_() + target.lower();
+            let c: f64 = target.width.as_();
+            let mapped: Out = (a * c).as_() + *target.bounds.start();
 
             if target.is_in(&mapped) {
                 Ok(mapped)
@@ -223,14 +213,14 @@ impl Onto<Cat> for Unit {
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
-            let c: f64 = target.values().len().as_();
+            let c: f64 = target.values.len().as_();
             let idx = (a * c) as usize;
-            let idx = if idx == target.values().len() {
+            let idx = if idx == target.values.len() {
                 idx - 1
             } else {
                 idx
             };
-            let mapped = target.values()[idx].clone();
+            let mapped = target.values[idx].clone();
 
             if target.is_in(&mapped) {
                 Ok(mapped)

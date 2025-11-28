@@ -2,12 +2,28 @@ use crate::recorder::csv::CSVWritable;
 use serde::{Deserialize, Serialize};
 
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
-/// It is not modeled by an [`enum`] because of serialization and deserialization to bincode.
-/// * Partially evaluated - A not fully evaluated solution. If $>0$
-/// * Completed - A fully evaluated solution. If $=-1$.
-/// * Error - A faulty evaluation. If $=-10$
+/// Associated to [`EvalStep`].
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct EvalStep(pub f64);
+pub enum Step{
+    Pending,
+    Partially(isize),
+    Penultimate,
+    Evaluated,
+    Error,
+    Other(isize),
+}
+
+/// The current state of the evaluation, defined by the user within the [`Outcome`].
+/// It is not modeled by an enum because of serialization and deserialization to bincode.
+/// But is associated to [`Step`].
+/// * [`Pending`](Step::Pending) - A unevaluated solution. If [`EvalStep`]$=0$
+/// * [`Partially`](Step::Partially) - A not fully evaluated solution. If [`EvalStep`]$>0$
+/// * [`Penultimate`](Step::Penultimate) - The second to last step before completed. Used for better ressource management.
+///  If [`EvalStep`]$=-1$.
+/// * [`Evaluated`](Step::Evaluated) - A fully evaluated solution. If [`EvalStep`]$=-2$.
+/// * [`Error`](Step::Error) - A faulty evaluation. If [`EvalStep`]$=-10$
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct EvalStep(pub isize);
 
 impl PartialEq for EvalStep {
     fn eq(&self, other: &Self) -> bool {
@@ -16,33 +32,38 @@ impl PartialEq for EvalStep {
 }
 
 impl EvalStep {
-    pub fn partially(value:f64) -> Self{
-        Self(value)
+    pub fn pending() -> Self{
+        Self(0)
+    }
+    pub fn partially(value:usize) -> Self{
+        Self(value as isize)
+    }
+    pub fn penultimate() -> Self{
+        Self(-1)
     }
     pub fn completed() -> Self{
-        Self(-1.0)
+        Self(-2)
     }
     pub fn error() -> Self{
-        Self(-10.0)
+        Self(-10)
     }
-    pub fn is_partially(&self) -> bool {
-        self.0 > 0.0
-    }
-    pub fn is_completed(&self) -> bool {
-        self.0 == -1.0
-    }
-    pub fn is_error(&self) -> bool {
-        self.0 == -10.0
+    pub fn step(&self)->Step{
+        if self.0 == 0 {Step::Pending}
+        else if self.0 > 0 {Step::Partially(self.0)}
+        else if self.0 == -1 {Step::Penultimate}
+        else if self.0 == -2 {Step::Evaluated}
+        else if self.0 == -10 {Step::Error}
+        else {Step::Other(self.0)}
     }
 }
 
 impl std::fmt::Display for EvalStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            -1.0 => write!(f, "Completed"),
-            -10.0 => write!(f, "Error"),
-            _ => write!(f, "{}", self.0),
-        }
+        if self.0 == 0 {write!(f, "Pending")}
+        else if self.0 == -1 {write!(f, "Penultimate")}
+        else if self.0 == -2 {write!(f, "Evaluated")}
+        else if self.0 == -10 {write!(f, "Error")}
+        else {write!(f, "{}", self.0)}
     }
 }
 

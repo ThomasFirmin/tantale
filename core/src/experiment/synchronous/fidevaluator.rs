@@ -1,3 +1,5 @@
+#[cfg(feature="mpi")]
+use crate::{experiment::mpi::utils::FXMessage, solution::batchtype::Pair};
 use crate::{
     Codomain, Fidelity, Id, OptInfo, Partial, Searchspace, SolInfo,
     domain::onto::OntoDom,
@@ -18,7 +20,7 @@ use mpi::Rank;
 #[cfg(feature = "mpi")]
 use crate::experiment::{
     DistEvaluate,
-    mpi::utils::{SendRec,PriorityList, XMsg},
+    mpi::utils::{SendRec,PriorityList},
 };
 
 type ThrBatch<PSol, SolId, Obj, Opt, SInfo, Info> =
@@ -139,6 +141,14 @@ where
                     let (out, state) = ob.compute(x.as_ref(), fidelity, None);
                     let y = cod.get_elem(&out);
                     self.states.insert(sid, state);
+                    obatch.add(sid, out);
+                    cbatch.add_res(pobj, popt, y);
+                }
+                Fidelity::Last => {
+                    let x = pobj.get_x();
+                    let state = self.states.remove(&sid);
+                    let (out, _) = ob.compute(x.as_ref(), fidelity, state);
+                    let y = cod.get_elem(&out);
                     obatch.add(sid, out);
                     cbatch.add_res(pobj, popt, y);
                 }
@@ -297,6 +307,15 @@ where
                         obatch.lock().unwrap().add(sid, out);
                         cbatch.lock().unwrap().add_res(pobj, popt, y);
                     }
+                    Fidelity::Last => {
+                        drop(stplock);
+                        let x = pobj.get_x();
+                        let state = hash_state.lock().unwrap().remove(&sid);
+                        let (out, state) = ob.compute(x.as_ref(), fidelity, state);
+                        let y = cod.get_elem(&out);
+                        obatch.lock().unwrap().add(sid, out);
+                        cbatch.lock().unwrap().add_res(pobj, popt, y);
+                    }
                     Fidelity::Resume(_) => {
                         drop(stplock);
                         let x = pobj.get_x();
@@ -348,8 +367,11 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
-    where_is_id: HashMap<SolId, Rank>, // Which Rank contains the previous state of ID
+    pub priority_discard: PriorityList<Pair<PSol,PSol::Twin<Opt>>>,
+    pub priority_resume: PriorityList<Pair<PSol,PSol::Twin<Opt>>>,
+    pub priority_resume: PriorityList<Pair<PSol,PSol::Twin<Opt>>>,
+    pub new_batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+    where_is_id: HashMap<SolId,Rank>,
 }
 
 #[cfg(feature="mpi")]
@@ -363,9 +385,24 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
 {
-    pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) -> Self {
-        // 1st New, 2nd Resume, 3rd Discard
-        FidDistBatchEvaluator {batch: batch.sort_by_fid(),where_is_id: HashMap::new()}
+    pub fn new(batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>, size:usize) -> Self {
+        FidDistBatchEvaluator {
+            new_batch:batch,
+            priority_discard: PriorityList::new(size),
+            priority_resume: PriorityList::new(size),
+            where_is_id: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, pair:Pair<PSol,PSol::Twin<Opt>>){
+        let fid = pair.0.get_fidelity();
+        match fid{
+            Fidelity::New => self.new_batch.add(pair),
+            Fidelity::Last => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_last.add(pair, rank);},
+            Fidelity::Resume(_) => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_resume.add(pair, rank);},
+            Fidelity::Discard => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_discard.add(pair, rank);},
+            Fidelity::Done => {},
+        }
     }
 }
 
@@ -385,18 +422,17 @@ where
 
 #[cfg(feature="mpi")]
 /// Return true if it was able to send a pair else false
-fn recursive_send_a_pair<'a, Msg, PSol, Obj,Opt,SolId,SInfo,Info, St>
+fn recursive_send_a_pair<'a, PSol, Obj,Opt,SolId,SInfo,Info, St>
 (
     available:Rank,
-    sendrec : &mut  SendRec<'a,Msg,PSol,Obj,Opt,SolId,SInfo>,
-    batch: &mut  Batch<PSol,SolId,Obj,Opt,SInfo, Info>,
+    sendrec : &mut  SendRec<'a,FXMessage<SolId,Obj>,PSol,Obj,Opt,SolId,SInfo>,
     where_is_id: &mut  HashMap<SolId, Rank>,
+    new_batch: &mut  Batch<PSol,SolId,Obj,Opt,SInfo, Info>,
     priority_discard: &mut  PriorityList<(PSol,PSol::Twin<Opt>)>,
     priority_resume: &mut  PriorityList<(PSol,PSol::Twin<Opt>)>,
     stop: &mut St,
 )-> bool
 where
-    Msg: XMsg<PSol,SolId,Obj,SInfo>,
     PSol: FidelityPartial<SolId, Obj, SInfo>,
     PSol::Twin<Opt>: FidelityPartial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
     Obj: OntoDom<Opt>,
@@ -406,62 +442,24 @@ where
     Info: OptInfo,
     St: Stop,
 {
-    if (batch.is_empty() && priority_discard.is_empty() && priority_resume.is_empty()) || stop.stop(){
-        false
+    if stop.stop() {
+        true
     }
     else if let Some(pair) = priority_discard.pop(available){
-        where_is_id.insert(pair.0.get_id(),available);
-        sendrec.send_to_rank(available, pair);
+        let id = pair.0.get_id();
+        sendrec.discard_order(available, id);
         stop.update(ExpStep::Distribution(Fidelity::Discard));
-        true
+        recursive_send_a_pair(available, sendrec, where_is_id, new_batch, priority_discard, priority_resume, stop)
     }
     else if let Some(pair) = priority_resume.pop(available){
         where_is_id.insert(pair.0.get_id(),available);
         sendrec.send_to_rank(available, pair);
-        true
+        false
     }
-    else if !batch.is_empty(){
-        // To prevent states overload in workers.
-        // Discard Batch first, then Resume (might Complete), then New
-        let pair = batch.pop().unwrap();
-        let id = pair.0.get_id();
-        let rank = where_is_id.remove(&id);
-        let fidelity = pair.0.get_fidelity();
-        match fidelity {
-            Fidelity::Discard => {
-                let r= rank.unwrap();
-                if r == available{
-                    sendrec.discard_order(rank.unwrap(), id);
-                    stop.update(ExpStep::Distribution(fidelity));
-                    recursive_send_a_pair(available, sendrec, batch, where_is_id, priority_discard, priority_resume, stop)
-                }
-                else{
-                    priority_discard.add(pair, r);
-                    recursive_send_a_pair(available, sendrec, batch, where_is_id, priority_discard, priority_resume, stop)
-                }
-            },
-            Fidelity::Resume(_) => {
-                let r = rank.unwrap();
-                if r == available{
-                    sendrec.send_to_rank(r, pair);
-                    where_is_id.insert(id,r);
-                    true
-                }
-                else{
-                    priority_resume.add(pair, r);
-                    recursive_send_a_pair(available, sendrec, batch, where_is_id, priority_discard, priority_resume,stop)
-                }
-            }
-            Fidelity::New => {
-                sendrec.send_to_rank(available, pair);
-                where_is_id.insert(id,available);
-                true
-            },
-            Fidelity::Done => {
-                stop.update(ExpStep::Distribution(fidelity));
-                recursive_send_a_pair(available, sendrec, batch, where_is_id, priority_discard, priority_resume, stop)
-            },
-        }
+    else if let Some(pair) = new_batch.pop(){
+        where_is_id.insert(pair.0.get_id(),available);
+        sendrec.send_to_rank(available, pair);
+        false
     }
     else{
         sendrec.idle.set_idle(available);
@@ -484,6 +482,7 @@ impl<PSol, SolId, Obj, Opt, SInfo, Info, Scp, St, Cod, Out, FnState>
         Scp,
         Stepped<Obj, Out, FnState>,
         Batch<PSol, SolId, Obj, Opt, SInfo, Info>,
+        FXMessage<SolId,Obj>,
     > for FidDistBatchEvaluator<PSol, SolId, Obj, Opt, SInfo, Info>
 where
     SolId: Id,
@@ -500,9 +499,9 @@ where
     FnState: FuncState,
 {
     fn init(&mut self) {}
-    fn evaluate<M:XMsg<PSol,SolId,Obj,SInfo>>(
+    fn evaluate(
         &mut self,
-        sendrec:&mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
+        sendrec:&mut SendRec<'_,FXMessage<SolId,Obj>,PSol,Obj,Opt,SolId,SInfo>,
         _ob: &Stepped<Obj, Out, FnState>,
         cod: &Cod,
         stop: &mut St,
@@ -518,58 +517,35 @@ where
         Info,
     >  {
         //Results
-        let mut obatch = OutBatch::empty(self.batch.get_info());
-        let mut cbatch = CompBatch::empty(self.batch.get_info());
-        let mut priority_resume = PriorityList::new(sendrec.proc.size as usize);
-        let mut priority_discard = PriorityList::new(sendrec.proc.size as usize);
-
+        let mut obatch = OutBatch::empty(self.new_batch.get_info());
+        let mut cbatch = CompBatch::empty(self.new_batch.get_info());
         
         // Fill workers with first solutions
-        while sendrec.idle.has_idle() && !self.batch.is_empty() && !stop.stop() {
-            // To prevent states overload in workers.
-            // Discard Batch first, then Resume (might Complete), then New
-            let pair = self.batch.pop().unwrap();
-            let fidelity = pair.0.get_fidelity();
-            
-            match fidelity {
-                Fidelity::Discard => {
-                    let id = pair.0.get_id();
-                    let rank = self.where_is_id.remove(&id);
-                    sendrec.discard_order(rank.unwrap(), id);
-                    stop.update(ExpStep::Distribution(fidelity));
-                },
-                Fidelity::Resume(_) => {
-                    let id = pair.0.get_id();
-                    let r = *self.where_is_id.get(&id).unwrap();
-                    if sendrec.idle.idle[r as usize]{
-                        sendrec.send_to_rank(r, pair);
-                    }
-                    else{
-                        priority_resume.add(pair, r);
-                    }
-                }
-                Fidelity::New => {
-                    let id = pair.0.get_id();
-                    if let Some(r) = sendrec.send_to_worker(pair){
-                        self.where_is_id.insert(id,r);
-                    }
-                    else{panic!("A New pair of solutions was poped, while no worker was idle.")}
-                },
-                Fidelity::Done => stop.update(ExpStep::Distribution(fidelity)),
-            }
-        }
-
-        let mut stop_loop = true;
-        // Recv / sendv loop
-        while !sendrec.waiting.is_empty() && stop_loop {
-            let available = sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
+        let mut stop_loop = stop.stop();
+        while sendrec.idle.has_idle() && !stop_loop {
+            let available = sendrec.idle.pop().unwrap() as Rank;
             stop_loop = recursive_send_a_pair(
                 available,
                 sendrec,
-                &mut self.batch,
                 &mut self.where_is_id,
-                &mut priority_discard,
-                &mut priority_resume,
+                &mut self.new_batch,
+                &mut self.priority_discard,
+                &mut self.priority_resume,
+                stop,
+            );
+        }
+
+        let mut stop_loop = stop.stop();
+        // Recv / sendv loop
+        while !sendrec.waiting.is_empty() && !stop_loop {
+            let available = sendrec.rec_computed(stop, &mut obatch, &mut cbatch, cod);
+            stop_loop = recursive_send_a_pair(
+                available,
+                sendrec,
+                &mut self.where_is_id,
+                &mut self.new_batch,
+                &mut self.priority_discard,
+                &mut self.priority_resume,
                 stop,
             );
             
@@ -580,6 +556,11 @@ where
     }
 
     fn update(&mut self, batch: Batch<PSol, SolId, Obj, Opt, SInfo, Info>) {
-        self.batch = batch.sort_by_fid();
+        batch.chunk_to_priority(
+            &mut self.where_is_id,
+            &mut self.priority_discard,
+            &mut self.priority_resume,
+            &mut self.new_batch,
+        );
     }
 }

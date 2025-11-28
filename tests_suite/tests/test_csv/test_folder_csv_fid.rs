@@ -50,7 +50,7 @@ mod infos {
             mul8: 8.8,
             mul9: 9.9,
             tvec: Vec::from([1.1, 2.2, 3.3]),
-            state: EvalStep::partially(0.0),
+            state: EvalStep::partially(0),
         }
     }
 }

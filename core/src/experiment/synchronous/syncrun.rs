@@ -14,19 +14,19 @@ use crate::{
     FidOutcome, Id, Partial, Stepped,
 };
 
+#[cfg(feature = "mpi")]
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::{
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
+    checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         DistEvaluate, DistRunable, MasterWorker,
         mpi::{
-            utils::{SendRec, XMessage, FXMessage, MPIProcess,checkpoint_order, stop_order},
+            utils::{FXMessage, MPIProcess, SendRec, XMessage, XMsg, checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
         }, synchronous::fidevaluator::FidDistBatchEvaluator,
-    },
-    recorder::DistRecorder,
+    }, recorder::DistRecorder
 };
 
 //--------------------//
@@ -849,7 +849,7 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
-pub struct DistExperiment<'a, SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out, Fn>
+pub struct DistExperiment<'a, SolId, Eval, Scp, Op, St, Rec, Check, Obj, Opt, Out, Fn, M>
 where
     SolId: Id,
     Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
@@ -866,6 +866,7 @@ where
         Scp,
         Fn,
         Op::BType,
+        M,
     >,
     Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn>,
     St: Stop,
@@ -875,6 +876,7 @@ where
     Opt: OntoDom<Obj>,
     Out: Outcome,
     Fn: FuncWrapper,
+    M: XMsg<Op::Sol,SolId,Obj,Op::SInfo>,
 {
     pub proc: &'a MPIProcess,
     pub searchspace: Scp,
@@ -885,6 +887,7 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
+    msg: PhantomData<M>,
 }
 
 #[cfg(feature = "mpi")]
@@ -903,6 +906,7 @@ impl<'a, Scp, Op, St, Rec, Check, Obj, Opt, Out>
         Opt,
         Out,
         Objective<Obj, Out>,
+        XMessage<SId,Obj>
     >
 where
     Self: 'a,
@@ -960,6 +964,7 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
+                msg: PhantomData,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -997,6 +1002,7 @@ where
                 recorder,
                 checkpointer: Some(checkpointer),
                 evaluator: Some(evaluator),
+                msg: PhantomData,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -1014,7 +1020,7 @@ where
         };
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec: SendRec<'_, XMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo> = SendRec::new(config, self.proc);
+        let mut sendrec = SendRec::<'_, XMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo>::new(config, self.proc);
         
         let mut batch;
         let mut batch_raw;
@@ -1048,6 +1054,7 @@ where
                 Scp,
                 Objective<Obj, Out>,
                 Op::BType,
+                XMessage<SId,Obj>,
             >::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -1087,6 +1094,7 @@ where
                 Scp,
                 Objective<Obj, Out>,
                 Op::BType,
+                XMessage<SId,Obj>,
             >::update(&mut eval, batch);
 
             self.stop.update(ExpStep::Optimization);
@@ -1111,6 +1119,7 @@ impl<'a, Scp, Op, St, Rec, Check, Obj, Opt, Out, FnState>
         Opt,
         Out,
         Stepped<Obj, Out, FnState>,
+        FXMessage<SId,Obj>,
     >
 where
     Self: 'a,
@@ -1183,6 +1192,7 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
+                msg: PhantomData,
             })
         } else {
             let check = match checkpointer {
@@ -1195,95 +1205,6 @@ where
             };
             MasterWorker::Worker(FidWorker::new(objective, check, proc))
         }
-    }
-
-    fn run(mut self) {
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidDistBatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
-        };
-        // Define send/rec utilitaries and parameters
-        let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec: SendRec<'_, FXMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo> = SendRec::new(config, self.proc);
-
-        let mut batch;
-        let mut batch_raw;
-        let mut batch_comp;
-
-        'main: loop {
-            self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state_dist(
-                    self.optimizer.get_state(),
-                    &self.stop,
-                    &eval,
-                    self.proc.rank,
-                );
-                checkpoint_order(self.proc, 1..self.proc.size);
-            }
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            // Arc copy of data to send to evaluator thread.
-            (batch_raw, batch_comp) = DistEvaluate::<
-                SId,
-                Obj,
-                Opt,
-                Op::SInfo,
-                Op::Info,
-                Op::Sol,
-                St,
-                Op::Cod,
-                Out,
-                Scp,
-                Stepped<Obj, Out, FnState>,
-                Op::BType,
-            >::evaluate(
-                &mut eval,
-                &mut sendrec,
-                &self.objective,
-                &self.codomain,
-                &mut self.stop,
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_dist(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
-            }
-
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state_dist(
-                        self.optimizer.get_state(),
-                        &self.stop,
-                        &eval,
-                        self.proc.rank,
-                    );
-                    checkpoint_order(self.proc, 1..self.proc.size);
-                }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(batch_comp, &self.searchspace);
-            DistEvaluate::<
-                SId,
-                Obj,
-                Opt,
-                Op::SInfo,
-                Op::Info,
-                Op::Sol,
-                St,
-                Op::Cod,
-                Out,
-                Scp,
-                Stepped<Obj, Out, FnState>,
-                Op::BType,
-            >::update(&mut eval, batch);
-
-            self.stop.update(ExpStep::Optimization);
-        }
-        stop_order(self.proc, 1..self.proc.size);
     }
 
     fn load(
@@ -1328,11 +1249,106 @@ where
                 recorder,
                 checkpointer: Some(checkpointer),
                 evaluator: Some(evaluator),
+                msg: PhantomData,
             })
         } else {
             let mut check = checkpointer.get_check_worker(proc);
+            let state = check.load(proc.rank).unwrap();
             check.after_load(proc);
-            MasterWorker::Worker(FidWorker::new(objective, Some(check), proc))
+            let mut w = FidWorker::new(objective, Some(check), proc);
+            w.state = state;
+            MasterWorker::Worker(w)
         }
+    }
+
+    fn run(mut self) {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidDistBatchEvaluator::new(self.optimizer.first_step(&self.searchspace), self.proc.size as usize),
+        };
+        // Define send/rec utilitaries and parameters
+        let config = bincode::config::standard(); // Bytes encoding config
+        let mut sendrec = SendRec::<'_, FXMessage<SId, Obj>, Op::Sol, Obj, Opt, SId, Op::SInfo>::new(config, self.proc);
+
+        let mut batch;
+        let mut batch_raw;
+        let mut batch_comp;
+
+        'main: loop {
+            self.stop.update(ExpStep::Iteration);
+            if let Some(c) = &self.checkpointer {
+                c.save_state_dist(
+                    self.optimizer.get_state(),
+                    &self.stop,
+                    &eval,
+                    self.proc.rank,
+                );
+                checkpoint_order(self.proc, 1..self.proc.size);
+            }
+            if self.stop.stop() {
+                break 'main;
+            };
+
+            // Arc copy of data to send to evaluator thread.
+            (batch_raw, batch_comp) = DistEvaluate::<
+                SId,
+                Obj,
+                Opt,
+                Op::SInfo,
+                Op::Info,
+                Op::Sol,
+                St,
+                Op::Cod,
+                Out,
+                Scp,
+                Stepped<Obj, Out, FnState>,
+                Op::BType,
+                FXMessage<SId,Obj>,
+            >::evaluate(
+                &mut eval,
+                &mut sendrec,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+            );
+
+            // Saver part
+            if let Some(r) = &self.recorder {
+                r.save_dist(&batch_comp, &batch_raw, &self.searchspace, &self.codomain);
+            }
+
+            if self.stop.stop() {
+                if let Some(c) = &self.checkpointer {
+                    c.save_state_dist(
+                        self.optimizer.get_state(),
+                        &self.stop,
+                        &eval,
+                        self.proc.rank,
+                    );
+                    checkpoint_order(self.proc, 1..self.proc.size);
+                }
+                break 'main;
+            };
+
+            batch = self.optimizer.step(batch_comp, &self.searchspace);
+            DistEvaluate::<
+                SId,
+                Obj,
+                Opt,
+                Op::SInfo,
+                Op::Info,
+                Op::Sol,
+                St,
+                Op::Cod,
+                Out,
+                Scp,
+                Stepped<Obj, Out, FnState>,
+                Op::BType,
+                FXMessage<SId,Obj>,
+            >::update(&mut eval, batch);
+
+            self.stop.update(ExpStep::Optimization);
+        }
+        stop_order(self.proc, 1..self.proc.size);
     }
 }

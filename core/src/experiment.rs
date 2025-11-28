@@ -95,7 +95,7 @@ macro_rules! experiment {
         )
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
+        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_,_> as 
             tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>>::new(
             $proc,
             ($domain, $codomain),
@@ -140,7 +140,7 @@ macro_rules! load {
             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_,_> as
             tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>
             >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
     };
@@ -354,7 +354,7 @@ where
 #[cfg(feature = "mpi")]
 /// [`DistEvaluate`] is an [`Evaluate`] describing how to distribute, with MPI, the output of a sequential [`Optimizer`]
 /// generating a batch of [`Partial`] at each step.
-pub trait DistEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType>:
+pub trait DistEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType,M>:
     Evaluate
 where
     SolId: Id,
@@ -370,9 +370,10 @@ where
     Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
     Fn: FuncWrapper,
     BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
+    M:XMsg<PSol,SolId,Obj,SInfo>,
 {
     fn init(&mut self);
-    fn evaluate<M:XMsg<PSol,SolId,Obj,SInfo>>(
+    fn evaluate(
         &mut self,
         sendrec: &mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
         ob: &Fn,

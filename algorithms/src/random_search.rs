@@ -28,7 +28,7 @@ pub struct RSState {
 }
 impl OptState for RSState {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RSInfo {
     pub iteration: usize,
 }
@@ -134,19 +134,15 @@ where
 fn fid_rs_iter<Obj, Opt, Scp>(
     opt: &mut RandomSearch,
     sp: &Scp,
-) -> Batch<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo, RSInfo>
+    batch: &mut Batch<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo, RSInfo>,
+)
 where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     Scp: Searchspace<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
 {
-    let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
-    let opt_samples = sp.vec_onto_opt(&samples);
-    let info = Arc::new(RSInfo {
-        iteration: opt.0.iteration,
-    });
-    opt.0.iteration += 1;
-    Batch::new(samples, opt_samples, info)
+    let info = Arc::new(EmptyInfo);
+    (batch.sobj,batch.sopt) = sp.sample_pair(Some(&mut opt.1), opt.0.batch, info.clone()).into_iter().unzip();
 }
 
 impl<Obj, Opt, Out, Scp, FnState> Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>
@@ -168,7 +164,11 @@ where
     fn init(&mut self) {}
 
     fn first_step(&mut self, scp: &Scp) -> Self::BType {
-        fid_rs_iter::<Obj, Opt, Scp>(self, scp)
+        let info = RSInfo{iteration: self.0.iteration};
+        let mut batch = Batch::empty(info.into());
+        self.0.iteration += 1;
+        fid_rs_iter::<Obj, Opt, Scp>(self, scp, &mut batch);
+        batch
     }
 
     fn step(
@@ -176,36 +176,26 @@ where
         x: CBType<Self, SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>,
         scp: &Scp,
     ) -> Self::BType {
-        if x.size() > 0 {
-            let (vobj, vopt) = x
-                .into_iter()
-                .map(|(obj, opt)| {
-                    let step = obj.get_y().step;
-                    let mut xobj = obj.sol;
-                    let mut xopt = opt.sol;
-                    if step.is_partially(){
-                        xobj.resume(&mut xopt, 0.0)
-                    }
-                    else if step.is_completed()
-                    {
-                        xobj.done(&mut xopt)
-                    }
-                    else if step.is_error()
-                    {
-                        xobj.discard(&mut xopt)
-                    }
-                    (xobj, xopt)
-                })
-                .collect();
-            let info = Arc::new(RSInfo {
-                iteration: self.0.iteration,
-            });
-            Batch::new(vobj, vopt, info)
-        } 
-        else {
+        let mut batch: Self::BType = x.into_iter().filter_map(
+            |(obj, opt)| 
+            {
+                let step = obj.get_y().step;
+                let mut xobj = obj.sol;
+                let mut xopt = opt.sol;
+                if step.is_partially(){
+                    xobj.resume(&mut xopt, 0.0);
+                    Some((xobj, xopt))
+                }
+                else{None}
+            }
+        ).collect();
+        if batch.size() == 0{
             self.0.iteration += 1;
-            fid_rs_iter::<Obj, Opt, Scp>(self, scp)
+            fid_rs_iter::<Obj, Opt, Scp>(self, scp, &mut batch)
         }
+        let info = RSInfo {iteration: self.0.iteration}.into();
+        batch.info = info;
+        batch
     }
 
     fn get_state(&mut self) -> &Self::State {

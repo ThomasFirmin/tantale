@@ -79,7 +79,7 @@ mod init_func {
                 _ => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else{EvalStep::partially(state.state as f64)};
+            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0) | !],
@@ -114,7 +114,7 @@ fn main() {
     else{
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec: SendRec<'_, FXMessage<SId, BaseDom>,_, BaseDom, BaseDom, SId, _> = SendRec::new(config, &proc);
+        let mut sendrec = SendRec::<'_,FXMessage<SId,_>,_,_,_,_,_>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
@@ -135,7 +135,7 @@ fn main() {
             .map(|s: &FidBasePartial<_, _, _>| (s.get_id(), s.x.clone()))
             .collect();
         let batch = Batch::new(sobj, sopt, info.clone());
-        let mut eval = FidDistBatchEvaluator::new(batch);
+        let mut eval = FidDistBatchEvaluator::new(batch,proc.size as usize);
 
         let (braw, bcomp) =
             <FidDistBatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
@@ -149,6 +149,7 @@ fn main() {
                 _,
                 FidOutEvaluator,
                 Sp<_, _>,
+                _,
                 _,
                 _,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);
@@ -235,7 +236,7 @@ fn main() {
             })
             .collect();
         let batch = Batch::new(vobj, vopt, info.clone());
-        let mut eval = FidDistBatchEvaluator::new(batch);
+        let mut eval = FidDistBatchEvaluator::new(batch, proc.size as usize);
 
         <FidDistBatchEvaluator<_, _, _, _, _, _> as DistEvaluate<
             _,
@@ -248,6 +249,7 @@ fn main() {
             _,
             FidOutEvaluator,
             Sp<_, _>,
+            _,
             _,
             _,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod,&mut stop);
