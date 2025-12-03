@@ -4,14 +4,11 @@
 //!
 
 use crate::{
-    domain::{Domain, TypeDom},
-    objective::outcome::{FuncState, Outcome},
-    solution::partial::Fidelity,
-    FidOutcome,
+    FidOutcome, domain::{Domain, TypeDom}, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity
 };
 
-type OptimFn<TypeDom, Out> = fn(&[TypeDom]) -> Out;
-type SteppFn<TypeDom, Out, FnState> = fn(&[TypeDom], Fidelity, Option<FnState>) -> (Out, FnState);
+type OptimFn<Obj, Out> = fn(&[TypeDom<Obj>]) -> Out;
+type SteppFn<Obj, Out, FnState> = fn(&[TypeDom<Obj>], Fidelity, Option<FnState>) -> (Out, FnState);
 
 /// A wrapper arround the user-defined function to maximize.
 pub trait FuncWrapper {}

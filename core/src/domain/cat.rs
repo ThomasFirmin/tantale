@@ -18,14 +18,8 @@
 //! ```
 use crate::{
     domain::{
-        base::{BaseDom, BaseTypeDom},
-        bounded::{Bounded, BoundedBounds},
-        onto::{Onto, OntoDom},
-        unit::Unit,
-        Domain, TypeDom,
-    },
-    recorder::csv::CSVWritable,
-    errors::OntoError,
+        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bounded::{Bounded, BoundedBounds}, onto::{Onto, OntoDom}, unit::Unit
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{CatDistribution, Sampler, Uniform}
 };
 
 use num::cast::AsPrimitive;
@@ -47,6 +41,7 @@ use std::fmt;
 #[derive(Clone)]
 pub struct Cat {
     pub values: Vec<String>,
+    pub sampler:CatDistribution,
 }
 impl Cat {
     /// Fabric for a [`Cat`].
@@ -55,26 +50,32 @@ impl Cat {
     ///
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new<'a>(values: &'a [&'a str]) -> Cat {
+    pub fn new<'a, S:Sampler<Self> + Into<CatDistribution>>(values: &'a [&'a str], sampler:Option<S>) -> Cat
+    {
         Cat {
             values: values.iter().map(|s| String::from(*s)).collect(),
+            sampler: match sampler {
+                Some(s) => s.into(),
+                None => CatDistribution::Uniform(Uniform),
+            }
         }
     }
 }
 
 impl PartialEq for Cat {
     fn eq(&self, other: &Self) -> bool {
-        self.values() == other.values()
+        self.values == other.values
     }
 }
 
+impl PreDomain for Cat{}
 impl Domain for Cat {
     type TypeDom = String;
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
     /// See [`uniform_cat`].
     fn sample(&self, rng: &mut ThreadRng) -> TypeDom<Self> {
-        uniform_cat(self, rng)
+        self.sampler.sample(self, rng)
     }
 
     /// Method to check if a given point is in the domain.
@@ -160,14 +161,14 @@ where
         item: &Self::Item,
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        let idx = self.values().iter().position(|n| n == item);
+        let idx = self.values.iter().position(|n| n == item);
 
         match idx {
             Some(i) => {
                 let a: f64 = (i + 1).as_();
-                let b: f64 = self.values().len().as_();
-                let c: f64 = target.width().as_();
-                let mapped: Out = (a / b * c).as_() + target.lower();
+                let b: f64 = self.values.len().as_();
+                let c: f64 = target.width.as_();
+                let mapped: Out = (a / b * c).as_() + *target.bounds.start();
 
                 if target.is_in(&mapped) {
                     Ok(mapped)
@@ -209,12 +210,12 @@ impl Onto<Unit> for Cat {
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
-        let idx = self.values().iter().position(|n| n == item);
+        let idx = self.values.iter().position(|n| n == item);
 
         match idx {
             Some(i) => {
                 let a: f64 = (i + 1).as_();
-                let b: f64 = self.values().len().as_();
+                let b: f64 = self.values.len().as_();
                 let mapped: f64 = a / b;
 
                 if target.is_in(&mapped) {
@@ -310,7 +311,7 @@ impl Onto<Cat> for Cat {
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
-        let idx = self.values().iter().position(|n| n == item);
+        let idx = self.values.iter().position(|n| n == item);
 
         match idx {
             Some(i) => {

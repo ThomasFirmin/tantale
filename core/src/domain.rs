@@ -21,6 +21,8 @@ use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
+pub trait PreDomain{}
+
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
 ///
@@ -28,7 +30,7 @@ use std::fmt::{Debug, Display};
 ///
 /// A [`Domain`] should always have a `::new(...)->Self` method.
 /// This method is used in the [`objective!`](../../../tantale/macros/macro.objective.html) and [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
-pub trait Domain: Sized + PartialEq + Debug {
+pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
@@ -64,6 +66,9 @@ pub trait Mixed: Domain {}
 
 pub type TypeDom<T> = <T as Domain>::TypeDom;
 
+pub mod nodomain;
+pub use nodomain::NoDomain;
+
 pub mod bounded;
 pub use bounded::{Bounded, Int, Nat, Real};
 
@@ -81,5 +86,3 @@ pub use base::{BaseDom, BaseTypeDom};
 
 pub mod onto;
 pub use onto::Onto;
-
-pub mod dmacros;

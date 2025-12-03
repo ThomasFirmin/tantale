@@ -15,14 +15,10 @@
 //! ```
 use crate::{
     domain::{
-        Domain, TypeDom,
-        base::{BaseDom, BaseTypeDom},
-        bounded::{Bounded, BoundedBounds},
-        onto::{Onto, OntoDom},
-        unit::Unit,
+        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bounded::{Bounded, BoundedBounds}, onto::{Onto, OntoDom}, unit::Unit
     },
     errors::OntoError,
-    recorder::csv::CSVWritable,
+    recorder::csv::CSVWritable, sampler::{Bernoulli, BoolDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -45,13 +41,15 @@ use std::fmt;
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
 /// ```
-#[derive(Clone, Copy, Default)]
-pub struct Bool;
+#[derive(Clone, Copy)]
+pub struct Bool(pub BoolDistribution);
 impl Bool {
     /// Fabric for a [`Bool`].
-    ///
-    pub fn new() -> Bool {
-        Bool {}
+    pub fn new<S:Sampler<Self> + Into<BoolDistribution>>(sampler:Option<S>) -> Bool {
+        match sampler {
+            Some(s) => Bool(s.into()),
+            None => Bool(Bernoulli(0.5).into()),
+        }
     }
 }
 
@@ -61,13 +59,13 @@ impl PartialEq for Bool {
     }
 }
 
+impl PreDomain for Bool{}
 impl Domain for Bool {
     type TypeDom = bool;
 
-    /// Default sampler for [`Bool`].
-    /// See [`uniform_bool`].
+    /// Sample a `bool` using the inner [`BoolDistribution`] of [`Bool`].
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
-        uniform_bool(self, rng)
+        self.0.sample(self, rng)
     }
 
     /// Method to check if a given point is in the domain.
@@ -135,12 +133,12 @@ where
     ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let mapped = if *item {
-                target.upper()
+                target.bounds.end()
             } else {
-                target.lower()
+                target.bounds.start()
             };
             if target.is_in(&mapped) {
-                Ok(mapped)
+                Ok(*mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))
             }

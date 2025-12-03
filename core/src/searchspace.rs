@@ -106,9 +106,7 @@
 //! ```
 
 use crate::{
-    domain::Domain,
-    solution::{Computed, Id, Partial, SolInfo, Solution},
-    Codomain, Onto, Outcome,
+    Codomain, Outcome, domain::onto::{TwinDom, TwinObj, TwinOpt}, solution::{Computed, Id, Pair, Partial, SolInfo, Solution}
 };
 
 use rand::prelude::ThreadRng;
@@ -121,16 +119,14 @@ type ComputedOut<PSolA, PSolB, SolId, ADom, BDom, Cod, Out, Info> = (
 );
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<PSol, SolId, Obj, Opt, SInfo>
+pub trait Searchspace<OptSol, SolId, SInfo>: TwinDom
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    SInfo: SolInfo,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
     SolId: Id,
+    SInfo: SolInfo,
+    OptSol: Partial<SolId,TwinOpt<Self>,SInfo, Twin<TwinObj<Self>> = Self::ObjSol, TwinP<TwinObj<Self>> = Self::ObjSol>,
 {
-    /// Maps a [`Partial`] of type `Obj` onto an [`Partial`] of type `Opt`.
+    type ObjSol: Partial<SolId,TwinObj<Self>,SInfo, TwinP<TwinOpt<Self>> = OptSol>;
+    /// Maps a [`Partial`] of type `Obj` onto a [`Partial`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables).
     ///
@@ -168,7 +164,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_opt(&self, inp: &PSol) -> <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>;
+    fn onto_opt(&self, inp: &Self::ObjSol) -> OptSol;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -207,7 +203,7 @@ where
     /// }
     ///
     /// ```
-    fn onto_obj(&self, inp: &<PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>) -> PSol;
+    fn onto_obj(&self, inp: &OptSol) -> Self::ObjSol;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -245,7 +241,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> PSol;
+    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::ObjSol;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -283,7 +279,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> <PSol as Partial<SolId,Obj,SInfo>>::Twin<Opt>;
+    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> OptSol;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -319,7 +315,7 @@ where
     /// ```
     fn is_in_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Obj, SInfo> + Send + Sync;
+        S: Solution<SolId, TwinObj<Self>, SInfo, Raw = <Self::ObjSol as Solution<SolId,TwinObj<Self>,SInfo>>::Raw> + Send + Sync;
     /// Check if a given `Opt` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -355,7 +351,7 @@ where
     /// ```
     fn is_in_opt<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Opt, SInfo> + Send + Sync;
+        S: Solution<SolId, TwinOpt<Self>, SInfo, Raw = OptSol::Raw> + Send + Sync;
     /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
     /// It uses the [`onto_obj_fn`](tantale::core::Var::onto_obj_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -398,7 +394,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_obj(&self, inp: &[PSol::Twin<Opt>]) -> Vec<PSol>;
+    fn vec_onto_obj(&self, inp: &[OptSol]) -> Vec<Self::ObjSol>;
     /// Maps a [`Vec`] of [`Solution`] of type `Obj` onto a [`Vec`] [`Solution`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
     /// the corresponding [`variables`](Searchspace::variables). To main
@@ -441,7 +437,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_onto_opt(&self, inp: &[PSol]) -> Vec<PSol::Twin<Opt>>;
+    fn vec_onto_opt(&self, inp: &[Self::ObjSol]) -> Vec<OptSol>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -485,7 +481,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PSol>;
+    ) -> Vec<Self::ObjSol>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -526,7 +522,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<PSol::Twin<Opt>>;
+    ) -> Vec<OptSol>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -570,7 +566,7 @@ where
         rng: Option<&mut ThreadRng>,
         size: usize,
         info: Arc<SInfo>,
-    ) -> Vec<(PSol,PSol::Twin<Opt>)>;
+    ) -> Vec<Pair<OptSol,SolId,TwinObj<Self>,TwinOpt<Self>,SInfo>>;
     /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
     ///
     /// # Example
@@ -606,7 +602,7 @@ where
     /// ```
     fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Obj, SInfo> + Send + Sync;
+        S: Solution<SolId, TwinObj<Self>, SInfo, Raw = <Self::ObjSol as Solution<SolId,TwinObj<Self>,SInfo>>::Raw> + Send + Sync;
     /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
     ///
     /// # Example
@@ -642,16 +638,16 @@ where
     /// ```
     fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Opt, SInfo> + Send + Sync;
+        S: Solution<SolId, TwinOpt<Self>, SInfo, Raw = OptSol::Raw> + Send + Sync;
 
     /// Creates a pair of [`Computed`] [`Solutions`](Solution) of [`Domain`] types `Dom` and `B`
     /// from a pair of [`twin`](Partial::twin) [`Partial`] of types `A` and `B`, and a shared [`Codomain`].
     fn computed<Cod, Out>(
         &self,
-        xa: PSol,
-        xb: PSol::Twin<Opt>,
+        xa: Self::ObjSol,
+        xb: OptSol,
         y: Arc<Cod::TypeCodom>,
-    ) -> ComputedOut<PSol, PSol::Twin<Opt>, SolId, Obj, Opt, Cod, Out, SInfo>
+    ) -> ComputedOut<Self::ObjSol, OptSol, SolId, TwinObj<Self>, TwinOpt<Self>, Cod, Out, SInfo>
     where
         Cod: Codomain<Out>,
         Out: Outcome,
@@ -665,4 +661,4 @@ pub mod spbase;
 pub use spbase::Sp;
 
 pub mod sppar;
-pub use sppar::ParSp;
+pub use sppar::SpPar;

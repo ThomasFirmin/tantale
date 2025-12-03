@@ -29,15 +29,8 @@
 
 use crate::{
     domain::{
-        base::{BaseDom, BaseTypeDom},
-        bool::Bool,
-        cat::Cat,
-        onto::{Onto, OntoDom},
-        unit::Unit,
-        Domain, TypeDom,
-    },
-    recorder::csv::CSVWritable,
-    errors::OntoError,
+        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, cat::Cat, onto::{Onto, OntoDom}, unit::Unit
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler, Uniform}
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
@@ -50,6 +43,13 @@ use std::{
 
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
+
+pub trait RangeDomain:Domain
+where
+    Self::TypeDom: BoundedBounds
+{
+    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom>;
+}
 
 /// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
 pub trait BoundedBounds:
@@ -97,6 +97,7 @@ pub struct Bounded<T: BoundedBounds> {
     pub bounds: RangeInclusive<T>,
     pub mid: T,
     pub width: T,
+    pub sampler:BoundedDistribution,
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -109,7 +110,7 @@ impl<T: BoundedBounds> Bounded<T> {
     /// * `lower`: `T` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
     ///
-    pub fn new(lower: T, upper: T) -> Bounded<T> {
+    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(lower: T, upper: T, sampler:Option<S>) -> Bounded<T> {
         if lower < upper {
             let mid = (upper + lower) / T::from(2).unwrap();
             let width = upper - lower;
@@ -117,6 +118,10 @@ impl<T: BoundedBounds> Bounded<T> {
                 bounds: std::ops::RangeInclusive::new(lower, upper),
                 mid,
                 width,
+                sampler:match sampler {
+                    Some(s) => s.into(),
+                    None => BoundedDistribution::Uniform(Uniform),
+                }
             }
         } else {
             panic!("Boundaries error, {} is not < {}.", lower, upper);
@@ -124,25 +129,22 @@ impl<T: BoundedBounds> Bounded<T> {
     }
 }
 
-impl<T> PartialEq for Bounded<T>
-where
-    T: BoundedBounds,
+impl<T:BoundedBounds> PartialEq for Bounded<T>
 {
     fn eq(&self, other: &Self) -> bool {
-        (self.lower() == other.lower()) && (self.upper() == other.upper())
+        self.bounds == other.bounds
     }
 }
 
-impl<T> Domain for Bounded<T>
-where
-    T: BoundedBounds,
+impl<T:BoundedBounds> PreDomain for Bounded<T>{}
+impl<T:BoundedBounds> Domain for Bounded<T>
 {
     type TypeDom = T;
 
     /// Default sampler for [`Bounded`].
     /// See [`uniform`].
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
-        uniform(&self.bounds, rng)
+        self.sampler.sample(self, rng)
     }
 
     fn is_in(&self, item: &T) -> bool {
@@ -150,49 +152,49 @@ where
     }
 }
 
-impl<T> std::clone::Clone for Bounded<T>
-where
-    T: BoundedBounds,
+impl<T:BoundedBounds> RangeDomain for Bounded<T>
+{
+    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
+        self.bounds.clone()
+    }
+}
+
+impl<T:BoundedBounds> std::clone::Clone for Bounded<T>
 {
     fn clone(&self) -> Self {
-        Bounded::new(*self.bounds.start(), *self.bounds.end())
+        Bounded::new(*self.bounds.start(), *self.bounds.end(), Some(self.sampler))
     }
 }
 
-impl<T> fmt::Display for Bounded<T>
-where
-    T: BoundedBounds,
+impl<T:BoundedBounds> fmt::Display for Bounded<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
-impl<T> fmt::Debug for Bounded<T>
-where
-    T: BoundedBounds,
+impl<T:BoundedBounds> fmt::Debug for Bounded<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
+/// [`Onto`] function between [`Bounded`] [`Domain`].
+///
+/// Considering $l_{in}$, $u_{in}$, $l_{out}$ and $u_{out}$ the lower and upper bounds of
+/// the input [`Bounded`] [`Domain`] and the output [`Bounded`] [`Domain`], and $x$ the item to be mapped,
+/// the mapping is given by
+///
+/// $$ \frac{x-l_{in}}{u_{in}-l_{in}} \times (u_{out}-l_{out}) + l_{out}$$
 impl<In, Out> Onto<Bounded<Out>> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Bounded<Out>>;
-    /// [`Onto`] function between [`Bounded`] [`Domain`].
-    ///
-    /// Considering $l_{in}$, $u_{in}$, $l_{out}$ and $u_{out}$ the lower and upper bounds of
-    /// the input [`Bounded`] [`Domain`] and the output [`Bounded`] [`Domain`], and $x$ the item to be mapped,
-    /// the mapping is given by
-    ///
-    /// $$ \frac{x-l_{in}}{u_{in}-l_{in}} \times (u_{out}-l_{out}) + l_{out}$$
-    ///
     /// # Parameters
     ///
     /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
@@ -210,10 +212,10 @@ where
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
-            let a: f64 = (*item - self.lower()).as_();
-            let b: f64 = self.width().as_();
-            let c: f64 = target.width().as_();
-            let mapped: Out = (a / b * c).as_() + target.lower();
+            let a: f64 = (*item - *self.bounds.start()).as_();
+            let b: f64 = self.width.as_();
+            let c: f64 = target.width.as_();
+            let mapped: Out = (a / b * c).as_() + *target.bounds.start();
 
             if target.is_in(&mapped) {
                 Ok(mapped)
@@ -227,7 +229,7 @@ where
 }
 impl<In, Out> OntoDom<Bounded<Out>> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
@@ -235,7 +237,7 @@ where
 
 impl<In> Onto<Bool> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
     type Item = TypeDom<Bounded<In>>;
@@ -258,7 +260,7 @@ where
     ///
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
-            Ok(*item > self.mid())
+            Ok(*item > self.mid)
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
         }
@@ -266,14 +268,14 @@ where
 }
 impl<In> OntoDom<Bool> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
 }
 
 impl<In> Onto<Cat> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
     type Item = TypeDom<Bounded<In>>;
@@ -304,16 +306,16 @@ where
     ///
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
-            let a: f64 = (*item - self.lower()).as_();
-            let b: f64 = self.width().as_();
-            let c: f64 = target.values().len().as_();
+            let a: f64 = (*item - *self.bounds.start()).as_();
+            let b: f64 = self.width.as_();
+            let c: f64 = target.values.len().as_();
             let idx = (a / b * c) as usize;
-            let idx = if idx == target.values().len() {
+            let idx = if idx == target.values.len() {
                 idx - 1
             } else {
                 idx
             };
-            Ok(target.values()[idx].clone())
+            Ok(target.values[idx].clone())
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
         }
@@ -321,14 +323,14 @@ where
 }
 impl<In> OntoDom<Cat> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
 }
 
 impl<In> Onto<Unit> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds ,
 {
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Unit>;
@@ -353,8 +355,8 @@ where
     ///
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
-            let a: f64 = (*item - self.lower()).as_();
-            let b: f64 = self.width().as_();
+            let a: f64 = (*item - *self.bounds.start()).as_();
+            let b: f64 = self.width.as_();
             let mapped: f64 = a / b;
 
             if target.is_in(&mapped) {
@@ -369,14 +371,14 @@ where
 }
 impl<In> OntoDom<Unit> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
 }
 
 impl<In> Onto<BaseDom> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
     type Item = TypeDom<Bounded<In>>;
@@ -427,35 +429,11 @@ where
 }
 impl<In> OntoDom<BaseDom> for Bounded<In>
 where
-    In: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
+    In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
 }
 
-impl From<BaseDom> for Real {
-    fn from(value: BaseDom) -> Self {
-        match value {
-            BaseDom::Real(d) => d,
-            _ => unreachable!("Can only use From<BaseDom> with Bounded."),
-        }
-    }
-}
-impl From<BaseDom> for Nat {
-    fn from(value: BaseDom) -> Self {
-        match value {
-            BaseDom::Nat(d) => d,
-            _ => unreachable!("Can only use From<BaseDom> with Bounded."),
-        }
-    }
-}
-impl From<BaseDom> for Int {
-    fn from(value: BaseDom) -> Self {
-        match value {
-            BaseDom::Int(d) => d,
-            _ => unreachable!("Can only use From<BaseDom> with Bounded."),
-        }
-    }
-}
 /// [`Bounded`] alias for a continuous `f64` [`Domain`] bounded by a lower and upper bounds.
 ///
 /// # Attributes

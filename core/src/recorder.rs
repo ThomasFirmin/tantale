@@ -1,9 +1,5 @@
 use crate::{
-    domain::onto::OntoDom,
-    objective::{FuncWrapper, Outcome},
-    searchspace::Searchspace,
-    solution::{BatchType, Id},
-    Optimizer,
+    Optimizer, domain::onto::{OntoDom, TwinDom}, objective::{FuncWrapper, Outcome}, searchspace::Searchspace, solution::{BatchType, Id}
 };
 
 #[cfg(feature = "mpi")]
@@ -15,15 +11,13 @@ pub use csv::CSVRecorder;
 pub mod nosaver;
 pub use nosaver::NoSaver;
 
-pub trait Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, BType>
+pub trait Recorder<SolId, Out, Scp, Op, Fn, BType>: TwinDom
 where
     Self: Sized,
     SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
     Out: Outcome,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn, BType = BType>,
+    Scp: Searchspace<Op::Sol, SolId, Op::SInfo>,
+    Op: Optimizer<SolId, Out, Scp, Fn>,
     Fn: FuncWrapper,
     BType: BatchType<SolId, Obj, Opt, Op::SInfo, Op::Sol, Op::Info>,
 {

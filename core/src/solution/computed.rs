@@ -1,7 +1,8 @@
-use crate::domain::Domain;
-use crate::domain::onto::OntoDom;
-use crate::objective::{Codomain, Outcome};
-use crate::solution::{Id, Partial, SolInfo, Solution};
+use crate::{
+    domain::Domain,
+    objective::{Codomain, Outcome},
+    solution::{Id, Partial, SolInfo, Solution}
+};
 
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -50,13 +51,13 @@ where
     Info: SolInfo,
 {
     type Raw = PSol::Raw;
-    type Twin<B: OntoDom<Dom>> =  Computed<<PSol as Partial<SolId, Dom, Info>>::Twin<B>, SolId, B, Cod, Out, Info> where Dom:OntoDom<B>;
+    type Twin<B: Domain> =  Computed<PSol::TwinP<B>, SolId, B, Cod, Out, Info>;
 
     fn get_id(&self) -> SolId {
         self.sol.get_id()
     }
 
-    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T {
+    fn get_x(&self) -> Self::Raw {
         self.sol.get_x()
     }
     

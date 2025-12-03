@@ -164,6 +164,20 @@ impl Parse for LineStream {
     }
 }
 
+fn wrap_sampler_mixed(
+    mixed: Ident,
+    mixedt: Ident,
+    simple: Ident,
+    sampler: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    quote! {
+        match dom{
+            #mixed::#simple(d) => #mixedt::#simple(#sampler(d,rng)),
+            _ => unreachable!("An error occured while sampling from a mixed domain. The mixed variant is of wrong type."),
+        }
+    }
+}
+
 fn wrap_mixed_onto_simple(
     mixed: Ident,
     mixedt: Ident,
@@ -276,8 +290,12 @@ struct VarInfo {
     repeats: Option<LitInt>,
     ty_obj: Ident,
     args_obj: Punctuated<Expr, syn::token::Comma>,
+    sampler_obj: proc_macro2::TokenStream,
+    sampobj_name: String,
     ty_opt: Ident,
     args_opt: Punctuated<Expr, syn::token::Comma>,
+    sampler_opt: proc_macro2::TokenStream,
+    sampopt_name: String,
     single: bool,
 }
 struct WrappedVarInfo {
@@ -329,11 +347,33 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         // Extract Obj domain information
         let obj_args = line.obj_part.args;
         let obj_ty = line.obj_part.ty;
+        let obj_samp_name;
+        let obj_samp = match line.obj_part.samp.sampler {
+            Some(s) => {
+                obj_samp_name = s.to_string();
+                s.to_token_stream()
+            }
+            None => {
+                obj_samp_name = String::from("default");
+                quote! {#obj_ty::sample}
+            }
+        };
 
         // Extract Opt domain information
         // If None then copy Obj
         let opt_args = line.opt_part.args;
         let opt_ty = line.opt_part.ty;
+        let opt_samp_name;
+        let opt_samp = match line.opt_part.samp.sampler {
+            Some(s) => {
+                opt_samp_name = s.to_string();
+                s.to_token_stream()
+            }
+            None => {
+                opt_samp_name = String::from("default");
+                quote! {#opt_ty::sample}
+            }
+        };
         let single = line.opt_part.single;
 
         // Push everything into vectors

@@ -18,18 +18,35 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{errors::OntoError, Domain};
+use crate::{Domain, Id, SolInfo, Solution, errors::OntoError};
 
-/// [`Onto`] is a surjective function to map a point from an input [`Item`](Onto::Item) to an output [`TargetItem`](Onto::TargetItem)
-/// associated to `Target`.
+pub trait TwinDom
+{
+    type Obj: Domain;
+    type Opt: Domain;
+}
+
+pub trait Paired<SolId:Id,SInfo:SolInfo>:TwinDom
+{
+    type SolObj: Solution<SolId,Self::Obj,SInfo, Twin<Self::Opt>=Self::SolOpt>;
+    type SolOpt: Solution<SolId,Self::Obj,SInfo, Twin<Self::Obj>=Self::SolObj>;
+}
+
+pub type TwinObj<T> = <T as TwinDom>::Obj;
+pub type TwinOpt<T> = <T as TwinDom>::Opt;
+pub type TwinTyObj<T> = <<T as TwinDom>::Obj as Domain>::TypeDom;
+pub type TwinTyOpt<T> = <<T as TwinDom>::Opt as Domain>::TypeDom;
+
+/// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)
 /// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using target [`Domain`].
 /// See [`OntoDom`] for more information.
-pub trait Onto<Target> {
+pub trait Onto<Target>
+{
     type TargetItem;
     type Item;
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]``>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `item` : `&`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
     /// * `target` : `&`[`Domain`] - A borrowed targetted [`Domain`].
     ///
     /// # Errors
@@ -49,5 +66,3 @@ where
     B: Domain,
 {
 }
-
-impl<> Onto<

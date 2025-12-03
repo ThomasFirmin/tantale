@@ -18,15 +18,10 @@
 
 use crate::{
     domain::{
-        base::{BaseDom, BaseTypeDom},
-        bool::Bool,
-        bounded::{Bounded, BoundedBounds},
-        cat::Cat,
-        onto::{Onto, OntoDom},
-        Domain, TypeDom,
+        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, cat::Cat, onto::{Onto, OntoDom}
     },
     errors::OntoError,
-    recorder::csv::CSVWritable,
+    recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler, Uniform},
 };
 
 use num::cast::AsPrimitive;
@@ -37,27 +32,25 @@ use std::{fmt, ops::RangeInclusive};
 /// A [`f64`] [`Unit`] domain within `[0,1]`.
 /// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
 ///
-pub struct Unit<Sampler> {
-    bounds: RangeInclusive<f64>,
-    mid:f64,
-    width:f64,
-    sampler:
+pub struct Unit {
+    pub bounds: RangeInclusive<f64>,
+    pub mid:f64,
+    pub width:f64,
+    pub sampler:BoundedDistribution,
 }
 
 impl Unit {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new() -> Unit {
+    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(sampler:Option<S>) -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
             mid:0.5,
             width:1.0,
+            sampler: match sampler{
+                Some(s) => s.into(),
+                None => BoundedDistribution::Uniform(Uniform),
+            }
         }
-    }
-}
-
-impl Default for Unit {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -67,13 +60,13 @@ impl PartialEq for Unit {
     }
 }
 
+impl PreDomain for Unit{}
 impl Domain for Unit {
     type TypeDom = f64;
 
-    /// Default sampler for [`Unit`].
-    /// See [`uniform`].
+    /// Sample a `f64` using the inner [`BoundedDistribution`] of [`Unit`].
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
-        uniform(&self.bounds, rng)
+        self.sampler.sample(self, rng)
     }
 
     fn is_in(&self, item: &Self::TypeDom) -> bool {
@@ -81,10 +74,15 @@ impl Domain for Unit {
     }
 }
 
+impl RangeDomain for Unit{
+    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
+        self.bounds.clone()
+    }
+}
 
 impl std::clone::Clone for Unit {
     fn clone(&self) -> Self {
-        Unit::new()
+        Unit::new(Some(self.sampler))
     }
 }
 

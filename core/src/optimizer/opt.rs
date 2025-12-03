@@ -1,55 +1,33 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, FuncWrapper, Outcome},
-    recorder::csv::CSVWritable,
-    searchspace::Searchspace,
-    solution::{BatchType, Id, SolInfo},
-    Onto, Partial,
+    Onto, Partial, 
+    domain::{Domain, PreDomain, onto::{TwinDom, TwinObj}}, 
+    objective::{Codomain, FuncWrapper, Outcome}, 
+    recorder::csv::CSVWritable, 
+    searchspace::Searchspace, 
+    solution::{Batch, CompBatch, Id, SolInfo}
 };
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-pub type OpInfType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Info;
-pub type OpSInfType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::SInfo;
-pub type OpCodType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Cod;
-pub type OpSolType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Sol;
-
-/// Computed [`BatchType`], the associated type of a [`BatchType`] knwowing the optimizer.
-pub type PBType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::BType;
-pub type CBType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <<Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::BType as BatchType<
-        SolId,
-        Obj,
-        Opt,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::SInfo,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Sol,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Info,
-    >>::Comp<<Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Cod, Out>;
-pub type OBType<Op, SolId, Obj, Opt, Out, Scp, Fn> =
-    <<Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::BType as BatchType<
-        SolId,
-        Obj,
-        Opt,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::SInfo,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Sol,
-        <Op as Optimizer<SolId, Obj, Opt, Out, Scp, Fn>>::Info,
-    >>::Outc<Out>;
+pub type OpInfType<Op, SolId, Opt, Out, Scp, Fn> =
+    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Info;
+pub type OpSInfType<Op, SolId, Opt, Out, Scp, Fn> =
+    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::SInfo;
+pub type OpCodType<Op, SolId, Opt, Out, Scp, Fn> =
+    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Cod;
+pub type OpSolType<Op, SolId, Opt, Out, Scp, Fn> =
+    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Sol;
 
 /// Describes the type of iteration:
-/// * Monothreaded: The evaluation of a [`BatchType`] is done within a single thread.
-/// * Threaded: The evaluation of a [`BatchType`] is multi-threaded.
-/// * Distributed: The evaluation of a [`BatchType`] is MPI-distributed.
+/// * Monothreaded: The evaluation of a [`Batch`] is done within a single thread.
+/// * Threaded: The evaluation of a [`Batch`] is multi-threaded.
+/// * Distributed: The evaluation of a [`Batch`] is MPI-distributed.
 ///
 /// # Notes
 ///
-/// According to the [`BatchType`] and algorithm type, the parallelization of the iteration level might be synchronous, i.e. all the [`BatchType`] is evaluated
-/// before the next [`step`](Optimizer::step), or asynchronous, i.e. [`BatchType`] are generated on the fly / on demand.
+/// According to the [`Batch`] and algorithm type, the parallelization of the iteration level might be synchronous, i.e. all the [`Batch`] is evaluated
+/// before the next [`step`](Optimizer::step), or asynchronous, i.e. [`Batch`] are generated on the fly / on demand.
 #[derive(Serialize, Deserialize)]
 pub enum IterMode {
     Monothreaded,
@@ -102,21 +80,15 @@ impl CSVWritable<(), ()> for EmptyInfo {
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
-pub trait Optimizer<SolId, Obj, Opt, Out, Scp, Fn>
+pub trait Optimizer<SolId, Opt, Out, Scp, Fn>
 where
-    Self: Sized,
     SolId: Id,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Scp: Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
     Fn: FuncWrapper,
-    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
-    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
-        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
-    type Sol: Partial<SolId, Obj, Self::SInfo>;
-    type BType: BatchType<SolId, Obj, Opt, Self::SInfo, Self::Sol, Self::Info>;
+    type Sol: Partial<SolId, Opt, Self::SInfo, Twin<TwinObj<Scp>> = Scp::ObjSol, TwinP<TwinObj<Scp>> = Scp::ObjSol>;
     type State: OptState;
     type Cod: Codomain<Out>;
     type SInfo: SolInfo;
@@ -126,12 +98,12 @@ where
     fn init(&mut self);
 
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, scp: &Scp) -> Self::BType;
+    fn first_step(&mut self, scp: &Scp) -> Batch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info>;
 
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: CBType<Self, SolId, Obj, Opt, Out, Scp, Fn>, scp: &Scp) -> Self::BType;
+    fn step(&mut self, x: CompBatch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info,Self::Cod,Out>, scp: &Scp) -> Batch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info>;
 
     /// Returns the current [`OptState`] of the [`Optimizer`].
     fn get_state(&mut self) -> &Self::State;
@@ -141,19 +113,14 @@ where
 }
 
 /// A parallel [`Optimizer`] with multi-processing.
-pub trait MultiInstanceOptimizer<SolId, Obj, Opt, Out, Scp, Fn>:
-    Optimizer<SolId, Obj, Opt, Out, Scp, Fn>
+pub trait MultiInstanceOptimizer<SolId, Opt, Out, Scp, Fn>:
+    Optimizer<SolId, Opt, Out, Scp, Fn>
 where
-    Self: Sized,
     SolId: Id,
-    Obj: Domain + Onto<Opt, TargetItem = Opt::TypeDom, Item = Obj::TypeDom>,
-    Opt: Domain + Onto<Obj, TargetItem = Obj::TypeDom, Item = Opt::TypeDom>,
+    Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Obj, Opt, Self::SInfo>,
+    Scp: Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
     Fn: FuncWrapper,
-    Self::Sol: Partial<SolId, Obj, Self::SInfo>,
-    <Self::Sol as Partial<SolId, Obj, Self::SInfo>>::Twin<Opt>:
-        Partial<SolId, Opt, Self::SInfo, Twin<Obj> = Self::Sol>,
 {
     fn interact(&self);
     fn update(&self);

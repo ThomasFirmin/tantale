@@ -92,7 +92,7 @@ where
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
     Cod::TypeCodom: Send + Sync,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
 {
     fn header_partial_obj(wrt: csv::Writer<File>, scp: &Scp);
     fn header_partial_opt(wrt: csv::Writer<File>, scp: &Scp);
@@ -173,7 +173,8 @@ where
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
             let mut idstr = id.write(&());
-            idstr.extend(scp.write_left(&op.get_x().clone()));
+            let x: Arc<_> = op.get_x();
+            idstr.extend(scp.write_left(&x));
             {
                 let mut wrt_local = amwrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -372,7 +373,8 @@ where
         cbatch.cobj.par_iter().for_each(|op| {
             let id = op.get_id();
             let mut idstr = id.write(&());
-            idstr.extend(scp.write_left(&op.get_x().clone()));
+            let x:Arc<_>= op.get_x();
+            idstr.extend(scp.write_left(&x));
             {
                 let mut wrt_local = amwrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();
@@ -403,7 +405,11 @@ where
             let mut idstr = id.write(&());
             idstr.extend(sinfo.write(&()));
             idstr.extend(cbatch.info.write(&()));
-            idstr.extend(op.get_sol().fid.write(&()));
+            idstr.extend(match op.get_sol().fid{
+                Some(f) => f.write(&()),
+                None => Vec::from(["NoFid".to_string()]),
+            }
+            );
             {
                 let mut wrt_local = amwrt.lock().unwrap();
                 wrt_local.write_record(&idstr).unwrap();

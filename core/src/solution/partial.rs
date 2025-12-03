@@ -1,5 +1,4 @@
 use crate::domain::Domain;
-use crate::domain::onto::OntoDom;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{Id, SolInfo, Solution};
@@ -59,7 +58,7 @@ where
     Dom: Domain,
     Info: SolInfo,
 {
-    type Twin<B: Domain>: Partial<SolId, B, Info, Twin<Dom> = Self>;
+    type TwinP<B: Domain>: Partial<SolId, B, Info, Twin<Dom> =  Self, TwinP<Dom> = Self>;
 
     /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
     ///
@@ -87,9 +86,9 @@ where
     where
         T: Into<Self::Raw>;
         
-    fn twin<T, B>(&self, x: T) -> <Self as Partial<SolId, Dom, Info>>::Twin<B>
+    fn twin<T, B>(&self, x: T) -> Self::TwinP<B>
     where
-        T: Into<<<Self as Partial<SolId, Dom, Info>>::Twin<B> as Solution<SolId, B, Info>>::Raw>,
+        T: Into<<Self::TwinP<B> as Solution<SolId, B, Info>>::Raw>,
         B: Domain;
 }
 
@@ -144,14 +143,14 @@ where
     SolId: Id,
 {
     type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: OntoDom<Dom>>= BasePartial<SolId, B, Info> where Dom:OntoDom<B>;
+    type Twin<B: Domain>= BasePartial<SolId, B, Info>;
 
     fn get_id(&self) -> SolId {
         self.id
     }
     
-    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T {
-        self.x.clone().into()
+    fn get_x(&self) -> Self::Raw {
+        self.x.clone()
     }
 
     fn get_info(&self) -> Arc<Info> {
@@ -165,7 +164,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    type Twin<B: Domain> = BasePartial<SolId, B, Info>;
+    type TwinP<B: Domain> = BasePartial<SolId, B, Info>;
 
     /// Creates a new [`BasePartial`] from a slice of [`TypeDom<Dom>`].
     ///
@@ -196,9 +195,9 @@ where
         BasePartial { id, x: x.into(), info }
     }
     
-    fn twin<T, B>(&self, x: T) -> <Self as Partial<SolId, Dom, Info>>::Twin<B>
+    fn twin<T, B>(&self, x: T) -> Self::Twin<B>
     where
-        T: Into<<<Self as Partial<SolId, Dom, Info>>::Twin<B> as Solution<SolId, B, Info>>::Raw>,
+        T: Into<<Self::Twin<B> as Solution<SolId, B, Info>>::Raw>,
         B: Domain,
     {
         BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
@@ -262,14 +261,14 @@ where
     SolId: Id,
 {
     type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: OntoDom<Dom>> = FidBasePartial<SolId, B, Info> where Dom:OntoDom<B>;
+    type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
 
     fn get_id(&self) -> SolId {
         self.id
     }
     
-    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T {
-        self.x.clone().into()
+    fn get_x(&self) -> Self::Raw {
+        self.x.clone()
     }
 
     fn get_info(&self) -> Arc<Info> {
@@ -283,7 +282,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type TwinP<B: Domain> = FidBasePartial<SolId, B, Info>;
 
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
@@ -298,9 +297,9 @@ where
         }
     }
 
-    fn twin<T, B>(&self, x: T) -> <Self as Partial<SolId, Dom, Info>>::Twin<B>
+    fn twin<T, B>(&self, x: T) -> Self::Twin<B>
     where
-        T: Into<<<Self as Partial<SolId, Dom, Info>>::Twin<B> as Solution<SolId, B, Info>>::Raw>,
+        T: Into<<Self::TwinP<B> as Solution<SolId, B, Info>>::Raw>,
         B: Domain
     {
         FidBasePartial {

@@ -28,7 +28,7 @@ pub use config::DistSaverConfig;
 pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
-pub use domain::{ BaseDom, BaseTypeDom, Bool, Bounded, Cat, Domain, Int, Nat, Onto, Real, Unit};
+pub use domain::{BaseDom, BaseTypeDom, Bool, Bounded, Cat, Domain, Int, Nat, Onto, Real, Unit};
 
 pub mod sampler;
 

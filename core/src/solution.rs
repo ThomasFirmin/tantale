@@ -23,7 +23,7 @@
 //! becomes a [`Computed`](tantale::core::Computed) [`Solution`], made of a [`Partial`](tantale::core::Partial),
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
-use crate::{domain::{Domain, onto::OntoDom}, objective::Step, solution::partial::FidelityPartial};
+use crate::{domain::{Domain, onto::{Paired, TwinDom}}, objective::Step, solution::partial::FidelityPartial};
 
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -39,20 +39,20 @@ where
 /// An abstract [`Solution`] made of at least a [`Domain`] and a [`SolInfo`].
 pub trait Solution<SolId, Dom, Info>
 where
-    Self: Sized + Serialize + for<'de> Deserialize<'de>,
+    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
     Dom: Domain,
     Info: SolInfo,
     SolId: Id + PartialEq,
 {
     type Raw: Debug + Serialize;
-    type Twin<B: OntoDom<Dom>>: Solution<SolId, B, Info, Twin<Dom> = Self> where Dom:OntoDom<B>;
+    type Twin<B: Domain>: Solution<SolId, B, Info, Twin<Dom> = Self>;
 
     /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
     /// This `id` can be shared with a twin [`Solution`].
     fn get_id(&self) -> SolId;
 
     /// Returns the actual sampled point from the set of [`Domain`].
-    fn get_x<T:AsRef<Self::Raw> + From<Self::Raw>>(&self) -> T;
+    fn get_x(&self) -> Self::Raw;
 
     /// Returns the [`SolInfo`] bounded to this [`Solution`].
     fn get_info(&self) -> Arc<Info>;
@@ -74,51 +74,55 @@ where
     serialize = "P: Serialize, P::Twin<Opt>: Serialize",
     deserialize = "P: for<'a> Deserialize<'a>, P::Twin<Opt>: for<'a> Deserialize<'a>",
 ))]
-pub struct Pair<P,SolId,Obj,Opt,SInfo>(P,P::Twin<Opt>)
+pub struct Pair<P,SolId,Obj,Opt,SInfo>(P::Twin<Obj>,P)
 where
     SolId:Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Obj: Domain,
+    Opt: Domain,
     SInfo:SolInfo,
-    P: Solution<SolId,Obj,SInfo>,
-    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>;
+    P: Solution<SolId,Opt,SInfo>;
+
+pub type CompPair<P,SolId,Obj,Opt,SInfo, Cod, Out> = Pair<Computed<P,SolId,Opt,Cod,Out,SInfo>,SolId,Obj,Opt,SInfo>;
 
 impl<P,SolId,Obj,Opt,SInfo> Pair<P,SolId,Obj,Opt,SInfo>
 where
     SolId:Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Obj: Domain,
+    Opt: Domain,
     SInfo:SolInfo,
-    P: Solution<SolId,Obj,SInfo>,
-    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>,
+    P: Solution<SolId,Opt,SInfo>,
+    P::Twin<Obj>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>,
 {
-    pub fn new(solobj:P,solopt:P::Twin<Opt>)->Self{Self(solobj,solopt)}
+    pub fn new(solobj:P::Twin<Obj>,solopt:P)->Self{Self(solobj,solopt)}
     pub fn get_id(&self)->SolId{self.0.get_id()}
     pub fn get_info(&self)->Arc<SInfo>{self.0.get_info()}
 }
+
 impl<P,SolId,Obj,Opt,SInfo> Pair<P,SolId,Obj,Opt,SInfo>
 where
     SolId:Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Obj: Domain,
+    Opt: Domain,
     SInfo:SolInfo,
-    P: FidelityPartial<SolId,Obj,SInfo>,
-    <P as FidelityPartial<SolId,Obj,SInfo>>::Twin<Opt>: FidelityPartial<SolId,Opt,SInfo, Twin<Obj>=P>,
+    P: Solution<SolId,Opt,SInfo> + FidelityPartial<SolId,Opt,SInfo>,
+    <P as FidelityPartial<SolId,Opt,SInfo>>::Twin<Obj>:  Solution<SolId,Opt,SInfo, Twin<Obj>=P> + FidelityPartial<SolId,Obj,SInfo, Twin<Opt>=P>,
 {
-    pub fn get_fidelity(&self)->Option<Fidelity>{self.0.get_fidelity()}
-    pub fn get_step(&self)->Step{self.0.get_step()}
+    pub fn get_fidelity(&self)->Option<Fidelity>{
+        <P as FidelityPartial<SolId,Opt,SInfo>>::get_fidelity(&self.1)
+    }
+    pub fn get_step(&self)->Step{<P as FidelityPartial<SolId,Opt,SInfo>>::get_step(&self.1)}
 }
 
-impl<P,SolId,Obj,Opt,SInfo> From<(P,P::Twin<Opt>)> for Pair<P,SolId,Obj,Opt,SInfo>
+impl<P,SolId,Obj,Opt,SInfo> From<(P::Twin<Obj>,P)> for Pair<P,SolId,Obj,Opt,SInfo>
 where
     SolId:Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Obj: Domain,
+    Opt: Domain,
     SInfo:SolInfo,
-    P: Solution<SolId,Obj,SInfo>,
-    P::Twin<Opt>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>
+    P: Solution<SolId,Opt,SInfo>,
+    P::Twin<Obj>: Solution<SolId,Opt,SInfo, Twin<Obj>=P>,
 {
-    fn from(value: (P,P::Twin<Opt>)) -> Self {
+    fn from(value: (P::Twin<Obj>,P)) -> Self {
         Self(value.0,value.1)
     }
 }
@@ -136,7 +140,4 @@ pub mod outsol;
 pub use outsol::OutSol;
 
 pub mod batchtype;
-pub use batchtype::{
-    Batch, BatchType, CompBatch, CompBatchType, CompSingle, OutBatch, OutBatchType, RawSingle,
-    Single,
-};
+pub use batchtype::{Batch, CompBatch, OutBatch};

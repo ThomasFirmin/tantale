@@ -1,6 +1,6 @@
 use crate::{
     Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
-    solution::{CompBatch, OutBatch, batchtype::Pair, partial::FidelityPartial}
+    solution::{CompBatch, OutBatch, Pair, partial::FidelityPartial}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -167,32 +167,32 @@ impl IdleWorker{
 
 /// A structure containing utilitaries to send and [`Partial`] to [`Worker`], and receive [`RawSol`]
 /// and [`Computed`] from [`Worker`].
-pub struct SendRec<'a, Msg, PSol, Obj, Opt, SolId, SInfo>
+pub struct SendRec<'a, Msg, P, SolId, Obj, Opt, SInfo, Info>
 where
-    Msg: XMsg<PSol, SolId, Obj, SInfo>,
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    Msg: XMsg<P, SolId, Obj, SInfo>,
+    P: Partial<SolId,Obj,SInfo>,
+    SolId: Id,
     Obj: Domain,
     Opt: Domain,
-    SolId: Id,
     SInfo: SolInfo,
+    Info: OptInfo,
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: IdleWorker,
-    pub waiting: HashMap<SolId, (PSol, PSol::Twin<Opt>)>,
+    pub waiting: HashMap<SolId, Pair<P,SolId,Obj,Opt,SInfo>>,
     _msg: PhantomData<Msg>,
 }
 
-impl<'a, M, PSol, Obj, Opt, SolId, SInfo> SendRec<'a, M, PSol, Obj, Opt, SolId, SInfo>
+impl<'a, Msg, P, SolId, Obj, Opt, SInfo, Info> SendRec<'a, Msg, P, SolId, Obj, Opt, SInfo, Info>
 where
-    PSol: Partial<SolId, Obj, SInfo>,
-    PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
+    Msg: XMsg<P, SolId, Obj, SInfo>,
+    P: Partial<SolId,Obj,SInfo>,
+    SolId: Id,
     Obj: Domain,
     Opt: Domain,
-    SolId: Id,
     SInfo: SolInfo,
-    M: XMsg<PSol,SolId,Obj,SInfo>,
+    Info: OptInfo,
 {
     pub fn new(
         config: Configuration,
@@ -209,13 +209,7 @@ where
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_worker(&mut self, pair: (PSol, PSol::Twin<Opt>)) -> Option<Rank>
-    where
-        PSol: Partial<SolId, Obj, SInfo>,
-        PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-        Opt: Domain,
-        SolId: Id,
-        SInfo: SolInfo,
+    pub fn send_to_worker(&mut self, pair: Pair<P::TwinP<Opt>,SolId,Obj,Opt,SInfo>) -> Option<Rank>
     {
         if let Some(rank) = self.idle.pop() {
             let r = rank as Rank ;
@@ -227,26 +221,20 @@ where
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_rank(&mut self, rank:Rank, pair: (PSol, PSol::Twin<Opt>))
-    where
-        PSol: Partial<SolId, Obj, SInfo>,
-        PSol::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-        Opt: Domain,
-        SolId: Id,
-        SInfo: SolInfo,
+    pub fn send_to_rank(&mut self, rank:Rank, pair: Pair<P::TwinP<Opt>,SolId,Obj,Opt,SInfo>)
     {
         let sid = pair.0.get_id();
-        let msg = M::new(&pair.0);
+        let msg = Msg::new(&pair.0);
         send_msg(self.proc, msg, rank, 0, self.config);
         self.idle.set_busy(rank);
         self.waiting.insert(sid, pair);
     }
 
     /// Receive an  [`Outcome`] from a [`Worker`].
-    pub fn rec_computed<Info: OptInfo, Cod: Codomain<Out>, Out: Outcome>(
+    pub fn rec_computed<Cod: Codomain<Out>, Out: Outcome>(
         &mut self,
         obatch: &mut OutBatch<SolId, Info, Out>,
-        cbatch: &mut CompBatch<PSol, SolId, Obj, Opt, SInfo, Info, Cod, Out>,
+        cbatch: &mut CompBatch<P, SolId, Obj, Opt, SInfo, Info, Cod, Out>,
         cod: &Cod,
     ) -> Rank
     {
@@ -338,5 +326,3 @@ impl <T> PriorityList<T> {
         
     }
 }
-
-pub type PrioritySolList<SolA,SolB> = PriorityList<Pair<SolA,SolB>>;
