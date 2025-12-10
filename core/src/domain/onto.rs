@@ -18,24 +18,18 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{Domain, Id, SolInfo, Solution, errors::OntoError};
+use crate::{Domain, errors::OntoError};
 
-pub trait TwinDom
+pub trait Linked
 {
     type Obj: Domain;
     type Opt: Domain;
 }
 
-pub trait Paired<SolId:Id,SInfo:SolInfo>:TwinDom
-{
-    type SolObj: Solution<SolId,Self::Obj,SInfo, Twin<Self::Opt>=Self::SolOpt>;
-    type SolOpt: Solution<SolId,Self::Obj,SInfo, Twin<Self::Obj>=Self::SolObj>;
-}
-
-pub type TwinObj<T> = <T as TwinDom>::Obj;
-pub type TwinOpt<T> = <T as TwinDom>::Opt;
-pub type TwinTyObj<T> = <<T as TwinDom>::Obj as Domain>::TypeDom;
-pub type TwinTyOpt<T> = <<T as TwinDom>::Opt as Domain>::TypeDom;
+pub type LinkObj<T> = <T as Linked>::Obj;
+pub type LinkOpt<T> = <T as Linked>::Opt;
+pub type LinkTyObj<T> = <<T as Linked>::Obj as Domain>::TypeDom;
+pub type LinkTyOpt<T> = <<T as Linked>::Opt as Domain>::TypeDom;
 
 /// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)
 /// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using target [`Domain`].

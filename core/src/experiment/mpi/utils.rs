@@ -1,6 +1,6 @@
 use crate::{
-    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo,
-    solution::{CompBatch, OutBatch, Pair, partial::FidelityPartial}
+    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, Solution,
+    solution::{Batch, IntoComputed, OutBatch, SolutionShape, partial::FidelityPartial}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -10,7 +10,7 @@ use mpi::{
     Rank, Tag,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData};
 
 
 use crate::{MPI_RANK, MPI_SIZE};
@@ -77,7 +77,7 @@ pub trait XMsg<PSol, SolId, Dom, SInfo>: Msg
 where
     SolId: Id,
     Dom: Domain,
-    PSol: Partial<SolId, Dom, SInfo>,
+    PSol: Solution<SolId, Dom, SInfo>,
     SInfo: SolInfo,
 {
     fn new(sol: &PSol) -> Self;
@@ -86,18 +86,25 @@ where
 /// A [`XMessage`] is a [`XMsg`] describing the content sent to a [`Worker`].
 /// It is made of the raw solution, and its [`Id`].
 #[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize, SolId:Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
-))]
-pub struct XMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>);
-impl<SolId: Id, Dom: Domain> Msg for XMessage<SolId, Dom> {}
-impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for XMessage<SolId, Dom>
+#[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
+pub struct XMessage<SolId,Raw>(pub SolId, pub Raw)
+where
+    SolId: Id,
+    Raw: Serialize + for<'a> Deserialize<'a>;
+
+impl<SolId,Raw> Msg for XMessage<SolId, Raw>
+where
+    SolId: Id,
+    Raw: Serialize + for<'a> Deserialize<'a>
+{}
+
+impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for XMessage<SolId, PSol::Raw>
 where
     SolId: Id,
     Dom: Domain,
-    PSol: Partial<SolId, Dom, SInfo>,
+    PSol: Solution<SolId, Dom, SInfo>,
     SInfo: SolInfo,
+    PSol::Raw: Serialize + for<'a> Deserialize<'a>,
 {
     fn new(sol: &PSol) -> Self {
         XMessage(sol.get_id(), sol.get_x())
@@ -107,17 +114,24 @@ where
 /// A [`FXMessage`] is a [`XMsg`] describing the content sent to a [`Worker`].
 /// It is made of the raw solution, its [`Id`], and a  [`Fidelity`].
 #[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize, SolId:Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, SolId:for<'a> Deserialize<'a>",
-))]
-pub struct FXMessage<SolId: Id, Dom: Domain>(pub SolId, pub Arc<[Dom::TypeDom]>, pub Option<Fidelity>);
-impl<SolId: Id, Dom: Domain> Msg for FXMessage<SolId, Dom> {}
-impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, Dom>
+#[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
+pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub Option<Fidelity>)
+where
+    SolId: Id,
+    Raw: Serialize + for<'a> Deserialize<'a>;
+
+impl<SolId,Raw> Msg for FXMessage<SolId, Raw> 
+where
+    SolId: Id,
+    Raw: Serialize + for<'a> Deserialize<'a>,
+{}
+
+impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, PSol::Raw>
 where
     SolId: Id,
     Dom: Domain,
     PSol: FidelityPartial<SolId, Dom, SInfo>,
+    PSol::Raw: Serialize + for<'a> Deserialize<'a>,
     SInfo: SolInfo,
 {
     fn new(sol: &PSol) -> Self {
@@ -167,32 +181,37 @@ impl IdleWorker{
 
 /// A structure containing utilitaries to send and [`Partial`] to [`Worker`], and receive [`RawSol`]
 /// and [`Computed`] from [`Worker`].
-pub struct SendRec<'a, Msg, P, SolId, Obj, Opt, SInfo, Info>
+pub struct SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
 where
-    Msg: XMsg<P, SolId, Obj, SInfo>,
-    P: Partial<SolId,Obj,SInfo>,
+    Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
+    Shape: SolutionShape<SolId,SInfo> + IntoComputed<SolId,SInfo,Cod,Out>,
+    Shape::SolObj: Partial<SolId,Shape::Obj,SInfo>,
+    Shape::SolOpt: Partial<SolId,Shape::Opt,SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
     SInfo: SolInfo,
-    Info: OptInfo,
+    Cod:Codomain<Out>,
+    Out:Outcome,
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
     pub idle: IdleWorker,
-    pub waiting: HashMap<SolId, Pair<P,SolId,Obj,Opt,SInfo>>,
+    pub waiting: HashMap<SolId, Shape>,
     _msg: PhantomData<Msg>,
+    _sinfo: PhantomData<SInfo>,
+    _cod: PhantomData<Cod>,
+    _out: PhantomData<Out>,
 }
 
-impl<'a, Msg, P, SolId, Obj, Opt, SInfo, Info> SendRec<'a, Msg, P, SolId, Obj, Opt, SInfo, Info>
+impl<'a, Msg, Shape, SolId, SInfo,Cod,Out> SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
 where
-    Msg: XMsg<P, SolId, Obj, SInfo>,
-    P: Partial<SolId,Obj,SInfo>,
+    Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
+    Shape: SolutionShape<SolId,SInfo> + IntoComputed<SolId,SInfo,Cod,Out>,
+    Shape::SolObj: Partial<SolId,Shape::Obj,SInfo>,
+    Shape::SolOpt: Partial<SolId,Shape::Opt,SInfo>,
     SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
     SInfo: SolInfo,
-    Info: OptInfo,
+    Cod:Codomain<Out>,
+    Out:Outcome,
 {
     pub fn new(
         config: Configuration,
@@ -205,11 +224,14 @@ where
             idle: IdleWorker::new(size),
             waiting: HashMap::new(),
             _msg: PhantomData,
+            _sinfo: PhantomData,
+            _cod: PhantomData,
+            _out: PhantomData,
         }
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_worker(&mut self, pair: Pair<P::TwinP<Opt>,SolId,Obj,Opt,SInfo>) -> Option<Rank>
+    pub fn send_to_worker(&mut self, pair: Shape) -> Option<Rank>
     {
         if let Some(rank) = self.idle.pop() {
             let r = rank as Rank ;
@@ -221,20 +243,20 @@ where
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_rank(&mut self, rank:Rank, pair: Pair<P::TwinP<Opt>,SolId,Obj,Opt,SInfo>)
+    pub fn send_to_rank(&mut self, rank:Rank, pair: Shape)
     {
-        let sid = pair.0.get_id();
-        let msg = Msg::new(&pair.0);
+        let sid = pair.get_id();
+        let msg = Msg::new(&pair.get_sobj());
         send_msg(self.proc, msg, rank, 0, self.config);
         self.idle.set_busy(rank);
         self.waiting.insert(sid, pair);
     }
 
     /// Receive an  [`Outcome`] from a [`Worker`].
-    pub fn rec_computed<Cod: Codomain<Out>, Out: Outcome>(
+    pub fn rec_computed<Info:OptInfo>(
         &mut self,
         obatch: &mut OutBatch<SolId, Info, Out>,
-        cbatch: &mut CompBatch<P, SolId, Obj, Opt, SInfo, Info, Cod, Out>,
+        cbatch: &mut Batch<SolId,SInfo,Info,Shape::CompShape>,
         cod: &Cod,
     ) -> Rank
     {
@@ -245,10 +267,10 @@ where
         let id = msg.0;
         let out = msg.1;
         let y = cod.get_elem(&out);
-        let (pobj, popt) = self.waiting.remove(&id).unwrap();
+        let pair = self.waiting.remove(&id).unwrap();
         // Update Out and Computed batches
-        obatch.add(id, out);
-        cbatch.add_res(pobj, popt, y);
+        obatch.add((id, out));
+        cbatch.add(pair.into_computed(y.into()));
         let rank = status.source_rank();
         self.idle.set_idle(rank);
         rank

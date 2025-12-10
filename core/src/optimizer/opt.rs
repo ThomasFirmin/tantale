@@ -1,23 +1,13 @@
 use crate::{
-    Onto, Partial, 
-    domain::{Domain, PreDomain, onto::{TwinDom, TwinObj}}, 
-    objective::{Codomain, FuncWrapper, Outcome}, 
-    recorder::csv::CSVWritable, 
-    searchspace::Searchspace, 
-    solution::{Batch, CompBatch, Id, SolInfo}
+    domain::{Domain, onto::{LinkObj, LinkOpt}},
+    objective::{Codomain, FuncWrapper, Outcome},
+    recorder::csv::CSVWritable,
+    searchspace::{CompShape, Searchspace},
+    solution::{Batch, Id, IntoComputed, Partial, SolInfo}
 };
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-
-pub type OpInfType<Op, SolId, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Info;
-pub type OpSInfType<Op, SolId, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::SInfo;
-pub type OpCodType<Op, SolId, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Cod;
-pub type OpSolType<Op, SolId, Opt, Out, Scp, Fn> =
-    <Op as Optimizer<SolId, Opt, Out, Scp, Fn>>::Sol;
 
 /// Describes the type of iteration:
 /// * Monothreaded: The evaluation of a [`Batch`] is done within a single thread.
@@ -77,18 +67,37 @@ impl CSVWritable<(), ()> for EmptyInfo {
     }
 }
 
+pub type OpInfType<Op, Scp, SolId, Out> =
+    <Op as Optimizer<SolId, LinkOpt<Scp>, Out, Scp>>::Info;
+pub type OpSInfType<Op, Scp, SolId, Out> =
+    <Op as Optimizer<SolId, LinkOpt<Scp>, Out, Scp>>::SInfo;
+pub type OpCodType<Op, Scp, SolId, Out> =
+    <Op as Optimizer<SolId, LinkOpt<Scp>, Out, Scp>>::Cod;
+pub type OpSolOptType<Op, Opt, Scp, SolId, Out> =
+    <Op as Optimizer<SolId, Opt, Out, Scp>>::Sol;
+pub type OpSolObjType<Op, Opt, Scp, SolId, Out> =
+    <OpSolOptType<Op,Opt,Scp,SolId,Out> as Partial<SolId,Opt,OpSInfType<Op,Scp,SolId,Out>>>::TwinP<LinkObj<Scp>>;
+/// A [`SolutionShape`] made of [`Computed`].
+pub type OptCompPair<Op,Scp, SolId,Out> = CompShape<OpSolObjType<Op,LinkOpt<Scp>,Scp,SolId,Out>,OpSolOptType<Op,LinkOpt<Scp>,Scp,SolId,Out>,Scp,SolId,OpSInfType<Op,Scp,SolId,Out>,OpCodType<Op,Scp,SolId,Out>,Out>;
+/// A [`Batch`] of [`Computed`] [`SolutionShape`].
+pub type OptCompBatch<Op,Scp, SolId,Out> = Batch<SolId,OpSInfType<Op,Scp,SolId,Out>,OpInfType<Op,Scp,SolId,Out>,CompShape<OpSolObjType<Op,LinkOpt<Scp>,Scp,SolId,Out>,OpSolOptType<Op,LinkOpt<Scp>,Scp,SolId,Out>,Scp,SolId,OpSInfType<Op,Scp,SolId,Out>,OpCodType<Op,Scp,SolId,Out>,Out>>;
+
+/// A utility trait to force type equality.
+pub trait SameAs<T> {}
+impl<T> SameAs<T> for T {}
+
 /// The [`Optimizer`] is one of the elemental software brick of the library.
 /// It describes how to sample [`Solutions`](Solution) in order to **maximize**
 /// the [`Objective`] function.
-pub trait Optimizer<SolId, Opt, Out, Scp, Fn>
+pub trait Optimizer<SolId, Opt, Out, Scp>
 where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper,
+    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
 {
-    type Sol: Partial<SolId, Opt, Self::SInfo, Twin<TwinObj<Scp>> = Scp::ObjSol, TwinP<TwinObj<Scp>> = Scp::ObjSol>;
+    type Sol: Partial<SolId, Opt, Self::SInfo>;
     type State: OptState;
     type Cod: Codomain<Out>;
     type SInfo: SolInfo;
@@ -96,30 +105,56 @@ where
 
     /// Initialize the [`Optimizer`]
     fn init(&mut self);
-
-    /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, scp: &Scp) -> Batch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info>;
-
-    /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
-    /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
-    /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: CompBatch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info,Self::Cod,Out>, scp: &Scp) -> Batch<Self::Sol,SolId,TwinObj<Scp>,Opt,Self::SInfo,Self::Info>;
-
     /// Returns the current [`OptState`] of the [`Optimizer`].
     fn get_state(&mut self) -> &Self::State;
-
     /// Return an instance of the [`Optimizer`]  from an [`OptState`].
     fn from_state(state: Self::State) -> Self;
 }
 
-/// A parallel [`Optimizer`] with multi-processing.
-pub trait MultiInstanceOptimizer<SolId, Opt, Out, Scp, Fn>:
-    Optimizer<SolId, Opt, Out, Scp, Fn>
+
+/// An [`Optimizer`] for which, at each step, a
+pub trait BatchOptimizer<SolId, Opt, Out, Scp, Fn>:Optimizer<SolId, Opt, Out, Scp>
 where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp: Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
+    Fn: FuncWrapper,
+{
+    /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
+    fn first_step(&mut self, scp: &Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::PartShape>;
+    /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
+    /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
+    /// Requires previously [`Computed`] `x` [`Solution`].
+    fn step(&mut self, x: OptCompBatch<Self,Scp, SolId,Out>, scp:&Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::PartShape>;
+}
+
+pub trait SequentialOptimizer<SolId, Opt, Out, Scp, Fn>:Optimizer<SolId, Opt, Out, Scp, Info = EmptyInfo>
+where
+    SolId: Id,
+    Opt: Domain,
+    Out: Outcome,
+    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
+    Fn: FuncWrapper,
+{
+    /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
+    fn first_step(&mut self, scp: &Scp) -> Scp::PartShape;
+    /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
+    /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
+    /// Requires previously [`Computed`] `x` [`Solution`].
+    fn step(&mut self, x: &OptCompPair<Self,Scp,SolId,Out>, scp: &Scp) -> Scp::PartShape;
+}
+
+/// A parallel [`Optimizer`] with multi-processing.
+pub trait MultiInstanceOptimizer<SolId, Opt, Out, Scp, Fn>:Optimizer<SolId, Opt, Out, Scp>
+where
+    SolId: Id,
+    Opt: Domain,
+    Out: Outcome,
+    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
     Fn: FuncWrapper,
 {
     fn interact(&self);

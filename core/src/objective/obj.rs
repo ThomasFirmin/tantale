@@ -3,12 +3,14 @@
 //! which will be further processed by the [`Codomain`](tantale::core::Codomain).
 //!
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    FidOutcome, domain::{Domain, TypeDom}, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity
+    FidOutcome, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity
 };
 
-type OptimFn<Obj, Out> = fn(&[TypeDom<Obj>]) -> Out;
-type SteppFn<Obj, Out, FnState> = fn(&[TypeDom<Obj>], Fidelity, Option<FnState>) -> (Out, FnState);
+type OptimFn<Raw, Out> = fn(Raw) -> Out;
+type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
 
 /// A wrapper arround the user-defined function to maximize.
 pub trait FuncWrapper {}
@@ -21,15 +23,15 @@ pub trait FuncWrapper {}
 ///
 /// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. It takes a vector
 ///   containing the point to be evaluated.
-pub struct Objective<Obj, Out>(pub OptimFn<Obj::TypeDom, Out>)
+pub struct Objective<Raw, Out>(pub OptimFn<Raw, Out>)
 where
-    Obj: Domain,
-    Out: Outcome;
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:Outcome;
 
-impl<Obj, Out> Objective<Obj, Out>
+impl<Raw, Out> Objective<Raw, Out>
 where
-    Obj: Domain,
-    Out: Outcome,
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:Outcome,
 {
     /// Creates an new instance of [`ObjBase`].
     ///
@@ -39,23 +41,22 @@ where
     ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(func: OptimFn<Obj::TypeDom, Out>) -> Self {
+    pub fn new(func: OptimFn<Raw, Out>) -> Self {
         Objective(func)
     }
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn compute(&self, x: &[TypeDom<Obj>]) -> Out {
+    pub fn compute(&self, x: Raw) -> Out {
         (self.0)(x)
     }
 }
 
-impl<Obj, Out> FuncWrapper for Objective<Obj, Out>
+impl<Raw, Out> FuncWrapper for Objective<Raw, Out> 
 where
-    Obj: Domain,
-    Out: Outcome,
-{
-}
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:Outcome
+{}
 
 /// The [`Stepped`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return an [`Outcome`],
@@ -65,17 +66,17 @@ where
 ///
 /// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`]
 ///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
-pub struct Stepped<Obj, Out, FnState>(pub SteppFn<Obj::TypeDom, Out, FnState>)
+pub struct Stepped<Raw, Out, FnState>(pub SteppFn<Raw, Out, FnState>)
 where
-    Obj: Domain,
-    Out: FidOutcome,
-    FnState: FuncState;
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:FidOutcome,
+    FnState:FuncState;
 
-impl<Obj, Out, FnState> Stepped<Obj, Out, FnState>
+impl<Raw, Out, FnState> Stepped<Raw, Out, FnState>
 where
-    Obj: Domain,
-    Out: FidOutcome,
-    FnState: FuncState,
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:FidOutcome,
+    FnState:FuncState
 {
     /// Creates an new instance of [`ObjBase`].
     ///
@@ -85,7 +86,7 @@ where
     ///   It can be created side-by-side with the [`Searchspace`] using the
     ///   [`hpo!`](tantale::macros:objective) macro.
     ///
-    pub fn new(func: SteppFn<Obj::TypeDom, Out, FnState>) -> Self {
+    pub fn new(func: SteppFn<Raw, Out, FnState>) -> Self {
         Stepped(func)
     }
     /// Initialize the ['Objective'].
@@ -93,7 +94,7 @@ where
     /// Compute the raw outputs of a function to maximize according to an input `x`.
     pub fn compute(
         &self,
-        x: &[TypeDom<Obj>],
+        x: Raw,
         fidelity: Fidelity,
         state: Option<FnState>,
     ) -> (Out, FnState) {
@@ -101,10 +102,9 @@ where
     }
 }
 
-impl<Obj, Out, FnState> FuncWrapper for Stepped<Obj, Out, FnState>
+impl<Raw, Out, FnState> FuncWrapper for Stepped<Raw, Out, FnState>
 where
-    Obj: Domain,
-    Out: FidOutcome,
-    FnState: FuncState,
-{
-}
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out:FidOutcome,
+    FnState:FuncState
+{}

@@ -3,7 +3,7 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::algos::RandomSearch;
 use tantale::core::{
-    optimizer::opt::{OpInfType, OpSInfType, OpSolType},
+    optimizer::opt::{OpInfType, OpSInfType, OpSolOptType},
     recorder::{
         csv::{CSVRecorder, CSVWritable},
         Recorder,
@@ -70,7 +70,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn>(
         Scp,
         Fn,
         BType = Batch<
-            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            OpSolOptType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
             SId,
             BaseDom,
             BaseDom,
@@ -157,7 +157,7 @@ pub fn run_reader<Op, Scp, Fn>(
         Scp,
         Fn,
         BType = Batch<
-            OpSolType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
+            OpSolOptType<Op, SId, BaseDom, BaseDom, OutExample, Scp, Fn>,
             SId,
             BaseDom,
             BaseDom,

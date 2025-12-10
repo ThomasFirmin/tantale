@@ -15,11 +15,7 @@ use std::collections::HashMap;
 //--------//
 
 /// Desribes the different methods of a [`Worker``] process during a [`DistRunable`], a MPI-distributed optimization.
-pub trait Worker<SolId, Obj>
-where
-    Self: Sized,
-    SolId: Id,
-    Obj: Domain,
+pub trait Worker<SolId:Id>
 {
     type WState: WorkerState;
     fn run(self);
@@ -57,30 +53,20 @@ impl<SolId: Id, FnState: FuncState> FidWState<SolId, FnState> {
 
 /// A basic worker for MPI-distributed optimization.
 /// A worker is used to evaluate [`Partial`] with the [`Objective`] in parallel.
-pub struct BaseWorker<'a, Obj, Out>
-where
-    Obj: Domain,
-    Out: Outcome,
+pub struct BaseWorker<'a, Raw, Out:Outcome>
 {
     pub proc: &'a MPIProcess,
-    pub objective: Objective<Obj, Out>,
+    pub objective: Objective<Raw, Out>,
 }
 /// Creates a [`BaseWorker`] without any state and checkpointer.
-impl<'a, Obj, Out> BaseWorker<'a, Obj, Out>
-where
-    Obj: Domain,
-    Out: Outcome,
+impl<'a, Raw, Out:Outcome> BaseWorker<'a, Raw, Out>
 {
-    pub fn new(objective: Objective<Obj, Out>, proc: &'a MPIProcess) -> Self {
+    pub fn new(objective: Objective<Raw, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
     }
 }
 
-impl<'a, SolId, Obj, Out> Worker<SolId, Obj> for BaseWorker<'a, Obj, Out>
-where
-    SolId: Id,
-    Obj: Domain,
-    Out: Outcome,
+impl<'a, SolId:Id, Raw, Out:Outcome> Worker<SolId> for BaseWorker<'a, Raw, Out>
 {
     type WState = NoWState;
     fn run(self) {
@@ -92,7 +78,7 @@ where
             if status.tag() == 42 {
                 break;
             } else {
-                let msg = XMessage::<SolId, Obj>::from_bytes(raw, config);
+                let msg = XMessage::<SolId,Raw>::from_bytes(raw, config);
                 let id = msg.0;
                 let x = msg.1.as_ref();
                 let out = self.objective.compute(x);

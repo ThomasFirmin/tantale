@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Domain, PreDomain, NoDomain, onto::{OntoDom, TwinDom, TwinObj, TwinOpt, TwinTyObj, TwinTyOpt}}, errors::OntoError, recorder::csv::{CSVLeftRight, CSVWritable}
+    domain::{Domain, PreDomain, NoDomain, onto::{OntoDom, Linked, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt}}, errors::OntoError, recorder::csv::{CSVLeftRight, CSVWritable}
 };
 
 use rand::prelude::ThreadRng;
@@ -19,13 +19,13 @@ where
     pub domain_opt: Arc<Opt>,
 }
 
-impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> TwinDom for Var<Obj,Opt>
+impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Linked for Var<Obj,Opt>
 {
     type Obj = Obj;
     type Opt = Opt;
 }
 
-impl<Obj:Domain> TwinDom for Var<Obj,NoDomain>
+impl<Obj:Domain> Linked for Var<Obj,NoDomain>
 {
     type Obj = Obj;
     type Opt = Obj;
@@ -54,8 +54,8 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_obj(&self, rng: &mut ThreadRng) -> TwinTyObj<Self> {
-        TwinObj::<Self>::sample(&self.domain_obj, rng)
+    pub fn sample_obj(&self, rng: &mut ThreadRng) -> LinkTyObj<Self> {
+        LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Function to sample a point from the [`Objective`](crate::core::objective::Objective) [`Domain`].
     ///
@@ -78,8 +78,8 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_opt(&self, rng: &mut ThreadRng) -> TwinTyOpt<Self> {
-        TwinOpt::<Self>::sample(&self.domain_opt, rng)
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> LinkTyOpt<Self> {
+        LinkOpt::<Self>::sample(&self.domain_opt, rng)
     }
     /// Check if an `item` is in the `Obj` [`Domain`] of the [`Var`].
     ///
@@ -102,8 +102,8 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn is_in_obj(&self, item: &TwinTyObj<Self>) -> bool {
-        TwinObj::<Self>::is_in(&self.domain_obj,item)
+    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+        LinkObj::<Self>::is_in(&self.domain_obj,item)
     }
     /// Check if an `item` is in the `Opt` [`Domain`] of the [`Var`].
     ///
@@ -126,8 +126,8 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn is_in_opt(&self, item: &TwinTyOpt<Self>) -> bool {
-        TwinOpt::<Self>::is_in(&self.domain_opt,item)
+    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+        LinkOpt::<Self>::is_in(&self.domain_opt,item)
     }
     /// Function to replicate a variable a certain number of times .
     /// A new [`Var`] struct is created by cloning the [`Arc`] references of the domain, and by incrementing the
@@ -191,17 +191,17 @@ impl<Obj:Domain> Var<Obj, NoDomain>
             domain_opt: Arc::new(domain_opt),
         }
     }
-     pub fn sample_obj(&self, rng: &mut ThreadRng) -> TwinTyObj<Self> {
-        TwinObj::<Self>::sample(&self.domain_obj, rng)
+     pub fn sample_obj(&self, rng: &mut ThreadRng) -> LinkTyObj<Self> {
+        LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
-    pub fn sample_opt(&self, rng: &mut ThreadRng) -> TwinTyOpt<Self> {
-        TwinOpt::<Self>::sample(&self.domain_obj, rng)
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> LinkTyOpt<Self> {
+        LinkOpt::<Self>::sample(&self.domain_obj, rng)
     }
-    pub fn is_in_obj(&self, item: &TwinTyObj<Self>) -> bool {
-        TwinObj::<Self>::is_in(&self.domain_obj,item)
+    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+        LinkObj::<Self>::is_in(&self.domain_obj,item)
     }
-    pub fn is_in_opt(&self, item: &TwinTyOpt<Self>) -> bool {
-        TwinOpt::<Self>::is_in(&self.domain_obj,item)
+    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+        LinkOpt::<Self>::is_in(&self.domain_obj,item)
     }
     pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::with_capacity(repeats);
@@ -254,7 +254,7 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     ///
     /// ```
     ///
-    pub fn onto_obj(&self, item: &TwinTyOpt<Self>) -> Result<TwinTyObj<Self>, OntoError>
+    pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError>
     {
         self.domain_opt.onto(item, &self.domain_obj)
     }
@@ -285,15 +285,15 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn onto_opt(&self, item: &TwinTyObj<Self>) -> Result<TwinTyOpt<Self>, OntoError> {
+    pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
         self.domain_obj.onto(item, &self.domain_opt)
     }
 }
 
-impl<Obj, Opt> CSVLeftRight<Self, TwinTyObj<Self>, TwinTyOpt<Self>> for Var<Obj, Opt>
+impl<Obj, Opt> CSVLeftRight<Self, LinkTyObj<Self>, LinkTyOpt<Self>> for Var<Obj, Opt>
 where
-    Obj: OntoDom<Opt> + CSVWritable<(), TwinTyObj<Self>>,
-    Opt: OntoDom<Obj> + CSVWritable<(), TwinTyOpt<Self>>,
+    Obj: OntoDom<Opt> + CSVWritable<(), LinkTyObj<Self>>,
+    Opt: OntoDom<Obj> + CSVWritable<(), LinkTyOpt<Self>>,
 {
     fn header(elem: &Self) -> Vec<String> {
         let (name, id) = elem.name;
@@ -321,9 +321,9 @@ where
     }
 }
 
-impl<Obj> CSVLeftRight<Self, TwinTyObj<Self>, TwinTyOpt<Self>> for Var<Obj,NoDomain>
+impl<Obj> CSVLeftRight<Self, LinkTyObj<Self>, LinkTyOpt<Self>> for Var<Obj,NoDomain>
 where
-    Obj: Domain + CSVWritable<(), TwinTyObj<Self>>,
+    Obj: Domain + CSVWritable<(), LinkTyObj<Self>>,
 {
     fn header(elem: &Self) -> Vec<String> {
         let (name, id) = elem.name;
@@ -342,11 +342,11 @@ where
         }
     }
 
-    fn write_left(&self, comp: &TwinTyObj<Self>) -> Vec<String> {
+    fn write_left(&self, comp: &LinkTyObj<Self>) -> Vec<String> {
         self.domain_obj.write(comp)
     }
 
-    fn write_right(&self, comp: &TwinTyOpt<Self>) -> Vec<String> {
+    fn write_right(&self, comp: &LinkTyOpt<Self>) -> Vec<String> {
         self.domain_obj.write(comp)
     }
 }

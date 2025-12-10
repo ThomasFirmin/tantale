@@ -65,7 +65,7 @@ where
     /// # Attributes
     ///
     /// * `id` : `SolId` - A unique [`Id`].
-    /// * `x` : [`Arc`]`<[`[`TypeDom`]`<Dom>]>` - A basic solution from the [`Searchspace`].
+    /// * `x` : [`Arc`]`<`[`TypeDom`](Domain::TypeDom)`>` - A basic solution from the [`Searchspace`](crate::Searchspace).
     ///
     /// # Example
     ///
@@ -86,10 +86,7 @@ where
     where
         T: Into<Self::Raw>;
         
-    fn twin<T, B>(&self, x: T) -> Self::TwinP<B>
-    where
-        T: Into<<Self::TwinP<B> as Solution<SolId, B, Info>>::Raw>,
-        B: Domain;
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>;
 }
 
 /// Describes a [`Partial`] associated to a [`Fidelity`].
@@ -100,7 +97,7 @@ where
     Dom: Domain,
     Info: SolInfo,
 {
-    type Twin<B: Domain>: FidelityPartial<SolId, B, Info, Twin<Dom> = Self>;
+    type TwinF<B: Domain>: FidelityPartial<SolId, B, Info, TwinF<Dom> = Self>;
 
     fn get_step(&self) -> Step;
     fn set_step(&mut self, step:Step);
@@ -108,10 +105,10 @@ where
     fn set_fidelity(&mut self, fidelity:Option<Fidelity>);
 
     /// Modifies the [`Fidelity`] of a [`FidelityPartial`] to [`Resume`](Fidelity::Resume).
-    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::Twin<B>, value: f64);
+    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>, value: f64);
 
     /// Modifies the [`Fidelity`] of a [`FidelityPartial`] to [`Discard`](Fidelity::Discard).
-    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::Twin<B>);
+    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>);
 }
 
 /// A non-evaluated [`Solution`].
@@ -195,10 +192,7 @@ where
         BasePartial { id, x: x.into(), info }
     }
     
-    fn twin<T, B>(&self, x: T) -> Self::Twin<B>
-    where
-        T: Into<<Self::Twin<B> as Solution<SolId, B, Info>>::Raw>,
-        B: Domain,
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>
     {
         BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
     }
@@ -297,10 +291,7 @@ where
         }
     }
 
-    fn twin<T, B>(&self, x: T) -> Self::Twin<B>
-    where
-        T: Into<<Self::TwinP<B> as Solution<SolId, B, Info>>::Raw>,
-        B: Domain
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>
     {
         FidBasePartial {
             id:self.id,
@@ -338,7 +329,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type TwinF<B: Domain> = FidBasePartial<SolId, B, Info>;
 
     fn get_fidelity(&self) -> Option<Fidelity> {
         self.fid
@@ -356,12 +347,12 @@ where
         self.step=step;
     }
 
-    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::Twin<B>, value: f64) {
+    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>, value: f64) {
         self.fid = Some(Fidelity::Resume(value));
         twin.fid = Some(Fidelity::Resume(value));
     }
 
-    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::Twin<B>) {
+    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>) {
         self.fid = Some(Fidelity::Discard);
         twin.fid = Some(Fidelity::Discard);
     }

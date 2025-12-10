@@ -1,12 +1,5 @@
 use crate::{
-    checkpointer::Checkpointer,
-    domain::onto::OntoDom,
-    objective::{FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    solution::{BatchType, Id},
-    stop::Stop,
-    Codomain, OptInfo, Partial, Searchspace, SolInfo,
+    Domain, Partial, Searchspace, checkpointer::Checkpointer, domain::onto::{LinkObj, LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::{Optimizer, opt::OptCompBatch}, recorder::Recorder, solution::{Batch, Id, IntoComputed, OutBatch}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -15,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::{
     checkpointer::DistCheckpointer,
     experiment::mpi::{utils::{MPIProcess, SendRec, XMsg}, worker::Worker},
-    recorder::DistRecorder,
+    recorder::DistRecorder
 };
 
 // SYNCHRONOUS
@@ -146,24 +139,19 @@ macro_rules! load {
     };
 }
 
-pub type EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info> = (
-    <BType as BatchType<SolId, Obj, Opt, SInfo, PSol, Info>>::Outc<Out>,
-    <BType as BatchType<SolId, Obj, Opt, SInfo, PSol, Info>>::Comp<Cod, Out>,
-);
-
 /// [`Runable`] describes the optimization loop.
 /// The [`Optimizer`] defines a single iteration, and a [`Runable`] loops over an [`Optimizer`] step.
 /// It wraps-up, the [`Optimizer`], the stopping criterion [`Stop`], the [`Objective`], the [`Recorder`] and [`Checkpointer`].
-pub trait Runable<SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>
+pub trait Runable<SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>
 where
     SolId: Id,
-    Scp: Searchspace<Op::Sol, SolId, Op::SInfo, Obj = Obj, Opt = Opt>,
-    Op: Optimizer<SolId, Opt, Out, Scp, Fn>,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
     St: Stop,
-    Rec: Recorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Rec: Recorder<SolId,Out,Scp,Op>,
     Check: Checkpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Opt: Domain,
     Out: Outcome,
     Fn: FuncWrapper,
 {
@@ -179,17 +167,17 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub enum MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>
+pub enum MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>
 where
-    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>,
+    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>,
     SolId: Id,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn>,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
     St: Stop,
-    Rec: DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Rec: DistRecorder<SolId,Out,Scp,Op>,
     Check: DistCheckpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Opt: Domain,
     Out: Outcome,
     Fn: FuncWrapper,
 {
@@ -198,18 +186,18 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>
-    MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>
+impl<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>
+    MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>
 where
-    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>,
+    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>,
     SolId: Id,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn>,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
     St: Stop,
-    Rec: DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Rec: DistRecorder<SolId,Out,Scp,Op>,
     Check: DistCheckpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Opt: Domain,
     Out: Outcome,
     Fn: FuncWrapper,
 {
@@ -223,21 +211,20 @@ where
 
 #[cfg(feature = "mpi")]
 /// [`DistRunable`] describes a MPI-distributed [`Runable`], defined by a [`MasterWorker`] parallelization.
-pub trait DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>
+pub trait DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>
 where
-    Self: 'a + Sized,
     SolId: Id,
-    Scp: Searchspace<Op::Sol, SolId, Obj, Opt, Op::SInfo>,
-    Op: Optimizer<SolId, Obj, Opt, Out, Scp, Fn>,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
     St: Stop,
-    Rec: DistRecorder<SolId, Obj, Opt, Out, Scp, Op, Fn, Op::BType>,
+    Rec: DistRecorder<SolId,Out,Scp,Op>,
     Check: DistCheckpointer,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    Opt: Domain,
     Out: Outcome,
     Fn: FuncWrapper,
 {
-    type WType: Worker<SolId, Obj>;
+    type WType: Worker<SolId>;
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -245,14 +232,14 @@ where
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
-    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>;
+    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>;
     fn run(self);
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Fn,
         saver: (Option<Rec>, Check),
-    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Obj, Opt, Fn>;
+    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Opt, Fn>;
 }
 
 //------------------------//
@@ -267,120 +254,89 @@ where
 
 /// [`SingleEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
 /// generating a **single** [`Partial`] at each step.
-pub trait SingleEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType>:
-    Evaluate
+pub trait SingleEvaluate<SolId, Op, Scp, Out, St, Fn>:Evaluate
 where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    PSol: Partial<SolId, Obj, SInfo>,
-    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    St: Stop,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
+    SolId:Id,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
+    Out:Outcome,
+    St:Stop,
     Fn: FuncWrapper,
-    BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
         ob: Arc<Fn>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info>;
-    fn update(&mut self, batch: BType);
+    ) -> (OptCompBatch<Op,Scp,SolId,Out>,OutBatch<SolId,Op::Info,Out>);
+    fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::PartShape>);
 }
 
 /// [`MonoEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
 /// generating a **batch** of [`Partial`] at each step.
-pub trait MonoEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType>:
-    Evaluate
+pub trait MonoEvaluate<SolId, Op, Scp, Out, St, Fn>: Evaluate
 where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    PSol: Partial<SolId, Obj, SInfo>,
-    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    St: Stop,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
+    SolId:Id,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
+    Out:Outcome,
+    St:Stop,
     Fn: FuncWrapper,
-    BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
-{
-    fn init(&mut self);
-    fn evaluate(
-        &mut self,
-        ob: &Fn,
-        cod: &Cod,
-        stop: &mut St,
-    ) -> EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info>;
-    fn update(&mut self, batch: BType);
-}
-
-/// [`ThrEvaluate`] is an [`Evaluate`] describing how to evaluate, with multi-threading, the output of a sequential [`Optimizer`]
-/// generating a batch of [`Partial`] at each step.
-pub trait ThrEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType>:
-    Evaluate
-where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    PSol: Partial<SolId, Obj, SInfo>,
-    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    St: Stop,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
-    Fn: FuncWrapper,
-    BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
         ob: Arc<Fn>,
-        cod: Arc<Cod>,
         stop: Arc<Mutex<St>>,
-    ) -> EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info>;
-    fn update(&mut self, batch: BType);
+    ) -> (OptCompBatch<SolId,Op,Scp,Out>,OutBatch<SolId,Op::Info,Out>);
+    fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::PartShape>);
+}
+
+/// [`ThrEvaluate`] is an [`Evaluate`] describing how to evaluate, with multi-threading, the output of a sequential [`Optimizer`]
+/// generating a batch of [`Partial`] at each step.
+pub trait ThrEvaluate<SolId, Op, Scp, Out, St, Fn>:Evaluate
+where
+    SolId:Id,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
+    Out:Outcome,
+    St:Stop,
+    Fn: FuncWrapper,
+{
+    fn init(&mut self);
+    fn evaluate(
+        &mut self,
+        ob: Arc<Fn>,
+        stop: Arc<Mutex<St>>,
+    ) -> (OptCompBatch<SolId,Op,Scp,Out>,OutBatch<SolId,Op::Info,Out>);
+    fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::PartShape>);
 }
 
 #[cfg(feature = "mpi")]
 /// [`DistEvaluate`] is an [`Evaluate`] describing how to distribute, with MPI, the output of a sequential [`Optimizer`]
 /// generating a batch of [`Partial`] at each step.
-pub trait DistEvaluate<SolId, Obj, Opt, SInfo, Info, PSol, St, Cod, Out, Scp, Fn, BType,M>:
-    Evaluate
+pub trait DistEvaluate<SolId, Op, Scp, Out, St, Fn, M>:Evaluate
 where
-    SolId: Id,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    PSol: Partial<SolId, Obj, SInfo>,
-    <PSol as Partial<SolId, Obj, SInfo>>::Twin<Opt>: Partial<SolId, Opt, SInfo, Twin<Obj> = PSol>,
-    St: Stop,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Obj, Opt, SInfo>,
+    SolId:Id,
+    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>, Op::Sol, SolId, Op::SInfo>,
+    Scp::PartShape: IntoComputed<SolId,Op::SInfo,Op::Cod,Out>,
+    Out:Outcome,
+    St:Stop,
     Fn: FuncWrapper,
-    BType: BatchType<SolId, Obj, Opt, SInfo, PSol, Info>,
-    M:XMsg<PSol,SolId,Obj,SInfo>,
+    M:XMsg<<Op::Sol as Partial<SolId, LinkOpt<Scp>, Op::SInfo>>::TwinP<LinkObj<Scp>>,SolId,Scp::Obj,Op::SInfo>,
 {
     fn init(&mut self);
     fn evaluate(
         &mut self,
-        sendrec: &mut SendRec<'_,M,PSol,Obj,Opt,SolId,SInfo>,
+        sendrec: &mut SendRec<'_,M,Scp::PartShape,SolId,Op::SInfo,Op::Cod,Out>,
         ob: &Fn,
-        cod: &Cod,
         stop: &mut St,
-    ) -> EvaluateOut<BType, SolId, Obj, Opt, Cod, Out, SInfo, PSol, Info>;
-    fn update(&mut self, batch: BType);
+    ) -> (OptCompBatch<SolId,Op,Scp,Out>,OutBatch<SolId,Op::Info,Out>);
+    fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::PartShape>);
 }
 
 // pub use mpi::synchronous::mpifidseqrun::{FidExperiment,FidEvaluator};
