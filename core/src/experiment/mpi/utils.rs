@@ -115,7 +115,7 @@ where
 /// It is made of the raw solution, its [`Id`], and a  [`Fidelity`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
-pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub Option<Fidelity>)
+pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub Fidelity)
 where
     SolId: Id,
     Raw: Serialize + for<'a> Deserialize<'a>;
@@ -135,7 +135,7 @@ where
     SInfo: SolInfo,
 {
     fn new(sol: &PSol) -> Self {
-        FXMessage(sol.get_id(), sol.get_x(), sol.get_fidelity())
+        FXMessage(sol.get_id(), sol.get_x(), sol.fidelity())
     }
 }
 

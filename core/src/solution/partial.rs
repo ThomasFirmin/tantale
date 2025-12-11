@@ -1,44 +1,18 @@
+use crate::EvalStep;
 use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
-use crate::solution::{Id, SolInfo, Solution};
+use crate::solution::{HasFidelity, HasId, HasSolInfo, HasStep, Id, SolInfo, Solution, SolutionShape};
 
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::Arc,
 };
 
-/// Describes the fidelity of a [`Solution`].
-///
-/// * [`New`](Fidelity::New) : A newly created solution.
-/// * [`Resume`](Fidelity::Resume)`(f64)` : Resume the evaluation of [`Solution`].
-///   A `f64`, can be used within the raw objective function to describe by 'how much' the evaluation should be evaluated.
-/// * [`Last`](Fidelity::Last): When the [`EvalState`](crate::core::objective::EvalStep) is at its `penultimate` step, allows a last step.
-/// * [`Discard`](Fidelity::Discard) : Discard a [`Solution`] that has already been evaluated for a few steps.
+/// Describes the fidelity of a [`FidelityPartial`], i.e. a given budget for the evaluation of a [`FidelityPartial`].
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum Fidelity {
-    Resume(f64),
-    Discard,
-}
-
-impl PartialEq for Fidelity {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Resume(l0), Self::Resume(r0)) => l0 == r0,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
-impl Display for Fidelity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Fidelity::Resume(v) => write!(f, "{}", v),
-            Fidelity::Discard => write!(f, "Discard"),
-        }
-    }
-}
+pub struct Fidelity(f64);
 
 impl CSVWritable<(), ()> for Fidelity {
     fn header(_elem: &()) -> Vec<String> {
@@ -46,7 +20,21 @@ impl CSVWritable<(), ()> for Fidelity {
     }
 
     fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.to_string()])
+        Vec::from([self.0.to_string()])
+    }
+}
+
+impl Fidelity{
+    pub fn set_pair<Shape,SolId,SInfo>(self, pair:&mut Shape)
+    where
+        SolId: Id,
+        SInfo: SolInfo,
+        Shape: SolutionShape<SolId,SInfo>,
+        Shape::SolObj: FidelityPartial<SolId,Shape::Obj,SInfo>,
+        Shape::SolOpt: FidelityPartial<SolId,Shape::Opt,SInfo>
+    {
+        pair.get_mut_sobj().set_fidelity(self);
+        pair.get_mut_sopt().set_fidelity(self);
     }
 }
 
@@ -90,7 +78,7 @@ where
 }
 
 /// Describes a [`Partial`] associated to a [`Fidelity`].
-pub trait FidelityPartial<SolId, Dom, Info>: Partial<SolId, Dom, Info>
+pub trait FidelityPartial<SolId, Dom, Info>: Partial<SolId, Dom, Info> + HasStep + HasFidelity
 where
     Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
     SolId: Id,
@@ -98,17 +86,6 @@ where
     Info: SolInfo,
 {
     type TwinF<B: Domain>: FidelityPartial<SolId, B, Info, TwinF<Dom> = Self>;
-
-    fn get_step(&self) -> Step;
-    fn set_step(&mut self, step:Step);
-    fn get_fidelity(&self) -> Option<Fidelity>;
-    fn set_fidelity(&mut self, fidelity:Option<Fidelity>);
-
-    /// Modifies the [`Fidelity`] of a [`FidelityPartial`] to [`Resume`](Fidelity::Resume).
-    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>, value: f64);
-
-    /// Modifies the [`Fidelity`] of a [`FidelityPartial`] to [`Discard`](Fidelity::Discard).
-    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>);
 }
 
 /// A non-evaluated [`Solution`].
@@ -133,6 +110,28 @@ where
     pub info: Arc<Info>,
 }
 
+impl<SolId, Dom, Info> HasId<SolId> for BasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn get_id(&self) -> SolId {
+        self.id
+    }
+}
+
+impl<SolId, Dom, Info> HasSolInfo<Info> for BasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn get_sinfo(&self) -> Arc<Info> {
+        self.info.clone()
+    }
+}
+
 impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
@@ -142,16 +141,8 @@ where
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain>= BasePartial<SolId, B, Info>;
 
-    fn get_id(&self) -> SolId {
-        self.id
-    }
-    
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
-    }
-
-    fn get_info(&self) -> Arc<Info> {
-        self.info.clone()
     }
 }
 
@@ -219,17 +210,18 @@ where
     
 }
 
-//---------------------//
+//--------------------//
 //----- FIDELITY -----//
-//---------------------//
+//--------------------//
 
 /// A non-evaluated [`Solution`] containing a [`Fidelity`].
 ///
 /// # Attributes
-/// * `id` : [`Id`] - The unique [`ID`] of the solution.
+/// * `id` : [`Id`] - The unique [`Id`] of a [`Solution`].
 /// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `fid` : [`Fidelity`] -  The fidelity associated to `x`.
-/// * `info` : `[`Arc`]`<Info>` - Information given by the [`Optimizer`] and linked to a specific [`Solution`].
+/// * `step` : [`Step`] -  The current evaluation [`Step`] of `x`.
+/// * `fid` : [`Fidelity`] -  The [`Fidelity`] associated to `x`.
+/// * `info` : `Arc<`[`SolInfo`]`>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Dom::TypeDom: Serialize",
@@ -243,9 +235,81 @@ where
 {
     pub id: SolId,
     pub x: Arc<[Dom::TypeDom]>,
-    pub step: Step,
-    pub fid: Option<Fidelity>,
+    pub step: EvalStep, // A `isize` [`EvalStep`] for serde and mpi communication issues.
+    pub fid: Fidelity,
     pub info: Arc<Info>,
+}
+
+impl<SolId, Dom, Info> HasId<SolId> for FidBasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn get_id(&self) -> SolId {
+        self.id
+    }
+}
+
+impl<SolId, Dom, Info> HasSolInfo<Info> for FidBasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn get_sinfo(&self) -> Arc<Info> {
+        self.info.clone()
+    }
+}
+
+impl<SolId, Dom, Info> HasFidelity for FidBasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn fidelity(&self) -> Fidelity {
+        self.fid
+    }
+    fn set_fidelity(&mut self, fidelity:Fidelity) {
+        self.fid=fidelity;
+    }
+}
+
+impl<SolId, Dom, Info> HasStep for FidBasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    fn step(&self)->Step{
+        if self.step.0 == 0 {Step::Pending}
+        else if self.step.0 > 0 {Step::Partially(self.step.0)}
+        else if self.step.0 == -1 {Step::Penultimate}
+        else if self.step.0 == -2 {Step::Evaluated}
+        else if self.step.0 == -10 {Step::Error}
+        else {unimplemented!("This value ({}) for Step, is not implemented",self.step)}
+    }
+    
+    fn pending(&mut self) {
+        self.step = EvalStep(0);
+    }
+    /// The value must be stricly positive.
+    fn partially(&mut self, value:isize) {
+        self.step = EvalStep(value);
+    }
+    
+    fn penultimate(&mut self) {
+        self.step = EvalStep(-1);
+    }
+    
+    fn evaluated(&mut self) {
+        self.step = EvalStep(-2);
+    }
+    
+    fn error(&mut self) {
+        self.step = EvalStep(-10);
+    }
 }
 
 impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
@@ -256,17 +320,9 @@ where
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
-
-    fn get_id(&self) -> SolId {
-        self.id
-    }
     
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
-    }
-
-    fn get_info(&self) -> Arc<Info> {
-        self.info.clone()
     }
 }
 
@@ -285,8 +341,8 @@ where
         FidBasePartial {
             id,
             x: x.into(),
-            step: Step::Pending,
-            fid: None,
+            step: EvalStep::pending(),
+            fid: Fidelity(0.0),
             info,
         }
     }
@@ -323,6 +379,7 @@ where
     // }
 }
 
+
 impl<SolId, Dom, Info> FidelityPartial<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
@@ -331,29 +388,4 @@ where
 {
     type TwinF<B: Domain> = FidBasePartial<SolId, B, Info>;
 
-    fn get_fidelity(&self) -> Option<Fidelity> {
-        self.fid
-    }
-
-    fn set_fidelity(&mut self, fidelity:Option<Fidelity>) {
-        self.fid=fidelity;
-    }
-
-    fn get_step(&self) -> Step {
-        self.step
-    }
-    
-    fn set_step(&mut self, step:Step) {
-        self.step=step;
-    }
-
-    fn resume<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>, value: f64) {
-        self.fid = Some(Fidelity::Resume(value));
-        twin.fid = Some(Fidelity::Resume(value));
-    }
-
-    fn discard<B: Domain>(&mut self, twin: &mut <Self as FidelityPartial<SolId, Dom, Info>>::TwinF<B>) {
-        self.fid = Some(Fidelity::Discard);
-        twin.fid = Some(Fidelity::Discard);
-    }
 }

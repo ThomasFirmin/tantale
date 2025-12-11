@@ -10,7 +10,28 @@ pub enum Step{
     Penultimate,
     Evaluated,
     Error,
-    Other(isize),
+}
+
+impl std::fmt::Display for Step {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self{
+            Step::Pending => write!(f,"Pending"),
+            Step::Partially(v) => write!(f,"{}",v),
+            Step::Penultimate => write!(f,"Penultimate"),
+            Step::Evaluated => write!(f,"Evaluated"),
+            Step::Error => write!(f,"Error"),
+        }
+    }
+}
+
+impl CSVWritable<(), ()> for Step {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([String::from("step")])
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([self.to_string()])
+    }
 }
 
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
@@ -47,14 +68,6 @@ impl EvalStep {
     pub fn error() -> Self{
         Self(-10)
     }
-    pub fn step(&self)->Step{
-        if self.0 == 0 {Step::Pending}
-        else if self.0 > 0 {Step::Partially(self.0)}
-        else if self.0 == -1 {Step::Penultimate}
-        else if self.0 == -2 {Step::Evaluated}
-        else if self.0 == -10 {Step::Error}
-        else {Step::Other(self.0)}
-    }
 }
 
 impl std::fmt::Display for EvalStep {
@@ -64,16 +77,6 @@ impl std::fmt::Display for EvalStep {
         else if self.0 == -2 {write!(f, "Evaluated")}
         else if self.0 == -10 {write!(f, "Error")}
         else {write!(f, "{}", self.0)}
-    }
-}
-
-impl CSVWritable<(), ()> for EvalStep {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("step")])
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.to_string()])
     }
 }
 

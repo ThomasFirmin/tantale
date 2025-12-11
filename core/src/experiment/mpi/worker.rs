@@ -1,8 +1,5 @@
 use crate::{
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::utils::{MPIProcess, send_msg, DiscardFXMessage, FXMessage, Msg, OMessage, XMessage},
-    objective::outcome::FuncState,
-    Domain, FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
+    Domain, EvalStep, FidOutcome, Fidelity, Id, Objective, Outcome, Stepped, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg}, objective::{Step, outcome::FuncState}
 };
 
 use core::panic;
@@ -53,20 +50,30 @@ impl<SolId: Id, FnState: FuncState> FidWState<SolId, FnState> {
 
 /// A basic worker for MPI-distributed optimization.
 /// A worker is used to evaluate [`Partial`] with the [`Objective`] in parallel.
-pub struct BaseWorker<'a, Raw, Out:Outcome>
+pub struct BaseWorker<'a, Raw, Out>
+where
+    Raw: Serialize + for<'de> Deserialize<'de>,
+    Out:Outcome,
 {
     pub proc: &'a MPIProcess,
     pub objective: Objective<Raw, Out>,
 }
 /// Creates a [`BaseWorker`] without any state and checkpointer.
-impl<'a, Raw, Out:Outcome> BaseWorker<'a, Raw, Out>
+impl<'a, Raw, Out> BaseWorker<'a, Raw, Out>
+where
+    Raw: Serialize + for<'de> Deserialize<'de>,
+    Out:Outcome,
 {
     pub fn new(objective: Objective<Raw, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
     }
 }
 
-impl<'a, SolId:Id, Raw, Out:Outcome> Worker<SolId> for BaseWorker<'a, Raw, Out>
+impl<'a, SolId, Raw, Out> Worker<SolId> for BaseWorker<'a, Raw, Out>
+where
+    SolId:Id,
+    Raw: Serialize + for<'de> Deserialize<'de>,
+    Out:Outcome,
 {
     type WState = NoWState;
     fn run(self) {
@@ -80,7 +87,7 @@ impl<'a, SolId:Id, Raw, Out:Outcome> Worker<SolId> for BaseWorker<'a, Raw, Out>
             } else {
                 let msg = XMessage::<SolId,Raw>::from_bytes(raw, config);
                 let id = msg.0;
-                let x = msg.1.as_ref();
+                let x = msg.1;
                 let out = self.objective.compute(x);
 
                 // Send results
@@ -101,30 +108,30 @@ impl<'a, SolId:Id, Raw, Out:Outcome> Worker<SolId> for BaseWorker<'a, Raw, Out>
 /// A basic fidelity worker for MPI-distributed optimization.
 /// A worker is used to evaluate [`Partial`] with the [`Objective`] in parallel.
 /// It has a state allowing to 'remember' the previous state of the [`Stepped`] function being evaluated.
-pub struct FidWorker<'a, SolId, Obj, Out, FnState, Check>
+pub struct FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
+    Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
-    Obj: Domain,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
 {
     pub proc: &'a MPIProcess,
-    pub objective: Stepped<Obj, Out, FnState>,
+    pub objective: Stepped<Raw, Out, FnState>,
     pub state: FidWState<SolId, FnState>,
     pub check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
 }
 /// Creates a [`BaseWorker`] without any state and checkpointer.
-impl<'a, SolId, Obj, Out, FnState, Check> FidWorker<'a, SolId, Obj, Out, FnState, Check>
+impl<'a, SolId, Raw, Out, FnState, Check> FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
+    Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
-    Obj: Domain,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
 {
     pub fn new(
-        objective: Stepped<Obj, Out, FnState>,
+        objective: Stepped<Raw, Out, FnState>,
         check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
         proc: &'a MPIProcess,
     ) -> Self {
@@ -137,11 +144,10 @@ where
     }
 }
 
-impl<'a, SolId, Obj, Out, FnState, Check> Worker<SolId, Obj>
-    for FidWorker<'a, SolId, Obj, Out, FnState, Check>
+impl<'a, SolId, Raw, Out, FnState, Check> Worker<SolId> for FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
+    Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
-    Obj: Domain,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
@@ -157,43 +163,42 @@ where
             // Receive point to compute
             if tag == 0 {
                 // 0: id, 1: X, 2: Fidelity
-                let msg = FXMessage::<SolId, Obj>::from_bytes(raw, config);
-                let x = msg.1.as_ref();
+                let msg = FXMessage::<SolId, Raw>::from_bytes(raw, config);
+                let x = msg.1;
                 let id = msg.0;
                 let fid = msg.2;
-                println!("ID: {:?}, FID : {} at W {}, {:?}", id, fid, self.proc.rank, self.state.0.keys());
                 match fid {
-                    Fidelity::New => {
-                        let (out, state) = self.objective.compute(x, fid, None);
+                    Some(f) => match f {
+                        Fidelity::Budget(_) => {
+                            let state = self.state.0.remove(&id);
+                            let (out, state) = self.objective.compute(x, f, state);
+                            
+                            match out.get_step().step(){
+                                Step::Partially(_) => {self.state.0.insert(id, state);},
+                                Step::Penultimate => {self.state.0.insert(id, state);},
+                                _ => {},
+                            }
+                            // Send results
+                            send_msg(self.proc, OMessage(id, out), 0, 0, config);
+                        }
+                        Fidelity::Discard => {
+                            unreachable!("A Discarded solution should not reach this step.")
+                        }
+                    },
+                    None => {
+                        let (out, state) = self.objective.compute(x, None, None);
                         self.state.0.insert(id, state);
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
-                    }
-                    Fidelity::Resume(_) => {
-                        let state = self.state.0.remove(&id);
-                        let (out, state) = self.objective.compute(x, fid, state);
-                        if out.get_step().is_partially() {
-                            self.state.0.insert(id, state);
-                        }
-                        // Send results
-                        send_msg(self.proc, OMessage(id, out), 0, 0, config);
-                    }
-                    Fidelity::Discard => {
-                        unreachable!("A Discarded solution should not reach this step.")
-                    }
-                    Fidelity::Done => {
-                        unreachable!("A Done solution should not reach this step.")
-                    }
+                    },
                 }
             }
             // Stop
             else if tag == 42 {
-                println!{"TAG : {} from W : {}",42,self.proc.rank};
                 break;
             }
             // Discard
             else if tag == 104 {
-                println!{"TAG : {} from W : {}",104,self.proc.rank};
                 let msg = DiscardFXMessage::from_bytes(raw, config);
                 self.state.0.remove(&msg.0);
             }

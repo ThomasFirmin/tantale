@@ -1,7 +1,7 @@
 use crate::{
     domain::Domain,
-    objective::{Codomain, Outcome},
-    solution::{Id, Partial, SolInfo, Solution}
+    objective::{Codomain, Outcome, Step},
+    solution::{HasId, HasSolInfo, HasStep, HasY, Id, Partial, SolInfo, Solution, partial::FidelityPartial}
 };
 
 use serde::{Deserialize, Serialize};
@@ -40,6 +40,81 @@ where
     _info: PhantomData<Info>,
 }
 
+impl <PSol, SolId, Dom, Cod, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: Partial<SolId, Dom, Info>,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: Id,
+{
+    fn get_id(&self) -> SolId {
+        self.sol.get_id()
+    }
+}
+
+impl <PSol, SolId, Dom, Cod, Out, Info> HasSolInfo<Info> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: Partial<SolId, Dom, Info>,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: Id,
+{
+    fn get_sinfo(&self) -> Arc<Info> {
+        self.sol.get_sinfo()
+    }
+}
+
+impl <PSol, SolId, Dom, Cod, Out, Info> HasStep for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: FidelityPartial<SolId, Dom, Info>,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: Id,
+{
+    fn step(&self) -> Step {
+        self.sol.step()
+    }
+
+    fn pending(&mut self) {
+        self.sol.pending();
+    }
+
+    fn partially(&mut self, value:isize) {
+        self.sol.partially(value);
+    }
+
+    fn penultimate(&mut self) {
+        self.sol.penultimate();
+    }
+
+    fn evaluated(&mut self) {
+        self.sol.evaluated();
+    }
+
+    fn error(&mut self) {
+        self.sol.error();
+    }
+}
+
+impl <PSol, SolId, Dom, Cod, Out, Info> HasY<Cod,Out> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: Partial<SolId, Dom, Info>,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: Id,
+{
+    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
+    fn get_y(&self) -> Arc<Cod::TypeCodom>{ self.y.clone() }
+}
+
 impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
     for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
@@ -53,18 +128,9 @@ where
     type Raw = PSol::Raw;
     type Twin<B: Domain> =  Computed<PSol::TwinP<B>, SolId, B, Cod, Out, Info>;
 
-    fn get_id(&self) -> SolId {
-        self.sol.get_id()
-    }
-
     fn get_x(&self) -> Self::Raw {
         self.sol.get_x()
     }
-    
-    fn get_info(&self) -> Arc<Info> {
-        self.sol.get_info()
-    }
-    
 }
 
 impl<PSol, SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>
@@ -98,15 +164,5 @@ where
             .zip(y)
             .map(|(s, cod)| Self::new(s, cod))
             .collect()
-    }
-
-    /// Returns the [`Partial`] [`Solution`].
-    pub fn get_sol(&self) -> &PSol {
-        &self.sol
-    }
-
-    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    pub fn get_y(&self) -> &<Cod as Codomain<Out>>::TypeCodom {
-        &self.y
     }
 }

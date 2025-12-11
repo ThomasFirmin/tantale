@@ -530,13 +530,12 @@ where
     fn write_info<Info:OptInfo + CSVWritable<(), ()>>(&self, wrt: Arc<Mutex<csv::Writer<File>>>,info:Arc<Info>) {
         let id = self.get_id();
         let sinfo = self.get_info();
-        let fidstr = match self.get_sobj().get_sol().get_fidelity(){
-            Some(fid) => fid.write(&()),
-            None => vec!["None".to_string()],
-        };
+        let stepstr = self.get_sobj().get_sol().step().write(&());
+        let fidstr = self.get_sobj().get_sol().fidelity().write(&());
         let mut idstr = id.write(&());
         idstr.extend(sinfo.write(&()));
         idstr.extend(info.write(&()));
+        idstr.extend(stepstr);
         idstr.extend(fidstr);
         {
             let mut wrt_local = wrt.lock().unwrap();
@@ -600,14 +599,13 @@ where
         if let Some(f) = wrts.info.clone() {
             let sinfstr = self.get_info().write(&());
             let infstr = info.write(&());
-            let fidstr = match self.get_sobj().get_sol().get_fidelity(){
-                Some(fid) => fid.write(&()),
-                None => vec!["None".to_string()],
-            };
+            let stepstr = self.get_sobj().get_sol().step().write(&());
+            let fidstr = self.get_sobj().get_sol().fidelity().write(&());
             let fstr: Vec<&String> = idstr
                 .iter()
                 .chain(sinfstr.iter())
                 .chain(infstr.iter())
+                .chain(stepstr.iter())
                 .chain(fidstr.iter())
                 .collect();
             {
@@ -692,13 +690,12 @@ where
     fn write_info<Info:OptInfo + CSVWritable<(), ()>>(&self, wrt: Arc<Mutex<csv::Writer<File>>>, info:Arc<Info>) {
         let id = self.get_id();
         let sinfo = self.get_info();
-        let fidstr = match self.get_sobj().get_sol().get_fidelity(){
-            Some(fid) => fid.write(&()),
-            None => vec!["None".to_string()],
-        };
+        let stepstr = self.get_sobj().get_sol().step().write(&());
+        let fidstr = self.get_sobj().get_sol().fidelity().write(&());
         let mut idstr = id.write(&());
         idstr.extend(sinfo.write(&()));
         idstr.extend(info.write(&()));
+        idstr.extend(stepstr);
         idstr.extend(fidstr);
         {
             let mut wrt_local = wrt.lock().unwrap();
@@ -752,10 +749,8 @@ where
         if let Some(f) = wrts.info.clone() {
             let sinfstr = self.get_info().write(&());
             let infstr = info.write(&());
-            let fidstr = match self.get_sobj().get_sol().get_fidelity(){
-                Some(fid) => fid.write(&()),
-                None => vec!["None".to_string()],
-            };
+            let stepstr = self.get_sobj().get_sol().step().write(&());
+            let fidstr = self.get_sobj().get_sol().fidelity().write(&());
             let fstr: Vec<&String> = idstr
                 .iter()
                 .chain(sinfstr.iter())

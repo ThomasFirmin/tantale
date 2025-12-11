@@ -1,5 +1,5 @@
 use crate::{
-    Fidelity, OptInfo, objective::{Outcome, Step}, solution::{Id, SolInfo, SolutionShape, partial::FidelityPartial}
+    OptInfo, objective::{Outcome, Step}, solution::{Id, SolInfo, SolutionShape, partial::FidelityPartial}
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;
@@ -136,40 +136,14 @@ where
             ),
             |(mut er,mut ev,mut pe,mut pa,mut pen,mut ot),pair|
             {
-                match pair.get_sopt().get_step() {
+                match pair.step() {
                     Step::Pending => pen.add(pair),
                     Step::Partially(_) => pa.add(pair),
                     Step::Penultimate => pe.add(pair),
                     Step::Evaluated => ev.add(pair),
                     Step::Error => er.add(pair),
-                    Step::Other(_) => ot.add(pair),
                 }
                 (er,ev,pe,pa,pen,ot)
-            }
-        )
-    }
-
-    /// Split the [`Batch`] made of [`FidPartial`] into four [`Batch`] according to [`Step`].
-    /// * 1st [`Discard`](Fidelity::Discard)
-    /// * 2nd [`Resume`](Fidelity::Resume)
-    /// * 3rd [`None`]
-    pub fn chunk_by_fidelity(self)->(Self,Self,Self){
-        let info = self.info.clone();
-        self.into_iter().fold(
-            (Self::empty(info.clone()),Self::empty(info.clone()),Self::empty(info.clone())),
-            |(mut d,mut r,mut n),pair|
-            {
-                if let Some(fid) = pair.get_sopt().get_fidelity()
-                {
-                    match fid{
-                        Fidelity::Resume(_) => r.add(pair),
-                        Fidelity::Discard => d.add(pair),
-                    }
-                }
-                else{
-                    n.add(pair);
-                }
-                (r,d,n)
             }
         )
     }

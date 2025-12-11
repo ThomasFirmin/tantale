@@ -23,10 +23,10 @@
 //! becomes a [`Computed`](tantale::core::Computed) [`Solution`], made of a [`Partial`](tantale::core::Partial),
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
-use crate::{Codomain, Outcome, domain::{Domain, onto::Linked}, objective::Step, solution::partial::FidelityPartial};
+use crate::{Codomain, OptInfo, Outcome, domain::Domain, objective::Step};
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
@@ -36,307 +36,89 @@ where
 {
 }
 
-pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId,A,SInfo>>::Twin<B>;
-
-/// An abstract [`Solution`] made of at least a [`Domain`] and a [`SolInfo`].
-pub trait Solution<SolId, Dom, Info>
-where
-    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    type Raw: Debug + Serialize;
-    type Twin<B: Domain>: Solution<SolId, B, Info, Twin<Dom> = Self>;
-
-    /// The `id` of a [`Solution`] is made of a `pid` and a unique number.
-    /// This `id` can be shared with a twin [`Solution`].
+/// Describes an object associated to an [`Id`].
+pub trait HasId<SolId:Id> {
+    /// Returns the current [`Id`].
+    /// 
+    /// # Note
+    /// The [`Id`] of a [`Solution`] is a unique object identifying a [`Solution`]. See [`here`](Id).
+    /// The [`Id`] of [`Solution`] is only shared with its [`Twin`](Solution::Twin).
     fn get_id(&self) -> SolId;
 
-    /// Returns the actual sampled point from the set of [`Domain`].
-    fn get_x(&self) -> Self::Raw;
-
-    /// Returns the [`SolInfo`] bounded to this [`Solution`].
-    fn get_info(&self) -> Arc<Info>;
-
-    /// Checks if two [`Solution`] are twins.
+    /// Checks if two object containing an [`Id`] are twins (same [`Id`]).
+    /// 
+    /// # Note
     /// Twins [`Solution`] share equal ids.
-    fn is_twin<Twin, B>(&self, solb: Twin) -> bool
-    where
-        B: Domain,
-        Twin: Solution<SolId, B, Info>,
+    fn is_twin<Twin:HasId<SolId>>(&self, solb: Twin) -> bool
     {
         self.get_id() == solb.get_id()
     }
 }
 
+/// Describes an object associated to a [`SolInfo`].
+pub trait HasSolInfo<Info:SolInfo> {
+    /// Returns the current [`SolInfo`].
+    fn get_sinfo(&self) -> Arc<Info>;
+
+}
+
+/// Describes an object associated to a [`TypeCodom`](Codomain::TypeCodom).
+pub trait HasY<Cod:Codomain<Out>,Out:Outcome> {
+    /// Returns the current [`OptInfo`].
+    fn get_y(&self) -> Arc<Cod::TypeCodom>;
+}
+
+/// Describes an object associated to an [`OptInfo`].
+pub trait HasInfo<Info:OptInfo> {
+    /// Returns the current [`OptInfo`].
+    fn get_info(&self) -> Arc<Info>;
+}
+
+
+/// Describes an object associated to an [`Step`].
+pub trait HasStep {
+    /// Returns the current [`Step`].
+    fn step(&self) -> Step;
+    /// Set the current [`Step`] to [`Pending`](Step::Pending).
+    fn pending(&mut self);
+    /// Set the current [`Step`] to [`Partially`](Step::Partially).
+    fn partially(&mut self, value:isize);
+    /// Set the current [`Step`] to [`Penultimate`](Step::Penultimate).
+    fn penultimate(&mut self);
+    /// Set the current [`Step`] to [`Evaluated`](Step::Evaluated).
+    fn evaluated(&mut self);
+    /// Set the current [`Step`] to [`Error`](Step::Error).
+    fn error(&mut self);
+}
+
+/// Describes an object associated to a [`Fidelity`].
+pub trait HasFidelity {
+    /// Returns the current [`Fidelity`].
+    fn fidelity(&self) ->  Fidelity;
+    /// Set the [`Fidelity`] of the object.
+    fn set_fidelity(&mut self, fidelity: Fidelity);
+}
+
+
+/// An abstract [`Solution`].
+pub trait Solution<SolId, Dom, SInfo>: HasId<SolId> + HasSolInfo<SInfo>
+where
+    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    type Raw: Debug + Serialize;
+    type Twin<B: Domain>: Solution<SolId, B, SInfo, Twin<Dom> = Self>;
+
+    /// Returns the actual sampled point from the set of [`Domain`].
+    fn get_x(&self) -> Self::Raw;
+}
+
+/// The [`Twin`](Solution::Twin) [`Solution`] of type `B` from a [`Solution`] of type `A`.
+pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId,A,SInfo>>::Twin<B>;
+/// The [`Raw`](Solution::Raw) a [`Solution`].
 pub type SolRaw<S, SolId, Dom, Info> = <S as Solution<SolId,Dom,Info>>::Raw;
-
-  //-------------------------//
- //--- PAIR OF SOLUTIONS ---//
-//-------------------------//
-
-pub trait SolutionShape<SolId:Id, SInfo:SolInfo>: Linked 
-where
-    Self: Serialize + for<'a> Deserialize<'a>
-{
-    type SolObj: Solution<SolId, Self::Obj, SInfo>;
-    type SolOpt: Solution<SolId, Self::Opt, SInfo>;
-
-    fn get_sobj(&self)->&Self::SolObj;
-    fn get_sopt(&self)->&Self::SolOpt;
-    fn get_id(&self)->SolId;
-    fn get_info(&self)->Arc<SInfo>;
-}
-
-/// Creates a [`SolutionShape`] of [`Computed`] [`Solutions`](Solution) from a [`SolutionShape`] of [`Partial`]
-pub trait IntoComputed<SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Self::SolObj: Partial<SolId,Self::Obj,SInfo>,
-    Self::SolOpt: Partial<SolId,Self::Opt,SInfo>,
-{
-    type CompShape: SolutionShape<SolId,SInfo,SolObj = Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,SolOpt = Computed<Self::SolOpt,SolId,Self::Opt,Cod,Out,SInfo>,Obj=Self::Obj,Opt=Self::Opt>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape;
-}
-
-
-/// A pair made of a `Obj` [`Solution`] and its `Opt` [`Twin`](Solution::Twin).
-#[derive(Debug,Serialize,Deserialize)]
-#[serde(bound(
-    serialize = "SolObj: Serialize, SolOpt: Serialize",
-    deserialize = "SolObj: for<'a> Deserialize<'a>, SolOpt: for<'a> Deserialize<'a>",
-))]
-pub struct Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>(SolObj,SolOpt,PhantomData<SolId>,PhantomData<Obj>,PhantomData<Opt>,PhantomData<SInfo>)
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>;
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
-{
-    pub fn new(solobj:SolObj,solopt:SolOpt)->Self{Self(solobj,solopt,PhantomData,PhantomData,PhantomData,PhantomData)}
-    
-}
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> Linked for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
-{
-    type Obj = Obj;
-    type Opt = Opt;
-}
-
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo, Cod, Out> Pair<Computed<SolObj,SolId,Obj,Cod,Out,SInfo>,Computed<SolOpt,SolId,Opt,Cod,Out,SInfo>,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    Cod: Codomain<Out>,
-    Out:Outcome,
-    SolObj: Partial<SolId, Obj, SInfo>,
-    SolOpt: Partial<SolId, Opt, SInfo>,
-{
-    pub fn get_y(&self)->&Cod::TypeCodom
-    {
-        self.0.get_y()
-    }
-}
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: FidelityPartial<SolId, Obj, SInfo>,
-    SolOpt: FidelityPartial<SolId, Opt, SInfo>,
-{
-    pub fn get_fidelity(&self)->Option<Fidelity>{
-      self.0.get_fidelity()
-    }
-    pub fn get_step(&self)->Step{self.0.get_step()}
-}
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> SolutionShape<SolId,SInfo> for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
-{
-    type SolObj = SolObj;
-    type SolOpt = SolOpt;
-
-    fn get_sobj(&self)->&Self::SolObj {&self.0}
-    fn get_sopt(&self)->&Self::SolOpt {&self.1}
-    fn get_id(&self)->SolId{self.0.get_id()}
-    fn get_info(&self)->Arc<SInfo>{self.0.get_info()}
-}
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo,Cod,Out> IntoComputed<SolId,SInfo,Cod,Out> for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-    SolObj: Partial<SolId, Obj, SInfo>,
-    SolOpt: Partial<SolId, Opt, SInfo>,
-{
-    type CompShape = Pair<Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,Computed<Self::SolOpt,SolId,Self::Opt,Cod,Out,SInfo>,SolId,Self::Obj,Self::Opt,SInfo>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape {
-        (Computed::new(self.0, y.clone()),Computed::new(self.1, y)).into()
-    }
-}
-
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> From<(SolObj,SolOpt)> for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
-{
-    fn from(value: (SolObj,SolOpt)) -> Self {
-        Self(value.0,value.1,PhantomData,PhantomData,PhantomData,PhantomData)
-    }
-}
-
-
-  //---------------------//
- //--- LONE SOLUTION ---//
-//---------------------//
-
-/// A single [`Solution`] with no link to a [`Twin`](Solution::Twin).
-#[derive(Debug,Serialize,Deserialize)]
-#[serde(bound(serialize = "SolObj: Serialize", deserialize = "SolObj: for<'a> Deserialize<'a>"))]
-pub struct Lone<SolObj,SolId,Obj,SInfo>(SolObj,PhantomData<SolId>,PhantomData<Obj>,PhantomData<SInfo>)
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId,Obj,SInfo>;
-
-pub type CompLone<SolObj,SolId,Obj, SInfo, Cod, Out> = Lone<Computed<SolObj,SolId,Obj,Cod,Out,SInfo>,SolId,Obj,SInfo>;
-
-impl<SolObj,SolId,Obj,SInfo> Lone<SolObj,SolId,Obj,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId,Obj,SInfo>,
-{
-    pub fn new(sol:SolObj)->Self{
-        Self(sol,PhantomData,PhantomData,PhantomData)
-    }
-}
-
-impl<SolObj,SolId,Obj,SInfo,Cod,Out> CompLone<SolObj,SolId,Obj,SInfo,Cod,Out>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: Partial<SolId,Obj,SInfo>,
-    Cod: Codomain<Out>,
-    Out:Outcome,
-{
-    pub fn get_y(&self)->&Cod::TypeCodom
-    {
-        self.0.get_y()
-    }
-}
-
-impl<SolObj,SolId,Obj,SInfo> Lone<SolObj,SolId,Obj,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: FidelityPartial<SolId,Obj,SInfo>,
-{
-    pub fn get_fidelity(&self)->Option<Fidelity>{self.0.get_fidelity()}
-    pub fn get_step(&self)->Step{self.0.get_step()}
-}
-
-
-impl<SolObj,SolId,Obj,SInfo> Linked for Lone<SolObj,SolId,Obj,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId,Obj,SInfo>,
-{
-    type Obj = Obj;
-    type Opt = Obj;
-}
-
-impl<SolId, SInfo, Obj, SolObj> SolutionShape<SolId, SInfo> for Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    SolObj: Solution<SolId, Obj, SInfo>,
-{
-    type SolObj = SolObj;
-    type SolOpt = SolObj;
-
-    fn get_sobj(&self)->&Self::SolObj {&self.0}
-    fn get_sopt(&self)->&Self::SolOpt {&self.0}
-    fn get_id(&self)->SolId{self.0.get_id()}
-    fn get_info(&self)->Arc<SInfo>{self.0.get_info()}
-}
-
-impl<SolObj, SolId, Obj, SInfo,Cod,Out> IntoComputed<SolId,SInfo,Cod,Out> for  Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-    SolObj: Partial<SolId, Obj, SInfo>,
-{
-    type CompShape = Lone<Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,SolId,Self::Obj,SInfo>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape {
-        (Computed::new(self.0, y.clone())).into()
-    }
-}
-
-
-impl<SolObj,SolId,Obj,SInfo> From<SolObj> for Lone<SolObj,SolId,Obj,SInfo>
-where
-    SolId:Id,
-    Obj: Domain,
-    SInfo:SolInfo,
-    SolObj: Solution<SolId,Obj,SInfo>,
-{
-    fn from(value: SolObj) -> Self {
-        Self(value, PhantomData, PhantomData, PhantomData)
-    }
-}
 
 pub mod id;
 pub use id::{Id, ParSId, SId};
@@ -352,3 +134,6 @@ pub use outsol::OutSol;
 
 pub mod batchtype;
 pub use batchtype::{Batch, OutBatch};
+
+pub mod shape;
+pub use shape::{SolutionShape,IntoComputed,CompLone,Pair,Lone};

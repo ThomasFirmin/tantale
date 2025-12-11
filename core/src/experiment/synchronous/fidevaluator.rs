@@ -152,7 +152,7 @@ where
                     obatch.add(sid, out);
                     cbatch.add_res(pobj, popt, y);
                 }
-                Fidelity::Resume(_) => {
+                Fidelity::Budget(_) => {
                     let x = pobj.get_x();
                     let state = self.states.remove(&sid);
                     let (out, state) = ob.compute(x.as_ref(), fidelity, state);
@@ -316,7 +316,7 @@ where
                         obatch.lock().unwrap().add(sid, out);
                         cbatch.lock().unwrap().add_res(pobj, popt, y);
                     }
-                    Fidelity::Resume(_) => {
+                    Fidelity::Budget(_) => {
                         drop(stplock);
                         let x = pobj.get_x();
                         let state = hash_state.lock().unwrap().remove(&sid);
@@ -399,7 +399,7 @@ where
         match fid{
             Fidelity::New => self.new_batch.add(pair),
             Fidelity::Last => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_last.add(pair, rank);},
-            Fidelity::Resume(_) => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_resume.add(pair, rank);},
+            Fidelity::Budget(_) => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_resume.add(pair, rank);},
             Fidelity::Discard => {let rank = *self.where_is_id.get(&pair.0.get_id()).unwrap(); self.priority_discard.add(pair, rank);},
             Fidelity::Done => {},
         }
