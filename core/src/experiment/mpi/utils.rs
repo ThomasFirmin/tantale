@@ -1,6 +1,6 @@
 use crate::{
-    Codomain, Domain, Fidelity, Id, OptInfo, Outcome, Partial, SolInfo, Solution,
-    solution::{Batch, IntoComputed, OutBatch, SolutionShape, partial::FidelityPartial}
+    Codomain, Domain, EvalStep, Fidelity, Id, OptInfo, Outcome, SolInfo, Solution,
+    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -115,7 +115,7 @@ where
 /// It is made of the raw solution, its [`Id`], and a  [`Fidelity`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
-pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub Fidelity)
+pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub EvalStep, pub Fidelity)
 where
     SolId: Id,
     Raw: Serialize + for<'a> Deserialize<'a>;
@@ -130,12 +130,12 @@ impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId,
 where
     SolId: Id,
     Dom: Domain,
-    PSol: FidelityPartial<SolId, Dom, SInfo>,
+    PSol: Solution<SolId, Dom, SInfo> + HasStep + HasFidelity,
     PSol::Raw: Serialize + for<'a> Deserialize<'a>,
     SInfo: SolInfo,
 {
     fn new(sol: &PSol) -> Self {
-        FXMessage(sol.get_id(), sol.get_x(), sol.fidelity())
+        FXMessage(sol.get_id(), sol.get_x(), sol.raw_step() ,sol.fidelity())
     }
 }
 
@@ -184,9 +184,8 @@ impl IdleWorker{
 pub struct SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId,SInfo> + IntoComputed<SolId,SInfo,Cod,Out>,
-    Shape::SolObj: Partial<SolId,Shape::Obj,SInfo>,
-    Shape::SolOpt: Partial<SolId,Shape::Opt,SInfo>,
+    Shape: SolutionShape<SolId,SInfo> + IntoComputed,
+    <Shape as IntoComputed>::Computed<Cod,Out>:SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
     SolId: Id,
     SInfo: SolInfo,
     Cod:Codomain<Out>,
@@ -205,9 +204,8 @@ where
 impl<'a, Msg, Shape, SolId, SInfo,Cod,Out> SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId,SInfo> + IntoComputed<SolId,SInfo,Cod,Out>,
-    Shape::SolObj: Partial<SolId,Shape::Obj,SInfo>,
-    Shape::SolOpt: Partial<SolId,Shape::Opt,SInfo>,
+    Shape: SolutionShape<SolId,SInfo> + IntoComputed,
+    <Shape as IntoComputed>::Computed<Cod,Out>:SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
     SolId: Id,
     SInfo: SolInfo,
     Cod:Codomain<Out>,
@@ -253,12 +251,7 @@ where
     }
 
     /// Receive an  [`Outcome`] from a [`Worker`].
-    pub fn rec_computed<Info:OptInfo>(
-        &mut self,
-        obatch: &mut OutBatch<SolId, Info, Out>,
-        cbatch: &mut Batch<SolId,SInfo,Info,Shape::CompShape>,
-        cod: &Cod,
-    ) -> Rank
+    pub fn rec_computed(&mut self) -> (Rank,Shape,Out)
     {
         // Recv / sendv loop
         let (bytes, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
@@ -266,14 +259,10 @@ where
         // Unwrap all elements
         let id = msg.0;
         let out = msg.1;
-        let y = cod.get_elem(&out);
         let pair = self.waiting.remove(&id).unwrap();
-        // Update Out and Computed batches
-        obatch.add((id, out));
-        cbatch.add(pair.into_computed(y.into()));
         let rank = status.source_rank();
         self.idle.set_idle(rank);
-        rank
+        (rank,pair,out)
     }
 
     /// Send a [`Discard`](Fidelity::Discard) order

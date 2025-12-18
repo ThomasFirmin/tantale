@@ -23,7 +23,7 @@
 //! becomes a [`Computed`](tantale::core::Computed) [`Solution`], made of a [`Partial`](tantale::core::Partial),
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
-use crate::{Codomain, OptInfo, Outcome, domain::Domain, objective::Step};
+use crate::{Codomain, EvalStep, OptInfo, Outcome, domain::Domain, objective::Step};
 
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -79,12 +79,16 @@ pub trait HasInfo<Info:OptInfo> {
 pub trait HasStep {
     /// Returns the current [`Step`].
     fn step(&self) -> Step;
+    /// Returns the current [`EvalStep`].
+    fn raw_step(&self) -> EvalStep;
+    /// Set the current [`EvalStep`].
+    fn set_step(&mut self,value:EvalStep);
     /// Set the current [`Step`] to [`Pending`](Step::Pending).
     fn pending(&mut self);
     /// Set the current [`Step`] to [`Partially`](Step::Partially).
     fn partially(&mut self, value:isize);
-    /// Set the current [`Step`] to [`Penultimate`](Step::Penultimate).
-    fn penultimate(&mut self);
+    /// Set the current [`Step`] to [`Discard`](Step::Discard).
+    fn discard(&mut self);
     /// Set the current [`Step`] to [`Evaluated`](Step::Evaluated).
     fn evaluated(&mut self);
     /// Set the current [`Step`] to [`Error`](Step::Error).
@@ -99,7 +103,6 @@ pub trait HasFidelity {
     fn set_fidelity(&mut self, fidelity: Fidelity);
 }
 
-
 /// An abstract [`Solution`].
 pub trait Solution<SolId, Dom, SInfo>: HasId<SolId> + HasSolInfo<SInfo>
 where
@@ -108,12 +111,43 @@ where
     SInfo: SolInfo,
     Dom: Domain,
 {
-    type Raw: Debug + Serialize;
+    type Raw: Debug + Serialize + for<'de> Deserialize<'de>;
     type Twin<B: Domain>: Solution<SolId, B, SInfo, Twin<Dom> = Self>;
 
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,SInfo>>::Raw) -> Self::Twin<B>;
     /// Returns the actual sampled point from the set of [`Domain`].
     fn get_x(&self) -> Self::Raw;
 }
+
+/// Describes an object containing non-[`Computed`] object.
+pub trait HasUncomputed<SolId:Id,Dom:Domain,SInfo:SolInfo>
+{
+    type Uncomputed: Uncomputed<SolId,Dom,SInfo>;
+    fn get_uncomputed(&self) -> &Self::Uncomputed;
+}
+
+/// Describes a non-[`Computed`] [`Solution`].
+pub trait Uncomputed<SolId,Dom,SInfo>:Solution<SolId,Dom,SInfo> + IntoComputed
+where
+    SolId : Id,
+    Dom : Domain,
+    SInfo : SolInfo,
+{
+    type TwinUC<B:Domain>: Uncomputed<SolId,B,SInfo, Twin<Dom> = Self, TwinUC<Dom> = Self>;
+    fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,SInfo>>::Raw) -> Self::TwinUC<B>;
+    fn new<T>(id: SolId, x: T, info: Arc<SInfo>) -> Self
+        where
+            T: Into<Self::Raw>;
+}
+
+/// A trait allowing to convert an object into an object that [`HasY`] with a [`TypeCodom`](Codomain::TypeCodom).
+/// A concrete example is the [`Computed`] structure.
+pub trait IntoComputed
+{
+    type Computed<Cod:Codomain<Out>,Out:Outcome>: HasY<Cod,Out>;
+    fn into_computed<Cod:Codomain<Out>,Out:Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out>;
+}
+
 
 /// The [`Twin`](Solution::Twin) [`Solution`] of type `B` from a [`Solution`] of type `A`.
 pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId,A,SInfo>>::Twin<B>;
@@ -124,16 +158,13 @@ pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::{BasePartial, FidBasePartial, Fidelity, Partial};
+pub use partial::{BasePartial, FidBasePartial, Fidelity};
 
 pub mod computed;
 pub use computed::Computed;
-
-pub mod outsol;
-pub use outsol::OutSol;
 
 pub mod batchtype;
 pub use batchtype::{Batch, OutBatch};
 
 pub mod shape;
-pub use shape::{SolutionShape,IntoComputed,CompLone,Pair,Lone};
+pub use shape::{SolutionShape,CompLone,Pair,Lone};

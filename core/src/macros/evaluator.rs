@@ -1,18 +1,10 @@
 use crate::{
-    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution, 
-    domain::onto::LinkOpt, 
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, 
-    objective::{Codomain, Objective, Step},
-    optimizer::opt::{BatchOptimizer, ObjRaw},
-    searchspace::CompShape,
-    solution::{Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape},
-    stop::{ExpStep, Stop}
+    Fidelity, Id, OptInfo, Optimizer, Outcome, Searchspace, SolInfo, domain::onto::LinkOpt, experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, objective::{Codomain, Objective}, optimizer::opt::ObjRaw, searchspace::CompShape, solution::{Batch, OutBatch, SolutionShape}, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use std::fmt::Debug;
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
@@ -57,7 +49,7 @@ where
 impl<SolId, Op,Scp,Out,St> MonoEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
+    Op:Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
     Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
     CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St:Stop,
@@ -66,24 +58,24 @@ where
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            ob: &Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,
-            cod: &Op::Cod,
-            stop: &mut St,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+            ob: Arc<Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
+            cod: Op::Cod,
+            stop: Arc<Mutex<St>>,
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
-        let mut obatch = OutBatch::empty(self.batch.get_info());
+        let mut rbatch = OutBatch::empty(self.batch.get_info());
         let mut cbatch = Batch::empty(self.batch.get_info());
 
         while !self.batch.is_empty() && !stop.stop() {
-            let pair = self.batch.pop().unwrap();
-            let out = ob.compute(pair.get_sobj().get_x());
+            let (sobj, sopt) = self.batch.pop().unwrap();
+            let out = ob.compute(sobj.get_x().as_ref());
             let y = cod.get_elem(&out);
-            obatch.add((pair.get_id(),out));
-            cbatch.add(pair.into_computed(y.into()));
-            stop.update(ExpStep::Distribution(Step::Evaluated));
+            rbatch.add(sobj.get_id(), out);
+            cbatch.add_res(sobj, sopt, y);
+            stop.update(ExpStep::Distribution(Fidelity::Done));
         }
         // For saving in case of early stopping before full evaluation of all elements
-        (cbatch,obatch)
+        (rbatch, cbatch)
     }
 
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>) {
@@ -95,7 +87,7 @@ where
 impl<SolId, Op,Scp,Out,St> DistEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,XMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
+    Op:Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
     Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
     CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St:Stop,
@@ -105,8 +97,8 @@ where
     fn evaluate(
             &mut self,
             sendrec: &mut SendRec<'_,XMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
-            _ob: &Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,
-            cod: &Op::Cod,
+            ob: &Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,
+            cod: Op::Cod,
             stop: &mut St,
         ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
@@ -120,23 +112,20 @@ where
             if sendrec.send_to_worker(self.batch.pop().unwrap()).is_none(){
                 panic!("A New pair of solutions was poped, while no worker was idle.")
             }else{
-                stop.update(crate::stop::ExpStep::Distribution(Step::Evaluated));
+                stop.update(crate::stop::ExpStep::Distribution(Fidelity::Done));
             }
         }
 
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
-            let (_,pair,out) = sendrec.rec_computed();
-            let y = cod.get_elem(&out);
-            obatch.add((pair.get_id(), out));
-            cbatch.add(pair.into_computed(y.into()));
+            sendrec.rec_computed(&mut obatch, &mut cbatch, cod);
             if !stop.stop() && !self.batch.is_empty(){
                 sendrec.send_to_worker(self.batch.pop().unwrap());
-                stop.update(crate::stop::ExpStep::Distribution(Step::Evaluated));
+                stop.update(crate::stop::ExpStep::Distribution(Fidelity::Done));
             }
         }
         // For saving in case of early stopping before full evaluation of all elements
-        (cbatch, obatch)
+        (obatch, cbatch)
     }
 
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>) {
@@ -183,24 +172,20 @@ where
 {
 }
 
-impl<SolId, Op,Scp,Out,St> ThrEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>> for ThrBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
+impl<SolId, Op,Scp,Out,St> ThrEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
-    SolId:Id + Send + Sync,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
-    Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
-    Op::SInfo: Send + Sync,
+    SolId:Id,
+    Op:Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
     Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
-    Scp::SolShape: Send + Sync,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: Debug + SolutionShape<SolId,Op::SInfo> + Send + Sync,
-    St:Stop + Send + Sync,
-    Out:Outcome + Send + Sync,
+    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    St:Stop,
+    Out:Outcome,
 {
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
             ob: Arc<Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
-            cod: Arc<Op::Cod>,
+            cod: Op::Cod,
             stop: Arc<Mutex<St>>,
         ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>) 
     {
@@ -212,18 +197,19 @@ where
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
             if !stplock.stop() {
-                stplock.update(ExpStep::Distribution(Step::Evaluated));
+                stplock.update(ExpStep::Distribution(Fidelity::Done));
                 drop(stplock);
-                let pair = self.batch.lock().unwrap().pop().unwrap();
-                let out = ob.clone().compute(pair.get_sobj().get_x());
+                let (pobj, popt) = self.batch.lock().unwrap().pop().unwrap();
+                let id = pobj.get_id();
+                let out = ob.clone().compute(&pobj.get_x());
                 let y = cod.clone().get_elem(&out);
-                obatch.lock().unwrap().add((pair.get_id(),out));
-                cbatch.lock().unwrap().add(pair.into_computed(y.into()));
+                obatch.lock().unwrap().add(id, out);
+                cbatch.lock().unwrap().add_res(pobj, popt, y);
             }
         });
         let obatch = Arc::try_unwrap(obatch).unwrap().into_inner().unwrap();
         let cbatch = Arc::try_unwrap(cbatch).unwrap().into_inner().unwrap();
-        (cbatch,obatch)
+        (obatch, cbatch)
     }
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>) {
         self.batch = Arc::new(Mutex::new(batch))

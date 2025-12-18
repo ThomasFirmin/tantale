@@ -1,8 +1,8 @@
-use crate::EvalStep;
+use crate::{Codomain, Computed, EvalStep, Outcome};
 use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
-use crate::solution::{HasFidelity, HasId, HasSolInfo, HasStep, Id, SolInfo, Solution, SolutionShape};
+use crate::solution::{HasFidelity, HasId, HasSolInfo, HasStep, Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,63 +29,13 @@ impl Fidelity{
     where
         SolId: Id,
         SInfo: SolInfo,
-        Shape: SolutionShape<SolId,SInfo>,
-        Shape::SolObj: FidelityPartial<SolId,Shape::Obj,SInfo>,
-        Shape::SolOpt: FidelityPartial<SolId,Shape::Opt,SInfo>
+        Shape: SolutionShape<SolId,SInfo> + HasFidelity,
+        Shape::SolObj: HasFidelity,
+        Shape::SolOpt: HasFidelity,
     {
         pair.get_mut_sobj().set_fidelity(self);
         pair.get_mut_sopt().set_fidelity(self);
     }
-}
-
-/// A non-evaluated [`Solution`].
-pub trait Partial<SolId, Dom, Info>: Solution<SolId, Dom, Info>
-where
-    Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
-{
-    type TwinP<B: Domain>: Partial<SolId, B, Info, Twin<Dom> =  Self, TwinP<Dom> = Self>;
-
-    /// Creates a new [`Partial`] from a slice of [`TypeDom<Dom>`].
-    ///
-    /// # Attributes
-    ///
-    /// * `id` : `SolId` - A unique [`Id`].
-    /// * `x` : [`Arc`]`<`[`TypeDom`](Domain::TypeDom)`>` - A basic solution from the [`Searchspace`](crate::Searchspace).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tantale::core::{Solution,BasePartial,Real,EmptyInfo,SId,Id};
-    ///
-    /// let x = std::sync::Arc::from(vec![0.0;5]);
-    /// let info = std::sync::Arc::new(EmptyInfo{});
-    ///
-    /// let real_sol = BasePartial::<_,Real,_>::new(SId::generate(),x,info);
-    ///
-    /// for elem in real_sol.get_x().iter(){
-    ///     println!("{},", elem);
-    /// }
-    ///
-    /// ```
-    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
-    where
-        T: Into<Self::Raw>;
-        
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>;
-}
-
-/// Describes a [`Partial`] associated to a [`Fidelity`].
-pub trait FidelityPartial<SolId, Dom, Info>: Partial<SolId, Dom, Info> + HasStep + HasFidelity
-where
-    Self: Sized + Serialize + for<'a> Deserialize<'a> + Debug,
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
-{
-    type TwinF<B: Domain>: FidelityPartial<SolId, B, Info, TwinF<Dom> = Self>;
 }
 
 /// A non-evaluated [`Solution`].
@@ -144,22 +94,26 @@ where
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
+
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
+    {
+        BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
+    }
 }
 
-impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId,Dom,Info> for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinP<B: Domain> = BasePartial<SolId, B, Info>;
-
-    /// Creates a new [`BasePartial`] from a slice of [`TypeDom<Dom>`].
+    type TwinUC<B:Domain> = BasePartial<SolId,B,Info>;
+    /// Creates a new [`BasePartial`] from a slice of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Attributes
     ///
     /// * `id` : `SolId` - A unique [`Id`].
-    /// * `x` : [`Arc`]`<[`[`TypeDom`]`<Dom>]>` - A basic solution from the [`Searchspace`].
+    /// * `x` : `Into``<`[`Raw`](Solution::Raw)`>` - A [`Raw`](Solution::Raw) solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Example
     ///
@@ -182,32 +136,23 @@ where
     {
         BasePartial { id, x: x.into(), info }
     }
-    
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>
+    fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinUC<B>
     {
         BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
     }
-    
-    // fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
-    //     vec![TypeDom::<Dom>::default(); n]
-    // }
+}
 
-    // fn default(n: usize, info: Arc<Info>) -> Self {
-    //     Self::new(SolId::generate(), Self::default_x(n), info)
-    // }
-    // fn new_vec(size: usize) -> Vec<Self> {
-    //     let mut v = Vec::new();
-    //     v.reserve_exact(size);
-    //     v
-    // }
-    // fn default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self> {
-    //     let mut v = Self::new_vec(size);
-    //     for _ in 0..size {
-    //         v.push(Self::default(n, info.clone()));
-    //     }
-    //     v
-    // }
-    
+impl<SolId, Dom, Info> IntoComputed for BasePartial<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: Id,
+{
+    type Computed<Cod:Codomain<Out>,Out:Outcome> = Computed<Self,SolId,Dom,Cod,Out,Info>;
+
+    fn into_computed<Cod:crate::Codomain<Out>,Out:crate::Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+        Computed::new(self, y)
+    }
 }
 
 //--------------------//
@@ -283,12 +228,7 @@ where
     SolId: Id,
 {
     fn step(&self)->Step{
-        if self.step.0 == 0 {Step::Pending}
-        else if self.step.0 > 0 {Step::Partially(self.step.0)}
-        else if self.step.0 == -1 {Step::Penultimate}
-        else if self.step.0 == -2 {Step::Evaluated}
-        else if self.step.0 == -10 {Step::Error}
-        else {unimplemented!("This value ({}) for Step, is not implemented",self.step)}
+        self.step.into()
     }
     
     fn pending(&mut self) {
@@ -299,16 +239,24 @@ where
         self.step = EvalStep(value);
     }
     
-    fn penultimate(&mut self) {
+    fn evaluated(&mut self) {
         self.step = EvalStep(-1);
     }
     
-    fn evaluated(&mut self) {
-        self.step = EvalStep(-2);
+    fn discard(&mut self) {
+        self.step = EvalStep(-9);
     }
-    
+
     fn error(&mut self) {
         self.step = EvalStep(-10);
+    }
+    
+    fn raw_step(&self) -> EvalStep {
+        self.step
+    }
+    
+    fn set_step(&mut self,value:EvalStep) {
+        self.step = value;
     }
 }
 
@@ -324,15 +272,26 @@ where
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
+
+    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
+    {
+        FidBasePartial {
+            id:self.id,
+            x: x.into(),
+            step: self.step,
+            fid: self.fid,
+            info: self.info.clone(),
+        }
+    }
 }
 
-impl<SolId, Dom, Info> Partial<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId,Dom,Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinP<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type TwinUC<B:Domain> = FidBasePartial<SolId,B,Info>;
 
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
@@ -347,7 +306,7 @@ where
         }
     }
 
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinP<B>
+    fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinUC<B>
     {
         FidBasePartial {
             id:self.id,
@@ -357,35 +316,17 @@ where
             info: self.info.clone(),
         }
     }
-    
-    // fn default_x(n: usize) -> Vec<TypeDom<Dom>> {
-    //     vec![TypeDom::<Dom>::default(); n]
-    // }
-
-    // fn default(n: usize, info: Arc<Info>) -> Self {
-    //     Self::_new(SolId::generate(), Self::default_x(n), Step::Pending,None, info)
-    // }
-    // fn new_vec(size: usize) -> Vec<Self> {
-    //     let mut v = Vec::new();
-    //     v.reserve_exact(size);
-    //     v
-    // }
-    // fn default_vec(n: usize, info: Arc<Info>, size: usize) -> Vec<Self> {
-    //     let mut v = Self::new_vec(size);
-    //     for _ in 0..size {
-    //         v.push(Self::default(n, info.clone()));
-    //     }
-    //     v
-    // }
 }
 
-
-impl<SolId, Dom, Info> FidelityPartial<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> IntoComputed for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinF<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type Computed<Cod:Codomain<Out>,Out:Outcome> = Computed<Self,SolId,Dom,Cod,Out,Info>;
 
+    fn into_computed<Cod:crate::Codomain<Out>,Out:crate::Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+        Computed::new(self, y)
+    }
 }

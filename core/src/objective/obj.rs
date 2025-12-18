@@ -13,7 +13,7 @@ type OptimFn<Raw, Out> = fn(Raw) -> Out;
 type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
 
 /// A wrapper arround the user-defined function to maximize.
-pub trait FuncWrapper {}
+pub trait FuncWrapper<Raw:Serialize+for<'a>Deserialize<'a>>{}
 
 /// [`Objective`] is the minimal wrapper for the raw function to maximize.
 /// This raw function must return an [`Outcome`],
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<Raw, Out> FuncWrapper for Objective<Raw, Out> 
+impl<Raw, Out> FuncWrapper<Raw> for Objective<Raw, Out> 
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
     Out:Outcome
@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<Raw, Out, FnState> FuncWrapper for Stepped<Raw, Out, FnState>
+impl<Raw, Out, FnState> FuncWrapper<Raw> for Stepped<Raw, Out, FnState>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
     Out:FidOutcome,

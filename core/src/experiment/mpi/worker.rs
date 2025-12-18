@@ -1,5 +1,8 @@
 use crate::{
-    Domain, EvalStep, FidOutcome, Fidelity, Id, Objective, Outcome, Stepped, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg}, objective::{Step, outcome::FuncState}
+    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
+    checkpointer::{DistCheckpointer, WorkerCheckpointer},
+    experiment::mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg},
+    objective::{Step, outcome::FuncState}
 };
 
 use core::panic;
@@ -166,31 +169,28 @@ where
                 let msg = FXMessage::<SolId, Raw>::from_bytes(raw, config);
                 let x = msg.1;
                 let id = msg.0;
-                let fid = msg.2;
-                match fid {
-                    Some(f) => match f {
-                        Fidelity::Budget(_) => {
-                            let state = self.state.0.remove(&id);
-                            let (out, state) = self.objective.compute(x, f, state);
-                            
-                            match out.get_step().step(){
-                                Step::Partially(_) => {self.state.0.insert(id, state);},
-                                Step::Penultimate => {self.state.0.insert(id, state);},
-                                _ => {},
-                            }
-                            // Send results
-                            send_msg(self.proc, OMessage(id, out), 0, 0, config);
+                let step: Step = msg.2.into();
+                let fid: Fidelity = msg.3;
+                match step {
+                    Step::Pending => {
+                        let (out, state) = self.objective.compute(x, fid, None);
+                        if out.get_step().0 > 0 {
+                            self.state.0.insert(id, state);
                         }
-                        Fidelity::Discard => {
-                            unreachable!("A Discarded solution should not reach this step.")
-                        }
-                    },
-                    None => {
-                        let (out, state) = self.objective.compute(x, None, None);
-                        self.state.0.insert(id, state);
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
                     },
+                    Step::Partially(_) => 
+                    {
+                        let state = self.state.0.remove(&id);
+                        let (out, state) = self.objective.compute(x, fid, state);
+                        if out.get_step().0 > 0 { // if > 0, Partially
+                            self.state.0.insert(id, state);
+                        }
+                        // Send results
+                        send_msg(self.proc, OMessage(id, out), 0, 0, config);
+                    },
+                    _ => {unreachable!("A Discarded, Evaluated or Errored solution should not reach this step.")},
                 }
             }
             // Stop

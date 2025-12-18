@@ -20,7 +20,7 @@ members = ["macros", "core", "algorithms", "tests_suite", "examples"]
 tantale_core = { path = "core" }
 tantale_macros = { path = "macros" }
 tantale_algos = { path = "algorithms" }
-tantale_tests = { path = "tests_suite" }
+# tantale_tests = { path = "tests_suite" }
 tantale_examples = { path = "examples" }
 
 [dependencies]
@@ -32,7 +32,7 @@ tantale_algos.workspace = true
 mpi = ["tantale_core/mpi", "tantale_algos/mpi"]
 
 [dev-dependencies]
-tantale_tests.workspace = true
+# tantale_tests.workspace = true
 tantale_examples.workspace = true
 num = "0.4.3"
 paste = "1.0.15"

@@ -1,9 +1,5 @@
 use crate::{
-    domain::{Domain, onto::{LinkObj, LinkOpt}},
-    objective::{Codomain, FuncWrapper, Outcome},
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, Searchspace},
-    solution::{Batch, Id, IntoComputed, Partial, SolInfo}
+    Solution, domain::{Domain, onto::{LinkObj, LinkOpt}}, objective::{Codomain, FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, Searchspace}, solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed}
 };
 
 use serde::{Deserialize, Serialize};
@@ -76,12 +72,8 @@ pub type OpCodType<Op, Scp, SolId, Out> =
 pub type OpSolOptType<Op, Opt, Scp, SolId, Out> =
     <Op as Optimizer<SolId, Opt, Out, Scp>>::Sol;
 pub type OpSolObjType<Op, Opt, Scp, SolId, Out> =
-    <OpSolOptType<Op,Opt,Scp,SolId,Out> as Partial<SolId,Opt,OpSInfType<Op,Scp,SolId,Out>>>::TwinP<LinkObj<Scp>>;
-/// A [`SolutionShape`] made of [`Computed`].
-pub type OptCompPair<Op,Scp, SolId,Out> = CompShape<OpSolObjType<Op,LinkOpt<Scp>,Scp,SolId,Out>,OpSolOptType<Op,LinkOpt<Scp>,Scp,SolId,Out>,Scp,SolId,OpSInfType<Op,Scp,SolId,Out>,OpCodType<Op,Scp,SolId,Out>,Out>;
-/// A [`Batch`] of [`Computed`] [`SolutionShape`].
-pub type OptCompBatch<Op,Scp, SolId,Out> = Batch<SolId,OpSInfType<Op,Scp,SolId,Out>,OpInfType<Op,Scp,SolId,Out>,CompShape<OpSolObjType<Op,LinkOpt<Scp>,Scp,SolId,Out>,OpSolOptType<Op,LinkOpt<Scp>,Scp,SolId,Out>,Scp,SolId,OpSInfType<Op,Scp,SolId,Out>,OpCodType<Op,Scp,SolId,Out>,Out>>;
-
+    <OpSolOptType<Op,Opt,Scp,SolId,Out> as Solution<SolId,Opt,OpSInfType<Op,Scp,SolId,Out>>>::Twin<LinkObj<Scp>>;
+pub type ObjRaw<Op, Scp, SolId, Out> = <OpSolObjType<Op,LinkOpt<Scp>,Scp,SolId,Out> as Solution<SolId,LinkObj<Scp>,OpSInfType<Op,Scp,SolId,Out>>>::Raw;
 /// A utility trait to force type equality.
 pub trait SameAs<T> {}
 impl<T> SameAs<T> for T {}
@@ -94,10 +86,9 @@ where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
-    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
+    Scp:Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
 {
-    type Sol: Partial<SolId, Opt, Self::SInfo>;
+    type Sol: Uncomputed<SolId, Opt, Self::SInfo>;
     type State: OptState;
     type Cod: Codomain<Out>;
     type SInfo: SolInfo;
@@ -118,16 +109,16 @@ where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
-    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
-    Fn: FuncWrapper,
+    Scp:Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
+    Fn: FuncWrapper<ObjRaw<Self, Scp, SolId, Out>>,
 {
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, scp: &Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::PartShape>;
+    fn first_step(&mut self, scp: &Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::SolShape>;
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: OptCompBatch<Self,Scp, SolId,Out>, scp:&Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::PartShape>;
+    fn step(&mut self, x: Batch<SolId,Self::SInfo,Self::Info,CompShape<Scp,Self::Sol,SolId,Self::SInfo,Self::Cod,Out>>, scp:&Scp) -> Batch<SolId,Self::SInfo,Self::Info,Scp::SolShape>;
 }
 
 pub trait SequentialOptimizer<SolId, Opt, Out, Scp, Fn>:Optimizer<SolId, Opt, Out, Scp, Info = EmptyInfo>
@@ -135,16 +126,15 @@ where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
-    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
-    Fn: FuncWrapper,
+    Scp:Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Fn: FuncWrapper<ObjRaw<Self, Scp, SolId, Out>>,
 {
     /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, scp: &Scp) -> Scp::PartShape;
+    fn first_step(&mut self, scp: &Scp) -> Scp::SolShape;
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
-    fn step(&mut self, x: &OptCompPair<Self,Scp,SolId,Out>, scp: &Scp) -> Scp::PartShape;
+    fn step(&mut self, x: &CompShape<Scp,Self::Sol,SolId,Self::SInfo,Self::Cod,Out>, scp: &Scp) -> Scp::SolShape;
 }
 
 /// A parallel [`Optimizer`] with multi-processing.
@@ -153,9 +143,8 @@ where
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
-    Scp:Searchspace<<Self::Sol as Partial<SolId, Opt, Self::SInfo>>::TwinP<LinkObj<Scp>>, Self::Sol, SolId, Self::SInfo, Opt = Opt>,
-    Scp::PartShape: IntoComputed<SolId,Self::SInfo,Self::Cod,Out>,
-    Fn: FuncWrapper,
+    Scp:Searchspace<Self::Sol, SolId, Self::SInfo, Opt = Opt>,
+    Fn: FuncWrapper<ObjRaw<Self, Scp, SolId, Out>>,
 {
     fn interact(&self);
     fn update(&self);

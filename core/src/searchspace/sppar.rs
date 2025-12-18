@@ -3,7 +3,7 @@ use crate::{
     domain::{Domain, NoDomain, PreDomain, onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom}},
     recorder::csv::{CSVLeftRight, CSVWritable},
     searchspace::{Searchspace, SolInfo},
-    solution::{Id, Lone, Pair, Partial, Solution},
+    solution::{Id, IntoComputed, Lone, Pair, Solution, Uncomputed},
     variable::Var
 };
 
@@ -30,20 +30,20 @@ impl<Obj:Domain> Linked for SpPar<Obj,NoDomain>
     type Opt = Obj;
 }
 
-impl<PartObj,PartOpt,SolId, Obj, Opt, SInfo> Searchspace<PartObj,PartOpt,SolId, SInfo> for SpPar<Obj, Opt>
+impl<SolOpt,SolId, Obj, Opt, SInfo> Searchspace<SolOpt,SolId, SInfo> for SpPar<Obj, Opt>
 where
     SolId: Id + Send + Sync,
     SInfo: SolInfo + Send + Sync,
     Obj: OntoDom<Opt> + Send + Sync,
     Opt: OntoDom<Obj> + Send + Sync,
-    PartObj: Partial<SolId,Obj,SInfo, Twin<Opt> = PartOpt, TwinP<Opt> = PartOpt, Raw=Arc<[Obj::TypeDom]>> + Send  + Sync,
-    PartOpt: Partial<SolId,Opt,SInfo, Twin<Obj> = PartObj, TwinP<Obj> = PartObj, Raw=Arc<[Opt::TypeDom]>> + Send  + Sync,
+    SolOpt: Uncomputed<SolId,Opt,SInfo, Raw=Arc<[Opt::TypeDom]>> + IntoComputed + Send + Sync,
+    SolOpt::Twin<Obj>: Uncomputed<SolId,Obj,SInfo, Twin<Opt>=SolOpt, Raw=Arc<[Obj::TypeDom]>> + IntoComputed + Send + Sync,
     Obj::TypeDom: Send + Sync,
     Opt::TypeDom: Send + Sync,
 {
-    type PartShape = Pair<PartObj,PartOpt,SolId,Obj,Opt,SInfo>;
+    type SolShape = Pair<SolOpt::Twin<Obj>,SolOpt,SolId,Self::Obj,Self::Opt,SInfo>;
 
-    fn onto_obj(&self, inp: &PartOpt) -> PartObj
+    fn onto_obj(&self, inp: SolOpt) -> Self::SolShape
     {
         let var_it = self.var.par_iter();
         let outx: Vec<LinkTyObj<Self>> = inp
@@ -52,10 +52,11 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_obj(i).unwrap())
             .collect();
-        inp.twin::<Obj>(outx.into())
+        let solobj = Solution::twin::<Obj>(&inp, outx.into());
+        Pair::new(solobj,inp)
     }
 
-    fn onto_opt(&self,inp: &PartObj) -> PartOpt
+    fn onto_opt(&self,inp: SolOpt::Twin<Obj>) -> Self::SolShape
     {
         let var_it = self.var.par_iter();
         let outx: Vec<LinkTyOpt<Self>> = inp
@@ -64,28 +65,29 @@ where
             .zip(var_it)
             .map(|(i, v)| v.onto_opt(i).unwrap())
             .collect();
-        inp.twin::<Opt>(outx.into())
+        let solopt = Solution::twin::<Opt>(&inp, outx.into());
+        Pair::new(inp,solopt)
     }
 
-    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> PartObj{
+    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj>{
         let variter = self.var.par_iter();
         let outx: Vec<LinkTyObj<Self>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
             .collect();
-        Partial::new(SolId::generate(), outx, info)
+        Uncomputed::new(SolId::generate(), outx, info)
     }
     
-    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> PartOpt {
+    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt {
         let variter = self.var.par_iter();
         let outx: Vec<LinkTyOpt<Self>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
             .collect();
-        Partial::new(SolId::generate(), outx, info)
+        Uncomputed::new(SolId::generate(), outx, info)
     }
     
     fn is_in_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = <PartObj as Solution<SolId,Self::Obj,SInfo>>::Raw> + Send + Sync
+        S: Solution<SolId, Self::Obj, SInfo, Raw = <SolOpt::Twin<Obj> as Solution<SolId,Self::Obj,SInfo>>::Raw> + Send + Sync
     {
         let variter = self.var.par_iter();
         inp.get_x()
@@ -96,7 +98,7 @@ where
     
     fn is_in_opt<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw =<PartOpt as Solution<SolId,Opt,SInfo>>::Raw> + Send + Sync
+        S: Solution<SolId, Self::Opt, SInfo, Raw =<SolOpt as Solution<SolId,Opt,SInfo>>::Raw> + Send + Sync
     {
         let variter = self.var.par_iter();
         inp.get_x()
@@ -105,22 +107,22 @@ where
             .all(|(elem, v)| v.is_in_opt(elem))
     }
     
-    fn vec_onto_obj(&self, inp: &Vec<PartOpt>) -> Vec<PartObj> {
-        inp.par_iter().map(|sol| self.onto_obj(sol)).collect()
+    fn vec_onto_obj(&self, inp: Vec<SolOpt>) -> Vec<Self::SolShape> {
+        inp.into_par_iter().map(|sol| self.onto_obj(sol)).collect()
     }
     
-    fn vec_onto_opt(&self, inp: &Vec<PartObj>) -> Vec<PartOpt> {
-        inp.par_iter().map(|sol| self.onto_opt(sol)).collect()
+    fn vec_onto_opt(&self, inp: Vec<SolOpt::Twin<Obj>>) -> Vec<Self::SolShape> {
+        inp.into_par_iter().map(|sol| self.onto_opt(sol)).collect()
     }
     
-    fn vec_sample_obj(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PartObj> {
+    fn vec_sample_obj(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<SolOpt::Twin<Obj>> {
         (0..size)
             .into_par_iter()
-            .map(|_| self.sample_obj(None, info.clone()))
+            .map(|_| <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone()))
             .collect()
     }
     
-    fn vec_sample_opt(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PartOpt> {
+    fn vec_sample_opt(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<SolOpt> {
         (0..size)
             .into_par_iter()
             .map(|_| self.sample_opt(None, info.clone()))
@@ -131,61 +133,60 @@ where
     where
         S: Solution<SolId, Self::Obj, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync 
     {
-        inp.par_iter().all(|sol| {<SpPar<Obj, Opt> as Searchspace<PartObj, PartOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
+        inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
     }
     
     fn vec_is_in_opt<S>(&self, inp: &Vec<S>) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw =Arc<[Opt::TypeDom]>> + Send + Sync 
     {
-        inp.par_iter().all(|sol| {<SpPar<Obj, Opt> as Searchspace<PartObj, PartOpt, SolId, SInfo>>::is_in_opt::<S>(self, sol)})
+        inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_opt::<S>(self, sol)})
     }
 
-    fn sample_pair(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<Self::PartShape>
+    fn sample_pair(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<Self::SolShape>
     {
         (0..size).into_par_iter().map(
             |_|
             {
-                let s = self.sample_obj(None, info.clone()); // sample
-                let c = self.onto_opt(&s); // converted
-                (s,c).into() // obj,opt
+                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone()); // sample
+                self.onto_opt(s)
             }
         ).collect()
     }
 }
 
-impl<PartObj, SolId, Obj, SInfo> Searchspace<PartObj,PartObj,SolId, SInfo> for SpPar<Obj, NoDomain>
+impl<SolOpt,SolId, Obj, SInfo> Searchspace<SolOpt,SolId, SInfo> for SpPar<Obj, NoDomain>
 where
     SolId: Id + Send + Sync,
     SInfo: SolInfo + Send + Sync,
     Obj: Domain + Send + Sync,
-    PartObj: Partial<SolId,Obj,SInfo, Twin<Obj> = PartObj, TwinP<Obj> = PartObj, Raw=Arc<[Obj::TypeDom]>> + Send + Sync,
+    SolOpt: Solution<SolId,Obj,SInfo, Raw=Arc<[Obj::TypeDom]>, Twin<Obj> = SolOpt> + Uncomputed<SolId,Obj,SInfo> + IntoComputed + Send + Sync,
     Obj::TypeDom: Send + Sync,
 {
-    type PartShape = Lone<PartObj,SolId,Obj,SInfo>;
+    type SolShape = Lone<SolOpt,SolId,Obj,SInfo>;
 
-    fn onto_obj(&self, inp: &PartObj) -> PartObj {
-        inp.twin::<Obj>(inp.get_x())
+    fn onto_obj(&self, inp: SolOpt::Twin<Obj>) -> Self::SolShape {
+        Lone::new(inp)
     }
 
-    fn onto_opt(&self,inp: &PartObj) -> PartObj {
-        inp.twin::<Obj>(inp.get_x())
+    fn onto_opt(&self,inp: SolOpt::Twin<Obj>) -> Self::SolShape {
+        Lone::new(inp)
     }
 
-    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> PartObj {
+    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
         let variter = self.var.par_iter();
         let outx: Vec<LinkTyObj<Self>> = variter
             .map_init(rand::rng, |rng, var| var.sample_obj(rng))
             .collect();
-        Partial::new(SolId::generate(), outx, info)
+        Uncomputed::new(SolId::generate(), outx, info)
     }
     
-    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> PartObj {
+    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
         let variter = self.var.par_iter();
         let outx: Vec<LinkTyOpt<Self>> = variter
             .map_init(rand::rng, |rng, var| var.sample_opt(rng))
             .collect();
-        Partial::new(SolId::generate(), outx, info)
+        Uncomputed::new(SolId::generate(), outx, info)
     }
     
     fn is_in_obj<S>(&self, inp: &S) -> bool
@@ -210,22 +211,22 @@ where
             .all(|(elem, v)| v.is_in_opt(elem))
     }
     
-    fn vec_onto_obj(&self, inp: &Vec<PartObj>) -> Vec<PartObj> {
-        inp.par_iter().map(|sol| self.onto_obj(sol)).collect()
+    fn vec_onto_obj(&self, inp: Vec<SolOpt::Twin<Obj>>) -> Vec<Self::SolShape> {
+        inp.into_par_iter().map(|sol| Lone::new(sol)).collect()
     }
     
-    fn vec_onto_opt(&self, inp: &Vec<PartObj>) -> Vec<PartObj> {
-        inp.par_iter().map(|sol| self.onto_opt(sol)).collect()
+    fn vec_onto_opt(&self, inp: Vec<SolOpt::Twin<Obj>>) -> Vec<Self::SolShape> {
+        inp.into_par_iter().map(|sol| Lone::new(sol)).collect()
     }
     
-    fn vec_sample_obj(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PartObj> {
+    fn vec_sample_obj(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<SolOpt::Twin<Obj>> {
         (0..size)
             .into_par_iter()
-            .map(|_| self.sample_obj(None, info.clone()))
+            .map(|_| <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone()))
             .collect()
     }
     
-    fn vec_sample_opt(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<PartObj> {
+    fn vec_sample_opt(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<SolOpt::Twin<Obj>> {
         (0..size)
             .into_par_iter()
             .map(|_| self.sample_opt(None, info.clone()))
@@ -236,22 +237,22 @@ where
     where
         S: Solution<SolId, Self::Obj, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync
     {
-        inp.par_iter().all(|sol| {<SpPar<Obj, NoDomain> as Searchspace<PartObj, PartObj, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
+        inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
     }
     
     fn vec_is_in_opt<S>(&self, inp: &Vec<S>) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync
     {
-        inp.par_iter().all(|sol| {<SpPar<Obj, NoDomain> as Searchspace<PartObj, PartObj, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
+        inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
     }
 
-    fn sample_pair(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<Self::PartShape>
+    fn sample_pair(&self,_rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<Self::SolShape>
     {
         (0..size).into_par_iter().map(
             |_|
             {
-                let s = self.sample_obj(None, info.clone()); // sample
+                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone()); // sample
                 Lone::new(s)
             }
         ).collect()

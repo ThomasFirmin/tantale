@@ -1,14 +1,17 @@
 use crate::{
-    Codomain, Computed, Fidelity, Id, Outcome, Partial, SolInfo, Solution, 
-    domain::{Domain, onto::Linked}, 
-    objective::Step, 
-    solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasY},
+    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution, domain::{Domain, onto::{LinkObj, LinkOpt, Linked}}, objective::Step, solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasY, IntoComputed, Uncomputed}
+
 };
 
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 
-pub trait SolutionShape<SolId:Id, SInfo:SolInfo>: Linked 
+pub type SolObj<SolShape,SolId, SInfo> = <SolShape as SolutionShape<SolId,SInfo>>::SolObj;
+pub type SolOpt<SolShape,SolId, SInfo> = <SolShape as SolutionShape<SolId,SInfo>>::SolOpt;
+pub type RawObj<SolShape,SolId, SInfo> = <<SolShape as SolutionShape<SolId,SInfo>>::SolObj as Solution<SolId,LinkObj<SolShape>,SInfo>>::Raw;
+pub type RawOpt<SolShape,SolId, SInfo> = <<SolShape as SolutionShape<SolId,SInfo>>::SolOpt as Solution<SolId,LinkOpt<SolShape>,SInfo>>::Raw;
+
+pub trait SolutionShape<SolId:Id, SInfo:SolInfo>: Linked + HasId<SolId> + HasSolInfo<SInfo>
 where
     Self: Serialize + for<'a> Deserialize<'a>
 {
@@ -19,20 +22,6 @@ where
     fn get_sopt(&self)->&Self::SolOpt;
     fn get_mut_sobj(&mut self)->&mut Self::SolObj;
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt;
-}
-
-/// Creates a [`SolutionShape`] of [`Computed`] [`Solutions`](Solution) from a [`SolutionShape`] of [`Partial`]
-pub trait IntoComputed<SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Cod: Codomain<Out>,
-    Out: Outcome,
-    Self::SolObj: Partial<SolId,Self::Obj,SInfo>,
-    Self::SolOpt: Partial<SolId,Self::Opt,SInfo>,
-{
-    type CompShape: SolutionShape<SolId,SInfo,SolObj = Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,SolOpt = Computed<Self::SolOpt,SolId,Self::Opt,Cod,Out,SInfo>,Obj=Self::Obj,Opt=Self::Opt>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape;
 }
 
 /// A pair made of a `Obj` [`Solution`] and its `Opt` [`Twin`](Solution::Twin).
@@ -82,8 +71,8 @@ where
     Obj: Domain,
     Opt: Domain,
     SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasId<SolId>,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasId<SolId>,
+    SolObj: Solution<SolId, Obj, SInfo>,
+    SolOpt: Solution<SolId, Opt, SInfo>,
 {
     fn get_id(&self) -> SolId {
         self.0.get_id()
@@ -96,8 +85,8 @@ where
     Obj: Domain,
     Opt: Domain,
     SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasId<SolId>,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasId<SolId>,
+    SolObj: Solution<SolId, Obj, SInfo>,
+    SolOpt: Solution<SolId, Opt, SInfo>,
 {
     fn get_sinfo(&self) -> Arc<SInfo> {
         self.0.get_sinfo()
@@ -112,8 +101,8 @@ where
     Cod:Codomain<Out>,
     Out: Outcome,
     SInfo:SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasY<Cod,Out>,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasY<Cod,Out>,
+    SolObj: Solution<SolId, Obj, SInfo>  + HasY<Cod,Out>,
+    SolOpt: Solution<SolId, Opt, SInfo>  + HasY<Cod,Out>,
 {
     fn get_y(&self)->Arc<Cod::TypeCodom>
     {
@@ -134,6 +123,10 @@ where
         self.0.step()
     }
 
+    fn raw_step(&self) -> EvalStep {
+        self.0.raw_step()
+    }
+    
     fn pending(&mut self) {
         self.0.pending();
         self.1.pending();
@@ -144,9 +137,9 @@ where
         self.1.partially(value);
     }
 
-    fn penultimate(&mut self) {
-        self.0.penultimate();
-        self.1.penultimate();
+    fn discard(&mut self) {
+        self.0.discard();
+        self.1.discard();
     }
 
     fn evaluated(&mut self) {
@@ -157,6 +150,11 @@ where
     fn error(&mut self) {
         self.0.error();
         self.1.error();
+    }
+    
+    fn set_step(&mut self,value:EvalStep) {
+        self.0.set_step(value);
+        self.1.set_step(value);
     }
 }
 
@@ -197,20 +195,21 @@ where
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt {&mut self.1}
 }
 
-impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo,Cod,Out> IntoComputed<SolId,SInfo,Cod,Out> for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
+impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> IntoComputed for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
 where
     SolId:Id,
     Obj: Domain,
     Opt: Domain,
     SInfo:SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-    SolObj: Partial<SolId, Obj, SInfo>,
-    SolOpt: Partial<SolId, Opt, SInfo>,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
 {
-    type CompShape = Pair<Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,Computed<Self::SolOpt,SolId,Self::Opt,Cod,Out,SInfo>,SolId,Self::Obj,Self::Opt,SInfo>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape {
-        (Computed::new(self.0, y.clone()),Computed::new(self.1, y)).into()
+    type Computed<Cod:Codomain<Out>,Out:Outcome> = Pair<Computed<SolObj,SolId,Obj,Cod,Out,SInfo>,Computed<SolOpt,SolId,Opt,Cod,Out,SInfo>,SolId,Obj,Opt,SInfo>;
+
+    fn into_computed<Cod:Codomain<Out>,Out:Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+        let cobj = Computed::new(self.0, y.clone());
+        let copt = Computed::new(self.1, y);
+        Pair::new(cobj,copt)
     }
 }
 
@@ -317,6 +316,10 @@ where
         self.0.step()
     }
 
+    fn raw_step(&self) -> EvalStep {
+        self.0.raw_step()
+    }
+
     fn pending(&mut self) {
         self.0.pending();
     }
@@ -325,8 +328,8 @@ where
         self.0.partially(value);
     }
 
-    fn penultimate(&mut self) {
-        self.0.penultimate();
+    fn discard(&mut self) {
+        self.0.discard();
     }
 
     fn evaluated(&mut self) {
@@ -335,6 +338,10 @@ where
 
     fn error(&mut self) {
         self.0.error();
+    }
+    
+    fn set_step(&mut self,value:EvalStep) {
+        self.0.set_step(value);
     }
 }
 
@@ -372,18 +379,17 @@ where
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt {&mut self.0}
 }
 
-impl<SolObj, SolId, Obj, SInfo,Cod,Out> IntoComputed<SolId,SInfo,Cod,Out> for  Lone<SolObj, SolId, Obj, SInfo>
+impl<SolObj, SolId, Obj, SInfo> IntoComputed for  Lone<SolObj, SolId, Obj, SInfo>
 where
     SolId:Id,
     Obj: Domain,
     SInfo:SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
-    SolObj: Partial<SolId, Obj, SInfo>,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
 {
-    type CompShape = Lone<Computed<Self::SolObj,SolId,Self::Obj,Cod,Out,SInfo>,SolId,Self::Obj,SInfo>;
-    fn into_computed(self, y: Arc<Cod::TypeCodom>) -> Self::CompShape {
-        (Computed::new(self.0, y.clone())).into()
+    type Computed<Cod:Codomain<Out>,Out:Outcome> = Lone<Computed<SolObj,SolId,Obj,Cod,Out,SInfo>,SolId,Obj,SInfo>;
+
+    fn into_computed<Cod:Codomain<Out>,Out:Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+        Lone::new(Computed::new(self.0, y))
     }
 }
 
