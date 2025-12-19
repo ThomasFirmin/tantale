@@ -175,7 +175,7 @@ where
     
     fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
     {
-        Computed::new(Uncomputed::twin(&self.sol, x.into()), self.y.clone())
+        Computed::new(Uncomputed::twin(&self.sol, x), self.y.clone())
     }
 }
 

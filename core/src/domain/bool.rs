@@ -137,7 +137,7 @@ where
             } else {
                 target.bounds.start()
             };
-            if target.is_in(&mapped) {
+            if target.is_in(mapped) {
                 Ok(*mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))

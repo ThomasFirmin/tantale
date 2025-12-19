@@ -129,14 +129,14 @@ where
             .collect()
     }
     
-    fn vec_is_in_obj<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Obj, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync 
     {
         inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
     }
     
-    fn vec_is_in_opt<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw =Arc<[Opt::TypeDom]>> + Send + Sync 
     {
@@ -233,14 +233,14 @@ where
             .collect()
     }
     
-    fn vec_is_in_obj<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Obj, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync
     {
         inp.par_iter().all(|sol| {<Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)})
     }
     
-    fn vec_is_in_opt<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync
     {

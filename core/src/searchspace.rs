@@ -592,7 +592,7 @@ where
     /// sp.vec_is_in_obj(&vobj);
     ///
     /// ```
-    fn vec_is_in_obj<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape,SolId,SInfo>> + Send + Sync;
     /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
@@ -628,7 +628,7 @@ where
     /// sp.vec_is_in_opt(&vopt);
     ///
     /// ```
-    fn vec_is_in_opt<S>(&self, inp: &Vec<S>) -> bool
+    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw = SolOpt::Raw> + Send + Sync;
 }

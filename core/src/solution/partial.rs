@@ -97,7 +97,7 @@ where
 
     fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
     {
-        BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
+        BasePartial { id: self.id, x, info: self.info.clone() }
     }
 }
 
@@ -138,7 +138,7 @@ where
     }
     fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinUC<B>
     {
-        BasePartial { id: self.id, x: x.into(), info: self.info.clone() }
+        BasePartial { id: self.id, x, info: self.info.clone() }
     }
 }
 
@@ -277,7 +277,7 @@ where
     {
         FidBasePartial {
             id:self.id,
-            x: x.into(),
+            x,
             step: self.step,
             fid: self.fid,
             info: self.info.clone(),
@@ -310,7 +310,7 @@ where
     {
         FidBasePartial {
             id:self.id,
-            x: x.into(),
+            x,
             step: self.step,
             fid: self.fid,
             info: self.info.clone(),

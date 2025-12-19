@@ -4,7 +4,6 @@ mod hpo;
 mod mixed;
 mod objective;
 mod outcome;
-mod searchspace;
 mod stepped;
 
 #[proc_macro_derive(Mixed)]
@@ -15,11 +14,6 @@ pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(Outcome)]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
-}
-
-#[proc_macro]
-pub fn sp(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    searchspace::sp(input)
 }
 
 #[proc_macro]

@@ -1,5 +1,5 @@
 use crate::{
-    Codomain, Domain, EvalStep, Fidelity, Id, OptInfo, Outcome, SolInfo, Solution,
+    Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
     solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape}
 };
 
@@ -244,7 +244,7 @@ where
     pub fn send_to_rank(&mut self, rank:Rank, pair: Shape)
     {
         let sid = pair.get_id();
-        let msg = Msg::new(&pair.get_sobj());
+        let msg = Msg::new(pair.get_sobj());
         send_msg(self.proc, msg, rank, 0, self.config);
         self.idle.set_busy(rank);
         self.waiting.insert(sid, pair);

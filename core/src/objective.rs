@@ -41,7 +41,7 @@ impl CSVWritable<(), ()> for Step {
 /// * [`Partially`](Step::Partially) - A not fully evaluated solution. If [`EvalStep`]$>0$
 /// * [`Evaluated`](Step::Evaluated) - A fully evaluated solution. If [`EvalStep`]$=-2$.
 /// * [`Discard`](Step::Discard) - Used by [`Optimizer`](crate::Optimizer) when the evaluation must be interrupted.
-///  If [`EvalStep`]$=-9$.
+///   If [`EvalStep`]$=-9$.
 /// * [`Error`](Step::Error) - A faulty evaluation. If [`EvalStep`]$=-10$
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct EvalStep(pub isize);

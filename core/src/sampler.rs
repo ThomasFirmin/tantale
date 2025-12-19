@@ -60,21 +60,21 @@ impl Sampler<Cat> for CatDistribution
     }
 }
 
-impl Into<BoundedDistribution> for Uniform {
-    fn into(self) -> BoundedDistribution {
-        BoundedDistribution::Uniform(self)
+impl From<Uniform> for BoundedDistribution {
+    fn from(val: Uniform) -> Self {
+        BoundedDistribution::Uniform(val)
     }
 }
 
-impl Into<CatDistribution> for Uniform {
-    fn into(self) -> CatDistribution {
-        CatDistribution::Uniform(self)
+impl From<Uniform> for CatDistribution {
+    fn from(val: Uniform) -> Self {
+        CatDistribution::Uniform(val)
     }
 }
 
-impl Into<BoolDistribution> for Bernoulli {
-    fn into(self) -> BoolDistribution {
-        BoolDistribution::Bernoulli(self)
+impl From<Bernoulli> for BoolDistribution {
+    fn from(val: Bernoulli) -> Self {
+        BoolDistribution::Bernoulli(val)
     }
 }
 

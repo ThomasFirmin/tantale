@@ -91,8 +91,8 @@ where
 {
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_partial_obj(&self,id:&Vec<String>, sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_partial_opt(&self,id:&Vec<String>, sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 pub trait CodCSVWrite<SolId,Out>: Codomain<Out>
@@ -102,7 +102,7 @@ where
     Out:Outcome
 {
     fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_codom(&self, id:&Vec<String>, codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_codom(&self, id:&[String], codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 pub trait InfoCSVWrite<SolId, SInfo,Info>: SolutionShape<SolId,SInfo>
@@ -112,13 +112,13 @@ where
     Info:OptInfo + CSVWritable<(),()>,
 {
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_info(&self,id:&Vec<String>, info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_info(&self,id:&[String], info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 pub trait OutCSVWrite<SolId:Id>: Outcome
 {
     fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_out(&self,id:&Vec<String>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_out(&self,id:&[String], wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 /// Describes how to write a [`SolutionShape`] within a csv file.
@@ -159,14 +159,14 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_partial_obj(&self,id:&Vec<String>, sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
         let solstr = self.write_left(&sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
-    fn write_partial_opt(&self,id:&Vec<String>, sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
         let solstr = self.write_right(&sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -197,7 +197,7 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_partial_obj(&self,id:&Vec<String>, sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
         let solstr = self.write_left(&sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
@@ -206,7 +206,7 @@ where
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
-    fn write_partial_opt(&self,id:&Vec<String>, sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
         let solstr = self.write_right(&sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
@@ -231,7 +231,7 @@ where
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
-    fn write_codom(&self, id:&Vec<String>, codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_codom(&self, id:&[String], codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let codstr = self.write(&codom);
         let idstr = id.iter().chain(codstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -256,7 +256,7 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_info(&self, id:&Vec<String>, info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_info(&self, id:&[String], info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let sinfostr = self.get_sinfo().write(&());
         let infostr = info.write(&());
         let idstr = id.iter().chain(sinfostr.iter()).chain(infostr.iter());
@@ -279,7 +279,7 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_out(&self,id:&Vec<String>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_out(&self,id:&[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
         let outstr = self.write(&());
         let idstr = id.iter().chain(outstr.iter());
         let mut wrt_local = wrt.lock().unwrap();

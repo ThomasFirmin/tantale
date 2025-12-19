@@ -80,7 +80,7 @@ where
     }
 
     /// Return the `Obj` and `Opt` [`Partial`] at position `index` within the batch.
-    pub fn index(&self, index: usize) -> &'_ Shape {
+    pub fn bindex(&self, index: usize) -> &'_ Shape {
         &self.pairs[index]
     }
 
@@ -355,7 +355,7 @@ where
     }
 
     /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
-    pub fn index(&self, index: usize) -> &'_(SolId, Out) {
+    pub fn bindex(&self, index: usize) -> &'_(SolId, Out) {
         &self.out[index]
     }
 

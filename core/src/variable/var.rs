@@ -5,8 +5,6 @@ use crate::{
 use rand::prelude::ThreadRng;
 use std::sync::Arc;
 
-type OntoFunc<A, B,TypeA,TypeB> = fn(&A, &TypeA, &B) -> Result<TypeB, OntoError>;
-
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
 #[derive(Clone)]
 pub struct Var<Obj, Opt>
@@ -179,6 +177,45 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> Var<Obj, Opt>
 }
 
 impl<Obj:Domain> Var<Obj, NoDomain>
+{
+    pub fn new(
+        name: (&'static str, Option<usize>),
+        domain_obj: Obj,
+        domain_opt: NoDomain,
+    ) -> Var<Obj, NoDomain> {
+        Var {
+            name,
+            domain_obj: Arc::new(domain_obj),
+            domain_opt: Arc::new(domain_opt),
+        }
+    }
+     pub fn sample_obj(&self, rng: &mut ThreadRng) -> LinkTyObj<Self> {
+        LinkObj::<Self>::sample(&self.domain_obj, rng)
+    }
+    pub fn sample_opt(&self, rng: &mut ThreadRng) -> LinkTyOpt<Self> {
+        LinkOpt::<Self>::sample(&self.domain_obj, rng)
+    }
+    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+        LinkObj::<Self>::is_in(&self.domain_obj,item)
+    }
+    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+        LinkOpt::<Self>::is_in(&self.domain_obj,item)
+    }
+    pub fn replicate(self, repeats: usize) -> Vec<Self> {
+        let mut vec = Vec::with_capacity(repeats);
+        for i in 0..repeats {
+            let var = Var { 
+                name: (self.name.0, Some(i)), 
+                domain_obj: self.domain_obj.clone(), 
+                domain_opt: self.domain_opt.clone() 
+            };
+            vec.push(var);
+        }
+        vec
+    }
+}
+
+impl<Obj:Domain> Var<Obj, Obj>
 {
     pub fn new(
         name: (&'static str, Option<usize>),
