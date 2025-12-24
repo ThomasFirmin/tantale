@@ -5,9 +5,9 @@ use crate::{
     domain::onto::LinkOpt, 
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, 
     objective::{FidOutcome, Step, Stepped, outcome::FuncState},
-    optimizer::opt::{BatchOptimizer, ObjRaw},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape, 
-    solution::{Batch, HasFidelity, HasId, HasInfo, HasStep, IntoComputed, OutBatch, Solution, SolutionShape},
+    solution::{Batch, HasFidelity, HasId, HasInfo, HasStep, IntoComputed, OutBatch, Solution, SolutionShape, Uncomputed, shape::RawObj},
     stop::{ExpStep, Stop}
 };
 
@@ -65,13 +65,14 @@ where
 {
 }
 
-impl<SolId, Op,Scp,Out,St,FnState> MonoEvaluate<SolId,Op,Scp,Out,St,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>> for FidBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape,FnState>
+impl<PSol,SolId, Op,Scp,Out,St,FnState> MonoEvaluate<PSol,SolId,Op,Scp,Out,St,Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>> for FidBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape,FnState>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Stepped<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out,FnState>>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
     St:Stop,
     Out:FidOutcome,
     FnState:FuncState,
@@ -79,10 +80,10 @@ where
     fn init(&mut self) {}
     fn evaluate(
            &mut self,
-           ob: &Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>,
+           ob: &Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>,
            cod: &Op::Cod,
            stop: &mut St,
-       ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+       ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
         //Results
         let mut obatch = OutBatch::empty(self.batch.get_info());
@@ -168,17 +169,18 @@ where
 {
 }
 
-impl<SolId, Op,Scp,Out,St,FnState> ThrEvaluate<SolId,Op,Scp,Out,St,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>
+impl<PSol,SolId, Op,Scp,Out,St,FnState> ThrEvaluate<PSol,SolId,Op,Scp,Out,St,Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>>
     for FidThrBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape,FnState>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id + Send + Sync,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Stepped<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out,FnState>>,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + Debug + Send + Sync,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + Debug + Send + Sync,
     St:Stop + Send + Sync,
     Out:FidOutcome + Send + Sync,
     FnState:FuncState + Send + Sync,
@@ -186,10 +188,10 @@ where
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            ob: Arc<Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>,
+            ob: Arc<Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>>,
             cod: Arc<Op::Cod>,
             stop: Arc<Mutex<St>>,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
         //Results
         let info = self.batch.lock().unwrap().get_info();
@@ -305,11 +307,15 @@ where
 }
 
 #[cfg(feature="mpi")]
+pub type FidMsg<SolId,SolShape,SInfo> = FXMessage<SolId,RawObj<SolShape,SolId,SInfo>>;
+#[cfg(feature="mpi")]
+pub type FidSendRec<'a,SolId,SolShape,SInfo,Cod,Out> = SendRec<'a,FidMsg<SolId,SolShape,SInfo>,SolShape,SolId,SInfo,Cod,Out>;
+#[cfg(feature="mpi")]
 /// Return true if it was able to send a pair else false
-fn recursive_send_a_pair<'a, SolId,Op,Scp,St,Out,FnState>
+fn recursive_send_a_pair<'a, PSol,SolId,Op,Scp,St,Out,FnState>
 (
     available:Rank,
-    sendrec: &mut SendRec<'_,FXMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
+    sendrec: &mut FidSendRec<'a,SolId,Scp::SolShape,Op::SInfo,Op::Cod,Out>,
     where_is_id: &mut  HashMap<SolId, Rank>,
     new_batch: &mut  Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>,
     priority_discard: &mut  PriorityList<Scp::SolShape>,
@@ -317,13 +323,14 @@ fn recursive_send_a_pair<'a, SolId,Op,Scp,St,Out,FnState>
     stop: &mut St,
 )-> bool
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Stepped<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out,FnState>>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
     Scp::SolShape: HasStep + HasFidelity,
     SolObj<Scp::SolShape,SolId,Op::SInfo>: HasStep + HasFidelity,
     SolOpt<Scp::SolShape,SolId,Op::SInfo>: HasStep + HasFidelity,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
     St:Stop,
     Out:FidOutcome,
     FnState:FuncState,
@@ -334,7 +341,7 @@ where
     else if let Some(pair) = priority_discard.pop(available){
         sendrec.discard_order(available, pair.get_id());
         stop.update(ExpStep::Distribution(Step::Evaluated));
-        recursive_send_a_pair::<SolId, Op, Scp, St, Out, FnState>(available, sendrec, where_is_id, new_batch, priority_discard, priority_resume, stop)
+        recursive_send_a_pair::<PSol,SolId, Op, Scp, St, Out, FnState>(available, sendrec, where_is_id, new_batch, priority_discard, priority_resume, stop)
     }
     else if let Some(pair) = priority_resume.pop(available){
         where_is_id.insert(pair.get_id(),available);
@@ -353,16 +360,17 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, Op,Scp,Out,St,FnState> DistEvaluate<SolId,Op,Scp,Out,St,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>,FXMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>>
+impl<PSol,SolId, Op,Scp,Out,St,FnState> DistEvaluate<PSol,SolId,Op,Scp,Out,St,Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>,FXMessage<SolId,RawObj<Scp::SolShape,SolId,Op::SInfo>>>
     for FidDistBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Stepped<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out,FnState>>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
     Scp::SolShape: HasStep + HasFidelity,
     SolObj<Scp::SolShape,SolId,Op::SInfo>: HasStep + HasFidelity,
     SolOpt<Scp::SolShape,SolId,Op::SInfo>: HasStep + HasFidelity,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasStep + HasFidelity,
     St:Stop,
     Out:FidOutcome,
     FnState:FuncState,
@@ -370,11 +378,11 @@ where
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            sendrec: &mut SendRec<'_,FXMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
-            _ob: &Stepped<ObjRaw<Op,Scp,SolId,Out>,Out,FnState>,
+            sendrec: &mut SendRec<'_,FXMessage<SolId,RawObj<Scp::SolShape,SolId,Op::SInfo>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
+            _ob: &Stepped<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out,FnState>,
             cod: &Op::Cod,
             stop: &mut St,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
         //Results
         let mut obatch = OutBatch::empty(self.new_batch.get_info());
@@ -384,7 +392,7 @@ where
         let mut stop_loop = stop.stop();
         while sendrec.idle.has_idle() && !stop_loop {
             let available = sendrec.idle.pop().unwrap() as Rank;
-            stop_loop = recursive_send_a_pair::<SolId, Op, Scp, St, Out, FnState>(
+            stop_loop = recursive_send_a_pair::<PSol,SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
                 &mut self.where_is_id,
@@ -404,7 +412,7 @@ where
             stop.update(ExpStep::Distribution(pair.step()));
             obatch.add((pair.get_id(), out));
             cbatch.add(pair.into_computed(y.into()));
-            stop_loop = recursive_send_a_pair::<SolId, Op, Scp, St, Out, FnState>(
+            stop_loop = recursive_send_a_pair::<PSol,SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
                 &mut self.where_is_id,

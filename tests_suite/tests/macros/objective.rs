@@ -4,8 +4,8 @@ use tantale_core::BasePartial;
 fn obj_test() {
     mod searchspace {
         use serde::{Deserialize, Serialize};
-        use tantale::core::domain::sampler::{uniform_int, uniform_real};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
+        use tantale::core::sampler::{Uniform,Bernoulli};
         use tantale::macros::{objective, Outcome};
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -44,14 +44,14 @@ fn obj_test() {
 
         objective!(
             pub fn example<'a>() -> OutExample {
-                let a = [! a | Real(0.0,5.0) | !];
-                let aa = [! aa_{10} | Real(-5.0,0.0) => uniform_real | Int(0,100) => uniform_int !];
-                let aaa = [! aaa | Real(100.0,200.0) | !];
-                let some_bool = [! boolvar | Bool()   | !];
-                let some_nat = [! natvar | Nat(0,10) | !];
-                let some_cat = [! catvar | Cat(&["relu", "tanh", "sigmoid"]) |!];
+                let a = [! a | Real(0.0,5.0,Uniform) | !];
+                let aa = [! aa_{10} | Real(-5.0,0.0,Uniform) | Int(0,100,Uniform) !];
+                let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];
+                let some_bool = [! boolvar | Bool(Bernoulli(0.5)) | !];
+                let some_nat = [! natvar | Nat(0,10,Uniform) | !];
+                let some_cat = [! catvar | Cat(&["relu", "tanh", "sigmoid"],Uniform) |!];
 
-                let some_int = plus_one_int([! intvar | Int(-10,0) | !]);
+                let some_int = plus_one_int([! intvar | Int(-10,0,Uniform) | !]);
 
                 OutExample{
                     obj: a,

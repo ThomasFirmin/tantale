@@ -21,7 +21,7 @@ use crate::{
         Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, cat::Cat, onto::{Onto, OntoDom}
     },
     errors::OntoError,
-    recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler, Uniform},
+    recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -41,15 +41,12 @@ pub struct Unit {
 
 impl Unit {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(sampler:Option<S>) -> Unit {
+    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(sampler:S) -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
             mid:0.5,
             width:1.0,
-            sampler: match sampler{
-                Some(s) => s.into(),
-                None => BoundedDistribution::Uniform(Uniform),
-            }
+            sampler: sampler.into()
         }
     }
 }
@@ -82,7 +79,7 @@ impl RangeDomain for Unit{
 
 impl std::clone::Clone for Unit {
     fn clone(&self) -> Self {
-        Unit::new(Some(self.sampler))
+        Unit::new(self.sampler)
     }
 }
 

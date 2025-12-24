@@ -30,7 +30,7 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, cat::Cat, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler, Uniform}
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
@@ -110,7 +110,7 @@ impl<T: BoundedBounds> Bounded<T> {
     /// * `lower`: `T` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
     ///
-    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(lower: T, upper: T, sampler:Option<S>) -> Bounded<T> {
+    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(lower: T, upper: T, sampler:S) -> Bounded<T> {
         if lower < upper {
             let mid = (upper + lower) / T::from(2).unwrap();
             let width = upper - lower;
@@ -118,10 +118,7 @@ impl<T: BoundedBounds> Bounded<T> {
                 bounds: std::ops::RangeInclusive::new(lower, upper),
                 mid,
                 width,
-                sampler:match sampler {
-                    Some(s) => s.into(),
-                    None => BoundedDistribution::Uniform(Uniform),
-                }
+                sampler: sampler.into(),
             }
         } else {
             panic!("Boundaries error, {} is not < {}.", lower, upper);
@@ -162,7 +159,7 @@ impl<T:BoundedBounds> RangeDomain for Bounded<T>
 impl<T:BoundedBounds> std::clone::Clone for Bounded<T>
 {
     fn clone(&self) -> Self {
-        Bounded::new(*self.bounds.start(), *self.bounds.end(), Some(self.sampler))
+        Bounded::new(*self.bounds.start(), *self.bounds.end(), self.sampler)
     }
 }
 

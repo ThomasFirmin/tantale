@@ -159,6 +159,12 @@ pub enum ConsType {
     Inequality,
     Both,
 }
+#[derive(Debug,Serialize,Deserialize)]
+pub struct NoCodomain;
+impl<Out:Outcome> Codomain<Out> for NoCodomain{
+    type TypeCodom = ();
+    fn get_elem(&self, _o: &Out) -> Self::TypeCodom {}
+}
 
 // MONO OBJECTIVE CODOMAINS
 

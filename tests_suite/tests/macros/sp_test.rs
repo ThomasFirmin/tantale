@@ -1,4 +1,5 @@
 mod test {
+    use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
     use tantale_core::domain::TypeDom;
 
@@ -6,29 +7,38 @@ mod test {
     pub fn main() {
         use std::sync::Arc;
         use tantale::core::{
-            uniform_cat, uniform_nat, uniform_real, BasePartial, Bool, Cat, EmptyInfo, Nat, Real,
-            SId, Searchspace, Solution,
+            BasePartial, Bool, Cat, EmptyInfo, Nat, Real,
+            SId, Searchspace, Solution,Sp,
+            sampler::{Uniform,Bernoulli},
+            solution::shape::SolutionShape,
         };
         use tantale::macros::hpo;
 
         static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
         hpo!(
-            a | Real(0.0,1.0)                   |                               ;
-            b | Nat(0,100)       => uniform_nat | Real(0.0,1.0) => uniform_real ;
-            c | Cat(&ACTIVATION) => uniform_cat | Real(0.0,1.0) => uniform_real ;
-            d | Bool()                          | Real(0.0,1.0)                 ;
+            a | Real(0.0,1.0,Uniform)          |               ;
+            b | Nat(0,100,Uniform)             | Real(0.0,1.0,Uniform) ;
+            c | Cat(&ACTIVATION,Uniform)       | Real(0.0,1.0,Uniform) ;
+            d | Bool(Bernoulli(0.5))           | Real(0.0,1.0,Uniform) ;
         );
 
         let mut rng = rand::rng();
-        let sp = get_searchspace();
-        let info = std::sync::Arc::new(EmptyInfo {});
+        let sp: Sp<ObjType,OptType> = get_searchspace();
 
-        let obj: BasePartial<SId, _, _> = sp.sample_obj(Some(&mut rng), info.clone());
-        let opt: BasePartial<SId, _, _> = sp.onto_opt(&obj); // Map obj => opt
-                                                             // Paired solutions have the same ID
-        println!("Obj ID : {} <=> Opt ID : {}", obj.id.id, opt.id.id);
+        fn get_pair<Scp>(sp:&Scp, rng:&mut ThreadRng) -> Scp::SolShape
+        where
+            Scp:Searchspace<BasePartial<SId,OptType,EmptyInfo>,SId,EmptyInfo,Opt = OptType>
+        {
+            let info = std::sync::Arc::new(EmptyInfo {});
+            let obj = sp.sample_obj(Some(rng),info);
+            let pair = sp.onto_opt(obj); // Paired solutions have the same ID
+            println!("Obj {:?}:  <=> Opt {:?} : ", pair.get_sobj(), pair.get_sopt());
+            pair
+        }
 
+        let pair = get_pair(&sp, &mut rng);
+        
         use tantale::macros::Outcome;
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -59,7 +69,7 @@ mod test {
             OutStruct { out: 42.0 }
         }
 
-        let out = compute_obj(obj.get_x());
+        let out = compute_obj(pair.get_sobj().get_x());
         println!("OUT {}", out.out);
     }
 }

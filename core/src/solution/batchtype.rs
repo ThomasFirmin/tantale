@@ -147,17 +147,23 @@ where
         priority_resume: &mut PriorityList<Shape>,
         new_batch: &mut Self,
     )
-    {
+    {   
         self.into_iter().for_each(
             |pair|
             {
-                match pair.step(){
-                    Step::Pending => todo!(),
-                    Step::Partially(_) => todo!(),
-                    Step::Evaluated => todo!(),
-                    Step::Discard => todo!(),
-                    Step::Error => todo!(),
+                match pair.step() {
+                    Step::Pending => new_batch.add(pair),
+                    Step::Partially(_) => {
+                        let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                        priority_resume.add(pair,rank);
+                    },
+                    Step::Evaluated => {
+                        let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                        priority_discard.add(pair,rank);
+                    },
+                    _ => {},
                 }
+                
             }
         )
     }

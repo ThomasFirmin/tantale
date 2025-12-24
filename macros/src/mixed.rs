@@ -107,6 +107,8 @@ pub fn proc_mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
 
+        // IMPL PREDOMAIN
+        impl #egenerics tantale::core::domain::PreDomain for #eident #egenerics #ewhere {}
         // IMPL MIXED
         impl #egenerics tantale::core::domain::Mixed for #eident #egenerics #ewhere {}
 

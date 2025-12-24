@@ -1,10 +1,11 @@
 extern crate proc_macro;
 
-use std::{collections::HashSet, str::FromStr};
+use core::num;
+use std::collections::HashSet;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{
     braced,
     parse::{self, Parse},
@@ -138,7 +139,7 @@ impl Parse for LineStream {
             DomainStream::None => {
                 DomainToken{
                     args: Punctuated::new(),
-                    ty: Ident::new("tantale_core::core::domain::nodomain::Nodomain", second_bar.span()),
+                    ty: Ident::new("NoDomain", second_bar.span()),
                     is_nodomain:true,
                 }
             }
@@ -201,7 +202,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let mut name_unique = HashSet::new();
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
-
+    let mut num_nodomain= 0;
     for line in vartokens {
         // Parse linestream
         if name_unique.contains(&line.name_part.id) {
@@ -220,11 +221,18 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         // If None then copy Obj
         let opt_args = line.opt_part.args;
         let opt_ty = line.opt_part.ty;
+        // Determine if there is at least 1 NoDomain
         let is_nodomain = line.opt_part.is_nodomain;
-
-        // Push everything into vectors
+        // Push everything into HashmMaps
         tobj_unique.insert(obj_ty.clone());
-        topt_unique.insert(opt_ty.clone());
+        if is_nodomain{
+            num_nodomain += 1;
+            topt_unique.insert(obj_ty.clone());
+        }
+        else{
+            topt_unique.insert(opt_ty.clone());
+        }
+        
 
         let varinfostruct = VarInfo {
             name: line.name_part.id,
@@ -254,22 +262,28 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let ident_mixedt_obj_str;
     let ident_mixed_opt_str;
 
-    // Determine if Obj is Mixed or not
-    if tobj_unique.len() > 1 {
+    if  tobj_unique.len() > 1 {
         is_mixedobj = true;
         ident_mixed_obj_str = String::from("BaseDom");
         ident_mixedt_obj_str = String::from("BaseTypeDom");
-    } else {
+    }
+    else {
         let unique_type = tobj_unique.iter().next().unwrap().to_string();
         ident_mixed_obj_str = unique_type.clone();
         ident_mixedt_obj_str = unique_type.clone();
     }
 
+    
     // Determine if Opt is Mixed or not
-    if topt_unique.len() > 1 {
+    let full_nodomain = num_nodomain == varinfo.len();
+    if full_nodomain {
+        ident_mixed_opt_str = String::from("NoDomain");
+    }
+    else if topt_unique.len() > 1 {
         is_mixedopt = true;
         ident_mixed_opt_str = String::from("BaseDom");
-    } else {
+    }
+    else{
         let unique_type = topt_unique.iter().next().unwrap().to_string();
         ident_mixed_opt_str = unique_type.clone();
     }
@@ -302,9 +316,19 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         }
 
         if is_mixedopt {
-            wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
+            if is_nodomain{
+                wrapped_domopt = quote! {#ident_mixed_opt::#ty_obj(#ty_obj::new(#args_obj))};
+            }
+            else{
+                wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
+            }
         } else {
-            wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
+            if is_nodomain && !full_nodomain{
+                wrapped_domopt = quote! {#ty_obj::new(#args_obj)};
+            }
+            else{
+                wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
+            }
         }
 
         let repeats = match vinf.repeats {
@@ -325,7 +349,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let mut push_statements = Vec::new();
     push_statements.push(
         quote! {
-            let mut variables : Vec<tantale_core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
+            let mut variables : Vec<tantale::core::variable::var::Var<#ident_mixed_obj , #ident_mixed_opt >> = Vec::new();
         }
     );
     let mut var_reps: Vec<usize> = Vec::new();
@@ -338,14 +362,8 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
 
 
         // If domain only defined on left : name | Obj | ;
-        let var_statement = if single && are_same {
-            quote! {
-                tantale_core::variable::var::Var::new((#name , None) ,#domobj.into(), tantale::core::domain::nodomain::Nodomain.into())
-            }
-        } else {
-            quote! {
-                tantale_core::variable::var::Var::new((#name , None) ,#domobj.into() ,#domopt.into())
-            }
+        let var_statement = quote!{
+            tantale::core::variable::var::Var::<#ident_mixed_obj , #ident_mixed_opt >::new((#name , None) ,#domobj.into() ,#domopt.into())
         };
         push_statements.push(match repeats {
             None => {
@@ -380,20 +398,17 @@ pub fn get_sp_tokens(
 ) -> syn::Result<TokenStream> {
     Ok(quote! {
 
-        use tantale_core::domain::{BaseDom,BaseTypeDom,Domain,onto::Onto};
+        use tantale::core::domain::{BaseDom,BaseTypeDom,Domain,NoDomain,onto::Onto};
 
         pub type ObjType = #ident_mixed_obj;
         pub type OptType = #ident_mixed_opt;
 
-        pub fn get_searchspace()-> tantale_core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
+        pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
         {
-
-            #(#sampler_functions)*
-
             #(#push_statements)*
 
-            tantale_core::searchspace::Sp{
-                variables : variables.into_boxed_slice(),
+            tantale::core::searchspace::Sp{
+                var : variables.into_boxed_slice(),
             }
         }
     }

@@ -42,6 +42,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
         + Default
         + Serialize
         + for<'a> Deserialize<'a>;
+    
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
     ///

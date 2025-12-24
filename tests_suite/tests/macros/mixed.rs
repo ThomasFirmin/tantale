@@ -1,3 +1,4 @@
+use tantale_core::sampler::{Bernoulli, Uniform};
 use tantale_macros::Mixed;
 
 #[test]
@@ -14,12 +15,12 @@ fn mixed_derive() {
         Unit(Unit),
     }
 
-    let v1 = Real::new(0.0, 1.0);
-    let v2 = Int::new(0, 1);
-    let v3 = Nat::new(0, 1);
-    let v4 = Bool::new();
-    let v5 = Cat::new(&["relu", "tanh", "sigmoid"]);
-    let v6 = Unit::new();
+    let v1 = Real::new(0.0, 1.0, Uniform);
+    let v2 = Int::new(0, 1, Uniform);
+    let v3 = Nat::new(0, 1, Uniform);
+    let v4 = Bool::new(Bernoulli(0.5));
+    let v5 = Cat::new(&["relu", "tanh", "sigmoid"],Uniform);
+    let v6 = Unit::new(Uniform);
 
     let b1 = Base::Real(v1.clone());
     let b2 = Base::Int(v2.clone());

@@ -1,25 +1,16 @@
 use tantale_core::{
-    domain::onto::OntoDom,
-    objective::{
-        codomain::SingleCodomain,
-        outcome::{FuncState, Outcome},
-    },
-    optimizer::{
-        opt::{CBType, Optimizer},
-        EmptyInfo, OptInfo, OptState,
-    },
-    recorder::csv::CSVWritable,
-    searchspace::Searchspace,
-    solution::{
-        partial::{FidBasePartial, FidelityPartial},
-        Batch, SId,
-    },
-    BasePartial, Codomain, Criteria, FidOutcome, Objective, StepCodomain, Stepped,
+    BasePartial, Codomain, Criteria, Objective, Solution, domain::onto::LinkOpt, objective::{
+        codomain::{NoCodomain, SingleCodomain},
+        outcome::Outcome,
+    }, optimizer::{
+        EmptyInfo, OptInfo, OptState, opt::{BatchOptimizer, Optimizer}
+    }, recorder::csv::CSVWritable, searchspace::{CompShape, Searchspace}, solution::{
+        Batch, IntoComputed, SId, SolutionShape, partial::FidBasePartial, shape::RawObj
+    }
 };
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
 pub struct RSState {
@@ -72,58 +63,54 @@ impl RandomSearch {
 //--- OBJECTIVE ---//
 //-----------------//
 
-fn rs_iter<Obj, Opt, Scp>(
+fn rs_iter<Scp,PSol>(
     opt: &mut RandomSearch,
     sp: &Scp,
-) -> Batch<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo, RSInfo>
+) -> Batch<SId,EmptyInfo,RSInfo,Scp::SolShape>
 where
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
+    PSol: Solution<SId,Scp::Opt,EmptyInfo>,
+    Scp: Searchspace<PSol,SId,EmptyInfo>,
 {
-    let samples = sp.vec_sample_obj(Some(&mut opt.1), opt.0.batch, Arc::new(EmptyInfo {}));
-    let opt_samples = sp.vec_onto_opt(&samples);
-    let info = Arc::new(RSInfo {
-        iteration: opt.0.iteration,
-    });
+    let info = RSInfo{iteration: opt.0.iteration};
     opt.0.iteration += 1;
-    Batch::new(samples, opt_samples, info)
+    let pairs = sp.sample_pair(
+        Some(&mut opt.1),
+        opt.0.batch,
+        EmptyInfo.into());
+    Batch::new(pairs, info.into())
 }
 
-impl<Obj, Opt, Out, Scp> Optimizer<SId, Obj, Opt, Out, Scp, Objective<Obj, Out>> for RandomSearch
+impl<Out,Scp> Optimizer<BasePartial<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for RandomSearch 
 where
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Out: Outcome,
-    Scp: Searchspace<BasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
+    Out:Outcome,
+    Scp: Searchspace<BasePartial<SId,LinkOpt<Scp>,EmptyInfo>,SId,EmptyInfo>,
 {
-    type Sol = BasePartial<SId, Obj, EmptyInfo>;
-    type BType = Batch<Self::Sol, SId, Obj, Opt, EmptyInfo, RSInfo>;
-    type Cod = SingleCodomain<Out>;
+    type State = RSState;
+    type Cod = NoCodomain;
     type SInfo = EmptyInfo;
     type Info = RSInfo;
-    type State = RSState;
 
-    fn init(&mut self) {}
-
-    fn first_step(&mut self, scp: &Scp) -> Self::BType {
-        rs_iter::<Obj, Opt, Scp>(self, scp)
-    }
-
-    fn step(
-        &mut self,
-        _x: CBType<Self, SId, Obj, Opt, Out, Scp, Objective<Obj, Out>>,
-        scp: &Scp,
-    ) -> Self::BType {
-        rs_iter::<Obj, Opt, Scp>(self, scp)
-    }
-
-    fn get_state(&mut self) -> &RSState {
+    fn get_state(&mut self) -> &Self::State {
         &self.0
     }
 
-    fn from_state(state: RSState) -> Self {
-        RandomSearch(state, rand::rng())
+    fn from_state(state: Self::State) -> Self {
+        Self(state,rand::rng())
+    }
+}
+
+impl<Out,Scp> BatchOptimizer<BasePartial<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp,Objective<RawObj<Scp::SolShape,SId,EmptyInfo>,Out>> for RandomSearch
+where
+    Out:Outcome,
+    Scp: Searchspace<BasePartial<SId,LinkOpt<Scp>,EmptyInfo>,SId,EmptyInfo>,
+    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
+{
+    fn first_step(&mut self, scp: &Scp) -> Batch<SId,Self::SInfo,Self::Info,Scp::SolShape> {
+        rs_iter(self, scp)
+    }
+
+    fn step(&mut self, _x: Batch<SId,Self::SInfo,Self::Info, CompShape<Scp,BasePartial<SId,Scp::Opt,EmptyInfo>,SId,Self::SInfo,Self::Cod,Out>>, scp:&Scp) -> Batch<SId,Self::SInfo,Self::Info,Scp::SolShape> {
+        rs_iter(self, scp)
     }
 }
 
@@ -131,78 +118,37 @@ where
 //--- STEPPED ---//
 //---------------//
 
-fn fid_rs_iter<Obj, Opt, Scp>(
-    opt: &mut RandomSearch,
-    sp: &Scp,
-    batch: &mut Batch<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo, RSInfo>,
-)
-where
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Scp: Searchspace<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
-{
-    let info = Arc::new(EmptyInfo);
-    (batch.sobj,batch.sopt) = sp.sample_pair(Some(&mut opt.1), opt.0.batch, info.clone()).into_iter().unzip();
-}
 
-impl<Obj, Opt, Out, Scp, FnState> Optimizer<SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>
-    for RandomSearch
+impl<Out,Scp> Optimizer<FidBasePartial<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for RandomSearch 
 where
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-    Out: FidOutcome,
-    Scp: Searchspace<FidBasePartial<SId, Obj, EmptyInfo>, SId, Obj, Opt, EmptyInfo>,
-    FnState: FuncState,
+    Out:Outcome,
+    Scp: Searchspace<FidBasePartial<SId,LinkOpt<Scp>,EmptyInfo>,SId,EmptyInfo>,
 {
-    type Sol = FidBasePartial<SId, Obj, EmptyInfo>;
-    type BType = Batch<Self::Sol, SId, Obj, Opt, EmptyInfo, RSInfo>;
-    type Cod = StepCodomain<Out>;
+    type State = RSState;
+    type Cod = NoCodomain;
     type SInfo = EmptyInfo;
     type Info = RSInfo;
-    type State = RSState;
-
-    fn init(&mut self) {}
-
-    fn first_step(&mut self, scp: &Scp) -> Self::BType {
-        let info = RSInfo{iteration: self.0.iteration};
-        let mut batch = Batch::empty(info.into());
-        self.0.iteration += 1;
-        fid_rs_iter::<Obj, Opt, Scp>(self, scp, &mut batch);
-        batch
-    }
-
-    fn step(
-        &mut self,
-        x: CBType<Self, SId, Obj, Opt, Out, Scp, Stepped<Obj, Out, FnState>>,
-        scp: &Scp,
-    ) -> Self::BType {
-        let mut batch: Self::BType = x.into_iter().filter_map(
-            |(obj, opt)| 
-            {
-                let step = obj.get_y().step;
-                let mut xobj = obj.sol;
-                let mut xopt = opt.sol;
-                if step.is_partially(){
-                    xobj.resume(&mut xopt, 0.0);
-                    Some((xobj, xopt))
-                }
-                else{None}
-            }
-        ).collect();
-        if batch.size() == 0{
-            self.0.iteration += 1;
-            fid_rs_iter::<Obj, Opt, Scp>(self, scp, &mut batch)
-        }
-        let info = RSInfo {iteration: self.0.iteration}.into();
-        batch.info = info;
-        batch
-    }
 
     fn get_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
-        RandomSearch(state, rand::rng())
+        Self(state,rand::rng())
+    }
+}
+
+impl<Out,Scp> BatchOptimizer<FidBasePartial<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp,Objective<RawObj<Scp::SolShape,SId,EmptyInfo>,Out>> for RandomSearch
+where
+    Out:Outcome,
+    Scp: Searchspace<FidBasePartial<SId,LinkOpt<Scp>,EmptyInfo>,SId,EmptyInfo>,
+    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
+{
+    fn first_step(&mut self, scp: &Scp) -> Batch<SId,Self::SInfo,Self::Info,Scp::SolShape> {
+        rs_iter(self, scp)
+    }
+
+    fn step(&mut self, _x: Batch<SId,Self::SInfo,Self::Info, CompShape<Scp,FidBasePartial<SId,Scp::Opt,EmptyInfo>,SId,Self::SInfo,Self::Cod,Out>>, scp:&Scp) -> Batch<SId,Self::SInfo,Self::Info,Scp::SolShape> {
+        rs_iter(self, scp)
     }
 }

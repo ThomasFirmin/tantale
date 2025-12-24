@@ -6,8 +6,6 @@
 #[doc(inline)]
 pub use macros::objective;
 #[doc(inline)]
-pub use macros::sp;
-#[doc(inline)]
 pub use macros::stepped;
 #[doc(inline)]
 pub use macros::Mixed;

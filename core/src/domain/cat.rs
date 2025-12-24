@@ -19,7 +19,7 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bounded::{Bounded, BoundedBounds}, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{CatDistribution, Sampler, Uniform}
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{CatDistribution, Sampler}
 };
 
 use num::cast::AsPrimitive;
@@ -50,14 +50,11 @@ impl Cat {
     ///
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new<'a, S:Sampler<Self> + Into<CatDistribution>>(values: &'a [&'a str], sampler:Option<S>) -> Cat
+    pub fn new<'a, S:Sampler<Self> + Into<CatDistribution>>(values: &'a [&'a str], sampler:S) -> Cat
     {
         Cat {
             values: values.iter().map(|s| String::from(*s)).collect(),
-            sampler: match sampler {
-                Some(s) => s.into(),
-                None => CatDistribution::Uniform(Uniform),
-            }
+            sampler: sampler.into(),
         }
     }
 }

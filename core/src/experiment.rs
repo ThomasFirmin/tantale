@@ -3,10 +3,10 @@ use crate::{
     checkpointer::Checkpointer,
     domain::onto::LinkOpt,
     objective::{FuncWrapper, Outcome},
-    optimizer::{Optimizer, opt::{BatchOptimizer, ObjRaw, SequentialOptimizer}},
+    optimizer::{Optimizer, opt::{BatchOptimizer, SequentialOptimizer}},
     recorder::Recorder,
     searchspace::CompShape,
-    solution::{Batch, Id, OutBatch, SolutionShape},
+    solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
     stop::Stop
 };
 use serde::{Deserialize, Serialize};
@@ -64,8 +64,8 @@ macro_rules! experiment {
 #[cfg(feature = "mpi")]
 macro_rules! experiment {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
+        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
+        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -74,8 +74,8 @@ macro_rules! experiment {
         )
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
+        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
+        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -84,8 +84,8 @@ macro_rules! experiment {
         )
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::ThrExperiment<_,_,_,_,_,_,_,_,_,_,_> as 
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>>::new(
+        <tantale::core::experiment::ThrExperiment<_,_,_,_,_,_,_,_,_,_>
+        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
             ($domain, $codomain),
             $objective,
             $optimizer,
@@ -94,8 +94,8 @@ macro_rules! experiment {
         )
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_,_> as 
-            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>>::new(
+        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_>
+        as tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>>::new(
             $proc,
             ($domain, $codomain),
             $objective,
@@ -110,13 +110,13 @@ macro_rules! experiment {
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+        tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
     };
 }
 
@@ -124,23 +124,23 @@ macro_rules! load {
 #[cfg(feature = "mpi")]
 macro_rules! load {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
-            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_,_>
+        <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
+            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_,_> as
-            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_,_>
+        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>
             >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
     };
 }
@@ -148,17 +148,18 @@ macro_rules! load {
 /// [`Runable`] describes the optimization loop.
 /// The [`Optimizer`] defines a single iteration, and a [`Runable`] loops over an [`Optimizer`] step.
 /// It wraps-up, the [`Optimizer`], the stopping criterion [`Stop`], the [`Objective`], the [`Recorder`] and [`Checkpointer`].
-pub trait Runable<SolId, Scp, Op, St, Rec, Check, Out, Fn>
+pub trait Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St: Stop,
-    Rec: Recorder<SolId,Out,Scp,Op>,
+    Rec: Recorder<PSol,SolId,Out,Scp,Op>,
     Check: Checkpointer,
     Out: Outcome,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn new(
         space: (Scp, Op::Cod),
@@ -172,37 +173,39 @@ where
 }
 
 #[cfg(feature = "mpi")]
-pub enum MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Fn>
+pub enum MasterWorker<'a, DRun, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    DRun: DistRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St: Stop,
-    Rec: DistRecorder<SolId,Out,Scp,Op>,
+    Rec: DistRecorder<PSol, SolId,Out,Scp,Op>,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     Master(DRun),
     Worker(DRun::WType),
 }
 
 #[cfg(feature = "mpi")]
-impl<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Fn>
-    MasterWorker<'a, DRun, SolId, Scp, Op, St, Rec, Check, Out, Fn>
+impl<'a, DRun, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
+    MasterWorker<'a, DRun, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    DRun: DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    DRun: DistRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St: Stop,
-    Rec: DistRecorder<SolId,Out,Scp,Op>,
+    Rec: DistRecorder<PSol, SolId,Out,Scp,Op>,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     pub fn run(self) {
         match self {
@@ -214,18 +217,19 @@ where
 
 #[cfg(feature = "mpi")]
 /// [`DistRunable`] describes a MPI-distributed [`Runable`], defined by a [`MasterWorker`] parallelization.
-pub trait DistRunable<'a, SolId, Scp, Op, St, Rec, Check, Out, Fn>
+pub trait DistRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     Self:Sized,
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Op: Optimizer<PSol, SolId,LinkOpt<Scp>,Out,Scp>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
     St: Stop,
-    Rec: DistRecorder<SolId,Out,Scp,Op>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasY<Op::Cod,Out>,
+    Rec: DistRecorder<PSol, SolId,Out,Scp,Op>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasY<Op::Cod,Out>,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     type WType: Worker<SolId>;
     fn new(
@@ -235,19 +239,22 @@ where
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
-    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
+    ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
     fn run(self);
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Fn,
         saver: (Option<Rec>, Check),
-    ) -> MasterWorker<'a, Self, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
+    ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
 }
 
 //------------------------//
 //-------EVALUATOR--------//
 //------------------------//
+
+pub type OutEvaluate<SolId,SInfo,Info,Scp,PSol,Cod,Out> = 
+(Batch<SolId,SInfo,Info,CompShape<Scp,PSol,SolId,SInfo,Cod,Out>>,OutBatch<SolId,Info,Out>);
 
 pub trait Evaluate
 where
@@ -257,15 +264,16 @@ where
 
 /// [`SingleEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
 /// generating a **single** [`Partial`] at each step.
-pub trait SingleEvaluate<SolId, Op, Scp, Out, St, Fn>:Evaluate
+pub trait SingleEvaluate<PSol, SolId, Op, Scp, Out, St, Fn>:Evaluate
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op: SequentialOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Fn>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: SequentialOptimizer<PSol, SolId,LinkOpt<Scp>,Out,Scp,Fn>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     Out:Outcome,
     St:Stop,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -273,21 +281,22 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
-    ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>);
+    ) -> OutEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>;
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>);
 }
 
 /// [`MonoEvaluate`] is an [`Evaluate`] describing how to evaluate the output of a sequential [`Optimizer`]
 /// generating a **batch** of [`Partial`] at each step.
-pub trait MonoEvaluate<SolId, Op, Scp, Out, St, Fn>: Evaluate
+pub trait MonoEvaluate<PSol,SolId, Op, Scp, Out, St, Fn>: Evaluate
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op: BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Fn>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: BatchOptimizer<PSol, SolId,LinkOpt<Scp>,Out,Scp,Fn>,
+    Scp: Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     Out: Outcome,
     St: Stop,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -295,21 +304,22 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
-    ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>);
+    ) -> OutEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>;
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>);
 }
 
 /// [`ThrEvaluate`] is an [`Evaluate`] describing how to evaluate, with multi-threading, the output of a sequential [`Optimizer`]
 /// generating a batch of [`Partial`] at each step.
-pub trait ThrEvaluate<SolId, Op, Scp, Out, St, Fn>:Evaluate
+pub trait ThrEvaluate<PSol, SolId, Op, Scp, Out, St, Fn>:Evaluate
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op: BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Fn>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op: BatchOptimizer<PSol, SolId,LinkOpt<Scp>,Out,Scp,Fn>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     Out:Outcome,
     St:Stop,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn init(&mut self);
     fn evaluate(
@@ -317,22 +327,23 @@ where
         ob: Arc<Fn>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-    ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>);
+    ) -> OutEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>;
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>);
 }
 
 #[cfg(feature = "mpi")]
 /// [`DistEvaluate`] is an [`Evaluate`] describing how to distribute, with MPI, the output of a sequential [`Optimizer`]
 /// generating a batch of [`Partial`] at each step.
-pub trait DistEvaluate<SolId, Op, Scp, Out, St, Fn, M>:Evaluate
+pub trait DistEvaluate<PSol,SolId, Op, Scp, Out, St, Fn, M>:Evaluate
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op: BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Fn>,
-    Scp:Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasY<Op::Cod,Out>,
+    Op: BatchOptimizer<PSol, SolId,LinkOpt<Scp>,Out,Scp,Fn>,
+    Scp:Searchspace<PSol,SolId,Op::SInfo>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo> + HasY<Op::Cod,Out>,
     Out:Outcome,
     St:Stop,
-    Fn: FuncWrapper<ObjRaw<Op, Scp, SolId, Out>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape,SolId,Op::SInfo>>,
     M:XMsg<SolObj<Scp::SolShape,SolId,Op::SInfo>,SolId,Scp::Obj,Op::SInfo>,
 {
     fn init(&mut self);
@@ -342,7 +353,7 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
-    ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>);
+    ) -> OutEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>;
     fn update(&mut self, batch: Batch<SolId,Op::SInfo,Op::Info,Scp::SolShape>);
 }
 

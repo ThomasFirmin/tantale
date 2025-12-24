@@ -3,9 +3,9 @@ use crate::{
     domain::onto::LinkOpt, 
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate}, 
     objective::{Codomain, Objective, Step},
-    optimizer::opt::{BatchOptimizer, ObjRaw},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
-    solution::{Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape},
+    solution::{Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
     stop::{ExpStep, Stop}
 };
 
@@ -54,22 +54,24 @@ where
 {
 }
 
-impl<SolId, Op,Scp,Out,St> MonoEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
+impl<PSol,SolId, Op,Scp,Out,St> MonoEvaluate<PSol,SolId,Op,Scp,Out,St,Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>>
+    for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Objective<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out>>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St:Stop,
     Out:Outcome,
 {
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            ob: &Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,
+            ob: &Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>,
             cod: &Op::Cod,
             stop: &mut St,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
         let mut obatch = OutBatch::empty(self.batch.get_info());
         let mut cbatch = Batch::empty(self.batch.get_info());
@@ -92,23 +94,24 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, Op,Scp,Out,St> DistEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,XMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
+impl<PSol,SolId, Op,Scp,Out,St> DistEvaluate<PSol,SolId,Op,Scp,Out,St,Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>,XMessage<SolId,RawObj<Scp::SolShape,SolId,Op::SInfo>>> for BatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Objective<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out>>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: SolutionShape<SolId,Op::SInfo>,
     St:Stop,
     Out:Outcome,
 {
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            sendrec: &mut SendRec<'_,XMessage<SolId,ObjRaw<Op,Scp,SolId,Out>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
-            _ob: &Objective<ObjRaw<Op,Scp,SolId,Out>,Out>,
+            sendrec: &mut SendRec<'_,XMessage<SolId,RawObj<Scp::SolShape,SolId,Op::SInfo>>,Scp::SolShape,SolId,Op::SInfo,Op::Cod,Out>,
+            _ob: &Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>,
             cod: &Op::Cod,
             stop: &mut St,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>)
     {
         //Results
         let info = self.batch.get_info();
@@ -183,26 +186,27 @@ where
 {
 }
 
-impl<SolId, Op,Scp,Out,St> ThrEvaluate<SolId,Op,Scp,Out,St,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>> for ThrBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
+impl<PSol,SolId, Op,Scp,Out,St> ThrEvaluate<PSol,SolId,Op,Scp,Out,St,Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>> for ThrBatchEvaluator<SolId,Op::SInfo,Op::Info,Scp::SolShape>
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId:Id + Send + Sync,
-    Op:BatchOptimizer<SolId,LinkOpt<Scp>,Out,Scp,Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
+    Op:BatchOptimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp,Objective<RawObj<Scp::SolShape,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,Out>>,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
-    Scp: Searchspace<Op::Sol,SolId,Op::SInfo>,
+    Scp: Searchspace<PSol,SolId,OpSInfType<Op,PSol,Scp,SolId,Out>>,
     Scp::SolShape: Send + Sync,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: Debug + SolutionShape<SolId,Op::SInfo> + Send + Sync,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: Debug + SolutionShape<SolId,Op::SInfo> + Send + Sync,
     St:Stop + Send + Sync,
     Out:Outcome + Send + Sync,
 {
     fn init(&mut self) {}
     fn evaluate(
             &mut self,
-            ob: Arc<Objective<ObjRaw<Op,Scp,SolId,Out>,Out>>,
+            ob: Arc<Objective<RawObj<Scp::SolShape,SolId,Op::SInfo>,Out>>,
             cod: Arc<Op::Cod>,
             stop: Arc<Mutex<St>>,
-        ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>) 
+        ) -> (Batch<SolId,Op::SInfo,Op::Info,crate::searchspace::CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,OutBatch<SolId,Op::Info,Out>) 
     {
         //Results
         let info = self.batch.lock().unwrap().get_info();

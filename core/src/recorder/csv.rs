@@ -442,19 +442,20 @@ impl CSVRecorder {
     }
 }
 
-impl<SolId, Out, Scp, Op> Recorder<SolId, Out, Scp, Op> for CSVRecorder
+impl<PSol, SolId, Out, Scp, Op> Recorder<PSol,SolId, Out, Scp, Op> for CSVRecorder
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id + CSVWritable<(),()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
     Op::SInfo: CSVWritable<(),()> + Send + Sync,
     Op::Info: CSVWritable<(),()> + Send + Sync,
     Op::Cod: CodCSVWrite<SolId,Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
-    Scp: SolCSVWrite<Op::Sol,SolId, Op::SInfo> + ScpCSVWrite<Op::Sol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
+    Scp: SolCSVWrite<PSol,SolId, Op::SInfo> + ScpCSVWrite<PSol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
     Scp::SolShape: InfoCSVWrite<SolId,Op::SInfo,Op::Info>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
-    SolObj<CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
-    SolOpt<CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
+    SolObj<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
+    SolOpt<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
         let files = CSVFiles::new(
@@ -549,7 +550,7 @@ where
         }
     }
 
-    fn save_batch(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
+    fn save_batch(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
     {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
@@ -558,10 +559,10 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<Op::Sol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
+        BatchCSVWrite::<PSol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
     }
     
-    fn save_pair(&self,computed: &CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
+    fn save_pair(&self,computed: &CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
     {
         let files = CSVFiles::new(
             &self.path_pobj,
@@ -604,19 +605,20 @@ where
 ///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[cfg(feature = "mpi")]
-impl<SolId, Out, Scp, Op> DistRecorder<SolId, Out, Scp, Op> for CSVRecorder
+impl<PSol,SolId, Out, Scp, Op> DistRecorder<PSol,SolId, Out, Scp, Op> for CSVRecorder
 where
+    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
     SolId: Id + CSVWritable<(),()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: Optimizer<SolId,LinkOpt<Scp>,Out,Scp>,
+    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
     Op::SInfo: CSVWritable<(),()> + Send + Sync,
     Op::Info: CSVWritable<(),()> + Send + Sync,
     Op::Cod: CodCSVWrite<SolId,Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
-    Scp: SolCSVWrite<Op::Sol,SolId, Op::SInfo> + ScpCSVWrite<Op::Sol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
+    Scp: SolCSVWrite<PSol,SolId, Op::SInfo> + ScpCSVWrite<PSol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
     Scp::SolShape: InfoCSVWrite<SolId,Op::SInfo,Op::Info>,
-    CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
-    SolObj<CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
-    SolOpt<CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
+    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
+    SolObj<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
+    SolOpt<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
 {
     fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
         if self.config.is_dist {
@@ -715,7 +717,7 @@ where
         }
     }
 
-    fn save_batch_dist(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
+    fn save_batch_dist(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
     {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
@@ -724,10 +726,10 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<Op::Sol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
+        BatchCSVWrite::<PSol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
     }
     
-    fn save_pair_dist(&self,computed: &CompShape<Scp,Op::Sol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
+    fn save_pair_dist(&self,computed: &CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
     {
         let files = CSVFiles::new(
             &self.path_pobj,

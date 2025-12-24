@@ -62,7 +62,6 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
     let (
-        sampler_functions,
         ident_mixed_obj,
         ident_mixed_opt,
         ident_mixedt_obj,
@@ -105,7 +104,6 @@ pub fn obj(input: TokenStream) -> TokenStream {
     .into();
 
     let mut sp_tokens = get_sp_tokens(
-        sampler_functions,
         ident_mixed_obj,
         ident_mixed_opt,
         push_statements,

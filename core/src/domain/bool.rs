@@ -18,7 +18,7 @@ use crate::{
         Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bounded::{Bounded, BoundedBounds}, onto::{Onto, OntoDom}, unit::Unit
     },
     errors::OntoError,
-    recorder::csv::CSVWritable, sampler::{Bernoulli, BoolDistribution, Sampler},
+    recorder::csv::CSVWritable, sampler::{BoolDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -45,11 +45,8 @@ use std::fmt;
 pub struct Bool(pub BoolDistribution);
 impl Bool {
     /// Fabric for a [`Bool`].
-    pub fn new<S:Sampler<Self> + Into<BoolDistribution>>(sampler:Option<S>) -> Bool {
-        match sampler {
-            Some(s) => Bool(s.into()),
-            None => Bool(Bernoulli(0.5).into()),
-        }
+    pub fn new<S:Sampler<Self> + Into<BoolDistribution>>(sampler:S) -> Bool {
+        Bool(sampler.into())
     }
 }
 
