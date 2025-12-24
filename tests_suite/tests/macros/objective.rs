@@ -1,3 +1,4 @@
+use rand::rngs::ThreadRng;
 use tantale_core::BasePartial;
 
 #[test]
@@ -68,13 +69,21 @@ fn obj_test() {
         );
     }
 
-    use tantale::core::{EmptyInfo, SId, Searchspace, Solution};
+    use tantale::core::{EmptyInfo, SId, Searchspace, Solution, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
-    let info = std::sync::Arc::new(EmptyInfo {});
 
     let mut rng = rand::rng();
-    let rng = Some(&mut rng);
 
-    let sample: BasePartial<SId, _, _> = sp.sample_obj(rng, info);
-    searchspace::example(sample.get_x().as_ref());
+    fn get_pair<Scp>(sp:&Scp, rng:&mut ThreadRng) -> Scp::SolShape
+    where
+        Scp:Searchspace<BasePartial<SId,searchspace::OptType,EmptyInfo>,SId,EmptyInfo,Opt = searchspace::OptType>
+    {
+        let info = std::sync::Arc::new(EmptyInfo {});
+        let obj = sp.sample_obj(Some(rng),info);
+        let pair = sp.onto_opt(obj); // Paired solutions have the same ID
+        println!("Obj {:?}:  <=> Opt {:?} : ", pair.get_sobj(), pair.get_sopt());
+        pair
+    }
+    let sample = get_pair(&sp, &mut rng);
+    searchspace::example(sample.get_sobj().get_x());
 }

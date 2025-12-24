@@ -9,7 +9,7 @@ macro_rules! get_test {
             #[test]
             fn [<$name>]() {
                 let sp = $name::get_searchspace();
-                let var = &sp.variables;
+                let var = &sp.var;
                 let mut rng = rand::rng();
 
                 for v in var{
