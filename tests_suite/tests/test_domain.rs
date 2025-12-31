@@ -1,10 +1,11 @@
 mod check_bounds {
-    use tantale::core::{Bool, Cat, Domain, DomainBounded, Int, Nat, Real, Unit};
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     #[test]
     fn create_real() {
-        let real_1 = Real::new(0.0, 10.0);
-        assert_eq!(real_1.lower(), 0.0, "Issue with lower bound of Real.");
-        assert_eq!(real_1.upper(), 10.0, "Issue with upper bound of Real.");
+        let real_1 = Real::new(0.0, 10.0,Uniform);
+        assert_eq!(real_1.bounds.start(), &0.0, "Issue with lower bound of Real.");
+        assert_eq!(real_1.bounds.end(), &10.0, "Issue with upper bound of Real.");
 
         assert!(
             real_1.is_in(&0.0),
@@ -30,13 +31,13 @@ mod check_bounds {
     #[test]
     #[should_panic]
     fn fail_real_bounds() {
-        Real::new(10.1, 0.1);
+        Real::new(10.1, 0.1,Uniform);
     }
     #[test]
     fn create_nat() {
-        let nat_1 = Nat::new(1, 10);
-        assert_eq!(nat_1.lower(), 1, "Issue with lower bound of Nat.");
-        assert_eq!(nat_1.upper(), 10, "Issue with upper bound of Nat.");
+        let nat_1 = Nat::new(1, 10,Uniform);
+        assert_eq!(nat_1.bounds.start(), &1, "Issue with lower bound of Nat.");
+        assert_eq!(nat_1.bounds.end(), &10, "Issue with upper bound of Nat.");
 
         assert!(nat_1.is_in(&1), "Issue with is_in for lower bound of Nat.");
         assert!(nat_1.is_in(&5), "Issue with is_in for mid value from Nat.");
@@ -53,13 +54,13 @@ mod check_bounds {
     #[test]
     #[should_panic]
     fn fail_nat_bounds() {
-        Nat::new(10, 0);
+        Nat::new(10, 0,Uniform);
     }
     #[test]
     fn create_int() {
-        let int_1 = Int::new(0, 10);
-        assert_eq!(int_1.lower(), 0, "Issue with lower bound of Int.");
-        assert_eq!(int_1.upper(), 10, "Issue with upper bound of Int.");
+        let int_1 = Int::new(0, 10,Uniform);
+        assert_eq!(int_1.bounds.start(), &0, "Issue with lower bound of Int.");
+        assert_eq!(int_1.bounds.end(), &10, "Issue with upper bound of Int.");
 
         assert!(int_1.is_in(&0), "Issue with is_in for lower bound of Int.");
         assert!(int_1.is_in(&5), "Issue with is_in for mid value from Int.");
@@ -76,11 +77,11 @@ mod check_bounds {
     #[test]
     #[should_panic]
     fn fail_int_bounds() {
-        Int::new(10, 0);
+        Int::new(10, 0,Uniform);
     }
     #[test]
     fn bool() {
-        let bool_1 = Bool::new();
+        let bool_1 = Bool::new(Bernoulli(0.5));
 
         assert!(bool_1.is_in(&true), "Issue with is_in for `true` of Bool.");
         assert!(
@@ -95,8 +96,8 @@ mod check_bounds {
             String::from("tanh"),
             String::from("sigmoid"),
         ];
-        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"]);
-        assert_eq!(cat_1.values(), &check, "Issue with content of Cat.");
+        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"],Uniform);
+        assert_eq!(&cat_1.values, &check, "Issue with content of Cat.");
 
         assert!(
             cat_1.is_in(&String::from("relu")),
@@ -117,9 +118,9 @@ mod check_bounds {
     }
     #[test]
     fn create_unit64() {
-        let unit: Unit = Unit::new();
-        assert_eq!(unit.lower(), 0.0, "Issue with lower bound of Unit.");
-        assert_eq!(unit.upper(), 1.0, "Issue with upper bound of Unit.");
+        let unit: Unit = Unit::new(Uniform);
+        assert_eq!(unit.bounds.start(), &0.0, "Issue with lower bound of Unit.");
+        assert_eq!(unit.bounds.end(), &1.0, "Issue with upper bound of Unit.");
 
         assert!(
             unit.is_in(&0.0),
@@ -145,90 +146,92 @@ mod check_bounds {
 }
 
 mod check_mid {
-    use tantale::core::{DomainBounded, Int, Nat, Real, Unit};
+    use tantale::core::{Int, Nat, Real, Unit};
+    use tantale_core::sampler::Uniform;
 
     #[test]
     fn mid_real() {
-        let real_1 = Real::new(0.0, 10.0);
-        assert_eq!(real_1.mid(), 5.0, "Error for mid of DomainBounded Real.");
+        let real_1 = Real::new(0.0, 10.0,Uniform);
+        assert_eq!(real_1.mid, 5.0, "Error for mid of DomainBounded Real.");
     }
     #[test]
     fn mid_nat_even() {
-        let nat_1 = Nat::new(0, 10);
-        assert_eq!(nat_1.mid(), 5, "Error for mid of DomainBounded Nat.");
+        let nat_1 = Nat::new(0, 10,Uniform);
+        assert_eq!(nat_1.mid, 5, "Error for mid of DomainBounded Nat.");
     }
     #[test]
     fn mid_int_even() {
-        let int_1 = Int::new(0, 10);
-        assert_eq!(int_1.mid(), 5, "Error for mid of DomainBounded Int.");
+        let int_1 = Int::new(0, 10,Uniform);
+        assert_eq!(int_1.mid, 5, "Error for mid of DomainBounded Int.");
     }
     #[test]
     fn mid_nat_odd() {
-        let nat_1 = Nat::new(0, 11);
-        assert_eq!(nat_1.mid(), 5, "Error for odd mid of DomainBounded Nat.");
+        let nat_1 = Nat::new(0, 11,Uniform);
+        assert_eq!(nat_1.mid, 5, "Error for odd mid of DomainBounded Nat.");
     }
     #[test]
     fn mid_int_odd() {
-        let int_1 = Int::new(0, 11);
-        assert_eq!(int_1.mid(), 5, "Error for odd mid of DomainBounded Int.");
+        let int_1 = Int::new(0, 11,Uniform);
+        assert_eq!(int_1.mid, 5, "Error for odd mid of DomainBounded Int.");
     }
     #[test]
     fn mid_unit64() {
-        let unit: Unit = Unit::new();
-        assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<64>.");
+        let unit: Unit = Unit::new(Uniform);
+        assert_eq!(unit.mid, 0.5, "Error for mid of DomainBounded Unit<64>.");
     }
     #[test]
     fn mid_unit32() {
-        let unit: Unit = Unit::new();
-        assert_eq!(unit.mid(), 0.5, "Error for mid of DomainBounded Unit<f32>.");
+        let unit: Unit = Unit::new(Uniform);
+        assert_eq!(unit.mid, 0.5, "Error for mid of DomainBounded Unit<f32>.");
     }
 }
 
 mod check_width {
-    use tantale::core::{DomainBounded, Int, Nat, Real};
+    use tantale::core::{Int, Nat, Real};
+    use tantale_core::sampler::Uniform;
 
     #[test]
     fn width_real_zero() {
-        let real_1 = Real::new(0.0, 10.0);
+        let real_1 = Real::new(0.0, 10.0, Uniform);
         assert_eq!(
-            real_1.width(),
+            real_1.width,
             10.0,
             "Error for range of DomainBounded Real."
         );
     }
     #[test]
     fn width_nat_zero() {
-        let nat_1 = Nat::new(0, 10);
-        assert_eq!(nat_1.width(), 10, "Error for range of DomainBounded Nat.");
+        let nat_1 = Nat::new(0, 10,Uniform);
+        assert_eq!(nat_1.width, 10, "Error for range of DomainBounded Nat.");
     }
     #[test]
     fn width_int_zero() {
-        let int_1 = Int::new(0, 10);
-        assert_eq!(int_1.width(), 10, "Error for range of DomainBounded Int.");
+        let int_1 = Int::new(0, 10,Uniform);
+        assert_eq!(int_1.width, 10, "Error for range of DomainBounded Int.");
     }
     #[test]
     fn width_real_nzero() {
-        let real_1 = Real::new(1.0, 11.0);
+        let real_1 = Real::new(1.0, 11.0,Uniform);
         assert_eq!(
-            real_1.width(),
+            real_1.width,
             10.0,
             "Error for range of DomainBounded Real."
         );
     }
     #[test]
     fn width_nat_nzero() {
-        let nat_1 = Nat::new(1, 11);
+        let nat_1 = Nat::new(1, 11,Uniform);
         assert_eq!(
-            nat_1.width(),
+            nat_1.width,
             10,
             "Error for odd range of DomainBounded Nat."
         );
     }
     #[test]
     fn width_int_nzero() {
-        let int_1 = Int::new(1, 11);
+        let int_1 = Int::new(1, 11,Uniform);
         assert_eq!(
-            int_1.width(),
+            int_1.width,
             10,
             "Error for odd range of DomainBounded Int."
         );
@@ -237,10 +240,11 @@ mod check_width {
 
 mod check_default_sampler {
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
-        let real_1 = Real::new(0.0, 10.0);
+        let real_1 = Real::new(0.0, 10.0,Uniform);
         assert!(
             real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -249,7 +253,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_nat() {
         let mut rng = rand::rng();
-        let nat_1 = Nat::new(0, 10);
+        let nat_1 = Nat::new(0, 10,Uniform);
         assert!(
             nat_1.is_in(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -258,7 +262,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_int() {
         let mut rng = rand::rng();
-        let int_1 = Int::new(0, 10);
+        let int_1 = Int::new(0, 10,Uniform);
         assert!(
             int_1.is_in(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
@@ -267,7 +271,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_bool() {
         let mut rng = rand::rng();
-        let bool_1 = Bool::new();
+        let bool_1 = Bool::new(Bernoulli(0.5));
         assert!(
             bool_1.is_in(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -276,7 +280,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"]);
+        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"],Uniform);
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -285,7 +289,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1: Unit = Unit::new();
+        let unit_1: Unit = Unit::new(Uniform);
         assert!(
             unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
@@ -296,6 +300,7 @@ mod check_default_sampler {
 mod check_default_sampler_base {
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale::Mixed;
+    use tantale_core::sampler::{Bernoulli, Uniform};
 
     #[derive(Mixed, PartialEq)]
     pub enum BaseDom {
@@ -310,7 +315,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
-        let real_1 = BaseDom::Real(Real::new(0.0, 10.0));
+        let real_1 = BaseDom::Real(Real::new(0.0, 10.0,Uniform));
         assert!(
             real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -319,7 +324,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_nat() {
         let mut rng = rand::rng();
-        let nat_1 = BaseDom::Nat(Nat::new(0, 10));
+        let nat_1 = BaseDom::Nat(Nat::new(0, 10,Uniform));
         assert!(
             nat_1.is_in(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -328,7 +333,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_int() {
         let mut rng = rand::rng();
-        let int_1 = BaseDom::Int(Int::new(0, 10));
+        let int_1 = BaseDom::Int(Int::new(0, 10,Uniform));
         assert!(
             int_1.is_in(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
@@ -337,7 +342,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_bool() {
         let mut rng = rand::rng();
-        let bool_1 = BaseDom::Bool(Bool::new());
+        let bool_1 = BaseDom::Bool(Bool::new(Bernoulli(0.5)));
         assert!(
             bool_1.is_in(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -347,7 +352,7 @@ mod check_default_sampler_base {
     fn sampler_cat() {
         let mut rng = rand::rng();
         static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let cat_1 = BaseDom::Cat(Cat::new(&ACTIVATION));
+        let cat_1 = BaseDom::Cat(Cat::new(&ACTIVATION,Uniform));
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -356,7 +361,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1 = BaseDom::Unit(Unit::new());
+        let unit_1 = BaseDom::Unit(Unit::new(Uniform));
         assert!(
             unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"

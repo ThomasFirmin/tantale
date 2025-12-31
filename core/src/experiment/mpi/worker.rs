@@ -1,8 +1,10 @@
 use crate::{
-    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg},
-    objective::{Step, outcome::FuncState}
+    experiment::mpi::utils::{
+        send_msg, DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage,
+    },
+    objective::{outcome::FuncState, Step},
+    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
 };
 
 use core::panic;
@@ -15,8 +17,7 @@ use std::collections::HashMap;
 //--------//
 
 /// Desribes the different methods of a [`Worker``] process during a [`DistRunable`], a MPI-distributed optimization.
-pub trait Worker<SolId:Id>
-{
+pub trait Worker<SolId: Id> {
     type WState: WorkerState;
     fn run(self);
 }
@@ -38,7 +39,7 @@ impl WorkerState for NoWState {}
 /// [`FidWorkerState`] describes the [`WorkerState`] for [`Worker`] computing
 /// [`Stepped`] functions. The [`FidWorkerState`] stores the current [`FuncState`]
 /// of the function within a [`HashMap`].
-#[derive(Serialize, Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "SolId: Serialize",
     deserialize = "SolId: for<'a> Deserialize<'a>"
@@ -56,7 +57,7 @@ impl<SolId: Id, FnState: FuncState> FidWState<SolId, FnState> {
 pub struct BaseWorker<'a, Raw, Out>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
-    Out:Outcome,
+    Out: Outcome,
 {
     pub proc: &'a MPIProcess,
     pub objective: Objective<Raw, Out>,
@@ -65,7 +66,7 @@ where
 impl<'a, Raw, Out> BaseWorker<'a, Raw, Out>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
-    Out:Outcome,
+    Out: Outcome,
 {
     pub fn new(objective: Objective<Raw, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
@@ -74,9 +75,9 @@ where
 
 impl<'a, SolId, Raw, Out> Worker<SolId> for BaseWorker<'a, Raw, Out>
 where
-    SolId:Id,
+    SolId: Id,
     Raw: Serialize + for<'de> Deserialize<'de>,
-    Out:Outcome,
+    Out: Outcome,
 {
     type WState = NoWState;
     fn run(self) {
@@ -88,7 +89,7 @@ where
             if status.tag() == 42 {
                 break;
             } else {
-                let msg = XMessage::<SolId,Raw>::from_bytes(raw, config);
+                let msg = XMessage::<SolId, Raw>::from_bytes(raw, config);
                 let id = msg.0;
                 let x = msg.1;
                 let out = self.objective.compute(x);
@@ -147,7 +148,8 @@ where
     }
 }
 
-impl<'a, SolId, Raw, Out, FnState, Check> Worker<SolId> for FidWorker<'a, SolId, Raw, Out, FnState, Check>
+impl<'a, SolId, Raw, Out, FnState, Check> Worker<SolId>
+    for FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
@@ -179,18 +181,20 @@ where
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
-                    },
-                    Step::Partially(_) => 
-                    {
+                    }
+                    Step::Partially(_) => {
                         let state = self.state.0.remove(&id);
                         let (out, state) = self.objective.compute(x, fid, state);
-                        if out.get_step().0 > 0 { // if > 0, Partially
+                        if out.get_step().0 > 0 {
+                            // if > 0, Partially
                             self.state.0.insert(id, state);
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
-                    },
-                    _ => {unreachable!("A Discarded, Evaluated or Errored solution should not reach this step.")},
+                    }
+                    _ => {
+                        unreachable!("A Discarded, Evaluated or Errored solution should not reach this step.")
+                    }
                 }
             }
             // Stop
@@ -210,7 +214,10 @@ where
             }
             // Compute
             else {
-                panic!("Unknown tag ({}) for message send to worker {}", tag, self.proc.rank);
+                panic!(
+                    "Unknown tag ({}) for message send to worker {}",
+                    tag, self.proc.rank
+                );
             }
         }
         eprintln!(

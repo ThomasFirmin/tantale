@@ -6,7 +6,7 @@ use super::init_sp::{
 use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
-use tantale::core::{searchspace::Searchspace, BasePartial, Computed, EmptyInfo, SId, Solution};
+use tantale::core::{searchspace::Searchspace, solution::{HasId,HasY},BasePartial, Computed, EmptyInfo, SId, Solution};
 use tantale_core::BaseDom;
 
 macro_rules! get_test {
@@ -19,7 +19,7 @@ macro_rules! get_test {
                 use tantale::core::$cod;
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample : BasePartial<SId,_,_> = sp.sample_obj(None,info.clone());
+                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, None,info.clone());
                 let (_,elem) = $func();
                 let computed: Computed<_,SId,$dom,$cod<OutExample>,_,EmptyInfo> = Computed::new(sample,Arc::new(elem));
 
@@ -57,14 +57,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_real
@@ -78,14 +70,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_int
@@ -99,14 +83,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_nat
@@ -120,14 +96,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_unit
@@ -141,14 +109,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_bool
@@ -162,14 +122,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| a == b,
     sp_only_cat
@@ -183,14 +135,6 @@ get_test!(
             CostMultiCodomain | get_elemcostmulti,
             ConstMultiCodomain | get_elemconstmulti,
             CostConstMultiCodomain | get_elemcostconstmulti,
-            StepCodomain | get_elemfid,
-            StepCostCodomain | get_elemfidcost,
-            StepConstCodomain | get_elemfidconst,
-            StepCostConstCodomain | get_elemfidcostconst,
-            StepMultiCodomain | get_elemfidmulti,
-            StepCostMultiCodomain | get_elemfidcostmulti,
-            StepConstMultiCodomain | get_elemfidconstmulti,
-            StepCostConstMultiCodomain | get_elemfidcostconstmulti,
         ]
         | |(a, b)| a == b
 );

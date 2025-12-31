@@ -88,7 +88,7 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
-use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, FidOutcome, EvalStep};
+use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, EvalStep, FidOutcome};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
@@ -159,9 +159,9 @@ pub enum ConsType {
     Inequality,
     Both,
 }
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NoCodomain;
-impl<Out:Outcome> Codomain<Out> for NoCodomain{
+impl<Out: Outcome> Codomain<Out> for NoCodomain {
     type TypeCodom = ();
     fn get_elem(&self, _o: &Out) -> Self::TypeCodom {}
 }

@@ -413,9 +413,8 @@ impl DistCheckpointer for MessagePack {
     }
 
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
-        WCheckMessagePack::new(self.config.clone(),proc)
+        WCheckMessagePack::new(self.config.clone(), proc)
     }
-    
 }
 
 #[cfg(feature = "mpi")]
@@ -439,7 +438,11 @@ impl WCheckMessagePack {
         if !config.is_dist {
             panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
         }
-        WCheckMessagePack(config.path_work.join(format!("worker_rank{}.mp", proc.rank)))
+        WCheckMessagePack(
+            config
+                .path_work
+                .join(format!("worker_rank{}.mp", proc.rank)),
+        )
     }
 }
 
@@ -448,7 +451,10 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     fn init(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
         if self.0.try_exists().unwrap() {
-            panic!("The Worker folder {} in checkpoint already exists.",self.0.display())
+            panic!(
+                "The Worker folder {} in checkpoint already exists.",
+                self.0.display()
+            )
         }
     }
 
@@ -456,7 +462,10 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
         proc.world.barrier();
         // Check if all folder and files exist
         if !self.0.try_exists().unwrap() {
-            panic!("The Worker folder {} in checkpoint does not exists.",self.0.display())
+            panic!(
+                "The Worker folder {} in checkpoint does not exists.",
+                self.0.display()
+            )
         }
     }
 

@@ -1,5 +1,8 @@
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::{utils::MPIProcess, worker::{NoWState, WorkerState}};
+use crate::experiment::mpi::{
+    utils::MPIProcess,
+    worker::{NoWState, WorkerState},
+};
 use crate::{experiment::Evaluate, optimizer::OptState, stop::Stop, GlobalParameters, SaverConfig};
 
 #[cfg(feature = "mpi")]
@@ -117,5 +120,5 @@ where
     /// Load the [`GlobalParameters`] from an existing checkpoint.
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
     /// Return the checkpointer for the [`Worker`].
-    fn get_check_worker<WState: WorkerState>(&self, proc:&MPIProcess) -> Self::WCheck<WState>;
+    fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
 }

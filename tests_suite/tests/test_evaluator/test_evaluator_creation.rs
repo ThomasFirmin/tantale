@@ -1,9 +1,6 @@
 use tantale_algos::RSInfo;
 use tantale_core::{
-    experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate},
-    solution::Batch,
-    stop::Calls,
-    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp,
+    BaseDom, BasePartial, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Solution, Sp, experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::{Batch,HasId, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator;
@@ -26,39 +23,19 @@ fn test_serde_batchevaluator() {
 
     let mut rng = rand::rng();
     let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sobj
+    let pair = sp.vec_onto_obj(sobj);
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
         .iter()
-        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .map(|s| (s.get_id(), s.get_sobj().x.clone()))
         .collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = sopt
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
         .iter()
-        .map(|s: &BasePartial<_, _, _>| (s.get_id(), s.x.clone()))
+        .map(|s | (s.get_id(), s.get_sopt().x.clone()))
         .collect();
-    let batch = Batch::new(sobj, sopt, info.clone());
+    let batch = Batch::new(pair, info.clone());
     let mut eval = BatchEvaluator::new(batch);
 
-    let (braw, bcomp) = <BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<OutEvaluator>,
-        OutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Objective<BaseDom, OutEvaluator>,
-        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (bcomp,braw, ) = eval.evaluate(&obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
@@ -68,13 +45,12 @@ fn test_serde_batchevaluator() {
     sobj_bis
         .into_iter()
         .zip(sopt_bis)
-        .zip(bcomp.cobj.iter())
-        .zip(bcomp.copt.iter())
-        .for_each(|(((sobj, sopt), cobj), copt)| {
+        .zip(bcomp.pairs)
+        .for_each(|((sobj,sopt),pair)| {
             hsobj.insert(sobj.0, sobj.1);
             hsopt.insert(sopt.0, sopt.1);
-            hcobj.insert(cobj.get_id(), cobj);
-            hcopt.insert(copt.get_id(), copt);
+            hcobj.insert(pair.get_sobj().get_id(), pair.get_sobj());
+            hcopt.insert(pair.get_sopt().get_id(), pair.get_sopt());
         });
 
     assert_eq!(

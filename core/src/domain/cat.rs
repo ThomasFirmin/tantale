@@ -18,8 +18,15 @@
 //! ```
 use crate::{
     domain::{
-        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bounded::{Bounded, BoundedBounds}, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{CatDistribution, Sampler}
+        base::{BaseDom, BaseTypeDom},
+        bounded::{Bounded, BoundedBounds},
+        onto::{Onto, OntoDom},
+        unit::Unit,
+        Domain, PreDomain, TypeDom,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
+    sampler::{CatDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -41,7 +48,7 @@ use std::fmt;
 #[derive(Clone)]
 pub struct Cat {
     pub values: Vec<String>,
-    pub sampler:CatDistribution,
+    pub sampler: CatDistribution,
 }
 impl Cat {
     /// Fabric for a [`Cat`].
@@ -50,8 +57,10 @@ impl Cat {
     ///
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new<'a, S:Sampler<Self> + Into<CatDistribution>>(values: &'a [&'a str], sampler:S) -> Cat
-    {
+    pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>>(
+        values: &'a [&'a str],
+        sampler: S,
+    ) -> Cat {
         Cat {
             values: values.iter().map(|s| String::from(*s)).collect(),
             sampler: sampler.into(),
@@ -65,7 +74,7 @@ impl PartialEq for Cat {
     }
 }
 
-impl PreDomain for Cat{}
+impl PreDomain for Cat {}
 impl Domain for Cat {
     type TypeDom = String;
 

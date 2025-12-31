@@ -1,5 +1,11 @@
 use crate::{
-    EvalStep, Fidelity, domain::Domain, objective::{Codomain, Outcome, Step}, solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasUncomputed, HasY, Id, IntoComputed, SolInfo, Solution, Uncomputed}
+    domain::Domain,
+    objective::{Codomain, Outcome, Step},
+    solution::{
+        HasFidelity, HasId, HasSolInfo, HasStep, HasUncomputed, HasY, Id, IntoComputed, SolInfo,
+        Solution, Uncomputed,
+    },
+    EvalStep, Fidelity,
 };
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +35,7 @@ where
     Info: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    SolId: Id, 
+    SolId: Id,
 {
     pub sol: PSol,
     pub y: Arc<Cod::TypeCodom>,
@@ -38,7 +44,7 @@ where
     _info: PhantomData<Info>,
 }
 
-impl <PSol, SolId, Dom, Cod, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
@@ -52,7 +58,8 @@ where
     }
 }
 
-impl <PSol, SolId, Dom, Cod, Out, Info> HasSolInfo<Info> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasSolInfo<Info>
+    for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
@@ -66,7 +73,7 @@ where
     }
 }
 
-impl <PSol, SolId, Dom, Cod, Out, Info> HasStep for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasStep for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasStep,
     Dom: Domain,
@@ -87,7 +94,7 @@ where
         self.sol.pending();
     }
 
-    fn partially(&mut self, value:isize) {
+    fn partially(&mut self, value: isize) {
         self.sol.partially(value);
     }
 
@@ -102,13 +109,13 @@ where
     fn error(&mut self) {
         self.sol.error();
     }
-    
-    fn set_step(&mut self,value:EvalStep) {
+
+    fn set_step(&mut self, value: EvalStep) {
         self.sol.set_step(value);
     }
 }
 
-impl <PSol, SolId, Dom, Cod, Out, Info> HasFidelity for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasFidelity for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasFidelity,
     Dom: Domain,
@@ -117,7 +124,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    fn fidelity(&self) ->  Fidelity {
+    fn fidelity(&self) -> Fidelity {
         self.sol.fidelity()
     }
 
@@ -126,8 +133,7 @@ where
     }
 }
 
-
-impl <PSol, SolId, Dom, Cod, Out, Info> HasY<Cod,Out> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasY<Cod, Out> for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + IntoComputed,
     Dom: Domain,
@@ -137,10 +143,13 @@ where
     SolId: Id,
 {
     /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
-    fn get_y(&self) -> Arc<Cod::TypeCodom>{ self.y.clone() }
+    fn get_y(&self) -> Arc<Cod::TypeCodom> {
+        self.y.clone()
+    }
 }
 
-impl <PSol, SolId, Dom, Cod, Out, Info> HasUncomputed<SolId,Dom,Info> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasUncomputed<SolId, Dom, Info>
+    for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + IntoComputed,
     Dom: Domain,
@@ -167,14 +176,16 @@ where
     Info: SolInfo,
 {
     type Raw = PSol::Raw;
-    type Twin<B: Domain> =  Computed<PSol::TwinUC<B>,SolId,B,Cod,Out,Info>;
+    type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Cod, Out, Info>;
 
     fn get_x(&self) -> Self::Raw {
         self.sol.get_x()
     }
-    
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
-    {
+
+    fn twin<B: Domain>(
+        &self,
+        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
+    ) -> Self::Twin<B> {
         Computed::new(Uncomputed::twin(&self.sol, x), self.y.clone())
     }
 }
@@ -186,7 +197,7 @@ where
     Info: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    SolId: Id, 
+    SolId: Id,
 {
     /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(sol: PSol, y: Arc<Cod::TypeCodom>) -> Self {

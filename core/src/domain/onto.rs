@@ -18,10 +18,9 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{Domain, errors::OntoError};
+use crate::{errors::OntoError, Domain};
 
-pub trait Linked
-{
+pub trait Linked {
     type Obj: Domain;
     type Opt: Domain;
 }
@@ -34,8 +33,7 @@ pub type LinkTyOpt<T> = <<T as Linked>::Opt as Domain>::TypeDom;
 /// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)
 /// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using target [`Domain`].
 /// See [`OntoDom`] for more information.
-pub trait Onto<Target>
-{
+pub trait Onto<Target> {
     type TargetItem;
     type Item;
     /// # Parameters

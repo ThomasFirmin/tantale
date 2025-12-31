@@ -322,13 +322,11 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
             else{
                 wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
             }
-        } else {
-            if is_nodomain && !full_nodomain{
-                wrapped_domopt = quote! {#ty_obj::new(#args_obj)};
-            }
-            else{
-                wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
-            }
+        } else if is_nodomain && !full_nodomain{
+            wrapped_domopt = quote! {#ty_obj::new(#args_obj)};
+        }
+        else{
+            wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
         }
 
         let repeats = match vinf.repeats {
@@ -363,7 +361,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
 
         // If domain only defined on left : name | Obj | ;
         let var_statement = quote!{
-            tantale::core::variable::var::Var::<#ident_mixed_obj , #ident_mixed_opt >::new((#name , None) ,#domobj.into() ,#domopt.into())
+            tantale::core::variable::var::Var::<#ident_mixed_obj , #ident_mixed_opt >::new(#name ,#domobj.into() ,#domopt.into())
         };
         push_statements.push(match repeats {
             None => {
@@ -408,7 +406,7 @@ pub fn get_sp_tokens(
             #(#push_statements)*
 
             tantale::core::searchspace::Sp{
-                var : variables.into_boxed_slice(),
+                var : variables.into(),
             }
         }
     }

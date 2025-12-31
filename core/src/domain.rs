@@ -21,7 +21,7 @@ use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
-pub trait PreDomain{}
+pub trait PreDomain {}
 
 /// [`Domain`] is a trait describing the type of a point from the domain it is attached to.
 /// It must implement the [`sample`](Domain::sample) and [`is_in`](Domain::is_in) methods.
@@ -42,7 +42,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
         + Default
         + Serialize
         + for<'a> Deserialize<'a>;
-    
+
     /// Default sampling algorithm used to get a random point from
     /// the [`Domain`].
     ///

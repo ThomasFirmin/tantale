@@ -29,8 +29,16 @@
 
 use crate::{
     domain::{
-        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, cat::Cat, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
+        base::{BaseDom, BaseTypeDom},
+        bool::Bool,
+        cat::Cat,
+        onto::{Onto, OntoDom},
+        unit::Unit,
+        Domain, PreDomain, TypeDom,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
+    sampler::{BoundedDistribution, Sampler},
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
@@ -44,9 +52,9 @@ use std::{
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
 // Bounded domain
 
-pub trait RangeDomain:Domain
+pub trait RangeDomain: Domain
 where
-    Self::TypeDom: BoundedBounds
+    Self::TypeDom: BoundedBounds,
 {
     fn get_bounds(&self) -> RangeInclusive<Self::TypeDom>;
 }
@@ -97,7 +105,7 @@ pub struct Bounded<T: BoundedBounds> {
     pub bounds: RangeInclusive<T>,
     pub mid: T,
     pub width: T,
-    pub sampler:BoundedDistribution,
+    pub sampler: BoundedDistribution,
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -110,7 +118,11 @@ impl<T: BoundedBounds> Bounded<T> {
     /// * `lower`: `T` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
     ///
-    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(lower: T, upper: T, sampler:S) -> Bounded<T> {
+    pub fn new<S: Sampler<Self> + Into<BoundedDistribution>>(
+        lower: T,
+        upper: T,
+        sampler: S,
+    ) -> Bounded<T> {
         if lower < upper {
             let mid = (upper + lower) / T::from(2).unwrap();
             let width = upper - lower;
@@ -126,16 +138,14 @@ impl<T: BoundedBounds> Bounded<T> {
     }
 }
 
-impl<T:BoundedBounds> PartialEq for Bounded<T>
-{
+impl<T: BoundedBounds> PartialEq for Bounded<T> {
     fn eq(&self, other: &Self) -> bool {
         self.bounds == other.bounds
     }
 }
 
-impl<T:BoundedBounds> PreDomain for Bounded<T>{}
-impl<T:BoundedBounds> Domain for Bounded<T>
-{
+impl<T: BoundedBounds> PreDomain for Bounded<T> {}
+impl<T: BoundedBounds> Domain for Bounded<T> {
     type TypeDom = T;
 
     /// Default sampler for [`Bounded`].
@@ -149,29 +159,25 @@ impl<T:BoundedBounds> Domain for Bounded<T>
     }
 }
 
-impl<T:BoundedBounds> RangeDomain for Bounded<T>
-{
+impl<T: BoundedBounds> RangeDomain for Bounded<T> {
     fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
         self.bounds.clone()
     }
 }
 
-impl<T:BoundedBounds> std::clone::Clone for Bounded<T>
-{
+impl<T: BoundedBounds> std::clone::Clone for Bounded<T> {
     fn clone(&self) -> Self {
         Bounded::new(*self.bounds.start(), *self.bounds.end(), self.sampler)
     }
 }
 
-impl<T:BoundedBounds> fmt::Display for Bounded<T>
-{
+impl<T: BoundedBounds> fmt::Display for Bounded<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
 }
 
-impl<T:BoundedBounds> fmt::Debug for Bounded<T>
-{
+impl<T: BoundedBounds> fmt::Debug for Bounded<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{},{}]", self.bounds.start(), self.bounds.end())
     }
@@ -327,7 +333,7 @@ where
 
 impl<In> Onto<Unit> for Bounded<In>
 where
-    In: BoundedBounds ,
+    In: BoundedBounds,
 {
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Unit>;

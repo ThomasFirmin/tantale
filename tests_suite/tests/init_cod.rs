@@ -2,11 +2,7 @@ pub use tantale::core::objective::{EvalStep, codomain::{
     ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
     CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
     ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain,
-    ElemSingleCodomain, ElemStepCodomain, ElemStepConstCodomain, ElemStepConstMultiCodomain,
-    ElemStepCostCodomain, ElemStepCostConstCodomain, ElemStepCostConstMultiCodomain,
-    ElemStepCostMultiCodomain, ElemStepMultiCodomain, FidCriteria, MultiCodomain, SingleCodomain,
-    StepCodomain, StepConstCodomain, StepConstMultiCodomain, StepCostCodomain,
-    StepCostConstCodomain, StepCostConstMultiCodomain, StepCostMultiCodomain, StepMultiCodomain,
+    ElemSingleCodomain, FidCriteria, MultiCodomain, SingleCodomain,
 }};
 use tantale_macros::Outcome;
 
@@ -110,107 +106,6 @@ pub fn get_elemcostconstmulti() -> (CostConstMultiCodomain<OutCod>, ElemCostCons
         ),
         ElemCostConstMultiCodomain {
             value: Box::from([1.1, 2.2]),
-            cost: 3.3,
-            constraints: Box::from([4.4, 5.5]),
-        },
-    )
-}
-
-pub fn get_elemfid() -> (StepCodomain<OutCod>, ElemStepCodomain) {
-    (
-        StepCodomain::new(|a| a.obj1),
-        ElemStepCodomain {
-            value: 1.1,
-            step: EvalStep::completed(),
-        },
-    )
-}
-pub fn get_elemfidcost() -> (StepCostCodomain<OutCod>, ElemStepCostCodomain) {
-    (
-        StepCostCodomain::new(|a| a.obj1, |a| a.cost2),
-        ElemStepCostCodomain {
-            value: 1.1,
-            cost: 2.2,
-            step: EvalStep::completed(),
-        },
-    )
-}
-pub fn get_elemfidconst() -> (StepConstCodomain<OutCod>, ElemStepConstCodomain) {
-    (
-        StepConstCodomain::new(
-            |a| a.obj1,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
-        ElemStepConstCodomain {
-            value: 1.1,
-            constraints: Box::from([2.2, 3.3]),
-            step: EvalStep::completed(),
-        },
-    )
-}
-pub fn get_elemfidcostconst() -> (StepCostConstCodomain<OutCod>, ElemStepCostConstCodomain) {
-    (
-        StepCostConstCodomain::new(
-            |a| a.obj1,
-            |a| a.cost2,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
-        ElemStepCostConstCodomain {
-            value: 1.1,
-            cost: 2.2,
-            constraints: Box::from([3.3, 4.4]),
-            step: EvalStep::completed(),
-        },
-    )
-}
-pub fn get_elemfidmulti() -> (StepMultiCodomain<OutCod>, ElemStepMultiCodomain) {
-    (
-        StepMultiCodomain::new(vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice()),
-        ElemStepMultiCodomain {
-            value: Box::from([1.1, 2.2]),
-            step: EvalStep::completed(),
-        },
-    )
-}
-pub fn get_elemfidcostmulti() -> (StepCostMultiCodomain<OutCod>, ElemStepCostMultiCodomain) {
-    (
-        StepCostMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            |a| a.cost2,
-        ),
-        ElemStepCostMultiCodomain {
-            value: Box::from([1.1, 2.2]),
-            step: EvalStep::completed(),
-            cost: 3.3,
-        },
-    )
-}
-pub fn get_elemfidconstmulti() -> (StepConstMultiCodomain<OutCod>, ElemStepConstMultiCodomain) {
-    (
-        StepConstMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
-        ElemStepConstMultiCodomain {
-            value: Box::from([1.1, 2.2]),
-            step: EvalStep::completed(),
-            constraints: Box::from([3.3, 4.4]),
-        },
-    )
-}
-pub fn get_elemfidcostconstmulti() -> (
-    StepCostConstMultiCodomain<OutCod>,
-    ElemStepCostConstMultiCodomain,
-) {
-    (
-        StepCostConstMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            |a| a.cost2,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
-        ElemStepCostConstMultiCodomain {
-            value: Box::from([1.1, 2.2]),
-            step: EvalStep::completed(),
             cost: 3.3,
             constraints: Box::from([4.4, 5.5]),
         },

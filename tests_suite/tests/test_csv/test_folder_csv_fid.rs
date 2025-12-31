@@ -1,24 +1,20 @@
 use tantale::algos::RandomSearch;
 use tantale::core::{
-    optimizer::opt::{OpInfType, OpSInfType, OpSolOptType},
+    optimizer::opt::{OpInfType, OpSInfType},
     recorder::{
         csv::{CSVRecorder, CSVWritable},
         Recorder,
     },
-    solution::{Batch, BatchType, CompBatch, OutBatch},
+    solution::{Batch, OutBatch},
     stop::{Calls, Stop},
     BaseDom, BaseTypeDom, Codomain, FolderConfig, Optimizer, SId, Searchspace, Solution, Sp,
 };
-use tantale_core::solution::partial::FidelityPartial;
 use tantale_core::{objective::FuncWrapper, Fidelity, Stepped};
 
 use super::init_func::FnState;
 use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use std::{path::Path, sync::Arc};
-
-type Cbatch<Sol, SInfo, Info, Cod> =
-    CompBatch<Sol, SId, BaseDom, BaseDom, SInfo, Info, Cod, OutExample>;
 
 mod infos {
     use serde::{Deserialize, Serialize};

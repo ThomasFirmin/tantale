@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{BasePartial, Codomain, Computed, ParSId, Partial, SingleCodomain};
+use tantale::core::{BasePartial,FidBasePartial, Codomain, Computed, ParSId, SingleCodomain, solution::{HasId,HasY,HasSolInfo,Uncomputed}};
 use tantale_core::Solution;
 
 use num::cast::AsPrimitive;
@@ -7,12 +7,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::process;
+use std::sync::Arc;
 
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type TestComp<Dom> = Computed<
-    BasePartial<ParSId, Dom, TestSInfo>,
+type TestComp<Sol,Dom> = Computed<
+    Sol,
     ParSId,
     Dom,
     SingleCodomain<OutExample>,
@@ -20,8 +21,9 @@ type TestComp<Dom> = Computed<
     TestSInfo,
 >;
 
-fn _test_solution_assertion<Dom>(n: usize, sol: &TestComp<Dom>, pid: u32)
+fn _test_solution_assertion<Unc,Dom>(n: usize, sol: &TestComp<Unc,Dom>, pid: u32)
 where
+    Unc: Uncomputed<ParSId,Dom,TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
     TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -33,7 +35,7 @@ where
     );
     assert_eq!(sol.get_y().value, 1.0, "Wrong value from codomain.");
     assert_eq!(
-        sol.get_info().info,
+        sol.get_sinfo().info,
         42.0,
         "Wrong solution info from TestSInfo."
     );
@@ -46,7 +48,7 @@ where
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_default_sol {
-    ($name:ident ; ($($dom:ty),+) ; $size:expr ; $pid:expr) => {
+    ($name:ident ; $sol:ident ; ($($dom:ty),+) ; $size:expr ; $pid:expr) => {
         #[test]
         fn $name (){
             let mut idsol = Vec::new();
@@ -55,7 +57,7 @@ macro_rules! get_default_sol {
             let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
-                let psol = Partial::<ParSId,$dom,TestSInfo>::new_default($size,sinfo.clone());
+                let psol = $sol::<ParSId,$dom,TestSInfo>::default(sinfo.clone(),$size);
                 let sol = Computed::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
                 idsol.push(sol.get_id().id);
@@ -68,4 +70,5 @@ macro_rules! get_default_sol {
     };
 }
 
-get_default_sol!(mixed_size_3 ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+get_default_sol!(mixed_size_3 ; BasePartial ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+get_default_sol!(fid_mixed_size_3 ; FidBasePartial ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());

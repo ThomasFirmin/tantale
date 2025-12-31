@@ -1,6 +1,6 @@
 use super::init_dom::*;
 use tantale::core::recorder::csv::CSVLeftRight;
-use tantale::core::{var, Var};
+use tantale::core::Var;
 
 use paste::paste;
 
@@ -12,7 +12,7 @@ macro_rules! get_variable {
             fn [<head_$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; domobj ; domopt);
+                let variable = Var::new("a", domobj, domopt);
                 let head = Var::<_,_>::header(&variable);
                 assert_eq!(head[0],"a", "Wrong header for variable of name 'a'");
             }
@@ -21,7 +21,7 @@ macro_rules! get_variable {
             fn [<write_$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; domobj ; domopt);
+                let variable = Var::new("a", domobj, domopt);
                 let mut rng = rand::rng();
 
                 let sample = variable.sample_obj(&mut rng);

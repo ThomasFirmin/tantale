@@ -1,14 +1,14 @@
-use crate::{Codomain, Computed, EvalStep, Outcome};
 use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
-use crate::solution::{HasFidelity, HasId, HasSolInfo, HasStep, Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
+use crate::solution::{
+    HasFidelity, HasId, HasSolInfo, HasStep, Id, IntoComputed, SolInfo, Solution, SolutionShape,
+    Uncomputed,
+};
+use crate::{Codomain, Computed, EvalStep, Outcome};
 
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 /// Describes the fidelity of a [`FidelityPartial`], i.e. a given budget for the evaluation of a [`FidelityPartial`].
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -24,12 +24,12 @@ impl CSVWritable<(), ()> for Fidelity {
     }
 }
 
-impl Fidelity{
-    pub fn set_pair<Shape,SolId,SInfo>(self, pair:&mut Shape)
+impl Fidelity {
+    pub fn set_pair<Shape, SolId, SInfo>(self, pair: &mut Shape)
     where
         SolId: Id,
         SInfo: SolInfo,
-        Shape: SolutionShape<SolId,SInfo> + HasFidelity,
+        Shape: SolutionShape<SolId, SInfo> + HasFidelity,
         Shape::SolObj: HasFidelity,
         Shape::SolOpt: HasFidelity,
     {
@@ -89,25 +89,31 @@ where
     SolId: Id,
 {
     type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain>= BasePartial<SolId, B, Info>;
+    type Twin<B: Domain> = BasePartial<SolId, B, Info>;
 
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
 
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
-    {
-        BasePartial { id: self.id, x, info: self.info.clone() }
+    fn twin<B: Domain>(
+        &self,
+        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
+    ) -> Self::Twin<B> {
+        BasePartial {
+            id: self.id,
+            x,
+            info: self.info.clone(),
+        }
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId,Dom,Info> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinUC<B:Domain> = BasePartial<SolId,B,Info>;
+    type TwinUC<B: Domain> = BasePartial<SolId, B, Info>;
     /// Creates a new [`BasePartial`] from a slice of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Attributes
@@ -134,11 +140,36 @@ where
     where
         T: Into<Self::Raw>,
     {
-        BasePartial { id, x: x.into(), info }
+        BasePartial {
+            id,
+            x: x.into(),
+            info,
+        }
     }
-    fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinUC<B>
-    {
-        BasePartial { id: self.id, x, info: self.info.clone() }
+    fn twin<B: Domain>(
+        &self,
+        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
+    ) -> Self::TwinUC<B> {
+        BasePartial {
+            id: self.id,
+            x,
+            info: self.info.clone(),
+        }
+    }
+
+    fn default(info: Arc<Info>, size: usize) -> Self {
+        let id = SolId::generate();
+        let x = vec![Dom::TypeDom::default(); size];
+        BasePartial {
+            id,
+            x: x.into(),
+            info,
+        }
+    }
+    fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
+        (0..vsize)
+            .map(|_| Self::default(info.clone(), size))
+            .collect()
     }
 }
 
@@ -148,10 +179,17 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    type Computed<Cod:Codomain<Out>,Out:Outcome> = Computed<Self,SolId,Dom,Cod,Out,Info>;
+    type Computed<Cod: Codomain<Out>, Out: Outcome> = Computed<Self, SolId, Dom, Cod, Out, Info>;
 
-    fn into_computed<Cod:crate::Codomain<Out>,Out:crate::Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+    fn into_computed<Cod: crate::Codomain<Out>, Out: crate::Outcome>(
+        self,
+        y: Arc<Cod::TypeCodom>,
+    ) -> Self::Computed<Cod, Out> {
         Computed::new(self, y)
+    }
+    
+    fn extract<Cod:Codomain<Out>,Out:Outcome>(comp:Self::Computed<Cod,Out>) -> (Self,Arc<Cod::TypeCodom>) {
+        (comp.sol,comp.y)
     }
 }
 
@@ -216,8 +254,8 @@ where
     fn fidelity(&self) -> Fidelity {
         self.fid
     }
-    fn set_fidelity(&mut self, fidelity:Fidelity) {
-        self.fid=fidelity;
+    fn set_fidelity(&mut self, fidelity: Fidelity) {
+        self.fid = fidelity;
     }
 }
 
@@ -227,22 +265,22 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    fn step(&self)->Step{
+    fn step(&self) -> Step {
         self.step.into()
     }
-    
+
     fn pending(&mut self) {
         self.step = EvalStep(0);
     }
     /// The value must be stricly positive.
-    fn partially(&mut self, value:isize) {
+    fn partially(&mut self, value: isize) {
         self.step = EvalStep(value);
     }
-    
+
     fn evaluated(&mut self) {
         self.step = EvalStep(-1);
     }
-    
+
     fn discard(&mut self) {
         self.step = EvalStep(-9);
     }
@@ -250,12 +288,12 @@ where
     fn error(&mut self) {
         self.step = EvalStep(-10);
     }
-    
+
     fn raw_step(&self) -> EvalStep {
         self.step
     }
-    
-    fn set_step(&mut self,value:EvalStep) {
+
+    fn set_step(&mut self, value: EvalStep) {
         self.step = value;
     }
 }
@@ -268,15 +306,17 @@ where
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
-    
+
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
 
-    fn twin<B:Domain>(&self, x: <Self::Twin<B> as Solution<SolId,B,Info>>::Raw) -> Self::Twin<B>
-    {
+    fn twin<B: Domain>(
+        &self,
+        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
+    ) -> Self::Twin<B> {
         FidBasePartial {
-            id:self.id,
+            id: self.id,
             x,
             step: self.step,
             fid: self.fid,
@@ -285,17 +325,17 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId,Dom,Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinUC<B:Domain> = FidBasePartial<SolId,B,Info>;
+    type TwinUC<B: Domain> = FidBasePartial<SolId, B, Info>;
 
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
-        T: Into<Self::Raw>
+        T: Into<Self::Raw>,
     {
         FidBasePartial {
             id,
@@ -306,15 +346,34 @@ where
         }
     }
 
-    fn twin<B:Domain>(&self, x: <Self::TwinUC<B> as Solution<SolId,B,Info>>::Raw) -> Self::TwinUC<B>
-    {
+    fn twin<B: Domain>(
+        &self,
+        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
+    ) -> Self::TwinUC<B> {
         FidBasePartial {
-            id:self.id,
+            id: self.id,
             x,
             step: self.step,
             fid: self.fid,
             info: self.info.clone(),
         }
+    }
+    fn default(info: Arc<Info>, size: usize) -> Self {
+        let id = SolId::generate();
+        let x = vec![Dom::TypeDom::default(); size];
+        FidBasePartial {
+            id,
+            x: x.into(),
+            step: EvalStep::pending(),
+            fid: Fidelity(0.0),
+            info,
+        }
+    }
+
+    fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
+        (0..vsize)
+            .map(|_| Self::default(info.clone(), size))
+            .collect()
     }
 }
 
@@ -324,9 +383,16 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    type Computed<Cod:Codomain<Out>,Out:Outcome> = Computed<Self,SolId,Dom,Cod,Out,Info>;
+    type Computed<Cod: Codomain<Out>, Out: Outcome> = Computed<Self, SolId, Dom, Cod, Out, Info>;
 
-    fn into_computed<Cod:crate::Codomain<Out>,Out:crate::Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
+    fn into_computed<Cod: crate::Codomain<Out>, Out: crate::Outcome>(
+        self,
+        y: Arc<Cod::TypeCodom>,
+    ) -> Self::Computed<Cod, Out> {
         Computed::new(self, y)
+    }
+
+    fn extract<Cod:Codomain<Out>,Out:Outcome>(comp:Self::Computed<Cod,Out>) -> (Self,Arc<Cod::TypeCodom>) {
+        (comp.sol,comp.y)
     }
 }

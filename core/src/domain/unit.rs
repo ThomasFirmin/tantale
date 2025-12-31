@@ -18,10 +18,16 @@
 
 use crate::{
     domain::{
-        Domain, PreDomain, TypeDom, base::{BaseDom, BaseTypeDom}, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, cat::Cat, onto::{Onto, OntoDom}
+        base::{BaseDom, BaseTypeDom},
+        bool::Bool,
+        bounded::{Bounded, BoundedBounds, RangeDomain},
+        cat::Cat,
+        onto::{Onto, OntoDom},
+        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
-    recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler},
+    recorder::csv::CSVWritable,
+    sampler::{BoundedDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -34,19 +40,19 @@ use std::{fmt, ops::RangeInclusive};
 ///
 pub struct Unit {
     pub bounds: RangeInclusive<f64>,
-    pub mid:f64,
-    pub width:f64,
-    pub sampler:BoundedDistribution,
+    pub mid: f64,
+    pub width: f64,
+    pub sampler: BoundedDistribution,
 }
 
 impl Unit {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new<S:Sampler<Self> + Into<BoundedDistribution>>(sampler:S) -> Unit {
+    pub fn new<S: Sampler<Self> + Into<BoundedDistribution>>(sampler: S) -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
-            mid:0.5,
-            width:1.0,
-            sampler: sampler.into()
+            mid: 0.5,
+            width: 1.0,
+            sampler: sampler.into(),
         }
     }
 }
@@ -57,7 +63,7 @@ impl PartialEq for Unit {
     }
 }
 
-impl PreDomain for Unit{}
+impl PreDomain for Unit {}
 impl Domain for Unit {
     type TypeDom = f64;
 
@@ -71,7 +77,7 @@ impl Domain for Unit {
     }
 }
 
-impl RangeDomain for Unit{
+impl RangeDomain for Unit {
     fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
         self.bounds.clone()
     }

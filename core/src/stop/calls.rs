@@ -1,6 +1,6 @@
 use crate::{
     objective::Step,
-    stop::{ExpStep, Stop}
+    stop::{ExpStep, Stop},
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,7 @@ impl Stop for Calls {
     }
 
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Step::Evaluated) =  step{
+        if let ExpStep::Distribution(Step::Evaluated) = step {
             self.0 += 1
         }
     }

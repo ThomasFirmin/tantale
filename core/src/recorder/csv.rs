@@ -1,15 +1,19 @@
 use crate::{
-    BasePartial, FidBasePartial, FolderConfig, OptInfo, SolInfo, 
-    domain::{TypeDom, onto::LinkOpt},
+    domain::{onto::LinkOpt, TypeDom},
     objective::{Codomain, Outcome},
-    optimizer::Optimizer, 
-    recorder::Recorder, 
-    searchspace::{CompShape, Searchspace}, 
-    solution::{Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,  Solution, SolutionShape, Uncomputed, shape::{SolObj, SolOpt}}
+    optimizer::Optimizer,
+    recorder::Recorder,
+    searchspace::{CompShape, Searchspace},
+    solution::{
+        shape::{SolObj, SolOpt},
+        Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,
+        Solution, SolutionShape, Uncomputed,
+    },
+    BasePartial, FidBasePartial, FolderConfig, OptInfo, SolInfo,
 };
 
-use rayon::prelude::*;
 use rayon::iter::IntoParallelIterator;
+use rayon::prelude::*;
 use std::{
     fs::{create_dir_all, File, OpenOptions},
     path::{Path, PathBuf},
@@ -83,65 +87,90 @@ pub trait CSVLeftRight<H, L, R> {
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
-pub trait SolCSVWrite<PartOpt,SolId, SInfo>: Searchspace<PartOpt,SolId,SInfo>
+pub trait SolCSVWrite<PartOpt, SolId, SInfo>: Searchspace<PartOpt, SolId, SInfo>
 where
-    PartOpt: Uncomputed<SolId,Self::Opt,SInfo>,
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
+    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
 {
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_partial_obj(
+        &self,
+        id: &[String],
+        sol: &SolObj<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    );
+    fn write_partial_opt(
+        &self,
+        id: &[String],
+        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    );
 }
 
-pub trait CodCSVWrite<SolId,Out>: Codomain<Out>
+pub trait CodCSVWrite<SolId, Out>: Codomain<Out>
 where
     Self: Sized + CSVWritable<Self, Self::TypeCodom>,
-    SolId: Id + CSVWritable<(),()>,
-    Out:Outcome
+    SolId: Id + CSVWritable<(), ()>,
+    Out: Outcome,
 {
     fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_codom(&self, id:&[String], codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_codom(
+        &self,
+        id: &[String],
+        codom: Arc<Self::TypeCodom>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    );
 }
 
-pub trait InfoCSVWrite<SolId, SInfo,Info>: SolutionShape<SolId,SInfo>
+pub trait InfoCSVWrite<SolId, SInfo, Info>: SolutionShape<SolId, SInfo>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo + CSVWritable<(),()>,
+    Info: OptInfo + CSVWritable<(), ()>,
 {
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_info(&self,id:&[String], info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_info(&self, id: &[String], info: Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
-pub trait OutCSVWrite<SolId:Id>: Outcome
-{
+pub trait OutCSVWrite<SolId: Id>: Outcome {
     fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_out(&self,id:&[String], wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 /// Describes how to write a [`SolutionShape`] within a csv file.
-pub trait ScpCSVWrite<PartOpt,SolId, SInfo, Info, Cod, Out>: Searchspace<PartOpt,SolId,SInfo>
+pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Info, Cod, Out>:
+    Searchspace<PartOpt, SolId, SInfo>
 where
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info: OptInfo + CSVWritable<(),()>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()>,
     Out: Outcome + CSVWritable<(), ()>,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
-    PartOpt: Uncomputed<SolId,Self::Opt,SInfo>,
-    CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
-    SolObj<CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Self::Obj,SInfo,Uncomputed = SolObj<Self::SolShape,SolId,SInfo>>,
-    SolOpt<CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Self::Opt,SInfo,Uncomputed = SolOpt<Self::SolShape,SolId,SInfo>>,
+    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
+    CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+    SolObj<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Self::Obj, SInfo, Uncomputed = SolObj<Self::SolShape, SolId, SInfo>>,
+    SolOpt<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Self::Opt, SInfo, Uncomputed = SolOpt<Self::SolShape, SolId, SInfo>>,
 {
-    fn write(&self,pair: &CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,opair: &(SolId,Out),info:Arc<Info>,cod: &Cod,wrts: &CSVFiles);
+    fn write(
+        &self,
+        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        opair: &(SolId, Out),
+        info: Arc<Info>,
+        cod: &Cod,
+        wrts: &CSVFiles,
+    );
 }
 
-impl<Scp,SolId, SInfo> SolCSVWrite<BasePartial<SolId,LinkOpt<Scp>,SInfo>,SolId, SInfo> for Scp
+impl<Scp, SolId, SInfo> SolCSVWrite<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
-    Scp: Searchspace<BasePartial<SolId,LinkOpt<Scp>,SInfo>,SolId,SInfo> + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
+    Scp: Searchspace<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+        + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
 {
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
@@ -159,14 +188,24 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_obj(
+        &self,
+        id: &[String],
+        sol: &SolObj<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let solstr = self.write_left(&sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
-    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_opt(
+        &self,
+        id: &[String],
+        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let solstr = self.write_right(&sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -175,11 +214,13 @@ where
     }
 }
 
-impl<Scp,SolId, SInfo> SolCSVWrite<FidBasePartial<SolId,LinkOpt<Scp>,SInfo>,SolId, SInfo> for Scp
+impl<Scp, SolId, SInfo> SolCSVWrite<FidBasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+    for Scp
 where
-    Scp: Searchspace<FidBasePartial<SolId,LinkOpt<Scp>,SInfo>,SolId,SInfo> + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
+    Scp: Searchspace<FidBasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+        + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
 {
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
@@ -197,7 +238,12 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_partial_obj(&self,id:&[String], sol: &SolObj<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_obj(
+        &self,
+        id: &[String],
+        sol: &SolObj<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let solstr = self.write_left(&sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
@@ -206,7 +252,12 @@ where
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
-    fn write_partial_opt(&self,id:&[String], sol: &SolOpt<Self::SolShape,SolId,SInfo>, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn write_partial_opt(
+        &self,
+        id: &[String],
+        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let solstr = self.write_right(&sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
@@ -217,21 +268,26 @@ where
     }
 }
 
-impl<SolId, Cod,Out> CodCSVWrite<SolId,Out> for Cod
+impl<SolId, Cod, Out> CodCSVWrite<SolId, Out> for Cod
 where
     Self: Sized + CSVWritable<Self, Self::TypeCodom>,
-    SolId: Id + CSVWritable<(),()>,
+    SolId: Id + CSVWritable<(), ()>,
     Cod: Codomain<Out>,
-    Out:Outcome
+    Out: Outcome,
 {
-    fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>){
+    fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
         idstr.extend(Cod::header(self));
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
-    fn write_codom(&self, id:&[String], codom: Arc<Self::TypeCodom>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_codom(
+        &self,
+        id: &[String],
+        codom: Arc<Self::TypeCodom>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let codstr = self.write(&codom);
         let idstr = id.iter().chain(codstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -240,12 +296,12 @@ where
     }
 }
 
-impl<Shape, SolId, SInfo,Info> InfoCSVWrite<SolId, SInfo,Info> for Shape
+impl<Shape, SolId, SInfo, Info> InfoCSVWrite<SolId, SInfo, Info> for Shape
 where
-    Shape: SolutionShape<SolId,SInfo> + HasSolInfo<SInfo>,
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info:OptInfo + CSVWritable<(),()>,
+    Shape: SolutionShape<SolId, SInfo> + HasSolInfo<SInfo>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()>,
 {
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
@@ -256,7 +312,7 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_info(&self, id:&[String], info:Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_info(&self, id: &[String], info: Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let sinfostr = self.get_sinfo().write(&());
         let infostr = info.write(&());
         let idstr = id.iter().chain(sinfostr.iter()).chain(infostr.iter());
@@ -266,10 +322,10 @@ where
     }
 }
 
-impl<Out,SolId> OutCSVWrite<SolId> for Out
+impl<Out, SolId> OutCSVWrite<SolId> for Out
 where
     SolId: Id + CSVWritable<(), ()>,
-    Out:Outcome + CSVWritable<(), ()>
+    Out: Outcome + CSVWritable<(), ()>,
 {
     fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
@@ -279,7 +335,7 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_out(&self,id:&[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
         let outstr = self.write(&());
         let idstr = id.iter().chain(outstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -288,21 +344,31 @@ where
     }
 }
 
-impl<Scp, PartOpt,SolId, SInfo, Info, Cod, Out> ScpCSVWrite<PartOpt,SolId, SInfo, Info, Cod, Out> for Scp
+impl<Scp, PartOpt, SolId, SInfo, Info, Cod, Out> ScpCSVWrite<PartOpt, SolId, SInfo, Info, Cod, Out>
+    for Scp
 where
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info: OptInfo + CSVWritable<(),()>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()>,
     Out: Outcome + OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
     Cod::TypeCodom: Send + Sync,
-    PartOpt: Uncomputed<SolId,Self::Opt,SInfo>,
-    Scp: SolCSVWrite<PartOpt,SolId,SInfo>,
-    CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>: InfoCSVWrite<SolId,SInfo,Info>,
-    SolObj<CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Self::Obj,SInfo,Uncomputed = SolObj<Self::SolShape,SolId,SInfo>>,
-    SolOpt<CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Self::Opt,SInfo,Uncomputed = SolOpt<Self::SolShape,SolId,SInfo>>,
+    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
+    Scp: SolCSVWrite<PartOpt, SolId, SInfo>,
+    CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>: InfoCSVWrite<SolId, SInfo, Info>,
+    SolObj<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Self::Obj, SInfo, Uncomputed = SolObj<Self::SolShape, SolId, SInfo>>,
+    SolOpt<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Self::Opt, SInfo, Uncomputed = SolOpt<Self::SolShape, SolId, SInfo>>,
 {
-    fn write(&self,pair: &CompShape<Self,PartOpt,SolId,SInfo,Cod,Out>,opair: &(SolId,Out),info:Arc<Info>,cod: &Cod,wrts: &CSVFiles) {
+    fn write(
+        &self,
+        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        opair: &(SolId, Out),
+        info: Arc<Info>,
+        cod: &Cod,
+        wrts: &CSVFiles,
+    ) {
         let id = pair.get_id();
         let idstr = id.write(&());
 
@@ -328,42 +394,56 @@ where
 }
 
 /// Describes how to write a [`Batch`] within a csv file.
-pub trait BatchCSVWrite<PartOpt,Scp, SolId, SInfo, Cod, Out, Info>
+pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
 where
-    SolId: Id + CSVWritable<(),()>,
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info: OptInfo + CSVWritable<(),()>,
+    SolId: Id + CSVWritable<(), ()>,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()>,
     Out: Outcome + CSVWritable<(), ()>,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
-    PartOpt: Uncomputed<SolId,Scp::Opt,SInfo>,
-    Scp: Searchspace<PartOpt,SolId,SInfo>,
-    CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
-    SolObj<CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Scp::Obj,SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,SInfo>>,
-    SolOpt<CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Scp::Opt,SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,SInfo>>,
+    PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
+    Scp: Searchspace<PartOpt, SolId, SInfo>,
+    CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+    SolObj<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Scp::Obj, SInfo, Uncomputed = SolObj<Scp::SolShape, SolId, SInfo>>,
+    SolOpt<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Scp::Opt, SInfo, Uncomputed = SolOpt<Scp::SolShape, SolId, SInfo>>,
 {
-    fn write(&self,obatch: &OutBatch<SolId,Info,Out>,scp: &Scp,cod: &Cod,wrts: Arc<CSVFiles>);
+    fn write(&self, obatch: &OutBatch<SolId, Info, Out>, scp: &Scp, cod: &Cod, wrts: Arc<CSVFiles>);
 }
 
-impl<PartOpt,Scp, SolId, SInfo, Cod, Out, Info> BatchCSVWrite<PartOpt,Scp, SolId, SInfo, Cod, Out, Info>
-    for Batch<SolId,SInfo,Info,CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>>
+impl<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
+    BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
+    for Batch<SolId, SInfo, Info, CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>>
 where
-    SolId: Id + CSVWritable<(),()> + Send + Sync,
-    SInfo: SolInfo + CSVWritable<(),()>,
-    Info: OptInfo + CSVWritable<(),()> + Send + Sync,
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
+    SInfo: SolInfo + CSVWritable<(), ()>,
+    Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
-    PartOpt: Uncomputed<SolId,Scp::Opt,SInfo>,
-    Scp: Searchspace<PartOpt,SolId,SInfo> + ScpCSVWrite<PartOpt,SolId,SInfo,Info,Cod,Out> + Send + Sync,
-    CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo> + HasY<Cod,Out> + Send + Sync,
-    SolObj<CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Scp::Obj,SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,SInfo>>,
-    SolOpt<CompShape<Scp,PartOpt,SolId,SInfo,Cod,Out>,SolId,SInfo>: HasUncomputed<SolId,Scp::Opt,SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,SInfo>>,
+    PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
+    Scp: Searchspace<PartOpt, SolId, SInfo>
+        + ScpCSVWrite<PartOpt, SolId, SInfo, Info, Cod, Out>
+        + Send
+        + Sync,
+    CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>:
+        SolutionShape<SolId, SInfo> + HasY<Cod, Out> + Send + Sync,
+    SolObj<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Scp::Obj, SInfo, Uncomputed = SolObj<Scp::SolShape, SolId, SInfo>>,
+    SolOpt<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
+        HasUncomputed<SolId, Scp::Opt, SInfo, Uncomputed = SolOpt<Scp::SolShape, SolId, SInfo>>,
 {
-    fn write(&self,obatch: &OutBatch<SolId,Info,Out>,scp: &Scp,cod: &Cod,wrts: Arc<CSVFiles>) {
+    fn write(
+        &self,
+        obatch: &OutBatch<SolId, Info, Out>,
+        scp: &Scp,
+        cod: &Cod,
+        wrts: Arc<CSVFiles>,
+    ) {
         let info = self.get_info();
-        self.into_par_iter().zip(obatch).for_each(
-            |(cpair,opair)|
-            scp.write(cpair,opair,info.clone(),cod,&wrts.clone())
-        );
+        self.into_par_iter()
+            .zip(obatch)
+            .for_each(|(cpair, opair)| scp.write(cpair, opair, info.clone(), cod, &wrts.clone()));
     }
 }
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
@@ -442,20 +522,37 @@ impl CSVRecorder {
     }
 }
 
-impl<PSol, SolId, Out, Scp, Op> Recorder<PSol,SolId, Out, Scp, Op> for CSVRecorder
+impl<PSol, SolId, Out, Scp, Op> Recorder<PSol, SolId, Out, Scp, Op> for CSVRecorder
 where
-    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
-    SolId: Id + CSVWritable<(),()> + Send + Sync,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
-    Op::SInfo: CSVWritable<(),()> + Send + Sync,
-    Op::Info: CSVWritable<(),()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId,Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
-    Scp: SolCSVWrite<PSol,SolId, Op::SInfo> + ScpCSVWrite<PSol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId,Op::SInfo,Op::Info>,
-    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
-    SolObj<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
-    SolOpt<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
+    Op::Cod: CodCSVWrite<SolId, Out>
+        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
+        + Send
+        + Sync,
+    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Info, Op::Cod, Out>
+        + Send
+        + Sync,
+    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo, Op::Info>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+        InfoCSVWrite<SolId, Op::SInfo, Op::Info> + HasY<Op::Cod, Out> + Send + Sync,
+    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
+        SolId,
+        Scp::Obj,
+        Op::SInfo,
+        Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
+    >,
+    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
+        SolId,
+        Scp::Opt,
+        Op::SInfo,
+        Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
+    >,
 {
     fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
         let files = CSVFiles::new(
@@ -485,7 +582,7 @@ where
             }
 
             if let Some(f) = files.opt.clone() {
-                 scp.header_partial_opt(f);
+                scp.header_partial_opt(f);
             }
 
             if let Some(f) = files.info.clone() {
@@ -550,8 +647,18 @@ where
         }
     }
 
-    fn save_batch(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
-    {
+    fn save_batch(
+        &self,
+        computed: &Batch<
+            SolId,
+            Op::SInfo,
+            Op::Info,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        >,
+        outputed: &OutBatch<SolId, Op::Info, Out>,
+        scp: &Scp,
+        cod: &Op::Cod,
+    ) {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
             &self.path_popt,
@@ -559,11 +666,19 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<PSol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
+        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(
+            computed, outputed, scp, cod, files,
+        );
     }
-    
-    fn save_pair(&self,computed: &CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
-    {
+
+    fn save_pair(
+        &self,
+        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        outputed: &(SolId, Out),
+        scp: &Scp,
+        cod: &Op::Cod,
+        info: Arc<Op::Info>,
+    ) {
         let files = CSVFiles::new(
             &self.path_pobj,
             &self.path_popt,
@@ -605,20 +720,37 @@ where
 ///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
 ///
 #[cfg(feature = "mpi")]
-impl<PSol,SolId, Out, Scp, Op> DistRecorder<PSol,SolId, Out, Scp, Op> for CSVRecorder
+impl<PSol, SolId, Out, Scp, Op> DistRecorder<PSol, SolId, Out, Scp, Op> for CSVRecorder
 where
-    PSol: Uncomputed<SolId,Scp::Opt,Op::SInfo>,
-    SolId: Id + CSVWritable<(),()> + Send + Sync,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: Optimizer<PSol,SolId,LinkOpt<Scp>,Out,Scp>,
-    Op::SInfo: CSVWritable<(),()> + Send + Sync,
-    Op::Info: CSVWritable<(),()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId,Out> + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom> + Send + Sync,
-    Scp: SolCSVWrite<PSol,SolId, Op::SInfo> + ScpCSVWrite<PSol,SolId, Op::SInfo, Op::Info, Op::Cod, Out> + Send + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId,Op::SInfo,Op::Info>,
-    CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>: InfoCSVWrite<SolId,Op::SInfo,Op::Info> + HasY<Op::Cod,Out> + Send + Sync,
-    SolObj<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Obj,Op::SInfo,Uncomputed = SolObj<Scp::SolShape,SolId,Op::SInfo>>,
-    SolOpt<CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,SolId,Op::SInfo>: HasUncomputed<SolId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape,SolId,Op::SInfo>>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::Info: CSVWritable<(), ()> + Send + Sync,
+    Op::Cod: CodCSVWrite<SolId, Out>
+        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
+        + Send
+        + Sync,
+    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Info, Op::Cod, Out>
+        + Send
+        + Sync,
+    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo, Op::Info>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+        InfoCSVWrite<SolId, Op::SInfo, Op::Info> + HasY<Op::Cod, Out> + Send + Sync,
+    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
+        SolId,
+        Scp::Obj,
+        Op::SInfo,
+        Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
+    >,
+    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
+        SolId,
+        Scp::Opt,
+        Op::SInfo,
+        Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
+    >,
 {
     fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
         if self.config.is_dist {
@@ -717,8 +849,18 @@ where
         }
     }
 
-    fn save_batch_dist(&self,computed: &Batch<SolId,Op::SInfo,Op::Info,CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>>,outputed: &OutBatch<SolId,Op::Info,Out>,scp: &Scp,cod: &Op::Cod)
-    {
+    fn save_batch_dist(
+        &self,
+        computed: &Batch<
+            SolId,
+            Op::SInfo,
+            Op::Info,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        >,
+        outputed: &OutBatch<SolId, Op::Info, Out>,
+        scp: &Scp,
+        cod: &Op::Cod,
+    ) {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
             &self.path_popt,
@@ -726,11 +868,19 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<PSol,Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(computed, outputed, scp, cod, files);
+        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(
+            computed, outputed, scp, cod, files,
+        );
     }
-    
-    fn save_pair_dist(&self,computed: &CompShape<Scp,PSol,SolId,Op::SInfo,Op::Cod,Out>,outputed: &(SolId,Out),scp: &Scp,cod: &Op::Cod, info:Arc<Op::Info>)
-    {
+
+    fn save_pair_dist(
+        &self,
+        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        outputed: &(SolId, Out),
+        scp: &Scp,
+        cod: &Op::Cod,
+        info: Arc<Op::Info>,
+    ) {
         let files = CSVFiles::new(
             &self.path_pobj,
             &self.path_popt,

@@ -22,6 +22,8 @@ where
     fn get_sopt(&self)->&Self::SolOpt;
     fn get_mut_sobj(&mut self)->&mut Self::SolObj;
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt;
+    fn extract_sobj(self)->Self::SolObj;
+    fn extract_sopt(self)->Self::SolOpt;
 }
 
 /// A pair made of a `Obj` [`Solution`] and its `Opt` [`Twin`](Solution::Twin).
@@ -49,7 +51,6 @@ where
     SolOpt: Solution<SolId, Opt, SInfo>,
 {
     pub fn new(solobj:SolObj,solopt:SolOpt)->Self{Self(solobj,solopt,PhantomData,PhantomData,PhantomData,PhantomData)}
-    
 }
 
 impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> Linked for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
@@ -193,6 +194,8 @@ where
     fn get_sopt(&self)->&Self::SolOpt {&self.1}
     fn get_mut_sobj(&mut self)->&mut Self::SolObj {&mut self.0}
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt {&mut self.1}
+    fn extract_sobj(self)->Self::SolObj {self.0}
+    fn extract_sopt(self)->Self::SolOpt {self.1}
 }
 
 impl<SolObj,SolOpt,SolId,Obj,Opt,SInfo> IntoComputed for Pair<SolObj,SolOpt,SolId,Obj,Opt,SInfo>
@@ -210,6 +213,12 @@ where
         let cobj = Computed::new(self.0, y.clone());
         let copt = Computed::new(self.1, y);
         Pair::new(cobj,copt)
+    }
+
+    fn extract<Cod:Codomain<Out>,Out:Outcome>(comp:Self::Computed<Cod,Out>) -> (Self,Arc<Cod::TypeCodom>) {
+        let y = comp.0.y;
+        let pair = Pair::new(comp.0.sol,comp.1.sol);
+        (pair,y)
     }
 }
 
@@ -377,6 +386,8 @@ where
     fn get_sopt(&self)->&Self::SolOpt {&self.0}
     fn get_mut_sobj(&mut self)->&mut Self::SolObj {&mut self.0}
     fn get_mut_sopt(&mut self)->&mut Self::SolOpt {&mut self.0}
+    fn extract_sobj(self)->Self::SolObj {self.0}
+    fn extract_sopt(self)->Self::SolOpt {self.0}
 }
 
 impl<SolObj, SolId, Obj, SInfo> IntoComputed for  Lone<SolObj, SolId, Obj, SInfo>
@@ -390,6 +401,12 @@ where
 
     fn into_computed<Cod:Codomain<Out>,Out:Outcome>(self, y: Arc<Cod::TypeCodom>) -> Self::Computed<Cod,Out> {
         Lone::new(Computed::new(self.0, y))
+    }
+
+    fn extract<Cod:Codomain<Out>,Out:Outcome>(comp:Self::Computed<Cod,Out>) -> (Self,Arc<Cod::TypeCodom>) {
+        let y = comp.0.y;
+        let pair = Lone::new(comp.0.sol);
+        (pair,y)
     }
 }
 

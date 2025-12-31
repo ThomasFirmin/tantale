@@ -5,7 +5,7 @@ use super::init_sp::{
 use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
-use tantale::core::{searchspace::Searchspace, BaseDom, BasePartial, EmptyInfo, SId, Solution};
+use tantale::core::{searchspace::Searchspace, BaseDom, BasePartial, EmptyInfo, SId, Solution, solution::HasId};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | $comp : expr),*) => {
@@ -15,7 +15,7 @@ macro_rules! get_test {
             fn [< test_ $sp _json >](){
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample : BasePartial<SId,$dom,_> = sp.sample_obj(None,info.clone());
+                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, None,info.clone());
 
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
                 let nsample : BasePartial<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();

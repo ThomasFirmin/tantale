@@ -105,23 +105,38 @@
 //! println!("ID : {} -- Out {}",id1.id,out.out);
 //! ```
 
-use crate::{domain::onto::Linked, solution::{HasId, HasSolInfo, Id, IntoComputed, SolInfo, Solution, SolutionShape, shape::RawObj}};
+use crate::{
+    domain::onto::Linked,
+    solution::{
+        shape::RawObj, HasId, HasSolInfo, Id, IntoComputed, SolInfo, Solution, SolutionShape,
+    },
+};
 
 use rand::prelude::ThreadRng;
 use std::sync::Arc;
 
-pub type CompShape<Scp,SolOpt,SolId,SInfo,Cod,Out> = <<Scp as Searchspace<SolOpt,SolId,SInfo>>::SolShape as IntoComputed>::Computed<Cod,Out>;
+pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
+    <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>;
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
-pub trait Searchspace<SolOpt,SolId, SInfo>: Linked
+pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
 where
-    SolOpt: Solution<SolId,Self::Opt,SInfo>,
-    SolOpt::Twin<Self::Obj>: Solution<SolId,Self::Obj,SInfo, Twin<Self::Opt> = SolOpt>,
+    SolOpt: Solution<SolId, Self::Opt, SInfo>,
+    SolOpt::Twin<Self::Obj>: Solution<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
     SolId: Id,
     SInfo: SolInfo,
 {
     /// Describes the [`Paired`] linked to the [`Searchspace`].
-    type SolShape: SolutionShape<SolId,SInfo,Obj=Self::Obj,Opt = Self::Opt,SolObj = SolOpt::Twin<Self::Obj>, SolOpt = SolOpt> + HasId<SolId> + HasSolInfo<SInfo> + IntoComputed;
+    type SolShape: SolutionShape<
+            SolId,
+            SInfo,
+            Obj = Self::Obj,
+            Opt = Self::Opt,
+            SolObj = SolOpt::Twin<Self::Obj>,
+            SolOpt = SolOpt,
+        > + HasId<SolId>
+        + HasSolInfo<SInfo>
+        + IntoComputed;
 
     /// Maps a [`Partial`] of type `Obj` onto a [`Partial`] of type `Opt`.
     /// It uses the [`onto_opt_fn`](tantale::core::Var::onto_opt_fn) from
@@ -312,7 +327,9 @@ where
     /// ```
     fn is_in_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape,SolId,SInfo>> + Send + Sync;
+        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
+            + Send
+            + Sync;
     /// Check if a given `Opt` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -558,7 +575,12 @@ where
     ///
     /// ```
     ///
-    fn sample_pair(&self,rng: Option<&mut ThreadRng>,size: usize,info: Arc<SInfo>) -> Vec<Self::SolShape>;
+    fn sample_pair(
+        &self,
+        rng: Option<&mut ThreadRng>,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>;
     /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
     ///
     /// # Example
@@ -594,7 +616,9 @@ where
     /// ```
     fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape,SolId,SInfo>> + Send + Sync;
+        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
+            + Send
+            + Sync;
     /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
     ///
     /// # Example

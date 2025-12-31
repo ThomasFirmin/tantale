@@ -1,159 +1,103 @@
 use super::init_dom::*;
 
-use tantale::core::domain::sampler::{
-    uniform_bool, uniform_cat, uniform_int, uniform_nat, uniform_real,
-};
 use tantale::core::domain::Domain;
-use tantale::core::var;
 use tantale::core::variable::Var;
 
 use paste::paste;
-use std::fmt::{Debug, Display};
+use tantale_core::domain::NoDomain;
+use tantale_core::domain::onto::OntoDom;
 
 fn _test_variable_assertion<Obj, Opt>(item: &Var<Obj, Opt>)
 where
-    Obj: Domain + Clone + Display + Debug + Onto<Opt>,
-    Opt: Domain + Clone + Display + Debug + Onto<Obj>,
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.get_name(), ("a", None), "Error in variable name.");
+    assert_eq!(item.name, ("a", None), "Error in variable name.");
 
-    let random_obj = (item.get_sampler_obj())(&item.get_domain_obj(), &mut rng);
+    let random_obj = item.sample_obj(&mut rng);
     assert!(
-        item.get_domain_obj().is_in(&random_obj),
+        item.is_in_obj(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.get_sampler_opt())(&item.get_domain_opt(), &mut rng);
+    let random_opt = item.sample_opt(&mut rng);
     assert!(
-        item.get_domain_opt().is_in(&random_opt),
-        "Error in `is_in` for optimizer."
+        item.is_in_opt(&random_opt),
+        "Error in `is_in` for optective."
     );
 }
 
-fn _test_variable_assertion_single<Obj>(item: &Var<Obj>)
+fn _test_variable_assertion_single<Obj>(item: &Var<Obj,NoDomain>)
 where
-    Obj: Domain + Clone + Display + Debug,
+    Obj: Domain,
 {
     let mut rng = rand::rng();
-    assert_eq!(item.get_name(), ("a", None), "Error in variable name.");
+    assert_eq!(item.name, ("a", None), "Error in variable name.");
 
-    let random_obj = (item.get_sampler_obj())(&item.get_domain_obj(), &mut rng);
+    let random_obj = item.sample_obj(&mut rng);
     assert!(
-        item.get_domain_obj().is_in(&random_obj),
+        item.is_in_obj(&random_obj),
         "Error in `is_in` for objective."
     );
 
-    let random_opt = (item.get_sampler_opt())(&item.get_domain_opt(), &mut rng);
+    let random_opt = item.sample_opt(&mut rng);
     assert!(
-        item.get_domain_opt().is_in(&random_opt),
-        "Error in `is_in` for optimizer."
+        item.is_in_opt(&random_opt),
+        "Error in `is_in` for optective."
     );
 }
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {
-    ($dom1:ident -> $dom2:ident) => {
+    ($dom1:ident ; $ty1:ident -> $dom2:ident ; $ty2:ident) => {
         paste! {
             #[test]
             fn [<$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = var!("a" ; domobj ; domopt);
-                _test_variable_assertion(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _and_ $dom2 _sobj>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let domopt = [<get_domain_ $dom2 _2>]();
-                let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; domobj => sobj ; domopt);
-                _test_variable_assertion(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _and_ $dom2 _sopt>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let domopt = [<get_domain_ $dom2 _2>]();
-                let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; domobj ; domopt => sopt);
-                _test_variable_assertion(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _and_ $dom2 _sobj_and_sopt>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let domopt = [<get_domain_ $dom2 _2>]();
-                let sobj = [<uniform_$dom1>];
-                let sopt = [<uniform_$dom2>];
-                let variable = var!("a" ; domobj => sobj ; domopt => sopt);
+                let variable = Var::<$ty1,$ty2>::new("a",domobj,domopt);
                 _test_variable_assertion(&variable)
             }
         }
     };
 }
 
-get_variable!(real -> real);
-get_variable!(real -> nat);
-get_variable!(real -> int);
-get_variable!(real -> bool);
-get_variable!(real -> cat);
+get_variable!(real ; Real -> real ; Real);
+get_variable!(real ; Real -> nat ; Nat);
+get_variable!(real ; Real -> int ; Int);
+get_variable!(real ; Real -> bool ; Bool);
+get_variable!(real ; Real -> cat ; Cat);
 
-get_variable!(nat -> real);
-get_variable!(nat -> nat);
-get_variable!(nat -> int);
-get_variable!(nat -> bool);
-get_variable!(nat -> cat);
+get_variable!(nat ; Nat -> real ; Real);
+get_variable!(nat ; Nat -> nat ; Nat);
+get_variable!(nat ; Nat -> int ; Int);
+get_variable!(nat ; Nat -> bool ; Bool);
+get_variable!(nat ; Nat -> cat ; Cat);
 
-get_variable!(int -> real);
-get_variable!(int -> nat);
-get_variable!(int -> int);
-get_variable!(int -> bool);
-get_variable!(int -> cat);
+get_variable!(int ; Int -> real ; Real);
+get_variable!(int ; Int -> nat ; Nat);
+get_variable!(int ; Int -> int ; Int);
+get_variable!(int ; Int -> bool ; Bool);
+get_variable!(int ; Int -> cat ; Cat);
 
-get_variable!(bool -> real);
-get_variable!(bool -> nat);
-get_variable!(bool -> int);
+get_variable!(bool ; Bool -> real ; Real);
+get_variable!(bool ; Bool -> nat ; Nat);
+get_variable!(bool ; Bool -> int ; Int);
 
-get_variable!(cat -> real);
-get_variable!(cat -> nat);
-get_variable!(cat -> int);
+get_variable!(cat ; Cat -> real ; Real);
+get_variable!(cat ; Cat -> nat ; Nat);
+get_variable!(cat ; Cat -> int ; Int);
 
 // SINGLE OBJECTIVE DOMAIN IS DEFINED
 
 macro_rules! get_variable_single_dom {
-    ($dom1:ident) => {
+    ($dom1:ident ; $ty1:ident) => {
         paste! {
             #[test]
             fn [<$dom1 _single>](){
                 let domobj = [<get_domain_ $dom1>]();
-                let variable = var!("a" ; domobj);
-                _test_variable_assertion_single(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _single_sobj>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let sobj = [<uniform_$dom1>];
-                let variable = var!("a" ; domobj => sobj);
-                _test_variable_assertion_single(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _single_sopt>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; domobj ; => sopt);
-                _test_variable_assertion_single(&variable)
-            }
-
-            #[test]
-            fn [<$dom1 _single_sobj_sopt>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let sobj = [<uniform_$dom1>];
-                let sopt = [<uniform_$dom1>];
-                let variable = var!("a" ; domobj => sobj ; => sopt);
+                let variable = Var::<$ty1,NoDomain>::new("a",domobj, NoDomain);
                 _test_variable_assertion_single(&variable)
             }
 
@@ -161,8 +105,8 @@ macro_rules! get_variable_single_dom {
     };
 }
 
-get_variable_single_dom!(real);
-get_variable_single_dom!(nat);
-get_variable_single_dom!(int);
-get_variable_single_dom!(bool);
-get_variable_single_dom!(cat);
+get_variable_single_dom!(real ; Real);
+get_variable_single_dom!(nat ; Nat);
+get_variable_single_dom!(int ; Int);
+get_variable_single_dom!(bool ; Bool);
+get_variable_single_dom!(cat ; Cat);

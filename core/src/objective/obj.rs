@@ -6,14 +6,16 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FidOutcome, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity
+    objective::outcome::{FuncState, Outcome},
+    solution::partial::Fidelity,
+    FidOutcome,
 };
 
 type OptimFn<Raw, Out> = fn(Raw) -> Out;
 type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
 
 /// A wrapper arround the user-defined function to maximize.
-pub trait FuncWrapper<Raw:Serialize+for<'a>Deserialize<'a>>{}
+pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}
 
 /// [`Objective`] is the minimal wrapper for the raw function to maximize.
 /// This raw function must return an [`Outcome`],
@@ -26,12 +28,12 @@ pub trait FuncWrapper<Raw:Serialize+for<'a>Deserialize<'a>>{}
 pub struct Objective<Raw, Out>(pub OptimFn<Raw, Out>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:Outcome;
+    Out: Outcome;
 
 impl<Raw, Out> Objective<Raw, Out>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:Outcome,
+    Out: Outcome,
 {
     /// Creates an new instance of [`ObjBase`].
     ///
@@ -52,11 +54,12 @@ where
     }
 }
 
-impl<Raw, Out> FuncWrapper<Raw> for Objective<Raw, Out> 
+impl<Raw, Out> FuncWrapper<Raw> for Objective<Raw, Out>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:Outcome
-{}
+    Out: Outcome,
+{
+}
 
 /// The [`Stepped`] allows to define the minimal behavior of the wrapper.
 /// The [`Objective`] must return an [`Outcome`],
@@ -69,14 +72,14 @@ where
 pub struct Stepped<Raw, Out, FnState>(pub SteppFn<Raw, Out, FnState>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:FidOutcome,
-    FnState:FuncState;
+    Out: FidOutcome,
+    FnState: FuncState;
 
 impl<Raw, Out, FnState> Stepped<Raw, Out, FnState>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:FidOutcome,
-    FnState:FuncState
+    Out: FidOutcome,
+    FnState: FuncState,
 {
     /// Creates an new instance of [`ObjBase`].
     ///
@@ -92,12 +95,7 @@ where
     /// Initialize the ['Objective'].
     pub fn init(&mut self) {}
     /// Compute the raw outputs of a function to maximize according to an input `x`.
-    pub fn compute(
-        &self,
-        x: Raw,
-        fidelity: Fidelity,
-        state: Option<FnState>,
-    ) -> (Out, FnState) {
+    pub fn compute(&self, x: Raw, fidelity: Fidelity, state: Option<FnState>) -> (Out, FnState) {
         (self.0)(x, fidelity, state)
     }
 }
@@ -105,6 +103,7 @@ where
 impl<Raw, Out, FnState> FuncWrapper<Raw> for Stepped<Raw, Out, FnState>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
-    Out:FidOutcome,
-    FnState:FuncState
-{}
+    Out: FidOutcome,
+    FnState: FuncState,
+{
+}

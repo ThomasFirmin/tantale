@@ -396,14 +396,14 @@ pub fn obj(input: TokenStream) -> TokenStream {
     
     let wraper_tokens = if state.is_some(){
         quote! {
-            pub fn get_function() -> tantale::core::Stepped<std::sync::Arc<[#ident_mixedt_obj]>,#otype,#state>
+            pub fn get_function() -> tantale::core::Stepped<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype,#state>
             {
                 tantale::core::Stepped::new(#fn_ident)
             }
         }
     } else{
         quote! {
-            pub fn get_function() -> tantale::core::Objective<std::sync::Arc<[#ident_mixedt_obj]>,#otype>
+            pub fn get_function() -> tantale::core::Objective<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype>
             {
                 tantale::core::Objective::new(#fn_ident)
             }

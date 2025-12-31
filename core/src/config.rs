@@ -1,11 +1,11 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{path::{Path, PathBuf}};
 
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::utils::MPIProcess;
 
 pub trait SaverConfig {
-    fn init(self)->Arc<Self>;
+    fn init(self) -> Arc<Self>;
 }
 
 #[cfg(feature = "mpi")]
@@ -55,19 +55,27 @@ impl FolderConfig {
 }
 
 impl SaverConfig for FolderConfig {
-    fn init(self) -> Arc<Self> {Arc::new(self)}
+    fn init(self) -> Arc<Self> {
+        Arc::new(self)
+    }
 }
 pub struct NoConfig;
 impl SaverConfig for NoConfig {
-    fn init(self) -> Arc<Self> {Arc::new(self)}
+    fn init(self) -> Arc<Self> {
+        Arc::new(self)
+    }
 }
 
 #[cfg(feature = "mpi")]
 impl DistSaverConfig for FolderConfig {
     fn init(mut self, proc: &MPIProcess) -> Arc<Self> {
-        self.path_rec = self.path_rec.join(Path::new(&format!("recorder_rank{}", proc.rank)));
+        self.path_rec = self
+            .path_rec
+            .join(Path::new(&format!("recorder_rank{}", proc.rank)));
         self.path_work = self.path_check.join(Path::new("workers"));
-        self.path_check = self.path_check.join(Path::new(&format!("checkpointer_rank{}", proc.rank)));
+        self.path_check = self
+            .path_check
+            .join(Path::new(&format!("checkpointer_rank{}", proc.rank)));
         self.is_dist = true;
         Arc::new(self)
     }
@@ -75,5 +83,7 @@ impl DistSaverConfig for FolderConfig {
 
 #[cfg(feature = "mpi")]
 impl DistSaverConfig for NoConfig {
-    fn init(self, _proc: &MPIProcess) -> Arc<Self> {Arc::new(self)}
+    fn init(self, _proc: &MPIProcess) -> Arc<Self> {
+        Arc::new(self)
+    }
 }

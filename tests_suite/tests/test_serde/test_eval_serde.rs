@@ -1,19 +1,21 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rmp_serde;
 use tantale::core::stop::Calls;
-use tantale_algos::RSInfo;
+use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    experiment::{
+    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrBatchEvaluator,
         ThrEvaluate,
-    },
-    solution::{partial::FidelityPartial, Batch},
-    BaseDom, BasePartial, EmptyInfo, FidBasePartial, Objective, SId, Searchspace,
-    SingleCodomain, Sp, Stepped,
+    }, solution::{Batch, HasId, Lone, SolutionShape}
 };
 
 use super::init_func::{sp_evaluator, sp_evaluator_fid, FidOutEvaluator, FnState, OutEvaluator};
+
+type BEvaluator = BatchEvaluator<SId,EmptyInfo,RSInfo,Lone<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>>;
+type ThrBEvaluator = ThrBatchEvaluator<SId,EmptyInfo,RSInfo,Lone<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>>;
+type FBEvaluator = FidBatchEvaluator<SId,EmptyInfo,RSInfo,Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,FnState>;
+type FThrBEvaluator = FidThrBatchEvaluator<SId,EmptyInfo,RSInfo,Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,FnState>;
 
 #[test]
 fn test_serde_batchevaluator() {
@@ -26,111 +28,73 @@ fn test_serde_batchevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
-    let batch = Batch::new(sobj, sopt, info.clone());
-    let eval: BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = BatchEvaluator::new(batch);
+    let sobj: Vec<BasePartial<_, _, _>> = <Sp<BaseDom,NoDomain> as Searchspace<BasePartial<SId,_,_>, SId, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    let pairs = sp.vec_onto_obj(sobj);
+    let batch = Batch::new(pairs, info.clone());
+    let eval= BatchEvaluator::new(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
-    let mut neval: BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut neval: BatchEvaluator<SId,EmptyInfo,RSInfo,Lone<BasePartial<SId,_,_>,SId,_,EmptyInfo>>= rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        eval.batch.sobj.iter().zip(&neval.batch.sobj).all(|(i, j)| {
-            let isol = i.x.clone();
-            let jsol = j.x.clone();
-            (i.id == j.id) && (isol == jsol)
+        eval.batch.into_iter().zip(&neval.batch).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
         }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (_braw, bcomp) = <BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<OutEvaluator>,
-        OutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Objective<BaseDom, OutEvaluator>,
-        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut neval, &obj, &cod, &mut stop);
+    let (bcomp, _braw) = <
+        BatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>
+        > as 
+        MonoEvaluate<
+            BasePartial<SId, _,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            OutEvaluator,
+            Calls,
+            Objective<Arc<[BaseTypeDom]>,OutEvaluator>
+        >
+        >::evaluate(&mut neval, &obj, &cod, &mut stop);
 
-    let (vobj, vopt) = bcomp
+    let pairs = bcomp
         .into_iter()
-        .map(|(sj, st)| {
-            let obj = sj.sol;
-            let opt = st.sol;
-            (obj, opt)
-        })
+        .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
-    let batch = Batch::new(vobj, vopt, info.clone());
-    <BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<OutEvaluator>,
-        OutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Objective<BaseDom, OutEvaluator>,
-        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::update(&mut neval, batch);
+    let batch = Batch::new(pairs,info.clone());
+    <
+        BatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<BasePartial<SId, _,EmptyInfo>,SId,_,EmptyInfo>
+        > as 
+        MonoEvaluate<
+            BasePartial<SId, _,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            OutEvaluator,
+            Calls,
+            Objective<Arc<[BaseTypeDom]>,OutEvaluator>
+        >
+        >::update(&mut neval, batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
-    let nneval: BatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let nneval: BEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        neval
-            .batch
-            .sobj
-            .iter()
-            .zip(&nneval.batch.sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.id == j.id) && (isol == jsol)
-            }),
+        neval.batch.into_iter().zip(&nneval.batch).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 }
@@ -143,122 +107,76 @@ fn test_serde_thrbatchevaluator() {
     let obj = Arc::new(Objective::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
-    let stop = Arc::new(std::sync::Mutex::new(Calls::new(50)));
+    let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<BasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
-    let batch = Batch::new(sobj, sopt, info.clone());
-    let eval: ThrBatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = ThrBatchEvaluator::new(batch);
+    let sobj: Vec<BasePartial<_, _, _>> = <Sp<BaseDom,NoDomain> as Searchspace<BasePartial<SId,_,_>, SId, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    let pairs = sp.vec_onto_obj(sobj);
+    let batch = Batch::new(pairs, info.clone());
+    let eval= ThrBatchEvaluator::new(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
-    let mut neval: ThrBatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut neval: ThrBatchEvaluator<SId,EmptyInfo,RSInfo,Lone<BasePartial<SId,_,_>,SId,_,EmptyInfo>>= rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        eval.batch
-            .lock()
-            .unwrap()
-            .sobj
-            .iter()
-            .zip(&neval.batch.lock().unwrap().sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.id == j.id) && (isol == jsol)
-            }),
+        eval.batch.lock().unwrap().pairs.iter().zip(&neval.batch.lock().unwrap().pairs).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (_braw, bcomp) = <ThrBatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > as ThrEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<OutEvaluator>,
-        OutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Objective<BaseDom, OutEvaluator>,
-        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
+    let (bcomp, _braw) = <
+        ThrBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>
+        > as 
+        ThrEvaluate<
+            BasePartial<SId, _,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            OutEvaluator,
+            Calls,
+            Objective<Arc<[BaseTypeDom]>,OutEvaluator>
+        >
+        >::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
-    let (vobj, vopt) = bcomp
+    let pairs = bcomp
         .into_iter()
-        .map(|(sj, st)| {
-            let obj = sj.sol;
-            let opt = st.sol;
-            (obj, opt)
-        })
+        .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
-    let batch = Batch::new(vobj, vopt, info.clone());
-    <ThrBatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > as ThrEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<OutEvaluator>,
-        OutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Objective<BaseDom, OutEvaluator>,
-        Batch<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::update(&mut neval, batch);
+    let batch = Batch::new(pairs,info.clone());
+    <
+        ThrBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<BasePartial<SId, _,EmptyInfo>,SId,_,EmptyInfo>
+        > as 
+        ThrEvaluate<
+            BasePartial<SId, _,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            OutEvaluator,
+            Calls,
+            Objective<Arc<[BaseTypeDom]>,OutEvaluator>
+        >
+        >::update(&mut neval, batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
-    let nneval: ThrBatchEvaluator<
-        BasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let nneval: ThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        neval
-            .batch
-            .lock()
-            .unwrap()
-            .sobj
-            .iter()
-            .zip(&nneval.batch.lock().unwrap().sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.id == j.id) && (isol == jsol)
-            }),
+        neval.batch.lock().unwrap().pairs.iter().zip(&nneval.batch.lock().unwrap().pairs).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 }
@@ -268,153 +186,107 @@ fn test_serde_fidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Stepped::new(func);
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidBasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<FidBasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
-    let batch = Batch::new(sobj, sopt, info.clone());
-    let eval: FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = FidBatchEvaluator::new(batch);
+    let sobj: Vec<FidBasePartial<_, _, _>> = <Sp<BaseDom,NoDomain> as Searchspace<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    let pairs = sp.vec_onto_obj(sobj);
+    let batch = Batch::new(pairs, info.clone());
+    let eval: FidBatchEvaluator<_, _, _, _, FnState>= FidBatchEvaluator::new(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
-    let mut neval: FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut neval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        eval.batch.sobj.iter().zip(&neval.batch.sobj).all(|(i, j)| {
-            let isol = i.x.clone();
-            let jsol = j.x.clone();
-            (i.fid == j.fid) && (i.id == j.id) && (isol == jsol)
+        eval.batch.into_iter().zip(&neval.batch).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
         }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (braw, bcomp) = <FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut neval, &obj, &cod, &mut stop);
+    let (bcomp, braw) = <
+        FidBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        MonoEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
         braw.into_iter().all(|(_i, o)| {o.fid.0 == 1}),
         "Error while serializing and deserializing function states."
     );
 
-    let (vobj, vopt) = bcomp
+    let pairs = bcomp
         .into_iter()
-        .map(|(sj, st)| {
-            let mut obj = sj.sol;
-            let mut opt = st.sol;
-            obj.resume(&mut opt, 0.0);
-            (obj, opt)
-        })
+        .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
-    let batch = Batch::new(vobj, vopt, info.clone());
-    <FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::update(&mut neval, batch);
+    let batch = Batch::new(pairs,info.clone());
+    <
+        FidBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        MonoEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::update(&mut neval, batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
-    let mut nneval: FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut nneval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        neval
-            .batch
-            .sobj
-            .iter()
-            .zip(&nneval.batch.sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.fid == j.fid) && (i.id == j.id) && (isol == jsol)
-            }),
+        neval.batch.into_iter().zip(&nneval.batch).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (braw, _bcomp) = <FidBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as MonoEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
+    let (_bcomp, braw) = <
+        FidBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        MonoEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
         braw.into_iter().all(|(_i, o)| {o.fid.0 == 2}),
@@ -430,158 +302,104 @@ fn test_serde_thrfidbatchevaluator() {
     let obj = Arc::new(Stepped::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
-    let stop = Arc::new(std::sync::Mutex::new(Calls::new(50)));
+    let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidBasePartial<_, _, _>> = sp.vec_sample_obj(Some(&mut rng), 20, sinfo.clone());
-    let sopt: Vec<FidBasePartial<_, _, _>> = sp.vec_onto_obj(&sobj);
-    let batch = Batch::new(sobj, sopt, info.clone());
-    let eval: FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = FidThrBatchEvaluator::new(batch);
+    let sobj: Vec<FidBasePartial<_, _, _>> = <Sp<BaseDom,NoDomain> as Searchspace<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    let pairs = sp.vec_onto_obj(sobj);
+    let batch = Batch::new(pairs, info.clone());
+    let eval: FidThrBatchEvaluator<_, _, _, _, FnState>= FidThrBatchEvaluator::new(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
-    let mut neval: FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut neval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        eval.batch
-            .lock()
-            .unwrap()
-            .sobj
-            .iter()
-            .zip(&neval.batch.lock().unwrap().sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.fid == j.fid) && (i.id == j.id) && (isol == jsol)
-            }),
+        eval.batch.lock().unwrap().pairs.iter().zip(&neval.batch.lock().unwrap().pairs).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (braw, bcomp) = <FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as ThrEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
+    let (bcomp, braw) = <
+        FidThrBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        ThrEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
         braw.into_iter().all(|(_i, o)| {o.fid.0 == 1}),
         "Error while serializing and deserializing function states."
     );
 
-    let (vobj, vopt) = bcomp
+    let pairs = bcomp
         .into_iter()
-        .map(|(sj, st)| {
-            let mut obj = sj.sol;
-            let mut opt = st.sol;
-            obj.resume(&mut opt, 0.0);
-            (obj, opt)
-        })
+        .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
-    let batch = Batch::new(vobj, vopt, info.clone());
-    <FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as ThrEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::update(&mut neval, batch);
+    let batch = Batch::new(pairs,info.clone());
+    <
+        FidThrBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        ThrEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::update(&mut neval, batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
-    let nneval: FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
+    let mut nneval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
-        neval
-            .batch
-            .lock()
-            .unwrap()
-            .sobj
-            .iter()
-            .zip(&nneval.batch.lock().unwrap().sobj)
-            .all(|(i, j)| {
-                let isol = i.x.clone();
-                let jsol = j.x.clone();
-                (i.fid == j.fid) && (i.id == j.id) && (isol == jsol)
-            }),
+        neval.batch.lock().unwrap().pairs.iter().zip(&nneval.batch.lock().unwrap().pairs).all(|(i, j)| {
+            (i.get_id() == j.get_id()) && 
+            (i.get_sobj().x == j.get_sobj().x) && 
+            (i.get_sopt().x == j.get_sopt().x)
+        }),
         "Solution mismatch after serializing and deserializing Evaluator."
     );
 
-    let (braw, _bcomp) = <FidThrBatchEvaluator<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FnState,
-    > as ThrEvaluate<
-        SId,
-        BaseDom,
-        BaseDom,
-        EmptyInfo,
-        RSInfo,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        Calls,
-        SingleCodomain<FidOutEvaluator>,
-        FidOutEvaluator,
-        Sp<BaseDom, BaseDom>,
-        Stepped<BaseDom, FidOutEvaluator, FnState>,
-        Batch<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, BaseDom, EmptyInfo, RSInfo>,
-    >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
+    let (_bcomp, braw) = <
+        FidThrBatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState,
+        > as 
+        ThrEvaluate<
+            FidBasePartial<SId, BaseDom,EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom,NoDomain>,
+            FidOutEvaluator,
+            Calls,
+            Stepped<Arc<[BaseTypeDom]>,FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
         braw.into_iter().all(|(_i, o)| {o.fid.0 == 2}),

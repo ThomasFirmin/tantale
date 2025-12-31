@@ -1,6 +1,6 @@
 use crate::{
+    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape},
     Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
-    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape}
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -11,7 +11,6 @@ use mpi::{
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, marker::PhantomData};
-
 
 use crate::{MPI_RANK, MPI_SIZE};
 use mpi::{environment::Universe, topology::SimpleCommunicator};
@@ -86,17 +85,21 @@ where
 /// A [`XMessage`] is a [`XMsg`] describing the content sent to a [`Worker`].
 /// It is made of the raw solution, and its [`Id`].
 #[derive(Serialize, Deserialize)]
-#[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
-pub struct XMessage<SolId,Raw>(pub SolId, pub Raw)
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct XMessage<SolId, Raw>(pub SolId, pub Raw)
 where
     SolId: Id,
     Raw: Serialize + for<'a> Deserialize<'a>;
 
-impl<SolId,Raw> Msg for XMessage<SolId, Raw>
+impl<SolId, Raw> Msg for XMessage<SolId, Raw>
 where
     SolId: Id,
-    Raw: Serialize + for<'a> Deserialize<'a>
-{}
+    Raw: Serialize + for<'a> Deserialize<'a>,
+{
+}
 
 impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for XMessage<SolId, PSol::Raw>
 where
@@ -114,17 +117,21 @@ where
 /// A [`FXMessage`] is a [`XMsg`] describing the content sent to a [`Worker`].
 /// It is made of the raw solution, its [`Id`], and a  [`Fidelity`].
 #[derive(Serialize, Deserialize)]
-#[serde(bound(serialize = "SolId:Serialize",deserialize = "SolId:for<'a> Deserialize<'a>"))]
-pub struct FXMessage<SolId,Raw>(pub SolId, pub Raw, pub EvalStep, pub Fidelity)
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct FXMessage<SolId, Raw>(pub SolId, pub Raw, pub EvalStep, pub Fidelity)
 where
     SolId: Id,
     Raw: Serialize + for<'a> Deserialize<'a>;
 
-impl<SolId,Raw> Msg for FXMessage<SolId, Raw> 
+impl<SolId, Raw> Msg for FXMessage<SolId, Raw>
 where
     SolId: Id,
     Raw: Serialize + for<'a> Deserialize<'a>,
-{}
+{
+}
 
 impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, PSol::Raw>
 where
@@ -135,7 +142,7 @@ where
     SInfo: SolInfo,
 {
     fn new(sol: &PSol) -> Self {
-        FXMessage(sol.get_id(), sol.get_x(), sol.raw_step() ,sol.fidelity())
+        FXMessage(sol.get_id(), sol.get_x(), sol.raw_step(), sol.fidelity())
     }
 }
 
@@ -156,40 +163,48 @@ pub struct OMessage<SolId: Id, Out: Outcome>(pub SolId, pub Out);
 impl<SolId: Id, Out: Outcome> Msg for OMessage<SolId, Out> {}
 
 /// A structure allowing to know which worker is idle, and if there is at least one idle worker.
-pub struct IdleWorker{
+pub struct IdleWorker {
     pub idle: BitVec,
 }
 
-impl IdleWorker{
+impl IdleWorker {
     /// Create a new [`IdleWorker`]. All worker are set to idle (`true`).
-    pub fn new(size:usize)->Self{
-        let mut r = IdleWorker { idle: bitvec![1; size] };
+    pub fn new(size: usize) -> Self {
+        let mut r = IdleWorker {
+            idle: bitvec![1; size],
+        };
         r.set_busy(0);
         r
     }
     /// Return `true` if at least one worker is idle
-    pub fn has_idle(&self) -> bool { self.idle.any() }
+    pub fn has_idle(&self) -> bool {
+        self.idle.any()
+    }
     /// Set a worker to idle.
-    pub fn set_idle(&mut self, rank:Rank){ self.idle.set(rank as usize, true) }
+    pub fn set_idle(&mut self, rank: Rank) {
+        self.idle.set(rank as usize, true)
+    }
     /// Set worker to busy.
-    pub fn set_busy(&mut self, rank:Rank){ self.idle.set(rank as usize, false) }
+    pub fn set_busy(&mut self, rank: Rank) {
+        self.idle.set(rank as usize, false)
+    }
     /// Does not really pop, but get the first index of an idle worker, and set it to busy.
-    pub fn pop(&mut self) -> Option<usize>{
+    pub fn pop(&mut self) -> Option<usize> {
         self.idle.first_one()
     }
 }
 
 /// A structure containing utilitaries to send and [`Partial`] to [`Worker`], and receive [`RawSol`]
 /// and [`Computed`] from [`Worker`].
-pub struct SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
+pub struct SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId,SInfo> + IntoComputed,
-    <Shape as IntoComputed>::Computed<Cod,Out>:SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
+    Shape: SolutionShape<SolId, SInfo> + IntoComputed,
+    <Shape as IntoComputed>::Computed<Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
+    Cod: Codomain<Out>,
+    Out: Outcome,
 {
     pub config: Configuration,
     pub proc: &'a MPIProcess,
@@ -201,20 +216,17 @@ where
     _out: PhantomData<Out>,
 }
 
-impl<'a, Msg, Shape, SolId, SInfo,Cod,Out> SendRec<'a, Msg, Shape, SolId, SInfo,Cod,Out>
+impl<'a, Msg, Shape, SolId, SInfo, Cod, Out> SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId,SInfo> + IntoComputed,
-    <Shape as IntoComputed>::Computed<Cod,Out>:SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
+    Shape: SolutionShape<SolId, SInfo> + IntoComputed,
+    <Shape as IntoComputed>::Computed<Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod:Codomain<Out>,
-    Out:Outcome,
+    Cod: Codomain<Out>,
+    Out: Outcome,
 {
-    pub fn new(
-        config: Configuration,
-        proc: &'a MPIProcess,
-    ) -> Self {
+    pub fn new(config: Configuration, proc: &'a MPIProcess) -> Self {
         let size = proc.world.size() as usize;
         SendRec {
             config,
@@ -229,20 +241,18 @@ where
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_worker(&mut self, pair: Shape) -> Option<Rank>
-    {
+    pub fn send_to_worker(&mut self, pair: Shape) -> Option<Rank> {
         if let Some(rank) = self.idle.pop() {
-            let r = rank as Rank ;
+            let r = rank as Rank;
             self.send_to_rank(r, pair);
             Some(r)
-        } else{
+        } else {
             None
         }
     }
 
     /// Send an Obj [`Solution`] to a worker
-    pub fn send_to_rank(&mut self, rank:Rank, pair: Shape)
-    {
+    pub fn send_to_rank(&mut self, rank: Rank, pair: Shape) {
         let sid = pair.get_id();
         let msg = Msg::new(pair.get_sobj());
         send_msg(self.proc, msg, rank, 0, self.config);
@@ -251,8 +261,7 @@ where
     }
 
     /// Receive an  [`Outcome`] from a [`Worker`].
-    pub fn rec_computed(&mut self) -> (Rank,Shape,Out)
-    {
+    pub fn rec_computed(&mut self) -> (Rank, Shape, Out) {
         // Recv / sendv loop
         let (bytes, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
         let msg = OMessage::from_bytes(bytes, self.config);
@@ -262,7 +271,7 @@ where
         let pair = self.waiting.remove(&id).unwrap();
         let rank = status.source_rank();
         self.idle.set_idle(rank);
-        (rank,pair,out)
+        (rank, pair, out)
     }
 
     /// Send a [`Discard`](Fidelity::Discard) order
@@ -296,44 +305,46 @@ pub fn send_msg<M: Msg>(proc: &MPIProcess, msg: M, rank: Rank, tag: Tag, config:
         .send_with_tag(&msg.to_bytes(config), tag);
 }
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// [`PriorityList`] defines a list of MPI-size WORLDSIZE.
-/// A list of elements `T` is associated to each rank. 
-pub struct PriorityList<T>
-{
+/// A list of elements `T` is associated to each rank.
+pub struct PriorityList<T> {
     pub list: Vec<Vec<T>>,
     pub count: usize,
 }
 
-impl <T> PriorityList<T> {
-    pub fn new(size:usize)->Self{
-        PriorityList{list: (0..size).map(|_| Vec::new()).collect(), count: 0}
+impl<T> PriorityList<T> {
+    pub fn new(size: usize) -> Self {
+        PriorityList {
+            list: (0..size).map(|_| Vec::new()).collect(),
+            count: 0,
+        }
     }
-    pub fn add(&mut self, elem: T, rank:Rank){
+    pub fn add(&mut self, elem: T, rank: Rank) {
         self.list[rank as usize].push(elem);
         self.count += 1;
     }
-    pub fn push(&mut self, elem: Vec<T>, rank:Rank){
+    pub fn push(&mut self, elem: Vec<T>, rank: Rank) {
         self.list[rank as usize].extend(elem);
         self.count += 1;
     }
-    pub fn pop(&mut self, rank:Rank) -> Option<T>{
+    pub fn pop(&mut self, rank: Rank) -> Option<T> {
         let res = self.list[rank as usize].pop();
-        if res.is_some(){self.count -=1}
+        if res.is_some() {
+            self.count -= 1
+        }
         res
     }
-    pub fn is_empty(&self)-> bool{
+    pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
-    pub fn extend(&mut self, other: PriorityList<T>){
-        if self.count != other.count{
+    pub fn extend(&mut self, other: PriorityList<T>) {
+        if self.count != other.count {
             panic!("The two PriorityList have different lengthes.");
-        }
-        else{
+        } else {
             self.list.extend(other.list);
             self.count += other.count;
         }
-        
     }
 }

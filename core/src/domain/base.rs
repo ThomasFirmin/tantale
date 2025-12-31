@@ -1,7 +1,14 @@
 use crate::{
     domain::{
-        Domain, PreDomain, TypeDom, bool::Bool, bounded::{Int, Nat, Real}, cat::Cat, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable
+        bool::Bool,
+        bounded::{Int, Nat, Real},
+        cat::Cat,
+        onto::{Onto, OntoDom},
+        unit::Unit,
+        Domain, PreDomain, TypeDom,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
 };
 
 use rand::prelude::ThreadRng;
@@ -78,7 +85,7 @@ impl Default for BaseTypeDom {
         BaseTypeDom::Real(TypeDom::<Real>::default())
     }
 }
-impl PreDomain for BaseDom{}
+impl PreDomain for BaseDom {}
 impl Domain for BaseDom {
     type TypeDom = BaseTypeDom;
     fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {

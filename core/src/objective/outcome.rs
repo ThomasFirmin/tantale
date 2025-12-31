@@ -74,7 +74,6 @@ use crate::objective::EvalStep;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-
 /// [`Outcome`] is a trait describing what the output of the objective function is.
 /// It must contains the values needed for the optimization.
 /// An [`Outcome`] should be defined with the [`Outcome`][tantale::macros::Outcome] derive macro.

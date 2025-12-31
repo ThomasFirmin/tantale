@@ -5,55 +5,56 @@ pub use tantale::core::domain::cat::Cat;
 pub use tantale::core::domain::onto::Onto;
 pub use tantale::core::domain::unit::Unit;
 pub use tantale::core::domain::Domain;
+use tantale_core::sampler::{Bernoulli, Uniform};
 
 static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
 pub fn get_domain_real() -> Real {
-    Real::new(0.0, 10.0)
+    Real::new(0.0, 10.0, Uniform)
 }
 
 pub fn get_domain_nat() -> Nat {
-    Nat::new(1, 11)
+    Nat::new(1, 11,Uniform)
 }
 
 pub fn get_domain_int() -> Int {
-    Int::new(0, 10)
+    Int::new(0, 10, Uniform)
 }
 
 pub fn get_domain_bool() -> Bool {
-    Bool::new()
+    Bool::new(Bernoulli(0.5))
 }
 
 pub fn get_domain_cat() -> Cat {
-    Cat::new(&ACTIVATION)
+    Cat::new(&ACTIVATION, Uniform)
 }
 
 pub fn get_domain_unit() -> Unit {
-    Unit::new()
+    Unit::new(Uniform)
 }
 
 pub fn get_domain_real_2() -> Real {
-    Real::new(80.0, 100.0)
+    Real::new(80.0, 100.0, Uniform)
 }
 
 pub fn get_domain_nat_2() -> Nat {
-    Nat::new(80, 100)
+    Nat::new(80, 100,Uniform)
 }
 
 pub fn get_domain_int_2() -> Int {
-    Int::new(80, 100)
+    Int::new(80, 100, Uniform)
 }
 
 pub fn get_domain_bool_2() -> Bool {
-    Bool::new()
+    Bool::new(Bernoulli(0.5))
 }
 
 pub fn get_domain_cat_2() -> Cat {
-    Cat::new(&ACTIVATION)
+    Cat::new(&ACTIVATION, Uniform)
 }
 
 pub fn get_domain_unit_2() -> Unit {
-    Unit::new()
+    Unit::new(Uniform)
 }
 
 pub fn get_domain_base_real(domain: Real, input: f64) -> (BaseDom, BaseTypeDom) {

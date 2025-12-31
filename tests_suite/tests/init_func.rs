@@ -59,7 +59,7 @@ pub struct FidOutUnique {
 
 #[derive(Serialize, Deserialize)]
 pub struct FnState {
-    pub state: usize,
+    pub state: isize,
 }
 impl FuncState for FnState {}
 
@@ -92,32 +92,32 @@ pub fn float_plus_float(x: f64, y: f64) -> (f64, f64, f64) {
 }
 
 pub mod sp_ms_nosamp {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
-    use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100)  | Real(0.0,1.0) !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
 
             OutExample{
-                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -132,32 +132,32 @@ pub mod sp_ms_nosamp {
 }
 
 pub mod sp_ms_samp {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100) => uniform_int  | Real(0.0,1.0) !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
 
             OutExample{
-                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -172,32 +172,32 @@ pub mod sp_ms_samp {
 }
 
 pub mod sp_ms_samp_right {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
-    use tantale_core::{uniform_real, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100) | Real(0.0,1.0) => uniform_real !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
 
 
             OutExample{
-                obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -212,32 +212,32 @@ pub mod sp_ms_samp_right {
 }
 
 pub mod sp_ms_noright {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
-    use tantale_core::{Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100) | !];
-            let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let d = [! d | Bool() | !];
+            let a = [! a | Int(0,100, Uniform) | !];
+            let b = [! b | Nat(0,100, Uniform) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let e = plus_one_int([! e | Int(0,100) | !]);
-            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
 
             OutExample{
-                obj: [! j | Real(1000.0,2000.0) | !],
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -252,32 +252,32 @@ pub mod sp_ms_noright {
 }
 
 pub mod sp_ms_samp_noright {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100) => uniform_int  | !];
-            let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let d = [! d | Bool() | !];
+            let a = [! a | Int(0,100, Uniform)  | !];
+            let b = [! b | Nat(0,100, Uniform) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let e = plus_one_int([! e | Int(0,100) | !]);
-            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) |!]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) |!]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
 
             OutExample{
-                obj: [! j | Real(1000.0,2000.0) | !],
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -292,33 +292,32 @@ pub mod sp_ms_samp_noright {
 }
 
 pub mod sp_sm_samp {
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, Int, Nat, Real};
-    use tantale_macros::objective;
-
     use super::{float_plus_float, plus_one_float, OutUnique, Point};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutUnique {
-            let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
-            let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
-            let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
-            let d = [! d | Real(0.0,1.0) | Bool() !];
+            let a = [! a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  !];
+            let b = [! b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
+            let c = [! c | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !];
+            let d = [! d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5)) !];
 
-            let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
-            let f = float_plus_float([! f | Real(0.0,1.0) | Int(0,100) !], [! g | Real(0.0,1.0) | Nat(0,100) !]);
+            let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !]);
+            let f = float_plus_float([! f | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !], [! g | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !]);
 
             let p = Point{
-                x: [! h | Real(0.0,1.0) | Int(0,100) !],
-                y: [! i | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !],
+                x: [! h | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !],
+                y: [! i | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !],
             };
 
-            let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
+            let k = [! k_{4} | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
 
 
             OutUnique{
-                obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                obj: [! j | Real(0.0,1.0, Uniform)| Real(1000.0,2000.0, Uniform) !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -333,33 +332,34 @@ pub mod sp_sm_samp {
 }
 
 pub mod sp_sm_samp_noright {
-    use tantale_core::{uniform_real, Real};
+    use super::{float_plus_float, plus_one_float, OutUnique, Point};
+    use tantale_core::{Real, sampler::Uniform};
     use tantale_macros::objective;
 
-    use super::{float_plus_float, plus_one_float, OutUnique, Point};
+    
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutUnique {
-            let a = [! a | Real(0.0,1.0) | => uniform_real !];
-            let b = [! b | Real(0.0,1.0) => uniform_real | !];
-            let c = [! c | Real(0.0,1.0) |!];
-            let d = [! d | Real(0.0,1.0) |!];
+            let a = [! a | Real(0.0,1.0, Uniform) |  !];
+            let b = [! b | Real(0.0,1.0, Uniform)  | !];
+            let c = [! c | Real(0.0,1.0, Uniform) |!];
+            let d = [! d | Real(0.0,1.0, Uniform) |!];
 
-            let e = plus_one_float([! e | Real(0.0,1.0) | !]);
-            let f = float_plus_float([! f | Real(0.0,1.0) | !], [! g | Real(0.0,1.0) | !]);
+            let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | !]);
+            let f = float_plus_float([! f | Real(0.0,1.0, Uniform) | !], [! g | Real(0.0,1.0, Uniform) | !]);
 
             let p = Point{
-                x: [! h | Real(0.0,1.0) | !],
-                y: [! i | Real(0.0,1.0) | !],
+                x: [! h | Real(0.0,1.0, Uniform) | !],
+                y: [! i | Real(0.0,1.0, Uniform) | !],
             };
 
-            let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
+            let k = [! k_{4} | Real(0.0,1.0, Uniform) | !];
 
 
             OutUnique{
-                obj: [! j | Real(0.0,1.0) | !],
+                obj: [! j | Real(0.0,1.0, Uniform) | !],
                 int_v: a,
                 poi: e,
                 nat_v: b,
@@ -397,31 +397,31 @@ impl PartialEq for FidOutEvaluator {
 }
 
 pub mod sp_evaluator {
-    use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
-    use tantale_core::{Bool, Cat, Int, Nat, Real};
+    use super::{plus_one_int, int_plus_nat, OutEvaluator, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> OutEvaluator {
-            let _a = [! a | Int(0,100) | !];
-            let _b = [! b | Nat(0,100) | !];
-            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let _d = [! d | Bool() | !];
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let _e = plus_one_int([! e | Int(0,100) | !]);
-            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
             let _layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
             OutEvaluator{
-                obj: [! j | Real(1000.0,2000.0) | !]
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !]
             }
         }
     );
@@ -432,38 +432,38 @@ pub mod sp_evaluator {
 //---------------//
 
 pub mod sp_evaluator_fid {
-    use super::{int_plus_nat, plus_one_int, EvalStep, FidOutEvaluator, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Fidelity, Int, Nat, Real};
+    use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutEvaluator, FnState) {
-            let _a = [! a | Int(0,100) | !];
-            let _b = [! b | Nat(0,100) | !];
-            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let _d = [! d | Bool() | !];
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let _e = plus_one_int([! e | Int(0,100) | !]);
-            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
             let _layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutEvaluator{
-                    obj: [! j | Real(1000.0,2000.0) | !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !],
                     fid: evalstate,
                 },
                 state
@@ -475,41 +475,37 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_ms_nosamp_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{
-        domain::{Bool, Cat, Int, Nat, Real},
-        solution::partial::Fidelity,
-        EvalStep,
-    };
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutExample,FnState) {
-            let a = [! a | Int(0,100)  | Real(0.0,1.0) !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutExample{
-                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -528,37 +524,37 @@ pub mod sp_ms_nosamp_fid {
 
 pub mod sp_ms_samp_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutExample,FnState) {
-            let a = [! a | Int(0,100) => uniform_int  | Real(0.0,1.0) !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) => uniform_nat | Real(0.0,1.0) !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutExample{
-                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -577,37 +573,37 @@ pub mod sp_ms_samp_fid {
 
 pub mod sp_ms_samp_right_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{uniform_real, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutExample,FnState) {
-            let a = [! a | Int(0,100) | Real(0.0,1.0) => uniform_real !];
-            let b = [! b | Nat(0,100) | Real(0.0,1.0) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !];
-            let d = [! d | Bool() | Real(0.0,1.0) !];
+            let a = [! a | Int(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
+            let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
-            let e = plus_one_int([! e | Int(0,100) | Real(0.0,1.0) !]);
-            let f = int_plus_nat([! f | Int(0,100) | Real(0.0,1.0) !], [! g | Nat(0,100) | Real(0.0,1.0) !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !], [! g | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | Real(0.0,1.0) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | Real(0.0,1.0) !],
+                number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | Real(0.0,1.0) => uniform_real !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutExample{
-                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -626,37 +622,37 @@ pub mod sp_ms_samp_right_fid {
 
 pub mod sp_ms_noright_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutExample,FnState) {
-            let a = [! a | Int(0,100) | !];
-            let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let d = [! d | Bool() | !];
+            let a = [! a | Int(0,100, Uniform) | !];
+            let b = [! b | Nat(0,100, Uniform) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let e = plus_one_int([! e | Int(0,100) | !]);
-            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let k = [! k_{4} | Nat(0,100) | !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-           let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+           let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutExample{
-                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -675,37 +671,37 @@ pub mod sp_ms_noright_fid {
 
 pub mod sp_ms_samp_noright_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutExample,FnState) {
-            let a = [! a | Int(0,100) => uniform_int  | !];
-            let b = [! b | Nat(0,100) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let d = [! d | Bool() | !];
+            let a = [! a | Int(0,100, Uniform)  | !];
+            let b = [! b | Nat(0,100, Uniform) | !];
+            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let e = plus_one_int([! e | Int(0,100) | !]);
-            let f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) |!]);
+            let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) |!]);
 
             let layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let k = [! k_{4} | Nat(0,100) => uniform_nat | !];
+            let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutExample{
-                    obj: [! j | Real(1000.0,2000.0) | Real(0.0,1.0) !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -723,38 +719,38 @@ pub mod sp_ms_samp_noright_fid {
 }
 
 pub mod sp_sm_samp_fid {
-    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
-    use tantale_core::{uniform_int, uniform_nat, Bool, Cat, EvalStep, Fidelity, Int, Nat, Real};
+    use super::{plus_one_float,float_plus_float,Point, FidOutUnique, FnState};
+    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutUnique,FnState) {
-            let a = [! a | Real(0.0,1.0) | Int(0,100) => uniform_int  !];
-            let b = [! b | Real(0.0,1.0) | Nat(0,100) !];
-            let c = [! c | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !];
-            let d = [! d | Real(0.0,1.0) | Bool() !];
+            let a = [! a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  !];
+            let b = [! b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
+            let c = [! c | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !];
+            let d = [! d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5)) !];
 
-            let e = plus_one_float([! e | Real(0.0,1.0) | Int(0,100) !]);
-            let f = float_plus_float([! f | Real(0.0,1.0) | Int(0,100) !], [! g | Real(0.0,1.0) | Nat(0,100) !]);
+            let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !]);
+            let f = float_plus_float([! f | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !], [! g | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !]);
 
             let p = Point{
-                x: [! h | Real(0.0,1.0) | Int(0,100) !],
-                y: [! i | Real(0.0,1.0) | Cat(&["relu", "tanh", "sigmoid"]) !],
+                x: [! h | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !],
+                y: [! i | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !],
             };
 
-            let k = [! k_{4} | Real(0.0,1.0) | Nat(0,100) => uniform_nat !];
+            let k = [! k_{4} | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutUnique{
-                    obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                    obj: [! j | Real(0.0,1.0, Uniform)| Real(1000.0,2000.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,
@@ -772,38 +768,38 @@ pub mod sp_sm_samp_fid {
 }
 
 pub mod sp_sm_samp_noright_fid {
-    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
-    use tantale_core::{uniform_real, EvalStep, Fidelity, Real};
+    use super::{plus_one_float,float_plus_float,Point, FidOutUnique, FnState};
+    use tantale_core::{Real, objective::Step, sampler::Uniform};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
 
     objective!(
         pub fn example() -> (FidOutUnique,FnState) {
-            let a = [! a | Real(0.0,1.0) | => uniform_real !];
-            let b = [! b | Real(0.0,1.0) => uniform_real | !];
-            let c = [! c | Real(0.0,1.0) |!];
-            let d = [! d | Real(0.0,1.0) |!];
+            let a = [! a | Real(0.0,1.0, Uniform) |  !];
+            let b = [! b | Real(0.0,1.0, Uniform)  | !];
+            let c = [! c | Real(0.0,1.0, Uniform) |!];
+            let d = [! d | Real(0.0,1.0, Uniform) |!];
 
-            let e = plus_one_float([! e | Real(0.0,1.0) | !]);
-            let f = float_plus_float([! f | Real(0.0,1.0) | !], [! g | Real(0.0,1.0) | !]);
+            let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | !]);
+            let f = float_plus_float([! f | Real(0.0,1.0, Uniform) | !], [! g | Real(0.0,1.0, Uniform) | !]);
 
             let p = Point{
-                x: [! h | Real(0.0,1.0) | !],
-                y: [! i | Real(0.0,1.0) | !],
+                x: [! h | Real(0.0,1.0, Uniform) | !],
+                y: [! i | Real(0.0,1.0, Uniform) | !],
             };
 
-            let k = [! k_{4} | Real(0.0,1.0) => uniform_real| !];
+            let k = [! k_{4} | Real(0.0,1.0, Uniform) | !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => state.unwrap(),
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutUnique{
-                    obj: [! j | Real(0.0,1.0)| Real(1000.0,2000.0) !],
+                    obj: [! j | Real(0.0,1.0, Uniform)| Real(1000.0,2000.0, Uniform) !],
                     int_v: a,
                     poi: e,
                     nat_v: b,

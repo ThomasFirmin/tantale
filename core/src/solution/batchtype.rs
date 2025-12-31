@@ -1,17 +1,19 @@
 use crate::{
-    OptInfo, objective::{Outcome, Step}, solution::{ HasInfo, HasStep, Id, SolInfo, SolutionShape}
+    objective::{Outcome, Step},
+    solution::{HasInfo, HasStep, Id, SolInfo, SolutionShape},
+    OptInfo,
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, sync::Arc, vec::IntoIter};
 
-#[cfg(feature ="mpi")]
+#[cfg(feature = "mpi")]
 use crate::experiment::mpi::utils::PriorityList;
-#[cfg(feature ="mpi")]
-use std::collections::HashMap;
-#[cfg(feature ="mpi")]
+#[cfg(feature = "mpi")]
 use mpi::Rank;
+#[cfg(feature = "mpi")]
+use std::collections::HashMap;
 
 /// A [`Batch`] describes a collection of pairs of `Obj` and `Opt` [`Partial`] stored within 2 vectors.
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,8 +25,8 @@ pub struct Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     pub pairs: Vec<Shape>,
     pub info: Arc<Info>,
@@ -36,12 +38,17 @@ impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     /// Creates a new [`Batch`] from paired `Obj` and `Opt` [`Partial`] and an [`OptInfo`].
     pub fn new(pairs: Vec<Shape>, info: Arc<Info>) -> Self {
-        Batch { pairs, info, _id: PhantomData, _sinfo: PhantomData}
+        Batch {
+            pairs,
+            info,
+            _id: PhantomData,
+            _sinfo: PhantomData,
+        }
     }
 
     /// Creates a new empty [`CompBatch`] from an [`OptInfo`].
@@ -60,7 +67,7 @@ where
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`Partial`] to the batch.
-    pub fn add_vec(&mut self, pairs:Vec<Shape>) {
+    pub fn add_vec(&mut self, pairs: Vec<Shape>) {
         self.pairs.extend(pairs);
     }
 
@@ -99,8 +106,8 @@ impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo> + HasStep,
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo> + HasStep,
 {
     /// Split the [`Batch`] made of [`FidPartial`] into four [`Batch`] according to [`Step`].
     /// * 1st [`Error`](Step::Error)
@@ -108,7 +115,7 @@ where
     /// * 2nd [`Evaluated`](Step::Evaluated)
     /// * 4th [`Partially`](Step::Partially)
     /// * 5th [`Pending`](Step::Pending)
-    pub fn chunk_by_step(self)->(Self,Self,Self,Self,Self){
+    pub fn chunk_by_step(self) -> (Self, Self, Self, Self, Self) {
         let info = self.info.clone();
         self.into_iter().fold(
             (
@@ -118,8 +125,7 @@ where
                 Self::empty(info.clone()),
                 Self::empty(info.clone()),
             ),
-            |(mut pend,mut part, mut disc, mut eval, mut erro),pair|
-            {
+            |(mut pend, mut part, mut disc, mut eval, mut erro), pair| {
                 match pair.step() {
                     Step::Pending => pend.add(pair),
                     Step::Partially(_) => part.add(pair),
@@ -127,8 +133,8 @@ where
                     Step::Discard => disc.add(pair),
                     Step::Error => erro.add(pair),
                 }
-                (erro,disc,eval,part,pend)
-            }
+                (erro, disc, eval, part, pend)
+            },
         )
     }
 
@@ -142,30 +148,23 @@ where
     /// * 3rd [`Batch`]: [`New`](Fidelity::Discard)
     pub fn chunk_to_priority(
         self,
-        where_is_id:&mut HashMap<SolId, Rank>,
+        where_is_id: &mut HashMap<SolId, Rank>,
         priority_discard: &mut PriorityList<Shape>,
         priority_resume: &mut PriorityList<Shape>,
         new_batch: &mut Self,
-    )
-    {   
-        self.into_iter().for_each(
-            |pair|
-            {
-                match pair.step() {
-                    Step::Pending => new_batch.add(pair),
-                    Step::Partially(_) => {
-                        let rank = where_is_id.remove(&pair.get_id()).unwrap();
-                        priority_resume.add(pair,rank);
-                    },
-                    Step::Evaluated => {
-                        let rank = where_is_id.remove(&pair.get_id()).unwrap();
-                        priority_discard.add(pair,rank);
-                    },
-                    _ => {},
-                }
-                
+    ) {
+        self.into_iter().for_each(|pair| match pair.step() {
+            Step::Pending => new_batch.add(pair),
+            Step::Partially(_) => {
+                let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                priority_resume.add(pair, rank);
             }
-        )
+            Step::Evaluated => {
+                let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                priority_discard.add(pair, rank);
+            }
+            _ => {}
+        })
     }
 }
 
@@ -173,8 +172,8 @@ impl<SolId, SInfo, Info, Shape> HasInfo<Info> for Batch<SolId, SInfo, Info, Shap
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     fn get_info(&self) -> Arc<Info> {
         self.info.clone()
@@ -189,8 +188,8 @@ impl<SolId, SInfo, Info, Shape> IntoIterator for Batch<SolId, SInfo, Info, Shape
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     type Item = Shape;
     type IntoIter = IntoIter<Shape>;
@@ -200,12 +199,12 @@ where
     }
 }
 
-impl<'a,SolId, SInfo, Info, Shape> IntoIterator for &'a Batch<SolId, SInfo, Info, Shape>
+impl<'a, SolId, SInfo, Info, Shape> IntoIterator for &'a Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     type Item = &'a Shape;
     type IntoIter = slice::Iter<'a, Shape>;
@@ -215,12 +214,12 @@ where
     }
 }
 
-impl<'a,SolId, SInfo, Info, Shape> IntoIterator for &'a mut Batch<SolId, SInfo, Info, Shape>
+impl<'a, SolId, SInfo, Info, Shape> IntoIterator for &'a mut Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     type Item = &'a mut Shape;
     type IntoIter = slice::IterMut<'a, Shape>;
@@ -238,8 +237,8 @@ impl<SolId, SInfo, Info, Shape> IntoParallelIterator for Batch<SolId, SInfo, Inf
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo> + Send + Sync
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
 {
     type Item = Shape;
     type Iter = rayon::vec::IntoIter<Shape>;
@@ -253,8 +252,8 @@ impl<'a, SolId, SInfo, Info, Shape> IntoParallelIterator for &'a Batch<SolId, SI
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo> + Send + Sync
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
 {
     type Item = &'a Shape;
     type Iter = rayon::slice::Iter<'a, Shape>;
@@ -264,12 +263,13 @@ where
     }
 }
 
-impl<'a, SolId, SInfo, Info, Shape> IntoParallelIterator for &'a mut Batch<SolId, SInfo, Info, Shape>
+impl<'a, SolId, SInfo, Info, Shape> IntoParallelIterator
+    for &'a mut Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo> + Send + Sync
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
 {
     type Item = &'a mut Shape;
     type Iter = rayon::slice::IterMut<'a, Shape>;
@@ -280,16 +280,16 @@ where
 }
 
 /// Convert a [`Vec`] of pair of `Obj` and `Opt` [`Partial`].
-/// 
+///
 /// # Notes
-/// 
+///
 /// The [`OptInfo`] is set to default.
 impl<SolId, SInfo, Info, Shape> FromIterator<Shape> for Batch<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Info:OptInfo,
-    Shape: SolutionShape<SolId,SInfo>
+    Info: OptInfo,
+    Shape: SolutionShape<SolId, SInfo>,
 {
     fn from_iter<T: IntoIterator<Item = Shape>>(iter: T) -> Self {
         Self::new(iter.into_iter().collect(), Arc::new(Info::default()))
@@ -304,7 +304,7 @@ where
     Info: OptInfo,
     Out: Outcome,
 {
-    pub out: Vec<(SolId,Out)>,
+    pub out: Vec<(SolId, Out)>,
     pub info: Arc<Info>,
 }
 
@@ -326,22 +326,25 @@ where
     Out: Outcome,
 {
     /// Creates a new [`OutBatch`] from paired `Obj` and `Opt` [`Computed`] and an [`OptInfo`].
-    pub fn new(out: Vec<(SolId,Out)>, info: Arc<Info>) -> Self {
-        OutBatch {out, info }
+    pub fn new(out: Vec<(SolId, Out)>, info: Arc<Info>) -> Self {
+        OutBatch { out, info }
     }
 
     /// Creates a new empty [`OutBatch`] from an [`OptInfo`].
     pub fn empty(info: Arc<Info>) -> Self {
-        OutBatch {out: Vec::new(),info}
+        OutBatch {
+            out: Vec::new(),
+            info,
+        }
     }
 
     /// Add a new `Obj` and `Opt` pair of [`RawSol`] to the batch.
-    pub fn add(&mut self, out: (SolId,Out)) {
+    pub fn add(&mut self, out: (SolId, Out)) {
         self.out.push(out);
     }
 
     /// Add a new vec of pairs `Obj` and `Opt` [`RawSol`] to the batch.
-    pub fn add_vec(&mut self, vout: Vec<(SolId,Out)>) {
+    pub fn add_vec(&mut self, vout: Vec<(SolId, Out)>) {
         self.out.extend(vout);
     }
 
@@ -361,12 +364,12 @@ where
     }
 
     /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
-    pub fn bindex(&self, index: usize) -> &'_(SolId, Out) {
+    pub fn bindex(&self, index: usize) -> &'_ (SolId, Out) {
         &self.out[index]
     }
 
     /// Return the [`Id`] and [`Outcome`] at position `index` within the batch.
-    pub fn remove(&mut self, index: usize) -> (SolId,Out) {
+    pub fn remove(&mut self, index: usize) -> (SolId, Out) {
         self.out.remove(index)
     }
 
@@ -375,8 +378,6 @@ where
         self.out.pop()
     }
 }
-
-
 
 //--------------------//
 //--- INTOITERATOR ---//
@@ -389,7 +390,7 @@ where
     Out: Outcome,
 {
     type Item = (SolId, Out);
-    type IntoIter = IntoIter<(SolId,Out)>;
+    type IntoIter = IntoIter<(SolId, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.into_iter()
@@ -403,7 +404,7 @@ where
     Out: Outcome,
 {
     type Item = &'a (SolId, Out);
-    type IntoIter = slice::Iter<'a, (SolId,Out)>;
+    type IntoIter = slice::Iter<'a, (SolId, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter()
@@ -417,7 +418,7 @@ where
     Out: Outcome,
 {
     type Item = &'a mut (SolId, Out);
-    type IntoIter = slice::IterMut<'a, (SolId,Out)>;
+    type IntoIter = slice::IterMut<'a, (SolId, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter_mut()
@@ -435,7 +436,7 @@ where
     Out: Outcome + Send,
 {
     type Item = (SolId, Out);
-    type Iter = rayon::vec::IntoIter<(SolId,Out)>;
+    type Iter = rayon::vec::IntoIter<(SolId, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         self.out.into_par_iter()
@@ -448,8 +449,8 @@ where
     Info: OptInfo,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a(SolId, Out);
-    type Iter = rayon::slice::Iter<'a, (SolId,Out)>;
+    type Item = &'a (SolId, Out);
+    type Iter = rayon::slice::Iter<'a, (SolId, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&[_]>::into_par_iter(&self.out)
@@ -462,8 +463,8 @@ where
     Info: OptInfo,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a mut(SolId,Out);
-    type Iter = rayon::slice::IterMut<'a, (SolId,Out)>;
+    type Item = &'a mut (SolId, Out);
+    type Iter = rayon::slice::IterMut<'a, (SolId, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&mut [_]>::into_par_iter(&mut self.out)

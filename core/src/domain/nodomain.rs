@@ -1,10 +1,10 @@
 use crate::domain::PreDomain;
 
 pub struct NoDomain;
-impl PreDomain for NoDomain{}
+impl PreDomain for NoDomain {}
 
 impl NoDomain {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         NoDomain
     }
 }

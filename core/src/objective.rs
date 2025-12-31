@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
 /// Associated to [`EvalStep`].
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum Step{
+pub enum Step {
     Pending,
     Partially(isize),
     Evaluated,
@@ -14,12 +14,21 @@ pub enum Step{
 
 impl std::fmt::Display for Step {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self{
-            Step::Pending => write!(f,"Pending"),
-            Step::Partially(v) => write!(f,"{}",v),
-            Step::Evaluated => write!(f,"Evaluated"),
-            Step::Discard => write!(f,"Discarded"),
-            Step::Error => write!(f,"Error"),
+        match self {
+            Step::Pending => write!(f, "Pending"),
+            Step::Partially(v) => write!(f, "{}", v),
+            Step::Evaluated => write!(f, "Evaluated"),
+            Step::Discard => write!(f, "Discarded"),
+            Step::Error => write!(f, "Error"),
+        }
+    }
+}
+
+impl PartialEq for Step{
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Partially(l0), Self::Partially(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }
@@ -52,9 +61,9 @@ impl PartialEq for EvalStep {
     }
 }
 
-impl From<Step> for EvalStep{
+impl From<Step> for EvalStep {
     fn from(value: Step) -> Self {
-        match value{
+        match value {
             Step::Pending => Self(0),
             Step::Partially(v) => Self(v),
             Step::Evaluated => Self(-1),
@@ -64,9 +73,9 @@ impl From<Step> for EvalStep{
     }
 }
 
-impl From<EvalStep> for Step{
+impl From<EvalStep> for Step {
     fn from(value: EvalStep) -> Self {
-        match value{
+        match value {
             EvalStep(0) => Step::Pending,
             EvalStep(-1) => Step::Evaluated,
             EvalStep(-9) => Step::Discard,
@@ -77,20 +86,36 @@ impl From<EvalStep> for Step{
 }
 
 impl EvalStep {
-    pub fn pending() -> Self{ Self(0) }
-    pub fn partially(value:usize) -> Self{ Self(value as isize) }
-    pub fn completed() -> Self{ Self(-1) }
-    pub fn discard() -> Self{ Self(-1) }
-    pub fn error() -> Self{ Self(-10) }
+    pub fn pending() -> Self {
+        Self(0)
+    }
+    pub fn partially(value: usize) -> Self {
+        Self(value as isize)
+    }
+    pub fn completed() -> Self {
+        Self(-1)
+    }
+    pub fn discard() -> Self {
+        Self(-1)
+    }
+    pub fn error() -> Self {
+        Self(-10)
+    }
 }
 
 impl std::fmt::Display for EvalStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 == 0 {write!(f, "Pending")}
-        else if self.0 == -1 {write!(f, "Evaluated")}
-        else if self.0 == -9 {write!(f, "Discard")}
-        else if self.0 == -10 {write!(f, "Error")}
-        else {write!(f, "{}", self.0)}
+        if self.0 == 0 {
+            write!(f, "Pending")
+        } else if self.0 == -1 {
+            write!(f, "Evaluated")
+        } else if self.0 == -9 {
+            write!(f, "Discard")
+        } else if self.0 == -10 {
+            write!(f, "Error")
+        } else {
+            write!(f, "{}", self.0)
+        }
     }
 }
 
@@ -101,7 +126,8 @@ pub mod codomain;
 pub use codomain::{
     Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
     CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCriteria,
-    HasEvalStep, Multi, MultiCodomain, Single, SingleCodomain};
+    HasEvalStep, Multi, MultiCodomain, Single, SingleCodomain,
+};
 
 pub mod outcome;
 pub use outcome::{FidOutcome, Outcome};
