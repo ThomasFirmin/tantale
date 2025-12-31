@@ -3,6 +3,7 @@ use tantale::core::recorder::csv::CSVLeftRight;
 use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp};
 
 use paste::paste;
+use std::sync::Arc;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_test {
@@ -12,26 +13,26 @@ macro_rules! get_test {
             #[test]
             fn [<head_$name>](){
                 let sp = $name::get_searchspace();
-                let head = Sp::<_,_>::header(&sp);
+                let head = Sp::<$name::ObjType,$name::OptType>::header(&sp);
                 assert_eq!(head,Vec::from($expected), "Wrong header for searchspace.");
             }
 
             #[test]
             fn [<write_$name>](){
-                let sp = $name::get_searchspace();
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
+                let sp: Sp<$name::ObjType,$name::OptType> = $name::get_searchspace();
+                let sinfo = Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
 
-                let sample_obj: BasePartial<SId,_,_> = sp.sample_obj(Some(&mut rng),sinfo.clone());
+                let sample_obj: BasePartial<SId,$name::ObjType,EmptyInfo> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>,SId,EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
                 let s_str : Vec<String> = sample_obj.get_x().iter().map(|x| x.to_string()).collect();
                 let s_csv = sp.write_left(&sample_obj.get_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
 
-                let sample_opt: BasePartial<SId,_,_> = sp.onto_opt(&sample_obj);
-                let s_str : Vec<String> = sample_opt.get_x().iter().map(|x| x.to_string()).collect();
-                let s_csv = sp.write_right(&sample_opt.get_x());
+                let sample_opt: BasePartial<SId,_,_> = sp.sample_opt(Some(&mut rng),sinfo.clone());
+                let s_str : Vec<String> = sample_opt.x.iter().map(|x| x.to_string()).collect();
+                let s_csv = sp.write_right(&sample_opt.x);
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Opt searchspace.");
 
             }

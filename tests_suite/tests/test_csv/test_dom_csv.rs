@@ -1,6 +1,7 @@
 use super::init_dom::*;
 use paste::paste;
 use tantale::core::recorder::csv::CSVWritable;
+use tantale_core::sampler::{Bernoulli, Uniform};
 
 macro_rules! get_test {
     ($($dom_func : ident ; $name : ident ; $in : expr ; $dom : ident),+) => {
@@ -55,10 +56,10 @@ macro_rules! get_base_test {
 }
 
 get_base_test!(
-    get_domain_base_real ;  base_real ; Real::new(0.0,100.0) ; 0.0  ; Real ,
-    get_domain_base_nat ;  base_nat ; Nat::new(0,100) ; 0  ; Nat ,
-    get_domain_base_int ;  base_int ; Int::new(-100,100) ; 0  ; Int ,
-    get_domain_base_bool ;  base_bool ; Bool::new() ; false  ; Bool ,
-    get_domain_base_cat ;  base_cat ; Cat::new(&["relu", "tanh", "sigmoid"]) ; String::from("tanh") ; Cat ,
-    get_domain_base_unit ;  base_unit ; Unit::new() ; 0.5 ; Unit
+    get_domain_base_real ;  base_real ; Real::new(0.0,100.0, Uniform) ; 0.0  ; Real ,
+    get_domain_base_nat ;  base_nat ; Nat::new(0,100, Uniform) ; 0  ; Nat ,
+    get_domain_base_int ;  base_int ; Int::new(-100,100, Uniform) ; 0  ; Int ,
+    get_domain_base_bool ;  base_bool ; Bool::new(Bernoulli(0.5)) ; false  ; Bool ,
+    get_domain_base_cat ;  base_cat ; Cat::new(&["relu", "tanh", "sigmoid"],Uniform) ; String::from("tanh") ; Cat ,
+    get_domain_base_unit ;  base_unit ; Unit::new(Uniform) ; 0.5 ; Unit
 );

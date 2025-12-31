@@ -6,13 +6,13 @@ use paste::paste;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {
-    ($dom1:ident -> $dom2:ident) => {
+    ($dom1:ident ; $ty1:ident -> $dom2:ident ; $ty2:ident) => {
         paste! {
             #[test]
             fn [<head_$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = Var::new("a", domobj, domopt);
+                let variable = Var::<$ty1,$ty2>::new("a", domobj, domopt);
                 let head = Var::<_,_>::header(&variable);
                 assert_eq!(head[0],"a", "Wrong header for variable of name 'a'");
             }
@@ -21,7 +21,7 @@ macro_rules! get_variable {
             fn [<write_$dom1 _and_ $dom2>](){
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = Var::new("a", domobj, domopt);
+                let variable = Var::<$ty1,$ty2>::new("a", domobj, domopt);
                 let mut rng = rand::rng();
 
                 let sample = variable.sample_obj(&mut rng);
@@ -38,28 +38,28 @@ macro_rules! get_variable {
     };
 }
 
-get_variable!(real -> real);
-get_variable!(real -> nat);
-get_variable!(real -> int);
-get_variable!(real -> bool);
-get_variable!(real -> cat);
+get_variable!(real;Real -> real;Real);
+get_variable!(real;Real -> nat;Nat);
+get_variable!(real;Real -> int;Int);
+get_variable!(real;Real -> bool;Bool);
+get_variable!(real;Real -> cat;Cat);
 
-get_variable!(nat -> real);
-get_variable!(nat -> nat);
-get_variable!(nat -> int);
-get_variable!(nat -> bool);
-get_variable!(nat -> cat);
+get_variable!(nat;Nat -> real;Real);
+get_variable!(nat;Nat -> nat;Nat);
+get_variable!(nat;Nat -> int;Int);
+get_variable!(nat;Nat -> bool;Bool);
+get_variable!(nat;Nat -> cat;Cat);
 
-get_variable!(int -> real);
-get_variable!(int -> nat);
-get_variable!(int -> int);
-get_variable!(int -> bool);
-get_variable!(int -> cat);
+get_variable!(int;Int -> real;Real);
+get_variable!(int;Int -> nat;Nat);
+get_variable!(int;Int -> int;Int);
+get_variable!(int;Int -> bool;Bool);
+get_variable!(int;Int -> cat;Cat);
 
-get_variable!(bool -> real);
-get_variable!(bool -> nat);
-get_variable!(bool -> int);
+get_variable!(bool;Bool -> real;Real);
+get_variable!(bool;Bool -> nat;Nat);
+get_variable!(bool;Bool -> int;Int);
 
-get_variable!(cat -> real);
-get_variable!(cat -> nat);
-get_variable!(cat -> int);
+get_variable!(cat;Cat -> real;Real);
+get_variable!(cat;Cat -> nat;Nat);
+get_variable!(cat;Cat -> int;Int);
