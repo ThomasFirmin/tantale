@@ -8,11 +8,17 @@ use crate::solution::{
 use crate::{Codomain, Computed, EvalStep, Outcome};
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::{Debug,Display}, sync::Arc};
 
 /// Describes the fidelity of a [`FidelityPartial`], i.e. a given budget for the evaluation of a [`FidelityPartial`].
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Fidelity(f64);
+
+impl Display for Fidelity{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",self.0)
+    }
+}
 
 impl CSVWritable<(), ()> for Fidelity {
     fn header(_elem: &()) -> Vec<String> {

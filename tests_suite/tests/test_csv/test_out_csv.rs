@@ -69,7 +69,7 @@ fn out_write() {
         String::from("7.7"),
         String::from("8.8"),
         String::from("9.9"),
-        "Completed".to_string(),
+        "Evaluated".to_string(),
         String::from("[1.1, 2.2, 3.3]"),
     ]);
     assert_eq!(

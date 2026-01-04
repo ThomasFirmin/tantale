@@ -90,11 +90,10 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let mut batch = opt.first_step(sp);
+    let batch = opt.first_step(sp);
     let mut obatch = OutBatch::empty(batch.get_info());
     let mut cbatch = Batch::empty(batch.get_info());
-    (0..batch.size()).for_each(|_| {
-        let pair = batch.pop().unwrap();
+    batch.into_iter().for_each(|pair| {
         let id = pair.get_id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
@@ -116,11 +115,10 @@ where
 
     recorder.save_batch(&cbatch, &obatch, sp, cod);
 
-    let mut batch = opt.first_step(sp);
+    let batch = opt.first_step(sp);
     let mut tobatch = OutBatch::empty(batch.get_info());
     let mut tcbatch = Batch::empty(batch.get_info());
-    (0..batch.size()).for_each(|_| {
-        let pair = batch.pop().unwrap();
+    batch.into_iter().for_each(|pair| {
         let id = pair.get_id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {

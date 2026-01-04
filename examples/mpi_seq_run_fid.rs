@@ -21,7 +21,7 @@ mod init_func {
 
     #[derive(Serialize, Deserialize,Debug)]
     pub struct FnState {
-        pub state: usize,
+        pub state: isize,
     }
     impl FuncState for FnState {}
 
@@ -53,36 +53,36 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, EvalStep, FidOutEvaluator, FnState, Neuron};
-        use tantale_core::{Bool, Cat, Fidelity, Int, Nat, Real};
+        use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
+        use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
         use tantale_macros::objective;
 
-        objective!(
+    objective!(
         pub fn example() -> (FidOutEvaluator, FnState) {
-            let _a = [! a | Int(0,100) | !];
-            let _b = [! b | Nat(0,100) | !];
-            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-            let _d = [! d | Bool() | !];
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
-            let _e = plus_one_int([! e | Int(0,100) | !]);
-            let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+            let _e = plus_one_int([! e | Int(0,100,Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100,Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
             let _layer = Neuron{
-                number: [! h | Int(0,100) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
-            let _k = [! k_{4} | Nat(0,100) | !];
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-            let mut state = match fidelity{
-                Fidelity::Resume(_) => {state.unwrap()},
-                _ => FnState { state: 0 },
+            let mut state = match state{
+                Some(s) => s,
+                None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {EvalStep::completed()} else if state.state == 4 {EvalStep::penultimate()} else{EvalStep::partially(state.state as isize)};
+            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
             (
                 FidOutEvaluator{
-                    obj: [! j | Real(1000.0,2000.0) | !],
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !],
                     fid: evalstate,
                 },
                 state

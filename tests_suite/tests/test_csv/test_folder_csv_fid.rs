@@ -98,12 +98,12 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let mut batch = opt.first_step(sp);
+    let batch = opt.first_step(sp);
     let mut obatch = OutBatch::empty(batch.get_info());
     let mut cbatch = Batch::empty(batch.get_info());
-    (0..batch.size()).for_each(|_| {
-        let pair = batch.pop().unwrap();
+    batch.into_iter().for_each(|pair| {
         let id = pair.get_id();
+        println!("ID : {:?}",id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
             BaseTypeDom::Int(ae) => ae,
@@ -111,25 +111,22 @@ where
         };
         let outcome = infos::get_out(id.id, aelem);
         let codel = Arc::new(cod.get_elem(&outcome));
-        let pair = pair.into_computed(codel);
-        cbatch.add(pair);
+        let cpair = pair.into_computed(codel);
+        cbatch.add(cpair);
         obatch.add((id, outcome));
     });
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
     recorder.save_batch(&cbatch, &obatch, sp, cod);
 
-    let mut batch = opt.first_step(sp);
+    let batch = opt.first_step(sp);
     let mut tobatch = OutBatch::empty(batch.get_info());
     let mut tcbatch = Batch::empty(batch.get_info());
-    (0..batch.size()).for_each(|_| {
-        let pair = batch.pop().unwrap();
+    batch.into_iter().for_each(|pair| {
         let id = pair.get_id();
+        println!("ID : {:?}",id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
             BaseTypeDom::Int(ae) => ae,
@@ -137,19 +134,16 @@ where
         };
         let outcome = infos::get_out(id.id, aelem);
         let codel = Arc::new(cod.get_elem(&outcome));
-        let pair = pair.into_computed(codel);
-        tcbatch.add(pair);
+        let cpair = pair.into_computed(codel);
+        tcbatch.add(cpair);
         tobatch.add((id, outcome));
     });
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
     recorder.save_batch(&tcbatch, &tobatch, sp, cod);
-    run_reader::<Scp,Op, St, CSVRecorder ,Fn,PSol>("tmp_test", cbatch, obatch, tcbatch, tobatch, cod, size);
+    run_reader::<Scp,Op, St, CSVRecorder ,Fn,PSol>("tmp_test_fid", cbatch, obatch, tcbatch, tobatch, cod, size);
 }
 
 pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
@@ -228,10 +222,11 @@ where
         size_all += 1;
 
         let record = line_obj.unwrap();
+        println!("RECORD : {:?}" , record);
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
+            .find(|p| {println!("Oh NOOOO {} ! = {}",p.get_id().id,id); p.get_id().id == id})
             .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_id().id)]);
         let x_str: Vec<String> = pair.get_sobj()
@@ -239,7 +234,11 @@ where
             .iter()
             .map(|x| format!("{}", x))
             .collect();
+        let stepstr = Vec::from([pair.step().to_string()]);
+        let fidstr = Vec::from([pair.fidelity().to_string()]);
         str_content.extend(x_str);
+        str_content.extend(stepstr);
+        str_content.extend(fidstr);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
             str_content, record_str,
@@ -250,15 +249,19 @@ where
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
+            .find(|p| {println!("Oh NOOOO {} ! = {}",p.get_id().id,id); p.get_id().id == id})
             .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().get_id().id)]);
-        let x_str: Vec<String> = pair.get_sopt()
+        let x_str: Vec<String> = pair.get_sobj()
             .get_x()
             .iter()
             .map(|x| format!("{}", x))
             .collect();
+        let stepstr = Vec::from([pair.step().to_string()]);
+        let fidstr = Vec::from([pair.fidelity().to_string()]);
         str_content.extend(x_str);
+        str_content.extend(stepstr);
+        str_content.extend(fidstr);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
             str_content, record_str,
@@ -269,7 +272,7 @@ where
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
+            .find(|p| {println!("Oh NOOOO {} ! = {}",p.get_id().id,id); p.get_id().id == id})
             .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
         let cod_str: Vec<String> = cod.write(&pair.get_sobj().get_y());
@@ -284,7 +287,7 @@ where
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
+            .find(|p| {println!("Oh NOOOO {} ! = {}",p.get_id().id,id); p.get_id().id == id})
             .unwrap();
 
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
@@ -292,8 +295,6 @@ where
         str_content.extend(sinfo_str);
         let info_str = computed_info.write(&());
         str_content.extend(info_str);
-        let info_fid = pair.fidelity().write(&());
-        str_content.extend(info_fid);
 
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
@@ -327,7 +328,7 @@ where
             .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
             .unwrap();
         let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
+            .find(|p| {println!("Oh NOOOO {} ! = {}",p.get_id().id,id); p.get_id().id == id})
             .unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
             BaseTypeDom::Int(f) => f,

@@ -47,26 +47,27 @@ mod init_func {
         use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
+        use tantale_core::sampler::{Bernoulli, Uniform};
 
         objective!(
             pub fn example() -> OutEvaluator {
-                let _a = [! a | Int(0,100) | !];
-                let _b = [! b | Nat(0,100) | !];
-                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"]) | !];
-                let _d = [! d | Bool() | !];
+                let _a = [! a | Int(0,100,Uniform) | !];
+                let _b = [! b | Nat(0,100,Uniform) | !];
+                let _c = [! c | Cat(&["relu", "tanh", "sigmoid"],Uniform) | !];
+                let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
-                let _e = plus_one_int([! e | Int(0,100) | !]);
-                let _f = int_plus_nat([! f | Int(0,100) | !], [! g | Nat(0,100) | !]);
+                let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+                let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
 
                 let _layer = Neuron{
-                    number: [! h | Int(0,100) | !],
-                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"]) | !],
+                    number: [! h | Int(0,100, Uniform) | !],
+                    activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
                 };
 
-                let _k = [! k_{4} | Nat(0,100) | !];
+                let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
                 OutEvaluator{
-                    obj: [! j | Real(1000.0,2000.0) | !]
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !]
                 }
             }
         );

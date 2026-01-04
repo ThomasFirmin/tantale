@@ -124,7 +124,7 @@ macro_rules! get_test {
                 // 5
                 let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
-                assert_eq!(step,Step::Partially(5),"The EvalState should be partial");
+                assert_eq!(step,Step::Evaluated,"The EvalState should be partial");
                 assert!(state.state == 5,"The state should be == 5");
             }
         }
@@ -254,7 +254,7 @@ macro_rules! get_test_real {
                 // 5
                 let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
-                assert_eq!(step, Step::Partially(5),"The EvalState should be partial");
+                assert_eq!(step, Step::Evaluated,"The EvalState should be partial");
                 assert!(state.state == 5,"The state should be == 5");
             }
         }

@@ -1,15 +1,7 @@
 use crate::{
-    domain::{onto::LinkOpt, TypeDom},
-    objective::{Codomain, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    searchspace::{CompShape, Searchspace},
-    solution::{
-        shape::{SolObj, SolOpt},
-        Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,
-        Solution, SolutionShape, Uncomputed,
-    },
-    BasePartial, FidBasePartial, FolderConfig, OptInfo, SolInfo,
+    BasePartial, FidBasePartial, Fidelity, FolderConfig, OptInfo, SolInfo, domain::{TypeDom, onto::LinkOpt}, objective::{Codomain, Outcome, Step}, optimizer::Optimizer, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{
+        Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch, Solution, SolutionShape, Uncomputed, shape::{SolObj, SolOpt}
+    }
 };
 
 use rayon::iter::IntoParallelIterator;
@@ -38,27 +30,42 @@ impl CSVFiles {
         out: &Option<PathBuf>,
     ) -> Self {
         let obj = obj.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
+            let rfile = OpenOptions::new().create_new(true).append(true).open(path);
+            let file = match rfile{
+                Ok(f) => f,
+                Err(_) => OpenOptions::new().append(true).open(path).unwrap(),
+            };
+            Arc::new(Mutex::new(csv::Writer::from_writer(file)))
         });
         let opt = opt.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
+            let rfile = OpenOptions::new().create_new(true).append(true).open(path);
+            let file = match rfile{
+                Ok(f) => f,
+                Err(_) => OpenOptions::new().append(true).open(path).unwrap(),
+            };
+            Arc::new(Mutex::new(csv::Writer::from_writer(file)))
         });
-        let cod = Arc::new(Mutex::new(csv::Writer::from_writer(
-            OpenOptions::new().append(true).open(cod).unwrap(),
-        )));
+        let rfile = OpenOptions::new().create_new(true).append(true).open(cod);
+            let file = match rfile{
+                Ok(f) => f,
+                Err(_) => OpenOptions::new().append(true).open(cod).unwrap(),
+            };
+        let cod = Arc::new(Mutex::new(csv::Writer::from_writer(file)));
         let info = info.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
+            let rfile = OpenOptions::new().create_new(true).append(true).open(path);
+            let file = match rfile{
+                Ok(f) => f,
+                Err(_) => OpenOptions::new().append(true).open(path).unwrap(),
+            };
+            Arc::new(Mutex::new(csv::Writer::from_writer(file)))
         });
         let out = out.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
+            let rfile = OpenOptions::new().create_new(true).append(true).open(path);
+            let file = match rfile{
+                Ok(f) => f,
+                Err(_) => OpenOptions::new().append(true).open(path).unwrap(),
+            };
+            Arc::new(Mutex::new(csv::Writer::from_writer(file)))
         });
         CSVFiles {
             obj,
@@ -225,7 +232,11 @@ where
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
+        let stepstr = Step::header(&());
+        let fidstr = Fidelity::header(&());
         idstr.extend(Scp::header(self));
+        idstr.extend(stepstr);
+        idstr.extend(fidstr);
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
@@ -233,7 +244,11 @@ where
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
+        let stepstr = Step::header(&());
+        let fidstr = Fidelity::header(&());
         idstr.extend(Scp::header(self));
+        idstr.extend(stepstr);
+        idstr.extend(fidstr);
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
@@ -555,14 +570,6 @@ where
     >,
 {
     fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
-        let files = CSVFiles::new(
-            &self.path_pobj,
-            &self.path_popt,
-            &self.path_codom,
-            &self.path_info,
-            &self.path_out,
-        );
-
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
             panic!(
@@ -576,7 +583,15 @@ where
             )
         } else {
             create_dir_all(&self.config.path_rec).unwrap();
-
+            
+            let files = CSVFiles::new(
+                &self.path_pobj,
+                &self.path_popt,
+                &self.path_codom,
+                &self.path_info,
+                &self.path_out,
+            );
+            
             if let Some(f) = files.obj.clone() {
                 scp.header_partial_obj(f);
             }

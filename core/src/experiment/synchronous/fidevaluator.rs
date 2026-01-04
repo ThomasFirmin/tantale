@@ -121,7 +121,7 @@ where
         let mut cbatch = Batch::empty(self.batch.get_info());
 
         while !self.batch.is_empty() && !stop.stop() {
-            let pair = self.batch.pop().unwrap();
+            let mut pair = self.batch.pop().unwrap();
             let sid = pair.get_id();
             let step = pair.step();
             let fid = pair.fidelity();
@@ -131,6 +131,7 @@ where
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
                     let y = cod.get_elem(&out);
                     self.states.insert(sid, state);
+                    pair.set_step(out.get_step());
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
                 }
@@ -140,6 +141,7 @@ where
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                     let y = cod.get_elem(&out);
                     self.states.insert(sid, state);
+                    pair.set_step(out.get_step());
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
                 }
@@ -257,7 +259,7 @@ where
         (0..length).into_par_iter().for_each(|_| {
             let mut stplock = stop.lock().unwrap();
             if !stplock.stop() {
-                let pair = self.batch.lock().unwrap().pop().unwrap();
+                let mut pair = self.batch.lock().unwrap().pop().unwrap();
                 let sid = pair.get_id();
                 let step = pair.step();
                 let fid = pair.fidelity();
@@ -267,6 +269,7 @@ where
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
                         let y = cod.get_elem(&out);
                         self.states.lock().unwrap().insert(sid, state);
+                        pair.set_step(out.get_step());
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
                     }
@@ -276,6 +279,7 @@ where
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                         let y = cod.get_elem(&out);
                         self.states.lock().unwrap().insert(sid, state);
+                        pair.set_step(out.get_step());
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
                     }

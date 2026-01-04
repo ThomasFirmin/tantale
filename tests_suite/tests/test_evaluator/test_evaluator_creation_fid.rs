@@ -1,6 +1,6 @@
 use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    BaseDom, FidBasePartial, BaseTypeDom, EmptyInfo, Stepped, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{FidBatchEvaluator, MonoEvaluate, FidThrBatchEvaluator, ThrEvaluate}, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
+    BaseDom, BaseTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrEvaluate}, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator_fid;
@@ -96,7 +96,7 @@ fn test_serde_fidbatchevaluator() {
         20,
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
-    assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
+    assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
 
     
     (&bcomp).into_iter().for_each(|pair| {
@@ -111,6 +111,134 @@ fn test_serde_fidbatchevaluator() {
         assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, sopt),"Opt Partial do not point to the same solutions.");
         assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, &copt.sol.x),"Opt Computed do not point to the same solutions.");
     });
+
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (_,_) = <
+        FidBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as MonoEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, &obj, &cod, &mut stop);
+
+    assert_eq!(stop.calls(), 20, "Number of calls is wrong after fully evaluated.");
 }
 
 #[test]
@@ -196,7 +324,7 @@ fn test_serde_fidthrbatchevaluator() {
         20,
         "Some IDs might be duplicated. Number of solutions is wrong for hsopt"
     );
-    assert_eq!(stop.lock().unwrap().calls(), 20, "Number of calls is wrong.");
+    assert_eq!(stop.lock().unwrap().calls(), 0, "Number of calls is wrong.");
 
     
     (&bcomp).into_iter().for_each(|pair| {
@@ -211,4 +339,132 @@ fn test_serde_fidthrbatchevaluator() {
         assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, sopt),"Opt Partial do not point to the same solutions.");
         assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, &copt.sol.x),"Opt Computed do not point to the same solutions.");
     });
+
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (bcomp,_) = <
+        FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    let pairs :Vec<_> = bcomp.into_iter().map(|p| <Lone<_,_,_,_> as IntoComputed>::extract(p).0).collect();
+    let batch = Batch::new(pairs, info.clone());
+    <FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::update(&mut eval, batch);
+    let (_,_) = <
+        FidThrBatchEvaluator<
+            SId,EmptyInfo,RSInfo,
+            Lone<FidBasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>,
+            FnState
+        >
+        as ThrEvaluate<
+            FidBasePartial<SId,BaseDom,EmptyInfo>,
+            SId, RandomSearch, Sp<BaseDom,NoDomain>, FidOutEvaluator, Calls,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>
+        >
+    >::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+
+    assert_eq!(stop.lock().unwrap().calls(), 20, "Number of calls is wrong after fully evaluated.");
 }

@@ -1,6 +1,6 @@
 use tantale_core::{
     BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped, domain::onto::LinkOpt, objective::{
-        Step, codomain::SingleCodomain, outcome::{FuncState, Outcome}
+        codomain::SingleCodomain, outcome::{FuncState, Outcome}
     }, optimizer::{
         EmptyInfo, OptInfo, OptState, opt::{BatchOptimizer, Optimizer}
     }, recorder::csv::CSVWritable, searchspace::{CompShape, Searchspace}, solution::{
@@ -152,20 +152,17 @@ where
     fn step(&mut self, x: Batch<SId,Self::SInfo,Self::Info, CompShape<Scp,FidBasePartial<SId,Scp::Opt,EmptyInfo>,SId,Self::SInfo,Self::Cod,Out>>, scp:&Scp) -> Batch<SId,Self::SInfo,Self::Info,Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()
-            .filter_map(|p| {
-                match p.step(){
-                    Step::Pending => Some(IntoComputed::extract(p).0),
-                    Step::Partially(_) => Some(IntoComputed::extract(p).0),
-                    _ => None,
-                }
-            })
+            .map(|p|
+                IntoComputed::extract(p).0
+            )
             .collect();
-        let info = RSInfo{iteration: self.0.iteration}.into();
         if pairs.len() < self.0.batch{
             let fill = self.0.batch - pairs.len();
             let mut npairs = scp.sample_pair(Some(&mut self.1),fill,EmptyInfo.into());
             pairs.append(&mut npairs);
+            self.0.iteration += 1;
         }
+        let info = RSInfo{iteration: self.0.iteration}.into();
         Batch::new(pairs, info)
     }
 }

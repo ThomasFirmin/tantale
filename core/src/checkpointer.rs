@@ -1,8 +1,8 @@
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::{
+use crate::{config::NoConfig, experiment::mpi::{
     utils::MPIProcess,
-    worker::{NoWState, WorkerState},
-};
+    worker::WorkerState,
+}};
 use crate::{experiment::Evaluate, optimizer::OptState, stop::Stop, GlobalParameters, SaverConfig};
 
 #[cfg(feature = "mpi")]
@@ -71,15 +71,84 @@ where
 #[cfg(feature = "mpi")]
 /// An empty [`WorkerState`]
 #[derive(Serialize, Deserialize)]
+pub struct NoCheck;
+
+#[cfg(feature = "mpi")]
+impl Checkpointer for NoCheck{
+    type Config = NoConfig;
+
+    fn init(&mut self) {}
+
+    fn after_load(&mut self) {}
+
+    fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        _state: &OState,
+        _stop: &St,
+        _eval: &Eval,
+    ) {}
+
+    fn load<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+    ) -> Result<(OState, St, Eval), CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_stop<St: Stop>(&self) -> Result<St, CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_evaluate<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+}
+
+#[cfg(feature = "mpi")]
+impl DistCheckpointer for NoCheck
+{
+    type WCheck<WState: WorkerState> = NoWCheck;
+
+    fn init_dist(&mut self, _proc: &MPIProcess) {}
+    fn after_load_dist(&mut self, _proc: &MPIProcess) {}
+    fn no_check_init(_proc: &MPIProcess) {}
+    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        _state: &OState,
+        _stop: &St,
+        _eval: &Eval,
+        _rank: Rank,
+    ) {}
+    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        _rank: Rank,
+    ) -> Result<(OState, St, Eval), CheckpointError> {panic!("NoCheck should not be called to load an experiment.")}
+    fn load_stop_dist<St: Stop>(&self, _rank: Rank) -> Result<St, CheckpointError> {panic!("NoCheck should not be called to load an experiment.")}
+    fn load_optimizer_dist<OState: OptState>(&self, _rank: Rank) -> Result<OState, CheckpointError> {panic!("NoCheck should not be called to load an experiment.")}
+    fn load_evaluate_dist<Eval: Evaluate>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {panic!("NoCheck should not be called to load an experiment.")}
+    fn load_parameters_dist(&self, _rank: Rank) -> Result<GlobalParameters, CheckpointError> {panic!("NoCheck should not be called to load an experiment.")}
+    fn get_check_worker<WState: WorkerState>(&self, _proc: &MPIProcess) -> Self::WCheck<WState> {panic!("NoCheck should not be called to load an experiment.")}
+}
+
+#[cfg(feature = "mpi")]
+/// An empty [`WorkerState`]
+#[derive(Serialize, Deserialize)]
 pub struct NoWCheck;
 
 #[cfg(feature = "mpi")]
-impl WorkerCheckpointer<NoWState> for NoWCheck {
+impl<S:WorkerState> WorkerCheckpointer<S> for NoWCheck {
     fn init(&mut self, _proc: &MPIProcess) {}
     fn after_load(&mut self, _proc: &MPIProcess) {}
-    fn save_state(&self, _state: &NoWState, _rank: Rank) {}
-    fn load(&self, _rank: Rank) -> Result<NoWState, CheckpointError> {
-        Ok(NoWState)
+    fn save_state(&self, _state: &S, _rank: Rank) {}
+    fn load(&self, _rank: Rank) -> Result<S, CheckpointError> {
+        panic!("NoCheck should not be called to load an experiment.")
     }
 }
 
