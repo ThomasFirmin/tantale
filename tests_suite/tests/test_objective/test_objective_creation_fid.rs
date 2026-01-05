@@ -1,6 +1,7 @@
 use tantale_core::{
-    solution::{HasFidelity, SolutionShape}, FidBasePartial, BaseTypeDom, EmptyInfo, FidOutcome, SId, Searchspace,
-    Solution, Sp, objective::Step,
+    objective::Step,
+    solution::{HasFidelity, SolutionShape},
+    BaseTypeDom, EmptyInfo, FidBasePartial, FidOutcome, SId, Searchspace, Solution, Sp,
 };
 
 use super::init_func::*;

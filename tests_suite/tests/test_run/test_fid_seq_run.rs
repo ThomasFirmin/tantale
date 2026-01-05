@@ -1,5 +1,6 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig, Stepped, experiment::{Runable}, experiment, load, stop::Calls
+    experiment, experiment::Runable, load, stop::Calls, CSVRecorder, FolderConfig, MessagePack,
+    SaverConfig, Stepped,
 };
 
 use tantale_algos::RandomSearch;

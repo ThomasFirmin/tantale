@@ -159,7 +159,7 @@ where
                 let rank = where_is_id.remove(&pair.get_id()).unwrap();
                 priority_resume.add(pair, rank);
             }
-            Step::Evaluated => {
+            Step::Discard => {
                 let rank = where_is_id.remove(&pair.get_id()).unwrap();
                 priority_discard.add(pair, rank);
             }

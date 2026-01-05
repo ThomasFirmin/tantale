@@ -92,8 +92,11 @@ pub fn float_plus_float(x: f64, y: f64) -> (f64, f64, f64) {
 }
 
 pub mod sp_ms_nosamp {
-    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -132,8 +135,11 @@ pub mod sp_ms_nosamp {
 }
 
 pub mod sp_ms_samp {
-    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -172,8 +178,11 @@ pub mod sp_ms_samp {
 }
 
 pub mod sp_ms_samp_right {
-    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -212,8 +221,11 @@ pub mod sp_ms_samp_right {
 }
 
 pub mod sp_ms_noright {
-    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -252,8 +264,11 @@ pub mod sp_ms_noright {
 }
 
 pub mod sp_ms_samp_noright {
-    use super::{int_plus_nat, plus_one_int, OutExample, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutExample};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -293,7 +308,10 @@ pub mod sp_ms_samp_noright {
 
 pub mod sp_sm_samp {
     use super::{float_plus_float, plus_one_float, OutUnique, Point};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -333,10 +351,8 @@ pub mod sp_sm_samp {
 
 pub mod sp_sm_samp_noright {
     use super::{float_plus_float, plus_one_float, OutUnique, Point};
-    use tantale_core::{Real, sampler::Uniform};
+    use tantale_core::{sampler::Uniform, Real};
     use tantale_macros::objective;
-
-    
 
     pub const SP_SIZE: usize = 14;
 
@@ -397,8 +413,11 @@ impl PartialEq for FidOutEvaluator {
 }
 
 pub mod sp_evaluator {
-    use super::{plus_one_int, int_plus_nat, OutEvaluator, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, sampler::{Bernoulli, Uniform}};
+    use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+    use tantale_core::{
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -433,7 +452,11 @@ pub mod sp_evaluator {
 
 pub mod sp_evaluator_fid {
     use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -475,7 +498,11 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_ms_nosamp_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -524,7 +551,11 @@ pub mod sp_ms_nosamp_fid {
 
 pub mod sp_ms_samp_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -573,7 +604,11 @@ pub mod sp_ms_samp_fid {
 
 pub mod sp_ms_samp_right_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -622,7 +657,11 @@ pub mod sp_ms_samp_right_fid {
 
 pub mod sp_ms_noright_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -671,7 +710,11 @@ pub mod sp_ms_noright_fid {
 
 pub mod sp_ms_samp_noright_fid {
     use super::{int_plus_nat, plus_one_int, FidOutExample, FnState, Neuron};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -719,8 +762,12 @@ pub mod sp_ms_samp_noright_fid {
 }
 
 pub mod sp_sm_samp_fid {
-    use super::{plus_one_float,float_plus_float,Point, FidOutUnique, FnState};
-    use tantale_core::{Bool, Cat, Int, Nat, Real, objective::Step, sampler::{Bernoulli, Uniform}};
+    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
+    use tantale_core::{
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Real,
+    };
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -768,8 +815,8 @@ pub mod sp_sm_samp_fid {
 }
 
 pub mod sp_sm_samp_noright_fid {
-    use super::{plus_one_float,float_plus_float,Point, FidOutUnique, FnState};
-    use tantale_core::{Real, objective::Step, sampler::Uniform};
+    use super::{float_plus_float, plus_one_float, FidOutUnique, FnState, Point};
+    use tantale_core::{objective::Step, sampler::Uniform, Real};
     use tantale_macros::objective;
 
     pub const SP_SIZE: usize = 14;

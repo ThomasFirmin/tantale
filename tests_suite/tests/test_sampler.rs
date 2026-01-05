@@ -1,11 +1,11 @@
 mod check_sampler {
-    use tantale::core::sampler::*;
     use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real};
+    use tantale::core::sampler::*;
 
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
-        let real_1 = Real::new(0.0, 10.0,Uniform);
+        let real_1 = Real::new(0.0, 10.0, Uniform);
         assert!(
             real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -42,7 +42,7 @@ mod check_sampler {
     fn sampler_cat() {
         let mut rng = rand::rng();
         static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&ACTIVATION,Uniform);
+        let cat_1 = Cat::new(&ACTIVATION, Uniform);
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -51,8 +51,8 @@ mod check_sampler {
 }
 
 mod check_sampler_base {
-    use tantale::core::sampler::*;
     use tantale::core::domain::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::sampler::*;
 
     #[test]
     fn sampler_real_base() {
@@ -118,21 +118,21 @@ mod check_sampler_base {
     #[test]
     fn sampler_base_many() {
         let mut rng = rand::rng();
-        let basedom_real_1: BaseDom = Real::new(0.0, 10.0,Uniform).into();
-        let basedom_real_2: BaseDom = Real::new(100.0, 1000.0,Uniform).into();
+        let basedom_real_1: BaseDom = Real::new(0.0, 10.0, Uniform).into();
+        let basedom_real_2: BaseDom = Real::new(100.0, 1000.0, Uniform).into();
 
-        let basedom_nat_1: BaseDom = Nat::new(0, 10,Uniform).into();
-        let basedom_nat_2: BaseDom = Nat::new(100, 1000,Uniform).into();
+        let basedom_nat_1: BaseDom = Nat::new(0, 10, Uniform).into();
+        let basedom_nat_2: BaseDom = Nat::new(100, 1000, Uniform).into();
 
-        let basedom_int_1: BaseDom = Int::new(0, 10,Uniform).into();
-        let basedom_int_2: BaseDom = Int::new(100, 1000,Uniform).into();
+        let basedom_int_1: BaseDom = Int::new(0, 10, Uniform).into();
+        let basedom_int_2: BaseDom = Int::new(100, 1000, Uniform).into();
 
         let basedom_bool_1: BaseDom = Bool::new(Bernoulli(0.5)).into();
         let basedom_bool_2: BaseDom = Bool::new(Bernoulli(0.5)).into();
 
         static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let basedom_cat_1: BaseDom = Cat::new(&ACTIVATION,Uniform).into();
-        let basedom_cat_2: BaseDom = Cat::new(&ACTIVATION,Uniform).into();
+        let basedom_cat_1: BaseDom = Cat::new(&ACTIVATION, Uniform).into();
+        let basedom_cat_2: BaseDom = Cat::new(&ACTIVATION, Uniform).into();
 
         let basedom_unit_1: BaseDom = Unit::new(Uniform).into();
         let basedom_unit_2: BaseDom = Unit::new(Uniform).into();

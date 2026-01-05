@@ -344,14 +344,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let mut variables: Vec<LineStream> = Vec::new();
     let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
-    let (
-        ident_mixed_obj,
-        ident_mixed_opt,
-        ident_mixedt_obj,
-        push_statements,
-        tobj_vec,
-        repeats,
-    ) = parse_sp(variables).unwrap();
+    let (ident_mixed_obj, ident_mixed_opt, ident_mixedt_obj, push_statements, tobj_vec, repeats) =
+        parse_sp(variables).unwrap();
 
     fn_item
         .sig
@@ -393,15 +387,15 @@ pub fn obj(input: TokenStream) -> TokenStream {
         }
     }
     .into();
-    
-    let wraper_tokens = if state.is_some(){
+
+    let wraper_tokens = if state.is_some() {
         quote! {
             pub fn get_function() -> tantale::core::Stepped<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype,#state>
             {
                 tantale::core::Stepped::new(#fn_ident)
             }
         }
-    } else{
+    } else {
         quote! {
             pub fn get_function() -> tantale::core::Objective<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype>
             {
@@ -410,14 +404,9 @@ pub fn obj(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut sp_tokens = get_sp_tokens(
-        ident_mixed_obj,
-        ident_mixed_opt,
-        push_statements,
-    )
-    .unwrap();
+    let mut sp_tokens = get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements).unwrap();
 
-    sp_tokens.extend([fn_tokens,wraper_tokens.into()]);
+    sp_tokens.extend([fn_tokens, wraper_tokens.into()]);
     sp_tokens
 }
 

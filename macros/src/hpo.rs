@@ -49,7 +49,7 @@ impl Parse for Identifier {
 
 // Parse => SAMPLER
 pub struct AddonToken {
-    pub addon: Option<Punctuated<Ident,Token![,]>>,
+    pub addon: Option<Punctuated<Ident, Token![,]>>,
 }
 
 impl Parse for AddonToken {
@@ -79,7 +79,7 @@ impl Parse for AddonToken {
 pub struct DomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
-    pub is_nodomain:bool,
+    pub is_nodomain: bool,
 }
 
 pub enum DomainStream {
@@ -96,7 +96,11 @@ impl Parse for DomainStream {
         let content;
         syn::parenthesized!(content in input);
         let args = content.parse_terminated(Expr::parse, Token![,])?;
-        Ok(DomainStream::DomainToken(DomainToken { args, ty , is_nodomain:false}))
+        Ok(DomainStream::DomainToken(DomainToken {
+            args,
+            ty,
+            is_nodomain: false,
+        }))
     }
 }
 
@@ -104,7 +108,7 @@ pub struct FullDomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
     pub addon: AddonToken,
-    pub is_nodomain:bool,
+    pub is_nodomain: bool,
 }
 
 // Parse Identifier | DomainStream | DomainStream
@@ -133,16 +137,12 @@ impl Parse for LineStream {
 
         let opt_domain = input.parse::<DomainStream>()?;
         let opt_domain = match opt_domain {
-            DomainStream::DomainToken(dom) => {
-                dom
-            }
-            DomainStream::None => {
-                DomainToken{
-                    args: Punctuated::new(),
-                    ty: Ident::new("NoDomain", second_bar.span()),
-                    is_nodomain:true,
-                }
-            }
+            DomainStream::DomainToken(dom) => dom,
+            DomainStream::None => DomainToken {
+                args: Punctuated::new(),
+                ty: Ident::new("NoDomain", second_bar.span()),
+                is_nodomain: true,
+            },
         };
         let opt_addon = input.parse::<AddonToken>()?;
 
@@ -174,7 +174,7 @@ struct VarInfo {
     args_obj: Punctuated<Expr, syn::token::Comma>,
     ty_opt: Ident,
     args_opt: Punctuated<Expr, syn::token::Comma>,
-    is_nodomain:bool,
+    is_nodomain: bool,
 }
 struct WrappedVarInfo {
     name: String,
@@ -184,12 +184,12 @@ struct WrappedVarInfo {
 }
 
 type ParsedSpOut = (
-    proc_macro2::Ident, //Ident Obj,
-    proc_macro2::Ident, //Ident Opt,
-    proc_macro2::Ident, //Ident Obj::TypeDom,
+    proc_macro2::Ident,                      //Ident Obj,
+    proc_macro2::Ident,                      //Ident Opt,
+    proc_macro2::Ident,                      //Ident Obj::TypeDom,
     std::vec::Vec<proc_macro2::TokenStream>, // Push to Var Vec,
-    Vec<proc_macro2::Ident>, // Vec of Obj types,
-    Vec<usize>, // Vec of repeats for each var,
+    Vec<proc_macro2::Ident>,                 // Vec of Obj types,
+    Vec<usize>,                              // Vec of repeats for each var,
 );
 
 pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
@@ -202,7 +202,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let mut name_unique = HashSet::new();
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
-    let mut num_nodomain= 0;
+    let mut num_nodomain = 0;
     for line in vartokens {
         // Parse linestream
         if name_unique.contains(&line.name_part.id) {
@@ -225,14 +225,12 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let is_nodomain = line.opt_part.is_nodomain;
         // Push everything into HashmMaps
         tobj_unique.insert(obj_ty.clone());
-        if is_nodomain{
+        if is_nodomain {
             num_nodomain += 1;
             topt_unique.insert(obj_ty.clone());
-        }
-        else{
+        } else {
             topt_unique.insert(opt_ty.clone());
         }
-        
 
         let varinfostruct = VarInfo {
             name: line.name_part.id,
@@ -262,28 +260,24 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let ident_mixedt_obj_str;
     let ident_mixed_opt_str;
 
-    if  tobj_unique.len() > 1 {
+    if tobj_unique.len() > 1 {
         is_mixedobj = true;
         ident_mixed_obj_str = String::from("BaseDom");
         ident_mixedt_obj_str = String::from("BaseTypeDom");
-    }
-    else {
+    } else {
         let unique_type = tobj_unique.iter().next().unwrap().to_string();
         ident_mixed_obj_str = unique_type.clone();
         ident_mixedt_obj_str = unique_type.clone();
     }
 
-    
     // Determine if Opt is Mixed or not
     let full_nodomain = num_nodomain == varinfo.len();
     if full_nodomain {
         ident_mixed_opt_str = String::from("NoDomain");
-    }
-    else if topt_unique.len() > 1 {
+    } else if topt_unique.len() > 1 {
         is_mixedopt = true;
         ident_mixed_opt_str = String::from("BaseDom");
-    }
-    else{
+    } else {
         let unique_type = topt_unique.iter().next().unwrap().to_string();
         ident_mixed_opt_str = unique_type.clone();
     }
@@ -316,16 +310,14 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         }
 
         if is_mixedopt {
-            if is_nodomain{
+            if is_nodomain {
                 wrapped_domopt = quote! {#ident_mixed_opt::#ty_obj(#ty_obj::new(#args_obj))};
-            }
-            else{
+            } else {
                 wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
             }
-        } else if is_nodomain && !full_nodomain{
+        } else if is_nodomain && !full_nodomain {
             wrapped_domopt = quote! {#ty_obj::new(#args_obj)};
-        }
-        else{
+        } else {
             wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
         }
 
@@ -358,9 +350,8 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let domobj = wrapped.wrapped_domobj;
         let domopt = wrapped.wrapped_domopt;
 
-
         // If domain only defined on left : name | Obj | ;
-        let var_statement = quote!{
+        let var_statement = quote! {
             tantale::core::variable::var::Var::<#ident_mixed_obj , #ident_mixed_opt >::new(#name ,#domobj.into() ,#domopt.into())
         };
         push_statements.push(match repeats {
@@ -420,13 +411,7 @@ pub fn hpo(input: TokenStream) -> TokenStream {
 
     let lines: Vec<LineStream> = lines.into_iter().collect();
 
-    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _) =
-        parse_sp(lines).unwrap();
+    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _) = parse_sp(lines).unwrap();
 
-    get_sp_tokens(
-        ident_mixed_obj,
-        ident_mixed_opt,
-        push_statements,
-    )
-    .unwrap()
+    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements).unwrap()
 }

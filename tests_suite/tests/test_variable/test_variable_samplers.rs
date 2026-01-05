@@ -1,33 +1,33 @@
 use super::init_dom::*;
 
 use paste::paste;
-use tantale::core::{Var,domain::nodomain::NoDomain};
+use tantale::core::{domain::nodomain::NoDomain, Var};
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {
     ($dom1:ident ; $ty1:ident -> $dom2:ident ; $ty2:ident) => {
         paste! {
-            #[test]
-            fn [<is_in_ $dom1 _and_ $dom2 _default_obj>](){
-                let domobj = [<get_domain_ $dom1>]();
-                let domopt = [<get_domain_ $dom2 _2>]();
-                let variable = Var::<$ty1,$ty2>::new("a",domobj,domopt);
+                #[test]
+                fn [<is_in_ $dom1 _and_ $dom2 _default_obj>](){
+                    let domobj = [<get_domain_ $dom1>]();
+                    let domopt = [<get_domain_ $dom2 _2>]();
+                    let variable = Var::<$ty1,$ty2>::new("a",domobj,domopt);
 
-                let mut rng = rand::rng();
-                let sample_obj = variable.sample_obj(&mut rng);
-                assert!(
-                    variable.is_in_obj(&sample_obj),
-                    "Error while sampling with the default sampler of obj."
-                );
+                    let mut rng = rand::rng();
+                    let sample_obj = variable.sample_obj(&mut rng);
+                    assert!(
+                        variable.is_in_obj(&sample_obj),
+                        "Error while sampling with the default sampler of obj."
+                    );
 
-                let sample_opt = variable.sample_opt(&mut rng);
-                assert!(
-                    variable.is_in_opt(&sample_opt),
-                    "Error while sampling with the default sampler of opt."
-                );
-            }
-    }
-}
+                    let sample_opt = variable.sample_opt(&mut rng);
+                    assert!(
+                        variable.is_in_opt(&sample_opt),
+                        "Error while sampling with the default sampler of opt."
+                    );
+                }
+        }
+    };
 }
 
 get_variable!(real ; Real -> real ; Real);

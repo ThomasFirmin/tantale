@@ -23,7 +23,11 @@
 //! becomes a [`Computed`](tantale::core::Computed) [`Solution`], made of a [`Partial`](tantale::core::Partial),
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
-use crate::{domain::Domain, objective::Step, Codomain, EvalStep, OptInfo, Outcome};
+use crate::{
+    domain::{Codomain, Domain},
+    objective::Step,
+    EvalStep, OptInfo, Outcome,
+};
 
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -146,15 +150,16 @@ where
 
 /// A trait allowing to convert an object into an object that [`HasY`] with a [`TypeCodom`](Codomain::TypeCodom).
 /// A concrete example is the [`Computed`] structure.
-pub trait IntoComputed:Sized
-{
+pub trait IntoComputed: Sized {
     type Computed<Cod: Codomain<Out>, Out: Outcome>: HasY<Cod, Out>;
     fn into_computed<Cod: Codomain<Out>, Out: Outcome>(
         self,
         y: Arc<Cod::TypeCodom>,
     ) -> Self::Computed<Cod, Out>;
     /// Dissociate `Self` from its [`TypeCodom`](Codomain::TypeCodom)
-    fn extract<Cod:Codomain<Out>,Out:Outcome>(comp:Self::Computed<Cod,Out>) -> (Self,Arc<Cod::TypeCodom>);
+    fn extract<Cod: Codomain<Out>, Out: Outcome>(
+        comp: Self::Computed<Cod, Out>,
+    ) -> (Self, Arc<Cod::TypeCodom>);
 }
 
 /// The [`Twin`](Solution::Twin) [`Solution`] of type `B` from a [`Solution`] of type `A`.

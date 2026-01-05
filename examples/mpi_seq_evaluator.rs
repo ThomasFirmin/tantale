@@ -1,17 +1,22 @@
+use mpi::traits::Communicator;
 use tantale::core::{
-    experiment::BatchEvaluator,
-    stop::Calls,
-    EmptyInfo, Searchspace, SingleCodomain,
+    experiment::BatchEvaluator, stop::Calls, EmptyInfo, Searchspace, SingleCodomain,
 };
 use tantale_algos::{RSInfo, RandomSearch};
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{DistEvaluate, mpi::{utils::{MPIProcess,SendRec,XMessage}, worker::{BaseWorker, Worker}}}, solution::{Batch, HasId, Lone, SolutionShape}
+    domain::{NoDomain, TypeDom},
+    experiment::{
+        mpi::{
+            utils::{MPIProcess, SendRec, XMessage},
+            worker::{BaseWorker, Worker},
+        },
+        DistEvaluate,
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
+    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp,
 };
 
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 mod init_func {
     use serde::{Deserialize, Serialize};
@@ -75,7 +80,12 @@ mod init_func {
 
 use init_func::{sp_evaluator, OutEvaluator};
 
-type BBatch = Batch<SId, EmptyInfo, RSInfo, Lone<BasePartial<SId, BaseDom, EmptyInfo>,SId,BaseDom,EmptyInfo>>;
+type BBatch = Batch<
+    SId,
+    EmptyInfo,
+    RSInfo,
+    Lone<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+>;
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -89,11 +99,12 @@ fn main() {
 
     if proc.rank != 0 {
         let wkr = BaseWorker::new(sp_evaluator::get_function(), &proc);
-        <BaseWorker<'_,Arc<[TypeDom<sp_evaluator::ObjType>]>,OutEvaluator> as Worker<SId>>::run(wkr);
-    }
-    else{
+        <BaseWorker<'_, Arc<[TypeDom<sp_evaluator::ObjType>]>, OutEvaluator> as Worker<SId>>::run(
+            wkr,
+        );
+    } else {
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_,XMessage<SId,_>,_,_,_,_,_>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, XMessage<SId, _>, _, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -104,7 +115,11 @@ fn main() {
         let mut stop = Calls::new(50);
 
         let mut rng = rand::rng();
-        let sobj= <Sp<BaseDom,NoDomain> as Searchspace<BasePartial<SId,BaseDom,EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+        let sobj = <Sp<BaseDom, NoDomain> as Searchspace<
+            BasePartial<SId, BaseDom, EmptyInfo>,
+            SId,
+            EmptyInfo,
+        >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
@@ -112,23 +127,26 @@ fn main() {
             .collect();
         let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
-            .map(|s | (s.get_id(), s.get_sopt().x.clone()))
+            .map(|s| (s.get_id(), s.get_sopt().x.clone()))
             .collect();
         let batch: BBatch = Batch::new(pair, info.clone());
         let mut eval = BatchEvaluator::new(batch);
 
-        let (bcomp,braw, ) = <
-            BatchEvaluator<
-                SId,EmptyInfo,RSInfo,
-                Lone<BasePartial<SId,BaseDom,EmptyInfo>,SId,BaseDom,EmptyInfo>
-            >
-            as DistEvaluate<
-                BasePartial<SId,BaseDom,EmptyInfo>,
-                SId, RandomSearch, Sp<BaseDom,NoDomain>, OutEvaluator, Calls,
-                Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
-                _,
-            >
-        >::evaluate(&mut eval, &mut sendrec,&obj, &cod, &mut stop);
+        let (bcomp, braw) = <BatchEvaluator<
+            SId,
+            EmptyInfo,
+            RSInfo,
+            Lone<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        > as DistEvaluate<
+            BasePartial<SId, BaseDom, EmptyInfo>,
+            SId,
+            RandomSearch,
+            Sp<BaseDom, NoDomain>,
+            OutEvaluator,
+            Calls,
+            Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+            _,
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();
         let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
@@ -148,11 +166,7 @@ fn main() {
                 hcopt.insert(pair.get_sopt().get_id(), pair.get_sopt());
             });
 
-        assert_eq!(
-            bcomp.pairs.len(),
-            20,
-            "Number of shapes is wrong."
-        );
+        assert_eq!(bcomp.pairs.len(), 20, "Number of shapes is wrong.");
         assert_eq!(bcomp.size(), 20, "Size of Computed batch is wrong");
         assert_eq!(braw.size(), 20, "Size of Out batch is wrong");
 
@@ -178,7 +192,6 @@ fn main() {
         );
         assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
 
-        
         (&bcomp).into_iter().for_each(|pair| {
             let id = pair.get_id();
             let cobj = hcobj.get(&id).unwrap();
@@ -186,10 +199,24 @@ fn main() {
             let sobj = hsobj.get(&id).unwrap();
             let sopt = hsopt.get(&id).unwrap();
 
-            assert!(Arc::ptr_eq(&pair.get_sobj().sol.x, sobj),"Obj Partial do not point to the same solutions.");
-            assert!(Arc::ptr_eq(&pair.get_sobj().sol.x, &cobj.sol.x),"Obj Computed do not point to the same solutions.");
-            assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, sopt),"Opt Partial do not point to the same solutions.");
-            assert!(Arc::ptr_eq(&pair.get_sopt().sol.x, &copt.sol.x),"Opt Computed do not point to the same solutions.");
+            assert!(
+                Arc::ptr_eq(&pair.get_sobj().sol.x, sobj),
+                "Obj Partial do not point to the same solutions."
+            );
+            assert!(
+                Arc::ptr_eq(&pair.get_sobj().sol.x, &cobj.sol.x),
+                "Obj Computed do not point to the same solutions."
+            );
+            assert!(
+                Arc::ptr_eq(&pair.get_sopt().sol.x, sopt),
+                "Opt Partial do not point to the same solutions."
+            );
+            assert!(
+                Arc::ptr_eq(&pair.get_sopt().sol.x, &copt.sol.x),
+                "Opt Computed do not point to the same solutions."
+            );
         });
+
+        proc.world.abort(42);
     }
 }

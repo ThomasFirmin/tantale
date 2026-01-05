@@ -98,6 +98,9 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 /// one of its [`EvalStep`] further used within a [`FidCodomain`].
 pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
 
+/// [`TypeCodom`](Codomain::TypeCodom) of a [`Codomain`].
+pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
+
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>

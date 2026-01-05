@@ -176,7 +176,17 @@ where
         })
     }
 
-    fn sample_pair(
+    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
+        let rn = match rng {
+            Some(r) => r,
+            None => &mut rand::rng(),
+        };
+        let s =
+            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
+        self.onto_opt(s)
+    }
+
+    fn vec_sample_pair(
         &self,
         rng: Option<&mut ThreadRng>,
         size: usize,
@@ -311,7 +321,17 @@ where
             .collect()
     }
 
-    fn sample_pair(
+    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
+        let rn = match rng {
+            Some(r) => r,
+            None => &mut rand::rng(),
+        };
+        let s =
+            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
+        Lone::new(s)
+    }
+
+    fn vec_sample_pair(
         &self,
         rng: Option<&mut ThreadRng>,
         size: usize,

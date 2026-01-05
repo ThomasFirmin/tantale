@@ -61,14 +61,8 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let mut variables: Vec<LineStream> = Vec::new();
     let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
-    let (
-        ident_mixed_obj,
-        ident_mixed_opt,
-        ident_mixedt_obj,
-        push_statements,
-        tobj_vec,
-        repeats,
-    ) = parse_sp(variables).unwrap();
+    let (ident_mixed_obj, ident_mixed_opt, ident_mixedt_obj, push_statements, tobj_vec, repeats) =
+        parse_sp(variables).unwrap();
 
     fn_item
         .sig
@@ -103,12 +97,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     }
     .into();
 
-    let mut sp_tokens = get_sp_tokens(
-        ident_mixed_obj,
-        ident_mixed_opt,
-        push_statements,
-    )
-    .unwrap();
+    let mut sp_tokens = get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements).unwrap();
     sp_tokens.extend([fn_tokens]);
 
     sp_tokens

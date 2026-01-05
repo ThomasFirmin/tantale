@@ -74,44 +74,44 @@ macro_rules! experiment {
 macro_rules! experiment {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
-                as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                    ($domain, $codomain),
-                    $objective,
-                    $optimizer,
-                    $stop,
-                    ($rec, $check),
-                )
+                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
+                            ($domain, $codomain),
+                            $objective,
+                            $optimizer,
+                            $stop,
+                            ($rec, $check),
+                        )
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
-                as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                    ($domain, $codomain),
-                    $objective,
-                    $optimizer,
-                    $stop,
-                    ($rec, $check),
-                )
+                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
+                            ($domain, $codomain),
+                            $objective,
+                            $optimizer,
+                            $stop,
+                            ($rec, $check),
+                        )
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::ThrExperiment<_,_,_,_,_,_,_,_,_,_>
-                as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                    ($domain, $codomain),
-                    $objective,
-                    $optimizer,
-                    $stop,
-                    ($rec, $check),
-                )
+                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
+                            ($domain, $codomain),
+                            $objective,
+                            $optimizer,
+                            $stop,
+                            ($rec, $check),
+                        )
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_>
-                as tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>>::new(
-                    $proc,
-                    ($domain, $codomain),
-                    $objective,
-                    $optimizer,
-                    $stop,
-                    ($rec, $check),
-                )
+                        as tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>>::new(
+                            $proc,
+                            ($domain, $codomain),
+                            $objective,
+                            $optimizer,
+                            $stop,
+                            ($rec, $check),
+                        )
     };
 }
 
@@ -134,23 +134,23 @@ macro_rules! load {
 macro_rules! load {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                    tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                    >::load(($domain,$codomain), $objective, ($rec, $check))
+                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
+                            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                    tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                    >::load(($domain,$codomain), $objective, ($rec, $check))
+                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
+                            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                    tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                    >::load(($domain,$codomain), $objective, ($rec, $check))
+                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
+                            >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
-                    tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>
-                    >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
+                            tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>
+                            >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
     };
 }
 

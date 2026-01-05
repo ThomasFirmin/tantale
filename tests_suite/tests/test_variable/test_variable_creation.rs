@@ -4,8 +4,8 @@ use tantale::core::domain::Domain;
 use tantale::core::variable::Var;
 
 use paste::paste;
-use tantale_core::domain::NoDomain;
 use tantale_core::domain::onto::OntoDom;
+use tantale_core::domain::NoDomain;
 
 fn _test_variable_assertion<Obj, Opt>(item: &Var<Obj, Opt>)
 where
@@ -28,7 +28,7 @@ where
     );
 }
 
-fn _test_variable_assertion_single<Obj>(item: &Var<Obj,NoDomain>)
+fn _test_variable_assertion_single<Obj>(item: &Var<Obj, NoDomain>)
 where
     Obj: Domain,
 {

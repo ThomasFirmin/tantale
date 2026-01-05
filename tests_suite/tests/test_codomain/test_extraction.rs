@@ -1,6 +1,6 @@
 use super::init_outcome::{get_struct, OutExample};
 
-use tantale::core::objective::codomain::{
+use tantale::core::domain::codomain::{
     Codomain, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain,
     CostConstMultiCodomain, CostMultiCodomain, MultiCodomain, SingleCodomain,
 };

@@ -1,7 +1,10 @@
 static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 
 pub mod sp_ms_nosamp {
-    use tantale_core::{domain::{Bool, Cat, Int, Nat, Real}, sampler::{Bernoulli, Uniform}};
+    use tantale_core::{
+        domain::{Bool, Cat, Int, Nat, Real},
+        sampler::{Bernoulli, Uniform},
+    };
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -15,8 +18,8 @@ pub mod sp_ms_nosamp {
 }
 
 pub mod sp_ms_onemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -30,8 +33,8 @@ pub mod sp_ms_onemsamp {
 }
 
 pub mod sp_ms_onemsamp_offset {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -45,8 +48,8 @@ pub mod sp_ms_onemsamp_offset {
 }
 
 pub mod sp_ms_multiplemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -60,8 +63,8 @@ pub mod sp_ms_multiplemsamp {
 }
 
 pub mod sp_ms_allmsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -75,8 +78,8 @@ pub mod sp_ms_allmsamp {
 }
 
 pub mod sp_ms_onemsamp_right {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -90,8 +93,8 @@ pub mod sp_ms_onemsamp_right {
 }
 
 pub mod sp_ms_onemsamp_offset_right {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -105,8 +108,8 @@ pub mod sp_ms_onemsamp_offset_right {
 }
 
 pub mod sp_ms_multiplemsamp_right {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -120,8 +123,8 @@ pub mod sp_ms_multiplemsamp_right {
 }
 
 pub mod sp_ms_allmsamp_right {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -135,8 +138,8 @@ pub mod sp_ms_allmsamp_right {
 }
 
 pub mod sp_ms_onemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -150,8 +153,8 @@ pub mod sp_ms_onemsamp_leftright {
 }
 
 pub mod sp_ms_onemsamp_offset_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -165,8 +168,8 @@ pub mod sp_ms_onemsamp_offset_leftright {
 }
 
 pub mod sp_ms_multiplemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -180,8 +183,8 @@ pub mod sp_ms_multiplemsamp_leftright {
 }
 
 pub mod sp_ms_allmsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -202,7 +205,7 @@ pub mod sp_ms_allmsamp_leftright {
 
 pub mod sp_sm_nosamp {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -216,8 +219,8 @@ pub mod sp_sm_nosamp {
 }
 
 pub mod sp_sm_onemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -232,7 +235,7 @@ pub mod sp_sm_onemsamp {
 
 pub mod sp_sm_onemsamp_offset {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -246,8 +249,8 @@ pub mod sp_sm_onemsamp_offset {
 }
 
 pub mod sp_sm_multiplemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -261,8 +264,8 @@ pub mod sp_sm_multiplemsamp {
 }
 
 pub mod sp_sm_allmsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -276,8 +279,8 @@ pub mod sp_sm_allmsamp {
 }
 
 pub mod sp_sm_onemsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -291,8 +294,8 @@ pub mod sp_sm_onemsamp_left {
 }
 
 pub mod sp_sm_onemsamp_offset_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -306,8 +309,8 @@ pub mod sp_sm_onemsamp_offset_left {
 }
 
 pub mod sp_sm_multiplemsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -321,8 +324,8 @@ pub mod sp_sm_multiplemsamp_left {
 }
 
 pub mod sp_sm_allmsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -336,8 +339,8 @@ pub mod sp_sm_allmsamp_left {
 }
 
 pub mod sp_sm_onemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -351,8 +354,8 @@ pub mod sp_sm_onemsamp_leftright {
 }
 
 pub mod sp_sm_onemsamp_offset_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -366,8 +369,8 @@ pub mod sp_sm_onemsamp_offset_leftright {
 }
 
 pub mod sp_sm_multiplemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -381,8 +384,8 @@ pub mod sp_sm_multiplemsamp_leftright {
 }
 
 pub mod sp_sm_allmsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -403,7 +406,7 @@ pub mod sp_sm_allmsamp_leftright {
 
 pub mod sp_m_equal_nosamp {
     use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -417,8 +420,8 @@ pub mod sp_m_equal_nosamp {
 }
 
 pub mod sp_m_equal_onemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -433,7 +436,7 @@ pub mod sp_m_equal_onemsamp {
 
 pub mod sp_m_equal_onemsamp_offset {
     use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -447,8 +450,8 @@ pub mod sp_m_equal_onemsamp_offset {
 }
 
 pub mod sp_m_equal_multiplemsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -462,8 +465,8 @@ pub mod sp_m_equal_multiplemsamp {
 }
 
 pub mod sp_m_equal_allmsamp {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -477,8 +480,8 @@ pub mod sp_m_equal_allmsamp {
 }
 
 pub mod sp_m_equal_onemsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -493,7 +496,7 @@ pub mod sp_m_equal_onemsamp_left {
 
 pub mod sp_m_equal_onemsamp_offset_left {
     use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -507,8 +510,8 @@ pub mod sp_m_equal_onemsamp_offset_left {
 }
 
 pub mod sp_m_equal_multiplemsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -522,8 +525,8 @@ pub mod sp_m_equal_multiplemsamp_left {
 }
 
 pub mod sp_m_equal_allmsamp_left {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -537,8 +540,8 @@ pub mod sp_m_equal_allmsamp_left {
 }
 
 pub mod sp_m_equal_onemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -553,7 +556,7 @@ pub mod sp_m_equal_onemsamp_leftright {
 
 pub mod sp_m_equal_onemsamp_offset_leftright {
     use tantale_core::domain::{Bool, Cat, Int, Nat};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -567,8 +570,8 @@ pub mod sp_m_equal_onemsamp_offset_leftright {
 }
 
 pub mod sp_m_equal_multiplemsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -582,8 +585,8 @@ pub mod sp_m_equal_multiplemsamp_leftright {
 }
 
 pub mod sp_m_equal_allmsamp_leftright {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -618,8 +621,8 @@ pub mod sp_s_equal_nosamp {
 }
 
 pub mod sp_s_equal_onemsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -633,8 +636,8 @@ pub mod sp_s_equal_onemsamp {
 }
 
 pub mod sp_s_equal_onemsamp_offset {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -648,8 +651,8 @@ pub mod sp_s_equal_onemsamp_offset {
 }
 
 pub mod sp_s_equal_multiplemsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -663,8 +666,8 @@ pub mod sp_s_equal_multiplemsamp {
 }
 
 pub mod sp_s_equal_allmsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -678,8 +681,8 @@ pub mod sp_s_equal_allmsamp {
 }
 
 pub mod sp_s_equal_onemsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -693,8 +696,8 @@ pub mod sp_s_equal_onemsamp_left {
 }
 
 pub mod sp_s_equal_onemsamp_offset_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -708,8 +711,8 @@ pub mod sp_s_equal_onemsamp_offset_left {
 }
 
 pub mod sp_s_equal_multiplemsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -723,8 +726,8 @@ pub mod sp_s_equal_multiplemsamp_left {
 }
 
 pub mod sp_s_equal_allmsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -738,8 +741,8 @@ pub mod sp_s_equal_allmsamp_left {
 }
 
 pub mod sp_s_equal_onemsamp_left_right {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -753,8 +756,8 @@ pub mod sp_s_equal_onemsamp_left_right {
 }
 
 pub mod sp_s_equal_onemsamp_offset_left_right {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -768,8 +771,8 @@ pub mod sp_s_equal_onemsamp_offset_left_right {
 }
 
 pub mod sp_s_equal_multiplemsamp_left_right {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -783,8 +786,8 @@ pub mod sp_s_equal_multiplemsamp_left_right {
 }
 
 pub mod sp_s_equal_allmsamp_left_right {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::Real;
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -819,8 +822,8 @@ pub mod sp_ss_nosamp {
 }
 
 pub mod sp_ss_onemsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -834,8 +837,8 @@ pub mod sp_ss_onemsamp {
 }
 
 pub mod sp_ss_onemsamp_offset {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -849,8 +852,8 @@ pub mod sp_ss_onemsamp_offset {
 }
 
 pub mod sp_ss_multiplemsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -864,8 +867,8 @@ pub mod sp_ss_multiplemsamp {
 }
 
 pub mod sp_ss_allmsamp {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -879,8 +882,8 @@ pub mod sp_ss_allmsamp {
 }
 
 pub mod sp_ss_onemsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -894,8 +897,8 @@ pub mod sp_ss_onemsamp_left {
 }
 
 pub mod sp_ss_onemsamp_offset_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -909,8 +912,8 @@ pub mod sp_ss_onemsamp_offset_left {
 }
 
 pub mod sp_ss_multiplemsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -924,8 +927,8 @@ pub mod sp_ss_multiplemsamp_left {
 }
 
 pub mod sp_ss_allmsamp_left {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -939,8 +942,8 @@ pub mod sp_ss_allmsamp_left {
 }
 
 pub mod sp_ss_onemsamp_leftright {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -954,8 +957,8 @@ pub mod sp_ss_onemsamp_leftright {
 }
 
 pub mod sp_ss_onemsamp_offset_leftright {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -969,8 +972,8 @@ pub mod sp_ss_onemsamp_offset_leftright {
 }
 
 pub mod sp_ss_multiplemsamp_leftright {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -984,8 +987,8 @@ pub mod sp_ss_multiplemsamp_leftright {
 }
 
 pub mod sp_ss_allmsamp_leftright {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Int, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1000,7 +1003,7 @@ pub mod sp_ss_allmsamp_leftright {
 
 pub mod sp_ms_nosamp_holes {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1014,8 +1017,8 @@ pub mod sp_ms_nosamp_holes {
 }
 
 pub mod sp_ms_onemsamp_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1030,7 +1033,7 @@ pub mod sp_ms_onemsamp_holes {
 
 pub mod sp_ms_onemsamp_offset_holes {
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1044,8 +1047,8 @@ pub mod sp_ms_onemsamp_offset_holes {
 }
 
 pub mod sp_ms_multiplemsamp_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1059,8 +1062,8 @@ pub mod sp_ms_multiplemsamp_holes {
 }
 
 pub mod sp_ms_allmsamp_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1074,8 +1077,8 @@ pub mod sp_ms_allmsamp_holes {
 }
 
 pub mod sp_ms_onemsamp_right_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1089,8 +1092,8 @@ pub mod sp_ms_onemsamp_right_holes {
 }
 
 pub mod sp_ms_onemsamp_offset_right_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1104,8 +1107,8 @@ pub mod sp_ms_onemsamp_offset_right_holes {
 }
 
 pub mod sp_ms_multiplemsamp_right_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1119,8 +1122,8 @@ pub mod sp_ms_multiplemsamp_right_holes {
 }
 
 pub mod sp_ms_allmsamp_right_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1134,8 +1137,8 @@ pub mod sp_ms_allmsamp_right_holes {
 }
 
 pub mod sp_ms_onemsamp_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1149,8 +1152,8 @@ pub mod sp_ms_onemsamp_leftright_holes {
 }
 
 pub mod sp_ms_onemsamp_offset_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1164,8 +1167,8 @@ pub mod sp_ms_onemsamp_offset_leftright_holes {
 }
 
 pub mod sp_ms_multiplemsamp_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1186,7 +1189,7 @@ pub mod sp_ms_multiplemsamp_leftright_holes {
 
 pub mod sp_sm_nosamp_holes {
     use tantale_core::domain::{Bool, Cat, Nat, Real};
-    use tantale_core::sampler::{Uniform,Bernoulli};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1200,8 +1203,8 @@ pub mod sp_sm_nosamp_holes {
 }
 
 pub mod sp_sm_onemsamp_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1230,8 +1233,8 @@ pub mod sp_sm_onemsamp_offset_holes {
 }
 
 pub mod sp_sm_multiplemsamp_holes {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Cat, Nat, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1245,8 +1248,8 @@ pub mod sp_sm_multiplemsamp_holes {
 }
 
 pub mod sp_sm_onemsamp_left_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1260,8 +1263,8 @@ pub mod sp_sm_onemsamp_left_holes {
 }
 
 pub mod sp_sm_onemsamp_offset_left_holes {
-    use tantale_core::sampler::Uniform;
     use tantale_core::domain::{Cat, Int, Nat, Real};
+    use tantale_core::sampler::Uniform;
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1275,8 +1278,8 @@ pub mod sp_sm_onemsamp_offset_left_holes {
 }
 
 pub mod sp_sm_multiplemsamp_left_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Int, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1290,8 +1293,8 @@ pub mod sp_sm_multiplemsamp_left_holes {
 }
 
 pub mod sp_sm_allmsamp_left_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1305,8 +1308,8 @@ pub mod sp_sm_allmsamp_left_holes {
 }
 
 pub mod sp_sm_onemsamp_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Int, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1320,8 +1323,8 @@ pub mod sp_sm_onemsamp_leftright_holes {
 }
 
 pub mod sp_sm_onemsamp_offset_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1335,8 +1338,8 @@ pub mod sp_sm_onemsamp_offset_leftright_holes {
 }
 
 pub mod sp_sm_multiplemsamp_leftright_holes {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1350,8 +1353,8 @@ pub mod sp_sm_multiplemsamp_leftright_holes {
 }
 
 pub mod sp_repeats {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 6;
@@ -1365,8 +1368,8 @@ pub mod sp_repeats {
 }
 
 pub mod sp_repeats_inc {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 6;
@@ -1380,8 +1383,8 @@ pub mod sp_repeats_inc {
 }
 
 pub mod sp_one_missing_to_single {
-    use tantale_core::sampler::{Uniform,Bernoulli};
     use tantale_core::domain::{Bool, Cat, Nat, Real};
+    use tantale_core::sampler::{Bernoulli, Uniform};
     use tantale_macros::hpo;
 
     pub const SP_SIZE: usize = 4;

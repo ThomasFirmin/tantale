@@ -19,8 +19,10 @@ impl Stop for Calls {
     }
 
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Step::Evaluated) = step {
-            self.0 += 1
+        match step {
+            ExpStep::Distribution(Step::Evaluated) => self.0 += 1,
+            ExpStep::Distribution(Step::Discard) => self.0 += 1,
+            _ => {}
         }
     }
 }

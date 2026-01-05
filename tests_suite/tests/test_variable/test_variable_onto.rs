@@ -1,7 +1,7 @@
 use super::init_dom::*;
 
 use paste::paste;
-use tantale_core::{Var, domain::nodomain::NoDomain};
+use tantale_core::{domain::nodomain::NoDomain, Var};
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_variable {

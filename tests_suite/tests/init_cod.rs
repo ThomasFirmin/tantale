@@ -1,9 +1,12 @@
-pub use tantale::core::objective::{EvalStep, codomain::{
-    ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
-    CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
-    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain,
-    ElemSingleCodomain, FidCriteria, MultiCodomain, SingleCodomain,
-}};
+pub use tantale::core::{
+    domain::codomain::{
+        ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
+        CostMultiCodomain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
+        ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain,
+        ElemMultiCodomain, ElemSingleCodomain, FidCriteria, MultiCodomain, SingleCodomain,
+    },
+    objective::EvalStep,
+};
 use tantale_macros::Outcome;
 
 use serde::{Deserialize, Serialize};

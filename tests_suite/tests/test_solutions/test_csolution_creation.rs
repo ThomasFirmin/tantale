@@ -1,5 +1,8 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
-use tantale::core::{BasePartial,FidBasePartial, Codomain, Computed, ParSId, SingleCodomain, solution::{HasId,HasY,HasSolInfo,Uncomputed}};
+use tantale::core::{
+    solution::{HasId, HasSolInfo, HasY, Uncomputed},
+    BasePartial, Codomain, Computed, FidBasePartial, ParSId, SingleCodomain,
+};
 use tantale_core::Solution;
 
 use num::cast::AsPrimitive;
@@ -12,18 +15,12 @@ use std::sync::Arc;
 use super::init_outcome::{get_struct, OutExample};
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-type TestComp<Sol,Dom> = Computed<
-    Sol,
-    ParSId,
-    Dom,
-    SingleCodomain<OutExample>,
-    OutExample,
-    TestSInfo,
->;
+type TestComp<Sol, Dom> =
+    Computed<Sol, ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
 
-fn _test_solution_assertion<Unc,Dom>(n: usize, sol: &TestComp<Unc,Dom>, pid: u32)
+fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
 where
-    Unc: Uncomputed<ParSId,Dom,TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
+    Unc: Uncomputed<ParSId, Dom, TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
     Dom: Domain + Clone + Display + Debug,
     TypeDom<Dom>: Sync + Send,
     TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,

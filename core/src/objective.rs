@@ -24,7 +24,7 @@ impl std::fmt::Display for Step {
     }
 }
 
-impl PartialEq for Step{
+impl PartialEq for Step {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Partially(l0), Self::Partially(r0)) => l0 == r0,
@@ -121,13 +121,6 @@ impl std::fmt::Display for EvalStep {
 
 pub mod obj;
 pub use obj::{FuncWrapper, Objective, Stepped};
-
-pub mod codomain;
-pub use codomain::{
-    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
-    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCriteria,
-    HasEvalStep, Multi, MultiCodomain, Single, SingleCodomain,
-};
 
 pub mod outcome;
 pub use outcome::{FidOutcome, Outcome};

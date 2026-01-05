@@ -317,7 +317,6 @@ where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
     pub priority_discard: PriorityList<Shape>,
-    pub priority_last: PriorityList<Shape>,
     pub priority_resume: PriorityList<Shape>,
     pub new_batch: Batch<SolId, SInfo, Info, Shape>,
     where_is_id: HashMap<SolId, Rank>,
@@ -336,7 +335,6 @@ where
             new_batch: batch,
             priority_discard: PriorityList::new(size),
             priority_resume: PriorityList::new(size),
-            priority_last: PriorityList::new(size),
             where_is_id: HashMap::new(),
         }
     }
@@ -370,9 +368,11 @@ where
 
 #[cfg(feature = "mpi")]
 pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolId, SInfo>>;
+
 #[cfg(feature = "mpi")]
 pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
     SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Cod, Out>;
+
 #[cfg(feature = "mpi")]
 /// Return true if it was able to send a pair else false
 fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
@@ -409,7 +409,7 @@ where
         true
     } else if let Some(pair) = priority_discard.pop(available) {
         sendrec.discard_order(available, pair.get_id());
-        stop.update(ExpStep::Distribution(Step::Evaluated));
+        stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
             sendrec,
@@ -429,7 +429,7 @@ where
         false
     } else {
         sendrec.idle.set_idle(available);
-        false
+        sendrec.idle.all_idle()
     }
 }
 
@@ -532,7 +532,6 @@ where
             obatch.add((pair.get_id(), out));
             cbatch.add(pair.into_computed(y.into()));
         }
-        println!("END OF EVALUATOR \n\n");
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
     }

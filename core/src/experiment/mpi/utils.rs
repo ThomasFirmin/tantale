@@ -180,6 +180,10 @@ impl IdleWorker {
     pub fn has_idle(&self) -> bool {
         self.idle.any()
     }
+    /// Return `true` if all workers are idle
+    pub fn all_idle(&self) -> bool {
+        self.idle[1..].all()
+    }
     /// Set a worker to idle.
     pub fn set_idle(&mut self, rank: Rank) {
         self.idle.set(rank as usize, true)

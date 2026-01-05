@@ -1,7 +1,7 @@
 use crate::{
-    domain::onto::LinkOpt,
+    domain::{onto::LinkOpt, Codomain},
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
-    objective::{Codomain, Objective, Step},
+    objective::{Objective, Step},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{

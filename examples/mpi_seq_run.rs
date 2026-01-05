@@ -1,8 +1,8 @@
-use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, DistSaverConfig, 
-    experiment::{mpi::utils::MPIProcess}, experiment, load, stop::Calls
-};
 use tantale::algos::RandomSearch;
+use tantale_core::{
+    experiment, experiment::mpi::utils::MPIProcess, load, stop::Calls, CSVRecorder,
+    DistSaverConfig, FolderConfig, MessagePack, Objective,
+};
 
 use std::path::Path;
 
@@ -74,11 +74,11 @@ mod init_func {
     }
 }
 
-
 use init_func::{sp_evaluator, OutEvaluator};
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
+    let true_path = true_path.join(Path::new("recorder"));
     let eval_path = true_path.join(Path::new("recorder_rank0"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
@@ -113,7 +113,6 @@ pub fn run_reader(path: &str, size: usize) {
 }
 
 fn main() {
-
     eprintln!("INFO : Running test_seq_run.");
 
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
@@ -123,7 +122,7 @@ fn main() {
 
     let proc = MPIProcess::new();
 
-    if proc.rank == 0{
+    if proc.rank == 0 {
         drop(Cleaner("tmp_test_mpi_seqrun".into()));
         let _clean = Cleaner("tmp_test_mpi_seqrun".into());
     }
@@ -136,11 +135,11 @@ fn main() {
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
-
     let exp = experiment!(Distributed, &proc, (sp, cod), obj, opt, stop, (rec, check));
+    println!("PROUT");
     exp.run();
 
-    if proc.rank ==0{
+    if proc.rank == 0 {
         run_reader("tmp_test_mpi_seqrun", 50);
     }
 
@@ -153,27 +152,32 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Distributed, &proc, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(
+        Distributed,
+        &proc,
+        (sp, cod),
+        obj,
+        RandomSearch,
+        Calls,
+        (rec, check)
+    );
 
-    if proc.rank ==0{
-        match exp{
-            experiment::MasterWorker::Master(mut e) =>{
+    if proc.rank == 0 {
+        match exp {
+            experiment::MasterWorker::Master(mut e) => {
                 assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 9, "Number of iteration is wrong");
+                assert_eq!(e.optimizer.0.iteration, 8, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
                 e.stop.1 = 100;
                 use tantale::core::experiment::DistRunable;
                 e.run();
-            },
+            }
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
         }
-    }
-    else{
+    } else {
         exp.run();
     }
 
-    
-    
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
@@ -183,18 +187,23 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Distributed, &proc, (sp, cod), obj, RandomSearch, Calls, (rec, check));
-    if proc.rank ==0{
+    let exp = load!(
+        Distributed,
+        &proc,
+        (sp, cod),
+        obj,
+        RandomSearch,
+        Calls,
+        (rec, check)
+    );
+    if proc.rank == 0 {
         run_reader("tmp_test_mpi_seqrun", 100);
-        match exp{
-            experiment::MasterWorker::Master(e) =>{
+        match exp {
+            experiment::MasterWorker::Master(e) => {
                 assert_eq!(e.stop.0, 100, "Number of calls is wrong");
-                assert_eq!(
-                    e.optimizer.0.iteration, 17,
-                    "Number of iteration is wrong"
-                );
+                assert_eq!(e.optimizer.0.iteration, 15, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
-            },
+            }
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
         }
     }

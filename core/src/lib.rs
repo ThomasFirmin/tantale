@@ -28,7 +28,12 @@ pub use config::DistSaverConfig;
 pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
-pub use domain::{BaseDom, BaseTypeDom, Bool, Bounded, Cat, Domain, Int, Nat, Onto, Real, Unit};
+pub use domain::{
+    BaseDom, BaseTypeDom, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
+    Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
+    Criteria, Domain, FidCriteria, HasEvalStep, Int, Multi, MultiCodomain, Nat, Onto, Real, Single,
+    SingleCodomain, Unit,
+};
 
 pub mod sampler;
 
@@ -46,11 +51,7 @@ pub use searchspace::{Searchspace, Sp};
 pub mod errors;
 
 pub mod objective;
-pub use crate::objective::{
-    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
-    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, EvalStep, FidCriteria,
-    FidOutcome, Multi, MultiCodomain, Objective, Outcome, Single, SingleCodomain, Stepped,
-};
+pub use crate::objective::{EvalStep, FidOutcome, Objective, Outcome, Stepped};
 
 pub mod optimizer;
 pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer};

@@ -14,7 +14,7 @@ pub fn get_domain_real() -> Real {
 }
 
 pub fn get_domain_nat() -> Nat {
-    Nat::new(1, 11,Uniform)
+    Nat::new(1, 11, Uniform)
 }
 
 pub fn get_domain_int() -> Int {
@@ -38,7 +38,7 @@ pub fn get_domain_real_2() -> Real {
 }
 
 pub fn get_domain_nat_2() -> Nat {
-    Nat::new(80, 100,Uniform)
+    Nat::new(80, 100, Uniform)
 }
 
 pub fn get_domain_int_2() -> Int {

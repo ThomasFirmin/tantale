@@ -1,6 +1,6 @@
 use crate::{
-    domain::{onto::LinkOpt, Domain},
-    objective::{Codomain, FuncWrapper, Outcome},
+    domain::{onto::LinkOpt, Codomain, Domain},
+    objective::{FuncWrapper, Outcome},
     recorder::csv::CSVWritable,
     searchspace::{CompShape, Searchspace},
     solution::{shape::RawObj, Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed},
@@ -125,7 +125,7 @@ where
 }
 
 pub trait SequentialOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
-    Optimizer<PSol, SolId, Opt, Out, Scp, Info = EmptyInfo>
+    Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     SolId: Id,
@@ -141,7 +141,7 @@ where
     /// Requires previously [`Computed`] `x` [`Solution`].
     fn step(
         &mut self,
-        x: &CompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
+        x: CompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
     ) -> Scp::SolShape;
 }

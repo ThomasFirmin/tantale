@@ -1,6 +1,6 @@
 use crate::{
-    domain::Domain,
-    objective::{Codomain, Outcome, Step},
+    domain::{Codomain, Domain},
+    objective::{Outcome, Step},
     solution::{
         HasFidelity, HasId, HasSolInfo, HasStep, HasUncomputed, HasY, Id, IntoComputed, SolInfo,
         Solution, Uncomputed,

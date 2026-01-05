@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use super::init_sinfo::{get_sinfo, TestSInfo};
 
-fn _test_solution_assertion<Unc,Dom>(n: usize, sol: &Unc, pid: u32)
+fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &Unc, pid: u32)
 where
     Unc: Uncomputed<ParSId, Dom, TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
     Dom: Domain + Clone + Display + Debug,

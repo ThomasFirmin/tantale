@@ -8,19 +8,21 @@ use tantale::core::{
         csv::{CSVRecorder, CSVWritable},
         Recorder,
     },
-    solution::{Batch, OutBatch, HasInfo},
+    solution::{Batch, HasInfo, OutBatch},
     stop::{Calls, Stop},
     BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
 };
-use tantale_core::Computed;
+use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
+use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
 use tantale_core::optimizer::opt::CompBatch;
 use tantale_core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale_core::searchspace::CompShape;
 use tantale_core::solution::shape::{SolObj, SolOpt};
-use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
-use tantale_core::solution::{HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed};
-use tantale_core::{objective::FuncWrapper};
+use tantale_core::solution::{
+    HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
+};
+use tantale_core::Computed;
 
 use std::{path::Path, sync::Arc};
 
@@ -65,26 +67,38 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop: &mut St,
     recorder: &mut Rec,
     size: usize,
-)
-where
-    PSol: Uncomputed<SId,LinkOpt<Scp>,Op::SInfo,Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId,LinkObj<Scp>,Op::SInfo,Raw = Arc<[LinkTyObj<Scp>]>>,
-    Scp: Searchspace<PSol, SId, Op::SInfo,Obj = BaseDom>
+) where
+    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
+    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
         + Send
         + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: 
-        SolutionShape<SId, Op::SInfo,SolObj = Computed<PSol::Twin<LinkObj<Scp>>,SId,LinkObj<Scp>,Op::Cod,OutExample,Op::SInfo>,SolOpt = Computed<PSol,SId,LinkOpt<Scp>,Op::Cod,OutExample,Op::SInfo>> + HasY<Op::Cod, OutExample>
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: SolutionShape<
+            SId,
+            Op::SInfo,
+            SolObj = Computed<
+                PSol::Twin<LinkObj<Scp>>,
+                SId,
+                LinkObj<Scp>,
+                Op::Cod,
+                OutExample,
+                Op::SInfo,
+            >,
+            SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, OutExample, Op::SInfo>,
+        > + HasY<Op::Cod, OutExample>
         + InfoCSVWrite<SId, Op::SInfo, Op::Info>
-        + HasY<Op::Cod, OutExample> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>: 
-        HasUncomputed<SId,Scp::Obj,Op::SInfo, Uncomputed = SolObj<Scp::SolShape, SId, Op::SInfo>>,
+        + HasY<Op::Cod, OutExample>
+        + Send
+        + Sync,
+    SolObj<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>:
+        HasUncomputed<SId, Scp::Obj, Op::SInfo, Uncomputed = SolObj<Scp::SolShape, SId, Op::SInfo>>,
     SolOpt<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>:
-        HasUncomputed<SId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
-    Op: BatchOptimizer<PSol,SId,LinkOpt<Scp>,OutExample,Scp,Fn>,
+        HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
+    Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, OutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol,SId,OutExample,Scp,Op>,
+    Rec: Recorder<PSol, SId, OutExample, Scp, Op>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -139,37 +153,51 @@ where
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
     recorder.save_batch(&tcbatch, &tobatch, sp, cod);
-    run_reader::<Scp,Op, St, CSVRecorder ,Fn,PSol>("tmp_test", cbatch, obatch, tcbatch, tobatch, cod, size);
+    run_reader::<Scp, Op, St, CSVRecorder, Fn, PSol>(
+        "tmp_test", cbatch, obatch, tcbatch, tobatch, cod, size,
+    );
 }
 
 pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     path: &str,
-    cbatch: CompBatch<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,OutExample>,
+    cbatch: CompBatch<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, OutExample>,
     obatch: OutBatch<SId, Op::Info, OutExample>,
-    tcbatch: CompBatch<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,OutExample>,
+    tcbatch: CompBatch<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, OutExample>,
     tobatch: OutBatch<SId, Op::Info, OutExample>,
     cod: &Op::Cod,
     size: usize,
-)
-where
-    PSol: Uncomputed<SId,LinkOpt<Scp>,Op::SInfo,Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId,LinkObj<Scp>,Op::SInfo,Raw = Arc<[LinkTyObj<Scp>]>>,
-    Scp: Searchspace<PSol, SId, Op::SInfo,Obj = BaseDom>
+) where
+    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
+    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
         + Send
         + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: 
-        SolutionShape<SId, Op::SInfo,SolObj = Computed<PSol::Twin<LinkObj<Scp>>,SId,LinkObj<Scp>,Op::Cod,OutExample,Op::SInfo>,SolOpt = Computed<PSol,SId,LinkOpt<Scp>,Op::Cod,OutExample,Op::SInfo>> + HasY<Op::Cod, OutExample>
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: SolutionShape<
+            SId,
+            Op::SInfo,
+            SolObj = Computed<
+                PSol::Twin<LinkObj<Scp>>,
+                SId,
+                LinkObj<Scp>,
+                Op::Cod,
+                OutExample,
+                Op::SInfo,
+            >,
+            SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, OutExample, Op::SInfo>,
+        > + HasY<Op::Cod, OutExample>
         + InfoCSVWrite<SId, Op::SInfo, Op::Info>
-        + HasY<Op::Cod, OutExample> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>: 
-        HasUncomputed<SId,Scp::Obj,Op::SInfo, Uncomputed = SolObj<Scp::SolShape, SId, Op::SInfo>>,
+        + HasY<Op::Cod, OutExample>
+        + Send
+        + Sync,
+    SolObj<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>:
+        HasUncomputed<SId, Scp::Obj, Op::SInfo, Uncomputed = SolObj<Scp::SolShape, SId, Op::SInfo>>,
     SolOpt<CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>, SId, Op::SInfo>:
-        HasUncomputed<SId,Scp::Opt,Op::SInfo,Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
-    Op: BatchOptimizer<PSol,SId,LinkOpt<Scp>,OutExample,Scp,Fn>,
+        HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
+    Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, OutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol,SId,OutExample,Scp,Op>,
+    Rec: Recorder<PSol, SId, OutExample, Scp, Op>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -216,11 +244,10 @@ where
         let record = line_obj.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
-            .unwrap();
+        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_id().id)]);
-        let x_str: Vec<String> = pair.get_sobj()
+        let x_str: Vec<String> = pair
+            .get_sobj()
             .get_x()
             .iter()
             .map(|x| format!("{}", x))
@@ -235,11 +262,10 @@ where
         let record = line_opt.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
-            .unwrap();
+        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().get_id().id)]);
-        let x_str: Vec<String> = pair.get_sopt()
+        let x_str: Vec<String> = pair
+            .get_sopt()
             .get_x()
             .iter()
             .map(|x| format!("{}", x))
@@ -254,9 +280,7 @@ where
         let record = line_cod.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
-            .unwrap();
+        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
         let cod_str: Vec<String> = cod.write(&pair.get_sobj().get_y());
         str_content.extend(cod_str);
@@ -269,9 +293,7 @@ where
         let record = line_info.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
-            .unwrap();
+        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
 
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
         let sinfo_str = pair.get_sobj().get_sinfo().write(&());
@@ -310,14 +332,13 @@ where
         let content = iter_obatch
             .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
             .unwrap();
-        let pair = iter_cbatch
-            .find(|p| p.get_id().id == id)
-            .unwrap();
+        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
             BaseTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().sol.get_id().id)]);
+        let mut str_content: Vec<String> =
+            Vec::from([format!("{}", pair.get_sobj().sol.get_id().id)]);
         let out_str: Vec<String> = content.1.write(&());
         str_content.extend(out_str);
 
@@ -361,13 +382,11 @@ fn test_csv_func() {
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<
-        _,
-        SId,
-        OutExample,
-        Sp<BaseDom, _>,
-        RandomSearch,
-    >>::init(&mut recorder, &sp, &cod);
+    <CSVRecorder as Recorder<_, SId, OutExample, Sp<BaseDom, _>, RandomSearch>>::init(
+        &mut recorder,
+        &sp,
+        &cod,
+    );
 
     run_recorder(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
 
