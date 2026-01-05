@@ -1,7 +1,7 @@
 use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 
 use csv::StringRecord;
-use tantale::algos::RandomSearch;
+use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     optimizer::opt::BatchOptimizer,
     recorder::{
@@ -376,13 +376,13 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod = RandomSearch::codomain(|x: &OutExample| x.mul6);
+    let cod = BatchRandomSearch::codomain(|x: &OutExample| x.mul6);
 
-    let mut rs = RandomSearch::new(3);
+    let mut rs = BatchRandomSearch::new(3);
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<_, SId, OutExample, Sp<BaseDom, _>, RandomSearch>>::init(
+    <CSVRecorder as Recorder<_, SId, OutExample, Sp<BaseDom, _>, BatchRandomSearch>>::init(
         &mut recorder,
         &sp,
         &cod,

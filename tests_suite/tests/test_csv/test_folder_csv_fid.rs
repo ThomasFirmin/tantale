@@ -1,4 +1,4 @@
-use tantale::algos::RandomSearch;
+use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     recorder::{
         csv::{CSVRecorder, CSVWritable},
@@ -429,9 +429,9 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod = RandomSearch::codomain(|x: &FidOutExample| x.mul6);
+    let cod = BatchRandomSearch::codomain(|x: &FidOutExample| x.mul6);
 
-    let mut rs = RandomSearch::new(3);
+    let mut rs = BatchRandomSearch::new(3);
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test_fid"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
@@ -440,12 +440,12 @@ fn test_csv_func() {
         SId,
         FidOutExample,
         Sp<BaseDom, _>,
-        RandomSearch,
+        BatchRandomSearch,
     >>::init(&mut recorder, &sp, &cod);
 
     run_recorder::<
         Sp<BaseDom, NoDomain>,
-        RandomSearch,
+        BatchRandomSearch,
         Calls,
         CSVRecorder,
         Stepped<Arc<[BaseTypeDom]>, FidOutExample, FnState>,

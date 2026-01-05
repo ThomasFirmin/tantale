@@ -3,10 +3,10 @@ use crate::{
     domain::onto::LinkOpt,
     experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, Runable,
-        ThrBatchEvaluator, ThrEvaluate,
+        ThrBatchEvaluator, ThrEvaluate,Evaluate,
     },
     objective::{outcome::FuncState, FuncWrapper, Objective, Outcome},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
+    optimizer::opt::{Optimizer, BatchOptimizer, OpSInfType},
     recorder::Recorder,
     searchspace::{CompShape, Searchspace},
     solution::{shape::RawObj, HasFidelity, HasStep, SolutionShape, Uncomputed},
@@ -14,8 +14,6 @@ use crate::{
     FidOutcome, Id, Stepped,
 };
 
-#[cfg(feature = "mpi")]
-use std::marker::PhantomData;
 use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
@@ -26,7 +24,7 @@ use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
         mpi::{
-            utils::{checkpoint_order, stop_order, FXMessage, MPIProcess, SendRec, XMessage, XMsg},
+            utils::{checkpoint_order, stop_order, FXMessage, MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, FidWorker},
         },
         batched::fidevaluator::FidDistBatchEvaluator,
@@ -48,7 +46,7 @@ pub struct MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
@@ -56,7 +54,7 @@ where
     Check: Checkpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: MonoEvaluate<PSol, SolId, Op, Scp, Out, St, Fn>,
+    Eval: Evaluate,
 {
     pub searchspace: Scp,
     pub codomain: Op::Cod,
@@ -382,7 +380,7 @@ pub struct ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
@@ -390,7 +388,7 @@ where
     Check: Checkpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: ThrEvaluate<PSol, SolId, Op, Scp, Out, St, Fn>,
+    Eval: Evaluate,
 {
     pub searchspace: Scp,
     pub codomain: Op::Cod,
@@ -758,11 +756,11 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
-pub struct DistExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval, M>
+pub struct DistExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
@@ -771,8 +769,7 @@ where
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: DistEvaluate<PSol, SolId, Op, Scp, Out, St, Fn, M>,
-    M: XMsg<SolObj<Scp::SolShape, SolId, Op::SInfo>, SolId, Scp::Obj, Op::SInfo>,
+    Eval: Evaluate,
 {
     pub proc: &'a MPIProcess,
     pub searchspace: Scp,
@@ -783,7 +780,6 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     evaluator: Option<Eval>,
-    msg: PhantomData<M>,
 }
 
 #[cfg(feature = "mpi")]
@@ -812,7 +808,6 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
         Out,
         Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         BatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
-        XMessage<SId, RawObj<Scp::SolShape, SId, Op::SInfo>>,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
@@ -880,7 +875,6 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
-                msg: PhantomData,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -929,7 +923,6 @@ where
                 recorder,
                 checkpointer: Some(checkpointer),
                 evaluator: Some(evaluator),
-                msg: PhantomData,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -1036,7 +1029,6 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         FidDistBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
-        FXMessage<SId, RawObj<Scp::SolShape, SId, Op::SInfo>>,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
@@ -1108,7 +1100,6 @@ where
                 recorder,
                 checkpointer,
                 evaluator: None,
-                msg: PhantomData,
             })
         } else {
             let check = match checkpointer {
@@ -1164,7 +1155,6 @@ where
                 recorder,
                 checkpointer: Some(checkpointer),
                 evaluator: Some(evaluator),
-                msg: PhantomData,
             })
         } else {
             let mut check = checkpointer.get_check_worker(proc);

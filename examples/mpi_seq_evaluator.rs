@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{
     experiment::BatchEvaluator, stop::Calls, EmptyInfo, Searchspace, SingleCodomain,
 };
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -140,7 +140,7 @@ fn main() {
         > as DistEvaluate<
             BasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             OutEvaluator,
             Calls,

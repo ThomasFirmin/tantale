@@ -30,7 +30,7 @@ use crate::{
 pub mod batched;
 pub use batched::evaluator::{BatchEvaluator, ThrBatchEvaluator};
 pub use batched::fidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
-pub use batched::syncrun::{MonoExperiment, ThrExperiment};
+pub use batched::syncrun::{MonoExperiment,ThrExperiment};
 
 #[cfg(feature = "mpi")]
 pub mod mpi;
@@ -39,7 +39,7 @@ pub use batched::syncrun::DistExperiment;
 
 #[macro_export]
 #[cfg(not(feature = "mpi"))]
-macro_rules! experiment {
+macro_rules! exp {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         tantale::core::experiment::MonoExperiment::new(
             ($domain, $codomain),
@@ -71,7 +71,7 @@ macro_rules! experiment {
 
 #[macro_export]
 #[cfg(feature = "mpi")]
-macro_rules! experiment {
+macro_rules! exp {
     (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
         <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
                         as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
@@ -103,7 +103,7 @@ macro_rules! experiment {
                         )
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_,_>
+        <tantale::core::experiment::DistExperiment<_,_,_,_,_,_,_,_,_,_>
                         as tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>>::new(
                             $proc,
                             ($domain, $codomain),
@@ -143,12 +143,12 @@ macro_rules! load {
                             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
+        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
                             tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
                             >::load(($domain,$codomain), $objective, ($rec, $check))
     };
     (Distributed, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_,_> as
+        <tantale::core::experiment::DistExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
                             tantale::core::experiment::DistRunable<_,_,_,_,_,_,_,_,_>
                             >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
     };

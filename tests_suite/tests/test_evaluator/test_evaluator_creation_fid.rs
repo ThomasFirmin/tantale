@@ -1,4 +1,4 @@
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
     domain::NoDomain,
     experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrEvaluate},
@@ -59,7 +59,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -149,7 +149,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -164,7 +164,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -184,7 +184,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -199,7 +199,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -219,7 +219,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -234,7 +234,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -254,7 +254,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -269,7 +269,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -289,7 +289,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -304,7 +304,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -355,7 +355,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -445,7 +445,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -460,7 +460,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -480,7 +480,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -495,7 +495,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -515,7 +515,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -530,7 +530,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -550,7 +550,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -565,7 +565,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -585,7 +585,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -600,7 +600,7 @@ fn test_serde_fidthrbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,

@@ -1,4 +1,4 @@
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
     domain::NoDomain,
     experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate},
@@ -58,7 +58,7 @@ fn test_serde_batchevaluator() {
     > as MonoEvaluate<
         BasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         OutEvaluator,
         Calls,
@@ -171,7 +171,7 @@ fn test_serde_thrbatchevaluator() {
     > as ThrEvaluate<
         BasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         OutEvaluator,
         Calls,

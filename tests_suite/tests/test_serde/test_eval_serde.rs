@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rmp_serde;
 use tantale::core::stop::Calls;
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
     domain::NoDomain,
     experiment::{
@@ -90,7 +90,7 @@ fn test_serde_batchevaluator() {
     > as MonoEvaluate<
         BasePartial<SId, _, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         OutEvaluator,
         Calls,
@@ -112,7 +112,7 @@ fn test_serde_batchevaluator() {
         MonoEvaluate<
             BasePartial<SId, _,EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom,NoDomain>,
             OutEvaluator,
             Calls,
@@ -186,7 +186,7 @@ fn test_serde_thrbatchevaluator() {
     > as ThrEvaluate<
         BasePartial<SId, _, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         OutEvaluator,
         Calls,
@@ -206,7 +206,7 @@ fn test_serde_thrbatchevaluator() {
     > as ThrEvaluate<
         BasePartial<SId, _, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         OutEvaluator,
         Calls,
@@ -275,7 +275,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -301,7 +301,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -329,7 +329,7 @@ fn test_serde_fidbatchevaluator() {
     > as MonoEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -390,7 +390,7 @@ fn test_serde_thrfidbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -416,7 +416,7 @@ fn test_serde_thrfidbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,
@@ -451,7 +451,7 @@ fn test_serde_thrfidbatchevaluator() {
     > as ThrEvaluate<
         FidBasePartial<SId, BaseDom, EmptyInfo>,
         SId,
-        RandomSearch,
+        BatchRandomSearch,
         Sp<BaseDom, NoDomain>,
         FidOutEvaluator,
         Calls,

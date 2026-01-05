@@ -1,6 +1,6 @@
 use mpi::traits::Communicator;
 use tantale::core::{stop::Calls, EmptyInfo, Searchspace, SingleCodomain};
-use tantale_algos::{RSInfo, RandomSearch};
+use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
@@ -168,7 +168,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -257,7 +257,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -272,7 +272,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -292,7 +292,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -307,7 +307,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -327,7 +327,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -342,7 +342,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -362,7 +362,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -377,7 +377,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -397,7 +397,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
@@ -412,7 +412,7 @@ fn main() {
         > as DistEvaluate<
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
-            RandomSearch,
+            BatchRandomSearch,
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,

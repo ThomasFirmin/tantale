@@ -1,9 +1,9 @@
 use tantale_core::{
-    experiment, experiment::Runable, load, stop::Calls, CSVRecorder, FolderConfig, MessagePack,
+    exp, experiment::Runable, load, stop::Calls, CSVRecorder, FolderConfig, MessagePack,
     SaverConfig, Stepped,
 };
 
-use tantale_algos::RandomSearch;
+use tantale_algos::BatchRandomSearch;
 
 use super::init_func::sp_evaluator_fid;
 use crate::init_func::FidOutEvaluator;
@@ -68,29 +68,29 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let opt = RandomSearch::new(7);
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let opt = BatchRandomSearch::new(7);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
-    let exp = experiment!(Mono, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_fidseqrun", 280);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let mut exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -101,14 +101,14 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
     run_reader("tmp_test_fidseqrun", 525);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(
@@ -133,29 +133,29 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let opt = RandomSearch::new(7);
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let opt = BatchRandomSearch::new(7);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_fidseqparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
-    let exp = experiment!(Mono, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_fidseqparrun", 280);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_fidseqparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let mut exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
     assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
@@ -166,14 +166,14 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_fidseqparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
     run_reader("tmp_test_fidseqparrun", 525);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(

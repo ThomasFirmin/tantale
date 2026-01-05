@@ -1,6 +1,6 @@
-use tantale::algos::RandomSearch;
+use tantale::algos::BatchRandomSearch;
 use tantale_core::{
-    experiment, experiment::mpi::utils::MPIProcess, load, stop::Calls, CSVRecorder,
+    exp, experiment::mpi::utils::MPIProcess, load, stop::Calls, CSVRecorder,
     DistSaverConfig, FolderConfig, MessagePack, Objective,
 };
 
@@ -129,13 +129,13 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
-    let opt = RandomSearch::new(7);
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let opt = BatchRandomSearch::new(7);
+    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
-    let exp = experiment!(Distributed, &proc, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = exp!(Distributed, &proc, (sp, cod), obj, opt, stop, (rec, check));
     println!("PROUT");
     exp.run();
 
@@ -145,7 +145,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
@@ -157,7 +157,7 @@ fn main() {
         &proc,
         (sp, cod),
         obj,
-        RandomSearch,
+        BatchRandomSearch,
         Calls,
         (rec, check)
     );
@@ -180,7 +180,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
@@ -192,7 +192,7 @@ fn main() {
         &proc,
         (sp, cod),
         obj,
-        RandomSearch,
+        BatchRandomSearch,
         Calls,
         (rec, check)
     );
