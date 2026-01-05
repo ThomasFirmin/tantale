@@ -29,7 +29,7 @@ use crate::{
             utils::{checkpoint_order, stop_order, FXMessage, MPIProcess, SendRec, XMessage, XMsg},
             worker::{BaseWorker, FidWorker},
         },
-        synchronous::fidevaluator::FidDistBatchEvaluator,
+        batched::fidevaluator::FidDistBatchEvaluator,
         DistEvaluate, DistRunable, MasterWorker,
     },
     recorder::DistRecorder,

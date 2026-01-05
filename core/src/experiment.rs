@@ -27,15 +27,15 @@ use crate::{
 };
 
 // SYNCHRONOUS
-pub mod synchronous;
-pub use synchronous::evaluator::{BatchEvaluator, ThrBatchEvaluator};
-pub use synchronous::fidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
-pub use synchronous::syncrun::{MonoExperiment, ThrExperiment};
+pub mod batched;
+pub use batched::evaluator::{BatchEvaluator, ThrBatchEvaluator};
+pub use batched::fidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
+pub use batched::syncrun::{MonoExperiment, ThrExperiment};
 
 #[cfg(feature = "mpi")]
 pub mod mpi;
 #[cfg(feature = "mpi")]
-pub use synchronous::syncrun::DistExperiment;
+pub use batched::syncrun::DistExperiment;
 
 #[macro_export]
 #[cfg(not(feature = "mpi"))]

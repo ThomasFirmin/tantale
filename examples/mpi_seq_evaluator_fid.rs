@@ -9,7 +9,7 @@ use tantale_core::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
         },
-        synchronous::fidevaluator::FidDistBatchEvaluator,
+        batched::fidevaluator::FidDistBatchEvaluator,
         DistEvaluate,
     },
     solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
