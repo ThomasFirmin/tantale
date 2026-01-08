@@ -1,5 +1,4 @@
-#[cfg(feature = "mpi")]
-use crate::solution::shape::SolOpt;
+use crate::{experiment::OutBatchEvaluate, solution::shape::SolOpt};
 use crate::{
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
@@ -64,6 +63,9 @@ where
             states: HashMap::new(),
         }
     }
+    pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        self.batch = batch;
+    }
 }
 
 impl<SolId, SInfo, Info, Shape, FnState> Evaluate
@@ -86,9 +88,10 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     SolId: Id,
     Op: BatchOptimizer<
         PSol,
@@ -130,8 +133,12 @@ where
                     // No saved state
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
                     let y = cod.get_elem(&out);
-                    self.states.insert(sid, state);
                     pair.set_step(out.get_step());
+                    let new_step = pair.step();
+                    match new_step{
+                        Step::Evaluated | Step::Discard | Step::Error => {stop.update(ExpStep::Distribution(new_step));},
+                        _ => {self.states.insert(sid, state);},
+                    };
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
                 }
@@ -140,22 +147,23 @@ where
                     let state = self.states.remove(&sid);
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                     let y = cod.get_elem(&out);
-                    self.states.insert(sid, state);
                     pair.set_step(out.get_step());
+                    let new_step = pair.step();
+                    match new_step{
+                        Step::Evaluated | Step::Discard | Step::Error => {stop.update(ExpStep::Distribution(new_step));},
+                        _ => {self.states.insert(sid, state);},
+                    };
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
                 }
                 _ => {
-                    stop.update(ExpStep::Distribution(Step::Evaluated));
+                    stop.update(ExpStep::Distribution(step));
                     self.states.remove(&sid);
                 }
             };
         }
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
-    }
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        self.batch = batch;
     }
 }
 
@@ -195,6 +203,9 @@ where
             states: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+    pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        self.batch = Arc::new(Mutex::new(batch));
+    }
 }
 
 impl<SolId, SInfo, Info, Shape, FnState> Evaluate
@@ -217,6 +228,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -268,8 +280,12 @@ where
                         // No saved state
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
                         let y = cod.get_elem(&out);
-                        self.states.lock().unwrap().insert(sid, state);
                         pair.set_step(out.get_step());
+                        let step = pair.step();
+                        match step{
+                            Step::Evaluated | Step::Discard | Step::Error => {stplock.update(ExpStep::Distribution(step));},
+                            _ => {self.states.lock().unwrap().insert(sid, state);},
+                        };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
                     }
@@ -278,8 +294,12 @@ where
                         let state = self.states.lock().unwrap().remove(&sid);
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                         let y = cod.get_elem(&out);
-                        self.states.lock().unwrap().insert(sid, state);
                         pair.set_step(out.get_step());
+                        let step = pair.step();
+                        match step{
+                            Step::Evaluated | Step::Discard | Step::Error => {stplock.update(ExpStep::Distribution(step));},
+                            _ => {self.states.lock().unwrap().insert(sid, state);},
+                        };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
                     }
@@ -293,9 +313,6 @@ where
         let obatch = Arc::try_unwrap(obatch).unwrap().into_inner().unwrap();
         let cbatch = Arc::try_unwrap(cbatch).unwrap().into_inner().unwrap();
         (cbatch, obatch)
-    }
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        self.batch = Arc::new(Mutex::new(batch));
     }
 }
 
@@ -353,6 +370,14 @@ where
             }
             _ => {}
         }
+    }
+    pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        batch.chunk_to_priority(
+            &mut self.where_is_id,
+            &mut self.priority_discard,
+            &mut self.priority_resume,
+            &mut self.new_batch,
+        );
     }
 }
 
@@ -444,6 +469,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -534,14 +560,5 @@ where
         }
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
-    }
-
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        batch.chunk_to_priority(
-            &mut self.where_is_id,
-            &mut self.priority_discard,
-            &mut self.priority_resume,
-            &mut self.new_batch,
-        );
     }
 }

@@ -41,7 +41,7 @@ where
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &Op::Cod,
-        _info: Arc<Op::Info>,
+        _info: Option<Arc<Op::Info>>,
     ) {
     }
     fn save_batch(
@@ -78,7 +78,7 @@ where
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &Op::Cod,
-        _info: Arc<Op::Info>,
+        _info: Option<Arc<Op::Info>>,
     ) {
     }
     fn save_batch_dist(

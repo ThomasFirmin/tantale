@@ -1,3 +1,3 @@
-pub mod evaluator;
-pub mod fidevaluator;
-pub mod syncrun;
+pub mod batchevaluator;
+pub mod batchfidevaluator;
+pub mod batchrun;

@@ -4,16 +4,12 @@ use tantale::core::{
 };
 use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
-    domain::{NoDomain, TypeDom},
-    experiment::{
-        mpi::{
+    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
+        DistEvaluate, OutBatchEvaluate, mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
-        },
-        DistEvaluate,
-    },
-    solution::{Batch, HasId, Lone, SolutionShape},
-    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp,
+        }
+    }, solution::{Batch, HasId, Lone, SolutionShape}
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -146,6 +142,7 @@ fn main() {
             Calls,
             Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();

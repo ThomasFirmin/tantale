@@ -36,7 +36,7 @@ where
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Arc<Op::Info>,
+        info: Option<Arc<Op::Info>>,
     );
     fn save_batch(
         &self,
@@ -66,7 +66,7 @@ where
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Arc<Op::Info>,
+        info: Option<Arc<Op::Info>>,
     );
     fn save_batch_dist(
         &self,

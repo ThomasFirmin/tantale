@@ -131,7 +131,7 @@ where
     Info: OptInfo + CSVWritable<(), ()>,
 {
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_info(&self, id: &[String], info: Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_info(&self, id: &[String], info: Option<Arc<Info>>, wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
 pub trait OutCSVWrite<SolId: Id>: Outcome {
@@ -159,7 +159,7 @@ where
         &self,
         pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
-        info: Arc<Info>,
+        info: Option<Arc<Info>>,
         cod: &Cod,
         wrts: &CSVFiles,
     );
@@ -320,10 +320,12 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_info(&self, id: &[String], info: Arc<Info>, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let sinfostr = self.get_sinfo().write(&());
-        let infostr = info.write(&());
-        let idstr = id.iter().chain(sinfostr.iter()).chain(infostr.iter());
+    fn write_info(&self, id: &[String], info: Option<Arc<Info>>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+        let mut sinfostr = self.get_sinfo().write(&());
+        let idstr = match info{
+            Some(i) => {sinfostr.append(&mut i.write(&())); id.iter().chain(sinfostr.iter())},
+            None => id.iter().chain(sinfostr.iter()),
+        };
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
@@ -373,7 +375,7 @@ where
         &self,
         pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
-        info: Arc<Info>,
+        info: Option<Arc<Info>>,
         cod: &Cod,
         wrts: &CSVFiles,
     ) {
@@ -451,7 +453,7 @@ where
         let info = self.get_info();
         self.into_par_iter()
             .zip(obatch)
-            .for_each(|(cpair, opair)| scp.write(cpair, opair, info.clone(), cod, &wrts.clone()));
+            .for_each(|(cpair, opair)| scp.write(cpair, opair, Some(info.clone()), cod, &wrts.clone()));
     }
 }
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
@@ -701,7 +703,7 @@ where
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Arc<Op::Info>,
+        info: Option<Arc<Op::Info>>,
     ) {
         let files = CSVFiles::new(
             &self.path_pobj,
@@ -920,7 +922,7 @@ where
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Arc<Op::Info>,
+        info: Option<Arc<Op::Info>>,
     ) {
         let files = CSVFiles::new(
             &self.path_pobj,

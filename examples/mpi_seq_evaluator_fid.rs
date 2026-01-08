@@ -2,18 +2,12 @@ use mpi::traits::Communicator;
 use tantale::core::{stop::Calls, EmptyInfo, Searchspace, SingleCodomain};
 use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
-    checkpointer::NoCheck,
-    domain::{NoDomain, TypeDom},
-    experiment::{
-        mpi::{
+    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped, checkpointer::NoCheck, domain::{NoDomain, TypeDom}, experiment::{
+        DistEvaluate, OutBatchEvaluate, batched::batchfidevaluator::FidDistBatchEvaluator, mpi::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
-        },
-        batched::fidevaluator::FidDistBatchEvaluator,
-        DistEvaluate,
-    },
-    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
-    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped,
+        }
+    }, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -174,6 +168,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();
@@ -249,21 +244,7 @@ fn main() {
             .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
             .collect();
         let batch = Batch::new(pairs, info.clone());
-        <FidDistBatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-        >>::update(&mut eval, batch);
+        eval.update(batch);
         let (bcomp, _) = <FidDistBatchEvaluator<
             SId,
             EmptyInfo,
@@ -278,27 +259,14 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
             .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
             .collect();
         let batch = Batch::new(pairs, info.clone());
-        <FidDistBatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-        >>::update(&mut eval, batch);
+        eval.update(batch);
         let (bcomp, _) = <FidDistBatchEvaluator<
             SId,
             EmptyInfo,
@@ -313,27 +281,14 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
             .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
             .collect();
         let batch = Batch::new(pairs, info.clone());
-        <FidDistBatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-        >>::update(&mut eval, batch);
+        eval.update(batch);
         let (bcomp, _) = <FidDistBatchEvaluator<
             SId,
             EmptyInfo,
@@ -348,27 +303,14 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
             .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
             .collect();
         let batch = Batch::new(pairs, info.clone());
-        <FidDistBatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-        >>::update(&mut eval, batch);
+        eval.update(batch);
         let (bcomp, _) = <FidDistBatchEvaluator<
             SId,
             EmptyInfo,
@@ -383,27 +325,14 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
             .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
             .collect();
         let batch = Batch::new(pairs, info.clone());
-        <FidDistBatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-        >>::update(&mut eval, batch);
+        eval.update(batch);
         let (_, _) = <FidDistBatchEvaluator<
             SId,
             EmptyInfo,
@@ -418,6 +347,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
+            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         assert!(
             stop.calls() >= 20,

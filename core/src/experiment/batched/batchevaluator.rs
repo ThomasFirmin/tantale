@@ -1,14 +1,7 @@
 use crate::{
-    domain::{onto::LinkOpt, Codomain},
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
-    objective::{Objective, Step},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    searchspace::CompShape,
-    solution::{
-        shape::RawObj, Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed,
-    },
-    stop::{ExpStep, Stop},
-    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
+    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution, domain::{Codomain, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
+        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj
+    }, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -47,6 +40,9 @@ where
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         BatchEvaluator { batch }
     }
+    pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        self.batch = batch;
+    }
 }
 
 impl<SolId, SInfo, Info, Shape> Evaluate for BatchEvaluator<SolId, SInfo, Info, Shape>
@@ -67,6 +63,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -108,10 +105,6 @@ where
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
     }
-
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        self.batch = batch;
-    }
 }
 
 #[cfg(feature = "mpi")]
@@ -125,6 +118,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -194,10 +188,6 @@ where
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
     }
-
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        self.batch = batch
-    }
 }
 
 //----------------//
@@ -230,6 +220,9 @@ where
         let batch = Arc::new(Mutex::new(batch));
         ThrBatchEvaluator { batch }
     }
+    pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        self.batch = Arc::new(Mutex::new(batch))
+    }
 }
 
 impl<SolId, SInfo, Info, Shape> Evaluate for ThrBatchEvaluator<SolId, SInfo, Info, Shape>
@@ -250,6 +243,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -307,8 +301,5 @@ where
         let obatch = Arc::try_unwrap(obatch).unwrap().into_inner().unwrap();
         let cbatch = Arc::try_unwrap(cbatch).unwrap().into_inner().unwrap();
         (cbatch, obatch)
-    }
-    fn update(&mut self, batch: Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>) {
-        self.batch = Arc::new(Mutex::new(batch))
     }
 }

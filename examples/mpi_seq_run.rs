@@ -1,6 +1,6 @@
 use tantale::algos::BatchRandomSearch;
 use tantale_core::{
-    exp, experiment::mpi::utils::MPIProcess, load, stop::Calls, CSVRecorder,
+    exp, experiment::{self,mpi::utils::MPIProcess}, load, stop::Calls, CSVRecorder,
     DistSaverConfig, FolderConfig, MessagePack, Objective,
 };
 
@@ -135,7 +135,7 @@ fn main() {
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
-    let exp = exp!(Distributed, &proc, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = exp!(MPI, &proc, (sp, cod), obj, opt, stop, (rec, check));
     println!("PROUT");
     exp.run();
 
@@ -153,7 +153,7 @@ fn main() {
     let check = MessagePack::new(config, 1).unwrap();
 
     let exp = load!(
-        Distributed,
+        MPI,
         &proc,
         (sp, cod),
         obj,
@@ -169,7 +169,7 @@ fn main() {
                 assert_eq!(e.optimizer.0.iteration, 8, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
                 e.stop.1 = 100;
-                use tantale::core::experiment::DistRunable;
+                use tantale::core::experiment::MPIRunable;
                 e.run();
             }
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
@@ -188,7 +188,7 @@ fn main() {
     let check = MessagePack::new(config, 1).unwrap();
 
     let exp = load!(
-        Distributed,
+        MPI,
         &proc,
         (sp, cod),
         obj,

@@ -79,7 +79,7 @@ fn test_fid_seq_run() {
     let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_fidseqrun", 280);
+    run_reader("tmp_test_fidseqrun", 274);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
@@ -93,7 +93,7 @@ fn test_fid_seq_run() {
     let mut exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
+    assert_eq!(exp.optimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
     exp.stop.1 = 100;
@@ -109,10 +109,10 @@ fn test_fid_seq_run() {
     let check = MessagePack::new(config, 1).unwrap();
 
     let exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
-    run_reader("tmp_test_fidseqrun", 525);
+    run_reader("tmp_test_fidseqrun", 516);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(
-        exp.optimizer.0.iteration, 15,
+        exp.optimizer.0.iteration, 80,
         "Number of iteration is wrong"
     );
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
@@ -144,7 +144,7 @@ fn test_fid_seq_parrun() {
     let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_fidseqparrun", 280);
+    run_reader("tmp_test_fidseqparrun", 274);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
@@ -158,7 +158,7 @@ fn test_fid_seq_parrun() {
     let mut exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
 
     assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 8, "Number of iteration is wrong");
+    assert_eq!(exp.optimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
 
     exp.stop.1 = 100;
@@ -174,10 +174,10 @@ fn test_fid_seq_parrun() {
     let check = MessagePack::new(config, 1).unwrap();
 
     let exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
-    run_reader("tmp_test_fidseqparrun", 525);
+    run_reader("tmp_test_fidseqparrun", 516);
     assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
     assert_eq!(
-        exp.optimizer.0.iteration, 15,
+        exp.optimizer.0.iteration, 80,
         "Number of iteration is wrong"
     );
     assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");

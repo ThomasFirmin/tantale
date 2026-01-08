@@ -4,14 +4,9 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
-    domain::NoDomain,
-    experiment::{
-        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, ThrBatchEvaluator,
-        ThrEvaluate,
-    },
-    solution::{Batch, HasId, Lone, SolutionShape},
-    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace,
-    SingleCodomain, Sp, Stepped,
+    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{
+        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, ThrBatchEvaluator, ThrEvaluate
+    }, solution::{Batch, HasId, Lone, SolutionShape}
 };
 
 use super::init_func::{sp_evaluator, sp_evaluator_fid, FidOutEvaluator, FnState, OutEvaluator};
@@ -95,6 +90,7 @@ fn test_serde_batchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     let pairs = bcomp
@@ -102,23 +98,7 @@ fn test_serde_batchevaluator() {
         .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
     let batch = Batch::new(pairs, info.clone());
-    <
-        BatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<BasePartial<SId, _,EmptyInfo>,SId,_,EmptyInfo>
-        > as 
-        MonoEvaluate<
-            BasePartial<SId, _,EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<BaseDom,NoDomain>,
-            OutEvaluator,
-            Calls,
-            Objective<Arc<[BaseTypeDom]>,OutEvaluator>
-        >
-        >::update(&mut neval, batch);
+    neval.update(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let nneval: BEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -191,6 +171,7 @@ fn test_serde_thrbatchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     let pairs = bcomp
@@ -198,20 +179,7 @@ fn test_serde_thrbatchevaluator() {
         .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
     let batch = Batch::new(pairs, info.clone());
-    <ThrBatchEvaluator<
-        SId,
-        EmptyInfo,
-        RSInfo,
-        Lone<BasePartial<SId, _, EmptyInfo>, SId, _, EmptyInfo>,
-    > as ThrEvaluate<
-        BasePartial<SId, _, EmptyInfo>,
-        SId,
-        BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
-        OutEvaluator,
-        Calls,
-        Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
-    >>::update(&mut neval, batch);
+    neval.update(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let nneval: ThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -280,6 +248,7 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
@@ -292,21 +261,7 @@ fn test_serde_fidbatchevaluator() {
         .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
     let batch = Batch::new(pairs, info.clone());
-    <FidBatchEvaluator<
-        SId,
-        EmptyInfo,
-        RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        FnState,
-    > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
-        FidOutEvaluator,
-        Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-    >>::update(&mut neval, batch);
+    neval.update(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let mut nneval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -334,6 +289,7 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
@@ -395,6 +351,7 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
@@ -407,21 +364,7 @@ fn test_serde_thrfidbatchevaluator() {
         .map(|p| Lone::new(p.extract_sobj().sol))
         .collect();
     let batch = Batch::new(pairs, info.clone());
-    <FidThrBatchEvaluator<
-        SId,
-        EmptyInfo,
-        RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
-        FnState,
-    > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
-        SId,
-        BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
-        FidOutEvaluator,
-        Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-    >>::update(&mut neval, batch);
+    neval.update(batch);
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let mut nneval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -456,6 +399,7 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(

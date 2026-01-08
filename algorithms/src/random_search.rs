@@ -1,22 +1,14 @@
 use std::sync::Arc;
 
 use tantale_core::{
-    domain::{
+    BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped, domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
-    },
-    objective::outcome::{FuncState, Outcome},
-    optimizer::{
-        opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
-        EmptyInfo, OptInfo, OptState,
-    },
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, Searchspace},
-    solution::{
-        partial::FidBasePartial, shape::RawObj, Batch, HasFidelity, HasStep, IntoComputed, SId,
-        SolutionShape,
-    },
-    BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped,
+    }, objective::{Step, outcome::{FuncState, Outcome}}, optimizer::{
+        EmptyInfo, OptInfo, OptState, opt::{BatchOptimizer, Optimizer, SequentialOptimizer}
+    }, recorder::csv::CSVWritable, searchspace::{CompShape, Searchspace}, solution::{
+        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidBasePartial, shape::RawObj
+    }
 };
 
 use rand::prelude::ThreadRng;
@@ -45,6 +37,7 @@ impl CSVWritable<(), ()> for RSInfo {
 #[derive(Serialize, Deserialize)]
 pub struct SeqRSState {
     pub iteration: usize,
+    _emptyinfo: Arc<EmptyInfo>,
 }
 impl OptState for SeqRSState {}
 
@@ -56,6 +49,7 @@ impl RandomSearch {
         RandomSearch(
             SeqRSState {
                 iteration: 0,
+                _emptyinfo: Arc::new(EmptyInfo),
             },
             rng,
         )
@@ -137,7 +131,7 @@ where
     FnState: FuncState,
 {
     fn first_step(&mut self, scp: &Scp) -> Scp::SolShape {
-        scp.sample_pair(Some(&mut self.1), EmptyInfo.into())
+        scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone())
     }
 
     fn step(
@@ -159,7 +153,7 @@ where
                 unreachable!("A pending SolShape, should not be passed to RandomSearch step.")
             }
             tantale_core::objective::Step::Partially(_) => pair,
-            _ => scp.sample_pair(Some(&mut self.1), EmptyInfo.into()),
+            _ => scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone()),
         }
     }
 }
@@ -180,7 +174,7 @@ where
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn first_step(&mut self, scp: &Scp) -> Scp::SolShape {
-        scp.sample_pair(Some(&mut self.1), EmptyInfo.into())
+        scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone())
     }
 
     fn step(
@@ -188,7 +182,7 @@ where
         _x: CompShape<Scp, BasePartial<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
     ) -> Scp::SolShape {
-        scp.sample_pair(Some(&mut self.1), EmptyInfo.into())
+        scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone())
     }
 }
 
@@ -200,6 +194,13 @@ where
 pub struct BatchRSState {
     pub batch: usize,
     pub iteration: usize,
+    _emptyinfo: Arc<EmptyInfo>,
+}
+
+impl BatchRSState{
+    pub fn new(batch:usize, iteration:usize) -> Self{
+        BatchRSState { batch, iteration, _emptyinfo: Arc::new(EmptyInfo) }
+    }
 }
 impl OptState for BatchRSState {}
 
@@ -212,6 +213,7 @@ impl BatchRandomSearch {
             BatchRSState {
                 batch,
                 iteration: 0,
+                _emptyinfo: Arc::new(EmptyInfo),
             },
             rng,
         )
@@ -246,7 +248,7 @@ where
         iteration: opt.0.iteration,
     };
     opt.0.iteration += 1;
-    let pairs = sp.vec_sample_pair(Some(&mut opt.1), bsize, EmptyInfo.into());
+    let pairs = sp.vec_sample_pair(Some(&mut opt.1), bsize, opt.0._emptyinfo.clone());
     Batch::new(pairs, info.into())
 }
 
@@ -364,13 +366,15 @@ where
         >,
         scp: &Scp,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let mut pairs: Vec<_> = x.into_iter().map(|p| IntoComputed::extract(p).0).collect();
-        if pairs.len() < self.0.batch {
-            let fill = self.0.batch - pairs.len();
-            let mut npairs = scp.vec_sample_pair(Some(&mut self.1), fill, EmptyInfo.into());
-            pairs.append(&mut npairs);
-            self.0.iteration += 1;
-        }
+        let pairs: Vec<_> = x.into_iter().map(|p| 
+            {
+                match p.step() {
+                    Step::Evaluated | Step::Discard| Step::Error => scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone()),
+                    _ => IntoComputed::extract(p).0,
+                }
+            }
+        ).collect();
+        self.0.iteration += 1;
         let info = RSInfo {
             iteration: self.0.iteration,
         }

@@ -1,17 +1,7 @@
 use crate::{
-    checkpointer::Checkpointer,
-    domain::onto::LinkOpt,
-    experiment::{
-        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, Runable,
-        ThrBatchEvaluator, ThrEvaluate,Evaluate,
-    },
-    objective::{outcome::FuncState, FuncWrapper, Objective, Outcome},
-    optimizer::opt::{Optimizer, BatchOptimizer, OpSInfType},
-    recorder::Recorder,
-    searchspace::{CompShape, Searchspace},
-    solution::{shape::RawObj, HasFidelity, HasStep, SolutionShape, Uncomputed},
-    stop::{ExpStep, Stop},
-    FidOutcome, Id, Stepped,
+    SId, FidOutcome, Stepped, checkpointer::Checkpointer, domain::onto::LinkOpt, experiment::{
+        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment
+    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
 };
 
 use std::{
@@ -21,96 +11,63 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
-        mpi::{
-            utils::{checkpoint_order, stop_order, FXMessage, MPIProcess, SendRec, XMessage},
+    checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+        DistEvaluate, MPIExperiment, MPIRunable, MasterWorker, batched::batchfidevaluator::FidDistBatchEvaluator, mpi::{
+            utils::{FXMessage, MPIProcess, SendRec, XMessage, checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
-        },
-        batched::fidevaluator::FidDistBatchEvaluator,
-        DistEvaluate, DistRunable, MasterWorker,
-    },
-    recorder::DistRecorder,
-    solution::{
-        shape::{SolObj, SolOpt},
-        HasY,
-    },
-    SId,
+        }
+    }, recorder::DistRecorder, solution::{
+        HasY, shape::{SolObj, SolOpt}
+    }
 };
 
 //--------------------//
 //--- MONOTHREADED ---//
 //--------------------//
-
-pub struct MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
-    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
-    St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
-    Check: Checkpointer,
-    Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: Evaluate,
-{
-    pub searchspace: Scp,
-    pub codomain: Op::Cod,
-    pub objective: Fn,
-    pub optimizer: Op,
-    pub stop: St,
-    pub recorder: Option<Rec>,
-    pub checkpointer: Option<Check>,
-    evaluator: Option<Eval>,
-}
-
-impl<PSol, SolId, Scp, Op, St, Rec, Check, Out>
+impl<PSol, Scp, Op, St, Rec, Check, Out>
     Runable<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
     for MonoExperiment<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        BatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     Op: BatchOptimizer<
         PSol,
-        SolId,
+        SId,
         LinkOpt<Scp>,
         Out,
         Scp,
-        Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+        Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
     >,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
     Out: Outcome,
 {
     fn new(
         space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -162,7 +119,7 @@ where
             };
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = MonoEvaluate::<_, SolId, Op, Scp, Out, St, _>::evaluate(
+            (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &self.objective,
                 &self.codomain,
@@ -181,14 +138,14 @@ where
                 break 'main;
             };
             batch = self.optimizer.step(computed, &self.searchspace);
-            MonoEvaluate::<_, SolId, Op, Scp, Out, St, _>::update(&mut eval, batch);
+            eval.update(batch);
             self.stop.update(ExpStep::Optimization);
         }
     }
 
     fn load(
         space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
     ) -> Self {
         let (searchspace, codomain) = space;
@@ -217,54 +174,53 @@ where
     }
 }
 
-impl<PSol, SolId, Scp, Op, St, Rec, Check, Out, FnState>
+impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     Runable<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
     >
     for MonoExperiment<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        FidBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape, FnState>,
     >
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     Op: BatchOptimizer<
         PSol,
-        SolId,
+        SId,
         LinkOpt<Scp>,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
     >,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
     Out: FidOutcome,
     FnState: FuncState,
 {
     fn new(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -316,7 +272,7 @@ where
             };
 
             // Evaluate batch
-            (computed, outputed) = MonoEvaluate::<_, SolId, Op, Scp, Out, St, _>::evaluate(
+            (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &self.objective,
                 &self.codomain,
@@ -336,14 +292,14 @@ where
             };
 
             batch = self.optimizer.step(computed, &self.searchspace);
-            MonoEvaluate::<_, SolId, Op, Scp, Out, St, _>::update(&mut eval, batch);
+            eval.update(batch);
             self.stop.update(ExpStep::Optimization);
         }
     }
 
     fn load(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
     ) -> Self {
         let (searchspace, codomain) = space;
@@ -376,80 +332,55 @@ where
 //--- MULTITHREADED ---//
 //---------------------//
 
-pub struct ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
-    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
-    St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
-    Check: Checkpointer,
-    Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: Evaluate,
-{
-    pub searchspace: Scp,
-    pub codomain: Op::Cod,
-    pub objective: Fn,
-    pub optimizer: Op,
-    pub stop: St,
-    pub recorder: Option<Rec>,
-    pub checkpointer: Option<Check>,
-    evaluator: Option<Eval>,
-}
-
-impl<PSol, SolId, Scp, Op, St, Rec, Check, Out>
+impl<PSol, Scp, Op, St, Rec, Check, Out>
     Runable<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
     for ThrExperiment<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        ThrBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id + Send + Sync,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     Op: BatchOptimizer<
         PSol,
-        SolId,
+        SId,
         LinkOpt<Scp>,
         Out,
         Scp,
-        Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+        Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
     >,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: Send + Sync,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        Debug + SolutionShape<SolId, Op::SInfo> + Send + Sync,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        Debug + SolutionShape<SId, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
 {
     fn new(
         space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -509,7 +440,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SolId, Op, Scp, Out, St, _>::evaluate(
+            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 ob.clone(),
                 cod.clone(),
@@ -531,7 +462,7 @@ where
                 };
             }
             batch = self.optimizer.step(computed, &scp);
-            ThrEvaluate::<_, SolId, Op, Scp, Out, St, _>::update(&mut eval, batch);
+            eval.update(batch);
             {
                 let mut st = st.lock().unwrap();
                 st.update(ExpStep::Optimization);
@@ -547,7 +478,7 @@ where
 
     fn load(
         space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
     ) -> Self {
         let (searchspace, codomain) = space;
@@ -575,57 +506,56 @@ where
     }
 }
 
-impl<PSol, SolId, Scp, Op, St, Rec, Check, Out, FnState>
+impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     Runable<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
     >
     for ThrExperiment<
         PSol,
-        SolId,
+        SId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        FidThrBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape, FnState>,
     >
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id + Send + Sync,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     Op: BatchOptimizer<
         PSol,
-        SolId,
+        SId,
         LinkOpt<Scp>,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
     >,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + Debug + Send + Sync,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SId, Op::SInfo> + Debug + Send + Sync,
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
 {
     fn new(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -685,7 +615,7 @@ where
             }
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SolId, Op, Scp, Out, St, _>::evaluate(
+            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 ob.clone(),
                 cod.clone(),
@@ -707,7 +637,7 @@ where
                 };
             }
             batch = self.optimizer.step(computed, &scp);
-            ThrEvaluate::<_, SolId, Op, Scp, Out, St, _>::update(&mut eval, batch);
+            eval.update(batch);
             {
                 let mut st = st.lock().unwrap();
                 st.update(ExpStep::Optimization);
@@ -723,7 +653,7 @@ where
 
     fn load(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
     ) -> Self {
         let (searchspace, codomain) = space;
@@ -756,35 +686,8 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
-pub struct DistExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
-    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
-    St: Stop,
-    Rec: DistRecorder<PSol, SolId, Out, Scp, Op>,
-    Check: DistCheckpointer,
-    Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    Eval: Evaluate,
-{
-    pub proc: &'a MPIProcess,
-    pub searchspace: Scp,
-    pub codomain: Op::Cod,
-    pub objective: Fn,
-    pub optimizer: Op,
-    pub stop: St,
-    pub recorder: Option<Rec>,
-    pub checkpointer: Option<Check>,
-    evaluator: Option<Eval>,
-}
-
-#[cfg(feature = "mpi")]
 impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
-    DistRunable<
+    MPIRunable<
         'a,
         PSol,
         SId,
@@ -796,7 +699,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
         Out,
         Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
-    for DistExperiment<
+    for MPIExperiment<
         'a,
         PSol,
         SId,
@@ -865,7 +768,7 @@ where
                 }
                 None => None,
             };
-            MasterWorker::Master(DistExperiment {
+            MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
                 codomain,
@@ -913,7 +816,7 @@ where
                 None => None,
             };
             checkpointer.after_load_dist(proc);
-            MasterWorker::Master(DistExperiment {
+            MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
                 codomain,
@@ -969,7 +872,7 @@ where
             };
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::evaluate(
+            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &mut sendrec,
                 &self.objective,
@@ -995,7 +898,7 @@ where
             };
 
             batch = self.optimizer.step(computed, &self.searchspace);
-            DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::update(&mut eval, batch);
+            eval.update(batch);
 
             self.stop.update(ExpStep::Optimization);
         }
@@ -1005,7 +908,7 @@ where
 
 #[cfg(feature = "mpi")]
 impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
-    DistRunable<
+    MPIRunable<
         'a,
         PSol,
         SId,
@@ -1017,7 +920,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
     >
-    for DistExperiment<
+    for MPIExperiment<
         'a,
         PSol,
         SId,
@@ -1090,7 +993,7 @@ where
                 }
                 None => None,
             };
-            MasterWorker::Master(DistExperiment {
+            MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
                 codomain,
@@ -1145,7 +1048,7 @@ where
                 None => None,
             };
             checkpointer.after_load_dist(proc);
-            MasterWorker::Master(DistExperiment {
+            MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
                 codomain,
@@ -1206,7 +1109,7 @@ where
             };
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::evaluate(
+            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &mut sendrec,
                 &self.objective,
@@ -1233,7 +1136,7 @@ where
             };
 
             batch = self.optimizer.step(computed, &self.searchspace);
-            DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::update(&mut eval, batch);
+            eval.update(batch);
 
             self.stop.update(ExpStep::Optimization);
         }

@@ -1,10 +1,6 @@
 use tantale_algos::{RSInfo, BatchRandomSearch};
 use tantale_core::{
-    domain::NoDomain,
-    experiment::{BatchEvaluator, MonoEvaluate, ThrBatchEvaluator, ThrEvaluate},
-    solution::{Batch, HasId, Lone, SolutionShape},
-    stop::Calls,
-    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Sp,
+    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{BatchEvaluator, MonoEvaluate, OutBatchEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator;
@@ -63,6 +59,7 @@ fn test_serde_batchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
@@ -176,6 +173,7 @@ fn test_serde_thrbatchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
