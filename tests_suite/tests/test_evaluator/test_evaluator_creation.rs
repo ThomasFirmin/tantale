@@ -1,6 +1,6 @@
-use tantale_algos::{RSInfo, BatchRandomSearch};
+use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{BatchEvaluator, MonoEvaluate, OutBatchEvaluate, ThrBatchEvaluator, ThrEvaluate}, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
+    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator, ThrEvaluate, sequential::seqevaluator::SeqEvaluator}, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator;
@@ -19,7 +19,7 @@ type BBatch = Batch<
 >;
 
 #[test]
-fn test_serde_batchevaluator() {
+fn test_batchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
@@ -133,7 +133,7 @@ fn test_serde_batchevaluator() {
 }
 
 #[test]
-fn test_serde_thrbatchevaluator() {
+fn test_thrbatchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));
@@ -248,4 +248,54 @@ fn test_serde_thrbatchevaluator() {
             "Opt Computed do not point to the same solutions."
         );
     });
+}
+
+
+#[test]
+fn test_seqevaluator() {
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
+    let obj = Arc::new(Objective::new(func));
+    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let mut stop = Calls::new(50);
+
+    let mut rng = rand::rng();
+    let pair = <Sp<BaseDom, NoDomain> as Searchspace<
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::sample_pair(&sp, Some(&mut rng), sinfo.clone());
+    let sobj_bis = (pair.get_id(), pair.get_sobj().x.clone());
+    let sopt_bis = (pair.get_id(), pair.get_sopt().x.clone());
+    let mut eval = SeqEvaluator::new(pair);
+
+    let (comp,raw) = <SeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+    > as MonoEvaluate<
+        BasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        OutEvaluator,
+        Calls,
+        Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+        OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, BasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<OutEvaluator>, OutEvaluator>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+
+    assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
+    assert!(
+        Arc::ptr_eq(&comp.get_sobj().sol.x, &sobj_bis.1),
+        "Obj Partial and Computed do not point to the same solutions."
+    );
+    assert!(
+        Arc::ptr_eq(&comp.get_sopt().sol.x, &sopt_bis.1),
+        "Opt Partial and Computed do not point to the same solutions."
+    );
+    assert_eq!(comp.get_id(), sobj_bis.0,"Obj Id Computed and Partial do not point to the same solutions.");
+    assert_eq!(comp.get_id(), sopt_bis.0,"Opt Id Computed and Partial do not point to the same solutions.");
+    assert_eq!(raw.0, sobj_bis.0,"Obj Id Raw and Partial do not point to the same solutions.");
+    assert_eq!(raw.0, sopt_bis.0,"Opt Id Raw and Partial do not point to the same solutions.");
 }

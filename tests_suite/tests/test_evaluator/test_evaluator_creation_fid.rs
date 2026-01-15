@@ -1,6 +1,6 @@
-use tantale_algos::{RSInfo, BatchRandomSearch};
+use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BaseDom, BaseTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
+    BaseDom, BaseTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrEvaluate, sequential::seqfidevaluator::FidSeqEvaluator}, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator_fid;
@@ -19,7 +19,7 @@ type BBatch = Batch<
 >;
 
 #[test]
-fn test_serde_fidbatchevaluator() {
+fn test_fidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
@@ -229,7 +229,7 @@ fn test_serde_fidbatchevaluator() {
 }
 
 #[test]
-fn test_serde_fidthrbatchevaluator() {
+fn test_fidthrbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
@@ -436,4 +436,131 @@ fn test_serde_fidthrbatchevaluator() {
         20,
         "Number of calls is wrong after fully evaluated."
     );
+}
+
+
+#[test]
+fn test_seqfidevaluator() {
+    let sp = sp_evaluator_fid::get_searchspace();
+    let func = sp_evaluator_fid::example;
+    let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
+    let obj = Arc::new(Stepped::new(func));
+    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let mut stop = Calls::new(50);
+
+    let mut rng = rand::rng();
+    let pair = <Sp<BaseDom, NoDomain> as Searchspace<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::sample_pair(&sp, Some(&mut rng), sinfo.clone());
+    let sobj_bis = (pair.get_id(), pair.get_sobj().x.clone());
+    let sopt_bis = (pair.get_id(), pair.get_sopt().x.clone());
+    let mut eval = FidSeqEvaluator::new(pair);
+
+    let out = <FidSeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        FnState,
+    > as MonoEvaluate<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        FidOutEvaluator,
+        Calls,
+        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+        Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (comp,raw) = out.unwrap();
+
+    assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
+    assert!(
+        Arc::ptr_eq(&comp.get_sobj().sol.x, &sobj_bis.1),
+        "Obj Partial and Computed do not point to the same solutions."
+    );
+    assert!(
+        Arc::ptr_eq(&comp.get_sopt().sol.x, &sopt_bis.1),
+        "Opt Partial and Computed do not point to the same solutions."
+    );
+    assert_eq!(comp.get_id(), sobj_bis.0,"Obj Id Computed and Partial do not point to the same solutions.");
+    assert_eq!(comp.get_id(), sopt_bis.0,"Opt Id Computed and Partial do not point to the same solutions.");
+    assert_eq!(raw.0, sobj_bis.0,"Obj Id Raw and Partial do not point to the same solutions.");
+    assert_eq!(raw.0, sopt_bis.0,"Opt Id Raw and Partial do not point to the same solutions.");
+    eval.update(IntoComputed::extract(comp).0);
+
+    let out = <FidSeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        FnState,
+    > as MonoEvaluate<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        FidOutEvaluator,
+        Calls,
+        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+        Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (comp,_) = out.unwrap();
+    eval.update(IntoComputed::extract(comp).0);
+
+    let out = <FidSeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        FnState,
+    > as MonoEvaluate<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        FidOutEvaluator,
+        Calls,
+        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+        Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (comp,_) = out.unwrap();
+    eval.update(IntoComputed::extract(comp).0);
+
+    let out = <FidSeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        FnState,
+    > as MonoEvaluate<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        FidOutEvaluator,
+        Calls,
+        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+        Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (comp,_) = out.unwrap();
+    eval.update(IntoComputed::extract(comp).0);
+
+    let out = <FidSeqEvaluator<
+        SId,
+        EmptyInfo,
+        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        FnState,
+    > as MonoEvaluate<
+        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        SId,
+        RandomSearch,
+        Sp<BaseDom, NoDomain>,
+        FidOutEvaluator,
+        Calls,
+        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+        Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    let (comp,_) = out.unwrap();
+    eval.update(IntoComputed::extract(comp).0);
+
+    assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
 }

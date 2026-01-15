@@ -100,6 +100,36 @@ where
         }
     }
 
+    fn load(
+        space: (Scp, Op::Cod),
+        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace, codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut rec) => {
+                rec.after_load(&searchspace, &codomain);
+                Some(rec)
+            }
+            None => None,
+        };
+        checkpointer.after_load();
+
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            evaluator: Some(evaluator),
+        }
+    }
+    
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -131,45 +161,9 @@ where
                 r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &self.stop, &eval)
-                }
-                break 'main;
-            };
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
-        }
-    }
-
-    fn load(
-        space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        saver: (Option<Rec>, Check),
-    ) -> Self {
-        let (searchspace, codomain) = space;
-        let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder {
-            Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
-                Some(rec)
-            }
-            None => None,
-        };
-        checkpointer.after_load();
-
-        MonoExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
         }
     }
 }
@@ -253,6 +247,36 @@ where
         }
     }
 
+    fn load(
+        space: (Scp, Op::Cod),
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace, codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.after_load(&searchspace, &codomain);
+                Some(r)
+            }
+            None => None,
+        };
+        checkpointer.after_load();
+
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            evaluator: Some(evaluator),
+        }
+    }
+
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -284,46 +308,9 @@ where
                 r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &self.stop, &eval)
-                }
-                break 'main;
-            };
-
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
-        }
-    }
-
-    fn load(
-        space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        saver: (Option<Rec>, Check),
-    ) -> Self {
-        let (searchspace, codomain) = space;
-        let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder {
-            Some(mut r) => {
-                r.after_load(&searchspace, &codomain);
-                Some(r)
-            }
-            None => None,
-        };
-        checkpointer.after_load();
-
-        MonoExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
         }
     }
 }
@@ -413,69 +400,6 @@ where
         }
     }
 
-    fn run(mut self) {
-        let ob = Arc::new(self.objective);
-        let cod = Arc::new(self.codomain);
-        let st = Arc::new(Mutex::new(self.stop));
-        let scp = Arc::new(self.searchspace);
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => ThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
-        };
-
-        let mut batch;
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*st, &eval)
-                }
-                if st.stop() {
-                    break 'main;
-                };
-            }
-
-            // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
-                &mut eval,
-                ob.clone(),
-                cod.clone(),
-                st.clone(),
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
-            }
-
-            {
-                let st = st.lock().unwrap();
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-            batch = self.optimizer.step(computed, &scp);
-            eval.update(batch);
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Optimization);
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-        }
-    }
-
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -502,6 +426,54 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
+        }
+    }
+
+    fn run(mut self) {
+        let ob = Arc::new(self.objective);
+        let cod = Arc::new(self.codomain);
+        let st = Arc::new(Mutex::new(self.stop));
+        let scp = Arc::new(self.searchspace);
+
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => ThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
+        };
+
+        let mut batch;
+        let mut computed;
+        let mut outputed;
+        'main: loop {
+            {
+                let mut stlock = st.lock().unwrap();
+                stlock.update(ExpStep::Iteration);
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                }
+                if stlock.stop() {
+                    break 'main;
+                };
+            }
+
+            // Arc copy of data to send to evaluator thread.
+            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
+                &mut eval,
+                ob.clone(),
+                cod.clone(),
+                st.clone(),
+            );
+
+            // Saver part
+            if let Some(r) = &self.recorder {
+                r.save_batch(&computed, &outputed, &scp, &cod);
+            }
+
+            batch = self.optimizer.step(computed, &scp);
+            eval.update(batch);
+            {
+                let mut stlock = st.lock().unwrap();
+                stlock.update(ExpStep::Optimization);
+            }
         }
     }
 }
@@ -588,69 +560,6 @@ where
         }
     }
 
-    fn run(mut self) {
-        let ob = Arc::new(self.objective);
-        let cod = Arc::new(self.codomain);
-        let st = Arc::new(Mutex::new(self.stop));
-        let scp = Arc::new(self.searchspace);
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
-        };
-
-        let mut batch;
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*st, &eval)
-                }
-                if st.stop() {
-                    break 'main;
-                };
-            }
-
-            // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
-                &mut eval,
-                ob.clone(),
-                cod.clone(),
-                st.clone(),
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
-            }
-
-            {
-                let st = st.lock().unwrap();
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-            batch = self.optimizer.step(computed, &scp);
-            eval.update(batch);
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Optimization);
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-        }
-    }
-
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -677,6 +586,55 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
+        }
+    }
+
+    fn run(mut self) {
+        let ob = Arc::new(self.objective);
+        let cod = Arc::new(self.codomain);
+        let st = Arc::new(Mutex::new(self.stop));
+        let scp = Arc::new(self.searchspace);
+
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
+        };
+
+        let mut batch;
+        let mut computed;
+        let mut outputed;
+        'main: loop {
+            let mut stlock = st.lock().unwrap();
+            {
+                stlock.update(ExpStep::Iteration);
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                }
+                if stlock.stop() {
+                    break 'main;
+                };
+            }
+
+            // Arc copy of data to send to evaluator thread.
+            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
+                &mut eval,
+                ob.clone(),
+                cod.clone(),
+                st.clone(),
+            );
+
+            // Saver part
+            if let Some(r) = &self.recorder {
+                r.save_batch(&computed, &outputed, &scp, &cod);
+            }
+
+            batch = self.optimizer.step(computed, &scp);
+            eval.update(batch);
+            {
+                let mut stlock = st.lock().unwrap();
+                stlock.update(ExpStep::Optimization);
+            }
+
         }
     }
 }
@@ -860,12 +818,7 @@ where
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if let Some(c) = &self.checkpointer {
-                c.save_state_dist(
-                    self.optimizer.get_state(),
-                    &self.stop,
-                    &eval,
-                    self.proc.rank,
-                );
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
             }
             if self.stop.stop() {
                 break 'main;
@@ -885,22 +838,14 @@ where
                 r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state_dist(
-                        self.optimizer.get_state(),
-                        &self.stop,
-                        &eval,
-                        self.proc.rank,
-                    );
-                }
-                break 'main;
-            };
-
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
 
             self.stop.update(ExpStep::Optimization);
+        }
+        // Recv / sendv loop
+        while !sendrec.waiting.is_empty() {
+            sendrec.rec_computed();
         }
         stop_order(self.proc, 1..self.proc.size);
     }
@@ -1096,12 +1041,7 @@ where
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if let Some(c) = &self.checkpointer {
-                c.save_state_dist(
-                    self.optimizer.get_state(),
-                    &self.stop,
-                    &eval,
-                    self.proc.rank,
-                );
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
                 checkpoint_order(self.proc, 1..self.proc.size);
             }
             if self.stop.stop() {
@@ -1122,23 +1062,14 @@ where
                 r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state_dist(
-                        self.optimizer.get_state(),
-                        &self.stop,
-                        &eval,
-                        self.proc.rank,
-                    );
-                    checkpoint_order(self.proc, 1..self.proc.size);
-                }
-                break 'main;
-            };
-
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
 
             self.stop.update(ExpStep::Optimization);
+        }
+        // Recv / sendv loop
+        while !sendrec.waiting.is_empty() {
+            sendrec.rec_computed();
         }
         stop_order(self.proc, 1..self.proc.size);
     }

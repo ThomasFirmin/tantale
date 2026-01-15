@@ -1,21 +1,24 @@
 use crate::{
-    Codomain, EmptyInfo, FidOutcome, Id, Solution, Stepped, checkpointer::Checkpointer, domain::onto::LinkOpt, experiment::{
-        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment, sequential::{seqevaluator::SeqEvaluator, seqfidevaluator::FidSeqEvaluator}
-    }, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
-};
-
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
+    SId, FidOutcome, Stepped,
+    checkpointer::Checkpointer, 
+    domain::onto::LinkOpt,
+    experiment::{
+        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, sequential::{seqevaluator::SeqEvaluator, seqfidevaluator::FidSeqEvaluator}
+    }, 
+    objective::{Objective, Outcome, outcome::FuncState},
+    optimizer::opt::{OpSInfType, SequentialOptimizer}, 
+    recorder::Recorder,
+    searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj},
+    stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
 use crate::{
-    SId, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
-        DistEvaluate, MPIExperiment, MPIRunable, MasterWorker, batched::batchfidevaluator::FidDistBatchEvaluator, mpi::{
+    checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+        DistEvaluate, MPIExperiment, MPIRunable, MasterWorker, sequential::seqfidevaluator::FidDistSeqEvaluator, mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, checkpoint_order, stop_order},
             worker::{BaseWorker, FidWorker},
-        }
+        }, sequential::seqevaluator::DistSeqEvaluator
     }, recorder::DistRecorder, solution::{
         HasY, shape::{SolObj, SolOpt}
     }
@@ -101,45 +104,6 @@ where
         }
     }
 
-    fn run(mut self) {
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => SeqEvaluator::new(self.optimizer.first_step(&self.searchspace)),
-        };
-
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
-            }
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            // Evaluate the solution
-            (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutShapeEvaluate<SId,Op::SInfo,Scp,PSol,Op::Cod,Out>>::evaluate(
-                &mut eval,
-                &self.objective,
-                &self.codomain,
-                &mut self.stop,
-            );
-
-            // Check if stop
-            if let Some(r) = &self.recorder {
-                r.save_pair(&computed,&outputed,&self.searchspace,&self.codomain,None);
-            }
-
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            eval = self.optimizer.step(computed, &self.searchspace).into();
-            self.stop.update(ExpStep::Optimization);
-        }
-    }
-
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -167,6 +131,41 @@ where
             recorder,
             checkpointer: Some(checkpointer),
             evaluator: Some(evaluator),
+        }
+    }
+    
+    fn run(mut self) {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => SeqEvaluator::new(self.optimizer.step(None,&self.searchspace)),
+        };
+
+        let mut computed;
+        let mut outputed;
+        'main: loop {
+            self.stop.update(ExpStep::Iteration);
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+            }
+            if self.stop.stop() {
+                break 'main;
+            };
+
+            // Evaluate the solution
+            (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutShapeEvaluate<SId,Op::SInfo,Scp,PSol,Op::Cod,Out>>::evaluate(
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+            );
+
+            // Check if stop
+            if let Some(r) = &self.recorder {
+                r.save_pair(&computed,&outputed,&self.searchspace,&self.codomain,None);
+            }
+
+            eval = self.optimizer.step(Some(computed), &self.searchspace).into();
+            self.stop.update(ExpStep::Optimization);
         }
     }
 }
@@ -250,49 +249,6 @@ where
         }
     }
 
-    fn run(mut self) {
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidSeqEvaluator::new(self.optimizer.first_step(&self.searchspace)),
-        };
-
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
-            }
-            if self.stop.stop() {
-                break 'main;
-            };
-
-            // Evaluate the solution
-            (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,Option<OutShapeEvaluate<SId,Op::SInfo,Scp,PSol,Op::Cod,Out>>>::evaluate(
-                &mut eval,
-                &self.objective,
-                &self.codomain,
-                &mut self.stop,
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_pair(&computed, &outputed, &self.searchspace, &self.codomain,None);
-            }
-
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &self.stop, &eval)
-                }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(computed, &self.searchspace);
-            MonoEvaluate::<_, SId, Op, Scp, Out, St, _>::update(&mut eval, batch);
-            self.stop.update(ExpStep::Optimization);
-        }
-    }
-
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -322,359 +278,52 @@ where
             evaluator: Some(evaluator),
         }
     }
+
+
+    fn run(mut self) {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => FidSeqEvaluator::new(self.optimizer.step(None,&self.searchspace)),
+        };
+
+        'main: loop {
+            self.stop.update(ExpStep::Iteration);
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+            }
+            if self.stop.stop() {
+                break 'main;
+            };
+
+            // Evaluate the solution
+            let output = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,Option<OutShapeEvaluate<SId,Op::SInfo,Scp,PSol,Op::Cod,Out>>>::evaluate(
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+            );
+
+            let (computed,outputed) = output.unzip();
+
+            // Saver part
+            if let Some(comp) = &computed
+            && let Some(out) = &outputed
+            && let Some(r) = &self.recorder
+            {
+                r.save_pair(comp, out, &self.searchspace, &self.codomain,None);
+            }
+
+            eval.update(self.optimizer.step(computed,&self.searchspace));
+            self.stop.update(ExpStep::Optimization);
+        }
+    }
 }
 
 //---------------------//
 //--- MULTITHREADED ---//
 //---------------------//
-impl<PSol, Scp, Op, St, Rec, Check, Out>
-    Runable<
-        PSol,
-        SId,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-    >
-    for ThrExperiment<
-        PSol,
-        SId,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        SeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
-    >
-where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    Op: SequentialOptimizer<
-        PSol,
-        SId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
-    >,
-    Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
-    Op::SInfo: Send + Sync,
-    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    Scp::SolShape: Send + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        Debug + SolutionShape<SId, Op::SInfo> + Send + Sync,
-    St: Stop + Send + Sync,
-    Out: Outcome + Send + Sync,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
-{
-    fn new(
-        space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        optimizer: Op,
-        stop: St,
-        saver: (Option<Rec>, Option<Check>),
-    ) -> Self {
-        let (searchspace, codomain) = space;
-        let (recorder, checkpointer) = saver;
-        let recorder = match recorder {
-            Some(mut r) => {
-                r.init(&searchspace, &codomain);
-                Some(r)
-            }
-            None => None,
-        };
-        let checkpointer = match checkpointer {
-            Some(mut c) => {
-                c.init();
-                Some(c)
-            }
-            None => None,
-        };
-        ThrExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer,
-            evaluator: None,
-        }
-    }
 
-    fn run(mut self) {
-        let ob = Arc::new(self.objective);
-        let cod = Arc::new(self.codomain);
-        let st = Arc::new(Mutex::new(self.stop));
-        let scp = Arc::new(self.searchspace);
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => ThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
-        };
-
-        let mut batch;
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*st, &eval)
-                }
-                if st.stop() {
-                    break 'main;
-                };
-            }
-
-            // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _>::evaluate(
-                &mut eval,
-                ob.clone(),
-                cod.clone(),
-                st.clone(),
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
-            }
-
-            {
-                let st = st.lock().unwrap();
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-            batch = self.optimizer.step(computed, &scp);
-            ThrEvaluate::<_, SId, Op, Scp, Out, St, _>::update(&mut eval, batch);
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Optimization);
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-        }
-    }
-
-    fn load(
-        space: (Scp, Op::Cod),
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        saver: (Option<Rec>, Check),
-    ) -> Self {
-        let (searchspace, codomain) = space;
-        let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder {
-            Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
-                Some(rec)
-            }
-            None => None,
-        };
-        checkpointer.after_load();
-        ThrExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
-        }
-    }
-}
-
-impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
-    Runable<
-        PSol,
-        SId,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-    >
-    for ThrExperiment<
-        PSol,
-        SId,
-        Scp,
-        Op,
-        St,
-        Rec,
-        Check,
-        Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        SeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
-    >
-where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    Op: SequentialOptimizer<
-        PSol,
-        SId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
-    >,
-    Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
-    Op::SInfo: Send + Sync,
-    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity + Send + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + Debug + Send + Sync,
-    St: Stop + Send + Sync,
-    Out: FidOutcome + Send + Sync,
-    FnState: FuncState + Send + Sync,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
-{
-    fn new(
-        space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        optimizer: Op,
-        stop: St,
-        saver: (Option<Rec>, Option<Check>),
-    ) -> Self {
-        let (recorder, checkpointer) = saver;
-        let (searchspace, codomain) = space;
-        let recorder = match recorder {
-            Some(mut r) => {
-                r.init(&searchspace, &codomain);
-                Some(r)
-            }
-            None => None,
-        };
-        let checkpointer = match checkpointer {
-            Some(mut c) => {
-                c.init();
-                Some(c)
-            }
-            None => None,
-        };
-        ThrExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer,
-            evaluator: None,
-        }
-    }
-
-    fn run(mut self) {
-        let ob = Arc::new(self.objective);
-        let cod = Arc::new(self.codomain);
-        let st = Arc::new(Mutex::new(self.stop));
-        let scp = Arc::new(self.searchspace);
-
-        let mut eval = match self.evaluator {
-            Some(e) => e,
-            None => FidThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
-        };
-
-        let mut batch;
-        let mut computed;
-        let mut outputed;
-        'main: loop {
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*st, &eval)
-                }
-                if st.stop() {
-                    break 'main;
-                };
-            }
-
-            // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _>::evaluate(
-                &mut eval,
-                ob.clone(),
-                cod.clone(),
-                st.clone(),
-            );
-
-            // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
-            }
-
-            {
-                let st = st.lock().unwrap();
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-            batch = self.optimizer.step(computed, &scp);
-            ThrEvaluate::<_, SId, Op, Scp, Out, St, _>::update(&mut eval, batch);
-            {
-                let mut st = st.lock().unwrap();
-                st.update(ExpStep::Optimization);
-                if st.stop() {
-                    if let Some(c) = &self.checkpointer {
-                        c.save_state(self.optimizer.get_state(), &*st, &eval)
-                    }
-                    break 'main;
-                };
-            }
-        }
-    }
-
-    fn load(
-        space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        saver: (Option<Rec>, Check),
-    ) -> Self {
-        let (searchspace, codomain) = space;
-        let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
-        let recorder = match recorder {
-            Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
-                Some(rec)
-            }
-            None => None,
-        };
-        checkpointer.after_load();
-        ThrExperiment {
-            searchspace,
-            codomain,
-            objective,
-            optimizer,
-            stop,
-            recorder,
-            checkpointer: Some(checkpointer),
-            evaluator: Some(evaluator),
-        }
-    }
-}
+// Unimplemented. Async with Tokio.
 
 //-------------------//
 //--- DISTRIBUTED ---//
@@ -705,7 +354,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
         Check,
         Out,
         Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        SeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
+        DistSeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
@@ -832,10 +481,15 @@ where
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
-                let batch = self.optimizer.first_step(&self.searchspace);
-                BatchEvaluator::new(batch)
+                let pairs:Vec<_> = (0..self.proc.size).map(|_| self.optimizer.step(None, &self.searchspace)).collect();
+                DistSeqEvaluator::new(pairs)
             }
         };
+        if eval.pairs.len() < self.proc.size as usize{
+            let n = self.proc.size as usize - eval.pairs.len();
+            let mut pairs:Vec<_> = (0..n).map(|_| self.optimizer.step(None, &self.searchspace)).collect();
+            eval.pairs.append(&mut pairs);
+        }
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut sendrec = SendRec::<
@@ -848,26 +502,20 @@ where
             Out,
         >::new(config, self.proc);
 
-        let mut batch;
+        let mut output;
         let mut computed;
         let mut outputed;
-
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if let Some(c) = &self.checkpointer {
-                c.save_state_dist(
-                    self.optimizer.get_state(),
-                    &self.stop,
-                    &eval,
-                    self.proc.rank,
-                );
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
             }
             if self.stop.stop() {
                 break 'main;
             };
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::evaluate(
+            output = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,_>::evaluate(
                 &mut eval,
                 &mut sendrec,
                 &self.objective,
@@ -875,26 +523,17 @@ where
                 &mut self.stop,
             );
 
+            (computed,outputed) = output.unzip();
+
             // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
+            if let Some(comp) = &computed
+            && let Some(out) = &outputed
+            && let Some(r) = &self.recorder
+            {
+                r.save_pair(comp, out, &self.searchspace, &self.codomain,None);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state_dist(
-                        self.optimizer.get_state(),
-                        &self.stop,
-                        &eval,
-                        self.proc.rank,
-                    );
-                }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(computed, &self.searchspace);
-            DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::update(&mut eval, batch);
-
+            eval.update(self.optimizer.step(computed, &self.searchspace));
             self.stop.update(ExpStep::Optimization);
         }
         stop_order(self.proc, 1..self.proc.size);
@@ -926,7 +565,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Check,
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        SeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
+        FidDistSeqEvaluator<SId,Op::SInfo,Scp::SolShape>,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
@@ -1065,13 +704,15 @@ where
     }
 
     fn run(mut self) {
+
         let mut eval = match self.evaluator {
             Some(e) => e,
-            None => FidDistBatchEvaluator::new(
-                self.optimizer.first_step(&self.searchspace),
-                self.proc.size as usize,
-            ),
+            None => {
+                let init_vec:Vec<_> = (0..self.proc.size + 1).map(|_| self.optimizer.step(None, &self.searchspace)).collect();
+                FidDistSeqEvaluator::new(init_vec, self.proc.size as usize)
+            },
         };
+        
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
         let mut sendrec = SendRec::<
@@ -1084,19 +725,13 @@ where
             Out,
         >::new(config, self.proc);
 
-        let mut batch;
+        let mut output;
         let mut computed;
         let mut outputed;
-
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if let Some(c) = &self.checkpointer {
-                c.save_state_dist(
-                    self.optimizer.get_state(),
-                    &self.stop,
-                    &eval,
-                    self.proc.rank,
-                );
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
                 checkpoint_order(self.proc, 1..self.proc.size);
             }
             if self.stop.stop() {
@@ -1104,7 +739,7 @@ where
             };
 
             // Arc copy of data to send to evaluator thread.
-            (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::evaluate(
+            output = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,_>::evaluate(
                 &mut eval,
                 &mut sendrec,
                 &self.objective,
@@ -1112,27 +747,17 @@ where
                 &mut self.stop,
             );
 
+            (computed,outputed) = output.unzip();
+
             // Saver part
-            if let Some(r) = &self.recorder {
-                r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
+            if let Some(comp) = &computed
+            && let Some(out) = &outputed
+            && let Some(r) = &self.recorder
+            {
+                r.save_pair(comp, out, &self.searchspace, &self.codomain,None);
             }
 
-            if self.stop.stop() {
-                if let Some(c) = &self.checkpointer {
-                    c.save_state_dist(
-                        self.optimizer.get_state(),
-                        &self.stop,
-                        &eval,
-                        self.proc.rank,
-                    );
-                    checkpoint_order(self.proc, 1..self.proc.size);
-                }
-                break 'main;
-            };
-
-            batch = self.optimizer.step(computed, &self.searchspace);
-            DistEvaluate::<_, SId, Op, Scp, Out, St, _, _>::update(&mut eval, batch);
-
+            eval.update(self.optimizer.step(computed, &self.searchspace));
             self.stop.update(ExpStep::Optimization);
         }
         stop_order(self.proc, 1..self.proc.size);

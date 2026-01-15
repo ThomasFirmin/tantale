@@ -7,8 +7,6 @@ pub use tantale::core::domain::unit::Unit;
 pub use tantale::core::domain::Domain;
 use tantale_core::sampler::{Bernoulli, Uniform};
 
-static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
 pub fn get_domain_real() -> Real {
     Real::new(0.0, 10.0, Uniform)
 }
@@ -26,7 +24,7 @@ pub fn get_domain_bool() -> Bool {
 }
 
 pub fn get_domain_cat() -> Cat {
-    Cat::new(&ACTIVATION, Uniform)
+    Cat::new(["relu", "tanh", "sigmoid"], Uniform)
 }
 
 pub fn get_domain_unit() -> Unit {
@@ -50,7 +48,7 @@ pub fn get_domain_bool_2() -> Bool {
 }
 
 pub fn get_domain_cat_2() -> Cat {
-    Cat::new(&ACTIVATION, Uniform)
+    Cat::new(["relu", "tanh", "sigmoid"], Uniform)
 }
 
 pub fn get_domain_unit_2() -> Unit {

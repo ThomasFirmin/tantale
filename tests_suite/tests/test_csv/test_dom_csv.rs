@@ -60,6 +60,6 @@ get_base_test!(
     get_domain_base_nat ;  base_nat ; Nat::new(0,100, Uniform) ; 0  ; Nat ,
     get_domain_base_int ;  base_int ; Int::new(-100,100, Uniform) ; 0  ; Int ,
     get_domain_base_bool ;  base_bool ; Bool::new(Bernoulli(0.5)) ; false  ; Bool ,
-    get_domain_base_cat ;  base_cat ; Cat::new(&["relu", "tanh", "sigmoid"],Uniform) ; String::from("tanh") ; Cat ,
+    get_domain_base_cat ;  base_cat ; Cat::new(["relu", "tanh", "sigmoid"],Uniform) ; String::from("tanh") ; Cat ,
     get_domain_base_unit ;  base_unit ; Unit::new(Uniform) ; 0.5 ; Unit
 );

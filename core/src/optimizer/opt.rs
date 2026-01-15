@@ -1,9 +1,9 @@
 use crate::{
-    domain::{onto::LinkOpt, Codomain, Domain},
+    domain::{Codomain, Domain, onto::LinkOpt},
     objective::{FuncWrapper, Outcome},
     recorder::csv::CSVWritable,
-    searchspace::{CompShape, Searchspace},
-    solution::{shape::RawObj, Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed},
+    searchspace::{CompShape, OptionCompShape, Searchspace},
+    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
@@ -134,14 +134,12 @@ where
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
-    /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
-    fn first_step(&mut self, scp: &Scp) -> Scp::SolShape;
     /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
     /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
     /// Requires previously [`Computed`] `x` [`Solution`].
     fn step(
         &mut self,
-        x: CompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
     ) -> Scp::SolShape;
 }

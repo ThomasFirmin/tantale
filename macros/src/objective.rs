@@ -128,7 +128,7 @@ fn complex_vec_replacement(
         {
             tantale_in[#start..#end].iter().map(|v| {
                 match v {
-                    #mixed_ty::#ty(ref value) => value.clone(),
+                    #mixed_ty::#ty(value) => value.clone(),
                     _ => unreachable!("Trying to access a value of the wrong type from the objective input.")
                 }
             }).collect::<Vec<<#ty as Domain>::TypeDom>>()

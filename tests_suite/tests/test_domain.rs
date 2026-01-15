@@ -104,7 +104,7 @@ mod check_bounds {
             String::from("tanh"),
             String::from("sigmoid"),
         ];
-        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"], Uniform);
+        let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
         assert_eq!(&cat_1.values, &check, "Issue with content of Cat.");
 
         assert!(
@@ -272,7 +272,7 @@ mod check_default_sampler {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        let cat_1 = Cat::new(&["relu", "tanh", "sigmoid"], Uniform);
+        let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -343,8 +343,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let cat_1 = BaseDom::Cat(Cat::new(&ACTIVATION, Uniform));
+        let cat_1 = BaseDom::Cat(Cat::new(["relu", "tanh", "sigmoid"], Uniform));
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"

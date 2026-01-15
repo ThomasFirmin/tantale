@@ -13,13 +13,11 @@ mod test {
         };
         use tantale::macros::hpo;
 
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
         hpo!(
-            a | Real(0.0,1.0,Uniform)          |               ;
-            b | Nat(0,100,Uniform)             | Real(0.0,1.0,Uniform) ;
-            c | Cat(&ACTIVATION,Uniform)       | Real(0.0,1.0,Uniform) ;
-            d | Bool(Bernoulli(0.5))           | Real(0.0,1.0,Uniform) ;
+            a | Real(0.0,1.0,Uniform)                          |               ;
+            b | Nat(0,100,Uniform)                             | Real(0.0,1.0,Uniform) ;
+            c | Cat(["relu", "tanh", "sigmoid"],Uniform)       | Real(0.0,1.0,Uniform) ;
+            d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0,Uniform) ;
         );
 
         let mut rng = rand::rng();

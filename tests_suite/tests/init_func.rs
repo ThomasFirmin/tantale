@@ -105,7 +105,7 @@ pub mod sp_ms_nosamp {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -113,7 +113,7 @@ pub mod sp_ms_nosamp {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
@@ -148,7 +148,7 @@ pub mod sp_ms_samp {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -156,7 +156,7 @@ pub mod sp_ms_samp {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
@@ -191,7 +191,7 @@ pub mod sp_ms_samp_right {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -199,7 +199,7 @@ pub mod sp_ms_samp_right {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
@@ -234,7 +234,7 @@ pub mod sp_ms_noright {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100, Uniform) | !];
             let b = [! b | Nat(0,100, Uniform) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -242,7 +242,7 @@ pub mod sp_ms_noright {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -277,7 +277,7 @@ pub mod sp_ms_samp_noright {
         pub fn example() -> OutExample {
             let a = [! a | Int(0,100, Uniform)  | !];
             let b = [! b | Nat(0,100, Uniform) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -285,7 +285,7 @@ pub mod sp_ms_samp_noright {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -320,7 +320,7 @@ pub mod sp_sm_samp {
         pub fn example() -> OutUnique {
             let a = [! a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  !];
             let b = [! b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
-            let c = [! c | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !];
+            let c = [! c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) !];
             let d = [! d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5)) !];
 
             let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !]);
@@ -328,7 +328,7 @@ pub mod sp_sm_samp {
 
             let p = Point{
                 x: [! h | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !],
-                y: [! i | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !],
+                y: [! i | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) !],
             };
 
             let k = [! k_{4} | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
@@ -426,7 +426,7 @@ pub mod sp_evaluator {
         pub fn example() -> OutEvaluator {
             let _a = [! a | Int(0,100, Uniform) | !];
             let _b = [! b | Nat(0,100, Uniform) | !];
-            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -434,7 +434,7 @@ pub mod sp_evaluator {
 
             let _layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let _k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -465,7 +465,7 @@ pub mod sp_evaluator_fid {
         pub fn example() -> (FidOutEvaluator, FnState) {
             let _a = [! a | Int(0,100, Uniform) | !];
             let _b = [! b | Nat(0,100, Uniform) | !];
-            let _c = [! c | Cat(&["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -473,7 +473,7 @@ pub mod sp_evaluator_fid {
 
             let _layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let _k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -511,7 +511,7 @@ pub mod sp_ms_nosamp_fid {
         pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -519,7 +519,7 @@ pub mod sp_ms_nosamp_fid {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
@@ -564,7 +564,7 @@ pub mod sp_ms_samp_fid {
         pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100, Uniform)  | Real(0.0,1.0, Uniform) !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -572,7 +572,7 @@ pub mod sp_ms_samp_fid {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
@@ -617,7 +617,7 @@ pub mod sp_ms_samp_right_fid {
         pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
             let b = [! b | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !];
             let d = [! d | Bool(Bernoulli(0.5)) | Real(0.0,1.0, Uniform) !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !]);
@@ -625,7 +625,7 @@ pub mod sp_ms_samp_right_fid {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | Real(0.0,1.0, Uniform) !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
@@ -670,7 +670,7 @@ pub mod sp_ms_noright_fid {
         pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100, Uniform) | !];
             let b = [! b | Nat(0,100, Uniform) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -678,7 +678,7 @@ pub mod sp_ms_noright_fid {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -723,7 +723,7 @@ pub mod sp_ms_samp_noright_fid {
         pub fn example() -> (FidOutExample,FnState) {
             let a = [! a | Int(0,100, Uniform)  | !];
             let b = [! b | Nat(0,100, Uniform) | !];
-            let c = [! c | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !];
+            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let d = [! d | Bool(Bernoulli(0.5)) | !];
 
             let e = plus_one_int([! e | Int(0,100, Uniform) | !]);
@@ -731,7 +731,7 @@ pub mod sp_ms_samp_noright_fid {
 
             let layer = Neuron{
                 number: [! h | Int(0,100, Uniform) | !],
-                activation: [! i | Cat(&["relu", "tanh", "sigmoid"], Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
             };
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
@@ -776,7 +776,7 @@ pub mod sp_sm_samp_fid {
         pub fn example() -> (FidOutUnique,FnState) {
             let a = [! a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  !];
             let b = [! b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
-            let c = [! c | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !];
+            let c = [! c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) !];
             let d = [! d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5)) !];
 
             let e = plus_one_float([! e | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !]);
@@ -784,7 +784,7 @@ pub mod sp_sm_samp_fid {
 
             let p = Point{
                 x: [! h | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) !],
-                y: [! i | Real(0.0,1.0, Uniform) | Cat(&["relu", "tanh", "sigmoid"], Uniform) !],
+                y: [! i | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) !],
             };
 
             let k = [! k_{4} | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];

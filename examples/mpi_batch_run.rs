@@ -166,7 +166,7 @@ fn main() {
         match exp {
             experiment::MasterWorker::Master(mut e) => {
                 assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 9, "Number of iteration is wrong");
+                assert_eq!(e.optimizer.0.iteration, 8, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
                 e.stop.1 = 100;
                 use tantale::core::experiment::MPIRunable;

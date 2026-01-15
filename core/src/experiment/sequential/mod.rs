@@ -1,3 +1,3 @@
-// pub mod seqrun;
-// pub mod seqevaluator;
-// pub mod seqfidevaluator;
+pub mod seqrun;
+pub mod seqevaluator;
+pub mod seqfidevaluator;

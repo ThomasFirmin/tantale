@@ -57,12 +57,12 @@ impl Cat {
     ///
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>>(
-        values: &'a [&'a str],
+    pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>, I: IntoIterator<Item=&'a str>>(
+        values: I,
         sampler: S,
     ) -> Cat {
         Cat {
-            values: values.iter().map(|s| String::from(*s)).collect(),
+            values: values.into_iter().map(String::from).collect(),
             sampler: sampler.into(),
         }
     }

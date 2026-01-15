@@ -626,38 +626,34 @@ where
     fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
-            if let Some(ppobj) = &self.path_pobj {
-                if !ppobj.try_exists().unwrap() {
+            if let Some(ppobj) = &self.path_pobj
+                && !ppobj.try_exists().unwrap() {
                     panic!(
                         "The `Objective` recorder file does not exists, {}.",
                         ppobj.display()
                     )
                 }
-            }
 
-            if let Some(ppopt) = &self.path_popt {
-                if !ppopt.try_exists().unwrap() {
+            if let Some(ppopt) = &self.path_popt
+                && !ppopt.try_exists().unwrap() {
                     panic!(
                         "The `Optimizer` recorder file  not exists, {}.",
                         ppopt.display()
                     )
                 }
-            }
 
-            if let Some(ppinfo) = &self.path_info {
-                if !ppinfo.try_exists().unwrap() {
+            if let Some(ppinfo) = &self.path_info
+                && !ppinfo.try_exists().unwrap() {
                     panic!("The `Info` file does not exists, {}.", ppinfo.display())
                 }
-            }
 
-            if let Some(ppout) = &self.path_out {
-                if !ppout.try_exists().unwrap() {
+            if let Some(ppout) = &self.path_out
+                && !ppout.try_exists().unwrap() {
                     panic!(
                         "The `Output` recorder file does not exists, {}.",
                         ppout.display()
                     )
                 }
-            }
 
             if !self.path_codom.try_exists().unwrap() {
                 panic!(
@@ -845,38 +841,34 @@ where
     fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
-            if let Some(ppobj) = &self.path_pobj {
-                if !ppobj.try_exists().unwrap() {
+            if let Some(ppobj) = &self.path_pobj
+                && !ppobj.try_exists().unwrap() {
                     panic!(
                         "The `Objective` recorder file does not exists, {}.",
                         ppobj.display()
                     )
                 }
-            }
 
-            if let Some(ppopt) = &self.path_popt {
-                if !ppopt.try_exists().unwrap() {
+            if let Some(ppopt) = &self.path_popt
+                && !ppopt.try_exists().unwrap() {
                     panic!(
                         "The `Optimizer` recorder file  not exists, {}.",
                         ppopt.display()
                     )
                 }
-            }
 
-            if let Some(ppinfo) = &self.path_info {
-                if !ppinfo.try_exists().unwrap() {
+            if let Some(ppinfo) = &self.path_info
+                && !ppinfo.try_exists().unwrap() {
                     panic!("The `Info` file does not exists, {}.", ppinfo.display())
                 }
-            }
 
-            if let Some(ppout) = &self.path_out {
-                if !ppout.try_exists().unwrap() {
+            if let Some(ppout) = &self.path_out
+                && !ppout.try_exists().unwrap() {
                     panic!(
                         "The `Output` recorder file does not exists, {}.",
                         ppout.display()
                     )
                 }
-            }
 
             if !self.path_codom.try_exists().unwrap() {
                 panic!(

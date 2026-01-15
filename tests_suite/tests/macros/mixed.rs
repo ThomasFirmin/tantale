@@ -19,7 +19,7 @@ fn mixed_derive() {
     let v2 = Int::new(0, 1, Uniform);
     let v3 = Nat::new(0, 1, Uniform);
     let v4 = Bool::new(Bernoulli(0.5));
-    let v5 = Cat::new(&["relu", "tanh", "sigmoid"], Uniform);
+    let v5 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
     let v6 = Unit::new(Uniform);
 
     let b1 = Base::Real(v1.clone());

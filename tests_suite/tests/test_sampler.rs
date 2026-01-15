@@ -41,8 +41,7 @@ mod check_sampler {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let cat_1 = Cat::new(&ACTIVATION, Uniform);
+        let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -97,8 +96,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_cat_base() {
         let mut rng = rand::rng();
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let basedom: BaseDom = Cat::new(&ACTIVATION, Uniform).into();
+        let basedom: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -130,9 +128,8 @@ mod check_sampler_base {
         let basedom_bool_1: BaseDom = Bool::new(Bernoulli(0.5)).into();
         let basedom_bool_2: BaseDom = Bool::new(Bernoulli(0.5)).into();
 
-        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-        let basedom_cat_1: BaseDom = Cat::new(&ACTIVATION, Uniform).into();
-        let basedom_cat_2: BaseDom = Cat::new(&ACTIVATION, Uniform).into();
+        let basedom_cat_1: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
+        let basedom_cat_2: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
 
         let basedom_unit_1: BaseDom = Unit::new(Uniform).into();
         let basedom_unit_2: BaseDom = Unit::new(Uniform).into();

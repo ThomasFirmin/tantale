@@ -1,5 +1,3 @@
-static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
-
 pub mod sp_ms_nosamp {
     use tantale_core::{
         domain::{Bool, Cat, Int, Nat, Real},
@@ -12,7 +10,7 @@ pub mod sp_ms_nosamp {
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)   | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -27,7 +25,7 @@ pub mod sp_ms_onemsamp {
     hpo!(
         a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                  | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -42,7 +40,7 @@ pub mod sp_ms_onemsamp_offset {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)   | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -57,7 +55,7 @@ pub mod sp_ms_multiplemsamp {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)   | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -72,7 +70,7 @@ pub mod sp_ms_allmsamp {
     hpo!(
         a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)   | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -87,7 +85,7 @@ pub mod sp_ms_onemsamp_right {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                  | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -102,7 +100,7 @@ pub mod sp_ms_onemsamp_offset_right {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                  | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -117,7 +115,7 @@ pub mod sp_ms_multiplemsamp_right {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        c | Cat(&super::ACTIVATION, Uniform)                  | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -132,7 +130,7 @@ pub mod sp_ms_allmsamp_right {
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
         b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
-        c | Cat(&super::ACTIVATION, Uniform)   | Real(0.0,1.0, Uniform)    ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)    ;
         d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)    ;
     );
 }
@@ -147,7 +145,7 @@ pub mod sp_ms_onemsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
         b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)          | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -162,7 +160,7 @@ pub mod sp_ms_onemsamp_offset_leftright {
     hpo!(
         a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                  | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -177,7 +175,7 @@ pub mod sp_ms_multiplemsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)              | Real(0.0,1.0, Uniform) ;
-        c | Cat(&super::ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                  | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -192,7 +190,7 @@ pub mod sp_ms_allmsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform)    ;
         b | Nat(0,100, Uniform)       | Real(0.0,1.0, Uniform)    ;
-        c | Cat(&super::ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)    ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform)    ;
         d | Bool(Bernoulli(0.5))            | Real(0.0,1.0, Uniform)    ;
     );
 }
@@ -213,7 +211,7 @@ pub mod sp_sm_nosamp {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
     );
 }
@@ -228,7 +226,7 @@ pub mod sp_sm_onemsamp {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)                         ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)                         ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
     );
 }
@@ -243,7 +241,7 @@ pub mod sp_sm_onemsamp_offset {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
     );
 }
@@ -258,7 +256,7 @@ pub mod sp_sm_multiplemsamp {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
     );
 }
@@ -273,7 +271,7 @@ pub mod sp_sm_allmsamp {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
     );
 }
@@ -288,7 +286,7 @@ pub mod sp_sm_onemsamp_left {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)       ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(&super::ACTIVATION, Uniform) ;
+        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
     );
 }
@@ -303,7 +301,7 @@ pub mod sp_sm_onemsamp_offset_left {
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform) ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
     );
 }
@@ -318,7 +316,7 @@ pub mod sp_sm_multiplemsamp_left {
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)       ;
         b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(&super::ACTIVATION, Uniform) ;
+        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
         d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))           ;
     );
 }
@@ -333,7 +331,7 @@ pub mod sp_sm_allmsamp_left {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
     );
 }
@@ -348,7 +346,7 @@ pub mod sp_sm_onemsamp_leftright {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)         ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)                        ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(&super::ACTIVATION, Uniform)                  ;
+        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform)                  ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
     );
 }
@@ -363,7 +361,7 @@ pub mod sp_sm_onemsamp_offset_leftright {
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                        ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)                        ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)   ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
     );
 }
@@ -378,7 +376,7 @@ pub mod sp_sm_multiplemsamp_leftright {
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)                       ;
         b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(&super::ACTIVATION, Uniform)  ;
+        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
     );
 }
@@ -393,7 +391,7 @@ pub mod sp_sm_allmsamp_leftright {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)        ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)   ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))             ;
     );
 }
@@ -414,7 +412,7 @@ pub mod sp_m_equal_nosamp {
     hpo!(
         a | Int(0,100, Uniform)       | ;
         b | Nat(0,100, Uniform)       | ;
-        c | Cat(&super::ACTIVATION, Uniform) | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
         d | Bool(Bernoulli(0.5))           | ;
     );
 }
@@ -429,7 +427,7 @@ pub mod sp_m_equal_onemsamp {
     hpo!(
         a | Int(0,100, Uniform)       |  ;
         b | Nat(0,100, Uniform)       |                ;
-        c | Cat(&super::ACTIVATION, Uniform) |                ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |                ;
         d | Bool(Bernoulli(0.5))           |                ;
     );
 }
@@ -444,7 +442,7 @@ pub mod sp_m_equal_onemsamp_offset {
     hpo!(
         a | Int(0,100, Uniform)       |                         ;
         b | Nat(0,100, Uniform)       |                         ;
-        c | Cat(&super::ACTIVATION, Uniform) |   ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |   ;
         d | Bool(Bernoulli(0.5))           |                         ;
     );
 }
@@ -459,7 +457,7 @@ pub mod sp_m_equal_multiplemsamp {
     hpo!(
         a | Int(0,100, Uniform)       |                         ;
         b | Nat(0,100, Uniform)       |         ;
-        c | Cat(&super::ACTIVATION, Uniform) |          ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |          ;
         d | Bool(Bernoulli(0.5))           |                         ;
     );
 }
@@ -474,7 +472,7 @@ pub mod sp_m_equal_allmsamp {
     hpo!(
         a | Int(0,100, Uniform)       |           ;
         b | Nat(0,100, Uniform)       |         ;
-        c | Cat(&super::ACTIVATION, Uniform) |          ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |          ;
         d | Bool(Bernoulli(0.5))           |          ;
     );
 }
@@ -489,7 +487,7 @@ pub mod sp_m_equal_onemsamp_left {
     hpo!(
         a | Int(0,100, Uniform)        | ;
         b | Nat(0,100, Uniform)                      | ;
-        c | Cat(&super::ACTIVATION, Uniform)                | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                | ;
         d | Bool(Bernoulli(0.5))                          | ;
     );
 }
@@ -504,7 +502,7 @@ pub mod sp_m_equal_onemsamp_offset_left {
     hpo!(
         a | Int(0,100, Uniform)                      | ;
         b | Nat(0,100, Uniform)                      | ;
-        c | Cat(&super::ACTIVATION, Uniform) | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
         d | Bool(Bernoulli(0.5))                          | ;
     );
 }
@@ -519,7 +517,7 @@ pub mod sp_m_equal_multiplemsamp_left {
     hpo!(
         a | Int(0,100, Uniform)                      | ;
         b | Nat(0,100, Uniform)      | ;
-        c | Cat(&super::ACTIVATION, Uniform) | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
         d | Bool(Bernoulli(0.5))                          | ;
     );
 }
@@ -534,7 +532,7 @@ pub mod sp_m_equal_allmsamp_left {
     hpo!(
         a | Int(0,100, Uniform)         | ;
         b | Nat(0,100, Uniform)       | ;
-        c | Cat(&super::ACTIVATION, Uniform)  | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | ;
         d | Bool(Bernoulli(0.5))            | ;
     );
 }
@@ -549,7 +547,7 @@ pub mod sp_m_equal_onemsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)        |   ;
         b | Nat(0,100, Uniform)                      |                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                |                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                |                 ;
         d | Bool(Bernoulli(0.5))                          |                 ;
     );
 }
@@ -564,7 +562,7 @@ pub mod sp_m_equal_onemsamp_offset_leftright {
     hpo!(
         a | Int(0,100, Uniform)                      |                 ;
         b | Nat(0,100, Uniform)                      |                 ;
-        c | Cat(&super::ACTIVATION, Uniform) |  ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |  ;
         d | Bool(Bernoulli(0.5))                          |                 ;
     );
 }
@@ -579,7 +577,7 @@ pub mod sp_m_equal_multiplemsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)                      |                 ;
         b | Nat(0,100, Uniform)      | ;
-        c | Cat(&super::ACTIVATION, Uniform) |  ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |  ;
         d | Bool(Bernoulli(0.5))                          |                 ;
     );
 }
@@ -594,7 +592,7 @@ pub mod sp_m_equal_allmsamp_leftright {
     hpo!(
         a | Int(0,100, Uniform)         |   ;
         b | Nat(0,100, Uniform)       | ;
-        c | Cat(&super::ACTIVATION, Uniform)  |  ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  |  ;
         d | Bool(Bernoulli(0.5))            |  ;
     );
 }
@@ -1011,7 +1009,7 @@ pub mod sp_ms_nosamp_holes {
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                |                               ;
-        c | Cat(&super::ACTIVATION, Uniform)          | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1026,7 +1024,7 @@ pub mod sp_ms_onemsamp_holes {
     hpo!(
         a | Int(0,100, Uniform)                 |                               ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                         | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1041,7 +1039,7 @@ pub mod sp_ms_onemsamp_offset_holes {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)          |                               ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          |                               ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1056,7 +1054,7 @@ pub mod sp_ms_multiplemsamp_holes {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)               |                               ;
-        c | Cat(&super::ACTIVATION, Uniform)          |                               ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          |                               ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1071,7 +1069,7 @@ pub mod sp_ms_allmsamp_holes {
     hpo!(
         a | Int(0,100, Uniform)                 |                               ;
         b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)          | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                    |                               ;
     );
 }
@@ -1086,7 +1084,7 @@ pub mod sp_ms_onemsamp_right_holes {
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
         b | Nat(0,100, Uniform)                               |                               ;
-        c | Cat(&super::ACTIVATION, Uniform)                         | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1101,7 +1099,7 @@ pub mod sp_ms_onemsamp_offset_right_holes {
     hpo!(
         a | Int(0,100, Uniform)                               |                               ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1116,7 +1114,7 @@ pub mod sp_ms_multiplemsamp_right_holes {
     hpo!(
         a | Int(0,100, Uniform)                               |                               ;
         b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        c | Cat(&super::ACTIVATION, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                   |                               ;
     );
 }
@@ -1131,7 +1129,7 @@ pub mod sp_ms_allmsamp_right_holes {
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
         b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)                    ;
-        c | Cat(&super::ACTIVATION, Uniform)          | Real(0.0,1.0, Uniform)                    ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                    ;
         d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)    ;
     );
 }
@@ -1146,7 +1144,7 @@ pub mod sp_ms_onemsamp_leftright_holes {
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
         b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(&super::ACTIVATION, Uniform)                 |                               ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                 |                               ;
         d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1161,7 +1159,7 @@ pub mod sp_ms_onemsamp_offset_leftright_holes {
     hpo!(
         a | Int(0,100, Uniform)                              |                               ;
         b | Nat(0,100, Uniform)                              |                               ;
-        c | Cat(&super::ACTIVATION, Uniform)         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)         | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                  |                               ;
     );
 }
@@ -1176,7 +1174,7 @@ pub mod sp_ms_multiplemsamp_leftright_holes {
     hpo!(
         a | Int(0,100, Uniform)                            | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)            | Real(0.0,1.0, Uniform) ;
-        c | Cat(&super::ACTIVATION, Uniform)       | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)       | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                                |                               ;
     );
 }
@@ -1197,7 +1195,7 @@ pub mod sp_sm_nosamp_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) |                           ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
     );
 }
@@ -1212,7 +1210,7 @@ pub mod sp_sm_onemsamp_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
         b | Real(0.0,1.0, Uniform) |                                          ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)                         ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)                         ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
     );
 }
@@ -1227,7 +1225,7 @@ pub mod sp_sm_onemsamp_offset_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) |                                          ;
     );
 }
@@ -1242,7 +1240,7 @@ pub mod sp_sm_multiplemsamp_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) |                                          ;
         b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) |                                          ;
     );
 }
@@ -1257,7 +1255,7 @@ pub mod sp_sm_onemsamp_left_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) |                  ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(&super::ACTIVATION, Uniform) ;
+        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
     );
 }
@@ -1272,7 +1270,7 @@ pub mod sp_sm_onemsamp_offset_left_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
         b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform) ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
         d | Real(0.0,1.0, Uniform)                 |                  ;
     );
 }
@@ -1302,7 +1300,7 @@ pub mod sp_sm_allmsamp_left_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
         b | Real(0.0,1.0, Uniform) |                           ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)          ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
         d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
     );
 }
@@ -1317,7 +1315,7 @@ pub mod sp_sm_onemsamp_leftright_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
         b | Real(0.0,1.0, Uniform)                 |                                   ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(&super::ACTIVATION, Uniform)                  ;
+        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform)                  ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
     );
 }
@@ -1332,7 +1330,7 @@ pub mod sp_sm_onemsamp_offset_leftright_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform)                 |                                   ;
         b | Real(0.0,1.0, Uniform)                 |                                   ;
-        c | Real(0.0,1.0, Uniform) | Cat(&super::ACTIVATION, Uniform)   ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
         d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
     );
 }
@@ -1347,7 +1345,7 @@ pub mod sp_sm_multiplemsamp_leftright_holes {
     hpo!(
         a | Real(0.0,1.0, Uniform)                  |                                  ;
         b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(&super::ACTIVATION, Uniform)  ;
+        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
     );
 }
@@ -1362,7 +1360,7 @@ pub mod sp_repeats {
     hpo!(
         a_{3} | Real(0.0,1.0, Uniform)                  |                                  ;
         b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c        | Real(0.0,1.0, Uniform)  | Cat(&super::ACTIVATION, Uniform)  ;
+        c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
     );
 }
@@ -1377,7 +1375,7 @@ pub mod sp_repeats_inc {
     hpo!(
         a_{3} | Real(0.0,1.0, Uniform)                  |                                  ;
         b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c        | Real(0.0,1.0, Uniform)  | Cat(&super::ACTIVATION, Uniform)  ;
+        c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
     );
 }
@@ -1392,7 +1390,7 @@ pub mod sp_one_missing_to_single {
     hpo!(
         a | Real(0.0,1.0, Uniform)                   |                               ;
         b | Nat(0,100, Uniform)      | Real(0.0,1.0, Uniform) ;
-        c | Cat(&super::ACTIVATION, Uniform) | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) ;
         d | Bool(Bernoulli(0.5))                          | Real(0.0,1.0, Uniform)                 ;
     );
 }
@@ -1482,10 +1480,10 @@ pub mod sp_only_cat {
     pub const SP_SIZE: usize = 4;
 
     hpo!(
-        a | Cat(&super::ACTIVATION, Uniform) | ;
-        b | Cat(&super::ACTIVATION, Uniform) | ;
-        c | Cat(&super::ACTIVATION, Uniform) | ;
-        d | Cat(&super::ACTIVATION, Uniform) | ;
+        a | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
+        b | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
+        d | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
     );
 }
 

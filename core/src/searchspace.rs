@@ -118,6 +118,9 @@ use std::sync::Arc;
 pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
     <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>;
 
+pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
+    Option<<<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>>;
+
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
 pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
 where

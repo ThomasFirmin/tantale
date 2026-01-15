@@ -50,7 +50,7 @@ fn obj_test() {
                 let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];
                 let some_bool = [! boolvar | Bool(Bernoulli(0.5)) | !];
                 let some_nat = [! natvar | Nat(0,10,Uniform) | !];
-                let some_cat = [! catvar | Cat(&["relu", "tanh", "sigmoid"],Uniform) |!];
+                let some_cat = [! catvar | Cat(["relu", "tanh", "sigmoid"],Uniform) |!];
 
                 let some_int = plus_one_int([! intvar | Int(-10,0,Uniform) | !]);
 

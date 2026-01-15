@@ -1,4 +1,4 @@
-use crate::{experiment::OutBatchEvaluate, solution::shape::SolOpt};
+use crate::experiment::OutBatchEvaluate;
 use crate::{
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
@@ -29,7 +29,7 @@ use crate::{
         mpi::utils::{FXMessage, PriorityList, SendRec},
         DistEvaluate,
     },
-    solution::shape::SolObj,
+    solution::shape::{SolObj,SolOpt},
 };
 
 #[derive(Serialize, Deserialize)]
