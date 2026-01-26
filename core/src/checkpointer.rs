@@ -1,9 +1,9 @@
+use crate::{GlobalParameters, SaverConfig, experiment::Evaluate, optimizer::OptState, stop::Stop};
 #[cfg(feature = "mpi")]
 use crate::{
     config::NoConfig,
     experiment::mpi::{utils::MPIProcess, worker::WorkerState},
 };
-use crate::{experiment::Evaluate, optimizer::OptState, stop::Stop, GlobalParameters, SaverConfig};
 
 #[cfg(feature = "mpi")]
 use mpi::Rank;
@@ -47,7 +47,7 @@ where
 }
 
 /// A [`ThrCheckpointer`] is a [`Checkpointer`] for threaded experiment where each threat has it's own state.
-pub trait ThrCheckpointer:Checkpointer
+pub trait ThrCheckpointer: Checkpointer
 where
     Self: Sized,
 {
@@ -65,7 +65,7 @@ where
     );
     /// Load an existing checkpoint.
     fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
-        &self
+        &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError>;
     /// Load the [`Stop`] from an existing checkpoint.
     fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError>;

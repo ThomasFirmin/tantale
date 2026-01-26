@@ -18,7 +18,7 @@
 //! assert_eq!(dom.width(), 255);
 //! ```
 
-use crate::{errors::OntoError, Domain};
+use crate::{Domain, errors::OntoError};
 
 pub trait Linked {
     type Obj: Domain;

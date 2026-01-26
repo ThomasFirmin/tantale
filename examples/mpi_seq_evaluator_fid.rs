@@ -1,20 +1,27 @@
 use mpi::traits::Communicator;
-use tantale::core::{stop::Calls, EmptyInfo, Searchspace, SingleCodomain};
+use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped, checkpointer::NoCheck, domain::{NoDomain, TypeDom}, experiment::{
-        DistEvaluate, DistOutShapeEvaluate, mpi::{
+    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped,
+    checkpointer::NoCheck,
+    domain::{NoDomain, TypeDom},
+    experiment::{
+        DistEvaluate, DistOutShapeEvaluate,
+        mpi::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
-        }, sequential::seqfidevaluator::FidDistSeqEvaluator
-    }, objective::Step, solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape}
+        },
+        sequential::seqfidevaluator::FidDistSeqEvaluator,
+    },
+    objective::Step,
+    solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape},
 };
 
 use std::sync::Arc;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{objective::outcome::FuncState, EvalStep};
+    use tantale::core::{EvalStep, objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
     #[derive(Serialize, Deserialize)]
@@ -50,11 +57,11 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
+        use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
         use tantale_core::{
+            Bool, Cat, Int, Nat, Real,
             objective::Step,
             sampler::{Bernoulli, Uniform},
-            Bool, Cat, Int, Nat, Real,
         };
         use tantale_macros::objective;
 
@@ -95,7 +102,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, FidOutEvaluator, FnState};
+use init_func::{FidOutEvaluator, FnState, sp_evaluator};
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -134,7 +141,7 @@ fn main() {
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_pair(&sp, Some(&mut rng), 4, sinfo.clone());
+        >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sobj().x.clone()))
@@ -156,17 +163,32 @@ fn main() {
             Sp<BaseDom, NoDomain>,
             FidOutEvaluator,
             Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            Option<DistOutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+            Option<
+                DistOutShapeEvaluate<
+                    SId,
+                    EmptyInfo,
+                    Sp<BaseDom, NoDomain>,
+                    FidBasePartial<SId, BaseDom, EmptyInfo>,
+                    SingleCodomain<FidOutEvaluator>,
+                    FidOutEvaluator,
+                >,
+            >,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
-        let (_, (comp,raw)) = out.unwrap();
+        let (_, (comp, raw)) = out.unwrap();
 
         assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
-        let comobjid = sobj_bis.iter().find(|(id,_)| &comp.get_id() == id).unwrap();
-        let comoptid = sopt_bis.iter().find(|(id,_)| &comp.get_id() == id).unwrap();
-        let rawobjid = sobj_bis.iter().find(|(id,_)| &raw.0 == id);
-        let rawoptid = sopt_bis.iter().find(|(id,_)| &raw.0 == id);
+        let comobjid = sobj_bis
+            .iter()
+            .find(|(id, _)| &comp.get_id() == id)
+            .unwrap();
+        let comoptid = sopt_bis
+            .iter()
+            .find(|(id, _)| &comp.get_id() == id)
+            .unwrap();
+        let rawobjid = sobj_bis.iter().find(|(id, _)| &raw.0 == id);
+        let rawoptid = sopt_bis.iter().find(|(id, _)| &raw.0 == id);
 
         assert!(
             Arc::ptr_eq(&comp.get_sobj().sol.x, &comobjid.1),
@@ -176,13 +198,19 @@ fn main() {
             Arc::ptr_eq(&comp.get_sopt().sol.x, &comoptid.1),
             "Opt Partial and Computed do not point to the same solutions."
         );
-        assert!(rawobjid.is_some(),"Obj Id Raw and Partial do not point to the same solutions.");
-        assert!(rawoptid.is_some(),"Opt Id Raw and Partial do not point to the same solutions.");
+        assert!(
+            rawobjid.is_some(),
+            "Obj Id Raw and Partial do not point to the same solutions."
+        );
+        assert!(
+            rawoptid.is_some(),
+            "Opt Id Raw and Partial do not point to the same solutions."
+        );
 
         let mut step = comp.step();
         eval.update(IntoComputed::extract(comp).0);
 
-        while step != Step::Evaluated{
+        while step != Step::Evaluated {
             let out = <FidDistSeqEvaluator<
                 SId,
                 EmptyInfo,
@@ -194,15 +222,24 @@ fn main() {
                 Sp<BaseDom, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
+                Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                Option<DistOutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+                Option<
+                    DistOutShapeEvaluate<
+                        SId,
+                        EmptyInfo,
+                        Sp<BaseDom, NoDomain>,
+                        FidBasePartial<SId, BaseDom, EmptyInfo>,
+                        SingleCodomain<FidOutEvaluator>,
+                        FidOutEvaluator,
+                    >,
+                >,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
-            let (_,(comp,_)) = out.unwrap();
+            let (_, (comp, _)) = out.unwrap();
             step = comp.step();
             eval.update(IntoComputed::extract(comp).0);
         }
-        
+
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
         proc.world.abort(42)
     }

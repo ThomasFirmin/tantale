@@ -17,7 +17,7 @@ use crate::solution::Solution;
 #[cfg(doc)]
 use crate::variable::var::Var;
 
-use rand::{prelude::Rng};
+use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
@@ -30,7 +30,7 @@ pub trait PreDomain: Debug {}
 ///
 /// A [`Domain`] should always have a `::new(...)->Self` method.
 /// This method is used in the [`objective!`](../../../tantale/macros/macro.objective.html) and [`sp!`](../../../tantale/macros/macro.sp.html) procedural macro.
-pub trait Domain: PreDomain + Sized + PartialEq + Debug{
+pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     /// [`TypeDom`](Domain::TypeDom) defines the type of a point sampled
     /// from the [`Domain`]. This is one of the main component defining
     /// most of the typing within the library.
@@ -50,7 +50,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug{
     ///
     /// * `rng` : `&mut`[`Rng`](rand::prelude::Rng) - The RNG from [`rand`].
     ///
-    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom;
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom;
     /// Returns `true` if a given borrowed `point` is in the domain. Otherwise returns `false`.
     ///
     /// # Parameters

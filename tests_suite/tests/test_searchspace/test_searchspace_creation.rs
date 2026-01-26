@@ -1,7 +1,7 @@
 use paste::paste;
 
 use tantale::core::{
-    solution::shape::SolutionShape, BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp,
+    BasePartial, EmptyInfo, SId, Searchspace, Solution, Sp, solution::shape::SolutionShape,
 };
 
 use super::init_sp::*;

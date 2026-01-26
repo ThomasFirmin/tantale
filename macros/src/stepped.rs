@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
-use crate::hpo::{get_sp_tokens, parse_sp, LineStream};
-use crate::objective::{extract_var, reconstruct_mixed, reconstruct_simple, CustomFunction};
+use crate::hpo::{LineStream, get_sp_tokens, parse_sp};
+use crate::objective::{CustomFunction, extract_var, reconstruct_mixed, reconstruct_simple};
 
 use proc_macro::TokenStream;
 use quote::quote;

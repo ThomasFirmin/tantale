@@ -1,14 +1,25 @@
 use std::{cell::RefCell, sync::Arc};
 
 use tantale_core::{
-    BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped, domain::{
+    BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped,
+    domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
-    }, objective::{Step, outcome::{FuncState, Outcome}}, optimizer::{
-        EmptyInfo, OptInfo, OptState, opt::{BatchOptimizer, Optimizer, SequentialOptimizer}
-    }, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{
-        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidBasePartial, shape::RawObj
-    }
+    },
+    objective::{
+        Step,
+        outcome::{FuncState, Outcome},
+    },
+    optimizer::{
+        EmptyInfo, OptInfo, OptState,
+        opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
+    },
+    recorder::csv::CSVWritable,
+    searchspace::{CompShape, OptionCompShape, Searchspace},
+    solution::{
+        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidBasePartial,
+        shape::RawObj,
+    },
 };
 
 use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
@@ -32,7 +43,6 @@ impl CSVWritable<(), ()> for RSInfo {
     }
 }
 
-
 //------------------//
 //--- SEQUENTIAL ---//
 //------------------//
@@ -45,9 +55,7 @@ pub struct RandomSearch(pub SeqRSState);
 
 impl RandomSearch {
     pub fn new() -> Self {
-        RandomSearch(
-            SeqRSState,
-        )
+        RandomSearch(SeqRSState)
     }
 
     pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
@@ -60,7 +68,7 @@ impl RandomSearch {
         };
         out.into()
     }
-    
+
     fn with_rng<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut StdRng) -> T,
@@ -130,16 +138,18 @@ where
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn step(
-            &mut self,
-            _x: OptionCompShape<Scp, BasePartial<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
-            scp: &Scp,
-        ) -> Scp::SolShape
-    {
-        self.with_rng(|rng|
-            {
-                scp.sample_pair(rng, EmptyInfo.into())       
-            }
-        )
+        &mut self,
+        _x: OptionCompShape<
+            Scp,
+            BasePartial<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
+        scp: &Scp,
+    ) -> Scp::SolShape {
+        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
     }
 }
 
@@ -161,34 +171,32 @@ where
     FnState: FuncState,
 {
     fn step(
-            &mut self,
-            x: OptionCompShape<Scp, FidBasePartial<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
-            scp: &Scp,
-        ) -> Scp::SolShape
-    {
-        match x{
-            Some(comp) => 
-            {
-                let (pair, _): (Scp::SolShape, Arc<TypeCodom<SingleCodomain<Out>, Out>>) = IntoComputed::extract(comp);
+        &mut self,
+        x: OptionCompShape<
+            Scp,
+            FidBasePartial<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
+        scp: &Scp,
+    ) -> Scp::SolShape {
+        match x {
+            Some(comp) => {
+                let (pair, _): (Scp::SolShape, Arc<TypeCodom<SingleCodomain<Out>, Out>>) =
+                    IntoComputed::extract(comp);
                 match pair.step() {
                     Step::Pending => {
-                        unreachable!("A pending SolShape, should not be passed to RandomSearch step.")
+                        unreachable!(
+                            "A pending SolShape, should not be passed to RandomSearch step."
+                        )
                     }
                     Step::Partially(_) => pair,
-                    _ => self.with_rng(
-                        |rng|
-                        {
-                            scp.sample_pair(rng, EmptyInfo.into())
-                        }
-                    ),
+                    _ => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
                 }
-            },
-            None => self.with_rng(
-                        |rng|
-                        {
-                            scp.sample_pair(rng, EmptyInfo.into())
-                        }
-                    ),
+            }
+            None => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
         }
     }
 }
@@ -204,9 +212,13 @@ pub struct BatchRSState {
     _emptyinfo: Arc<EmptyInfo>,
 }
 
-impl BatchRSState{
-    pub fn new(batch:usize, iteration:usize) -> Self{
-        BatchRSState { batch, iteration, _emptyinfo: Arc::new(EmptyInfo) }
+impl BatchRSState {
+    pub fn new(batch: usize, iteration: usize) -> Self {
+        BatchRSState {
+            batch,
+            iteration,
+            _emptyinfo: Arc::new(EmptyInfo),
+        }
     }
 }
 impl OptState for BatchRSState {}
@@ -373,14 +385,15 @@ where
         >,
         scp: &Scp,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let pairs: Vec<_> = x.into_iter().map(|p| 
-            {
-                match p.step() {
-                    Step::Evaluated | Step::Discard| Step::Error => scp.sample_pair(&mut self.1, self.0._emptyinfo.clone()),
-                    _ => IntoComputed::extract(p).0,
+        let pairs: Vec<_> = x
+            .into_iter()
+            .map(|p| match p.step() {
+                Step::Evaluated | Step::Discard | Step::Error => {
+                    scp.sample_pair(&mut self.1, self.0._emptyinfo.clone())
                 }
-            }
-        ).collect();
+                _ => IntoComputed::extract(p).0,
+            })
+            .collect();
         self.0.iteration += 1;
         let info = RSInfo {
             iteration: self.0.iteration,

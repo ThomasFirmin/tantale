@@ -18,12 +18,12 @@
 
 use crate::{
     domain::{
+        Domain, PreDomain, TypeDom,
         base::{BaseDom, BaseTypeDom},
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         cat::Cat,
         onto::{Onto, OntoDom},
-        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -254,37 +254,29 @@ impl Onto<BaseDom> for Unit {
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
-        match target{
-            BaseDom::Real(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Real(i)),
-                    Err(e) => Err(e),
-                }
+        match target {
+            BaseDom::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Real(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Int(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Int(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Int(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
-            BaseDom::Bool(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Bool(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Unit(_d) => unreachable!(
+                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
+            ),
+            BaseDom::Bool(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Bool(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Cat(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Cat(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Cat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Cat(i)),
+                Err(e) => Err(e),
             },
         }
     }

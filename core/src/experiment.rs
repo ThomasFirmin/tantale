@@ -1,11 +1,17 @@
 use crate::{
-    SId, Searchspace, checkpointer::{Checkpointer, ThrCheckpointer}, domain::onto::LinkOpt, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
+    SId, Searchspace,
+    checkpointer::{Checkpointer, ThrCheckpointer},
+    domain::onto::LinkOpt,
+    objective::{FuncWrapper, Outcome},
+    optimizer::Optimizer,
+    recorder::Recorder,
+    searchspace::CompShape,
+    solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
+    stop::Stop,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
-#[cfg(feature = "mpi")]
-use ::mpi::Rank;
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::DistCheckpointer,
@@ -14,12 +20,14 @@ use crate::{
         worker::Worker,
     },
     recorder::DistRecorder,
-    solution::{shape::SolObj, HasY},
+    solution::{HasY, shape::SolObj},
 };
+#[cfg(feature = "mpi")]
+use ::mpi::Rank;
 
 // BASICS
 pub mod basics;
-pub use basics::{MonoExperiment,ThrExperiment};
+pub use basics::{MonoExperiment, ThrExperiment};
 // BATCHED
 pub mod batched;
 pub use batched::batchevaluator::{BatchEvaluator, ThrBatchEvaluator};
@@ -54,8 +62,8 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,
 {
-    <MonoExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::new(
-        space, objective, optimizer, stop, saver
+    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
+        space, objective, optimizer, stop, saver,
     )
 }
 
@@ -81,8 +89,8 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,
 {
-    <ThrExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::new(
-        space, objective, optimizer, stop, saver
+    <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
+        space, objective, optimizer, stop, saver,
     )
 }
 
@@ -96,7 +104,19 @@ pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     optimizer: Op,
     stop: St,
     saver: (Option<Rec>, Option<Check>),
-) -> MasterWorker<'a, MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> MasterWorker<
+    'a,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    PSol,
+    SId,
+    Scp,
+    Op,
+    St,
+    Rec,
+    Check,
+    Out,
+    Fn,
+>
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
@@ -130,16 +150,15 @@ where
     MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,
 {
-    <MonoExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::load(
-        space, objective, saver
+    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load(
+        space, objective, saver,
     )
 }
 
@@ -156,16 +175,22 @@ where
     ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod, Out>:
-        SolutionShape<SId, Op::SInfo>,
+    CompShape<
+        Scp,
+        PSol,
+        SId,
+        Op::SInfo,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        Out,
+    >: SolutionShape<SId, Op::SInfo>,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: ThrCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,
 {
-    <ThrExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::load(
-        space, objective, saver
+    <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load(
+        space, objective, saver,
     )
 }
 
@@ -174,10 +199,25 @@ where
 /// Load a [`MPIExperiment`] from a saver (dist-recorder optional, dist-checkpointer required).
 pub fn distributed_load<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
-    space: (Scp, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod),
+    space: (
+        Scp,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+    ),
     objective: Fn,
     saver: (Option<Rec>, Check),
-) -> MasterWorker<'a, MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> MasterWorker<
+    'a,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    PSol,
+    SId,
+    Scp,
+    Op,
+    St,
+    Rec,
+    Check,
+    Out,
+    Fn,
+>
 where
     Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
@@ -185,8 +225,14 @@ where
     MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod, Out>:
-        SolutionShape<SId, Op::SInfo>,
+    CompShape<
+        Scp,
+        PSol,
+        SId,
+        Op::SInfo,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        Out,
+    >: SolutionShape<SId, Op::SInfo>,
     Rec: DistRecorder<PSol, SId, Out, Scp, Op>,
     Check: DistCheckpointer,
     Out: Outcome,
@@ -200,7 +246,6 @@ where
         saver
     )
 }
-
 
 /// Helper macro to call the `_load` helpers while only specifying the `Op` and `St` types.
 /// Usage:
@@ -230,13 +275,17 @@ macro_rules! load {
 #[cfg(feature = "mpi")]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<$Op, $St,_,_,_,_,_,_,_>($space, $objective, $saver)
+        $crate::experiment::mono_load::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load::<$Op, $St,_,_,_,_,_,_,_>($space, $objective, $saver)
+        $crate::experiment::threaded_load::<$Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver,
+        )
     };
     (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::distributed_load::<$Op, $St,_,_,_,_,_,_,_>($proc, $space, $objective, $saver)
+        $crate::experiment::distributed_load::<$Op, $St, _, _, _, _, _, _, _>(
+            $proc, $space, $objective, $saver,
+        )
     };
 }
 
@@ -381,15 +430,12 @@ pub type OutBatchEvaluate<SolId, SInfo, Info, Scp, PSol, Cod, Out> = (
     OutBatch<SolId, Info, Out>,
 );
 
-pub type OutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> = (
-    CompShape<Scp, PSol, SolId, SInfo, Cod, Out>,
-    (SolId,Out)
-);
-#[cfg(feature="mpi")]
+pub type OutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> =
+    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, (SolId, Out));
+#[cfg(feature = "mpi")]
 pub type DistOutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> = (
     Rank,
-    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>,
-    (SolId,Out))
+    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, (SolId, Out)),
 );
 
 pub trait Evaluate
@@ -411,16 +457,11 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     fn init(&mut self);
-    fn evaluate(
-        &mut self,
-        ob: &Fn,
-        cod: &Op::Cod,
-        stop: &mut St,
-    ) -> OutType;
+    fn evaluate(&mut self, ob: &Fn, cod: &Op::Cod, stop: &mut St) -> OutType;
 }
 
 /// [`ThrEvaluate`] is an [`Evaluate`] describing how to evaluate, with multi-threading, the output of a [`Optimizer`].
-pub trait ThrEvaluate<PSol, SolId, Op, Scp, Out, St, Fn,OutType>: Evaluate
+pub trait ThrEvaluate<PSol, SolId, Op, Scp, Out, St, Fn, OutType>: Evaluate
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
@@ -432,12 +473,7 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     fn init(&mut self);
-    fn evaluate(
-        &mut self,
-        ob: Arc<Fn>,
-        cod: Arc<Op::Cod>,
-        stop: Arc<Mutex<St>>,
-    ) -> OutType;
+    fn evaluate(&mut self, ob: Arc<Fn>, cod: Arc<Op::Cod>, stop: Arc<Mutex<St>>) -> OutType;
 }
 
 #[cfg(feature = "mpi")]

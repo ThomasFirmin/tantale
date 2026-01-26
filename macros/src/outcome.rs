@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, ItemStruct, Type};
+use syn::{ItemStruct, Type, parse_macro_input, spanned::Spanned};
 
 fn is_vec_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if p.path.segments.last().unwrap().ident == "Vec")

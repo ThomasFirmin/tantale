@@ -2,14 +2,19 @@ use std::sync::{Arc, Mutex};
 
 use rmp_serde;
 use tantale::core::stop::Calls;
-use tantale_algos::{RSInfo, BatchRandomSearch};
+use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, domain::NoDomain, experiment::{
-        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, ThrBatchEvaluator, ThrEvaluate
-    }, solution::{Batch, HasId, Lone, SolutionShape}
+    BaseDom, BasePartial, BaseTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace,
+    SingleCodomain, Sp, Stepped,
+    domain::NoDomain,
+    experiment::{
+        BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
+        ThrBatchEvaluator, ThrEvaluate,
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
 };
 
-use super::init_func::{sp_evaluator, sp_evaluator_fid, FidOutEvaluator, FnState, OutEvaluator};
+use super::init_func::{FidOutEvaluator, FnState, OutEvaluator, sp_evaluator, sp_evaluator_fid};
 
 type BEvaluator = BatchEvaluator<
     SId,
@@ -53,9 +58,7 @@ fn test_serde_batchevaluator() {
         BasePartial<SId, _, _>,
         SId,
         EmptyInfo,
-    >>::vec_sample_obj(
-        &sp, &mut rng, 20, sinfo.clone()
-    );
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval = BatchEvaluator::new(batch);
@@ -90,7 +93,7 @@ fn test_serde_batchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, BasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     let pairs = bcomp
@@ -128,9 +131,7 @@ fn test_serde_thrbatchevaluator() {
         BasePartial<SId, _, _>,
         SId,
         EmptyInfo,
-    >>::vec_sample_obj(
-        &sp, &mut rng, 20, sinfo.clone()
-    );
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval = ThrBatchEvaluator::new(batch);
@@ -171,7 +172,7 @@ fn test_serde_thrbatchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, BasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     let pairs = bcomp
@@ -248,7 +249,7 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
@@ -289,7 +290,7 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
@@ -351,7 +352,7 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
@@ -399,7 +400,7 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(

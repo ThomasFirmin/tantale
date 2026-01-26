@@ -290,7 +290,7 @@ mod check_default_sampler {
 }
 
 mod check_default_sampler_base {
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit,BaseDom};
+    use tantale::core::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale_core::sampler::{Bernoulli, Uniform};
 
     #[test]

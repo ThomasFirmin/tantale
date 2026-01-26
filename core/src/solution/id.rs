@@ -1,4 +1,4 @@
-use crate::{recorder::csv::CSVWritable, SOL_ID};
+use crate::{SOL_ID, recorder::csv::CSVWritable};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{

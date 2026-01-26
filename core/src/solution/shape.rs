@@ -1,11 +1,11 @@
 use crate::{
+    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
     domain::{
-        onto::{LinkObj, LinkOpt, Linked},
         Domain,
+        onto::{LinkObj, LinkOpt, Linked},
     },
     objective::Step,
     solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasY, IntoComputed, Uncomputed},
-    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
 };
 
 use serde::{Deserialize, Serialize};

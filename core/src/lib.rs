@@ -3,9 +3,9 @@
 //! This the core of the library containing most of the submodules, and basic software bricks.
 
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::AtomicUsize;
 #[cfg(feature = "mpi")]
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicUsize;
 
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
 pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);

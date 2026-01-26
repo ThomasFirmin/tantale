@@ -11,8 +11,8 @@ use std::fmt::{Debug, Display};
 use std::process;
 use std::sync::Arc;
 
-use super::init_outcome::{get_struct, OutExample};
-use super::init_sinfo::{get_sinfo, TestSInfo};
+use super::init_outcome::{OutExample, get_struct};
+use super::init_sinfo::{TestSInfo, get_sinfo};
 
 type TestComp<Sol, Dom> =
     Computed<Sol, ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;

@@ -1,6 +1,9 @@
 use tantale::algos::RandomSearch;
 use tantale_core::{
-    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped, experiment::{self, distributed, mpi::utils::MPIProcess}, load, stop::Calls
+    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
+    experiment::{self, distributed, mpi::utils::MPIProcess},
+    load,
+    stop::Calls,
 };
 
 use std::path::Path;
@@ -15,7 +18,7 @@ impl Drop for Cleaner {
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{objective::outcome::FuncState, EvalStep};
+    use tantale::core::{EvalStep, objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -51,11 +54,11 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
+        use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
         use tantale_core::{
+            Bool, Cat, Int, Nat, Real,
             objective::Step,
             sampler::{Bernoulli, Uniform},
-            Bool, Cat, Int, Nat, Real,
         };
         use tantale_macros::objective;
 
@@ -95,7 +98,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, FidOutEvaluator};
+use init_func::{FidOutEvaluator, sp_evaluator};
 
 #[derive(serde::Deserialize)]
 pub struct RowCod {
@@ -249,7 +252,15 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(distributed, &proc, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     if proc.rank == 0 {
         match exp {
@@ -274,7 +285,15 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(distributed, &proc, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     if proc.rank == 0 {
         run_reader("tmp_test_mpi_seq_run_fid", 100);
         match exp {

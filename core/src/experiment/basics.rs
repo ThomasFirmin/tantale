@@ -1,7 +1,20 @@
-use crate::{Id, Optimizer, Outcome, Searchspace, Stop, checkpointer::Checkpointer, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}};
+use crate::{
+    Id, Optimizer, Outcome, Searchspace, Stop,
+    checkpointer::Checkpointer,
+    domain::onto::LinkOpt,
+    experiment::Evaluate,
+    objective::FuncWrapper,
+    optimizer::opt::OpSInfType,
+    recorder::Recorder,
+    searchspace::CompShape,
+    solution::{SolutionShape, Uncomputed, shape::RawObj},
+};
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, recorder::DistRecorder, solution::HasY, experiment::mpi::utils::MPIProcess};
+use crate::{
+    checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, recorder::DistRecorder,
+    solution::HasY,
+};
 
 //--------------------//
 //--- MONOTHREADED ---//

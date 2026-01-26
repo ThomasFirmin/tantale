@@ -1,5 +1,5 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{solution::Uncomputed, ParSId};
+use tantale::core::{ParSId, solution::Uncomputed};
 use tantale_core::domain::TypeDom;
 use tantale_core::{BasePartial, FidBasePartial};
 
@@ -10,7 +10,7 @@ use std::fmt::{Debug, Display};
 use std::process;
 use std::sync::Arc;
 
-use super::init_sinfo::{get_sinfo, TestSInfo};
+use super::init_sinfo::{TestSInfo, get_sinfo};
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &Unc, pid: u32)
 where

@@ -1,20 +1,26 @@
 use mpi::traits::Communicator;
-use tantale::core::{stop::Calls, EmptyInfo, Searchspace, SingleCodomain};
-use tantale_algos::{RSInfo, BatchRandomSearch};
+use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
+use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped, checkpointer::NoCheck, domain::{NoDomain, TypeDom}, experiment::{
-        DistEvaluate, OutBatchEvaluate, batched::batchfidevaluator::FidDistBatchEvaluator, mpi::{
+    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped,
+    checkpointer::NoCheck,
+    domain::{NoDomain, TypeDom},
+    experiment::{
+        DistEvaluate, OutBatchEvaluate,
+        batched::batchfidevaluator::FidDistBatchEvaluator,
+        mpi::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
-        }
-    }, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}
+        },
+    },
+    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
 };
 
 use std::{collections::HashMap, sync::Arc};
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{objective::outcome::FuncState, EvalStep};
+    use tantale::core::{EvalStep, objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
     #[derive(Serialize, Deserialize)]
@@ -50,11 +56,11 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, FidOutEvaluator, FnState, Neuron};
+        use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
         use tantale_core::{
+            Bool, Cat, Int, Nat, Real,
             objective::Step,
             sampler::{Bernoulli, Uniform},
-            Bool, Cat, Int, Nat, Real,
         };
         use tantale_macros::objective;
 
@@ -94,7 +100,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, FidOutEvaluator, FnState};
+use init_func::{FidOutEvaluator, FnState, sp_evaluator};
 
 type BBatch = Batch<
     SId,
@@ -141,7 +147,7 @@ fn main() {
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
@@ -168,7 +174,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();
@@ -259,7 +265,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -281,7 +287,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -303,7 +309,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -325,7 +331,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -347,7 +353,7 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,FidBasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
         assert!(
             stop.calls() >= 20,

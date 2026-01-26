@@ -90,7 +90,7 @@
 
 use std::fmt::Debug;
 
-use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, EvalStep, FidOutcome};
+use crate::{EvalStep, FidOutcome, objective::outcome::Outcome, recorder::csv::CSVWritable};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
@@ -105,8 +105,7 @@ pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
 
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
-pub trait Codomain<Out: Outcome>: Debug
-{
+pub trait Codomain<Out: Outcome>: Debug {
     type TypeCodom: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;
 }

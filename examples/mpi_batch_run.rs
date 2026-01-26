@@ -1,6 +1,9 @@
 use tantale::algos::BatchRandomSearch;
 use tantale_core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective, experiment::{self, distributed, mpi::utils::MPIProcess}, load, stop::Calls
+    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective,
+    experiment::{self, distributed, mpi::utils::MPIProcess},
+    load,
+    stop::Calls,
 };
 
 use std::path::Path;
@@ -43,7 +46,7 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+        use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
         use tantale_core::sampler::{Bernoulli, Uniform};
@@ -73,7 +76,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, OutEvaluator};
+use init_func::{OutEvaluator, sp_evaluator};
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -150,7 +153,15 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(distributed, &proc, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     if proc.rank == 0 {
         match exp {
@@ -177,7 +188,15 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(distributed, &proc, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     if proc.rank == 0 {
         run_reader("tmp_test_mpi_batch_run", 100);
         match exp {

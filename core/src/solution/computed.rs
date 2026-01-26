@@ -1,11 +1,11 @@
 use crate::{
+    EvalStep, Fidelity,
     domain::{Codomain, Domain},
     objective::{Outcome, Step},
     solution::{
         HasFidelity, HasId, HasSolInfo, HasStep, HasUncomputed, HasY, Id, IntoComputed, SolInfo,
         Solution, Uncomputed,
     },
-    EvalStep, Fidelity,
 };
 
 use serde::{Deserialize, Serialize};

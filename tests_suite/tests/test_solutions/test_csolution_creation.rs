@@ -1,7 +1,7 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{
-    solution::{HasId, HasSolInfo, HasY, Uncomputed},
     BasePartial, Codomain, Computed, FidBasePartial, ParSId, SingleCodomain,
+    solution::{HasId, HasSolInfo, HasY, Uncomputed},
 };
 use tantale_core::Solution;
 
@@ -12,8 +12,8 @@ use std::fmt::{Debug, Display};
 use std::process;
 use std::sync::Arc;
 
-use super::init_outcome::{get_struct, OutExample};
-use super::init_sinfo::{get_sinfo, TestSInfo};
+use super::init_outcome::{OutExample, get_struct};
+use super::init_sinfo::{TestSInfo, get_sinfo};
 
 type TestComp<Sol, Dom> =
     Computed<Sol, ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;

@@ -1,10 +1,10 @@
 extern crate proc_macro;
 
-use crate::hpo::{get_sp_tokens, parse_sp, LineStream};
+use crate::hpo::{LineStream, get_sp_tokens, parse_sp};
 
 use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use quote::quote;
-use syn::{braced, parse::Parse, parse_quote, spanned::Spanned, Attribute, Signature, Visibility};
+use syn::{Attribute, Signature, Visibility, braced, parse::Parse, parse_quote, spanned::Spanned};
 
 pub struct CustomFunction {
     pub attrs: Vec<Attribute>,
@@ -301,7 +301,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
                             should be an Outcome or (Outcome,FuncState).",
             )
             .to_compile_error()
-            .into()
+            .into();
         }
         syn::ReturnType::Type(_, ty) => ty,
     };
@@ -422,7 +422,7 @@ fn is_var(input: &TokenStream) -> bool {
     loop {
         match tokens.next() {
             Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {
-                return has_token && tokens.next().is_none()
+                return has_token && tokens.next().is_none();
             }
             Some(_) => has_token = true,
             None => return false,

@@ -1,15 +1,15 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
+    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
     recorder::{
-        csv::{CSVRecorder, CSVWritable},
         Recorder,
+        csv::{CSVRecorder, CSVWritable},
     },
     solution::{Batch, OutBatch},
     stop::{Calls, Stop},
-    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
 };
-use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::domain::NoDomain;
+use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
 use tantale_core::optimizer::opt::{BatchOptimizer, CompBatch};

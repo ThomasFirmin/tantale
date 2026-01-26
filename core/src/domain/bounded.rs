@@ -29,20 +29,20 @@
 
 use crate::{
     domain::{
+        Domain, PreDomain, TypeDom,
         base::{BaseDom, BaseTypeDom},
         bool::Bool,
         cat::Cat,
         onto::{Onto, OntoDom},
         unit::Unit,
-        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
     sampler::{BoundedDistribution, Sampler},
 };
 
-use num::{cast::AsPrimitive, Num, NumCast};
-use rand::{distr::uniform::SampleUniform, Rng};
+use num::{Num, NumCast, cast::AsPrimitive};
+use rand::{Rng, distr::uniform::SampleUniform};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
@@ -150,7 +150,7 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
 
     /// Default sampler for [`Bounded`].
     /// See [`uniform`].
-    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.sampler.sample(self, rng)
     }
 

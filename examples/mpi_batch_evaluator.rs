@@ -1,15 +1,19 @@
 use mpi::traits::Communicator;
 use tantale::core::{
-    experiment::BatchEvaluator, stop::Calls, EmptyInfo, Searchspace, SingleCodomain,
+    EmptyInfo, Searchspace, SingleCodomain, experiment::BatchEvaluator, stop::Calls,
 };
-use tantale_algos::{RSInfo, BatchRandomSearch};
+use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
-        DistEvaluate, OutBatchEvaluate, mpi::{
+    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp,
+    domain::{NoDomain, TypeDom},
+    experiment::{
+        DistEvaluate, OutBatchEvaluate,
+        mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
-        }
-    }, solution::{Batch, HasId, Lone, SolutionShape}
+        },
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -44,7 +48,7 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+        use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
         use tantale_core::sampler::{Bernoulli, Uniform};
@@ -74,7 +78,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, OutEvaluator};
+use init_func::{OutEvaluator, sp_evaluator};
 
 type BBatch = Batch<
     SId,
@@ -115,7 +119,7 @@ fn main() {
             BasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
@@ -142,7 +146,7 @@ fn main() {
             Calls,
             Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
             _,
-            OutBatchEvaluate<SId,_,_,Sp<BaseDom, NoDomain>,BasePartial<SId, _, _>,_,_>,
+            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, BasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();

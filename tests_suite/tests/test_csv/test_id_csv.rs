@@ -1,8 +1,8 @@
 use paste::paste;
 use tantale::core::recorder::csv::CSVWritable;
 use tantale::core::solution::{
-    id::{ParSId, SId},
     Id,
+    id::{ParSId, SId},
 };
 
 macro_rules! test_header {

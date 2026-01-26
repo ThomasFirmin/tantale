@@ -1,16 +1,16 @@
 use crate::experiment::OutBatchEvaluate;
 use crate::{
+    Codomain, Id, OptInfo, Searchspace, SolInfo,
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
-    objective::{outcome::FuncState, FidOutcome, Step, Stepped},
+    objective::{FidOutcome, Step, Stepped, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{
-        shape::RawObj, Batch, HasFidelity, HasId, HasInfo, HasStep, IntoComputed, OutBatch,
-        Solution, SolutionShape, Uncomputed,
+        Batch, HasFidelity, HasId, HasInfo, HasStep, IntoComputed, OutBatch, Solution,
+        SolutionShape, Uncomputed, shape::RawObj,
     },
     stop::{ExpStep, Stop},
-    Codomain, Id, OptInfo, Searchspace, SolInfo,
 };
 
 #[cfg(feature = "mpi")]
@@ -26,10 +26,10 @@ use std::{
 #[cfg(feature = "mpi")]
 use crate::{
     experiment::{
-        mpi::utils::{FXMessage, PriorityList, SendRec},
         DistEvaluate,
+        mpi::utils::{FXMessage, PriorityList, SendRec},
     },
-    solution::shape::{SolObj,SolOpt},
+    solution::shape::{SolObj, SolOpt},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -88,19 +88,23 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     SolId: Id,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
@@ -135,9 +139,13 @@ where
                     let y = cod.get_elem(&out);
                     pair.set_step(out.get_step());
                     let new_step = pair.step();
-                    match new_step{
-                        Step::Evaluated | Step::Discard | Step::Error => {stop.update(ExpStep::Distribution(new_step));},
-                        _ => {self.states.insert(sid, state);},
+                    match new_step {
+                        Step::Evaluated | Step::Discard | Step::Error => {
+                            stop.update(ExpStep::Distribution(new_step));
+                        }
+                        _ => {
+                            self.states.insert(sid, state);
+                        }
                     };
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
@@ -149,9 +157,13 @@ where
                     let y = cod.get_elem(&out);
                     pair.set_step(out.get_step());
                     let new_step = pair.step();
-                    match new_step{
-                        Step::Evaluated | Step::Discard | Step::Error => {stop.update(ExpStep::Distribution(new_step));},
-                        _ => {self.states.insert(sid, state);},
+                    match new_step {
+                        Step::Evaluated | Step::Discard | Step::Error => {
+                            stop.update(ExpStep::Distribution(new_step));
+                        }
+                        _ => {
+                            self.states.insert(sid, state);
+                        }
                     };
                     obatch.add((sid, out));
                     cbatch.add(pair.into_computed(y.into()));
@@ -228,19 +240,23 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id + Send + Sync,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
@@ -282,9 +298,13 @@ where
                         let y = cod.get_elem(&out);
                         pair.set_step(out.get_step());
                         let step = pair.step();
-                        match step{
-                            Step::Evaluated | Step::Discard | Step::Error => {stplock.update(ExpStep::Distribution(step));},
-                            _ => {self.states.lock().unwrap().insert(sid, state);},
+                        match step {
+                            Step::Evaluated | Step::Discard | Step::Error => {
+                                stplock.update(ExpStep::Distribution(step));
+                            }
+                            _ => {
+                                self.states.lock().unwrap().insert(sid, state);
+                            }
                         };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
@@ -296,9 +316,13 @@ where
                         let y = cod.get_elem(&out);
                         pair.set_step(out.get_step());
                         let step = pair.step();
-                        match step{
-                            Step::Evaluated | Step::Discard | Step::Error => {stplock.update(ExpStep::Distribution(step));},
-                            _ => {self.states.lock().unwrap().insert(sid, state);},
+                        match step {
+                            Step::Evaluated | Step::Discard | Step::Error => {
+                                stplock.update(ExpStep::Distribution(step));
+                            }
+                            _ => {
+                                self.states.lock().unwrap().insert(sid, state);
+                            }
                         };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
@@ -414,13 +438,17 @@ where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
     SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
@@ -471,19 +499,23 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out, FnState>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
     SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
@@ -539,8 +571,10 @@ where
             let y = cod.get_elem(&out);
             pair.set_step(out.get_step());
             match pair.step() {
-                Step::Evaluated | Step::Discard | Step::Error => {self.where_is_id.remove(&pair.get_id());},
-                 _ => {},
+                Step::Evaluated | Step::Discard | Step::Error => {
+                    self.where_is_id.remove(&pair.get_id());
+                }
+                _ => {}
             };
             stop.update(ExpStep::Distribution(pair.step()));
             obatch.add((pair.get_id(), out));

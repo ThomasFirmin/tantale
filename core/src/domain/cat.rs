@@ -18,11 +18,11 @@
 //! ```
 use crate::{
     domain::{
+        Domain, PreDomain, TypeDom,
         base::{BaseDom, BaseTypeDom},
         bounded::{Bounded, BoundedBounds},
         onto::{Onto, OntoDom},
         unit::Unit,
-        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -30,7 +30,7 @@ use crate::{
 };
 
 use num::cast::AsPrimitive;
-use rand::prelude::Rng ;
+use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
@@ -57,7 +57,7 @@ impl Cat {
     ///
     ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
     ///
-    pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>, I: IntoIterator<Item=&'a str>>(
+    pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>, I: IntoIterator<Item = &'a str>>(
         values: I,
         sampler: S,
     ) -> Cat {
@@ -255,31 +255,29 @@ impl Onto<BaseDom> for Cat {
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
-        match target{
-            BaseDom::Real(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Real(i)),
-                    Err(e) => Err(e),
-                }
+        match target {
+            BaseDom::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Real(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Int(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Int(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Int(i)),
+                Err(e) => Err(e),
             },
             BaseDom::Unit(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Bool(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
-            BaseDom::Cat(_d) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
+            BaseDom::Bool(_d) => unreachable!(
+                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
+            ),
+            BaseDom::Cat(_d) => unreachable!(
+                "Converting a value from Cat onto Cat is not implemented, and it should not occur."
+            ),
         }
     }
 }

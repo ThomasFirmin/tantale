@@ -1,7 +1,7 @@
 use crate::{
+    OptInfo,
     objective::{Outcome, Step},
     solution::{HasInfo, HasStep, Id, SolInfo, SolutionShape},
-    OptInfo,
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;

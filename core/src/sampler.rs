@@ -1,6 +1,6 @@
 use crate::domain::{
-    bounded::{BoundedBounds, RangeDomain},
     Bool, Bounded, Cat, Domain, TypeDom,
+    bounded::{BoundedBounds, RangeDomain},
 };
 
 use rand::prelude::{IteratorRandom, Rng};
@@ -11,7 +11,7 @@ use rand::prelude::{IteratorRandom, Rng};
 ///
 /// * `rng` : `&mut`[`ThreadRng`](rand::prelude::ThreadRng) - The RNG from [`rand`].
 pub trait Sampler<D: Domain> {
-    fn sample<R:Rng>(&self, dom: &D, rng: &mut R) -> D::TypeDom;
+    fn sample<R: Rng>(&self, dom: &D, rng: &mut R) -> D::TypeDom;
 }
 
 /// An enum of the different available samplers for [`Bounded`].
@@ -25,7 +25,7 @@ where
     D: RangeDomain,
     D::TypeDom: BoundedBounds,
 {
-    fn sample<R:Rng>(&self, dom: &D, rng: &mut R) -> D::TypeDom {
+    fn sample<R: Rng>(&self, dom: &D, rng: &mut R) -> D::TypeDom {
         match self {
             BoundedDistribution::Uniform(u) => u.sample(dom, rng),
         }
@@ -39,7 +39,7 @@ pub enum BoolDistribution {
 }
 
 impl Sampler<Bool> for BoolDistribution {
-    fn sample<R:Rng>(&self, dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
+    fn sample<R: Rng>(&self, dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
         match self {
             BoolDistribution::Bernoulli(b) => b.sample(dom, rng),
         }
@@ -53,7 +53,7 @@ pub enum CatDistribution {
 }
 
 impl Sampler<Cat> for CatDistribution {
-    fn sample<R:Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
+    fn sample<R: Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
         match self {
             CatDistribution::Uniform(u) => u.sample(dom, rng),
         }
@@ -88,7 +88,7 @@ impl<D: RangeDomain> Sampler<D> for Uniform
 where
     D::TypeDom: BoundedBounds,
 {
-    fn sample<R:Rng>(&self, dom: &D, rng: &mut R) -> TypeDom<Bounded<D::TypeDom>> {
+    fn sample<R: Rng>(&self, dom: &D, rng: &mut R) -> TypeDom<Bounded<D::TypeDom>> {
         rng.random_range(dom.get_bounds())
     }
 }
@@ -96,7 +96,7 @@ where
 /// Random choice for a [`Cat`] [`Domain`].
 /// Uniformly sample a feature from [`Cat`]'s `values`.
 impl Sampler<Cat> for Uniform {
-    fn sample<R:Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
+    fn sample<R: Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
         dom.values.iter().choose(rng).unwrap().clone()
     }
 }
@@ -108,7 +108,7 @@ impl Sampler<Cat> for Uniform {
 #[derive(Clone, Copy, Debug)]
 pub struct Bernoulli(pub f64);
 impl Sampler<Bool> for Bernoulli {
-    fn sample<R:Rng>(&self, _dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
+    fn sample<R: Rng>(&self, _dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
         rng.random_bool(self.0)
     }
 }

@@ -7,9 +7,9 @@ mod test {
     pub fn main() {
         use std::sync::Arc;
         use tantale::core::{
+            BasePartial, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Solution, Sp,
             sampler::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
-            BasePartial, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Solution, Sp,
         };
         use tantale::macros::hpo;
 

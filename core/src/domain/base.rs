@@ -1,11 +1,11 @@
 use crate::{
     domain::{
+        Domain, PreDomain, TypeDom,
         bool::Bool,
         bounded::{Int, Nat, Real},
         cat::Cat,
         onto::{Onto, OntoDom},
         unit::Unit,
-        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -88,7 +88,7 @@ impl Default for BaseTypeDom {
 impl PreDomain for BaseDom {}
 impl Domain for BaseDom {
     type TypeDom = BaseTypeDom;
-    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         match self {
             Self::Real(e) => BaseTypeDom::Real(e.sample(rng)),
             Self::Nat(e) => BaseTypeDom::Nat(e.sample(rng)),
@@ -292,25 +292,27 @@ impl Onto<Unit> for BaseDom {
     ///
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         match self {
-            Self::Real(d) => match item{
-                BaseTypeDom::Real(i) => d.onto(i,target),
+            Self::Real(d) => match item {
+                BaseTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Nat(d) => match item{
-                BaseTypeDom::Nat(i) => d.onto(i,target),
+            Self::Nat(d) => match item {
+                BaseTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Int(d) => match item{
-                BaseTypeDom::Int(i) => d.onto(i,target),
+            Self::Int(d) => match item {
+                BaseTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Unit(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
-            Self::Bool(d) => match item{
-                BaseTypeDom::Bool(i) => d.onto(i,target),
+            Self::Unit(_d) => unreachable!(
+                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
+            ),
+            Self::Bool(d) => match item {
+                BaseTypeDom::Bool(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Cat(d) => match item{
-                BaseTypeDom::Cat(i) => d.onto(i,target),
+            Self::Cat(d) => match item {
+                BaseTypeDom::Cat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
@@ -339,25 +341,29 @@ impl Onto<Bool> for BaseDom {
     ///
     fn onto(&self, item: &Self::Item, target: &Bool) -> Result<Self::TargetItem, OntoError> {
         match self {
-            Self::Real(d) => match item{
-                BaseTypeDom::Real(i) => d.onto(i,target),
+            Self::Real(d) => match item {
+                BaseTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Nat(d) => match item{
-                BaseTypeDom::Nat(i) => d.onto(i,target),
+            Self::Nat(d) => match item {
+                BaseTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Int(d) => match item{
-                BaseTypeDom::Int(i) => d.onto(i,target),
+            Self::Int(d) => match item {
+                BaseTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Unit(d) => match item{
-                BaseTypeDom::Unit(i) => d.onto(i,target),
+            Self::Unit(d) => match item {
+                BaseTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Bool(_d) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
-            Self::Cat(d) => match item{
-                BaseTypeDom::Cat(_i) => unreachable!("Converting a value from Cat onto Bool is not implemented, and it should not occur."),
+            Self::Bool(_d) => unreachable!(
+                "Converting a value from Bool onto Bool is not implemented, and it should not occur."
+            ),
+            Self::Cat(d) => match item {
+                BaseTypeDom::Cat(_i) => unreachable!(
+                    "Converting a value from Cat onto Bool is not implemented, and it should not occur."
+                ),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
@@ -386,27 +392,31 @@ impl Onto<Cat> for BaseDom {
     ///
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         match self {
-            Self::Real(d) => match item{
-                BaseTypeDom::Real(i) => d.onto(i,target),
+            Self::Real(d) => match item {
+                BaseTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Nat(d) => match item{
-                BaseTypeDom::Nat(i) => d.onto(i,target),
+            Self::Nat(d) => match item {
+                BaseTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Int(d) => match item{
-                BaseTypeDom::Int(i) => d.onto(i,target),
+            Self::Int(d) => match item {
+                BaseTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Unit(d) => match item{
-                BaseTypeDom::Unit(i) => d.onto(i,target),
+            Self::Unit(d) => match item {
+                BaseTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Bool(d) => match item{
-                BaseTypeDom::Bool(_i) => unreachable!("Converting a value from Bool onto Cat is not implemented, and it should not occur."),
+            Self::Bool(d) => match item {
+                BaseTypeDom::Bool(_i) => unreachable!(
+                    "Converting a value from Bool onto Cat is not implemented, and it should not occur."
+                ),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
-            Self::Cat(_d) => unreachable!("Converting a value from Cat onto Cat is not implemented, and it should not occur."),
+            Self::Cat(_d) => unreachable!(
+                "Converting a value from Cat onto Cat is not implemented, and it should not occur."
+            ),
         }
     }
 }

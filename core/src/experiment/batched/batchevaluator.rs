@@ -1,7 +1,14 @@
 use crate::{
-    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution, domain::{Codomain, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
-        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj
-    }, stop::{ExpStep, Stop}
+    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
+    domain::{Codomain, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
+    objective::{Objective, Step},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::CompShape,
+    solution::{
+        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
+    },
+    stop::{ExpStep, Stop},
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -11,8 +18,8 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::experiment::{
-    mpi::utils::{SendRec, XMessage},
     DistEvaluate,
+    mpi::utils::{SendRec, XMessage},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -63,19 +70,19 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+        >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
@@ -118,19 +125,19 @@ impl<PSol, SolId, Op, Scp, Out, St>
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+        >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
@@ -243,19 +250,19 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        OutBatchEvaluate<SolId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id + Send + Sync,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
-    >,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+        >,
     Op::Cod: Send + Sync,
     Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,

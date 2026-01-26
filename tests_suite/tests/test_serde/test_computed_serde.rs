@@ -7,9 +7,9 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
+    BasePartial, Computed, EmptyInfo, SId, Solution,
     searchspace::Searchspace,
     solution::{HasId, HasY},
-    BasePartial, Computed, EmptyInfo, SId, Solution,
 };
 use tantale_core::BaseDom;
 

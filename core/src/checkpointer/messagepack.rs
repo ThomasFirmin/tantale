@@ -1,13 +1,17 @@
 use crate::{
-    FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID, checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer}, experiment::Evaluate, optimizer::OptState, stop::Stop
+    FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
+    checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer},
+    experiment::Evaluate,
+    optimizer::OptState,
+    stop::Stop,
 };
 
 use core::panic;
 use rmp_serde;
 use std::{
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     path::{Path, PathBuf},
-    sync::{atomic::Ordering, Arc},
+    sync::{Arc, atomic::Ordering},
 };
 
 #[cfg(feature = "mpi")]
@@ -16,7 +20,7 @@ use crate::{
     experiment::mpi::{utils::MPIProcess, worker::WorkerState},
 };
 #[cfg(feature = "mpi")]
-use mpi::{traits::CommunicatorCollectives, Rank};
+use mpi::{Rank, traits::CommunicatorCollectives};
 
 /// # Attribute
 /// * `config` : [`FolderConfig`] - A [`Config`].
@@ -55,7 +59,9 @@ impl MessagePack {
                 path_config,
             })
         } else {
-            panic!("The `checkpoint` parameter should be >0, otherwise don't use any Checkpointer by passing None.");
+            panic!(
+                "The `checkpoint` parameter should be >0, otherwise don't use any Checkpointer by passing None."
+            );
         }
     }
 }
@@ -99,12 +105,6 @@ impl Checkpointer for MessagePack {
                 panic!(
                     "The `stop` file does not exist in {}",
                     self.path_stop.display()
-                )
-            }
-            if !self.path_eval.try_exists().unwrap() {
-                panic!(
-                    "The `eval` file does not exist in {}",
-                    self.path_eval.display()
                 )
             }
         } else {
@@ -290,7 +290,10 @@ impl ThrCheckpointer for MessagePack {
         rmp_serde::encode::write(&mut wrt, state).unwrap();
         let mut wrt = File::create(&self.path_stop).unwrap();
         rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let path_eval= self.config.path_check.join(Path::new(&format!("state_eval_thr_{}.mp",k)));
+        let path_eval = self
+            .config
+            .path_check
+            .join(Path::new(&format!("state_eval_thr_{}.mp", k)));
         let mut wrt = File::create(&path_eval).unwrap();
         rmp_serde::encode::write(&mut wrt, eval).unwrap();
 
@@ -358,24 +361,29 @@ impl ThrCheckpointer for MessagePack {
         let k = num_cpus::get();
         let mut vec_eval = Vec::new();
         if self.config.path_check.try_exists().unwrap() {
-            for i in 0..k
-            {
-                let path_eval= self.config.path_check.join(Path::new(&format!("state_eval_thr_{}.mp",i)));
+            for i in 0..k {
+                let path_eval = self
+                    .config
+                    .path_check
+                    .join(Path::new(&format!("state_eval_thr_{}.mp", i)));
                 if path_eval.is_file() {
-                    let rdr = File::open(&self.path_eval).unwrap();
+                    let rdr = File::open(&path_eval).unwrap();
                     vec_eval.push(rmp_serde::decode::from_read(rdr).unwrap());
                 } else {
-                    println!("INFO: The Evaluate checkpoint file for thread {} does not exists. It is replaced by a new empty Evaluate.", i);
+                    println!(
+                        "INFO: The Evaluate checkpoint file for thread {} does not exists. It is replaced by a new empty Evaluate.",
+                        i
+                    );
                 }
             }
         } else {
             return Err(CheckpointError(String::from(
                 "The given path does not have any checkpoint folder",
-            )))
+            )));
         }
         if !vec_eval.is_empty() {
             Ok(vec_eval)
-        }else{
+        } else {
             Err(CheckpointError(String::from(
                 "The given path does not have any Evaluate checkpoint file",
             )))
@@ -422,7 +430,9 @@ impl DistCheckpointer for MessagePack {
                 create_dir_all(&self.config.path_work).unwrap();
             }
         } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method on the config object.")
+            panic!(
+                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method on the config object."
+            )
         }
         // Wait for worker
         proc.world.barrier();
@@ -463,7 +473,9 @@ impl DistCheckpointer for MessagePack {
                 )
             }
         } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+            panic!(
+                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
+            )
         }
         proc.world.barrier();
     }
@@ -609,7 +621,9 @@ pub struct WCheckMessagePack(PathBuf);
 impl WCheckMessagePack {
     pub fn new(config: Arc<FolderConfig>, proc: &MPIProcess) -> Self {
         if !config.is_dist {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+            panic!(
+                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
+            )
         }
         WCheckMessagePack(
             config

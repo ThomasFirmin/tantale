@@ -108,7 +108,7 @@
 use crate::{
     domain::onto::Linked,
     solution::{
-        shape::RawObj, HasId, HasSolInfo, Id, IntoComputed, SolInfo, Solution, SolutionShape,
+        HasId, HasSolInfo, Id, IntoComputed, SolInfo, Solution, SolutionShape, shape::RawObj,
     },
 };
 
@@ -118,8 +118,9 @@ use std::sync::Arc;
 pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
     <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>;
 
-pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
-    Option<<<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>>;
+pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
+    <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>,
+>;
 
 /// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
 pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
@@ -137,8 +138,7 @@ where
             Opt = Self::Opt,
             SolObj = SolOpt::Twin<Self::Obj>,
             SolOpt = SolOpt,
-        > 
-        + HasId<SolId>
+        > + HasId<SolId>
         + HasSolInfo<SInfo>
         + IntoComputed;
 
@@ -257,7 +257,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
+    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -295,7 +295,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
+    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -334,7 +334,7 @@ where
     ///
     /// ```
     ///
-    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
+    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -533,7 +533,7 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_obj<R:Rng>(
+    fn vec_sample_obj<R: Rng>(
         &self,
         rng: &mut R,
         size: usize,
@@ -574,12 +574,7 @@ where
     /// }
     ///
     /// ```
-    fn vec_sample_opt<R:Rng>(
-        &self,
-        rng: &mut R,
-        size: usize,
-        info: Arc<SInfo>,
-    ) -> Vec<SolOpt>;
+    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -618,7 +613,7 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_pair<R:Rng>(
+    fn vec_sample_pair<R: Rng>(
         &self,
         rng: &mut R,
         size: usize,

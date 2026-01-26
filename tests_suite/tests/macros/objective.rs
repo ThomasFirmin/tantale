@@ -7,7 +7,7 @@ fn obj_test() {
         use serde::{Deserialize, Serialize};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
         use tantale::core::sampler::{Bernoulli, Uniform};
-        use tantale::macros::{objective, Outcome};
+        use tantale::macros::{Outcome, objective};
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutExample {
@@ -69,7 +69,7 @@ fn obj_test() {
         );
     }
 
-    use tantale::core::{solution::shape::SolutionShape, EmptyInfo, SId, Searchspace, Solution};
+    use tantale::core::{EmptyInfo, SId, Searchspace, Solution, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
 
     let mut rng = rand::rng();
@@ -77,11 +77,11 @@ fn obj_test() {
     fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
     where
         Scp: Searchspace<
-            BasePartial<SId, searchspace::OptType, EmptyInfo>,
-            SId,
-            EmptyInfo,
-            Opt = searchspace::OptType,
-        >,
+                BasePartial<SId, searchspace::OptType, EmptyInfo>,
+                SId,
+                EmptyInfo,
+                Opt = searchspace::OptType,
+            >,
     {
         let info = std::sync::Arc::new(EmptyInfo {});
         let obj = sp.sample_obj(rng, info);

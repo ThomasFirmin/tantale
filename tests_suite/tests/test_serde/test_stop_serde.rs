@@ -1,6 +1,6 @@
 use rmp_serde;
 use tantale::core::stop::{Calls, ExpStep};
-use tantale_core::{objective::Step, Stop};
+use tantale_core::{Stop, objective::Step};
 
 #[test]
 fn test_calls_json() {

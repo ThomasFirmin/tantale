@@ -24,9 +24,9 @@
 //! and a [`Codomain`](tantale::core::Codomain).
 //!
 use crate::{
+    EvalStep, OptInfo, Outcome,
     domain::{Codomain, Domain},
     objective::Step,
-    EvalStep, OptInfo, Outcome,
 };
 
 use serde::{Deserialize, Serialize};
@@ -34,9 +34,7 @@ use std::{fmt::Debug, sync::Arc};
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
-pub trait SolInfo:Debug + Serialize + for<'a> Deserialize<'a>
-{
-}
+pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 
 /// Describes an object associated to an [`Id`].
 pub trait HasId<SolId: Id> {

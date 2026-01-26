@@ -1,10 +1,10 @@
 use crate::{
+    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::mpi::utils::{
-        send_msg, DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage,
+        DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg,
     },
-    objective::{outcome::FuncState, Step},
-    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
+    objective::{Step, outcome::FuncState},
 };
 
 use core::panic;
@@ -193,7 +193,9 @@ where
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
                     }
                     _ => {
-                        unreachable!("A Discarded, Evaluated or Errored solution should not reach this step.")
+                        unreachable!(
+                            "A Discarded, Evaluated or Errored solution should not reach this step."
+                        )
                     }
                 }
             }

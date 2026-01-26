@@ -1,10 +1,10 @@
+pub use tantale::core::domain::Domain;
 pub use tantale::core::domain::base::{BaseDom, BaseTypeDom};
 pub use tantale::core::domain::bool::Bool;
 pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
 pub use tantale::core::domain::cat::Cat;
 pub use tantale::core::domain::onto::Onto;
 pub use tantale::core::domain::unit::Unit;
-pub use tantale::core::domain::Domain;
 use tantale_core::sampler::{Bernoulli, Uniform};
 
 pub fn get_domain_real() -> Real {

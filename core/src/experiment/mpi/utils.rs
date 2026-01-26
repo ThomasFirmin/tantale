@@ -1,13 +1,17 @@
 use crate::{
-    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape},
     Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
+    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape},
 };
 
 use bincode::{config::Configuration, serde::Compat};
-use bitvec::{bitvec, slice::{IterOnes, IterZeros}, vec::BitVec};
+use bitvec::{
+    bitvec,
+    slice::{IterOnes, IterZeros},
+    vec::BitVec,
+};
 use mpi::{
-    traits::{Communicator, Destination, Source},
     Rank, Tag,
+    traits::{Communicator, Destination, Source},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, marker::PhantomData};
@@ -304,14 +308,20 @@ where
     /// Send a checkpoint order to a given iterable of workers ranks.
     pub fn checkpoint_order(&mut self) {
         let world = &self.proc.world;
-        self.idle.iter_idle().for_each(|idx| {world.process_at_rank(idx as i32).send_with_tag(&Vec::<u8>::new(), 7)});
+        self.idle.iter_idle().for_each(|idx| {
+            world
+                .process_at_rank(idx as i32)
+                .send_with_tag(&Vec::<u8>::new(), 7)
+        });
     }
 
     /// Send a checkpoint order to a given iterable of workers ranks.
     pub fn rank_checkpoint_order(&mut self, rank: i32) {
-        self.proc.world.process_at_rank(rank).send_with_tag(&Vec::<u8>::new(), 7);
+        self.proc
+            .world
+            .process_at_rank(rank)
+            .send_with_tag(&Vec::<u8>::new(), 7);
     }
-
 }
 
 /// Send a stop order to a given iterable of workers ranks.

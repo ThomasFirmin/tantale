@@ -3,15 +3,16 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
+    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::{
-        csv::{CSVRecorder, CSVWritable},
         Recorder,
+        csv::{CSVRecorder, CSVWritable},
     },
     solution::{Batch, HasInfo, OutBatch},
     stop::{Calls, Stop},
-    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
 };
+use tantale_core::Computed;
 use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
@@ -22,7 +23,6 @@ use tantale_core::solution::shape::{SolObj, SolOpt};
 use tantale_core::solution::{
     HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
 };
-use tantale_core::Computed;
 
 use std::{path::Path, sync::Arc};
 

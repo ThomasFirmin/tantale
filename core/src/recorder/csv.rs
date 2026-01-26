@@ -1,21 +1,21 @@
 use crate::{
-    domain::{onto::LinkOpt, Codomain, TypeDom},
+    BasePartial, FidBasePartial, Fidelity, FolderConfig, OptInfo, SolInfo,
+    domain::{Codomain, TypeDom, onto::LinkOpt},
     objective::{Outcome, Step},
     optimizer::Optimizer,
     recorder::Recorder,
     searchspace::{CompShape, Searchspace},
     solution::{
-        shape::{SolObj, SolOpt},
         Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,
         Solution, SolutionShape, Uncomputed,
+        shape::{SolObj, SolOpt},
     },
-    BasePartial, FidBasePartial, Fidelity, FolderConfig, OptInfo, SolInfo,
 };
 
 use rayon::iter::IntoParallelIterator;
 use rayon::prelude::*;
 use std::{
-    fs::{create_dir_all, File, OpenOptions},
+    fs::{File, OpenOptions, create_dir_all},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -131,7 +131,12 @@ where
     Info: OptInfo + CSVWritable<(), ()>,
 {
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
-    fn write_info(&self, id: &[String], info: Option<Arc<Info>>, wrt: Arc<Mutex<csv::Writer<File>>>);
+    fn write_info(
+        &self,
+        id: &[String],
+        info: Option<Arc<Info>>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    );
 }
 
 pub trait OutCSVWrite<SolId: Id>: Outcome {
@@ -320,10 +325,18 @@ where
         lwrt.flush().unwrap();
     }
 
-    fn write_info(&self, id: &[String], info: Option<Arc<Info>>, wrt: Arc<Mutex<csv::Writer<File>>>) {
+    fn write_info(
+        &self,
+        id: &[String],
+        info: Option<Arc<Info>>,
+        wrt: Arc<Mutex<csv::Writer<File>>>,
+    ) {
         let mut sinfostr = self.get_sinfo().write(&());
-        let idstr = match info{
-            Some(i) => {sinfostr.append(&mut i.write(&())); id.iter().chain(sinfostr.iter())},
+        let idstr = match info {
+            Some(i) => {
+                sinfostr.append(&mut i.write(&()));
+                id.iter().chain(sinfostr.iter())
+            }
             None => id.iter().chain(sinfostr.iter()),
         };
         let mut wrt_local = wrt.lock().unwrap();
@@ -451,9 +464,9 @@ where
         wrts: Arc<CSVFiles>,
     ) {
         let info = self.get_info();
-        self.into_par_iter()
-            .zip(obatch)
-            .for_each(|(cpair, opair)| scp.write(cpair, opair, Some(info.clone()), cod, &wrts.clone()));
+        self.into_par_iter().zip(obatch).for_each(|(cpair, opair)| {
+            scp.write(cpair, opair, Some(info.clone()), cod, &wrts.clone())
+        });
     }
 }
 /// A [`CSVSaver`] taking a path of where the save folder should be created.
@@ -552,17 +565,17 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         InfoCSVWrite<SolId, Op::SInfo, Op::Info> + HasY<Op::Cod, Out> + Send + Sync,
     SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-        SolId,
-        Scp::Obj,
-        Op::SInfo,
-        Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-    >,
+            SolId,
+            Scp::Obj,
+            Op::SInfo,
+            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
+        >,
     SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-        SolId,
-        Scp::Opt,
-        Op::SInfo,
-        Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-    >,
+            SolId,
+            Scp::Opt,
+            Op::SInfo,
+            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
+        >,
 {
     fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
         let does_exist = self.config.path_rec.try_exists().unwrap();
@@ -627,33 +640,37 @@ where
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap() {
-                    panic!(
-                        "The `Objective` recorder file does not exists, {}.",
-                        ppobj.display()
-                    )
-                }
+                && !ppobj.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Objective` recorder file does not exists, {}.",
+                    ppobj.display()
+                )
+            }
 
             if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap() {
-                    panic!(
-                        "The `Optimizer` recorder file  not exists, {}.",
-                        ppopt.display()
-                    )
-                }
+                && !ppopt.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Optimizer` recorder file  not exists, {}.",
+                    ppopt.display()
+                )
+            }
 
             if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap() {
-                    panic!("The `Info` file does not exists, {}.", ppinfo.display())
-                }
+                && !ppinfo.try_exists().unwrap()
+            {
+                panic!("The `Info` file does not exists, {}.", ppinfo.display())
+            }
 
             if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap() {
-                    panic!(
-                        "The `Output` recorder file does not exists, {}.",
-                        ppout.display()
-                    )
-                }
+                && !ppout.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Output` recorder file does not exists, {}.",
+                    ppout.display()
+                )
+            }
 
             if !self.path_codom.try_exists().unwrap() {
                 panic!(
@@ -762,17 +779,17 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         InfoCSVWrite<SolId, Op::SInfo, Op::Info> + HasY<Op::Cod, Out> + Send + Sync,
     SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-        SolId,
-        Scp::Obj,
-        Op::SInfo,
-        Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-    >,
+            SolId,
+            Scp::Obj,
+            Op::SInfo,
+            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
+        >,
     SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-        SolId,
-        Scp::Opt,
-        Op::SInfo,
-        Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-    >,
+            SolId,
+            Scp::Opt,
+            Op::SInfo,
+            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
+        >,
 {
     fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
         if self.config.is_dist {
@@ -842,33 +859,37 @@ where
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap() {
-                    panic!(
-                        "The `Objective` recorder file does not exists, {}.",
-                        ppobj.display()
-                    )
-                }
+                && !ppobj.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Objective` recorder file does not exists, {}.",
+                    ppobj.display()
+                )
+            }
 
             if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap() {
-                    panic!(
-                        "The `Optimizer` recorder file  not exists, {}.",
-                        ppopt.display()
-                    )
-                }
+                && !ppopt.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Optimizer` recorder file  not exists, {}.",
+                    ppopt.display()
+                )
+            }
 
             if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap() {
-                    panic!("The `Info` file does not exists, {}.", ppinfo.display())
-                }
+                && !ppinfo.try_exists().unwrap()
+            {
+                panic!("The `Info` file does not exists, {}.", ppinfo.display())
+            }
 
             if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap() {
-                    panic!(
-                        "The `Output` recorder file does not exists, {}.",
-                        ppout.display()
-                    )
-                }
+                && !ppout.try_exists().unwrap()
+            {
+                panic!(
+                    "The `Output` recorder file does not exists, {}.",
+                    ppout.display()
+                )
+            }
 
             if !self.path_codom.try_exists().unwrap() {
                 panic!(

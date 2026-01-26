@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
+    Optimizer,
     domain::onto::LinkOpt,
     objective::Outcome,
     optimizer::opt::CompBatch,
     searchspace::{CompShape, Searchspace},
     solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
-    Optimizer,
 };
 
 #[cfg(feature = "mpi")]

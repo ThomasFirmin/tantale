@@ -15,11 +15,11 @@
 //! ```
 use crate::{
     domain::{
+        Domain, PreDomain, TypeDom,
         base::{BaseDom, BaseTypeDom},
         bounded::{Bounded, BoundedBounds},
         onto::{Onto, OntoDom},
         unit::Unit,
-        Domain, PreDomain, TypeDom,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -66,7 +66,7 @@ impl Domain for Bool {
     type TypeDom = bool;
 
     /// Sample a `bool` using the inner [`BoolDistribution`] of [`Bool`].
-    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.0.sample(self, rng)
     }
 
@@ -210,31 +210,29 @@ impl Onto<BaseDom> for Bool {
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
     fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
-        match target{
-            BaseDom::Real(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Real(i)),
-                    Err(e) => Err(e),
-                }
+        match target {
+            BaseDom::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Real(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Nat(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+                Err(e) => Err(e),
             },
-            BaseDom::Int(d) => {
-                match self.onto(item, d) {
-                    Ok(i) => Ok(BaseTypeDom::Int(i)),
-                    Err(e) => Err(e),
-                }
+            BaseDom::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(BaseTypeDom::Int(i)),
+                Err(e) => Err(e),
             },
             BaseDom::Unit(d) => match self.onto(item, d) {
                 Ok(i) => Ok(BaseTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Bool(_d) => unreachable!("Converting a value from Bool onto Bool is not implemented, and it should not occur."),
-            BaseDom::Cat(_d) => unreachable!("Converting a value from Unit onto Unit is not implemented, and it should not occur."),
+            BaseDom::Bool(_d) => unreachable!(
+                "Converting a value from Bool onto Bool is not implemented, and it should not occur."
+            ),
+            BaseDom::Cat(_d) => unreachable!(
+                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
+            ),
         }
     }
 }

@@ -7,12 +7,11 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    braced,
+    Expr, Ident, LitInt, Token, braced,
     parse::{self, Parse},
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, Ident, LitInt, Token,
 };
 
 // Parse name_{usize}
@@ -28,7 +27,12 @@ impl Parse for Identifier {
         let ident = input.parse::<Ident>();
         let ident = match ident {
             Ok(id) => id,
-            _ => return Err(syn::Error::new(span,"Name missing. In sp!, a line should start by the identifier (name) of the variable by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
+            _ => {
+                return Err(syn::Error::new(
+                    span,
+                    "Name missing. In sp!, a line should start by the identifier (name) of the variable by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;",
+                ));
+            }
         };
 
         let litint;
@@ -37,7 +41,12 @@ impl Parse for Identifier {
             braced!(rcontent in input);
             litint = match rcontent.parse::<LitInt>() {
                 Ok(expr) => Some(expr),
-                _ => return Err(syn::Error::new(span,"Unknown expression. In sp!, a line should start by the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;")),
+                _ => {
+                    return Err(syn::Error::new(
+                        span,
+                        "Unknown expression. In sp!, a line should start by the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;",
+                    ));
+                }
             };
         } else {
             litint = None;
@@ -64,7 +73,7 @@ impl Parse for AddonToken {
                         return Err(syn::Error::new(
                             arr.span(),
                             "A `=>` should be followed by an addon object separated by commas.",
-                        ))
+                        ));
                     }
                     Ok(punc) => Some(punc),
                 }

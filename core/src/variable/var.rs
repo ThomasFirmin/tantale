@@ -1,13 +1,13 @@
 use crate::{
     domain::{
-        onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, OntoDom},
         Domain, NoDomain, PreDomain,
+        onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, OntoDom},
     },
     errors::OntoError,
     recorder::csv::{CSVLeftRight, CSVWritable},
 };
 
-use rand::{prelude::Rng};
+use rand::prelude::Rng;
 use std::sync::Arc;
 
 /// Describes a [`Var`] with an [`Objective`](crate::core::objective::Objective) [`Domain`]  and an [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
@@ -121,7 +121,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_obj<R:Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Function to sample a point from the [`Objective`](crate::core::objective::Objective) [`Domain`].
@@ -145,7 +145,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     /// println!(" OBJ : {} => OPT {}", point_obj, mapped_to_opt.unwrap());
     ///
     /// ```
-    pub fn sample_opt<R:Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_opt, rng)
     }
     /// Check if an `item` is in the `Obj` [`Domain`] of the [`Var`].
@@ -262,10 +262,10 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
         Ok(item.clone())
     }
 
-    pub fn sample_obj<R:Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
-    pub fn sample_opt<R:Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_obj, rng)
     }
     pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {

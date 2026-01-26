@@ -1,15 +1,18 @@
 use mpi::traits::Communicator;
-use tantale::core::{
-    stop::Calls, EmptyInfo, Searchspace, SingleCodomain,
-};
+use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
-        DistEvaluate, OutShapeEvaluate, mpi::{
+    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp,
+    domain::{NoDomain, TypeDom},
+    experiment::{
+        DistEvaluate, OutShapeEvaluate,
+        mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
-        }, sequential::seqevaluator::DistSeqEvaluator
-    }, solution::{HasId, Lone, SolutionShape}
+        },
+        sequential::seqevaluator::DistSeqEvaluator,
+    },
+    solution::{HasId, Lone, SolutionShape},
 };
 
 use std::sync::Arc;
@@ -44,7 +47,7 @@ mod init_func {
     }
 
     pub mod sp_evaluator {
-        use super::{int_plus_nat, plus_one_int, Neuron, OutEvaluator};
+        use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
         use tantale_core::sampler::{Bernoulli, Uniform};
@@ -74,7 +77,7 @@ mod init_func {
     }
 }
 
-use init_func::{sp_evaluator, OutEvaluator};
+use init_func::{OutEvaluator, sp_evaluator};
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -107,7 +110,7 @@ fn main() {
             BasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_pair(&sp, Some(&mut rng), 4, sinfo.clone());
+        >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
         let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sobj().x.clone()))
@@ -131,15 +134,30 @@ fn main() {
             Calls,
             Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
             _,
-            Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, BasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<OutEvaluator>, OutEvaluator>>,
+            Option<
+                OutShapeEvaluate<
+                    SId,
+                    EmptyInfo,
+                    Sp<BaseDom, NoDomain>,
+                    BasePartial<SId, BaseDom, EmptyInfo>,
+                    SingleCodomain<OutEvaluator>,
+                    OutEvaluator,
+                >,
+            >,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
-        let (comp,raw) = out.unwrap();
+        let (comp, raw) = out.unwrap();
 
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
-        let comobjid = sobj_bis.iter().find(|(id,_)| &comp.get_id() == id).unwrap();
-        let comoptid = sopt_bis.iter().find(|(id,_)| &comp.get_id() == id).unwrap();
-        let rawobjid = sobj_bis.iter().find(|(id,_)| &raw.0 == id);
-        let rawoptid = sopt_bis.iter().find(|(id,_)| &raw.0 == id);
+        let comobjid = sobj_bis
+            .iter()
+            .find(|(id, _)| &comp.get_id() == id)
+            .unwrap();
+        let comoptid = sopt_bis
+            .iter()
+            .find(|(id, _)| &comp.get_id() == id)
+            .unwrap();
+        let rawobjid = sobj_bis.iter().find(|(id, _)| &raw.0 == id);
+        let rawoptid = sopt_bis.iter().find(|(id, _)| &raw.0 == id);
 
         assert!(
             Arc::ptr_eq(&comp.get_sobj().sol.x, &comobjid.1),
@@ -149,8 +167,14 @@ fn main() {
             Arc::ptr_eq(&comp.get_sopt().sol.x, &comoptid.1),
             "Opt Partial and Computed do not point to the same solutions."
         );
-        assert!(rawobjid.is_some(),"Obj Id Raw and Partial do not point to the same solutions.");
-        assert!(rawoptid.is_some(),"Opt Id Raw and Partial do not point to the same solutions.");
+        assert!(
+            rawobjid.is_some(),
+            "Obj Id Raw and Partial do not point to the same solutions."
+        );
+        assert!(
+            rawoptid.is_some(),
+            "Opt Id Raw and Partial do not point to the same solutions."
+        );
 
         proc.world.abort(42);
     }

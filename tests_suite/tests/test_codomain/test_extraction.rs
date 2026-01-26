@@ -1,4 +1,4 @@
-use super::init_outcome::{get_struct, OutExample};
+use super::init_outcome::{OutExample, get_struct};
 
 use tantale::core::domain::codomain::{
     Codomain, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain,
