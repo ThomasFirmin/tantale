@@ -290,19 +290,8 @@ mod check_default_sampler {
 }
 
 mod check_default_sampler_base {
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-    use tantale::Mixed;
+    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit,BaseDom};
     use tantale_core::sampler::{Bernoulli, Uniform};
-
-    #[derive(Mixed, PartialEq)]
-    pub enum BaseDom {
-        Real(Real),
-        Int(Int),
-        Nat(Nat),
-        Bool(Bool),
-        Cat(Cat),
-        Unit(Unit),
-    }
 
     #[test]
     fn sampler_real() {

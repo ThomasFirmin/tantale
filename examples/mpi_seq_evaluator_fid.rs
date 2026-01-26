@@ -3,7 +3,7 @@ use tantale::core::{stop::Calls, EmptyInfo, Searchspace, SingleCodomain};
 use tantale_algos::RandomSearch;
 use tantale_core::{
     BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped, checkpointer::NoCheck, domain::{NoDomain, TypeDom}, experiment::{
-        DistEvaluate, OutShapeEvaluate, mpi::{
+        DistEvaluate, DistOutShapeEvaluate, mpi::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
         }, sequential::seqfidevaluator::FidDistSeqEvaluator
@@ -158,9 +158,9 @@ fn main() {
             Calls,
             Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
             _,
-            Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+            Option<DistOutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
-        let (comp,raw) = out.unwrap();
+        let (_, (comp,raw)) = out.unwrap();
 
         assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
         let comobjid = sobj_bis.iter().find(|(id,_)| &comp.get_id() == id).unwrap();
@@ -196,9 +196,9 @@ fn main() {
                 Calls,
                 Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator,FnState>,
                 _,
-                Option<OutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
+                Option<DistOutShapeEvaluate<SId, EmptyInfo, Sp<BaseDom, NoDomain>, FidBasePartial<SId, BaseDom, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
-            let (comp,_) = out.unwrap();
+            let (_,(comp,_)) = out.unwrap();
             step = comp.step();
             eval.update(IntoComputed::extract(comp).0);
         }

@@ -1,5 +1,5 @@
 #[cfg(feature = "mpi")]
-use crate::{experiment::{DistEvaluate, mpi::utils::{FXMessage, PriorityList, SendRec}}, solution::shape::{SolObj, SolOpt}};
+use crate::{experiment::{DistEvaluate, DistOutShapeEvaluate, mpi::utils::{FXMessage, PriorityList, SendRec}}, solution::shape::{SolObj, SolOpt}};
 use crate::{
     Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop, domain::onto::LinkOpt, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate}, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
 };
@@ -139,6 +139,53 @@ where
 }
 
 
+//----------------------//
+//--- MULTI-THREADED ---//
+//----------------------//
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct FidThrSeqEvaluator<Shape,SolId,SInfo,FnState>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+    FnState: FuncState,
+{
+    pub pair : Shape,
+    pub state : Option<FnState>,
+    _id : PhantomData<SolId>,
+    _sinfo : PhantomData<SInfo>,
+}
+
+impl<Shape,SolId,SInfo,FnState> FidThrSeqEvaluator<Shape,SolId,SInfo,FnState>
+where
+    Shape: SolutionShape<SolId,SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo:SolInfo,
+    FnState: FuncState,
+{
+    pub fn new(pair: Shape, state: FnState) -> Self {
+        FidThrSeqEvaluator { pair, state : Some(state), _id: PhantomData, _sinfo: PhantomData }
+    }
+
+    pub fn update(&mut self, pair: Shape) {
+        self.pair = pair;
+        self.state = None;
+    }
+}
+
+impl<Shape,SolId,SInfo,FnState> Evaluate for FidThrSeqEvaluator<Shape,SolId,SInfo,FnState>
+where
+    Shape: SolutionShape<SolId,SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo:SolInfo,
+    FnState: FuncState,
+{
+}
 
 //-------------------//
 //--- DISTRIBUTED ---//
@@ -248,6 +295,7 @@ where
         true
     } else if let Some(pair) = priority_discard.pop(available) {
         sendrec.discard_order(available, pair.get_id());
+        where_is_id.remove(&pair.get_id());
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
@@ -283,7 +331,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        Option<OutShapeEvaluate<SolId,Op::SInfo,Scp,PSol,Op::Cod,Out>>,
+        Option<DistOutShapeEvaluate<SolId,Op::SInfo,Scp,PSol,Op::Cod,Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -321,12 +369,12 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
-    ) -> Option<OutShapeEvaluate<SolId,Op::SInfo,Scp,PSol,Op::Cod,Out>>
+    ) -> Option<DistOutShapeEvaluate<SolId,Op::SInfo,Scp,PSol,Op::Cod,Out>>
     {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
         while sendrec.idle.has_idle() && !stop_loop {
-            let available = sendrec.idle.pop().unwrap() as Rank;
+            let available = sendrec.idle.first_idle().unwrap() as Rank;
             stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
@@ -344,6 +392,10 @@ where
             let y = cod.get_elem(&out);
             let id = pair.get_id();
             pair.set_step(out.get_step());
+            match pair.step() {
+                Step::Evaluated | Step::Discard | Step::Error => {self.where_is_id.remove(&id);},
+                 _ => {},
+            };
             stop.update(ExpStep::Distribution(pair.step()));
             recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
@@ -354,7 +406,7 @@ where
                 &mut self.priority_resume,
                 stop,
             );
-            Some((pair.into_computed(y.into()),(id,out)))
+            Some((available,(pair.into_computed(y.into()),(id,out))))
         }
         else{
             None

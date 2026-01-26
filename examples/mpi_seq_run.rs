@@ -1,7 +1,6 @@
-use tantale::algos::BatchRandomSearch;
+use tantale::algos::RandomSearch;
 use tantale_core::{
-    exp, experiment::{self,mpi::utils::MPIProcess}, load, stop::Calls, CSVRecorder,
-    DistSaverConfig, FolderConfig, MessagePack, Objective,
+    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective, experiment::{self, distributed, mpi::utils::MPIProcess}, load, stop::Calls
 };
 
 use std::path::Path;
@@ -129,14 +128,13 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
-    let opt = BatchRandomSearch::new(7);
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let opt = RandomSearch::new();
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
-    let exp = exp!(MPI, &proc, (sp, cod), obj, opt, stop, (rec, check));
-    println!("PROUT");
+    let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
     if proc.rank == 0 {
@@ -145,29 +143,19 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(
-        MPI,
-        &proc,
-        (sp, cod),
-        obj,
-        BatchRandomSearch,
-        Calls,
-        (rec, check)
-    );
+    let exp = load!(distributed, &proc, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
     if proc.rank == 0 {
         match exp {
             experiment::MasterWorker::Master(mut e) => {
                 assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 9, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
                 e.stop.1 = 100;
                 use tantale::core::experiment::MPIRunable;
                 e.run();
@@ -180,29 +168,19 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(
-        MPI,
-        &proc,
-        (sp, cod),
-        obj,
-        BatchRandomSearch,
-        Calls,
-        (rec, check)
-    );
+    let exp = load!(distributed, &proc, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     if proc.rank == 0 {
         run_reader("tmp_test_mpi_seqrun", 100);
         match exp {
             experiment::MasterWorker::Master(e) => {
                 assert_eq!(e.stop.0, 100, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 15, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
             }
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
         }

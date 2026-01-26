@@ -10,7 +10,7 @@ use crate::{
     Sp,
 };
 
-use rand::prelude::ThreadRng;
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::sync::Arc;
 
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
@@ -71,19 +71,41 @@ where
         Pair::new(inp, solopt)
     }
 
-    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
-        let outx: Vec<LinkTyObj<Self>> = variter
-            .map_init(rand::rng, |rng, var| var.sample_obj(rng))
-            .collect();
+        // Generate seeds for each thread
+        let outx: Vec<_> = seeds
+            .into_par_iter()
+            .zip(variter)
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, (seed,var)| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    var.sample_obj(thread_rng)
+                }
+            )
+        .collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
-    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt {
+    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt {
+        let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
-        let outx: Vec<LinkTyOpt<Self>> = variter
-            .map_init(rand::rng, |rng, var| var.sample_opt(rng))
-            .collect();
+        // Generate seeds for each thread
+        let outx: Vec<_> = seeds
+            .into_par_iter()
+            .zip(variter)
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, (seed,var)| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    var.sample_opt(thread_rng)
+                }
+            )
+        .collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
@@ -125,30 +147,54 @@ where
         inp.into_par_iter().map(|sol| self.onto_opt(sol)).collect()
     }
 
-    fn vec_sample_obj(
+    fn vec_sample_obj<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        (0..size)
+        // Generate seeds for each thread
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| {
-                <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone())
-            })
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 
-    fn vec_sample_opt(
+    fn vec_sample_opt<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt> {
-        (0..size)
+        // Generate seeds for each thread
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| self.sample_opt(None, info.clone()))
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 
     fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
@@ -167,33 +213,35 @@ where
             .all(|sol| <Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_opt::<S>(self, sol))
     }
 
-    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
+    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape {
         let s =
-            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
+            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, rng, info.clone()); // sample
         self.onto_opt(s)
     }
 
-    fn vec_sample_pair(
+    fn vec_sample_pair<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape> {
-        (0..size)
+        // Generate seeds for each thread
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| {
-                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
-                    self,
-                    None,
-                    info.clone(),
-                ); // sample
-                self.onto_opt(s)
-            })
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 }
 
@@ -219,19 +267,41 @@ where
         Lone::new(inp)
     }
 
-    fn sample_obj(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
-        let outx: Vec<LinkTyObj<Self>> = variter
-            .map_init(rand::rng, |rng, var| var.sample_obj(rng))
-            .collect();
+        // Generate seeds for each thread
+        let outx: Vec<_> = seeds
+            .into_par_iter()
+            .zip(variter)
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, (seed,var)| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    var.sample_obj(thread_rng)
+                }
+            )
+        .collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
-    fn sample_opt(&self, _rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
-        let outx: Vec<LinkTyOpt<Self>> = variter
-            .map_init(rand::rng, |rng, var| var.sample_opt(rng))
-            .collect();
+        // Generate seeds for each thread
+        let outx: Vec<_> = seeds
+            .into_par_iter()
+            .zip(variter)
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, (seed,var)| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    var.sample_opt(thread_rng)
+                }
+            )
+        .collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
@@ -265,30 +335,52 @@ where
         inp.into_par_iter().map(|sol| Lone::new(sol)).collect()
     }
 
-    fn vec_sample_obj(
+    fn vec_sample_obj<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        (0..size)
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| {
-                <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, None, info.clone())
-            })
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 
-    fn vec_sample_opt(
+    fn vec_sample_opt<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        (0..size)
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| self.sample_opt(None, info.clone()))
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 
     fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
@@ -307,33 +399,32 @@ where
             .all(|sol| <Self as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol))
     }
 
-    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
-        let s =
-            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
-        Lone::new(s)
+    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape {
+        Lone::new(self.sample_opt(rng, info))
     }
 
-    fn vec_sample_pair(
+    fn vec_sample_pair<R:Rng>(
         &self,
-        _rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape> {
-        (0..size)
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
             .into_par_iter()
-            .map(|_| {
-                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
-                    self,
-                    None,
-                    info.clone(),
-                ); // sample
-                Lone::new(s)
-            })
-            .collect()
+            .map_init(
+                StdRng::from_os_rng,  // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                        self,
+                        thread_rng,
+                        info.clone()
+                    )
+                }
+            )
+        .collect()
     }
 }
 

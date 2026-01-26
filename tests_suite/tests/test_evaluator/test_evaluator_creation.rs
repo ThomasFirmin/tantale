@@ -33,7 +33,7 @@ fn test_batchevaluator() {
         BasePartial<SId, BaseDom, EmptyInfo>,
         SId,
         EmptyInfo,
-    >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
         .iter()
@@ -147,7 +147,7 @@ fn test_thrbatchevaluator() {
         BasePartial<SId, BaseDom, EmptyInfo>,
         SId,
         EmptyInfo,
-    >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
         .iter()
@@ -265,7 +265,7 @@ fn test_seqevaluator() {
         BasePartial<SId, BaseDom, EmptyInfo>,
         SId,
         EmptyInfo,
-    >>::sample_pair(&sp, Some(&mut rng), sinfo.clone());
+    >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.get_id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.get_id(), pair.get_sopt().x.clone());
     let mut eval = SeqEvaluator::new(pair);

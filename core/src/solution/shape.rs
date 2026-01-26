@@ -27,7 +27,7 @@ pub type RawOpt<SolShape, SolId, SInfo> =
     >>::Raw;
 
 pub trait SolutionShape<SolId: Id, SInfo: SolInfo>:
-    Linked + HasId<SolId> + HasSolInfo<SInfo>
+    Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug
 where
     Self: Serialize + for<'a> Deserialize<'a>,
 {

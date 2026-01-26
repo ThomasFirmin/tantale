@@ -112,7 +112,7 @@ use crate::{
     },
 };
 
-use rand::prelude::ThreadRng;
+use rand::prelude::Rng;
 use std::sync::Arc;
 
 pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
@@ -137,7 +137,8 @@ where
             Opt = Self::Opt,
             SolObj = SolOpt::Twin<Self::Obj>,
             SolOpt = SolOpt,
-        > + HasId<SolId>
+        > 
+        + HasId<SolId>
         + HasSolInfo<SInfo>
         + IntoComputed;
 
@@ -256,7 +257,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
+    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
     /// Sample a random [`Partial`] of type `Opt`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -294,7 +295,7 @@ where
     /// }
     ///
     /// ```
-    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt;
+    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
     /// Sample a random [`Partial`] of type `Obj`.
     /// It uses the [`sampler_obj`](tantale::core::Var::sampler_obj) from
     /// the corresponding [`variables`](Searchspace::variables).
@@ -333,7 +334,7 @@ where
     ///
     /// ```
     ///
-    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape;
+    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
     /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
     ///
     /// # Example
@@ -532,9 +533,9 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_obj(
+    fn vec_sample_obj<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Self::Obj>>;
@@ -573,9 +574,9 @@ where
     /// }
     ///
     /// ```
-    fn vec_sample_opt(
+    fn vec_sample_opt<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt>;
@@ -617,9 +618,9 @@ where
     ///
     /// ```
     ///
-    fn vec_sample_pair(
+    fn vec_sample_pair<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape>;

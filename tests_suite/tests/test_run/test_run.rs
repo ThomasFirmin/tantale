@@ -1,5 +1,5 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain, experiment::{Runable}, load, stop::Calls, exp,
+    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain, experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded}, load, solution::shape::RawObj, stop::Calls
 };
 
 use tantale_algos::{BatchRandomSearch, random_search::RandomSearch};
@@ -66,16 +66,15 @@ fn test_batch_run() {
     };
 
     let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
+    let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
     let cod: SingleCodomain<OutEvaluator> = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
-    let obj = Objective::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
-    let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = MonoExperiment::new((sp,cod), obj, opt, stop, (rec,check));
     exp.run();
 
     run_reader("tmp_test_batchrun", 50);
@@ -89,13 +88,16 @@ fn test_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
+    let mut exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 9, "Number of iteration is wrong");
-    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+    let expstop = exp.get_mut_stop();
+    assert_eq!(expstop.0, 50, "Number of calls is wrong");
+    expstop.1 = 100;
+    
+    let expoptimizer = exp.get_mut_optimizer();
+    assert_eq!(expoptimizer.0.iteration, 9, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
-    exp.stop.1 = 100;
     exp.run();
 
     let sp = sp_evaluator::get_searchspace();
@@ -107,11 +109,13 @@ fn test_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Mono, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
+    let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_batchrun", 100);
-    assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 17,"Number of iteration is wrong");
-    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+    let expstop = exp.get_stop();
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    assert_eq!(expoptimizer.0.iteration, 17,"Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
     drop(Cleaner {
         path: String::from("tmp_test_batchrun"),
@@ -137,7 +141,7 @@ fn test_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
-    let exp = exp!(Threaded, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded((sp,cod), obj, opt, stop, (rec,check));
     exp.run();
 
     run_reader("tmp_test_parbatchrun", 50);
@@ -151,13 +155,16 @@ fn test_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Threaded, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
+    let mut exp = load!(threaded, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
-    assert_eq!(exp.optimizer.0.iteration, 9, "Number of iteration is wrong");
-    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+    let expstop = exp.get_mut_stop();
+    assert_eq!(expstop.0, 50, "Number of calls is wrong");
+    expstop.1 = 100;
 
-    exp.stop.1 = 100;
+    let expoptimizer = exp.get_mut_optimizer();
+    assert_eq!(expoptimizer.0.iteration, 9, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
+
     exp.run();
 
     let sp = sp_evaluator::get_searchspace();
@@ -169,14 +176,17 @@ fn test_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Threaded, (sp, cod), obj, BatchRandomSearch, Calls, (rec, check));
+    let exp = load!(threaded, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_parbatchrun", 100);
-    assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
+
+    let expstop = exp.get_stop();
+    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    let expoptimizer = exp.get_optimizer();
     assert_eq!(
-        exp.optimizer.0.iteration, 17,
+        expoptimizer.0.iteration, 17,
         "Number of iteration is wrong"
     );
-    assert_eq!(exp.optimizer.0.batch, 7, "Batch size is wrong");
+    assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 }
 
 
@@ -206,7 +216,7 @@ fn test_seqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1);
 
-    let exp = exp!(Mono, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono((sp,cod), obj, opt, stop, (rec,check));
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
@@ -220,11 +230,12 @@ fn test_seqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let mut exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    assert_eq!(exp.stop.0, 50, "Number of calls is wrong");
+    let expstop = exp.get_mut_stop();
+    assert_eq!(expstop.0, 50, "Number of calls is wrong");
+    expstop.1 = 100;
 
-    exp.stop.1 = 100;
     exp.run();
 
     let sp = sp_evaluator::get_searchspace();
@@ -236,10 +247,40 @@ fn test_seqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config, 1).unwrap();
 
-    let exp = load!(Mono, (sp, cod), obj, RandomSearch, Calls, (rec, check));
+    let exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_seqrun", 100);
-    assert_eq!(exp.stop.0, 100, "Number of calls is wrong");
+    assert_eq!(exp.get_stop().0, 100, "Number of calls is wrong");
     drop(Cleaner {
         path: String::from("tmp_test_seqrun"),
     });
+}
+
+
+
+
+
+
+
+#[test]
+fn test_thrseqrun() {
+    drop(Cleaner {
+        path: String::from("tmp_test_thr_seq_run"),
+    });
+    let _clean = Cleaner {
+        path: String::from("tmp_test_thr_seq_run"),
+    };
+
+    let sp = sp_evaluator::get_searchspace();
+    let obj = sp_evaluator::get_function();
+    let opt = RandomSearch::new();
+    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let stop = Calls::new(50);
+    let config = FolderConfig::new("tmp_test_thr_seq_run").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config, 1);
+
+    let exp = ThrExperiment::new((sp,cod),obj,opt,stop,(rec,check));
+    exp.run();
+
+    run_reader("tmp_test_thr_seq_run", 50);
 }

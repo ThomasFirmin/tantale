@@ -4,7 +4,7 @@ use crate::{
 };
 
 use bincode::{config::Configuration, serde::Compat};
-use bitvec::{bitvec, vec::BitVec};
+use bitvec::{bitvec, slice::{IterOnes, IterZeros}, vec::BitVec};
 use mpi::{
     traits::{Communicator, Destination, Source},
     Rank, Tag,
@@ -192,9 +192,17 @@ impl IdleWorker {
     pub fn set_busy(&mut self, rank: Rank) {
         self.idle.set(rank as usize, false)
     }
-    /// Does not really pop, but get the first index of an idle worker, and set it to busy.
-    pub fn pop(&mut self) -> Option<usize> {
+    /// Returns the first (index ; Rank) idle worker.
+    pub fn first_idle(&self) -> Option<usize> {
         self.idle.first_one()
+    }
+    /// Iterate over idle workers (index ; Rank).
+    pub fn iter_idle(&self) -> IterOnes<'_, usize, bitvec::prelude::Lsb0> {
+        self.idle.iter_ones()
+    }
+    /// Iterate over busy workers (index ; Rank).
+    pub fn iter_busy(&self) -> IterZeros<'_, usize, bitvec::prelude::Lsb0> {
+        self.idle.iter_zeros()
     }
 }
 
@@ -246,7 +254,7 @@ where
 
     /// Send an Obj [`Solution`] to a worker
     pub fn send_to_worker(&mut self, pair: Shape) -> Option<Rank> {
-        if let Some(rank) = self.idle.pop() {
+        if let Some(rank) = self.idle.first_idle() {
             let r = rank as Rank;
             self.send_to_rank(r, pair);
             Some(r)
@@ -278,19 +286,32 @@ where
         (rank, pair, out)
     }
 
-    /// Send a [`Discard`](Fidelity::Discard) order
+    /// Flush a single overlowing [`Outcome`] when a stopping is trigered.
+    pub fn flush(&mut self) {
+        // Recv / sendv loop
+        while !self.idle.all_idle() {
+            let (_, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
+            let rank = status.source_rank();
+            self.idle.set_idle(rank);
+        }
+    }
+
+    /// Send a [`Discard`](Step::Discard) order
     pub fn discard_order(&mut self, rank: Rank, id: SolId) {
         send_msg(self.proc, DiscardFXMessage(id), rank, 104, self.config);
     }
-}
 
-/// Send a checkpoint order to a given iterable of workers ranks.
-pub fn checkpoint_order<It: Iterator<Item = i32>>(proc: &MPIProcess, range: It) {
-    range.for_each(|idx| {
-        proc.world
-            .process_at_rank(idx)
-            .send_with_tag(&Vec::<u8>::new(), 7);
-    });
+    /// Send a checkpoint order to a given iterable of workers ranks.
+    pub fn checkpoint_order(&mut self) {
+        let world = &self.proc.world;
+        self.idle.iter_idle().for_each(|idx| {world.process_at_rank(idx as i32).send_with_tag(&Vec::<u8>::new(), 7)});
+    }
+
+    /// Send a checkpoint order to a given iterable of workers ranks.
+    pub fn rank_checkpoint_order(&mut self, rank: i32) {
+        self.proc.world.process_at_rank(rank).send_with_tag(&Vec::<u8>::new(), 7);
+    }
+
 }
 
 /// Send a stop order to a given iterable of workers ranks.

@@ -19,14 +19,14 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
+                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::is_in_obj(&sp, &sample_obj));
                 let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_opt(&sp, sample_obj);
                 assert_eq!(converted_opt.get_sopt().x.len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::is_in_opt(&sp, converted_opt.get_sopt()));
 
-                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_opt(&sp, Some(&mut rng),sinfo.clone());
+                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_opt(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_opt.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::is_in_opt(&sp, &sample_opt));
                 let converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_obj(&sp, sample_opt);
@@ -40,13 +40,13 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<BasePartial<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, Some(&mut rng),3,sinfo.clone());
+                let vec_sample_obj: Vec<BasePartial<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj(&sp, &vec_sample_obj));
                 let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj);
                 let csopt: Vec<_> = vec_converted_opt.into_iter().map(|p| p.extract_sopt()).collect();
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt(&sp, &csopt));
 
-                let vec_sample_opt: Vec<BasePartial<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_opt(&sp, Some(&mut rng),3,sinfo.clone());
+                let vec_sample_opt: Vec<BasePartial<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt(&sp, &vec_sample_opt));
                 let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BasePartial<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt);
                 let csobj: Vec<_> = vec_converted_obj.into_iter().map(|p| p.extract_sobj()).collect();

@@ -1,17 +1,11 @@
 use crate::{
-    checkpointer::Checkpointer,
-    domain::onto::LinkOpt,
-    objective::{FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    searchspace::CompShape,
-    solution::{shape::RawObj, Batch, Id, OutBatch, SolutionShape, Uncomputed},
-    stop::Stop,
-    Searchspace,
+    SId, Searchspace, checkpointer::{Checkpointer, ThrCheckpointer}, domain::onto::LinkOpt, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "mpi")]
+use ::mpi::Rank;
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::DistCheckpointer,
@@ -38,120 +32,211 @@ pub mod mpi;
 #[cfg(feature = "mpi")]
 pub use basics::MPIExperiment;
 
-#[macro_export]
-#[cfg(not(feature = "mpi"))]
-macro_rules! exp {
-    (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::new(
-            ($domain, $codomain),
-            $objective,
-            $optimizer,
-            $stop,
-            ($rec, $check),
-        )
-    };
-    (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::new(
-            ($domain, $codomain),
-            $objective,
-            $optimizer,
-            $stop,
-            ($rec, $check),
-        )
-    };
-    (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::ThrExperiment::new(
-            ($domain, $codomain),
-            $objective,
-            $optimizer,
-            $stop,
-            ($rec, $check),
-        )
-    };
+/// Returns a [`MonoExperiment`].
+pub fn mono<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Check: Checkpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MonoExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::new(
+        space, objective, optimizer, stop, saver
+    )
 }
 
-#[macro_export]
+/// Returns a [`ThrExperiment`].
+pub fn threaded<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Check: ThrCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <ThrExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::new(
+        space, objective, optimizer, stop, saver
+    )
+}
+
 #[cfg(feature = "mpi")]
-macro_rules! exp {
-    (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
-                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                            ($domain, $codomain),
-                            $objective,
-                            $optimizer,
-                            $stop,
-                            ($rec, $check),
-                        )
-    };
-    (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment<_,_,_,_,_,_,_,_,_,_>
-                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                            ($domain, $codomain),
-                            $objective,
-                            $optimizer,
-                            $stop,
-                            ($rec, $check),
-                        )
-    };
-    (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::ThrExperiment<_,_,_,_,_,_,_,_,_,_>
-                        as tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>>::new(
-                            ($domain, $codomain),
-                            $objective,
-                            $optimizer,
-                            $stop,
-                            ($rec, $check),
-                        )
-    };
-    (MPI, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer: expr, $stop: expr, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MPIExperiment<_,_,_,_,_,_,_,_,_,_>
-                        as tantale::core::experiment::MPIRunable<_,_,_,_,_,_,_,_,_>>::new(
-                            $proc,
-                            ($domain, $codomain),
-                            $objective,
-                            $optimizer,
-                            $stop,
-                            ($rec, $check),
-                        )
-    };
+#[allow(clippy::type_complexity)]
+/// Returns a [`MPIExperiment`].
+pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    proc: &'a MPIProcess,
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+) -> MasterWorker<'a, MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: DistRecorder<PSol, SId, Out, Scp, Op>,
+    Check: DistCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::new(
+        proc,
+        space, objective, optimizer, stop, saver
+    )
 }
 
+/// Load a [`MonoExperiment`] from a saver (recorder optional, checkpointer required).
+pub fn mono_load<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SId, Op::SInfo>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Check: Checkpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MonoExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::load(
+        space, objective, saver
+    )
+}
+
+/// Load a [`ThrExperiment`] from a saver (recorder optional, threaded checkpointer required).
+pub fn threaded_load<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod, Out>:
+        SolutionShape<SId, Op::SInfo>,
+    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Check: ThrCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <ThrExperiment<_,_,_,_,_,_,_,_,_,_> as Runable<_,_,_,_,_,_,_,_,_>>::load(
+        space, objective, saver
+    )
+}
+
+#[cfg(feature = "mpi")]
+#[allow(clippy::type_complexity)]
+/// Load a [`MPIExperiment`] from a saver (dist-recorder optional, dist-checkpointer required).
+pub fn distributed_load<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    proc: &'a MPIProcess,
+    space: (Scp, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+) -> MasterWorker<'a, MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod, Out>:
+        SolutionShape<SId, Op::SInfo>,
+    Rec: DistRecorder<PSol, SId, Out, Scp, Op>,
+    Check: DistCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::load(
+        proc,
+        space,
+        objective,
+        saver
+    )
+}
+
+
+/// Helper macro to call the `_load` helpers while only specifying the `Op` and `St` types.
+/// Usage:
+/// - load!(mono, MyOp, MyStop, space, objective, saver)
+/// - load!(threaded, MyOp, MyStop, space, objective, saver)
+/// - load!(distributed, proc, MyOp, MyStop, space, objective, saver)  // requires "mpi" feature
 #[macro_export]
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
-    (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+    (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::mono_load::<$Op, $St>($space, $objective, $saver)
     };
-    (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+    (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::threaded_load::<$Op, $St>($space, $objective, $saver)
     };
-    (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_>::load(($domain,$codomain), $objective, ($rec, $check))
+    (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::distributed_load::<$Op, $St>($proc, $space, $objective, $saver)
     };
 }
 
+/// Helper macro to call the `_load` helpers while only specifying the `Op` and `St` types.
+/// Usage:
+/// - load!(mono, MyOp, MyStop, space, objective, saver)
+/// - load!(threaded, MyOp, MyStop, space, objective, saver)
+/// - load!(distributed, proc, MyOp, MyStop, space, objective, saver)  // requires "mpi" feature
 #[macro_export]
 #[cfg(feature = "mpi")]
 macro_rules! load {
-    (($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                            >::load(($domain,$codomain), $objective, ($rec, $check))
+    (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::mono_load::<$Op, $St,_,_,_,_,_,_,_>($space, $objective, $saver)
     };
-    (Mono, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MonoExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                            >::load(($domain,$codomain), $objective, ($rec, $check))
+    (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::threaded_load::<$Op, $St,_,_,_,_,_,_,_>($space, $objective, $saver)
     };
-    (Threaded, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::ThrExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                            tantale::core::experiment::Runable<_,_,_,_,_,_,_,_,_>
-                            >::load(($domain,$codomain), $objective, ($rec, $check))
-    };
-    (MPI, $proc:expr, ($domain: expr, $codomain: expr) ,$objective: expr, $optimizer:ident, $stop:ident, ($rec: expr, $check: expr)) => {
-        <tantale::core::experiment::MPIExperiment::<_,_,_,$optimizer,$stop,_,_,_,_,_> as
-                            tantale::core::experiment::MPIRunable<_,_,_,_,_,_,_,_,_>
-                            >::load($proc, ($domain,$codomain), $objective, ($rec, $check))
+    (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::distributed_load::<$Op, $St,_,_,_,_,_,_,_>($proc, $space, $objective, $saver)
     };
 }
 
@@ -164,12 +249,12 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SolId, Out, Scp, Op>,
     Check: Checkpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
 {
     fn new(
         space: (Scp, Op::Cod),
@@ -180,6 +265,20 @@ where
     ) -> Self;
     fn run(self);
     fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self;
+    fn get_stop(&self) -> &St;
+    fn get_searchspace(&self) -> &Scp;
+    fn get_codomain(&self) -> &Op::Cod;
+    fn get_objective(&self) -> &Fn;
+    fn get_optimizer(&self) -> &Op;
+    fn get_recorder(&self) -> Option<&Rec>;
+    fn get_checkpointer(&self) -> Option<&Check>;
+    fn get_mut_stop(&mut self) -> &mut St;
+    fn get_mut_searchspace(&mut self) -> &mut Scp;
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+    fn get_mut_objective(&mut self) -> &mut Fn;
+    fn get_mut_optimizer(&mut self) -> &mut Op;
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
 }
 
 #[cfg(feature = "mpi")]
@@ -190,9 +289,9 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: DistRecorder<PSol, SolId, Out, Scp, Op>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -236,8 +335,7 @@ where
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     St: Stop,
     Rec: DistRecorder<PSol, SolId, Out, Scp, Op>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -258,6 +356,20 @@ where
         objective: Fn,
         saver: (Option<Rec>, Check),
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
+    fn get_stop(&self) -> &St;
+    fn get_searchspace(&self) -> &Scp;
+    fn get_codomain(&self) -> &Op::Cod;
+    fn get_objective(&self) -> &Fn;
+    fn get_optimizer(&self) -> &Op;
+    fn get_recorder(&self) -> Option<&Rec>;
+    fn get_checkpointer(&self) -> Option<&Check>;
+    fn get_mut_stop(&mut self) -> &mut St;
+    fn get_mut_searchspace(&mut self) -> &mut Scp;
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+    fn get_mut_objective(&mut self) -> &mut Fn;
+    fn get_mut_optimizer(&mut self) -> &mut Op;
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
 }
 
 //------------------------//
@@ -272,6 +384,12 @@ pub type OutBatchEvaluate<SolId, SInfo, Info, Scp, PSol, Cod, Out> = (
 pub type OutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> = (
     CompShape<Scp, PSol, SolId, SInfo, Cod, Out>,
     (SolId,Out)
+);
+#[cfg(feature="mpi")]
+pub type DistOutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> = (
+    Rank,
+    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>,
+    (SolId,Out))
 );
 
 pub trait Evaluate

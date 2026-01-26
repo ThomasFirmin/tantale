@@ -34,9 +34,7 @@ use std::{fmt::Debug, sync::Arc};
 
 /// Describes single-[`Solution`] information
 /// obtained after each iteration of the [`Optimizer`].
-pub trait SolInfo
-where
-    Self: Debug + Serialize + for<'a> Deserialize<'a>,
+pub trait SolInfo:Debug + Serialize + for<'a> Deserialize<'a>
 {
 }
 

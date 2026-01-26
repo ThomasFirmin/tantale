@@ -23,7 +23,8 @@ macro_rules! get_test {
                 use tantale::core::$cod;
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, None,info.clone());
+                let rng = &mut rand::rng();
+                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
                 let (_,elem) = $func();
                 let computed: Computed<_,SId,$dom,$cod<OutExample>,_,EmptyInfo> = Computed::new(sample,Arc::new(elem));
 

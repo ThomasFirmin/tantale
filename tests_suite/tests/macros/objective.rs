@@ -84,7 +84,7 @@ fn obj_test() {
         >,
     {
         let info = std::sync::Arc::new(EmptyInfo {});
-        let obj = sp.sample_obj(Some(rng), info);
+        let obj = sp.sample_obj(rng, info);
         let pair = sp.onto_opt(obj); // Paired solutions have the same ID
         println!(
             "Obj {:?}:  <=> Opt {:?} : ",

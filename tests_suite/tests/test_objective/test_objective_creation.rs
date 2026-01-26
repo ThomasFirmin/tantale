@@ -18,7 +18,7 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp, Some(&mut rng),sinfo.clone());
+                let sample_obj : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let out = func(sample_obj.get_x());
@@ -86,7 +86,7 @@ macro_rules! get_test_real {
 
                 let mut rng = rand::rng();
 
-                let sample_obj : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp,Some(&mut rng),sinfo.clone());
+                let sample_obj : BasePartial<SId,_,_> = <Sp<_,_> as Searchspace<BasePartial<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let out = func(sample_obj.get_x());

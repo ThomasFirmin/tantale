@@ -31,7 +31,7 @@ use crate::{
 };
 
 use num::cast::AsPrimitive;
-use rand::prelude::ThreadRng;
+use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::RangeInclusive};
 
@@ -68,7 +68,7 @@ impl Domain for Unit {
     type TypeDom = f64;
 
     /// Sample a `f64` using the inner [`BoundedDistribution`] of [`Unit`].
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.sampler.sample(self, rng)
     }
 

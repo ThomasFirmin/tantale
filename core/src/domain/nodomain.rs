@@ -1,5 +1,6 @@
 use crate::domain::PreDomain;
 
+#[derive(Debug)]
 pub struct NoDomain;
 impl PreDomain for NoDomain {}
 

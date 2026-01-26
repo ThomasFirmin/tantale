@@ -1,9 +1,5 @@
 use crate::{
-    checkpointer::{CheckpointError, Checkpointer},
-    experiment::Evaluate,
-    optimizer::OptState,
-    stop::Stop,
-    FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
+    FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID, checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer}, experiment::Evaluate, optimizer::OptState, stop::Stop
 };
 
 use core::panic;
@@ -46,9 +42,9 @@ pub struct MessagePack {
 impl MessagePack {
     pub fn new(config: Arc<FolderConfig>, checkpoint: usize) -> Option<Self> {
         if checkpoint > 0 {
-            let path_stop = config.path_check.join(Path::new("state_optim.mp"));
-            let path_eval = config.path_check.join(Path::new("state_stop.mp"));
-            let path_optim = config.path_check.join(Path::new("state_eval.mp"));
+            let path_stop = config.path_check.join(Path::new("state_stop.mp"));
+            let path_eval = config.path_check.join(Path::new("state_eval.mp"));
+            let path_optim = config.path_check.join(Path::new("state_optim.mp"));
             let path_config = config.path_check.join(Path::new("state_config.mp"));
             Some(MessagePack {
                 config,
@@ -228,6 +224,183 @@ impl Checkpointer for MessagePack {
     }
 }
 
+impl ThrCheckpointer for MessagePack {
+    type Config = FolderConfig;
+
+    fn init_thr(&mut self) {
+        let does_exist = self.config.path_check.try_exists().unwrap();
+        if does_exist {
+            panic!(
+                "The checkpointer folder path already exists, {}.",
+                self.config.path_check.display()
+            )
+        } else if self.config.path_check.is_file() {
+            panic!(
+                "The checkpointer path cant point to a file, {}.",
+                self.config.path_check.display()
+            )
+        } else {
+            create_dir_all(&self.config.path_check).unwrap();
+        }
+    }
+
+    fn after_load_thr(&mut self) {
+        // Check if all folder and files exist
+        if self.config.path_check.try_exists().unwrap() {
+            if !self.path_config.try_exists().unwrap() {
+                panic!(
+                    "The `config` file does not exist in {}",
+                    self.path_config.display()
+                )
+            }
+            if !self.path_optim.try_exists().unwrap() {
+                panic!(
+                    "The `optimizer` file does not exist in {}",
+                    self.path_optim.display()
+                )
+            }
+            if !self.path_stop.try_exists().unwrap() {
+                panic!(
+                    "The `stop` file does not exist in {}",
+                    self.path_stop.display()
+                )
+            }
+            if !self.path_eval.try_exists().unwrap() {
+                panic!(
+                    "The `eval` file does not exist in {}",
+                    self.path_eval.display()
+                )
+            }
+        } else {
+            panic!(
+                "The checkpointer folder does not exists, {}.",
+                self.config.path_check.display()
+            )
+        }
+    }
+
+    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        state: &OState,
+        stop: &St,
+        eval: &Eval,
+        k: usize,
+    ) {
+        let mut wrt = File::create(&self.path_optim).unwrap();
+        rmp_serde::encode::write(&mut wrt, state).unwrap();
+        let mut wrt = File::create(&self.path_stop).unwrap();
+        rmp_serde::encode::write(&mut wrt, stop).unwrap();
+        let path_eval= self.config.path_check.join(Path::new(&format!("state_eval_thr_{}.mp",k)));
+        let mut wrt = File::create(&path_eval).unwrap();
+        rmp_serde::encode::write(&mut wrt, eval).unwrap();
+
+        let global = GlobalParameters {
+            sold_id: SOL_ID.load(Ordering::Relaxed),
+            opt_id: OPT_ID.load(Ordering::Relaxed),
+            run_id: RUN_ID.load(Ordering::Relaxed),
+        };
+
+        let mut wrt = File::create(&self.path_config).unwrap();
+        rmp_serde::encode::write(&mut wrt, &global).unwrap();
+    }
+
+    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+    ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
+        let global: GlobalParameters = self.load_parameters()?;
+        SOL_ID.store(global.sold_id, Ordering::Release);
+        OPT_ID.store(global.sold_id, Ordering::Release);
+        Ok((
+            self.load_optimizer_thr()?,
+            self.load_stop_thr()?,
+            self.load_evaluate_thr()?,
+        ))
+    }
+
+    fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError> {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_stop.is_file() {
+                let rdr = File::open(&self.path_stop).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Stop` file state_stop.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_optim.is_file() {
+                let rdr = File::open(&self.path_optim).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Optimizer` file state_optim.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
+        // Check if file exist
+        let k = num_cpus::get();
+        let mut vec_eval = Vec::new();
+        if self.config.path_check.try_exists().unwrap() {
+            for i in 0..k
+            {
+                let path_eval= self.config.path_check.join(Path::new(&format!("state_eval_thr_{}.mp",i)));
+                if path_eval.is_file() {
+                    let rdr = File::open(&self.path_eval).unwrap();
+                    vec_eval.push(rmp_serde::decode::from_read(rdr).unwrap());
+                } else {
+                    println!("INFO: The Evaluate checkpoint file for thread {} does not exists. It is replaced by a new empty Evaluate.", i);
+                }
+            }
+        } else {
+            return Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+        if !vec_eval.is_empty() {
+            Ok(vec_eval)
+        }else{
+            Err(CheckpointError(String::from(
+                "The given path does not have any Evaluate checkpoint file",
+            )))
+        }
+    }
+
+    fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError> {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_config.is_file() {
+                let rdr = File::open(&self.path_config).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Config` file state_config.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+}
+
 #[cfg(feature = "mpi")]
 impl DistCheckpointer for MessagePack {
     type WCheck<WState: WorkerState> = WCheckMessagePack;
@@ -249,7 +422,7 @@ impl DistCheckpointer for MessagePack {
                 create_dir_all(&self.config.path_work).unwrap();
             }
         } else {
-            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")
+            panic!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method on the config object.")
         }
         // Wait for worker
         proc.world.barrier();

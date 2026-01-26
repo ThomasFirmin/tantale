@@ -30,7 +30,7 @@ use crate::{
 };
 
 use num::cast::AsPrimitive;
-use rand::prelude::ThreadRng;
+use rand::prelude::Rng ;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 // _-_-_-_-_-_-__-_-_-_-_-_-_-_
@@ -80,7 +80,7 @@ impl Domain for Cat {
 
     /// Default sampler for [`Cat`] is a uniform choice within the `values`
     /// See [`uniform_cat`].
-    fn sample(&self, rng: &mut ThreadRng) -> TypeDom<Self> {
+    fn sample<R: Rng>(&self, rng: &mut R) -> TypeDom<Self> {
         self.sampler.sample(self, rng)
     }
 

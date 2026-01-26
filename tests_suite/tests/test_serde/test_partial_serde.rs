@@ -17,7 +17,8 @@ macro_rules! get_test {
             fn [< test_ $sp _json >](){
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
-                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, None,info.clone());
+                let rng = &mut rand::rng();
+                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
 
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
                 let nsample : BasePartial<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();

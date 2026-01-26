@@ -11,7 +11,7 @@ use crate::{
     recorder::csv::CSVWritable,
 };
 
-use rand::prelude::ThreadRng;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
@@ -88,7 +88,7 @@ impl Default for BaseTypeDom {
 impl PreDomain for BaseDom {}
 impl Domain for BaseDom {
     type TypeDom = BaseTypeDom;
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
+    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
         match self {
             Self::Real(e) => BaseTypeDom::Real(e.sample(rng)),
             Self::Nat(e) => BaseTypeDom::Nat(e.sample(rng)),

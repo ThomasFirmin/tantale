@@ -1,15 +1,15 @@
 extern crate proc_macro;
 
 mod hpo;
-mod mixed;
+// mod mixed;
 mod objective;
 mod outcome;
 mod stepped;
 
-#[proc_macro_derive(Mixed)]
-pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    mixed::proc_mixed(input)
-}
+// #[proc_macro_derive(Mixed)]
+// pub fn mixed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+//     mixed::proc_mixed(input)
+// }
 
 #[proc_macro_derive(Outcome)]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

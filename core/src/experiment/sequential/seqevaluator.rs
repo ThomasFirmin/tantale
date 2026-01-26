@@ -104,6 +104,95 @@ where
     }
 }
 
+//----------------------//
+//--- MULTI-THREADED ---//
+//----------------------//
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct ThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+    pub pair : Option<Shape>,
+    _id : PhantomData<SolId>,
+    _sinfo : PhantomData<SInfo>,
+}
+
+impl<Shape,SolId,SInfo> ThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+    pub fn new(pair: Shape) -> Self {
+        ThrSeqEvaluator { pair:Some(pair), _id: PhantomData, _sinfo: PhantomData }
+    }
+
+    pub fn update(&mut self, pair: Shape) {
+        self.pair = Some(pair);
+    }
+}
+
+impl<Shape,SolId,SInfo> Evaluate for ThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+}
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct VecThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+    pub pair : Vec<Shape>,
+    _id : PhantomData<SolId>,
+    _sinfo : PhantomData<SInfo>,
+}
+impl<Shape,SolId,SInfo> Evaluate for VecThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+}
+
+impl<Shape,SolId,SInfo> From<VecThrSeqEvaluator<Shape,SolId,SInfo>> for Vec<ThrSeqEvaluator<Shape,SolId,SInfo>>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+    fn from(val: VecThrSeqEvaluator<Shape,SolId,SInfo>) -> Self {
+        val.pair.into_iter().map(|pair| ThrSeqEvaluator::new(pair)).collect()
+    }
+}
+
+impl<Shape,SolId,SInfo> From<Vec<ThrSeqEvaluator<Shape,SolId,SInfo>>> for VecThrSeqEvaluator<Shape,SolId,SInfo>
+where
+    Shape: SolutionShape<SolId,SInfo>,
+    SolId: Id,
+    SInfo:SolInfo,
+{
+    fn from(value: Vec<ThrSeqEvaluator<Shape,SolId,SInfo>>) -> Self {
+        let pair = value.into_iter().filter_map(|p| p.pair).collect();
+        VecThrSeqEvaluator { pair, _id: PhantomData, _sinfo: PhantomData }
+    }
+}
 
 //-------------------//
 //--- DISTRIBUTED ---//

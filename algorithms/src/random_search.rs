@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use tantale_core::{
     BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped, domain::{
@@ -11,9 +11,12 @@ use tantale_core::{
     }
 };
 
-use rand::prelude::ThreadRng;
+use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
+thread_local! {
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+}
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RSInfo {
@@ -38,14 +41,12 @@ impl CSVWritable<(), ()> for RSInfo {
 pub struct SeqRSState;
 impl OptState for SeqRSState {}
 
-pub struct RandomSearch(pub SeqRSState, ThreadRng);
+pub struct RandomSearch(pub SeqRSState);
 
 impl RandomSearch {
     pub fn new() -> Self {
-        let rng = rand::rng();
         RandomSearch(
             SeqRSState,
-            rng,
         )
     }
 
@@ -58,6 +59,13 @@ impl RandomSearch {
             y_criteria: extractor,
         };
         out.into()
+    }
+    
+    fn with_rng<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut StdRng) -> T,
+    {
+        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
     }
 }
 
@@ -76,14 +84,14 @@ where
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = RSInfo;
+    type Info = EmptyInfo;
 
     fn get_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
-        Self(state, rand::rng())
+        Self(state)
     }
 }
 
@@ -96,14 +104,14 @@ where
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = RSInfo;
+    type Info = EmptyInfo;
 
     fn get_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
-        Self(state, rand::rng())
+        Self(state)
     }
 }
 
@@ -127,7 +135,11 @@ where
             scp: &Scp,
         ) -> Scp::SolShape
     {
-        scp.sample_pair(Some(&mut self.1),EmptyInfo.into())    
+        self.with_rng(|rng|
+            {
+                scp.sample_pair(rng, EmptyInfo.into())       
+            }
+        )
     }
 }
 
@@ -163,10 +175,20 @@ where
                         unreachable!("A pending SolShape, should not be passed to RandomSearch step.")
                     }
                     Step::Partially(_) => pair,
-                    _ => scp.sample_pair(Some(&mut self.1), EmptyInfo.into()),
+                    _ => self.with_rng(
+                        |rng|
+                        {
+                            scp.sample_pair(rng, EmptyInfo.into())
+                        }
+                    ),
                 }
             },
-            None => scp.sample_pair(Some(&mut self.1), EmptyInfo.into()),
+            None => self.with_rng(
+                        |rng|
+                        {
+                            scp.sample_pair(rng, EmptyInfo.into())
+                        }
+                    ),
         }
     }
 }
@@ -233,7 +255,7 @@ where
         iteration: opt.0.iteration,
     };
     opt.0.iteration += 1;
-    let pairs = sp.vec_sample_pair(Some(&mut opt.1), bsize, opt.0._emptyinfo.clone());
+    let pairs = sp.vec_sample_pair(&mut opt.1, bsize, opt.0._emptyinfo.clone());
     Batch::new(pairs, info.into())
 }
 
@@ -354,7 +376,7 @@ where
         let pairs: Vec<_> = x.into_iter().map(|p| 
             {
                 match p.step() {
-                    Step::Evaluated | Step::Discard| Step::Error => scp.sample_pair(Some(&mut self.1), self.0._emptyinfo.clone()),
+                    Step::Evaluated | Step::Discard| Step::Error => scp.sample_pair(&mut self.1, self.0._emptyinfo.clone()),
                     _ => IntoComputed::extract(p).0,
                 }
             }

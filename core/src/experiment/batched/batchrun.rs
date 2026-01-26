@@ -13,7 +13,7 @@ use std::{
 use crate::{
     checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker, batched::batchfidevaluator::FidDistBatchEvaluator, mpi::{
-            utils::{FXMessage, MPIProcess, SendRec, XMessage, checkpoint_order, stop_order},
+            utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         }
     }, recorder::DistRecorder, solution::{
@@ -141,14 +141,11 @@ where
         let mut outputed;
         'main: loop {
             self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
-            }
             if self.stop.stop() {
                 break 'main;
             };
 
-            // Arc copy of data to send to evaluator thread.
+            // Evaluation part
             (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &self.objective,
@@ -161,10 +158,72 @@ where
                 r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
+
+            // Checkpointing part
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+            }
         }
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }
 
@@ -288,14 +347,11 @@ where
         let mut outputed;
         'main: loop {
             self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
-            }
             if self.stop.stop() {
                 break 'main;
             };
 
-            // Evaluate batch
+            // Evaluation part
             (computed, outputed) = MonoEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &self.objective,
@@ -308,10 +364,72 @@ where
                 r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
+
+            // Checkpointing part
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+            }
         }
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }
 
@@ -359,7 +477,7 @@ where
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: Send + Sync,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        Debug + SolutionShape<SId, Op::SInfo> + Send + Sync,
+        SolutionShape<SId, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
@@ -444,18 +562,16 @@ where
         let mut computed;
         let mut outputed;
         'main: loop {
+            // Stop part
             {
                 let mut stlock = st.lock().unwrap();
-                stlock.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
-                }
                 if stlock.stop() {
                     break 'main;
                 };
+                stlock.update(ExpStep::Iteration);
             }
 
-            // Arc copy of data to send to evaluator thread.
+            // Evaluation part
             (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 ob.clone(),
@@ -468,13 +584,75 @@ where
                 r.save_batch(&computed, &outputed, &scp, &cod);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &scp);
             eval.update(batch);
+            
+            // Stop and checkpointing part
             {
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                }
             }
         }
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }
 
@@ -604,18 +782,16 @@ where
         let mut computed;
         let mut outputed;
         'main: loop {
+            // Stop part
             let mut stlock = st.lock().unwrap();
             {
-                stlock.update(ExpStep::Iteration);
-                if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
-                }
                 if stlock.stop() {
                     break 'main;
                 };
+                stlock.update(ExpStep::Iteration);
             }
 
-            // Arc copy of data to send to evaluator thread.
+            // Evaluation part
             (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 ob.clone(),
@@ -628,14 +804,76 @@ where
                 r.save_batch(&computed, &outputed, &scp, &cod);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &scp);
             eval.update(batch);
+
+            // Stop and checkpointing part
             {
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
+                if let Some(c) = &self.checkpointer {
+                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                }
             }
 
         }
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }
 
@@ -816,15 +1054,13 @@ where
         let mut outputed;
 
         'main: loop {
-            self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
-            }
+            // Stop part
             if self.stop.stop() {
                 break 'main;
             };
+            self.stop.update(ExpStep::Iteration); // New iteration
 
-            // Arc copy of data to send to evaluator thread.
+            // Evaluation part
             (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -838,16 +1074,73 @@ where
                 r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
-
             self.stop.update(ExpStep::Optimization);
-        }
-        // Recv / sendv loop
-        while !sendrec.waiting.is_empty() {
-            sendrec.rec_computed();
+
+            // Checkpointing part
+            if let Some(c) = &self.checkpointer {
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
+            }
         }
         stop_order(self.proc, 1..self.proc.size);
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }
 
@@ -1039,16 +1332,13 @@ where
         let mut outputed;
 
         'main: loop {
-            self.stop.update(ExpStep::Iteration);
-            if let Some(c) = &self.checkpointer {
-                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
-                checkpoint_order(self.proc, 1..self.proc.size);
-            }
+            // Stop part
             if self.stop.stop() {
                 break 'main;
             };
+            self.stop.update(ExpStep::Iteration); // New iteration
 
-            // Arc copy of data to send to evaluator thread.
+            // Evaluation part
             (computed, outputed) = DistEvaluate::<_, SId, Op, Scp, Out, St, _, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -1062,15 +1352,73 @@ where
                 r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
+            // Optimizer part
             batch = self.optimizer.step(computed, &self.searchspace);
             eval.update(batch);
-
             self.stop.update(ExpStep::Optimization);
-        }
-        // Recv / sendv loop
-        while !sendrec.waiting.is_empty() {
-            sendrec.rec_computed();
+
+            // Checkpointing part
+            if let Some(c) = &self.checkpointer {
+                c.save_state_dist(self.optimizer.get_state(),&self.stop,&eval,self.proc.rank);
+                sendrec.checkpoint_order(); // To all idle process.
+            }
         }
         stop_order(self.proc, 1..self.proc.size);
+    }
+    
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
+    
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
+    
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+    
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &self.objective
+    }
+    
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+    
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+    
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+    
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+    
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+    
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+    
+    fn get_mut_objective(&mut self) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &mut self.objective
+    }
+    
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+    
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+    
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
     }
 }

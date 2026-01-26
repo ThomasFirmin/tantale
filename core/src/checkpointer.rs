@@ -24,9 +24,6 @@ where
     type Config: SaverConfig;
     /// Initializes a non-existing checkpoint.
     fn init(&mut self);
-    // This method should be executed after a [`load`](DistCheckpointer::load).
-    /// In that case it replaces the [`init`](DistCheckpointer::init), when the checkpoint already exists. While
-    /// [`init`](DistCheckpointer::init) initializes an non-existing checkpoint.
     fn after_load(&mut self);
     /// Save the current state of the optimization.
     fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
@@ -49,6 +46,37 @@ where
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
 }
 
+/// A [`ThrCheckpointer`] is a [`Checkpointer`] for threaded experiment where each threat has it's own state.
+pub trait ThrCheckpointer:Checkpointer
+where
+    Self: Sized,
+{
+    type Config: SaverConfig;
+    /// Initializes a non-existing checkpoint where `k` is the number of threads with their own [`Evaluate`] state.
+    fn init_thr(&mut self);
+    fn after_load_thr(&mut self);
+    /// Save the current state of the optimization.
+    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        state: &OState,
+        stop: &St,
+        eval: &Eval,
+        thread: usize,
+    );
+    /// Load an existing checkpoint.
+    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self
+    ) -> Result<(OState, St, Vec<Eval>), CheckpointError>;
+    /// Load the [`Stop`] from an existing checkpoint.
+    fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError>;
+    /// Load the [`OptState`] from an existing checkpoint.
+    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError>;
+    /// Load the [`Evaluate`] from an existing checkpoint for the k-th thread.
+    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError>;
+    /// Load the [`GlobalParameters`] from an existing checkpoint.
+    fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
+}
+
 #[cfg(feature = "mpi")]
 /// A [`WorkerCheckpointer`] is used to create a checkpoint from the [`WorkerState`] during the optimization process.
 pub trait WorkerCheckpointer<WState>
@@ -66,6 +94,43 @@ where
     fn save_state(&self, state: &WState, rank: Rank);
     /// Load the [`WorkerState`] from an existing checkpoint.
     fn load(&self, rank: Rank) -> Result<WState, CheckpointError>;
+}
+
+#[cfg(feature = "mpi")]
+/// Distributed version of [Checkpointer].
+pub trait DistCheckpointer: Checkpointer
+where
+    Self: Sized,
+{
+    type WCheck<WState: WorkerState>: WorkerCheckpointer<WState>;
+    /// Initializes a non-existing checkpoint.
+    fn init_dist(&mut self, proc: &MPIProcess);
+    fn after_load_dist(&mut self, proc: &MPIProcess);
+    /// Define an initialiazation for [`Workers`] that do not have a [`Checkpointer`].
+    fn no_check_init(proc: &MPIProcess);
+    /// Save the current state of the optimization.
+    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        state: &OState,
+        stop: &St,
+        eval: &Eval,
+        rank: Rank,
+    );
+    /// Load an existing checkpoint.
+    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        rank: Rank,
+    ) -> Result<(OState, St, Eval), CheckpointError>;
+    /// Load the [`Stop`] from an existing checkpoint.
+    fn load_stop_dist<St: Stop>(&self, rank: Rank) -> Result<St, CheckpointError>;
+    /// Load the [`OptState`] from an existing checkpoint.
+    fn load_optimizer_dist<OState: OptState>(&self, rank: Rank) -> Result<OState, CheckpointError>;
+    /// Load the [`Evaluate`] from an existing checkpoint.
+    fn load_evaluate_dist<Eval: Evaluate>(&self, rank: Rank) -> Result<Eval, CheckpointError>;
+    /// Load the [`GlobalParameters`] from an existing checkpoint.
+    fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
+    /// Return the checkpointer for the [`Worker`].
+    fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
 }
 
 #[cfg(feature = "mpi")]
@@ -166,44 +231,4 @@ impl<S: WorkerState> WorkerCheckpointer<S> for NoWCheck {
     fn load(&self, _rank: Rank) -> Result<S, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
-}
-
-#[cfg(feature = "mpi")]
-/// Distributed version of [Checkpointer].
-pub trait DistCheckpointer: Checkpointer
-where
-    Self: Sized,
-{
-    type WCheck<WState: WorkerState>: WorkerCheckpointer<WState>;
-    /// Initializes a non-existing checkpoint.
-    fn init_dist(&mut self, proc: &MPIProcess);
-    /// This method should be executed after a [`load`](DistCheckpointer::load).
-    /// In that case it replaces the [`init`](DistCheckpointer::init), when the checkpoint already exists. While
-    /// [`init`](DistCheckpointer::init) initializes an non-existing checkpoint.
-    fn after_load_dist(&mut self, proc: &MPIProcess);
-    /// Define an initialiazation for [`Workers`] that do not have a [`Checkpointer`].
-    fn no_check_init(proc: &MPIProcess);
-    /// Save the current state of the optimization.
-    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
-        &self,
-        state: &OState,
-        stop: &St,
-        eval: &Eval,
-        rank: Rank,
-    );
-    /// Load an existing checkpoint.
-    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
-        &self,
-        rank: Rank,
-    ) -> Result<(OState, St, Eval), CheckpointError>;
-    /// Load the [`Stop`] from an existing checkpoint.
-    fn load_stop_dist<St: Stop>(&self, rank: Rank) -> Result<St, CheckpointError>;
-    /// Load the [`OptState`] from an existing checkpoint.
-    fn load_optimizer_dist<OState: OptState>(&self, rank: Rank) -> Result<OState, CheckpointError>;
-    /// Load the [`Evaluate`] from an existing checkpoint.
-    fn load_evaluate_dist<Eval: Evaluate>(&self, rank: Rank) -> Result<Eval, CheckpointError>;
-    /// Load the [`GlobalParameters`] from an existing checkpoint.
-    fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
-    /// Return the checkpointer for the [`Worker`].
-    fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
 }

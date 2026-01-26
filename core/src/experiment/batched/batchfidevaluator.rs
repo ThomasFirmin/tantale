@@ -372,6 +372,7 @@ where
         }
     }
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
+        self.new_batch.info = batch.info.clone();
         batch.chunk_to_priority(
             &mut self.where_is_id,
             &mut self.priority_discard,
@@ -434,6 +435,7 @@ where
         true
     } else if let Some(pair) = priority_discard.pop(available) {
         sendrec.discard_order(available, pair.get_id());
+        where_is_id.remove(&pair.get_id());
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
@@ -518,7 +520,7 @@ where
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
         while sendrec.idle.has_idle() && !stop_loop {
-            let available = sendrec.idle.pop().unwrap() as Rank;
+            let available = sendrec.idle.first_idle().unwrap() as Rank;
             stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
@@ -536,6 +538,10 @@ where
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
             pair.set_step(out.get_step());
+            match pair.step() {
+                Step::Evaluated | Step::Discard | Step::Error => {self.where_is_id.remove(&pair.get_id());},
+                 _ => {},
+            };
             stop.update(ExpStep::Distribution(pair.step()));
             obatch.add((pair.get_id(), out));
             cbatch.add(pair.into_computed(y.into()));
@@ -549,7 +555,7 @@ where
                 stop,
             );
         }
-        // Receive last solutions
+        // Receive last solutions that might overflow
         while !sendrec.waiting.is_empty() {
             let (_, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);

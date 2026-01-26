@@ -42,7 +42,7 @@ use crate::{
 };
 
 use num::{cast::AsPrimitive, Num, NumCast};
-use rand::{distr::uniform::SampleUniform, prelude::ThreadRng};
+use rand::{distr::uniform::SampleUniform, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
@@ -150,7 +150,7 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
 
     /// Default sampler for [`Bounded`].
     /// See [`uniform`].
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
+    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.sampler.sample(self, rng)
     }
 

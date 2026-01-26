@@ -28,7 +28,7 @@ mod test {
             Scp: Searchspace<BasePartial<SId, OptType, EmptyInfo>, SId, EmptyInfo, Opt = OptType>,
         {
             let info = std::sync::Arc::new(EmptyInfo {});
-            let obj = sp.sample_obj(Some(rng), info);
+            let obj = sp.sample_obj(rng, info);
             let pair = sp.onto_opt(obj); // Paired solutions have the same ID
             println!(
                 "Obj {:?}:  <=> Opt {:?} : ",

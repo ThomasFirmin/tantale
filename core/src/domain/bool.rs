@@ -27,7 +27,7 @@ use crate::{
 };
 
 use num::cast::AsPrimitive;
-use rand::rngs::ThreadRng;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -66,7 +66,7 @@ impl Domain for Bool {
     type TypeDom = bool;
 
     /// Sample a `bool` using the inner [`BoolDistribution`] of [`Bool`].
-    fn sample(&self, rng: &mut ThreadRng) -> Self::TypeDom {
+    fn sample<R:Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.0.sample(self, rng)
     }
 

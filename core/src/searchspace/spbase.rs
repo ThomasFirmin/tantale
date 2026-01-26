@@ -12,7 +12,7 @@ use crate::{
     variable::Var,
 };
 
-use rand::prelude::ThreadRng;
+use rand::prelude::Rng;
 use std::sync::Arc;
 
 /// A basic [`Searchspace`] made of a [`Box`] slice of [`Variable`].
@@ -64,21 +64,13 @@ where
         Pair::new(inp, solopt)
     }
 
-    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rn)).collect();
+    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rng)).collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
-    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rn)).collect();
+    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt {
+        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rng)).collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
@@ -118,39 +110,31 @@ where
         inp.into_iter().map(|i| self.onto_opt(i)).collect()
     }
 
-    fn vec_sample_obj(
+    fn vec_sample_obj<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
             .map(|_| {
                 <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
                     self,
-                    Some(rn),
+                    rng,
                     info.clone(),
                 )
             })
             .collect()
     }
 
-    fn vec_sample_opt(
+    fn vec_sample_opt<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
-            .map(|_| self.sample_opt(Some(rn), info.clone()))
+            .map(|_| self.sample_opt(rng, info.clone()))
             .collect()
     }
 
@@ -176,31 +160,23 @@ where
         })
     }
 
-    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
+    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape {
         let s =
-            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
+            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, rng, info.clone()); // sample
         self.onto_opt(s)
     }
 
-    fn vec_sample_pair(
+    fn vec_sample_pair<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
             .map(|_| {
                 let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
                     self,
-                    Some(rn),
+                    rng,
                     info.clone(),
                 ); // sample
                 self.onto_opt(s)
@@ -228,21 +204,13 @@ where
         Lone::new(inp)
     }
 
-    fn sample_obj(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rn)).collect();
+    fn sample_obj<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rng)).collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
-    fn sample_opt(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rn)).collect();
+    fn sample_opt<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rng)).collect();
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
@@ -285,67 +253,51 @@ where
         inp.into_iter().map(|sol| Lone::new(sol)).collect()
     }
 
-    fn vec_sample_obj(
+    fn vec_sample_obj<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
             .map(|_| {
                 <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
                     self,
-                    Some(rn),
+                    rng,
                     info.clone(),
                 )
             })
             .collect()
     }
 
-    fn vec_sample_opt(
+    fn vec_sample_opt<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Obj>> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
-            .map(|_| self.sample_opt(Some(rn), info.clone()))
+            .map(|_| self.sample_opt(rng, info.clone()))
             .collect()
     }
 
-    fn sample_pair(&self, rng: Option<&mut ThreadRng>, info: Arc<SInfo>) -> Self::SolShape {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
+    fn sample_pair<R:Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape {
         let s =
-            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, Some(rn), info.clone()); // sample
+            <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(self, rng, info.clone()); // sample
         Lone::new(s)
     }
 
-    fn vec_sample_pair(
+    fn vec_sample_pair<R:Rng>(
         &self,
-        rng: Option<&mut ThreadRng>,
+        rng: &mut R,
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape> {
-        let rn = match rng {
-            Some(r) => r,
-            None => &mut rand::rng(),
-        };
         (0..size)
             .map(|_| {
                 let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
                     self,
-                    Some(rn),
+                    rng,
                     info.clone(),
                 ); // sample
                 Lone::new(s)

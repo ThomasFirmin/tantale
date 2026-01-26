@@ -88,6 +88,8 @@
 //!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
 //!
 
+use std::fmt::Debug;
+
 use crate::{objective::outcome::Outcome, recorder::csv::CSVWritable, EvalStep, FidOutcome};
 use serde::{Deserialize, Serialize};
 
@@ -103,9 +105,7 @@ pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
 
 /// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
-pub trait Codomain<Out: Outcome>
-where
-    Self: std::fmt::Debug,
+pub trait Codomain<Out: Outcome>: Debug
 {
     type TypeCodom: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;

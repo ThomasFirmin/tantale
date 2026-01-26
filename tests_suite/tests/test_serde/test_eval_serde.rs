@@ -54,7 +54,7 @@ fn test_serde_batchevaluator() {
         SId,
         EmptyInfo,
     >>::vec_sample_obj(
-        &sp, Some(&mut rng), 20, sinfo.clone()
+        &sp, &mut rng, 20, sinfo.clone()
     );
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
@@ -129,7 +129,7 @@ fn test_serde_thrbatchevaluator() {
         SId,
         EmptyInfo,
     >>::vec_sample_obj(
-        &sp, Some(&mut rng), 20, sinfo.clone()
+        &sp, &mut rng, 20, sinfo.clone()
     );
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
@@ -217,7 +217,7 @@ fn test_serde_fidbatchevaluator() {
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval: FidBatchEvaluator<_, _, _, _, FnState> = FidBatchEvaluator::new(batch);
@@ -314,7 +314,7 @@ fn test_serde_thrfidbatchevaluator() {
             FidBasePartial<SId, BaseDom, EmptyInfo>,
             SId,
             EmptyInfo,
-        >>::vec_sample_obj(&sp, Some(&mut rng), 20, sinfo.clone());
+        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval: FidThrBatchEvaluator<_, _, _, _, FnState> = FidThrBatchEvaluator::new(batch);
