@@ -1,25 +1,7 @@
-//! A [`Cat`] domain defines a domain that is made of categorical
-//! and non ordinal features.
-//! For example, let's take the [activation function](https://en.wikipedia.org/w/index.php?title=Activation_function&oldid=1287429111),
-//! of a neural network, the features can be `["relu", "tanh", "sigmoid"]`.
-//!
-//! # Examples
-//!
-//! ```
-//! use tantale::core::{Cat,Domain};
-//!
-//! let mut rng = rand::rng();
-//! let check = ["relu", "tanh", "sigmoid"];
-//! let dom = Cat::new(&["relu", "tanh", "sigmoid"]);
-//!
-//! let sample = dom.sample(&mut rng);
-//! assert!(dom.is_in(&sample));
-//! assert_eq!(dom.values(), &check);
-//! ```
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        base::{BaseDom, BaseTypeDom},
+        mixed::{Mixed, MixedTypeDom},
         bounded::{Bounded, BoundedBounds},
         onto::{Onto, OntoDom},
         unit::Unit,
@@ -33,17 +15,16 @@ use num::cast::AsPrimitive;
 use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-// _-_-_-_-_-_-__-_-_-_-_-_-_-_
-// Categorical domain
+
 
 /// Describes a non-ordinal categorical domain. It is made of features,
-/// described by the private attribute `values`, an [`array`] of [`str`].
+/// described by a [`Vec`] of [`String`].
 /// Each elements describes a unique feature.
-/// The values can be accessed by the corresponding getter `values()`.
 ///
 /// # Attributes
 ///
-///  * `values` : `[Vec]<[String]>` - A static array of the features defining the categorical [`Domain`].
+///  * `values` : `Vec<String>` - The features defining the categorical [`Domain`].
+///  * `sampler` : [`CatDistribution`] - The sampling algorithm used to sample within the categorical [`Domain`].
 /// ```
 #[derive(Clone)]
 pub struct Cat {
@@ -55,8 +36,24 @@ impl Cat {
     ///
     /// # Attributes
     ///
-    ///  * `values` : `&'a [&'a str]` - A static array of the features defining the categorical [`Domain`].
+    /// * `values` : `I` - An iterator over `&str` describing the features of the categorical [`Domain`].
+    /// * `sampler` : `S` - A sampler implementing the [`Sampler`] trait for [`Cat`].
+    /// 
+    /// # Example
     ///
+    /// ```
+    /// use tantale::core::{Cat,Domain,Uniform};
+    ///
+    /// let mut rng = rand::rng();
+    ///
+    /// let mut rng = rand::rng();
+    /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
+    ///
+    /// let sample = dom.sample(&mut rng);
+    /// assert!(dom.is_in(&sample));
+    /// let check = ["relu", "tanh", "sigmoid"];
+    /// assert_eq!(dom.values(), &check);
+    /// ```
     pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>, I: IntoIterator<Item = &'a str>>(
         values: I,
         sampler: S,
@@ -78,35 +75,48 @@ impl PreDomain for Cat {}
 impl Domain for Cat {
     type TypeDom = String;
 
-    /// Default sampler for [`Cat`] is a uniform choice within the `values`
-    /// See [`uniform_cat`].
+    /// Sample a `String` using the inner [`CatDistribution`] of [`Cat`].
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use tantale::core::{Cat,Domain,Uniform};
+    ///
+    /// let mut rng = rand::rng();
+    ///
+    /// let mut rng = rand::rng();
+    /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
+    ///
+    /// let sample = dom.sample(&mut rng);
+    /// assert!(dom.is_in(&sample));
+    /// let check = ["relu", "tanh", "sigmoid"];
+    /// assert_eq!(dom.values(), &check);
+    /// ```
     fn sample<R: Rng>(&self, rng: &mut R) -> TypeDom<Self> {
         self.sampler.sample(self, rng)
     }
 
     /// Method to check if a given point is in the domain.
-    ///
+    /// 
     /// # Attributes
-    ///
-    /// * `point` : `&`[`Self`]`::`[`TypeDom`](Domain::TypeDom) :
-    ///   a point of the same type as the type of the domain.
-    ///
+    /// 
+    /// * `point` : `&`[`TypeDom`](Domain::TypeDom) - a borrowed sample from a [`Cat`].
+    /// 
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Cat,Domain};
+    /// use tantale::core::{Cat,Domain,Uniform};
     ///
     /// let mut rng = rand::rng();
-    /// static ACTIVATION : [&str; 3] = ["relu", "tanh", "sigmoid"];
     ///
     /// let mut rng = rand::rng();
-    /// let check = ["relu", "tanh", "sigmoid"];
-    /// let dom = Cat::new(&ACTIVATION);
+    /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
     ///
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.is_in(&sample));
+    /// let check = ["relu", "tanh", "sigmoid"];
     /// assert_eq!(dom.values(), &check);
-    ///
+    /// ```
     fn is_in(&self, point: &TypeDom<Self>) -> bool {
         self.values.contains(point)
     }
@@ -236,9 +246,9 @@ impl Onto<Unit> for Cat {
 }
 impl OntoDom<Unit> for Cat {}
 
-impl Onto<BaseDom> for Cat {
+impl Onto<Mixed> for Cat {
     type Item = TypeDom<Cat>;
-    type TargetItem = TypeDom<BaseDom>;
+    type TargetItem = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Cat`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
     //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use (`onto`)[`Onto::onto`] of [`Self`].
@@ -254,39 +264,39 @@ impl Onto<BaseDom> for Cat {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
+    fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         match target {
-            BaseDom::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Real(i)),
+            Mixed::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Real(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+            Mixed::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Nat(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Int(i)),
+            Mixed::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Int(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Unit(i)),
+            Mixed::Unit(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Bool(_d) => unreachable!(
+            Mixed::Bool(_d) => unreachable!(
                 "Converting a value from Unit onto Unit is not implemented, and it should not occur."
             ),
-            BaseDom::Cat(_d) => unreachable!(
+            Mixed::Cat(_d) => unreachable!(
                 "Converting a value from Cat onto Cat is not implemented, and it should not occur."
             ),
         }
     }
 }
-impl OntoDom<BaseDom> for Cat {}
+impl OntoDom<Mixed> for Cat {}
 
-impl From<BaseDom> for Cat {
-    fn from(value: BaseDom) -> Self {
+impl From<Mixed> for Cat {
+    fn from(value: Mixed) -> Self {
         match value {
-            BaseDom::Cat(d) => d,
+            Mixed::Cat(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Cat."),
         }
     }

@@ -19,7 +19,7 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        base::{BaseDom, BaseTypeDom},
+        mixed::{Mixed, MixedTypeDom},
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         cat::Cat,
@@ -235,9 +235,9 @@ impl Onto<Cat> for Unit {
 }
 impl OntoDom<Cat> for Unit {}
 
-impl Onto<BaseDom> for Unit {
+impl Onto<Mixed> for Unit {
     type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<BaseDom>;
+    type TargetItem = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
     ///
     //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and (`onto`)[`Onto::onto`] of [`Self`].
@@ -253,40 +253,40 @@ impl Onto<BaseDom> for Unit {
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if resulting mapped `item` is not into the `target` domain.
     ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
+    fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         match target {
-            BaseDom::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Real(i)),
+            Mixed::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Real(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+            Mixed::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Nat(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Int(i)),
+            Mixed::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Int(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Unit(_d) => unreachable!(
+            Mixed::Unit(_d) => unreachable!(
                 "Converting a value from Unit onto Unit is not implemented, and it should not occur."
             ),
-            BaseDom::Bool(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Bool(i)),
+            Mixed::Bool(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Bool(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Cat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Cat(i)),
+            Mixed::Cat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Cat(i)),
                 Err(e) => Err(e),
             },
         }
     }
 }
-impl OntoDom<BaseDom> for Unit {}
+impl OntoDom<Mixed> for Unit {}
 
-impl From<BaseDom> for Unit {
-    fn from(value: BaseDom) -> Self {
+impl From<Mixed> for Unit {
+    fn from(value: Mixed) -> Self {
         match value {
-            BaseDom::Unit(d) => d,
+            Mixed::Unit(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Unit."),
         }
     }

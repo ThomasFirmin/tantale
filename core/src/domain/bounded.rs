@@ -30,7 +30,7 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        base::{BaseDom, BaseTypeDom},
+        mixed::{Mixed, MixedTypeDom},
         bool::Bool,
         cat::Cat,
         onto::{Onto, OntoDom},
@@ -148,12 +148,12 @@ impl<T: BoundedBounds> PreDomain for Bounded<T> {}
 impl<T: BoundedBounds> Domain for Bounded<T> {
     type TypeDom = T;
 
-    /// Default sampler for [`Bounded`].
-    /// See [`uniform`].
+    /// Sample a `T` using the inner [`BoundedDistribution`] of [`Bounded`].
     fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.sampler.sample(self, rng)
     }
-
+    
+    /// Method to check if a given point is in the domain.
     fn is_in(&self, item: &T) -> bool {
         self.bounds.contains(item)
     }
@@ -198,17 +198,18 @@ where
 {
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Bounded<Out>>;
+    /// [`Onto`] function between a [`Bounded`] and another [`Bounded`] [`Domain`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bounded`]`<Out>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bounded`] domain.
     fn onto(
         &self,
         item: &Self::Item,
@@ -249,17 +250,17 @@ where
     ///
     /// Considering $l_{in}$ and $u_{in}$ the lower and upper bounds of
     /// the input [`Bounded`] [`Domain`], and $x$ the `item`, returns `true` if $x>\frac{u_{in}-l_{in}}{2}$
-    ///
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// 
     /// # Errors
     ///
-    /// * Returns a [`DomainOoBError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
+    /// * Returns a [`OntoError`]
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     ///
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
@@ -298,15 +299,14 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`]<'a> - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
@@ -344,18 +344,18 @@ where
     /// the mapping is given by
     ///
     /// $$ \frac{x-l_{in}}{u_{in}-l_{in}}$$
-    ///
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Unit`]`<Out>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
+    /// 
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
@@ -379,58 +379,55 @@ where
 {
 }
 
-impl<In> Onto<BaseDom> for Bounded<In>
+impl<In> Onto<Mixed> for Bounded<In>
 where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
     type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
-    ///
-    //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and (`onto`)[`Onto::onto`] of [`Self`].
-    ///
+    type TargetItem = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Mixed`][`Domain`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
+    fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         match target {
-            BaseDom::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Real(i)),
+            Mixed::Real(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Real(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Nat(i)),
+            Mixed::Nat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Nat(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Int(i)),
+            Mixed::Int(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Int(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Unit(i)),
+            Mixed::Unit(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Unit(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Bool(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Bool(i)),
+            Mixed::Bool(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Bool(i)),
                 Err(e) => Err(e),
             },
-            BaseDom::Cat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(BaseTypeDom::Cat(i)),
+            Mixed::Cat(d) => match self.onto(item, d) {
+                Ok(i) => Ok(MixedTypeDom::Cat(i)),
                 Err(e) => Err(e),
             },
         }
     }
 }
-impl<In> OntoDom<BaseDom> for Bounded<In>
+impl<In> OntoDom<Mixed> for Bounded<In>
 where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
@@ -449,16 +446,16 @@ where
 /// # Examples
 ///
 /// ```
-/// use tantale::core::{Real,Domain,DomainBounded};
-/// let dom = Real::new(0.0, 10.0);
+/// use tantale::core::{Real,Domain,Uniform};
+/// let dom = Real::new(0.0, 10.0,Uniform);
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
-/// assert_eq!(dom.lower(), 0.0);
-/// assert_eq!(dom.upper(), 10.0);
-/// assert_eq!(dom.mid(), 5.0);
-/// assert_eq!(dom.width(), 10.0);
+/// assert_eq!(*dom.bounds.start(), 0.0);
+/// assert_eq!(*dom.bounds.end(), 10.0);
+/// assert_eq!(dom.mid, 5.0);
+/// assert_eq!(dom.width, 10.0);
 /// ```
 pub type Real = Bounded<f64>;
 
@@ -474,16 +471,16 @@ pub type Real = Bounded<f64>;
 /// # Examples
 ///
 /// ```
-/// use tantale::core::{Nat,Domain,DomainBounded};
-/// let dom = Nat::new(0, 10);
+/// use tantale::core::{Nat,Domain,Uniform};
+/// let dom = Nat::new(0, 10, Uniform);
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
-/// assert_eq!(dom.lower(), 0);
-/// assert_eq!(dom.upper(), 10);
-/// assert_eq!(dom.mid(), 5);
-/// assert_eq!(dom.width(), 10);
+/// assert_eq!(*dom.bounds.start(), 0);
+/// assert_eq!(*dom.bounds.end(), 10);
+/// assert_eq!(dom.mid, 5);
+/// assert_eq!(dom.width, 10);
 /// ```
 pub type Nat = Bounded<u64>;
 
@@ -499,17 +496,17 @@ pub type Nat = Bounded<u64>;
 /// # Examples
 ///
 /// ```
-/// use tantale::core::{Int,Domain,DomainBounded};
+/// use tantale::core::{Int,Domain,Uniform};
 ///
-/// let dom = Int::new(0, 10);
+/// let dom = Int::new(0, 10, Uniform);
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
-/// assert_eq!(dom.lower(), 0);
-/// assert_eq!(dom.upper(), 10);
-/// assert_eq!(dom.mid(), 5);
-/// assert_eq!(dom.width(), 10);
+/// assert_eq!(*dom.bounds.start(), 0);
+/// assert_eq!(*dom.bounds.end(), 10);
+/// assert_eq!(dom.mid, 5);
+/// assert_eq!(dom.width, 10);
 /// ```
 pub type Int = Bounded<i64>;
 

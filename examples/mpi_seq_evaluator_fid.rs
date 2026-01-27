@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BaseDom, BaseTypeDom, FidBasePartial, SId, Sp, Stepped,
+    Mixed, MixedTypeDom, FidBasePartial, SId, Sp, Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -137,16 +137,16 @@ fn main() {
         let mut stop = Calls::new(50);
 
         let mut rng = rand::rng();
-        let pair = <Sp<BaseDom, NoDomain> as Searchspace<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
+        let pair = <Sp<Mixed, NoDomain> as Searchspace<
+            FidBasePartial<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
-        let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+        let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+        let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sopt().x.clone()))
             .collect();
@@ -155,22 +155,22 @@ fn main() {
         let out = <FidDistSeqEvaluator<
             SId,
             EmptyInfo,
-            Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+            Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            FidBasePartial<SId, BaseDom, EmptyInfo>,
+            FidBasePartial<SId, Mixed, EmptyInfo>,
             SId,
             RandomSearch,
-            Sp<BaseDom, NoDomain>,
+            Sp<Mixed, NoDomain>,
             FidOutEvaluator,
             Calls,
-            Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+            Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
             Option<
                 DistOutShapeEvaluate<
                     SId,
                     EmptyInfo,
-                    Sp<BaseDom, NoDomain>,
-                    FidBasePartial<SId, BaseDom, EmptyInfo>,
+                    Sp<Mixed, NoDomain>,
+                    FidBasePartial<SId, Mixed, EmptyInfo>,
                     SingleCodomain<FidOutEvaluator>,
                     FidOutEvaluator,
                 >,
@@ -214,22 +214,22 @@ fn main() {
             let out = <FidDistSeqEvaluator<
                 SId,
                 EmptyInfo,
-                Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+                Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SId,
                 RandomSearch,
-                Sp<BaseDom, NoDomain>,
+                Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 Option<
                     DistOutShapeEvaluate<
                         SId,
                         EmptyInfo,
-                        Sp<BaseDom, NoDomain>,
-                        FidBasePartial<SId, BaseDom, EmptyInfo>,
+                        Sp<Mixed, NoDomain>,
+                        FidBasePartial<SId, Mixed, EmptyInfo>,
                         SingleCodomain<FidOutEvaluator>,
                         FidOutEvaluator,
                     >,

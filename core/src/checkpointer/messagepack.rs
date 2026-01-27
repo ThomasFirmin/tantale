@@ -1,7 +1,7 @@
 use crate::{
     FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
     checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer},
-    experiment::Evaluate,
+    experiment::{Evaluate},
     optimizer::OptState,
     stop::Stop,
 };
@@ -22,9 +22,10 @@ use crate::{
 #[cfg(feature = "mpi")]
 use mpi::{Rank, traits::CommunicatorCollectives};
 
+/// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
+/// 
 /// # Attribute
-/// * `config` : [`FolderConfig`] - A [`Config`].
-/// * `checkpoint` : [`usize`] - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
+/// * `config` : [`FolderConfig`] - Describes the folder hierarchy.
 ///
 /// # Notes on File hierarchy
 ///
@@ -32,11 +33,10 @@ use mpi::{Rank, traits::CommunicatorCollectives};
 ///  * checkpoint
 ///   * `state_optim.mp`  --  ([`OptState`])
 ///   * `state_stop.mp`  --  ([`Stop`])
-///   * `state_eval.mp`  --  ([`Evaluate`])
-///   * `state_config.mp`  --  Various global parameters as the [`Id`] or experiment identifier.)
+///   * `state_eval.mp`  --  ([`Evaluate`], might vary according to [`Runable`](crate::Runable) type)
+///   * `state_config.mp`  --  Various global parameters, see [`GlobalParameters`])
 pub struct MessagePack {
     pub config: Arc<FolderConfig>,
-    pub checkpoint: usize,
     path_stop: PathBuf,
     path_eval: PathBuf,
     path_optim: PathBuf,
@@ -44,31 +44,27 @@ pub struct MessagePack {
 }
 
 impl MessagePack {
-    pub fn new(config: Arc<FolderConfig>, checkpoint: usize) -> Option<Self> {
-        if checkpoint > 0 {
-            let path_stop = config.path_check.join(Path::new("state_stop.mp"));
-            let path_eval = config.path_check.join(Path::new("state_eval.mp"));
-            let path_optim = config.path_check.join(Path::new("state_optim.mp"));
-            let path_config = config.path_check.join(Path::new("state_config.mp"));
-            Some(MessagePack {
-                config,
-                checkpoint,
-                path_stop,
-                path_eval,
-                path_optim,
-                path_config,
-            })
-        } else {
-            panic!(
-                "The `checkpoint` parameter should be >0, otherwise don't use any Checkpointer by passing None."
-            );
-        }
+    /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
+    pub fn new(config: Arc<FolderConfig>) -> Option<Self> {
+        let path_stop = config.path_check.join(Path::new("state_stop.mp"));
+        let path_eval = config.path_check.join(Path::new("state_eval.mp"));
+        let path_optim = config.path_check.join(Path::new("state_optim.mp"));
+        let path_config = config.path_check.join(Path::new("state_config.mp"));
+        Some(MessagePack {
+            config,
+            path_stop,
+            path_eval,
+            path_optim,
+            path_config,
+        })
     }
 }
 
 impl Checkpointer for MessagePack {
     type Config = FolderConfig;
 
+    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
+    /// creates the folder hierarchy based on [`FolderConfig`].
     fn init(&mut self) {
         let does_exist = self.config.path_check.try_exists().unwrap();
         if does_exist {
@@ -85,7 +81,8 @@ impl Checkpointer for MessagePack {
             create_dir_all(&self.config.path_check).unwrap();
         }
     }
-
+    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
     fn after_load(&mut self) {
         // Check if all folder and files exist
         if self.config.path_check.try_exists().unwrap() {
@@ -115,6 +112,8 @@ impl Checkpointer for MessagePack {
         }
     }
 
+    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
     fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
@@ -138,6 +137,8 @@ impl Checkpointer for MessagePack {
         rmp_serde::encode::write(&mut wrt, &global).unwrap();
     }
 
+    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
     fn load<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Eval), CheckpointError> {
@@ -151,6 +152,7 @@ impl Checkpointer for MessagePack {
         ))
     }
 
+    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
     fn load_stop<St: Stop>(&self) -> Result<St, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -169,6 +171,7 @@ impl Checkpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
     fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -186,7 +189,7 @@ impl Checkpointer for MessagePack {
             )))
         }
     }
-
+    /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
     fn load_evaluate<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -205,6 +208,7 @@ impl Checkpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -227,6 +231,8 @@ impl Checkpointer for MessagePack {
 impl ThrCheckpointer for MessagePack {
     type Config = FolderConfig;
 
+    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
+    /// creates the folder hierarchy based on [`FolderConfig`].
     fn init_thr(&mut self) {
         let does_exist = self.config.path_check.try_exists().unwrap();
         if does_exist {
@@ -244,6 +250,16 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
+    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
+    /// 
+    /// # Note 
+    /// 
+    /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
+    /// involved in previous computions.
+    /// The number of [`Evaluate`] checkpoints might vary according to how many
+    /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
+    /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
     fn after_load_thr(&mut self) {
         // Check if all folder and files exist
         if self.config.path_check.try_exists().unwrap() {
@@ -279,6 +295,16 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
+    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
+    /// 
+    /// # Note 
+    /// 
+    /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
+    /// involved in previous computions.
+    /// The number of [`Evaluate`] checkpoints might vary according to how many
+    /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
+    /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
     fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
@@ -307,6 +333,8 @@ impl ThrCheckpointer for MessagePack {
         rmp_serde::encode::write(&mut wrt, &global).unwrap();
     }
 
+    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
     fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
@@ -320,6 +348,7 @@ impl ThrCheckpointer for MessagePack {
         ))
     }
 
+    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
     fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -338,6 +367,7 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
     fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -356,6 +386,18 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
+    /// 
+    /// # Note 
+    /// 
+    /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
+    /// involved in previous computions.
+    /// The number of [`Evaluate`] checkpoints might vary according to how many
+    /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
+    /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
+    /// 
+    /// # Panic
+    /// If no [`Evaluate`] checkpoint was found, then [`panic!`].
     fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
         // Check if file exist
         let k = num_cpus::get();
@@ -390,6 +432,7 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -412,6 +455,15 @@ impl ThrCheckpointer for MessagePack {
 #[cfg(feature = "mpi")]
 impl DistCheckpointer for MessagePack {
     type WCheck<WState: WorkerState> = WCheckMessagePack;
+
+    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
+    /// creates the folder hierarchy based on [`FolderConfig`].
+    /// 
+    /// # Note
+    /// 
+    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution. The Master creates
+    /// and cheks the folder hierarchy. Then, once done, waits for all workers to reach the same point,
+    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier). 
     fn init_dist(&mut self, proc: &MPIProcess) {
         if self.config.is_dist {
             let does_exist = self.config.path_check.try_exists().unwrap();
@@ -438,6 +490,15 @@ impl DistCheckpointer for MessagePack {
         proc.world.barrier();
     }
 
+    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
+    /// 
+    /// /// # Note
+    /// 
+    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
+    /// The Master checks the folder hierarchy, if some files or folder are missing, then [`panic!`].
+    /// Then, once done, it waits for all workers to reach the same point,
+    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
     fn after_load_dist(&mut self, proc: &MPIProcess) {
         if self.config.is_dist {
             // Check if all folder and files exist
@@ -480,10 +541,13 @@ impl DistCheckpointer for MessagePack {
         proc.world.barrier();
     }
 
+    /// A no-operation function to synchronize all processes after initialization, if no [`WorkerCheckpointer`] is used.
     fn no_check_init(proc: &MPIProcess) {
         proc.world.barrier();
     }
 
+    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
@@ -508,6 +572,8 @@ impl DistCheckpointer for MessagePack {
         rmp_serde::encode::write(&mut wrt, &global).unwrap();
     }
 
+    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
+    /// according to a [`FolderConfig`].
     fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         rank: Rank,
@@ -522,6 +588,7 @@ impl DistCheckpointer for MessagePack {
         ))
     }
 
+    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
     fn load_stop_dist<St: Stop>(&self, _rank: Rank) -> Result<St, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -540,6 +607,7 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
     fn load_optimizer_dist<OState: OptState>(
         &self,
         _rank: Rank,
@@ -561,6 +629,7 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
     fn load_evaluate_dist<Eval: Evaluate>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -579,6 +648,7 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
+    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
     fn load_parameters_dist(&self, _rank: Rank) -> Result<GlobalParameters, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -597,28 +667,29 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
+    /// Returns a [`WorkerCheckpointer`] based on the given [`MPIProcess`].
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
         WCheckMessagePack::new(self.config.clone(), proc)
     }
 }
 
 #[cfg(feature = "mpi")]
+/// A [`WorkerCheckpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
 /// # Attribute
 /// * `config` : [`FolderConfig`] - A [`Config`].
-/// * `ignore_missing` : During [`load`](WorkerCheckpointer::load), ignore missing checkpoint file and create new ones.
-///   It is used when the number of [`Worker`] is greater than the previous run of the optimization.
-/// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
+///   It is used when the number of [`Worker`](crate::Worker) is greater than the previous run of the optimization.
 ///
-/// # Notes on File hierarchy
-///
-/// * `path` from [`Config`]
+/// # Notes
+/// The worker checkpoint file hierarchy is as follows, it varies from usual mono-thread [`Checkpointer`]:
+/// * `path` from [`FolderConfig`]
 ///  * checkpoint
-///   * workers
-///     * `worker_state_rank{}` ([`WorkerState`])
+///   * workers <===== Modification here
+///     * `worker_state_rank{}` ([`WorkerState`]) <====== And here
 pub struct WCheckMessagePack(PathBuf);
 
 #[cfg(feature = "mpi")]
 impl WCheckMessagePack {
+    /// Returns a [`WCheckMessagePack`] for the given [`MPIProcess`].
     pub fn new(config: Arc<FolderConfig>, proc: &MPIProcess) -> Self {
         if !config.is_dist {
             panic!(
@@ -635,6 +706,14 @@ impl WCheckMessagePack {
 
 #[cfg(feature = "mpi")]
 impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
+    /// Checks if folders and files already exists, if so [`panic!`] for [WorkerCheckpointer].
+    /// 
+    /// # Note
+    /// 
+    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
+    /// The [`Worker`](crate::Worker) wait for the Master to create and check the folder hierarchy,
+    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
+    /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
     fn init(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
         if self.0.try_exists().unwrap() {
@@ -644,7 +723,15 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
             )
         }
     }
-
+    /// Ran after [`init`](WorkerCheckpointer::init), and after a [`load!`](crate::load).
+    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
+    /// 
+    /// # Note
+    /// 
+    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
+    /// The [`Worker`](crate::Worker) wait for the Master to check the folder hierarchy,
+    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
+    /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
     fn after_load(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
         // Check if all folder and files exist
@@ -656,11 +743,13 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
         }
     }
 
+    /// Saves a checkpoint from the given [`WorkerState`], according to a [`FolderConfig`].
     fn save_state(&self, state: &WState, _rank: Rank) {
         let mut wrt = File::create(&self.0).unwrap();
         rmp_serde::encode::write(&mut wrt, state).unwrap();
     }
 
+    /// Loads a checkpoint from an already saved [`WorkerState`], according to a [`FolderConfig`].
     fn load(&self, _rank: Rank) -> Result<WState, CheckpointError> {
         // Check if file exist
         if self.0.try_exists().unwrap() {

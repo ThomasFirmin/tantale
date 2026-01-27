@@ -46,7 +46,7 @@ macro_rules! get_base_test {
                 #[test]
                 fn [<write_of_$name>](){
                     let (dom,_) = $dom_func($dom,$in);
-                    let elem = BaseTypeDom::$domtype($in);
+                    let elem = MixedTypeDom::$domtype($in);
                     let write = dom.write(&elem);
                     assert_eq!(write[0],$in.to_string(), "Expected string is incorrect.");
                 }

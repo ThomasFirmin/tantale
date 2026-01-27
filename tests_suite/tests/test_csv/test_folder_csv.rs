@@ -3,7 +3,7 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
-    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
+    Mixed, MixedTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::{
         Recorder,
@@ -70,7 +70,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
 ) where
     PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
-    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
         + Send
@@ -111,7 +111,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         let id = pair.get_id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
-            BaseTypeDom::Int(ae) => ae,
+            MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
         };
         let outcome = infos::get_out(id.id, aelem);
@@ -136,7 +136,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         let id = pair.get_id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
-            BaseTypeDom::Int(ae) => ae,
+            MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
         };
         let outcome = infos::get_out(id.id, aelem);
@@ -169,7 +169,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 ) where
     PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
-    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
         + Send
@@ -334,7 +334,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             .unwrap();
         let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
-            BaseTypeDom::Int(f) => f,
+            MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> =
@@ -382,7 +382,7 @@ fn test_csv_func() {
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<_, SId, OutExample, Sp<BaseDom, _>, BatchRandomSearch>>::init(
+    <CSVRecorder as Recorder<_, SId, OutExample, Sp<Mixed, _>, BatchRandomSearch>>::init(
         &mut recorder,
         &sp,
         &cod,

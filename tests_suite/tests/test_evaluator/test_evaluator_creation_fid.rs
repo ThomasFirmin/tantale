@@ -1,6 +1,6 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BaseDom, BaseTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    Mixed, MixedTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped,
     domain::NoDomain,
     experiment::{
         FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,
@@ -22,7 +22,7 @@ type BBatch = Batch<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+    Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
 >;
 
 #[test]
@@ -36,17 +36,17 @@ fn test_fidbatchevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj = <Sp<BaseDom, NoDomain> as Searchspace<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+    let sobj = <Sp<Mixed, NoDomain> as Searchspace<
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.get_id(), s.get_sobj().x.clone()))
         .collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.get_id(), s.get_sopt().x.clone()))
         .collect();
@@ -57,23 +57,23 @@ fn test_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
-    let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
 
     let compiter = (&bcomp).into_iter();
 
@@ -149,17 +149,17 @@ fn test_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -171,17 +171,17 @@ fn test_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -193,17 +193,17 @@ fn test_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -215,17 +215,17 @@ fn test_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     assert_eq!(
@@ -246,17 +246,17 @@ fn test_fidthrbatchevaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj = <Sp<BaseDom, NoDomain> as Searchspace<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+    let sobj = <Sp<Mixed, NoDomain> as Searchspace<
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+    let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.get_id(), s.get_sobj().x.clone()))
         .collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+    let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.get_id(), s.get_sopt().x.clone()))
         .collect();
@@ -267,23 +267,23 @@ fn test_fidthrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
-    let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
 
     let compiter = (&bcomp).into_iter();
 
@@ -359,17 +359,17 @@ fn test_fidthrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -381,17 +381,17 @@ fn test_fidthrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -403,17 +403,17 @@ fn test_fidthrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -425,17 +425,17 @@ fn test_fidthrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     assert_eq!(
@@ -455,8 +455,8 @@ fn test_seqfidevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let pair = <Sp<BaseDom, NoDomain> as Searchspace<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+    let pair = <Sp<Mixed, NoDomain> as Searchspace<
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
@@ -467,22 +467,22 @@ fn test_seqfidevaluator() {
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 SId,
                 EmptyInfo,
-                Sp<BaseDom, NoDomain>,
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                Sp<Mixed, NoDomain>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
             >,
@@ -522,22 +522,22 @@ fn test_seqfidevaluator() {
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 SId,
                 EmptyInfo,
-                Sp<BaseDom, NoDomain>,
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                Sp<Mixed, NoDomain>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
             >,
@@ -549,22 +549,22 @@ fn test_seqfidevaluator() {
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 SId,
                 EmptyInfo,
-                Sp<BaseDom, NoDomain>,
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                Sp<Mixed, NoDomain>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
             >,
@@ -576,22 +576,22 @@ fn test_seqfidevaluator() {
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 SId,
                 EmptyInfo,
-                Sp<BaseDom, NoDomain>,
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                Sp<Mixed, NoDomain>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
             >,
@@ -603,22 +603,22 @@ fn test_seqfidevaluator() {
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<FidBasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[BaseTypeDom]>, FidOutEvaluator, FnState>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 SId,
                 EmptyInfo,
-                Sp<BaseDom, NoDomain>,
-                FidBasePartial<SId, BaseDom, EmptyInfo>,
+                Sp<Mixed, NoDomain>,
+                FidBasePartial<SId, Mixed, EmptyInfo>,
                 SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
             >,

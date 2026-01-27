@@ -1,6 +1,6 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
-    BaseDom, BaseTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
+    Mixed, MixedTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
     recorder::{
         Recorder,
         csv::{CSVRecorder, CSVWritable},
@@ -79,7 +79,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>
         + HasStep
         + HasFidelity,
-    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, FidOutExample>
         + Send
@@ -123,7 +123,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         println!("ID : {:?}", id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
-            BaseTypeDom::Int(ae) => ae,
+            MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
         };
         let outcome = infos::get_out(id.id, aelem);
@@ -146,7 +146,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         println!("ID : {:?}", id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
-            BaseTypeDom::Int(ae) => ae,
+            MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
         };
         let outcome = infos::get_out(id.id, aelem);
@@ -186,7 +186,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>
         + HasStep
         + HasFidelity,
-    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = BaseDom>
+    Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, FidOutExample>
         + Send
@@ -387,7 +387,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             })
             .unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
-            BaseTypeDom::Int(f) => f,
+            MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> =
@@ -436,20 +436,20 @@ fn test_csv_func() {
     let config = Arc::new(FolderConfig::new("tmp_test_fid"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
     <CSVRecorder as Recorder<
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
         SId,
         FidOutExample,
-        Sp<BaseDom, _>,
+        Sp<Mixed, _>,
         BatchRandomSearch,
     >>::init(&mut recorder, &sp, &cod);
 
     run_recorder::<
-        Sp<BaseDom, NoDomain>,
+        Sp<Mixed, NoDomain>,
         BatchRandomSearch,
         Calls,
         CSVRecorder,
-        Stepped<Arc<[BaseTypeDom]>, FidOutExample, FnState>,
-        FidBasePartial<SId, BaseDom, EmptyInfo>,
+        Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
+        FidBasePartial<SId, Mixed, EmptyInfo>,
     >(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
 
     // run_recorder(

@@ -29,40 +29,48 @@ pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
 pub use domain::{
-    BaseDom, BaseTypeDom, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
+    Mixed, MixedTypeDom, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
     Criteria, Domain, FidCriteria, HasEvalStep, Int, Multi, MultiCodomain, Nat, Onto, Real, Single,
     SingleCodomain, Unit,
 };
 
 pub mod sampler;
+pub use sampler::{Bernoulli,Uniform,Sampler,BoundedDistribution,CatDistribution,BoolDistribution};
 
 pub mod variable;
 pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BasePartial, Computed, FidBasePartial, Fidelity, Id, ParSId, SId, SolInfo, Solution,
+    BasePartial, Computed, FidBasePartial, Fidelity, Id, ParSId, SId, SolInfo, Solution, HasFidelity,HasId,HasInfo,HasSolInfo,HasStep,HasUncomputed,HasY
 };
 
 pub mod searchspace;
-pub use searchspace::{Searchspace, Sp};
+pub use searchspace::{Searchspace, Sp, SpPar};
 
 pub mod errors;
 
 pub mod objective;
-pub use crate::objective::{EvalStep, FidOutcome, Objective, Outcome, Stepped};
+pub use crate::objective::{EvalStep, FidOutcome, FuncWrapper, Objective, Outcome, Stepped};
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer};
+pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer,BatchOptimizer,SequentialOptimizer, OptState};
 
 pub mod stop;
-pub use stop::Stop;
+pub use stop::{Stop,Calls};
 
 pub mod experiment;
+pub use experiment::{Runable,MonoExperiment,ThrExperiment,mono,threaded};
+#[cfg(feature = "mpi")]
+pub use experiment::{DistEvaluate,MasterWorker, distributed, mpi::utils::MPIProcess, mpi::worker::Worker};
 
 pub mod recorder;
-pub use recorder::CSVRecorder;
+pub use recorder::{Recorder,CSVRecorder};
+#[cfg(feature = "mpi")]
+pub use recorder::{DistRecorder};
 
 pub mod checkpointer;
-pub use checkpointer::MessagePack;
+pub use checkpointer::{Checkpointer,ThrCheckpointer,MessagePack};
+#[cfg(feature = "mpi")]
+pub use checkpointer::{DistCheckpointer};

@@ -106,7 +106,7 @@ where
     /// Initializes a non-existing checkpoint.
     fn init_dist(&mut self, proc: &MPIProcess);
     fn after_load_dist(&mut self, proc: &MPIProcess);
-    /// Define an initialiazation for [`Workers`] that do not have a [`Checkpointer`].
+    /// Define an initialization for [`Workers`] that do not have a [`Checkpointer`].
     fn no_check_init(proc: &MPIProcess);
     /// Save the current state of the optimization.
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(

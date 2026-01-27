@@ -60,11 +60,6 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     fn is_in(&self, point: &Self::TypeDom) -> bool;
 }
 
-/// [`Mixed`] trait defines a [`Domain`] which can be made of other [`Domains`](Domain).
-/// For example an `enum` of [`Domains`](Domain).
-/// This trait is mainly used by the derive macro [`#[derive(Mixed)]`](../../../tantale/derive.Mixed.html).
-pub trait Mixed: Domain {}
-
 pub type TypeDom<T> = <T as Domain>::TypeDom;
 
 pub mod nodomain;
@@ -82,8 +77,8 @@ pub use bool::Bool;
 pub mod cat;
 pub use cat::Cat;
 
-pub mod base;
-pub use base::{BaseDom, BaseTypeDom};
+pub mod mixed;
+pub use mixed::{Mixed,MixedTypeDom};
 
 pub mod onto;
 pub use onto::Onto;

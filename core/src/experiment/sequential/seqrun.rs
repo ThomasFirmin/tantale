@@ -1,28 +1,26 @@
 use std::{
-    sync::{Arc, Mutex, mpsc},
+    sync::{Arc, Mutex},
     thread,
 };
 
-use rand::rng;
-
 use crate::{
-    Codomain, EmptyInfo, FidOutcome, SId, Solution, Stepped,
-    checkpointer::{self, Checkpointer, ThrCheckpointer},
+    Codomain, FidOutcome, SId, Solution, Stepped,
+    checkpointer::{Checkpointer, ThrCheckpointer},
     domain::onto::LinkOpt,
     experiment::{
         MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment,
         sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
-            seqfidevaluator::FidSeqEvaluator,
+            seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, VecFidThrSeqEvaluator},
         },
     },
-    objective::{FuncWrapper, Objective, Outcome, Step, outcome::FuncState},
+    objective::{Objective, Outcome, Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
-    recorder::{self, Recorder},
+    recorder::Recorder,
     searchspace::{CompShape, Searchspace},
     solution::{
         HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed,
-        shape::{RawObj, RawOpt},
+        shape::RawObj,
     },
     stop::{ExpStep, Stop},
 };
@@ -605,7 +603,6 @@ where
         let recorder = Arc::new(self.recorder);
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
-        println!("NUMBER OF THREADS : {}", k);
         for thr in 0..k {
             let optimizer = op.clone();
             let objective = ob.clone();
@@ -645,7 +642,7 @@ where
                     let y = cod.get_elem(&out);
                     let outputed = (id, out);
                     let computed = pair.into_computed(y.into());
-                    println!("THREAD {} : Computed ID {:?}", thr, computed.get_id());
+
                     if let Some(r) = rec.as_ref() {
                         r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
                     }
@@ -727,170 +724,259 @@ where
     }
 }
 
-// impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
-//     Runable<
-//         PSol,
-//         SId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-//     >
-//     for ThrExperiment<
-//         PSol,
-//         SId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-//         FidThrBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape, FnState>,
-//     >
-// where
-//     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-//     Op: BatchOptimizer<
-//         PSol,
-//         SId,
-//         LinkOpt<Scp>,
-//         Out,
-//         Scp,
-//         Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
-//     >,
-//     Op::Cod: Send + Sync,
-//     Op::Info: Send + Sync,
-//     Op::SInfo: Send + Sync,
-//     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-//     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
-//     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-//         SolutionShape<SId, Op::SInfo> + Debug + Send + Sync,
-//     St: Stop + Send + Sync,
-//     Out: FidOutcome + Send + Sync,
-//     FnState: FuncState + Send + Sync,
-//     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-//     Check: Checkpointer,
-// {
-//     fn new(
-//         space: (Scp, Op::Cod),
-//         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-//         optimizer: Op,
-//         stop: St,
-//         saver: (Option<Rec>, Option<Check>),
-//     ) -> Self {
-//         let (recorder, checkpointer) = saver;
-//         let (searchspace, codomain) = space;
-//         let recorder = match recorder {
-//             Some(mut r) => {
-//                 r.init(&searchspace, &codomain);
-//                 Some(r)
-//             }
-//             None => None,
-//         };
-//         let checkpointer = match checkpointer {
-//             Some(mut c) => {
-//                 c.init();
-//                 Some(c)
-//             }
-//             None => None,
-//         };
-//         ThrExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer,
-//             evaluator: None,
-//         }
-//     }
+impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
+    Runable<
+        PSol,
+        SId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+    >
+    for ThrExperiment<
+        PSol,
+        SId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        VecFidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo,FnState>,
+    >
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + 'static,
+    Op: SequentialOptimizer<
+            PSol,
+            SId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+        > + Send
+        + Sync
+        + 'static,
+    Op::Cod: Send + Sync + 'static,
+    Op::SInfo: Send + Sync + 'static,
+    Op::Info: Send + Sync + 'static,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>> + Send + Sync + 'static,
+    Scp::SolShape: HasStep + HasFidelity + Send + Sync + 'static,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity + Send + Sync + 'static,
+    St: Stop + Send + Sync + 'static,
+    Out: FidOutcome + Send + Sync + 'static,
+    Rec: Recorder<PSol, SId, Out, Scp, Op> + Send + Sync + 'static,
+    Check: ThrCheckpointer + Send + Sync + 'static,
+    FnState: FuncState + Send + Sync + 'static,
+{
+    fn new(
+        space: (Scp, Op::Cod),
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>, Option<Check>),
+    ) -> Self {
+        let (searchspace, codomain) = space;
+        let (recorder, checkpointer) = saver;
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace, &codomain);
+                Some(r)
+            }
+            None => None,
+        };
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
+            None => None,
+        };
+        ThrExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer,
+            evaluator: None,
+        }
+    }
 
-//     fn load(
-//         space: (Scp, Op::Cod),
-//         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-//         saver: (Option<Rec>, Check),
-//     ) -> Self {
-//         let (searchspace, codomain) = space;
-//         let (recorder, mut checkpointer) = saver;
-//         let (state, stop, evaluator) = checkpointer.load().unwrap();
-//         let optimizer = Op::from_state(state);
-//         let recorder = match recorder {
-//             Some(mut rec) => {
-//                 rec.after_load(&searchspace, &codomain);
-//                 Some(rec)
-//             }
-//             None => None,
-//         };
-//         checkpointer.after_load();
-//         ThrExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer: Some(checkpointer),
-//             evaluator: Some(evaluator),
-//         }
-//     }
+    fn load(
+        space: (Scp, Op::Cod),
+        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        saver: (Option<Rec>, Check),
+    ) -> Self {
+        let (searchspace, codomain) = space;
+        let (recorder, mut checkpointer) = saver;
+        let (state, stop, evaluator): (_, _, Vec<FidThrSeqEvaluator<_, _, _, _>>) =
+            checkpointer.load_thr().unwrap();
+        let evaluator: VecFidThrSeqEvaluator<_, _, _, _> = evaluator.into();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut rec) => {
+                rec.after_load(&searchspace, &codomain);
+                Some(rec)
+            }
+            None => None,
+        };
+        checkpointer.after_load();
+        ThrExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            evaluator: Some(evaluator),
+        }
+    }
 
-//     fn run(mut self) {
-//         let ob = Arc::new(self.objective);
-//         let cod = Arc::new(self.codomain);
-//         let st = Arc::new(Mutex::new(self.stop));
-//         let scp = Arc::new(self.searchspace);
+    fn run(mut self) {
+        let ob = Arc::new(self.objective);
+        let op = Arc::new(Mutex::new(self.optimizer));
+        let cod = Arc::new(self.codomain);
+        let stop = Arc::new(Mutex::new(self.stop));
+        let scp = Arc::new(self.searchspace);
+        let checkpointer = Arc::new(self.checkpointer);
+        let recorder = Arc::new(self.recorder);
+        let k = num_cpus::get();
+        let mut workers = Vec::with_capacity(k);
+        for thr in 0..k {
+            let optimizer = op.clone();
+            let objective = ob.clone();
+            let scp = scp.clone();
+            let cod = cod.clone();
+            let st = stop.clone();
+            let check = checkpointer.clone();
+            let rec = recorder.clone();
+            let info = Arc::new(Op::Info::default());
 
-//         let mut eval = match self.evaluator {
-//             Some(e) => e,
-//             None => FidThrBatchEvaluator::new(self.optimizer.first_step(&scp)),
-//         };
+            let (partial,state) = match self.evaluator {
+                Some(ref mut e) => {
+                    let eval = e.pair.pop();
+                    match eval {
+                        Some((p,s)) => (Some(p),Some(s)),
+                        None => (Some(optimizer.lock().unwrap().step(None, &scp)),None),
+                    }
+                }
+                None => (Some(optimizer.lock().unwrap().step(None, &scp)),None),
+            };
+            let handle = thread::spawn(move || {
+                let mut eval = FidThrSeqEvaluator::new(partial,state);
+                loop {
+                    if st.lock().unwrap().stop() {
+                        break;
+                    }
+                    st.lock().unwrap().update(ExpStep::Iteration);
 
-//         let mut batch;
-//         let mut computed;
-//         let mut outputed;
-//         'main: loop {
-//             // Stop part
-//             let mut stlock = st.lock().unwrap();
-//             {
-//                 if stlock.stop() {
-//                     break 'main;
-//                 };
-//                 stlock.update(ExpStep::Iteration);
-//             }
+                    let mut pair = eval.pair.take().unwrap();
+                    let state = eval.state.take();
+                    let x = pair.get_sobj().get_x();
+                    let id = pair.get_id();
+                    let fidelity = pair.fidelity();
+                    let (out,state) = objective.compute(x,fidelity,state);
+                    pair.set_step(out.get_step());
+                    let new_step = pair.step();
+                    match new_step {
+                        Step::Evaluated | Step::Discard | Step::Error => {
+                             st.lock().unwrap().update(ExpStep::Distribution(new_step));
+                        }
+                        _ => {
+                            eval.state = Some(state);
+                        }
+                    };
+                    let y = cod.get_elem(&out);
+                    let outputed = (id, out);
+                    let computed = pair.into_computed(y.into());
+                    
+                    if let Some(r) = rec.as_ref() {
+                        r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
+                    }
 
-//             // Evaluation part
-//             (computed, outputed) = ThrEvaluate::<_, SId, Op, Scp, Out, St, _,OutBatchEvaluate<SId,Op::SInfo,Op::Info,Scp,PSol,Op::Cod,Out>>::evaluate(
-//                 &mut eval,
-//                 ob.clone(),
-//                 cod.clone(),
-//                 st.clone(),
-//             );
+                    eval.update(optimizer.lock().unwrap().step(Some(computed), &scp));
+                    st.lock().unwrap().update(ExpStep::Optimization);
 
-//             // Saver part
-//             if let Some(r) = &self.recorder {
-//                 r.save_batch(&computed, &outputed, &scp, &cod);
-//             }
+                    if let Some(c) = check.as_ref() {
+                        c.save_state_thr(
+                            optimizer.lock().unwrap().get_state(),
+                            &*st.lock().unwrap(),
+                            &eval,
+                            thr,
+                        );
+                    }
+                }
+            });
+            workers.push(handle);
+        }
+        for worker in workers {
+            let _ = worker.join();
+        }
+    }
 
-//             // Optimizer part
-//             batch = self.optimizer.step(computed, &scp);
-//             eval.update(batch);
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
 
-//             // Stop and checkpointing part
-//             {
-//                 let mut stlock = st.lock().unwrap();
-//                 stlock.update(ExpStep::Optimization);
-//                 if let Some(c) = &self.checkpointer {
-//                     c.save_state(self.optimizer.get_state(), &*stlock, &eval)
-//                 }
-//             }
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
 
-//         }
-//     }
-// }
+    fn get_codomain(&self) -> &Op::Cod {
+        &self.codomain
+    }
+
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &self.objective
+    }
+
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
+
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
+
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
+
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
+
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
+
+    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+        &mut self.codomain
+    }
+
+    fn get_mut_objective(&mut self) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+        &mut self.objective
+    }
+
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
+
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
+
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
+    }
+}
 
 //-------------------//
 //--- DISTRIBUTED ---//
@@ -1216,7 +1302,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         FidDistSeqEvaluator<SId, Op::SInfo, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     Op: SequentialOptimizer<
             PSol,
             SId,

@@ -181,12 +181,12 @@ where
 ))]
 pub struct FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    pub pair: Shape,
+    pub pair: Option<Shape>,
     pub state: Option<FnState>,
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
@@ -199,18 +199,21 @@ where
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    pub fn new(pair: Shape, state: FnState) -> Self {
+    pub fn new(pair: Option<Shape>, state: Option<FnState>) -> Self {
         FidThrSeqEvaluator {
             pair,
-            state: Some(state),
+            state,
             _id: PhantomData,
             _sinfo: PhantomData,
         }
     }
 
     pub fn update(&mut self, pair: Shape) {
-        self.pair = pair;
-        self.state = None;
+        match pair.step() {
+            Step::Partially(_) => {}
+            _ => self.state = None,
+        };
+        self.pair = Some(pair);
     }
 }
 
@@ -221,6 +224,71 @@ where
     SInfo: SolInfo,
     FnState: FuncState,
 {
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SolId:Serialize",
+    deserialize = "SolId:for<'a> Deserialize<'a>"
+))]
+pub struct VecFidThrSeqEvaluator<Shape, SolId, SInfo,FnState>
+where
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo: SolInfo,
+    FnState: FuncState,
+{
+    pub pair: Vec<(Shape,FnState)>,
+    _id: PhantomData<SolId>,
+    _sinfo: PhantomData<SInfo>,
+}
+impl<Shape, SolId, SInfo, FnState> Evaluate for VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+where
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo: SolInfo,
+    FnState: FuncState,
+{
+}
+
+impl<Shape, SolId, SInfo, FnState> From<VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>
+    for Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>
+where
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo: SolInfo,
+    FnState: FuncState,
+{
+    fn from(val: VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>) -> Self {
+        val.pair
+            .into_iter()
+            .map(|(pair, state)| FidThrSeqEvaluator::new(Some(pair), Some(state)))
+            .collect()
+    }
+}
+
+impl<Shape, SolId, SInfo, FnState> From<Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>>
+    for VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+where
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    SInfo: SolInfo,
+    FnState: FuncState,
+{
+    fn from(value: Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>) -> Self {
+        let pair = value
+            .into_iter()
+            .filter_map(|p| match (p.pair, p.state) {
+            (Some(pair), Some(state)) => Some((pair, state)),
+            _ => None,
+            })
+            .collect();
+        VecFidThrSeqEvaluator {
+            pair,
+            _id: PhantomData,
+            _sinfo: PhantomData,
+        }
+    }
 }
 
 //-------------------//

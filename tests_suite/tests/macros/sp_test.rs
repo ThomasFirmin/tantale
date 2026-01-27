@@ -48,21 +48,21 @@ mod test {
         }
 
         // _TantaleMixedObj is automatically created by sp!
-        fn compute_obj(tantale_in: Arc<[TypeDom<BaseDom>]>) -> OutStruct {
+        fn compute_obj(tantale_in: Arc<[TypeDom<Mixed>]>) -> OutStruct {
             let a = match tantale_in[0] {
-                BaseTypeDom::Real(value) => value,
+                MixedTypeDom::Real(value) => value,
                 _ => unreachable!(""),
             };
             let b = match tantale_in[1] {
-                BaseTypeDom::Nat(value) => value,
+                MixedTypeDom::Nat(value) => value,
                 _ => unreachable!(""),
             };
             let c = match tantale_in[2] {
-                BaseTypeDom::Cat(ref value) => value,
+                MixedTypeDom::Cat(ref value) => value,
                 _ => unreachable!(""),
             };
             let d = match tantale_in[3] {
-                BaseTypeDom::Bool(value) => value,
+                MixedTypeDom::Bool(value) => value,
                 _ => unreachable!(""),
             };
             println!("a {}, b {}, c {}, d {}", a, b, c, d);

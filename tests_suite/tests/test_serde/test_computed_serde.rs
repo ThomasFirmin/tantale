@@ -11,7 +11,7 @@ use tantale::core::{
     searchspace::Searchspace,
     solution::{HasId, HasY},
 };
-use tantale_core::BaseDom;
+use tantale_core::Mixed;
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($cod : ident | $func : ident ,)+] | $comp : expr ),*) => {
@@ -52,7 +52,7 @@ macro_rules! get_test {
 
 get_test!(
     sp_ms_nosamp
-        | BaseDom
+        | Mixed
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,

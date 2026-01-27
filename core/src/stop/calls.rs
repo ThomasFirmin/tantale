@@ -28,8 +28,8 @@ impl Stop for Calls {
 }
 
 impl Calls {
-    pub fn new(max: usize) -> Self {
-        Calls(0, max)
+    pub fn new(threshold: usize) -> Self {
+        Calls(0, threshold)
     }
     pub fn calls(&self) -> usize {
         self.0

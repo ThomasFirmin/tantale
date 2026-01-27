@@ -1,5 +1,5 @@
 pub use tantale::core::domain::Domain;
-pub use tantale::core::domain::base::{BaseDom, BaseTypeDom};
+pub use tantale::core::domain::mixed::{Mixed, MixedTypeDom};
 pub use tantale::core::domain::bool::Bool;
 pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
 pub use tantale::core::domain::cat::Cat;
@@ -55,26 +55,26 @@ pub fn get_domain_unit_2() -> Unit {
     Unit::new(Uniform)
 }
 
-pub fn get_domain_base_real(domain: Real, input: f64) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Real(domain), BaseTypeDom::Real(input))
+pub fn get_domain_base_real(domain: Real, input: f64) -> (Mixed, MixedTypeDom) {
+    (Mixed::Real(domain), MixedTypeDom::Real(input))
 }
 
-pub fn get_domain_base_nat(domain: Nat, input: u64) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Nat(domain), BaseTypeDom::Nat(input))
+pub fn get_domain_base_nat(domain: Nat, input: u64) -> (Mixed, MixedTypeDom) {
+    (Mixed::Nat(domain), MixedTypeDom::Nat(input))
 }
 
-pub fn get_domain_base_int(domain: Int, input: i64) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Int(domain), BaseTypeDom::Int(input))
+pub fn get_domain_base_int(domain: Int, input: i64) -> (Mixed, MixedTypeDom) {
+    (Mixed::Int(domain), MixedTypeDom::Int(input))
 }
 
-pub fn get_domain_base_bool(domain: Bool, input: bool) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Bool(domain), BaseTypeDom::Bool(input))
+pub fn get_domain_base_bool(domain: Bool, input: bool) -> (Mixed, MixedTypeDom) {
+    (Mixed::Bool(domain), MixedTypeDom::Bool(input))
 }
 
-pub fn get_domain_base_cat(domain: Cat, input: String) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Cat(domain), BaseTypeDom::Cat(input))
+pub fn get_domain_base_cat(domain: Cat, input: String) -> (Mixed, MixedTypeDom) {
+    (Mixed::Cat(domain), MixedTypeDom::Cat(input))
 }
 
-pub fn get_domain_base_unit(domain: Unit, input: f64) -> (BaseDom, BaseTypeDom) {
-    (BaseDom::Unit(domain), BaseTypeDom::Unit(input))
+pub fn get_domain_base_unit(domain: Unit, input: f64) -> (Mixed, MixedTypeDom) {
+    (Mixed::Unit(domain), MixedTypeDom::Unit(input))
 }

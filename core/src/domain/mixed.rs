@@ -20,10 +20,9 @@ use std::fmt::{Debug, Display};
 
 /// A mixed [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
 /// and [`Unit`].
-/// The [`TypeDom`](`Domain::TypeDom`) is a [`BaseTypeDom`].
-///
+/// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
 #[derive(Clone, PartialEq)]
-pub enum BaseDom {
+pub enum Mixed {
     Real(Real),
     Nat(Nat),
     Int(Int),
@@ -32,7 +31,7 @@ pub enum BaseDom {
     Unit(Unit),
 }
 
-impl Display for BaseDom {
+impl Display for Mixed {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Real(d) => std::fmt::Display::fmt(&d, f),
@@ -44,7 +43,7 @@ impl Display for BaseDom {
         }
     }
 }
-impl Debug for BaseDom {
+impl Debug for Mixed {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Real(d) => std::fmt::Debug::fmt(&d, f),
@@ -57,9 +56,9 @@ impl Debug for BaseDom {
     }
 }
 
-/// Basic [`TypeDom`](`Domain::TypeDom`) of [`BaseDom`].
+/// Basic [`TypeDom`](`Domain::TypeDom`) of [`Mixed`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum BaseTypeDom {
+pub enum MixedTypeDom {
     Real(TypeDom<Real>),
     Nat(TypeDom<Nat>),
     Int(TypeDom<Int>),
@@ -67,7 +66,7 @@ pub enum BaseTypeDom {
     Cat(TypeDom<Cat>),
     Unit(TypeDom<Unit>),
 }
-impl Display for BaseTypeDom {
+impl Display for MixedTypeDom {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Real(d) => std::fmt::Display::fmt(&d, f),
@@ -80,25 +79,28 @@ impl Display for BaseTypeDom {
     }
 }
 
-impl Default for BaseTypeDom {
+impl Default for MixedTypeDom {
     fn default() -> Self {
-        BaseTypeDom::Real(TypeDom::<Real>::default())
+        MixedTypeDom::Real(TypeDom::<Real>::default())
     }
 }
-impl PreDomain for BaseDom {}
-impl Domain for BaseDom {
-    type TypeDom = BaseTypeDom;
+impl PreDomain for Mixed {}
+impl Domain for Mixed {
+    type TypeDom = MixedTypeDom;
+
+    /// Samples a point from the [`Mixed`] domain, according to each sub-domain sampling method.
     fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         match self {
-            Self::Real(e) => BaseTypeDom::Real(e.sample(rng)),
-            Self::Nat(e) => BaseTypeDom::Nat(e.sample(rng)),
-            Self::Int(e) => BaseTypeDom::Int(e.sample(rng)),
-            Self::Bool(e) => BaseTypeDom::Bool(e.sample(rng)),
-            Self::Cat(e) => BaseTypeDom::Cat(e.sample(rng)),
-            Self::Unit(e) => BaseTypeDom::Unit(e.sample(rng)),
+            Self::Real(e) => MixedTypeDom::Real(e.sample(rng)),
+            Self::Nat(e) => MixedTypeDom::Nat(e.sample(rng)),
+            Self::Int(e) => MixedTypeDom::Int(e.sample(rng)),
+            Self::Bool(e) => MixedTypeDom::Bool(e.sample(rng)),
+            Self::Cat(e) => MixedTypeDom::Cat(e.sample(rng)),
+            Self::Unit(e) => MixedTypeDom::Unit(e.sample(rng)),
         }
     }
 
+    /// Checks if a given point is in the [`Mixed`] domain, according to each sub-domain `is_in` method.
     fn is_in(&self, item: &Self::TypeDom) -> bool {
         match self {
             Self::Real(d) => match item {
@@ -129,239 +131,237 @@ impl Domain for BaseDom {
     }
 }
 
-impl Onto<Real> for BaseDom {
+impl Onto<Real> for Mixed {
     type TargetItem = TypeDom<Real>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Real`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Real`] [`Domain`].
     ///
-    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Real`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Real`] - A borrowed targetted [`Domain`].
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Real`] - A borrowed targetted [`Real`].
+    /// 
+    /// # Errors
     ///
-    ///
+    /// * Returns a [`OntoError`]
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Real`] domain.
     fn onto(&self, item: &Self::Item, target: &Real) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                BaseTypeDom::Unit(i) => d.onto(i, target),
+                MixedTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                BaseTypeDom::Bool(i) => d.onto(i, target),
+                MixedTypeDom::Bool(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                BaseTypeDom::Cat(i) => d.onto(i, target),
+                MixedTypeDom::Cat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
-impl OntoDom<Real> for BaseDom {}
+impl OntoDom<Real> for Mixed {}
 
-impl Onto<Nat> for BaseDom {
+impl Onto<Nat> for Mixed {
     type TargetItem = TypeDom<Nat>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Nat`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Nat`] [`Domain`].
     ///
-    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Nat`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Nat`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Nat`] - A borrowed targetted [`Nat`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Nat`] domain.
     fn onto(&self, item: &Self::Item, target: &Nat) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                BaseTypeDom::Unit(i) => d.onto(i, target),
+                MixedTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                BaseTypeDom::Bool(i) => d.onto(i, target),
+                MixedTypeDom::Bool(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                BaseTypeDom::Cat(i) => d.onto(i, target),
+                MixedTypeDom::Cat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
-impl OntoDom<Nat> for BaseDom {}
+impl OntoDom<Nat> for Mixed {}
 
-impl Onto<Int> for BaseDom {
+impl Onto<Int> for Mixed {
     type TargetItem = TypeDom<Int>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Int`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Int`] [`Domain`].
     ///
-    /// Match a [`BaseDom`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Int`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Int`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Int`] - A borrowed targetted [`Int`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Int`] domain.
     fn onto(&self, item: &Self::Item, target: &Int) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                BaseTypeDom::Unit(i) => d.onto(i, target),
+                MixedTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                BaseTypeDom::Bool(i) => d.onto(i, target),
+                MixedTypeDom::Bool(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                BaseTypeDom::Cat(i) => d.onto(i, target),
+                MixedTypeDom::Cat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
-impl OntoDom<Int> for BaseDom {}
+impl OntoDom<Int> for Mixed {}
 
-impl Onto<Unit> for BaseDom {
+impl Onto<Unit> for Mixed {
     type TargetItem = TypeDom<Unit>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Unit`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Unit`] [`Domain`].
     ///
-    /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Unit`].
-    ///
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Unit`]`<Out>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(_d) => unreachable!(
                 "Converting a value from Unit onto Unit is not implemented, and it should not occur."
             ),
             Self::Bool(d) => match item {
-                BaseTypeDom::Bool(i) => d.onto(i, target),
+                MixedTypeDom::Bool(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Cat(d) => match item {
-                BaseTypeDom::Cat(i) => d.onto(i, target),
+                MixedTypeDom::Cat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
         }
     }
 }
-impl OntoDom<Unit> for BaseDom {}
+impl OntoDom<Unit> for Mixed {}
 
-impl Onto<Bool> for BaseDom {
+impl Onto<Bool> for Mixed {
     type TargetItem = TypeDom<Bool>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Bool`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Bool`] [`Domain`].
     ///
-    /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Bool`].
-    ///
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bool`]`<Out>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     fn onto(&self, item: &Self::Item, target: &Bool) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                BaseTypeDom::Unit(i) => d.onto(i, target),
+                MixedTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(_d) => unreachable!(
                 "Converting a value from Bool onto Bool is not implemented, and it should not occur."
             ),
             Self::Cat(d) => match item {
-                BaseTypeDom::Cat(_i) => unreachable!(
+                MixedTypeDom::Cat(_i) => unreachable!(
                     "Converting a value from Cat onto Bool is not implemented, and it should not occur."
                 ),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
@@ -369,47 +369,45 @@ impl Onto<Bool> for BaseDom {
         }
     }
 }
-impl OntoDom<Bool> for BaseDom {}
+impl OntoDom<Bool> for Mixed {}
 
-impl Onto<Cat> for BaseDom {
+impl Onto<Cat> for Mixed {
     type TargetItem = TypeDom<Cat>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and a [`Cat`] [`Domain`].
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and a [`Cat`] [`Domain`].
     ///
-    /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto a [`Cat`].
-    ///
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         match self {
             Self::Real(d) => match item {
-                BaseTypeDom::Real(i) => d.onto(i, target),
+                MixedTypeDom::Real(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Nat(d) => match item {
-                BaseTypeDom::Nat(i) => d.onto(i, target),
+                MixedTypeDom::Nat(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Int(d) => match item {
-                BaseTypeDom::Int(i) => d.onto(i, target),
+                MixedTypeDom::Int(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Unit(d) => match item {
-                BaseTypeDom::Unit(i) => d.onto(i, target),
+                MixedTypeDom::Unit(i) => d.onto(i, target),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
             },
             Self::Bool(d) => match item {
-                BaseTypeDom::Bool(_i) => unreachable!(
+                MixedTypeDom::Bool(_i) => unreachable!(
                     "Converting a value from Bool onto Cat is not implemented, and it should not occur."
                 ),
                 _ => Err(OntoError(format!("{} input not in {}", item, d))),
@@ -420,108 +418,106 @@ impl Onto<Cat> for BaseDom {
         }
     }
 }
-impl OntoDom<Cat> for BaseDom {}
+impl OntoDom<Cat> for Mixed {}
 
-impl Onto<BaseDom> for BaseDom {
-    type TargetItem = TypeDom<BaseDom>;
-    type Item = TypeDom<BaseDom>;
-    /// [`Onto`] function between a [`BaseDom`] and another [`BaseDom`] [`Domain`].
+impl Onto<Mixed> for Mixed {
+    type TargetItem = TypeDom<Mixed>;
+    type Item = TypeDom<Mixed>;
+    /// [`Onto`] function between a [`Mixed`] and another [`Mixed`] [`Domain`].
     ///
-    /// Match a [`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and use their respective (`onto`)[`Onto::onto`] method
-    /// onto another [`BasedDom`].
-    ///
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a, M, T>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
+    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
-    fn onto(&self, item: &Self::Item, target: &BaseDom) -> Result<Self::TargetItem, OntoError> {
+    ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
+    fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         if self == target {
             Ok(item.clone())
         } else {
             match self {
                 Self::Real(d) => match item {
-                    BaseTypeDom::Real(i) => d.onto(i, target),
+                    MixedTypeDom::Real(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
                 Self::Nat(d) => match item {
-                    BaseTypeDom::Nat(i) => d.onto(i, target),
+                    MixedTypeDom::Nat(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
                 Self::Int(d) => match item {
-                    BaseTypeDom::Int(i) => d.onto(i, target),
+                    MixedTypeDom::Int(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
                 Self::Unit(d) => match item {
-                    BaseTypeDom::Unit(i) => d.onto(i, target),
+                    MixedTypeDom::Unit(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
                 Self::Bool(d) => match item {
-                    BaseTypeDom::Bool(i) => d.onto(i, target),
+                    MixedTypeDom::Bool(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
                 Self::Cat(d) => match item {
-                    BaseTypeDom::Cat(i) => d.onto(i, target),
+                    MixedTypeDom::Cat(i) => d.onto(i, target),
                     _ => Err(OntoError(format!("{} input not in {}", item, d))),
                 },
             }
         }
     }
 }
-impl OntoDom<BaseDom> for BaseDom {}
+impl OntoDom<Mixed> for Mixed {}
 
-impl From<Real> for BaseDom {
+impl From<Real> for Mixed {
     fn from(value: Real) -> Self {
-        BaseDom::Real(value)
+        Mixed::Real(value)
     }
 }
-impl From<Nat> for BaseDom {
+impl From<Nat> for Mixed {
     fn from(value: Nat) -> Self {
-        BaseDom::Nat(value)
+        Mixed::Nat(value)
     }
 }
-impl From<Int> for BaseDom {
+impl From<Int> for Mixed {
     fn from(value: Int) -> Self {
-        BaseDom::Int(value)
+        Mixed::Int(value)
     }
 }
-impl From<Bool> for BaseDom {
+impl From<Bool> for Mixed {
     fn from(value: Bool) -> Self {
-        BaseDom::Bool(value)
+        Mixed::Bool(value)
     }
 }
 
-impl From<Cat> for BaseDom {
+impl From<Cat> for Mixed {
     fn from(value: Cat) -> Self {
-        BaseDom::Cat(value)
+        Mixed::Cat(value)
     }
 }
 
-impl From<Unit> for BaseDom {
+impl From<Unit> for Mixed {
     fn from(value: Unit) -> Self {
-        BaseDom::Unit(value)
+        Mixed::Unit(value)
     }
 }
 
-impl CSVWritable<(), BaseTypeDom> for BaseDom {
+impl CSVWritable<(), MixedTypeDom> for Mixed {
     fn header(_elem: &()) -> Vec<String> {
         Vec::new()
     }
 
-    fn write(&self, comp: &BaseTypeDom) -> Vec<String> {
+    fn write(&self, comp: &MixedTypeDom) -> Vec<String> {
         match comp {
-            BaseTypeDom::Real(s) => Vec::from([s.to_string()]),
-            BaseTypeDom::Nat(s) => Vec::from([s.to_string()]),
-            BaseTypeDom::Int(s) => Vec::from([s.to_string()]),
-            BaseTypeDom::Bool(s) => Vec::from([s.to_string()]),
-            BaseTypeDom::Cat(s) => Vec::from([s.to_string()]),
-            BaseTypeDom::Unit(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Real(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Nat(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Int(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Bool(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Cat(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::Unit(s) => Vec::from([s.to_string()]),
         }
     }
 }

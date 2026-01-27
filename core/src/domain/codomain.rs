@@ -1,19 +1,21 @@
-//! The [`Codomain`](tantale::core::Codomain) describes which elements from the [`Output`](tantale::core::Outcome) from the
-//! [`Objective`](tantale::core::Objective) function should be used within the [`Optimizer`](tanta::core::Optimizer).
-//! It allows to extract from the [`Output`](tantale::core::Outcome) the [`Single`](tantale::core::Single) objective to minimize, $f(x)=y$.
-//! Moreover, a [`Codomain`](tantale::core::Codomain) can express more complex behaviors, like [`Constrained`](tantale::core::Constrained),
-//! [`Multi`](tantale::core::Multi)-objective, or [`Cost`](tantale::core::Cost)-aware optimization.
-//! The extracted elements from [`Outcome`](tantale::core::Outcome) form the [`TypeCodom`](tantale::core::Codomain::TypeCodom), a type
-//! associated to a [`Codomain`](tantale::core::Codomain). These values are extracted from the [`Outcome`](tantale::core::Outcome) by using
-//! closures named [`Citeria`](tantale::core::objective::codomain::Criteria), a type alias for `fn(&Out)->f64`.
+//! The [`Codomain`](crate::Codomain) describes which elements from the [`Outcome`]
+//! should be used within the [`Optimizer`](crate::Optimizer).
+//! 
+//! For example, it can extract a [`Single`](crate::Single) ($y$) from the [`Outcome`] in order to minimize, $f(x)=y$.
+//! 
+//! Moreover, a [`Codomain`](crate::Codomain) can express more complex behaviors, like [`Constrained`](crate::Constrained),
+//! [`Multi`](crate::Multi)-objective, or [`Cost`](crate::Cost)-aware optimization.
+//! The extracted elements from [`Outcome`] form the [`TypeCodom`](crate::Codomain::TypeCodom), a type
+//! associated to a [`Codomain`](crate::Codomain). These values are extracted from the [`Outcome`] by using
+//! closures named [`Criteria`], a type alias for `fn(&Out)->f64`.
 //!
 //! # Example
 //!
-//! The following examples uses a specific `struct` as the [`Outcome`](tantale::core::Outcome) of the function.
+//! The following examples uses a specific `struct` as an [`Outcome`] of an hypothetical function.
 //!
 //! ```
 //! // An example of a multi-objective, constrained and cost codomain.
-//! use tantale::core::{Codomain, CostConstMultiCodomain};
+//! use crate::{Codomain, CostConstMultiCodomain};
 //! use tantale::macros::Outcome;
 //! use serde::{Serialize,Deserialize};
 //!
@@ -82,10 +84,10 @@
 //!
 //! # Notes
 //!
-//!   * For now, all extracted elements from the [`Outcome`](tantale::core::Outcome) should be [`f64`].
-//!   * To extract elements from an [`Outcome`](tantale::core::Outcome), most of the [`Codomain`](tantale::core::Codomain) uses
-//!     a user defined function called [`Criteria`](tantale::core::Criteria).
-//!   * Remember that an [`Optimizer`](tantale::core::Optimizer) maximimizes the [`Objective`](tantale::core::Objective) by default.
+//!   * For now, all extracted elements from the [`Outcome`] should be [`f64`].
+//!   * To extract elements from an [`Outcome`], most of the [`Codomain`] uses
+//!     a user defined function called [`Criteria`].
+//!   * By definition, in Tantale an [`Optimizer`](crate::Optimizer) maximimizes the [`Objective`](crate::Objective).
 //!
 
 use std::fmt::Debug;
@@ -93,17 +95,17 @@ use std::fmt::Debug;
 use crate::{EvalStep, FidOutcome, objective::outcome::Outcome, recorder::csv::CSVWritable};
 use serde::{Deserialize, Serialize};
 
-/// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
+/// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
 /// one of its `f64` further used within a [`Codomain`].
 pub type Criteria<Out> = fn(&Out) -> f64;
-/// A fidelity criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`] function, and returning
-/// one of its [`EvalStep`] further used within a [`FidCodomain`].
+/// A fidelity criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
+/// one of its [`EvalStep`].
 pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
 
 /// [`TypeCodom`](Codomain::TypeCodom) of a [`Codomain`].
 pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
 
-/// This trait defines what a [`Codomain`] is, i.e. the output of the [`Objective`](tantale::core::objective::Objective) function.
+/// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>: Debug {
     type TypeCodom: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
@@ -127,8 +129,12 @@ pub trait Multi<Out: Outcome>: Codomain<Out> {
     }
 }
 
-/// Defines a [`Codomain`] constrained by equalities or inequalities depending on [`ConsType`].
-pub trait Constrained<Out: Outcome, ConsType>: Codomain<Out> {
+/// Defines a black-box constrained [`Codomain`].
+/// Black-box constraints are constraints that are not known a priori, but are only
+/// revealed through the evaluation of the objective function.
+/// The [`Optimizer`](crate::Optimizer) defines how to handle these constraints, by defining
+/// when a constraint is satisfied or not.
+pub trait Constrained<Out: Outcome>: Codomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>];
     fn get_constraints(&self, o: &Out) -> Box<[f64]> {
         self.get_criteria().iter().map(|c| c(o)).collect()
@@ -150,17 +156,7 @@ pub trait HasEvalStep<Out: FidOutcome>: Codomain<Out> {
     }
 }
 
-/// Type of constraints for a [`Constrained`] [`Codomain`].
-/// * [`Equality`](ConsType::Equality) : $f_c_i(x) \leq c_i ,\text{ for }i = 0,\dots,k$, where $c_i$ is the constraint  $f_c_i(x)$ is the evaluation of the constraint $i$ by the [`Objective`].
-///   In practice,  the constraint is expressed as $f_c_i(x) - c_i \leq 0  ,\text{ for }i = 0,\dots,k$.
-/// * [`Inequality`](ConsType::Inequality) : $f_c_i(x) = c_i,\text{ for }i = 0,\dots,k$, where $c_i$ is the constraint  $f_c(x)$ is the evaluation of the constraint $i$ by the [`Objective`].
-///   In practice,  the constraint is expressed as $f_c_i(x) - c_i = 0 ,\text{ for }i = 0,\dots,k$.
-/// * [`Both`](ConsType::Both) : Constraints can be both equalities or inequalities.
-pub enum ConsType {
-    Equality,
-    Inequality,
-    Both,
-}
+/// A [`Codomain`] that does not extract any element from the [`Outcome`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoCodomain;
 impl<Out: Outcome> Codomain<Out> for NoCodomain {
@@ -170,7 +166,7 @@ impl<Out: Outcome> Codomain<Out> for NoCodomain {
 
 // MONO OBJECTIVE CODOMAINS
 
-/// A single [`Criteria`] [`Codomain`] made of a single value `y`.
+/// A single [`Criteria`] [`Codomain`] made of a single value `y` ([`ElemSingleCodomain`]).
 #[derive(Debug)]
 pub struct SingleCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
@@ -192,6 +188,7 @@ impl<Out: Outcome> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain> for Sing
     }
 }
 
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`SingleCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemSingleCodomain {
     pub value: f64,
@@ -219,7 +216,7 @@ impl<Out: Outcome> Single<Out> for SingleCodomain<Out> {
     }
 }
 
-/// A [`Single`] and [`Cost`] [`Codomain`].
+/// A [`Single`] and [`Cost`] [`Codomain`], i.e. $f(x)=y$ and $c(x)=cost$ ([`ElemCostCodomain`]).
 #[derive(Debug)]
 pub struct CostCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
@@ -245,7 +242,7 @@ impl<Out: Outcome> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodo
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`CostCodomain`].
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemCostCodomain {
     pub value: f64,
@@ -280,7 +277,7 @@ impl<Out: Outcome> Cost<Out> for CostCodomain<Out> {
     }
 }
 
-/// A [`Single`] and [`Constrained`] [`Codomain`].
+/// A [`Single`] and black-box [`Constrained`] [`Codomain`], i.e. $f(x)=y$ and $c_i(x)=constraint_i$ ([`ElemConstCodomain`]).
 #[derive(Debug)]
 pub struct ConstCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
@@ -315,7 +312,7 @@ impl<Out: Outcome> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstC
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`]
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`ConstCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemConstCodomain {
     pub value: f64,
@@ -344,13 +341,14 @@ impl<Out: Outcome> Single<Out> for ConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Constrained<Out, ConsType> for ConstCodomain<Out> {
+
+impl<Out: Outcome> Constrained<Out> for ConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
 
-/// A [`Single`], [`Constrained`], and [`Cost`] [`Codomain`].
+/// A [`Single`], [`Cost`] and black-box [`Constrained`] [`Codomain`], i.e. $f(x)=y$, $c(x)=cost$ and $c_i(x)=constraint_i$ ([`ElemCostConstCodomain`]).
 #[derive(Debug)]
 pub struct CostConstCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
@@ -389,7 +387,7 @@ impl<Out: Outcome> CSVWritable<CostConstCodomain<Out>, ElemCostConstCodomain>
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstCodomain`].
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostConstCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemCostConstCodomain {
     pub value: f64,
@@ -426,7 +424,7 @@ impl<Out: Outcome> Cost<Out> for CostConstCodomain<Out> {
         self.co_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out, ConsType> for CostConstCodomain<Out> {
+impl<Out: Outcome> Constrained<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -436,7 +434,7 @@ pub type ConstCostCodomain<Out> = CostConstCodomain<Out>;
 
 // MULTI OBJECTIVE CODOMAINS
 
-/// A [`Multi`] objective [`Codomain`].
+/// A multi [`Criteria`] [`Codomain`] made of multiple values `y_i` ([`ElemMultiCodomain`]).
 #[derive(Debug)]
 pub struct MultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
@@ -462,6 +460,7 @@ impl<Out: Outcome> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain> for MultiC
     }
 }
 
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`MultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
@@ -489,7 +488,7 @@ impl<Out: Outcome> Multi<Out> for MultiCodomain<Out> {
     }
 }
 
-/// A [`Multi`] objective and [`Cost`] [`Codomain`].
+/// A [`Multi`]-objectives and [`Cost`] [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$ and $c(x)=cost$ ([`ElemCostMultiCodomain`]).
 #[derive(Debug)]
 pub struct CostMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
@@ -526,7 +525,7 @@ impl<Out: Outcome> CSVWritable<CostMultiCodomain<Out>, ElemCostMultiCodomain>
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`CostMultiCodomain`].
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemCostMultiCodomain {
     pub value: Box<[f64]>,
@@ -560,7 +559,7 @@ impl<Out: Outcome> Cost<Out> for CostMultiCodomain<Out> {
     }
 }
 
-/// A [`Multi`] objective and [`Constrained`] [`Codomain`].
+/// A [`Multi`] objective and black-box [`Constrained`] [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$ and $c_i(x)=constraint_i$ ([`ElemConstMultiCodomain`]).
 #[derive(Debug)]
 pub struct ConstMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
@@ -604,7 +603,7 @@ impl<Out: Outcome> CSVWritable<ConstMultiCodomain<Out>, ElemConstMultiCodomain>
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`ConstMultiCodomain`].
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`ConstMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
@@ -633,13 +632,13 @@ impl<Out: Outcome> Multi<Out> for ConstMultiCodomain<Out> {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out, ConsType> for ConstMultiCodomain<Out> {
+impl<Out: Outcome> Constrained<Out> for ConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
 }
 
-/// A [`Multi`] objective, [`Constrained`], and [`Cost`] [`Codomain`].
+/// A [`Multi`]-objectives, [`Cost`] and black-box [`Constrained`] [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$, $c(x)=cost$ and $c_i(x)=constraint_i$ ([`ElemCostConstMultiCodomain`]).
 #[derive(Debug)]
 pub struct CostConstMultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
@@ -687,7 +686,7 @@ impl<Out: Outcome> CSVWritable<CostConstMultiCodomain<Out>, ElemCostConstMultiCo
     }
 }
 
-/// An element ([`TypeCodom`](Codomain::TypeDom)) from [`CostConstMultiCodomain`].
+/// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostConstMultiCodomain`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ElemCostConstMultiCodomain {
     pub value: Box<[f64]>,
@@ -726,7 +725,7 @@ impl<Out: Outcome> Cost<Out> for CostConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Constrained<Out, ConsType> for CostConstMultiCodomain<Out> {
+impl<Out: Outcome> Constrained<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }

@@ -235,7 +235,7 @@ fn main() {
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config, 1);
+    let check = MessagePack::new(config);
 
     let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
     exp.run();
@@ -251,7 +251,7 @@ fn main() {
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config, 1).unwrap();
+    let check = MessagePack::new(config).unwrap();
 
     let exp = load!(
         distributed,
@@ -286,7 +286,7 @@ fn main() {
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config, 1).unwrap();
+    let check = MessagePack::new(config).unwrap();
 
     let exp = load!(
         distributed,

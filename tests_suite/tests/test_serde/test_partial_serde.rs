@@ -6,7 +6,7 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
-    BaseDom, BasePartial, EmptyInfo, SId, Solution, searchspace::Searchspace, solution::HasId,
+    Mixed, BasePartial, EmptyInfo, SId, Solution, searchspace::Searchspace, solution::HasId,
 };
 
 macro_rules! get_test {
@@ -38,7 +38,7 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp | BaseDom | |(a, b)| a == b,
+    sp_ms_nosamp | Mixed | |(a, b)| a == b,
     sp_only_real
         | tantale_core::Real
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),

@@ -271,8 +271,8 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
 
     if tobj_unique.len() > 1 {
         is_mixedobj = true;
-        ident_mixed_obj_str = String::from("BaseDom");
-        ident_mixedt_obj_str = String::from("BaseTypeDom");
+        ident_mixed_obj_str = String::from("Mixed");
+        ident_mixedt_obj_str = String::from("MixedTypeDom");
     } else {
         let unique_type = tobj_unique.iter().next().unwrap().to_string();
         ident_mixed_obj_str = unique_type.clone();
@@ -285,7 +285,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         ident_mixed_opt_str = String::from("NoDomain");
     } else if topt_unique.len() > 1 {
         is_mixedopt = true;
-        ident_mixed_opt_str = String::from("BaseDom");
+        ident_mixed_opt_str = String::from("Mixed");
     } else {
         let unique_type = topt_unique.iter().next().unwrap().to_string();
         ident_mixed_opt_str = unique_type.clone();
@@ -396,7 +396,7 @@ pub fn get_sp_tokens(
 ) -> syn::Result<TokenStream> {
     Ok(quote! {
 
-        use tantale::core::domain::{BaseDom,BaseTypeDom,Domain,NoDomain,onto::Onto};
+        use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
 
         pub type ObjType = #ident_mixed_obj;
         pub type OptType = #ident_mixed_opt;

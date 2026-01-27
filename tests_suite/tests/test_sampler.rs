@@ -50,13 +50,13 @@ mod check_sampler {
 }
 
 mod check_sampler_base {
-    use tantale::core::domain::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::domain::{Mixed, Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale::core::sampler::*;
 
     #[test]
     fn sampler_real_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Real::new(0.0, 10.0, Uniform).into();
+        let basedom: Mixed = Real::new(0.0, 10.0, Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -66,7 +66,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_nat_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Nat::new(0, 10, Uniform).into();
+        let basedom: Mixed = Nat::new(0, 10, Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -76,7 +76,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_int_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Int::new(0, 10, Uniform).into();
+        let basedom: Mixed = Int::new(0, 10, Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -86,7 +86,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_bool_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Bool::new(Bernoulli(0.5)).into();
+        let basedom: Mixed = Bool::new(Bernoulli(0.5)).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -96,7 +96,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_cat_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
+        let basedom: Mixed = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -106,7 +106,7 @@ mod check_sampler_base {
     #[test]
     fn sampler_unit_base() {
         let mut rng = rand::rng();
-        let basedom: BaseDom = Unit::new(Uniform).into();
+        let basedom: Mixed = Unit::new(Uniform).into();
 
         assert!(
             basedom.is_in(&basedom.sample(&mut rng)),
@@ -116,23 +116,23 @@ mod check_sampler_base {
     #[test]
     fn sampler_base_many() {
         let mut rng = rand::rng();
-        let basedom_real_1: BaseDom = Real::new(0.0, 10.0, Uniform).into();
-        let basedom_real_2: BaseDom = Real::new(100.0, 1000.0, Uniform).into();
+        let basedom_real_1: Mixed = Real::new(0.0, 10.0, Uniform).into();
+        let basedom_real_2: Mixed = Real::new(100.0, 1000.0, Uniform).into();
 
-        let basedom_nat_1: BaseDom = Nat::new(0, 10, Uniform).into();
-        let basedom_nat_2: BaseDom = Nat::new(100, 1000, Uniform).into();
+        let basedom_nat_1: Mixed = Nat::new(0, 10, Uniform).into();
+        let basedom_nat_2: Mixed = Nat::new(100, 1000, Uniform).into();
 
-        let basedom_int_1: BaseDom = Int::new(0, 10, Uniform).into();
-        let basedom_int_2: BaseDom = Int::new(100, 1000, Uniform).into();
+        let basedom_int_1: Mixed = Int::new(0, 10, Uniform).into();
+        let basedom_int_2: Mixed = Int::new(100, 1000, Uniform).into();
 
-        let basedom_bool_1: BaseDom = Bool::new(Bernoulli(0.5)).into();
-        let basedom_bool_2: BaseDom = Bool::new(Bernoulli(0.5)).into();
+        let basedom_bool_1: Mixed = Bool::new(Bernoulli(0.5)).into();
+        let basedom_bool_2: Mixed = Bool::new(Bernoulli(0.5)).into();
 
-        let basedom_cat_1: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
-        let basedom_cat_2: BaseDom = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
+        let basedom_cat_1: Mixed = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
+        let basedom_cat_2: Mixed = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
 
-        let basedom_unit_1: BaseDom = Unit::new(Uniform).into();
-        let basedom_unit_2: BaseDom = Unit::new(Uniform).into();
+        let basedom_unit_1: Mixed = Unit::new(Uniform).into();
+        let basedom_unit_2: Mixed = Unit::new(Uniform).into();
 
         assert!(
             basedom_real_1.is_in(&basedom_real_1.sample(&mut rng)),

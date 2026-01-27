@@ -4,7 +4,7 @@ use tantale::core::{
 };
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseDom, BasePartial, BaseTypeDom, Objective, SId, Sp,
+    Mixed, BasePartial, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
@@ -84,7 +84,7 @@ type BBatch = Batch<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+    Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
 >;
 
 fn main() {
@@ -115,17 +115,17 @@ fn main() {
         let mut stop = Calls::new(50);
 
         let mut rng = rand::rng();
-        let sobj = <Sp<BaseDom, NoDomain> as Searchspace<
-            BasePartial<SId, BaseDom, EmptyInfo>,
+        let sobj = <Sp<Mixed, NoDomain> as Searchspace<
+            BasePartial<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
-        let sobj_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+        let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale_core::BaseTypeDom]>)> = pair
+        let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.get_id(), s.get_sopt().x.clone()))
             .collect();
@@ -136,23 +136,23 @@ fn main() {
             SId,
             EmptyInfo,
             RSInfo,
-            Lone<BasePartial<SId, BaseDom, EmptyInfo>, SId, BaseDom, EmptyInfo>,
+            Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            BasePartial<SId, BaseDom, EmptyInfo>,
+            BasePartial<SId, Mixed, EmptyInfo>,
             SId,
             BatchRandomSearch,
-            Sp<BaseDom, NoDomain>,
+            Sp<Mixed, NoDomain>,
             OutEvaluator,
             Calls,
-            Objective<Arc<[BaseTypeDom]>, OutEvaluator>,
+            Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
             _,
-            OutBatchEvaluate<SId, _, _, Sp<BaseDom, NoDomain>, BasePartial<SId, _, _>, _, _>,
+            OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();
-        let mut hsobj: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+        let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
         let mut hcopt = HashMap::new();
-        let mut hsopt: HashMap<SId, Arc<[tantale_core::BaseTypeDom]>> = HashMap::new();
+        let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
 
         let compiter = (&bcomp).into_iter();
 

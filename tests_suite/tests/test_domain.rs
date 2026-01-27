@@ -290,13 +290,13 @@ mod check_default_sampler {
 }
 
 mod check_default_sampler_base {
-    use tantale::core::{BaseDom, Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::{Mixed, Bool, Cat, Domain, Int, Nat, Real, Unit};
     use tantale_core::sampler::{Bernoulli, Uniform};
 
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
-        let real_1 = BaseDom::Real(Real::new(0.0, 10.0, Uniform));
+        let real_1 = Mixed::Real(Real::new(0.0, 10.0, Uniform));
         assert!(
             real_1.is_in(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -305,7 +305,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_nat() {
         let mut rng = rand::rng();
-        let nat_1 = BaseDom::Nat(Nat::new(0, 10, Uniform));
+        let nat_1 = Mixed::Nat(Nat::new(0, 10, Uniform));
         assert!(
             nat_1.is_in(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -314,7 +314,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_int() {
         let mut rng = rand::rng();
-        let int_1 = BaseDom::Int(Int::new(0, 10, Uniform));
+        let int_1 = Mixed::Int(Int::new(0, 10, Uniform));
         assert!(
             int_1.is_in(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
@@ -323,7 +323,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_bool() {
         let mut rng = rand::rng();
-        let bool_1 = BaseDom::Bool(Bool::new(Bernoulli(0.5)));
+        let bool_1 = Mixed::Bool(Bool::new(Bernoulli(0.5)));
         assert!(
             bool_1.is_in(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -332,7 +332,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_cat() {
         let mut rng = rand::rng();
-        let cat_1 = BaseDom::Cat(Cat::new(["relu", "tanh", "sigmoid"], Uniform));
+        let cat_1 = Mixed::Cat(Cat::new(["relu", "tanh", "sigmoid"], Uniform));
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
@@ -341,7 +341,7 @@ mod check_default_sampler_base {
     #[test]
     fn sampler_unit() {
         let mut rng = rand::rng();
-        let unit_1 = BaseDom::Unit(Unit::new(Uniform));
+        let unit_1 = Mixed::Unit(Unit::new(Uniform));
         assert!(
             unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"

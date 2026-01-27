@@ -13,23 +13,23 @@ pub trait DistSaverConfig: SaverConfig {
     fn init(self, proc: &MPIProcess) -> Arc<Self>;
 }
 
-/// Describes a folders and files hierarchy for file-based [`Recorder`] and [`Checkpointer`].
+/// Describes a folders and files hierarchy for file-based [`Recorder`](crate::Recorder) and [`Checkpointer`](crate::Checkpointer).
 ///
-/// # Notes on File hierarchy
+/// # Notes
 ///
-/// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
+/// The 4 csv files information are linked by the unique [`Id`](crate::Id) of computed [`Solution`](crate::Solution).
 ///
 /// * `path`
 ///  * evaluations
-///   * obj.csv             (points from the [`Objective`] view)
-///   * opt.csv             (points from the [`Optimizer`] view)
-///   * info.csv            ([`SolInfo`] and [`OptInfo`])
-///   * out.csv             ([`Outcome`])
+///   * obj.csv             (points from the [`FuncWrapper`](crate::FuncWrapper) view)
+///   * opt.csv             (points from the [`Optimizer`](crate::Optimizer) view)
+///   * info.csv            ([`SolInfo`](crate::SolInfo) and [`OptInfo`](crate::OptInfo))
+///   * out.csv             ([`Outcome`](crate::Outcome))
 ///  * checkpoint
-///   * state_opt.mp      ([`OptState`])
-///   * state_stp.mp      ([`Stop`])
-///   * state_eval.mp     ([`Evaluate`])
-///   * state_param.mp    (Various global parameters such as the [`Id`] or experiment identifier.)
+///   * state_opt.mp      ([`OptState`](crate::OptState))
+///   * state_stp.mp      ([`Stop`](crate::Stop))
+///   * state_eval.mp     ([`Evaluate`](crate::experiment::Evaluate))
+///   * state_param.mp    ([`GlobalParameters`](crate::GlobalParameters))
 pub struct FolderConfig {
     pub path: PathBuf,
     pub path_rec: PathBuf,
