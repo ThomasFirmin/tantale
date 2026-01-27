@@ -32,6 +32,11 @@ use crate::{
     solution::shape::{SolObj, SolOpt},
 };
 
+
+/// Fidelity and Step aware [`BatchEvaluator`](crate::experiment::BatchEvaluator) for evaluating batches of solutions.
+/// It holds a [`Batch`] of [`Uncomputed`] [`SolutionShape`] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
+/// It implements the [`Evaluate`] and [`MonoEvaluate`] traits.
+/// It keeps track of the function states for partially evaluated solutions in a [`HashMap`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -57,12 +62,15 @@ where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
+    /// Create a new [`FidBatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         FidBatchEvaluator {
             batch,
             states: HashMap::new(),
         }
     }
+
+    /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.batch = batch;
     }
@@ -113,7 +121,16 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate the batch of solutions held by the evaluator.
+    /// It processes each solution based on its current [`Step`]:
+    /// - If `Pending`, it computes the outcome without any saved [`FuncState`].
+    /// - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
+    /// - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
+    /// It returns a tuple containing:
+    /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
+    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
@@ -183,6 +200,11 @@ where
 //--- THREADED ---//
 //----------------//
 
+
+/// [`FidThrBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a multi-threaded way.
+/// It holds a thread-safe [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
+/// It implements the [`Evaluate`] and [`ThrEvaluate`] traits.
+/// It keeps track of the function states for partially evaluated solutions in a thread-safe [`HashMap`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -208,6 +230,7 @@ where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
+    /// Create a new [`FidThrBatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         let batch = Arc::new(Mutex::new(batch));
         FidThrBatchEvaluator {
@@ -215,6 +238,7 @@ where
             states: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+    /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.batch = Arc::new(Mutex::new(batch));
     }
@@ -268,7 +292,21 @@ where
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate the batch of solutions held by the evaluator.
+    /// It processes each solution based on its current [`Step`]:
+    /// - If `Pending`, it computes the outcome without any saved [`FuncState`].
+    /// - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
+    /// - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
+    /// It returns a tuple containing:
+    /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
+    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
+    /// 
+    /// # Note
+    /// This method uses parallel iteration to evaluate the solutions concurrently. 
+    /// It locks the necessary data structures to ensure thread safety during the evaluation process.
+    /// It updates the stop condition in a thread-safe manner.
     fn evaluate(
         &mut self,
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,

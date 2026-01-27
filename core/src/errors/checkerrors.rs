@@ -2,6 +2,7 @@ use crate::errors::ErrMsg;
 
 use std::{error::Error, fmt};
 
+/// Error type for checkpointing operations from a [`Checkpointer`](crate::Checkpointer).
 pub struct CheckpointError(pub String);
 
 impl Error for CheckpointError {}

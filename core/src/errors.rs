@@ -8,5 +8,3 @@ pub mod checkerrors;
 pub use checkerrors::*;
 pub mod domerrors;
 pub use domerrors::*;
-pub mod utilserrors;
-pub use utilserrors::*;

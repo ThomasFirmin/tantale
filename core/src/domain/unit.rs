@@ -1,21 +1,3 @@
-//! A [`Unit`] domain defines a `f64` [`Domain`] within $[0.0, 1.0]$.
-//! It is similar to [`Bounded`] but with a simplified definition.
-//!
-//! # Examples
-//!
-//! ```
-//! use tantale::core::{Unit, Domain, DomainBounded};
-//! let dom = Unit::new();
-//!
-//! let mut rng = rand::rng();
-//! let sample = dom.sample(&mut rng);
-//! assert!(dom.is_in(&sample));
-//! assert_eq!(dom.lower(), 0.0);
-//! assert_eq!(dom.upper(), 1.0);
-//! assert_eq!(dom.mid(), 0.5);
-//! assert_eq!(dom.width(), 1.0);
-//! ```
-
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
@@ -35,9 +17,22 @@ use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::RangeInclusive};
 
-/// A [`f64`] [`Unit`] domain within `[0,1]`.
-/// A generic [`Unit`] [`Domain`] with a numerical `lower=0.0` and `upper=1.0` bounds.
+/// A [`f64`] [`Domain`] domain within `[0.0,1.0]`.
 ///
+///  # Examples
+///
+/// ```
+/// use tantale::core::{Unit, Domain,Uniform};
+/// let dom : Unit = Unit::new(Uniform);
+///
+/// let mut rng = rand::rng();
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
+/// assert_eq!(dom.bounds.start(), 0.0);
+/// assert_eq!(dom.bounds.end(), 1.0);
+/// assert_eq!(dom.mid(), 0.5);
+/// assert_eq!(dom.width(), 1.0);
+/// ```
 pub struct Unit {
     pub bounds: RangeInclusive<f64>,
     pub mid: f64,
@@ -118,15 +113,14 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bounded`]`<Out>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bounded`] domain.
     fn onto(
         &self,
         item: &Self::Item,
@@ -166,15 +160,14 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             Ok(*item > 0.5)
@@ -202,15 +195,14 @@ impl Onto<Cat> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`]<'a, N> - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
     fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
@@ -238,21 +230,21 @@ impl OntoDom<Cat> for Unit {}
 impl Onto<Mixed> for Unit {
     type Item = TypeDom<Unit>;
     type TargetItem = TypeDom<Mixed>;
-    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`BaseDom`][`Domain`].
-    ///
-    //// Match a targetted[`Bounded`], [`Bool`], [`Cat`] and [`Unit`] and (`onto`)[`Onto::onto`] of [`Self`].
-    ///
+    /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Mixed`][`Domain`].
+    /// 
+    /// Considering $x$ the `item`, the mapping is done depending on the target [`Mixed`] [`Domain`] variant 
+    /// using the inner `d` [`Domain`] using [`Onto::onto`]
+    /// 
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<'a,N,T>` - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         match target {
             Mixed::Real(d) => match self.onto(item, d) {
@@ -304,15 +296,14 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Domain`].
-    ///
+    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// 
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
-    ///     * if input `item` to be mapped is not into [`Self`] domain.
-    ///     * if resulting mapped `item` is not into the `target` domain.
-    ///
+    ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
     fn onto(&self, item: &Self::Item, _target: &Unit) -> Result<Self::TargetItem, OntoError> {
         Ok(*item)
     }

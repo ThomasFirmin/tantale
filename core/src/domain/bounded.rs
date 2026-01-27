@@ -15,14 +15,14 @@
 //! # Examples
 //!
 //! ```
-//! use tantale::core::{Bounded, Domain, DomainBounded};
-//! let dom : Bounded<u8> = Bounded::new(0, 255);
+//! use tantale::core::{Bounded, Domain, Uniform};
+//! let dom : Bounded<u8> = Bounded::new(0, 255, Uniform);
 //!
 //! let mut rng = rand::rng();
 //! let sample = dom.sample(&mut rng);
 //! assert!(dom.is_in(&sample));
-//! assert_eq!(dom.lower(), 0);
-//! assert_eq!(dom.upper(), 255);
+//! assert_eq!(dom.bounds.start(), 0);
+//! assert_eq!(dom.bounds.end(), 255);
 //! assert_eq!(dom.mid(), 127);
 //! assert_eq!(dom.width(), 255);
 //! ```
@@ -152,7 +152,7 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
     fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
         self.sampler.sample(self, rng)
     }
-    
+
     /// Method to check if a given point is in the domain.
     fn is_in(&self, item: &T) -> bool {
         self.bounds.contains(item)
@@ -261,7 +261,6 @@ where
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
-    ///
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             Ok(*item > self.mid)

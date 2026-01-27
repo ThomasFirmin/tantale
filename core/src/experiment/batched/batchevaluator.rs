@@ -22,6 +22,10 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 
+
+/// [`BatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`].
+/// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate.
+/// It implements the [`Evaluate`], [`MonoEvaluate`] and, if the `mpi` feature is enabled, the [`DistEvaluate`] traits.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -43,10 +47,12 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo>,
-{
+{   
+    /// Create a new [`BatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         BatchEvaluator { batch }
     }
+    /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.batch = batch;
     }
@@ -60,6 +66,7 @@ where
     Shape: SolutionShape<SolId, SInfo>,
 {
 }
+
 
 impl<PSol, SolId, Op, Scp, Out, St>
     MonoEvaluate<
@@ -88,7 +95,17 @@ where
     St: Stop,
     Out: Outcome,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate, using a mono-thread strategy the batch of solutions using the given [`Objective`] `ob` and [`Codomain`] `cod`.
+    /// Samples are evaluated sequentially until all solutions in the batch are evaluated or the `stop` condition is met.
+    /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
+    /// and the raw [`Outcome`] batch of evaluations.
+    /// 
+    /// # Note
+    /// 
+    /// After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
+    /// if the `stop` condition is met before finishing.
     fn evaluate(
         &mut self,
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
@@ -143,7 +160,23 @@ where
     St: Stop,
     Out: Outcome,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate, using a distributed MPI strategy the batch of solutions using the given [`Objective`] `ob` and [`Codomain`] `cod`.
+    /// Samples are sent to idle workers, and results are received as they are computed,
+    /// until all solutions in the batch are evaluated or the `stop` condition is met.
+    /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
+    /// and the raw [`Outcome`] batch of evaluations.
+    /// 
+    /// # Note
+    /// 
+    /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
+    /// if the `stop` condition is met before finishing. 
+    /// * The order of solutions in the returned batches
+    /// may not correspond to the order in the original batch, due to the asynchronous nature of MPI communication.
+    /// * Depending on the [`Stop`] implementation, some workers may still be computing solutions when the stop condition is met,
+    /// leading to overflowing the expected number of evaluations.
+    /// 
     fn evaluate(
         &mut self,
         sendrec: &mut SendRec<
@@ -201,6 +234,9 @@ where
 //--- THREADED ---//
 //----------------//
 
+/// [`ThrBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a multi-threaded way.
+/// It holds a thread-safe [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate.
+/// It implements the [`Evaluate`] and [`ThrEvaluate`] traits.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -223,10 +259,12 @@ where
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo>,
 {
+    /// Create a new [`ThrBatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         let batch = Arc::new(Mutex::new(batch));
         ThrBatchEvaluator { batch }
     }
+    /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.batch = Arc::new(Mutex::new(batch))
     }
@@ -273,7 +311,21 @@ where
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate, using a multi-thread strategy, the batch of solutions using the given [`Objective`] `ob` and [`Codomain`] `cod`.
+    /// Samples are evaluated in parallel using multiple threads until all solutions in the batch are evaluated or the `stop` condition is met.
+    /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
+    /// and the raw [`Outcome`] batch of evaluations.
+    /// 
+    /// # Note
+    /// 
+    /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
+    /// if the `stop` condition is met before finishing. 
+    /// * The order of solutions in the returned batches
+    /// may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
+    /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,
+    /// leading to overflowing the expected number of evaluations.
     fn evaluate(
         &mut self,
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
