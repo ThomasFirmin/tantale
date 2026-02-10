@@ -1,16 +1,31 @@
-//! An [`Outcome`](tantale::core::Outcome) is a user-defined struct describing the output of
-//! the function to be maximized. This output may contain the values
-//! to be optimized, constraints, fidelities, and other information
-//! linked to the evaluation (e.g. computation time), or internal state.
+//! Defines the raw outputs of the user-defined function to optimize.
+//!
+//! An [`Outcome`](crate::objective::Outcome) is a user-defined struct describing the output of
+//! the objective function. This output may include optimized values, constraints,
+//! evaluation cost, fidelities, and additional metadata (e.g. timing, seeds, or
+//! debug information).
 //!
 //! # Notes
-//! ## Supported types
-//!  An [`Outcome`](tantale::core::Outcome) is [`CSVWritable`](tantale::core::saver::csvsaver::CSVWritable), ['Serializable'](serde::Serializable), ['Deserializable'](serde::Deserializable).
-//!  But only following types are writable [`isize`], [`i32`], [`i64`], [`f32`], [`f64`], [`usize`], [`u32`], [`u64`], [`String`], [`bool`]. [`Vec`] can also be written if it implements [`Debug`](std::fmt::Debug).
-//!  Other fields should be ['Serializable'](serde::Serializable) and ['Deserializable'](serde::Deserializable) for checkpointing.
-//! ## Multi-fidelity
-//!  A [`FidOutcome`] is an [`Outcome`] containing an [`EvalState`] attribute describing the current state of the evaluation.
-//!  It is used in multi-[`Fidelity`] optimization.
+//! ## Serialization and CSV recording
+//! An [`Outcome`](crate::objective::Outcome) must be serializable for checkpointing and
+//! compatible with CSV recording. In practice, this means implementing
+//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize), and ensuring
+//! fields can be written by the [`CSVWritable`](crate::recorder::csv::CSVWritable) layer.
+//! Supported CSV field types are:
+//! - Integers: [`isize`], [`i32`], [`i64`], [`usize`], [`u32`], [`u64`]
+//! - Floats: [`f32`], [`f64`]
+//! - Other: [`String`], [`bool`]
+//! - [`Vec`] when its elements implement [`Debug`](std::fmt::Debug)
+//!
+//! Other fields remain valid for checkpointing as long as they are serializable,
+//! but they will not be written to CSV.
+//!
+//! ## Multi-fidelity outputs
+//! A [`FidOutcome`](crate::objective::FidOutcome) is an [`Outcome`](crate::objective::Outcome)
+//! that exposes an [`EvalStep`](crate::objective::EvalStep), describing the current evaluation
+//! state. It is used in multi-[`Fidelity`](crate::solution::partial::Fidelity) optimization and
+//! [`Stepped`](crate::objective::Stepped) objectives. See [`Step`](crate::objective::Step) for the meaning of each state.
+//!
 //! # Example
 //!
 //! ```
@@ -31,7 +46,7 @@
 //!     pub mul9: f64,
 //! }
 //!
-//! // An mock output of an objective function
+//! // A mock output of an objective function
 //! let out = OutExample {
 //!              cost2: 2.0,
 //!              con3: 3.0,
@@ -65,27 +80,36 @@
 //!        .into_boxed_slice(),
 //!    );
 //! let extracted = codom.get_elem(&out);
-//! println!("MULTI : {:?}",extracted.value);
-//! println!("CONSTRAINT : {:?}",extracted.constraints);
-//! println!("Cost : {}",extracted.cost);
+//! println!("MULTI : {:?}", extracted.value);
+//! println!("CONSTRAINT : {:?}", extracted.constraints);
+//! println!("Cost : {}", extracted.cost);
 //! ```
 
 use crate::objective::EvalStep;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-/// [`Outcome`] is a trait describing what the output of the objective function is.
-/// It must contains the values needed for the optimization.
-/// An [`Outcome`] should be defined with the [`Outcome`][tantale::macros::Outcome] derive macro.
-/// It should be a struct with named fields.
+/// Trait implemented by objective outputs.
+///
+/// An [`Outcome`] is expected to be a named-field struct carrying the values used by
+/// the [`Codomain`](crate::domain::codomain::Codomain) (objectives, constraints, cost,
+/// or any metadata). It must be serializable for checkpointing and compatible with
+/// CSV recording. The recommended way to implement this trait is the
+/// [`Outcome`][tantale::macros::Outcome] derive macro.
 pub trait Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {
 }
 
-/// [`FidOutcome`] is a trait describing an [`Outcome`] containing an [`EvalState`] for
-/// multi-[`Fidelity`] optimiaztion.
+/// Trait for multi-fidelity outcomes.
+///
+/// A [`FidOutcome`] extends [`Outcome`] by exposing the current [`EvalStep`], which
+/// indicates whether the evaluation is [`Pending`](crate::objective::Step::Pending),
+/// [`Partially`](crate::objective::Step::Partially), [`Evaluated`](crate::objective::Step::Evaluated),
+/// [`Discard`](crate::objective::Step::Discard), or [`Error`](crate::objective::Step::Error).
+/// This is required by multi-[`Fidelity`](crate::solution::partial::Fidelity) optimization
+/// and [`Stepped`](crate::objective::Stepped) objectives.
 pub trait FidOutcome: Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
@@ -93,9 +117,12 @@ where
     fn get_step(&self) -> EvalStep;
 }
 
-/// [`FuncState`] is a trait describing one of the field of the [`Outcome`] containing the
-/// current state of evaluation of the [`Objective`]. It is used in multi-fidelity optimization,
-/// where a function can be evaluated by state.
+/// Marker trait for internal function state in [`Stepped`](crate::objective::Stepped) functions.
+///
+/// This represents the per-[`Solution`](crate::solution::Solution) evaluation state carried between
+/// [`Step`](crate::objective::Step)s of a multi-[`Fidelity`](crate::solution::partial::Fidelity)
+/// objective. The state is provided back to the [`Stepped`](crate::objective::Stepped) function
+/// on the next call and can hold any serializable data needed to resume evaluation.
 pub trait FuncState
 where
     Self: Sized + Serialize + for<'de> Deserialize<'de>,

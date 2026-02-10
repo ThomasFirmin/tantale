@@ -1,3 +1,19 @@
+//! Partial (uncomputed) solutions.
+//!
+//! A partial solution is created by a [`Searchspace`](crate::Searchspace) and contains a unique
+//! [`Id`](crate::Id) plus its raw representation (vector, permutation, matrix, ...), assembled
+//! from the underlying [`Domain`](crate::Domain) definitions. This raw solution is what gets
+//! evaluated by an [`Objective`](crate::Objective).
+//!
+//! # Examples
+//! ```
+//! use tantale::core::{BasePartial, EmptyInfo, Id, Real, SId};
+//!
+//! let x = std::sync::Arc::from(vec![0.1, 0.2, 0.3]);
+//! let info = std::sync::Arc::new(EmptyInfo {});
+//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! ```
+
 use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
@@ -13,7 +29,7 @@ use std::{
     sync::Arc,
 };
 
-/// Describes the fidelity of a [`FidelityPartial`], i.e. a given budget for the evaluation of a [`FidelityPartial`].
+/// Describes the fidelity of a [`FidBasePartial`], i.e. a given budget for evaluation.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Fidelity(f64);
 
@@ -34,6 +50,7 @@ impl CSVWritable<(), ()> for Fidelity {
 }
 
 impl Fidelity {
+    /// Apply this fidelity to both sides of a paired solution.
     pub fn set_pair<Shape, SolId, SInfo>(self, pair: &mut Shape)
     where
         SolId: Id,
@@ -50,9 +67,20 @@ impl Fidelity {
 /// A non-evaluated [`Solution`].
 ///
 /// # Attributes
-/// * `id` : [`Id`] - The unique [`ID`] of the solution.
+/// * `id` : [`Id`] - The unique [`Id`] of the solution.
 /// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `info` : `[`Arc`]`<Info>` - Information given by the [`Optimizer`] and linked to a specific [`Solution`].
+/// * `info` : [`Arc`]`<Info>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`](crate::Solution).
+///
+/// # Example
+/// ```
+/// use tantale::core::{BasePartial, EmptyInfo, Id, Real, SId, Solution};
+///
+/// let x = std::sync::Arc::from(vec![0.0; 5]);
+/// let info = std::sync::Arc::new(EmptyInfo {});
+/// let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+///
+/// assert_eq!(sol.get_x().len(), 5);
+/// ```
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Dom::TypeDom: Serialize",
@@ -100,10 +128,14 @@ where
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = BasePartial<SolId, B, Info>;
 
+    /// Return the raw representation for evaluation by the objective.
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
 
+    /// Create a twin solution with the same id and info but a different raw representation.
+    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
+    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
     fn twin<B: Domain>(
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
@@ -128,7 +160,7 @@ where
     /// # Attributes
     ///
     /// * `id` : `SolId` - A unique [`Id`].
-    /// * `x` : `Into``<`[`Raw`](Solution::Raw)`>` - A [`Raw`](Solution::Raw) solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
+    /// * `x` : `Into``<`[`Raw`](Solution::Raw)`>` - A raw solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Example
     ///
@@ -155,6 +187,9 @@ where
             info,
         }
     }
+    /// Create a twin solution with the same id and info but a different raw representation.
+    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
+    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
     fn twin<B: Domain>(
         &self,
         x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
@@ -166,6 +201,8 @@ where
         }
     }
 
+    /// Create a default-valued solution of a given size.
+    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solution.
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
         let x = vec![Dom::TypeDom::default(); size];
@@ -175,12 +212,15 @@ where
             info,
         }
     }
+    /// Create multiple default-valued solutions with the same size.
+    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solutions.
     fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
         (0..vsize)
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
 }
+
 
 impl<SolId, Dom, Info> IntoComputed for BasePartial<SolId, Dom, Info>
 where
@@ -216,6 +256,22 @@ where
 /// * `step` : [`Step`] -  The current evaluation [`Step`] of `x`.
 /// * `fid` : [`Fidelity`] -  The [`Fidelity`] associated to `x`.
 /// * `info` : `Arc<`[`SolInfo`]`>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
+///
+/// # Example
+/// ```
+/// use tantale::core::{FidBasePartial, EmptyInfo, Id, Real, SId, Solution};
+///
+/// let x = std::sync::Arc::from(vec![0.0; 3]);
+/// let info = std::sync::Arc::new(EmptyInfo {});
+/// let mut sol = FidBasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+/// // By default, the solution is pending with zero fidelity.
+/// assert_eq!(sol.step(), Step::Pending);
+/// assert_eq!(sol.fidelity().0, 0.0);
+/// // We can set the fidelity to a specific value, for example 0.5.
+/// sol.set_fidelity(Fidelity(0.5));
+/// assert_eq!(sol.get_x().len(), 3);
+/// assert_eq!(sol.fidelity().0, 0.5);
+/// ```
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Dom::TypeDom: Serialize",
@@ -276,34 +332,42 @@ where
     Info: SolInfo,
     SolId: Id,
 {
+    /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
         self.step.into()
     }
 
+    /// Mark the solution as pending (unevaluated).
     fn pending(&mut self) {
         self.step = EvalStep(0);
     }
-    /// The value must be stricly positive.
+    /// Mark the solution as partially evaluated. The value must be strictly positive.
     fn partially(&mut self, value: isize) {
         self.step = EvalStep(value);
     }
 
+    /// Mark the solution as evaluated.
     fn evaluated(&mut self) {
         self.step = EvalStep(-1);
     }
 
+    /// Mark the solution as discarded.
     fn discard(&mut self) {
         self.step = EvalStep(-9);
     }
 
+    /// Mark the solution as errored.
     fn error(&mut self) {
         self.step = EvalStep(-10);
     }
 
+    /// Return the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
+    /// [`Step`] and [`EvalStep`] are two different types: [`Step`] is an enum for user-facing APIs, while [`EvalStep`] is a wrapper around `isize` for internal use and communication.
     fn raw_step(&self) -> EvalStep {
         self.step
     }
 
+    /// Set the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
     fn set_step(&mut self, value: EvalStep) {
         self.step = value;
     }
@@ -318,10 +382,15 @@ where
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
 
+    /// Return the raw representation for evaluation by the objective.
     fn get_x(&self) -> Self::Raw {
         self.x.clone()
     }
 
+    /// Create a twin solution with the same id and info but a different raw representation.
+    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
+    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
+    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
     fn twin<B: Domain>(
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
@@ -344,6 +413,7 @@ where
 {
     type TwinUC<B: Domain> = FidBasePartial<SolId, B, Info>;
 
+    /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
         T: Into<Self::Raw>,
@@ -357,6 +427,10 @@ where
         }
     }
 
+    /// Create a twin solution with the same id and info but a different raw representation.
+    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
+    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
+    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
     fn twin<B: Domain>(
         &self,
         x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
@@ -369,6 +443,7 @@ where
             info: self.info.clone(),
         }
     }
+    /// Create a default-valued [`Fidelity`] solution of a given size.
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
         let x = vec![Dom::TypeDom::default(); size];
@@ -381,6 +456,7 @@ where
         }
     }
 
+    /// Create multiple default-valued [`Fidelity`] solutions with the same size.
     fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
         (0..vsize)
             .map(|_| Self::default(info.clone(), size))

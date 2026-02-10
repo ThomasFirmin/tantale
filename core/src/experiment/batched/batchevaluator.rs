@@ -171,11 +171,11 @@ where
     /// # Note
     /// 
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    /// if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing. 
     /// * The order of solutions in the returned batches
-    /// may not correspond to the order in the original batch, due to the asynchronous nature of MPI communication.
+    ///   may not correspond to the order in the original batch, due to the asynchronous nature of MPI communication.
     /// * Depending on the [`Stop`] implementation, some workers may still be computing solutions when the stop condition is met,
-    /// leading to overflowing the expected number of evaluations.
+    ///   leading to overflowing the expected number of evaluations.
     /// 
     fn evaluate(
         &mut self,
@@ -321,11 +321,11 @@ where
     /// # Note
     /// 
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    /// if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing. 
     /// * The order of solutions in the returned batches
-    /// may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
+    ///   may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
     /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,
-    /// leading to overflowing the expected number of evaluations.
+    ///   leading to overflowing the expected number of evaluations.
     fn evaluate(
         &mut self,
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,

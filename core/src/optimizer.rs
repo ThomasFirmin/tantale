@@ -1,5 +1,4 @@
 pub mod opt;
-pub use opt::{
-    AlgoMode, BatchOptimizer, EmptyInfo, IterMode, OptInfo, OptState, Optimizer,
+pub use opt::{BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer,
     SequentialOptimizer,
 };

@@ -26,6 +26,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+/// Sequential evaluator for fidelity-based functions.
+/// It evaluates a single [`SolutionShape`] + [`HasStep`] + [`HasFidelity`],
+/// maintaining an internal [`FuncState`] for the [`SolutionShape`] being currently evaluated.
+/// This allows the evaluator to handle computations that may require multiple [`Step`]s.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -35,7 +39,7 @@ pub struct FidSeqEvaluator<SolId, SInfo, Shape, FnState>
 where
     SolId: Id,
     SInfo: SolInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
     pub pair: Option<Shape>,
@@ -51,6 +55,7 @@ where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
+    /// Creates a new [`FidSeqEvaluator`] with the given [`SolutionShape`].
     pub fn new(pair: Shape) -> Self {
         FidSeqEvaluator {
             pair: Some(pair),
@@ -60,6 +65,8 @@ where
         }
     }
 
+    /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`) 
+    /// if the step is not [`Step::Partially`].
     pub fn update(&mut self, pair: Shape) {
         match pair.step() {
             Step::Partially(_) => {}
@@ -73,7 +80,7 @@ impl<SolId, SInfo, Shape, FnState> Evaluate for FidSeqEvaluator<SolId, SInfo, Sh
 where
     SolId: Id,
     SInfo: SolInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
 }
@@ -112,7 +119,15 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Initializes the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluates the current [`SolutionShape`] using the provided [`Stepped`] function.
+    /// It manages the internal [`FuncState`] to handle multi-[`Step`] evaluations.
+    /// If the evaluation results in a final step ([`Step::Evaluated`], [`Step::Discard`], or [`Step::Error`]),
+    /// the current [`FuncState`] is cleared.
+    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`](crate::Outcome)
+    /// if the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`].
+    /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
@@ -157,7 +172,7 @@ impl<SolId, SInfo, Shape, FnState> From<Shape> for FidSeqEvaluator<SolId, SInfo,
 where
     SolId: Id,
     SInfo: SolInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
     fn from(value: Shape) -> Self {
@@ -174,6 +189,11 @@ where
 //--- MULTI-THREADED ---//
 //----------------------//
 
+
+/// Sequential evaluator for fidelity-based functions.
+/// It evaluates a single [`SolutionShape`] + [`HasStep`] + [`HasFidelity`] at a time,
+/// maintaining an internal [`FuncState`] for the [`SolutionShape`] being currently evaluated.
+/// This allows the evaluator to handle computations that may require multiple [`Step`]s.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -199,6 +219,7 @@ where
     SInfo: SolInfo,
     FnState: FuncState,
 {
+    /// Creates a new [`FidSeqEvaluator`] with the given [`SolutionShape`].
     pub fn new(pair: Option<Shape>, state: Option<FnState>) -> Self {
         FidThrSeqEvaluator {
             pair,
@@ -207,7 +228,8 @@ where
             _sinfo: PhantomData,
         }
     }
-
+    /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`)
+    /// if the step is not [`Step::Partially`].
     pub fn update(&mut self, pair: Shape) {
         match pair.step() {
             Step::Partially(_) => {}
@@ -226,6 +248,16 @@ where
 {
 }
 
+
+/// An intermediate representation for a collection of [`FidThrSeqEvaluator`]. Used to [`load!`](crate::load!)
+/// all [`FidThrSeqEvaluator`](crate::experiment::sequential::seqfidevaluator::FidThrSeqEvaluator) at once.
+/// Then it is decomposed into a `Vec<FidThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
+/// for single-threaded [`Evaluate`].
+///
+/// It contains a vector of [`SolutionShape`](crate::solution::SolutionShape) paired with their
+/// corresponding [`FuncState`](crate::objective::outcome::FuncState).
+///
+/// Each entry represents an in-progress [`Step`]-based evaluation that can be resumed later.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -242,6 +274,7 @@ where
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
+
 impl<Shape, SolId, SInfo, FnState> Evaluate for VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -296,6 +329,18 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
+/// A distributed sequential evaluator for [`Step`]-based functions.
+/// The internal [`FuncState`] are manage within each [`Worker`](crate::Worker).
+/// This allows the evaluator to handle computations that may require multiple [`Step`]s
+/// and distribute them across multiple [`Worker`](crate::Worker)s.
+/// 
+/// It keeps track of the location of each solution [`Id`] across different MPI [`Rank`]s in a [`HashMap`], 
+/// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
+/// The role of `where_is_id` is to map each solution [`Id`] to the MPI [`Rank`] where an [`Uncomputed`] 
+/// is currently being processed, and then remember where each [`FuncState`] is located.
+/// [`Step::Discard`] are managed first, as it is fast to process.
+/// Then, [`Step::Partially`] are managed to continue their evaluation.
+/// And finally new [`Step::Pending`] solutions are managed.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -321,6 +366,7 @@ where
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
+    /// Creates a new [`FidDistSeqEvaluator`] with the given parameters.
     pub fn new(pairs: Vec<Shape>, size: usize) -> Self {
         FidDistSeqEvaluator {
             new_pairs: pairs,
@@ -331,6 +377,12 @@ where
         }
     }
 
+    /// Updates the internal [`SolutionShape`]s based on their current [`Step`].
+    /// - If the step is [`Step::Pending`], it adds the solution to the `new_pairs` list.
+    /// - If the step is [`Step::Partially`], it adds the solution to the `priority_resume` list,
+    ///   associating it with its current MPI [`Rank`].
+    /// - If the step is [`Step::Discard`], it adds the solution to the `priority_discard` list,
+    ///   associating it with its current MPI [`Rank`].
     pub fn update(&mut self, pair: Shape) {
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
@@ -364,7 +416,11 @@ pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
     SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Cod, Out>;
 
 #[cfg(feature = "mpi")]
-/// Return true if it was able to send a pair else false
+/// Recursive function to send a [`Raw`](Solution::Raw) to an available [`Worker`](crate::Worker).
+/// It prioritizes discarding solutions first, then resuming [`Step::Partially`] evaluated solutions,
+/// and finally sending new [`Step::Pending`] solutions.
+/// If no solutions are available to send, it marks the rank of the [`Worker`](crate::Worker) as idle.
+/// It returns `true` if all ranks are idle or if [`Stop`] returns `true`, `false` otherwise.
 fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     available: Rank,
     sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Op::Cod, Out>,
@@ -466,7 +522,20 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Initializes the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluates the current set of [`SolutionShape`]s using the provided [`Stepped`] function.
+    /// It manages the internal [`FuncState`] within each [`Worker`](crate::Worker) to handle multi-[`Step`] evaluations.
+    /// It fills idle [`Worker`](crate::Worker)s with new or resumed solutions to evaluate.
+    /// 
+    /// If the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`]
+    /// it returns an `Option` containing the following elements [`Computed`](crate::Computed) and [`Outcome`](crate::Outcome):
+    /// - An MPI [`Rank`] of the [`Worker`](crate::Worker) that has completed the evaluation.
+    /// - A tuple containing:
+    ///     - A [`Computed`](crate::Computed) representing the evaluated solution.
+    ///     - An [`Outcome`](crate::Outcome) representing the raw output of the evaluation.
+    /// 
+    /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`]
     fn evaluate(
         &mut self,
         sendrec: &mut SendRec<

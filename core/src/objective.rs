@@ -2,7 +2,8 @@ use crate::recorder::csv::CSVWritable;
 use serde::{Deserialize, Serialize};
 
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
-/// Associated to [`EvalStep`].
+/// It is Associated to [`EvalStep`].
+/// [`Step`] and [`EvalStep`] are two different types: [`Step`] is an enum for user-facing APIs, while [`EvalStep`] is a wrapper around `isize` for internal use and communication.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Step {
     Pending,
@@ -45,7 +46,8 @@ impl CSVWritable<(), ()> for Step {
 
 /// The current state of the evaluation, defined by the user within the [`Outcome`].
 /// It is not modeled by an enum because of serialization and deserialization to bincode.
-/// But is associated to [`Step`].
+/// [`Step`] and [`EvalStep`] are two different types: [`Step`] is an enum for user-facing APIs, while [`EvalStep`] is a wrapper around `isize` for internal use and communication.
+/// The mapping between [`Step`] and [`EvalStep`] is as follows:
 /// * [`Pending`](Step::Pending) - A unevaluated solution. If [`EvalStep`]$=0$
 /// * [`Partially`](Step::Partially) - A not fully evaluated solution. If [`EvalStep`]$>0$
 /// * [`Evaluated`](Step::Evaluated) - A fully evaluated solution. If [`EvalStep`]$=-2$.

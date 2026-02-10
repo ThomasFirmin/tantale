@@ -9,50 +9,27 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-/// Describes the type of iteration:
-/// * Monothreaded: The evaluation of a [`Batch`] is done within a single thread.
-/// * Threaded: The evaluation of a [`Batch`] is multi-threaded.
-/// * Distributed: The evaluation of a [`Batch`] is MPI-distributed.
+/// Per-iteration metadata produced by an [`Optimizer`].
 ///
-/// # Notes
-///
-/// According to the [`Batch`] and algorithm type, the parallelization of the iteration level might be synchronous, i.e. all the [`Batch`] is evaluated
-/// before the next [`step`](Optimizer::step), or asynchronous, i.e. [`Batch`] are generated on the fly / on demand.
-#[derive(Serialize, Deserialize)]
-pub enum IterMode {
-    Monothreaded,
-    Threaded,
-    Distributed,
-}
-
-/// Describes the type of the optimizer execution:
-/// * Mono: A single instance of the algorithm is executed.
-/// * Threaded: Multiple instances of the optimizer are executed within different threads, and can interact with eachothers ([`MultiInstanceOptimizer`]).
-/// * Distributed: Multiple instances of the optimizer are MPI-distributed, and can interact with eachothers ([`MultiInstanceOptimizer`]).
-#[derive(Serialize, Deserialize)]
-pub enum AlgoMode {
-    Mono,
-    Threaded,
-    Distributed,
-}
-
-/// Describes information linked to a group of [`Solutions`](Solution)
-/// obtained  after each iteration of the [`Optimizer`].
+/// This typically aggregates informations about
+/// the current iteration of the [`Optimizer`].
 pub trait OptInfo
 where
     Self: Serialize + for<'de> Deserialize<'de> + Debug + Default,
 {
 }
 
-/// Describes the current state of an [`Optimizer`].
-/// It is used to serialize and deserialize the [`Optimizer`].
+/// Serializable state of an [`Optimizer`].
+///
+/// Implementations should capture all information required to resume an
+/// optimization after checkpointing.
 pub trait OptState
 where
     Self: Serialize + for<'de> Deserialize<'de>,
 {
 }
 
-/// An empty [`OptInfo`] or [`SolInfo`].
+/// Empty implementation for [`OptInfo`] or [`SolInfo`].
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EmptyInfo;
 impl SolInfo for EmptyInfo {}
@@ -67,16 +44,21 @@ impl CSVWritable<(), ()> for EmptyInfo {
     }
 }
 
+/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`OptInfo`].
 pub type OpInfType<Op, PSol, Scp, SolId, Out> =
     <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Info;
+/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`SolInfo`].
 pub type OpSInfType<Op, PSol, Scp, SolId, Out> =
     <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::SInfo;
+/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`Codomain`].
 pub type OpCodType<Op, PSol, Scp, SolId, Out> =
     <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod;
 
-/// The [`Optimizer`] is one of the elemental software brick of the library.
-/// It describes how to sample [`Solutions`](Solution) in order to **maximize**
-/// the [`Objective`] function.
+/// Core optimizer abstraction.
+///
+/// An [`Optimizer`] generates candidate [`Solution`](crate::solution::Solution)s to
+/// **maximize** an objective, and maintains the state required to resume or
+/// checkpoint an experiment.
 pub trait Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -92,15 +74,17 @@ where
 
     /// Returns the current [`OptState`] of the [`Optimizer`].
     fn get_state(&mut self) -> &Self::State;
-    /// Return an instance of the [`Optimizer`]  from an [`OptState`].
+    /// Builds an [`Optimizer`] from a previously saved [`OptState`].
     fn from_state(state: Self::State) -> Self;
 }
 
-/// A [`Batch`] of [`CompShape`].
+/// A [`Batch`] of [`CompShape`](crate::searchspace::CompShape) solutions for a given [`Searchspace`] and [`Codomain`].
 pub type CompBatch<SolId, SInfo, Info, Scp, PSol, Cod, Out> =
     Batch<SolId, SInfo, Info, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>>;
 
-/// An [`Optimizer`] for which, at each step, a
+/// Batch optimizer interface.
+///
+/// At each iteration, the optimizer produces a whole [`Batch`] of new candidates.
 pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
@@ -112,11 +96,13 @@ where
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
-    /// Executed once at the beginning of the optimization. Does not require previous [`Computed`].
+    /// Executed once at the beginning of the optimization. Does not require previous
+    /// computed solutions.
     fn first_step(&mut self, scp: &Scp) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
-    /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
-    /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
-    /// Requires previously [`Computed`] `x` [`Solution`].
+    /// Computes a single iteration of the [`Optimizer`].
+    ///
+    /// It consumes a [`Batch`] of computed solutions and returns a new batch of
+    /// uncomputed candidates.
     fn step(
         &mut self,
         x: CompBatch<SolId, Self::SInfo, Self::Info, Scp, PSol, Self::Cod, Out>,
@@ -124,6 +110,9 @@ where
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
 }
 
+/// Sequential optimizer interface.
+///
+/// At each iteration, the optimizer produces a single [`Uncomputed`] candidate.
 pub trait SequentialOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
@@ -134,9 +123,10 @@ where
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
-    /// Computes a single iteration of the [`Optimizer`]. It must return a slice of [`Solution`]`<Opt,Cod, Out, SInfo, DIM>`
-    /// and some optimizer info [`OptInfo`]. [`Self`] is mutable in order to update the [`Optimizer`]'s state.
-    /// Requires previously [`Computed`] `x` [`Solution`].
+    /// Computes a single iteration of the [`Optimizer`].
+    ///
+    /// It consumes an optional computed solution and returns a new uncomputed
+    /// candidate. [`Self`] is mutable to update the internal state.
     fn step(
         &mut self,
         x: OptionCompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
@@ -144,7 +134,9 @@ where
     ) -> Scp::SolShape;
 }
 
-/// A parallel [`Optimizer`] with multi-processing.
+/// Multi-instance optimizer interface for parallel execution.
+///
+/// Implementations define how optimizer instances interact and synchronize.
 pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
@@ -155,6 +147,8 @@ where
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
+    /// Exchange information with peer instances.
     fn interact(&self);
+    /// Update internal state after interaction.
     fn update(&self);
 }

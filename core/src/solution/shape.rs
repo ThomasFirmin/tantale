@@ -1,3 +1,24 @@
+//! Solution shapes linking twins.
+//!
+//! A [`SolutionShape`] links two solutions with potentially different underlying domains or
+//! types. The two solutions are [`twin`](crate::solution::Solution::twin)s and share the same [`Id`](crate::Id), letting users
+//! manipulate a single object without separating objective- and optimizer-side representations.
+//!
+//! # Examples
+//! ```
+//! use tantale::core::{BasePartial, EmptyInfo, Id, Pair, Real, SId, SolutionShape, Unit};
+//! use std::sync::Arc;
+//!
+//! let info = Arc::new(EmptyInfo {});
+//! let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+//! let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.8]), info);
+//! let pair = Pair::new(obj, opt);
+//!
+//! assert_eq!(pair.get_sobj().get_id(), pair.get_id());
+//! assert_eq!(pair.get_sopt().get_id(), pair.get_id());
+//! assert_eq!(pair.get_sobj().get_id(), pair.get_sopt().get_id());
+//! ```
+
 use crate::{
     Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
     domain::{
@@ -11,14 +32,18 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 
+/// Objective-side solution type for a [`SolutionShape`].
 pub type SolObj<SolShape, SolId, SInfo> = <SolShape as SolutionShape<SolId, SInfo>>::SolObj;
+/// Optimizer-side solution type for a [`SolutionShape`].
 pub type SolOpt<SolShape, SolId, SInfo> = <SolShape as SolutionShape<SolId, SInfo>>::SolOpt;
+/// Raw objective-side representation for a [`SolutionShape`].
 pub type RawObj<SolShape, SolId, SInfo> =
     <<SolShape as SolutionShape<SolId, SInfo>>::SolObj as Solution<
         SolId,
         LinkObj<SolShape>,
         SInfo,
     >>::Raw;
+/// Raw optimizer-side representation for a [`SolutionShape`].
 pub type RawOpt<SolShape, SolId, SInfo> =
     <<SolShape as SolutionShape<SolId, SInfo>>::SolOpt as Solution<
         SolId,
@@ -26,23 +51,47 @@ pub type RawOpt<SolShape, SolId, SInfo> =
         SInfo,
     >>::Raw;
 
+/// Trait linking objective- and optimizer-side solutions with a shared [`Id`](crate::Id).
 pub trait SolutionShape<SolId: Id, SInfo: SolInfo>:
     Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug
 where
     Self: Serialize + for<'a> Deserialize<'a>,
 {
+    /// Objective-side solution type.
     type SolObj: Solution<SolId, Self::Obj, SInfo>;
+    /// Optimizer-side solution type.
     type SolOpt: Solution<SolId, Self::Opt, SInfo>;
 
+    /// Get a reference to the objective-side solution.
     fn get_sobj(&self) -> &Self::SolObj;
+    /// Get a reference to the optimizer-side solution.
     fn get_sopt(&self) -> &Self::SolOpt;
+    /// Get a mutable reference to the objective-side solution.
     fn get_mut_sobj(&mut self) -> &mut Self::SolObj;
+    /// Get a mutable reference to the optimizer-side solution.
     fn get_mut_sopt(&mut self) -> &mut Self::SolOpt;
+    /// Extract the objective-side solution, consuming the shape.
     fn extract_sobj(self) -> Self::SolObj;
+    /// Extract the optimizer-side solution, consuming the shape.
     fn extract_sopt(self) -> Self::SolOpt;
 }
 
-/// A pair made of a `Obj` [`Solution`] and its `Opt` [`Twin`](Solution::Twin).
+/// A pair made of an objective [`Solution`] and its optimizer twin.
+///
+/// # Example
+/// ```
+/// use tantale::core::{BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+/// use std::sync::Arc;
+///
+/// let info = Arc::new(EmptyInfo {});
+/// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+/// let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info);
+/// let pair = Pair::new(obj, opt);
+///
+/// assert_eq!(pair.get_sobj().get_id(), pair.get_id());
+/// assert_eq!(pair.get_sopt().get_id(), pair.get_id());
+/// assert_eq!(pair.get_sobj().get_id(), pair.get_sopt().get_id());
+/// ```
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolObj: Serialize, SolOpt: Serialize",
@@ -73,6 +122,7 @@ where
     SolObj: Solution<SolId, Obj, SInfo>,
     SolOpt: Solution<SolId, Opt, SInfo>,
 {
+    /// Create a new paired solution from an objective and optimizer solution.
     pub fn new(solobj: SolObj, solopt: SolOpt) -> Self {
         Self(
             solobj,
@@ -311,6 +361,23 @@ where
 //---------------------//
 
 /// A single [`Solution`] with no link to a [`Twin`](Solution::Twin).
+///
+/// This is used for objective-only searchspaces.
+/// When the right-hand sides of the following declarations `[! name | ... | ... !]` in [`hpo!`](../../../tantale/macros/macro.hpo.html) or
+/// [`objective!`](../../../tantale/macros/macro.objective.html) are empty, the created solutions are wrapped in a [`Lone`] instead of a [`Pair`].
+/// This prevent unecessary computations and cloning.
+///
+/// # Example
+/// ```
+/// use tantale::core::{BasePartial, EmptyInfo, Id, Lone, Real, SId};
+/// use std::sync::Arc;
+///
+/// let info = Arc::new(EmptyInfo {});
+/// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info);
+/// let lone = Lone::new(obj);
+///
+/// assert_eq!(lone.get_id(), lone.get_sobj().get_id());
+/// ```
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolObj: Serialize",
@@ -338,6 +405,7 @@ where
     SInfo: SolInfo,
     SolObj: Solution<SolId, Obj, SInfo>,
 {
+    /// Create a new lone solution wrapper.
     pub fn new(sol: SolObj) -> Self {
         Self(sol, PhantomData, PhantomData, PhantomData)
     }
@@ -457,7 +525,7 @@ where
 {
     type SolObj = SolObj;
     type SolOpt = SolObj;
-
+    
     fn get_sobj(&self) -> &Self::SolObj {
         &self.0
     }

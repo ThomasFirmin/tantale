@@ -17,6 +17,9 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
+/// A simple sequential evaluator for sequential [`MonoExperiment`](crate::experiment::MonoExperiment).
+/// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
+/// at a time, returning the computed solution along with its [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -39,6 +42,7 @@ where
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo>,
 {
+    /// Creates a new [`SeqEvaluator`] with the given [`SolutionShape`].
     pub fn new(pair: Shape) -> Self {
         SeqEvaluator {
             pair: Some(pair),
@@ -46,7 +50,7 @@ where
             sinfo: PhantomData,
         }
     }
-
+    /// Updates the internal [`SolutionShape`] of the [`SeqEvaluator`] by replacing it with a new one.
     pub fn update(&mut self, pair: Shape) {
         self.pair = Some(pair);
     }
@@ -87,7 +91,11 @@ where
     St: Stop,
     Out: Outcome,
 {
+    /// Initializes the evaluator. Currently, does nothing.
     fn init(&mut self) {}
+    /// Evaluates the stored [`SolutionShape`] using the provided [`Objective`].
+    /// It computes the output, updates the [`Stop`] criterion,
+    /// and returns the [`Computed`](crate::solution::Computed) solution along with its [`Outcome`].
     fn evaluate(
         &mut self,
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
@@ -128,6 +136,10 @@ where
 //--- MULTI-THREADED ---//
 //----------------------//
 
+
+/// A simple multi-threaded evaluator for sequential [`ThrExperiment`](crate::experiment::ThrExperiment).
+/// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
+/// at a time, returning the computed solution along with its [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -139,7 +151,7 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    pub pair: Option<Shape>,
+    pub shapes: Option<Shape>,
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
@@ -150,16 +162,17 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    pub fn new(pair: Shape) -> Self {
+    /// Creates a new [`ThrSeqEvaluator`] with the given [`SolutionShape`].
+    pub fn new(shapes: Shape) -> Self {
         ThrSeqEvaluator {
-            pair: Some(pair),
+            shapes: Some(shapes),
             _id: PhantomData,
             _sinfo: PhantomData,
         }
     }
-
-    pub fn update(&mut self, pair: Shape) {
-        self.pair = Some(pair);
+    /// Updates the internal [`SolutionShape`] of the [`ThrSeqEvaluator`] by replacing it with a new one.
+    pub fn update(&mut self, shapes: Shape) {
+        self.shapes = Some(shapes);
     }
 }
 
@@ -171,6 +184,12 @@ where
 {
 }
 
+/// An intermediate representation for a collection of [`ThrSeqEvaluator`]. Used to [`load!`](crate::load!)
+/// all [`ThrSeqEvaluator`](crate::experiment::sequential::seqevaluator::ThrSeqEvaluator) at once.
+/// Then it is decomposed into a `Vec<ThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
+/// for single-threaded [`Evaluate`].
+/// 
+/// It contains a vector of [`SolutionShape`](crate::solution::SolutionShape).
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -182,7 +201,7 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    pub pair: Vec<Shape>,
+    pub shapes: Vec<Shape>,
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
@@ -202,9 +221,9 @@ where
     SInfo: SolInfo,
 {
     fn from(val: VecThrSeqEvaluator<Shape, SolId, SInfo>) -> Self {
-        val.pair
+        val.shapes
             .into_iter()
-            .map(|pair| ThrSeqEvaluator::new(pair))
+            .map(|shape| ThrSeqEvaluator::new(shape))
             .collect()
     }
 }
@@ -217,9 +236,9 @@ where
     SInfo: SolInfo,
 {
     fn from(value: Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>) -> Self {
-        let pair = value.into_iter().filter_map(|p| p.pair).collect();
+        let shapes = value.into_iter().filter_map(|p| p.shapes).collect();
         VecThrSeqEvaluator {
-            pair,
+            shapes,
             _id: PhantomData,
             _sinfo: PhantomData,
         }
@@ -231,6 +250,13 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
+/// A simple distributed evaluator for distributed [`MPIExperiment`](crate::experiment::MPIExperiment).
+/// It distributes multiple [`SolutionShape`](crate::solution::SolutionShape) in parallel,
+/// sending them to idle workers as they become available. But, returns only one at a time.
+/// So, while other solutions are being evaluated, the optimizer generates, on demand a new [`Uncomputed`]
+/// , for the newly idle worker.
+/// 
+/// It returns a single [`Computed`](crate::solution::Computed) along with their [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -242,7 +268,7 @@ where
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo>,
 {
-    pub pairs: Vec<Shape>,
+    pub shapes: Vec<Shape>,
     id: PhantomData<SolId>,
     sinfo: PhantomData<SInfo>,
 }
@@ -263,16 +289,17 @@ where
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo>,
 {
-    pub fn new(pairs: Vec<Shape>) -> Self {
+    /// Creates a new [`DistSeqEvaluator`] with the given vector of [`SolutionShape`].
+    pub fn new(shapes: Vec<Shape>) -> Self {
         DistSeqEvaluator {
-            pairs,
+            shapes,
             id: PhantomData,
             sinfo: PhantomData,
         }
     }
-
-    pub fn update(&mut self, pair: Shape) {
-        self.pairs.push(pair);
+    /// Updates the internal vector of [`SolutionShape`] of the [`DistSeqEvaluator`] by adding a new one.
+    pub fn update(&mut self, shape: Shape) {
+        self.shapes.push(shape);
     }
 }
 
@@ -305,7 +332,20 @@ where
     St: Stop,
     Out: Outcome,
 {
+    /// Initializes the evaluator. Currently, does nothing.
     fn init(&mut self) {}
+
+    /// Returns one [`SolutionShape`](crate::solution::SolutionShape`) at a time.
+    /// It fills idle [`Worker`](crate::worker::Worker)s with solutions to evaluate,
+    /// as long as there are idle workers and remaining solutions to evaluate.
+    /// It then waits for a single [`Worker`](crate::Worker) to return a [`Outcome`].
+    /// 
+    /// It returns a single [`Computed`](crate::solution::Computed) along with its [`Outcome`].
+    /// 
+    /// # Note
+    /// 
+    /// Can return `None` if no solution has been evaluated, notably due to [`Step::Error`] or [`Step::Discard`].
+    /// But, it should not happen in optimzation using [`Objective`].
     fn evaluate(
         &mut self,
         sendrec: &mut SendRec<
@@ -322,8 +362,8 @@ where
         stop: &mut St,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
-        while sendrec.idle.has_idle() && !self.pairs.is_empty() && !stop.stop() {
-            if sendrec.send_to_worker(self.pairs.pop().unwrap()).is_none() {
+        while sendrec.idle.has_idle() && !self.shapes.is_empty() && !stop.stop() {
+            if sendrec.send_to_worker(self.shapes.pop().unwrap()).is_none() {
                 panic!("A New pair of solutions was poped, while no worker was idle.")
             }
         }
@@ -333,8 +373,8 @@ where
             let (_, pair, out) = sendrec.rec_computed();
             stop.update(crate::stop::ExpStep::Distribution(Step::Evaluated));
             let y = cod.get_elem(&out);
-            if !stop.stop() && !self.pairs.is_empty() {
-                sendrec.send_to_worker(self.pairs.pop().unwrap());
+            if !stop.stop() && !self.shapes.is_empty() {
+                sendrec.send_to_worker(self.shapes.pop().unwrap());
             }
             let output = (pair.get_id(), out);
             let comp = pair.into_computed(y.into());

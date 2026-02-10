@@ -1,5 +1,7 @@
 extern crate proc_macro;
 
+use std::collections::HashMap;
+
 use crate::hpo::{LineStream, get_sp_tokens, parse_sp};
 
 use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
@@ -60,7 +62,9 @@ pub fn extract_var(
                 let content = group.stream();
 
                 if delimiter == Delimiter::Bracket {
-                    if is_var(&content) {
+                    if is_keyword(&content).is_some() {
+                        // Keywords are handled during reconstruction.
+                    } else if is_var(&content) {
                         // Remove "!" to get the variable definition
                         let mut clean_content: Vec<TokenTree> =
                             content.clone().into_iter().skip(1).collect();
@@ -137,6 +141,35 @@ fn complex_vec_replacement(
     .into()
 }
 
+fn keyword_replacement(keyword: &str) -> TokenStream {
+    match keyword {
+        "MPI_RANK" => quote! {
+            if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
+                panic!("Skipping MPI test (not under mpirun)")
+            }else{
+                tantale::core::MPI_RANK.get().cloned().unwrap()
+            }
+        }
+        .into(),
+        "MPI_SIZE" => quote! {
+            if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
+                panic!("Skipping MPI test (not under mpirun)")
+            }else{
+                tantale::core::MPI_SIZE.get().cloned().unwrap()
+            }
+        }
+        .into(),
+        "STATE" => quote! {
+            tantale_state
+        }
+        .into(),
+        _ => quote! {
+            compile_error!("Unknown objective keyword. Expected [! RANK !] or [! STATE !].");
+        }
+        .into(),
+    }
+}
+
 pub fn reconstruct_simple(
     input: TokenStream,
     new_stream: &mut TokenStream,
@@ -145,8 +178,9 @@ pub fn reconstruct_simple(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-) -> (usize, usize) {
+) -> (usize, usize, HashMap<String, (usize, usize)>) {
     let mut token_idx = n_token_idx;
+    let mut var_idx_hash = HashMap::new();
     let mut var_idx = n_var_idx;
     let mut tokens = input.clone().into_iter();
 
@@ -158,10 +192,13 @@ pub fn reconstruct_simple(
                 let content = group.stream();
 
                 if delimiter == Delimiter::Bracket {
-                    if is_var(&content) {
+                    if let Some(keyword) = is_keyword(&content) {
+                        new_stream.extend([keyword_replacement(&keyword)]);
+                    } else if is_var(&content) {
                         let ident = &obj_ty[token_idx];
+                        let prev_var_idx;
                         if repeats[token_idx] > 1 {
-                            let prev_var_idx = var_idx;
+                            prev_var_idx = var_idx;
                             var_idx += repeats[token_idx];
                             new_stream.extend([simple_vec_replacement(
                                 prev_var_idx,
@@ -171,17 +208,18 @@ pub fn reconstruct_simple(
                             )]);
                             token_idx += 1;
                         } else {
-                            let prev_var_idx = var_idx;
+                            prev_var_idx = var_idx;
                             new_stream.extend([simple_replacement(prev_var_idx, mixed_ty, ident)]);
                             var_idx += 1;
                             token_idx += 1;
                         }
+                        var_idx_hash.insert(ident.to_string(), (prev_var_idx, var_idx));
                     } else {
                         new_stream.extend([TokenTree::Group(group)]);
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx, var_idx) = reconstruct_simple(
+                    (token_idx, var_idx,var_idx_hash) = reconstruct_simple(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -199,7 +237,7 @@ pub fn reconstruct_simple(
             }
         }
     }
-    (token_idx, var_idx)
+    (token_idx, var_idx, var_idx_hash)
 }
 
 pub fn reconstruct_mixed(
@@ -210,9 +248,10 @@ pub fn reconstruct_mixed(
     repeats: &Vec<usize>,
     n_token_idx: usize,
     n_var_idx: usize,
-) -> (usize, usize) {
+) -> (usize, usize, HashMap<String, (usize, usize)>) {
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
+    let mut var_idx_hash = HashMap::new();
     let mut tokens = input.clone().into_iter();
 
     loop {
@@ -223,10 +262,13 @@ pub fn reconstruct_mixed(
                 let content = group.stream();
 
                 if delimiter == Delimiter::Bracket {
-                    if is_var(&content) {
+                    if let Some(keyword) = is_keyword(&content) {
+                        new_stream.extend([keyword_replacement(&keyword)]);
+                    } else if is_var(&content) {
                         let ident = &obj_ty[token_idx];
+                        let prev_var_idx;
                         if repeats[token_idx] > 1 {
-                            let prev_var_idx = var_idx;
+                            prev_var_idx = var_idx;
                             var_idx += repeats[token_idx];
                             new_stream.extend([complex_vec_replacement(
                                 prev_var_idx,
@@ -236,17 +278,18 @@ pub fn reconstruct_mixed(
                             )]);
                             token_idx += 1;
                         } else {
-                            let prev_var_idx = var_idx;
+                            prev_var_idx = var_idx;
                             new_stream.extend([complex_replacement(prev_var_idx, mixed_ty, ident)]);
                             var_idx += 1;
                             token_idx += 1;
                         }
+                        var_idx_hash.insert(ident.to_string(), (prev_var_idx, var_idx));
                     } else {
                         new_stream.extend([TokenTree::Group(group)]);
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx, var_idx) = reconstruct_mixed(
+                    (token_idx, var_idx,var_idx_hash) = reconstruct_mixed(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -264,7 +307,7 @@ pub fn reconstruct_mixed(
             }
         }
     }
-    (token_idx, var_idx)
+    (token_idx, var_idx, var_idx_hash)
 }
 
 pub fn reconstruct_tokens(
@@ -360,7 +403,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
         fn_item
             .sig
             .inputs
-            .push(parse_quote! {state : Option<#state>});
+            .push(parse_quote! {tantale_state : Option<#state>});
     }
 
     let mut new_stream = TokenStream::new();
@@ -412,6 +455,9 @@ pub fn obj(input: TokenStream) -> TokenStream {
 
 // Inspired by paste! crate from dtolnay
 fn is_var(input: &TokenStream) -> bool {
+    if is_keyword(input).is_some() {
+        return false;
+    }
     let mut tokens = input.clone().into_iter();
     match tokens.next() {
         Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {}
@@ -427,5 +473,32 @@ fn is_var(input: &TokenStream) -> bool {
             Some(_) => has_token = true,
             None => return false,
         }
+    }
+}
+
+fn is_keyword(input: &TokenStream) -> Option<String> {
+    let mut tokens = input.clone().into_iter();
+    match tokens.next() {
+        Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {}
+        _ => return None,
+    }
+
+    let ident = match tokens.next() {
+        Some(TokenTree::Ident(ident)) => ident.to_string(),
+        _ => return None,
+    };
+
+    match tokens.next() {
+        Some(TokenTree::Punct(punct)) if punct.as_char() == '!' => {}
+        _ => return None,
+    }
+
+    if tokens.next().is_some() {
+        return None;
+    }
+
+    match ident.as_str() {
+        "MPI_RANK" | "MPI_SIZE" | "STATE" => Some(ident),
+        _ => None,
     }
 }

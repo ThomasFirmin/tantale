@@ -16,7 +16,13 @@ use std::collections::HashMap;
 // WORKER //
 //--------//
 
-/// Desribes the different methods of a [`Worker``] process during a [`DistRunable`], a MPI-distributed optimization.
+/// Describes a [`Worker`] used in an MPI-distributed experiment ([`MPIExperiment)`](crate::MPIExperiment)).
+/// A [`Worker`] is mostly used to evaluate [`Uncomputed`](crate::solution::Uncomputed)
+/// [`Raw`](crate::Solution::Raw) solutions.
+/// 
+/// It has an associated [`WorkerState`] type, allowing to store internal state information
+/// during the evaluation process. Allowing per-[`Worker`] checkpointing 
+/// via [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
 pub trait Worker<SolId: Id> {
     type WState: WorkerState;
     fn run(self);
@@ -31,14 +37,15 @@ where
 
 // BASE WORKER FOR SYNC BATCHES
 
-/// An empty [`WorkerState`]
+/// [`NoWState`] describes a [`WorkerState`] without any internal state.
 #[derive(Serialize, Deserialize)]
 pub struct NoWState;
 impl WorkerState for NoWState {}
 
-/// [`FidWorkerState`] describes the [`WorkerState`] for [`Worker`] computing
-/// [`Stepped`] functions. The [`FidWorkerState`] stores the current [`FuncState`]
-/// of the function within a [`HashMap`].
+/// [`FidWState`] describes the [`WorkerState`] for [`Worker`] computing
+/// [`Stepped`] functions. The [`FidWState`] stores the current [`FuncState`]
+/// of the function within a [`HashMap`]. The keys of the map are the
+/// solution [`Id`]s, and the values are the corresponding [`FuncState`]s.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "SolId: Serialize",
@@ -52,8 +59,8 @@ impl<SolId: Id, FnState: FuncState> FidWState<SolId, FnState> {
     }
 }
 
-/// A basic worker for MPI-distributed optimization.
-/// A worker is used to evaluate [`Partial`] with the [`Objective`] in parallel.
+/// A basic [`Worker`] for MPI-distributed optimization.
+/// A [`BaseWorker`] is used to evaluate [`Raw`](crate::Solution::Raw) with a given [`Objective`].
 pub struct BaseWorker<'a, Raw, Out>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
@@ -62,12 +69,13 @@ where
     pub proc: &'a MPIProcess,
     pub objective: Objective<Raw, Out>,
 }
-/// Creates a [`BaseWorker`] without any state and checkpointer.
+
 impl<'a, Raw, Out> BaseWorker<'a, Raw, Out>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     Out: Outcome,
 {
+    /// Creates a [`BaseWorker`] without any state and checkpointer.
     pub fn new(objective: Objective<Raw, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
     }
@@ -79,7 +87,16 @@ where
     Raw: Serialize + for<'de> Deserialize<'de>,
     Out: Outcome,
 {
+    /// No internal state for the base worker.
     type WState = NoWState;
+    /// Runs the main loop of the [`BaseWorker`].
+    /// It waits for messages from the master process (rank 0),
+    /// computes the corresponding outputs with the given [`Objective`],
+    /// and sends back the results to the master process.
+    /// 
+    /// If the received message has a tag of `42`, the worker exits the loop and terminates.
+    /// Otherwise, it processes the received [`Raw`](crate::Solution::Raw) as an [`XMessage`], computes the output,
+    /// and sends back an [`OMessage`] containing the results.
     fn run(self) {
         // Master process is always Rank 0.
         let config = bincode::config::standard();
@@ -110,8 +127,10 @@ where
 //----------------//
 
 /// A basic fidelity worker for MPI-distributed optimization.
-/// A worker is used to evaluate [`Partial`] with the [`Objective`] in parallel.
-/// It has a state allowing to 'remember' the previous state of the [`Stepped`] function being evaluated.
+/// A [`FidWorker`] is used to evaluate [`Raw`](crate::Solution::Raw) with a given [`Stepped`] [`Objective`].
+/// It maintains an internal state mapping solution [`Id`]s to their corresponding [`FuncState`](crate::objective::outcome::FuncState`).
+/// This allows the worker to handle computations that may require multiple [`Step`]s.
+/// The worker can also optionally utilize a [`WorkerCheckpointer`] to save its state during the computation process.
 pub struct FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
@@ -125,7 +144,7 @@ where
     pub state: FidWState<SolId, FnState>,
     pub check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
 }
-/// Creates a [`BaseWorker`] without any state and checkpointer.
+
 impl<'a, SolId, Raw, Out, FnState, Check> FidWorker<'a, SolId, Raw, Out, FnState, Check>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
@@ -134,6 +153,7 @@ where
     FnState: FuncState,
     Check: DistCheckpointer,
 {
+    /// Creates a new [`FidWorker`] with the given parameters.
     pub fn new(
         objective: Stepped<Raw, Out, FnState>,
         check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
@@ -157,7 +177,20 @@ where
     FnState: FuncState,
     Check: DistCheckpointer,
 {
+    /// The internal state type for the fidelity worker.
     type WState = FidWState<SolId, FnState>;
+    /// Runs the main loop of the fidelity worker.
+    /// It waits for messages from the master process (rank 0),
+    /// computes the corresponding outputs with the given [`Stepped`] [`Objective`],
+    /// and sends back the results to the master process.
+    /// It is able to recover [`FuncState`] from previous [`Step`]s of [`Step::Partially`] [`Uncomputed`](crate::solution::Uncomputed) solutions
+    /// evaluated within this [`Worker`].
+    /// 
+    /// If the received message has a tag of `42`, the worker exits the loop and terminates.
+    /// If the tag is `104`, it discards the internal state associated with the given solution [`Id`].
+    /// If the tag is `7`, it checkpoints its internal state using the provided [`WorkerCheckpointer`].
+    /// Otherwise, it processes the received [`Raw`](crate::Solution::Raw) as an [`FXMessage`], computes the output,
+    /// and sends back an [`OMessage`] containing the results.
     fn run(mut self) {
         // Master process is always Rank 0.
         let config = bincode::config::standard();

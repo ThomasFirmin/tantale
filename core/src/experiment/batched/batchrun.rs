@@ -81,6 +81,8 @@ where
     Check: Checkpointer,
     Out: Outcome,
 {
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain), 
+    /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -116,6 +118,9 @@ where
         }
     }
 
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -146,6 +151,13 @@ where
         }
     }
 
+    /// Run the [`MonoExperiment`], performing optimization, , using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates [`Batch`](crate::Batch)es of [`Uncomputed`] using the inner [`BatchEvaluator`],
+    /// A checkpoint is performed after each optimization step. And [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed),
+    /// are saved using the inner [`Recorder`] when [`BatchEvaluator`] has finished evaluating all elements.    saved using the inner [`Recorder`] when [`ThrBatchEvaluator`] has finished evaluating all elements.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`BatchEvaluator`] updates) step.
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -155,6 +167,8 @@ where
         let mut batch;
         let mut computed;
         let mut outputed;
+
+        self.stop.init();
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if self.stop.stop() {
@@ -293,6 +307,8 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -328,6 +344,10 @@ where
         }
     }
 
+    /// Load a [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
+    /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -358,6 +378,13 @@ where
         }
     }
 
+    /// Run the [`MonoExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates [`Batch`](crate::Batch)es of [`Uncomputed`] using the inner [`FidBatchEvaluator`],
+    /// A checkpoint is performed after each optimization step. And [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed),
+    /// are saved using the inner [`Recorder`] when [`FidBatchEvaluator`] has finished evaluating all elements.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidBatchEvaluator`] updates) step.
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -367,6 +394,8 @@ where
         let mut batch;
         let mut computed;
         let mut outputed;
+
+        self.stop.init();
         'main: loop {
             self.stop.update(ExpStep::Iteration);
             if self.stop.stop() {
@@ -512,6 +541,9 @@ where
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
 {
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// It also uses an internal [`ThrBatchEvaluator`] to evaluate a batch of [`Uncomputed`] in parallel.
     fn new(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -547,6 +579,9 @@ where
         }
     }
 
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -576,6 +611,13 @@ where
         }
     }
 
+    /// Run the [`ThrExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates [`Batch`](crate::Batch)es of [`Uncomputed`] using the inner [`ThrBatchEvaluator`],
+    /// A checkpoint is performed after each optimization step. And [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed),
+    /// are saved using the inner [`Recorder`] when [`ThrBatchEvaluator`] has finished evaluating all elements.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`ThrBatchEvaluator`] updates) step.
     fn run(mut self) {
         let ob = Arc::new(self.objective);
         let cod = Arc::new(self.codomain);
@@ -590,6 +632,8 @@ where
         let mut batch;
         let mut computed;
         let mut outputed;
+
+        st.lock().unwrap().init();
         'main: loop {
             // Stop part
             {
@@ -737,6 +781,10 @@ where
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
     Check: Checkpointer,
 {
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// It also uses an internal [`FidThrBatchEvaluator`] to evaluate a batch of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`]
+    /// in parallel.
     fn new(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -772,6 +820,10 @@ where
         }
     }
 
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
+    /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -800,7 +852,12 @@ where
             evaluator: Some(evaluator),
         }
     }
-
+    /// Run the [`ThrExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates [`Batch`](crate::Batch)es of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`] using the inner [`FidThrBatchEvaluator`],
+    /// A checkpoint is performed after each optimization step. And [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed),
+    /// are saved using the inner [`Recorder`] when [`FidThrBatchEvaluator`] has finished evaluating all elements.
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidBatchEvaluator`] updates) step.
     fn run(mut self) {
         let ob = Arc::new(self.objective);
         let cod = Arc::new(self.codomain);
@@ -815,6 +872,8 @@ where
         let mut batch;
         let mut computed;
         let mut outputed;
+
+        st.lock().unwrap().init();
         'main: loop {
             // Stop part
             let mut stlock = st.lock().unwrap();
@@ -966,7 +1025,17 @@ where
     Check: DistCheckpointer,
     Out: Outcome,
 {
+    /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
+    /// Here a simple [`BaseWorker`] is used with an inner [`Objective`] and [`MPIProcess`].
     type WType = BaseWorker<'a, RawObj<Scp::SolShape, SId, Op::SInfo>, Out>;
+
+    /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional
+    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
+    /// all other processes will be [`Worker`](crate::Worker)s.
+    /// It also uses an internal [`BatchEvaluator`] to evaluate a batch of [`Uncomputed`] in parallel across the distributed processes.
+    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1021,6 +1090,14 @@ where
         }
     }
 
+    /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Objective`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via [`no_check_init`](crate::DistCheckpointer::no_check_init).
+    /// The loading process follows the logic described in the [`DistCheckpointer`] 
+    /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
+    /// 
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1069,6 +1146,19 @@ where
         }
     }
 
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The main process (rank 0) will coordinate the optimization using the inner [`BatchEvaluator`]
+    /// to evaluate [`Batch`](crate::Batch)es of [`Uncomputed`] across all processes.
+    /// [`Batch`](crate::Batch)es are obtained via the [`step`](crate::BatchOptimizer::step) only processed by rank 0.
+    /// A checkpoint is performed after each optimization step by the main process. The main process sends a
+    /// checkpoint order to all idle processes via the internal [`SendRec`] utility.
+    /// And also a stop order is sent to all processes when the experiment is finished, allowing for a clean
+    /// termination of all [`Worker`](crate::Worker)s.
+    /// And [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed), are saved using the inner [`DistRecorder`], performed
+    /// by rank 0 when [`BatchEvaluator`] has finished evaluating all elements.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`BatchEvaluator`] updates) step by the main process.
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -1093,6 +1183,7 @@ where
         let mut computed;
         let mut outputed;
 
+        self.stop.init();
         'main: loop {
             // Stop part
             if self.stop.stop() {
@@ -1248,7 +1339,19 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
+    /// Here a [`FidWorker`] is used with an inner [`Stepped`] and [`MPIProcess`].
+    /// It handles internal [`FuncState`] management for fidelity-based evaluations.
     type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check>;
+
+    /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional
+    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
+    /// all other processes will be [`Worker`](crate::Worker)s.
+    /// It also uses an internal [`FidDistBatchEvaluator`] to evaluate a batch of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`]
+    /// in parallel across the distributed processes.
+    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// Other processes will use a [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer) version of the [`DistCheckpointer`].
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1310,6 +1413,17 @@ where
         }
     }
 
+    /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Stepped`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their respective [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
+    /// The loading process follows the logic described in the [`DistCheckpointer`] 
+    /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
+    /// 
+    /// # Note
+    /// 
+    /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment, within the
+    /// corresponding [`FidWorker`]s.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1362,7 +1476,20 @@ where
         }
     }
 
+
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
+    /// The main process (rank 0) will coordinate the optimization using the inner [`FidDistBatchEvaluator`]
+    /// to evaluate [`Batch`](crate::Batch)es of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`]
+    /// across all processes.
+    /// [`Batch`](crate::Batch)es are obtained via the [`step`](crate::BatchOptimizer::step) only processed by rank 0.
+    /// A checkpoint is performed after each optimization step by the main process. The main process sends a
+    /// checkpoint order to all idle processes via the internal [`SendRec`] utility.
+    /// And also a stop order is sent to all processes when the experiment is finished, allowing for a clean
+    /// termination of all [`Worker`](crate::Worker)s.
+    /// [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed), are saved using the inner [`DistRecorder`] when
+    /// [`FidDistBatchEvaluator`] has finished evaluating all elements.
     fn run(mut self) {
+        self.stop.init();
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidDistBatchEvaluator::new(
@@ -1386,6 +1513,7 @@ where
         let mut computed;
         let mut outputed;
 
+        self.stop.init();
         'main: loop {
             // Stop part
             if self.stop.stop() {

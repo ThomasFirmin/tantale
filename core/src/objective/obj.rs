@@ -1,8 +1,122 @@
-//! The [`Objective`](tantale::core::Objective) describes the wrapper arround the function
-//! the user wants to maximize. This function must output an [`Outcome`](tantale::core::Outcome)
-//! which will be further processed by the [`Codomain`](tantale::core::Codomain).
+//! Objective wrappers for user-defined functions.
 //!
-
+//! An objective is a thin wrapper around the function the user wants to optimize.
+//! The raw function must return an [`Outcome`](crate::objective::Outcome), from which
+//! a [`Codomain`](crate::domain::codomain::Codomain) is extracted.
+//!
+//! # Examples
+//! ## Single-shot objective
+//! Wrap the following code inside a module, to use effortlessly with Tantale.
+//! The [`objective!`](tantale::macros::objective) macro creates various functions
+//! generating the searchspace, and the objective itself.
+//! ```
+//!  use serde::{Deserialize, Serialize};
+//!  use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
+//!  use tantale::macros::{Outcome, objective};
+//! 
+//!  #[derive(Outcome, Debug, Serialize, Deserialize)]
+//!  pub struct OutExample {
+//!      pub obj: f64,
+//!      pub fid: f64,
+//!      pub con: f64,
+//!      pub more: f64,
+//!      pub info: f64,
+//!      pub intinfo: i64,
+//!      pub boolinfo: bool,
+//!      pub natinfo: u64,
+//!      pub catinfo: String,
+//!  }
+//! 
+//!  fn plus_one_int(x: i64) -> i64 {
+//!      x + 1
+//!  }
+//!  objective!(
+//!      pub fn example<'a>() -> OutExample {
+//!          let a = [! a | Real(0.0,5.0,Uniform) | !];
+//!          let aa = [! aa_{10} | Real(-5.0,0.0,Uniform) | Int(0,100,Uniform) !];
+//!          let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];
+//!          let some_bool = [! boolvar | Bool(Bernoulli(0.5)) | !];
+//!          let some_nat = [! natvar | Nat(0,10,Uniform) | !];
+//!          let some_cat = [! catvar | Cat(["relu", "tanh", "sigmoid"],Uniform) |!];
+//!          let some_int = plus_one_int([! intvar | Int(-10,0,Uniform) | !]);
+//!          OutExample{
+//!              obj: a,
+//!              fid: aa[0],
+//!              con: aa[1],
+//!              more: aa[2],
+//!              info: aaa,
+//!              intinfo: some_int,
+//!              boolinfo: some_bool,
+//!              natinfo: some_nat,
+//!              catinfo: some_cat,
+//!          }
+//!      }
+//!  );
+//! ```
+//! 
+//! ## Multi-steps objective
+//! Wrap the following code inside a module, to use effortlessly with Tantale.
+//! The [`objective!`](tantale::macros::objective) macro creates various functions
+//! generating the searchspace, and the objective itself.
+//! Pay attention to the returned [`FuncState`], and [`EvalStep`](crate::objective::EvalStep).
+//! ```
+//!  use serde::{Deserialize, Serialize};
+//!  use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
+//!  use tantale::macros::{Outcome, objective,FnState};
+//! 
+//!  #[derive(Outcome, Debug, Serialize, Deserialize)]
+//!  pub struct OutExample {
+//!      pub obj: f64,
+//!      pub fid: f64,
+//!      pub con: f64,
+//!      pub more: f64,
+//!      pub info: f64,
+//!      pub intinfo: i64,
+//!      pub boolinfo: bool,
+//!      pub natinfo: u64,
+//!      pub catinfo: String,
+//!      pub step: EvalStep,
+//!  }
+//!
+//!  #[derive(FuncState,Serialize, Deserialize)]
+//!  pub struct FnState {
+//!      pub state: isize,
+//!  }
+//!
+//!  objective!(
+//!      pub fn example<'a>() -> (OutExample,FnState) {
+//!         let a = [! a | Real(0.0,5.0,Uniform) | !];
+//!         let aa = [! aa_{10} | Real(-5.0,0.0,Uniform) | Int(0,100,Uniform) !];
+//!         let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];
+//!         let some_bool = [! boolvar | Bool(Bernoulli(0.5)) | !];
+//!         let some_nat = [! natvar | Nat(0,10,Uniform) | !];
+//!         let some_cat = [! catvar | Cat(["relu", "tanh", "sigmoid"],Uniform) |!];
+//!         let some_int = plus_one_int([! intvar | Int(-10,0,Uniform) | !]);
+//! 
+//!         let mut state = match state{
+//!              Some(s) => s,
+//!              None => FnState { state: 0 },
+//!          };
+//!          state.state += 1;
+//!          let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+//!          (
+//!             FidOutExample{
+//!                 obj: a,
+//!                 fid: aa[0],
+//!                 con: aa[1],
+//!                 more: aa[2],
+//!                 info: aaa,
+//!                 intinfo: some_int,
+//!                 boolinfo: some_bool,
+//!                 natinfo: some_nat,
+//!                 catinfo: some_cat,
+//!                 step: state.state,
+//!             },
+//!             state
+//!          )
+//!      }
+//!  );
+//! ```
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,17 +128,21 @@ use crate::{
 type OptimFn<Raw, Out> = fn(Raw) -> Out;
 type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
 
-/// A wrapper arround the user-defined function to maximize.
+/// Marker trait for wrappers around user-defined objective functions.
+///
+/// Both [`Objective`] (single-shot evaluation) and [`Stepped`] (multi-[`Step`](crate::objective::Step))
+/// implement this trait so they can be used interchangeably by higher-level
+/// components.
 pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}
 
-/// [`Objective`] is the minimal wrapper for the raw function to maximize.
-/// This raw function must return an [`Outcome`],
-/// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
+/// Minimal wrapper for a single-shot objective function.
 ///
-/// # Attributes
+/// The wrapped function maps a [`Raw`](crate::Solution::Raw) solution `x` to an [`Outcome`]. The [`Raw`](crate::Solution::Raw)
+/// input is typically the searchspace solution representation.
 ///
-/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. It takes a vector
-///   containing the point to be evaluated.
+/// # Type parameters
+/// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
+/// - `Out`: Output implementing [`Outcome`](crate::objective::Outcome).
 pub struct Objective<Raw, Out>(pub OptimFn<Raw, Out>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
@@ -35,20 +153,20 @@ where
     Raw: Serialize + for<'a> Deserialize<'a>,
     Out: Outcome,
 {
-    /// Creates an new instance of [`ObjBase`].
+    /// Creates a new [`Objective`] from a raw function.
     ///
     /// # Parameters
+    /// - `func`: The objective function to optimize.
     ///
-    /// * `func` : The objective function to be optimized and defined by the user.
-    ///   It can be created side-by-side with the [`Searchspace`] using the
-    ///   [`hpo!`](tantale::macros:objective) macro.
-    ///
+    /// # See also
+    /// - [`Searchspace`](crate::searchspace::Searchspace)
+    /// - [`objective!`](tantale::macros::objective)
     pub fn new(func: OptimFn<Raw, Out>) -> Self {
         Objective(func)
     }
-    /// Initialize the ['Objective'].
+    /// Initialize the [`Objective`].
     pub fn init(&mut self) {}
-    /// Compute the raw outputs of a function to maximize according to an input `x`.
+    /// Evaluate the objective for a given input `x`.
     pub fn compute(&self, x: Raw) -> Out {
         (self.0)(x)
     }
@@ -61,14 +179,16 @@ where
 {
 }
 
-/// The [`Stepped`] allows to define the minimal behavior of the wrapper.
-/// The [`Objective`] must return an [`Outcome`],
-/// according to an input `x` of type [`TypeDom`](tantale::core::Domain::TypeDom).
+/// Wrapper for objectives evaluated by [`Step`](crate::objective::Step).
 ///
-/// # Attributes
+/// The wrapped function receives an input `x`, a [`Fidelity`], and an optional
+/// [`FuncState`] from previous [`Step`](crate::objective::Step)s. It returns the [`Outcome`] and the updated 
+/// [`FuncState`].
 ///
-/// * `function` : `fn(&[Obj::TypeDom],Arc<Out>) -> Out` - A function to be maximized. it takes a vector containing the point to be evaluated, and an optional [`Outcome`]
-///   previsouly computed in case of multi-fidelity optimization where function are evaluated by steps.
+/// # Type parameters
+/// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
+/// - `Out`: Output implementing [`FidOutcome`](crate::FidOutcome).
+/// - `FnState`: Internal function state implementing [`FuncState`](crate::objective::outcome::FuncState).
 pub struct Stepped<Raw, Out, FnState>(pub SteppFn<Raw, Out, FnState>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
@@ -81,20 +201,20 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
-    /// Creates an new instance of [`ObjBase`].
+    /// Creates a new [`Stepped`] from a raw multi-[`Step`](crate::objective::Step) function.
     ///
     /// # Parameters
+    /// - `func`: The stepped objective function to optimize.
     ///
-    /// * `func` : The objective function to be optimized and defined by the user.
-    ///   It can be created side-by-side with the [`Searchspace`] using the
-    ///   [`hpo!`](tantale::macros:objective) macro.
-    ///
+    /// # See also
+    /// - [`Searchspace`](crate::searchspace::Searchspace)
+    /// - [`objective!`](tantale::macros::objective)
     pub fn new(func: SteppFn<Raw, Out, FnState>) -> Self {
         Stepped(func)
     }
-    /// Initialize the ['Objective'].
+    /// Initialize the [`Stepped`] objective.
     pub fn init(&mut self) {}
-    /// Compute the raw outputs of a function to maximize according to an input `x`.
+    /// Evaluate the objective at a given [`Fidelity`] and optional prior [`FuncState`].
     pub fn compute(&self, x: Raw, fidelity: Fidelity, state: Option<FnState>) -> (Out, FnState) {
         (self.0)(x, fidelity, state)
     }

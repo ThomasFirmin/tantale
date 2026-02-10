@@ -1,3 +1,47 @@
+//! Computed (evaluated) solutions.
+//!
+//! A [`Computed`] solution pairs an [`Uncomputed`](crate::solution::Uncomputed) solution with the
+//! corresponding codomain value (a [`Codomain::TypeCodom`]) produced by evaluating the raw
+//! solution with an [`Objective`](crate::Objective). This is the evaluated form used by
+//! optimizers and recorders.
+//!
+//! # Examples
+//! ```
+//! use tantale::core::{BasePartial, Computed, SingleCodomain, EmptyInfo, Id, Outcome, Real, SId};
+//! use std::sync::Arc;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Outcome, Serialize, Deserialize)]
+//! struct Out { value: f64 }
+//!
+//! let cod = SingleCodomain::new(|o: &Out| o.value);
+//! let x = Arc::from(vec![0.1, 0.2]);
+//! let info = Arc::new(EmptyInfo {});
+//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! let y = Arc::new(cod.get_elem(&Out { value: 0.5 }));
+//!
+//! let computed: Computed<_, SId, Real, _, Out, _> = Computed::new(sol, y);
+//! assert_eq!(computed.get_x().len(), 2);
+//! ```
+//!
+//! ```
+//! use tantale::core::{BasePartial, SingleCodomain, EmptyInfo, Id, IntoComputed, Outcome, Real, SId};
+//! use std::sync::Arc;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Outcome, Serialize, Deserialize)]
+//! struct Out { value: f64 }
+//!
+//! let cod = SingleCodomain::new(|o: &Out| o.value);
+//! let x = Arc::from(vec![0.4, 0.8]);
+//! let info = Arc::new(EmptyInfo {});
+//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! let y = Arc::new(cod.get_elem(&Out { value: 1.2 }));
+//!
+//! let computed = sol.into_computed::<SingleCodomain<Out>, Out>(y);
+//! assert_eq!(computed.get_x().len(), 2);
+//! ```
+
 use crate::{
     EvalStep, Fidelity,
     domain::{Codomain, Domain},
@@ -12,17 +56,17 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::{fmt::Debug, sync::Arc};
 
-/// A solution of the [`Objective`](tantale::core::Objective) or of the [`Optimizer`](tantale::core::Optimizer)
-/// [`Domains`](Domain). The solution is defined by a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+/// A solution of the [`Objective`](crate::Objective) or the [`Optimizer`](crate::Optimizer)
+/// [`Domains`](Domain), enriched with the computed [`Codomain`] value [`TypeCodom`](Codomain::TypeCodom).
 ///
 /// # Attributes
-/// * `sol` : [`Partial`]`<Dom,Info,N>` - An already created partial solution.
-/// * `y` : `[`Arc`]`<Cod<Out>>` - State of the evaluation of a solution. This a [`TypeCodom`](tantale::core::objective::comdomain::Codomain::TypeCodom),
+/// * `sol` : [`Uncomputed`] - An already created partial solution.
+/// * `y` : [`Arc`]`<Cod::TypeCodom>` - The computed codomain value.
 ///
 /// # Note
 ///
-/// A [`Computed`] can only be created from a pair of [`Partial`] of respectively the [`Opt`](Optimizer) and the [`Obj`](Objective)
-/// [`Domain`] type.
+/// A [`Computed`] is obtained by evaluating the raw solution from an [`Uncomputed`] with the
+/// [`Objective`](crate::Objective) and then extracting a [`Codomain::TypeCodom`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
@@ -53,6 +97,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
+    /// Return the identifier of the underlying uncomputed solution.
     fn get_id(&self) -> SolId {
         self.sol.get_id()
     }
@@ -68,6 +113,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
+    /// Return the [`SolInfo`](crate::SolInfo) associated with the underlying solution.
     fn get_sinfo(&self) -> Arc<Info> {
         self.sol.get_sinfo()
     }
@@ -82,6 +128,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
+    /// Return the current evaluation [`Step`] if the underlying solution supports it.
     fn step(&self) -> Step {
         self.sol.step()
     }
@@ -124,10 +171,12 @@ where
     Out: Outcome,
     SolId: Id,
 {
+    /// Return the [`Fidelity`] of the underlying solution.
     fn fidelity(&self) -> Fidelity {
         self.sol.fidelity()
     }
 
+    /// Update the [`Fidelity`] of the underlying solution.
     fn set_fidelity(&mut self, fidelity: Fidelity) {
         self.sol.set_fidelity(fidelity);
     }
@@ -142,7 +191,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Returns the [`TypeCodom`](Codomain::TypeCodom), i.e. result from the computation of [`Partial`].
+    /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
     fn get_y(&self) -> Arc<Cod::TypeCodom> {
         self.y.clone()
     }
@@ -159,7 +208,7 @@ where
     SolId: Id,
 {
     type Uncomputed = PSol;
-    /// Returns the [`Uncomputed`] the [`Computed`].
+    /// Returns the underlying [`Uncomputed`] solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed {
         &self.sol
     }
@@ -178,6 +227,7 @@ where
     type Raw = PSol::Raw;
     type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Cod, Out, Info>;
 
+    /// Return the raw representation of the underlying solution.
     fn get_x(&self) -> Self::Raw {
         self.sol.get_x()
     }

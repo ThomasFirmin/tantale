@@ -1,3 +1,25 @@
+//! Solution identifiers.
+//!
+//! An [`Id`] is a unique object associated with a [`Solution`](crate::Solution). Two solutions
+//! created independently are considered distinct even if their contents are identical.
+//!
+//! # Examples
+//! ```
+//! use tantale::core::{Id, SId};
+//!
+//! let a = SId::generate();
+//! let b = SId::generate();
+//! assert_ne!(a, b);
+//! ```
+//!
+//! ```
+//! use tantale::core::{Id, ParSId};
+//!
+//! let a = ParSId::generate();
+//! let b = ParSId::generate();
+//! assert_ne!(a, b);
+//! ```
+
 use crate::{SOL_ID, recorder::csv::CSVWritable};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -12,18 +34,31 @@ use crate::MPI_RANK;
 #[cfg(feature = "mpi")]
 use mpi::Rank;
 
-/// Describes the [`Id`] of a [`Solution`]
+/// Unique identifier for a [`Solution`](crate::Solution).
+///
+/// Implementations must generate new unique identifiers via [`Id::generate`].
+///
+/// # Example
+/// ```
+/// use tantale::core::{Id, SId};
+///
+/// let id = SId::generate();
+/// println!("Generated id: {:?}", id);
+/// ```
 pub trait Id
 where
     Self:
         Sized + PartialEq + Eq + Clone + Copy + Debug + Serialize + for<'a> Deserialize<'a> + Hash,
 {
+    /// Generate a new unique identifier.
     fn generate() -> Self;
 }
 
 #[cfg(feature = "mpi")]
-/// The [`Id`] of a [`Solution`] made of the MPI `rank` where the [`Solution`] was created, and a unique `id` proper to the MPI process and
-/// corresponding to the number of [`Solution`] created from that process.
+/// Distributed identifier embedding the MPI [`Rank`] where a [`Solution`](crate::Solution) is being created, and a process-local counter.
+///
+/// This [`Id`] ensures uniqueness across MPI ranks by pairing the `rank` with a unique `id`
+/// local to each process.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct DistSId {
@@ -33,6 +68,7 @@ pub struct DistSId {
 
 #[cfg(feature = "mpi")]
 impl DistSId {
+    /// Create a new distributed identifier from a rank and a process-local id.
     pub fn new(rank: Rank, id: usize) -> DistSId {
         DistSId {
             rank: rank.as_(),
@@ -42,6 +78,7 @@ impl DistSId {
 }
 #[cfg(feature = "mpi")]
 impl Id for DistSId {
+    /// Generate a new distributed identifier using the MPI rank and a global counter.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         let rank = *MPI_RANK.get().unwrap();
@@ -53,10 +90,12 @@ impl Id for DistSId {
 }
 #[cfg(feature = "mpi")]
 impl CSVWritable<(), ()> for DistSId {
+    /// CSV header for distributed identifiers.
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("id"), String::from("rank")])
     }
 
+    /// CSV row for distributed identifiers.
     fn write(&self, _comp: &()) -> Vec<String> {
         Vec::from([format!("{}", self.id), format!("{}", self.rank)])
     }
@@ -77,15 +116,16 @@ impl Hash for DistSId {
     }
 }
 
-/// The [`Id`] of a [`Solution`] made of the `pid` of the process
-/// from which the [`Solution`] was created, and a unique `id`
-/// corresponding to the number of [`Solution`] created from that process.
+/// Process-local identifier embedding the process id and a local counter.
+///
+/// This [`Id`] is unique within a single process and is convenient for multi-processing workloads.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ParSId {
     pub pid: usize,
     pub id: usize,
 }
 impl Id for ParSId {
+    /// Generate a new process-local identifier from the current process id.
     fn generate() -> Self {
         let pid = std::process::id().as_();
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
@@ -93,15 +133,18 @@ impl Id for ParSId {
     }
 }
 impl ParSId {
+    /// Create a new process-local identifier from an explicit process id and counter.
     pub fn new(pid: u32, id: usize) -> ParSId {
         ParSId { pid: pid.as_(), id }
     }
 }
 impl CSVWritable<(), ()> for ParSId {
+    /// CSV header for process-local identifiers.
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("pid"), String::from("id")])
     }
 
+    /// CSV row for process-local identifiers.
     fn write(&self, _comp: &()) -> Vec<String> {
         Vec::from([format!("{}", self.pid), format!("{}", self.id)])
     }
@@ -121,28 +164,42 @@ impl Hash for ParSId {
     }
 }
 
-/// The [`Id`] of a [`Solution`] made of a unique `id`
-/// corresponding to the number of created [`Solution`].
+/// Simple sequential identifier using a global counter.
+///
+/// This is the default [`Id`] for most-cases.
+///
+/// # Example
+/// ```
+/// use tantale::core::{Id, SId};
+///
+/// let a = SId::generate();
+/// let b = SId::generate();
+/// assert_ne!(a, b);
+/// ```
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SId {
     pub id: usize,
 }
 impl Id for SId {
+    /// Generate a new sequential identifier.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         SId { id }
     }
 }
 impl SId {
+    /// Create a new sequential identifier from an explicit counter.
     pub fn new(id: usize) -> SId {
         SId { id }
     }
 }
 impl CSVWritable<(), ()> for SId {
+    /// CSV header for sequential identifiers.
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("id")])
     }
 
+    /// CSV row for sequential identifiers.
     fn write(&self, _comp: &()) -> Vec<String> {
         Vec::from([format!("{}", self.id)])
     }

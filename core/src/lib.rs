@@ -43,7 +43,8 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BasePartial, Computed, FidBasePartial, Fidelity, Id, ParSId, SId, SolInfo, Solution, HasFidelity,HasId,HasInfo,HasSolInfo,HasStep,HasUncomputed,HasY
+    BasePartial, Computed, FidBasePartial, Fidelity, Id, ParSId, SId, SolInfo, Solution, HasFidelity,HasId,HasInfo,HasSolInfo,HasStep,HasUncomputed,HasY,
+    Batch, OutBatch
 };
 
 pub mod searchspace;
@@ -52,7 +53,7 @@ pub use searchspace::{Searchspace, Sp, SpPar};
 pub mod errors;
 
 pub mod objective;
-pub use crate::objective::{EvalStep, FidOutcome, FuncWrapper, Objective, Outcome, Stepped};
+pub use crate::objective::{EvalStep, FidOutcome, FuncWrapper, Objective, Outcome, Stepped, outcome::FuncState};
 
 pub mod optimizer;
 pub use crate::optimizer::{EmptyInfo, OptInfo, Optimizer,BatchOptimizer,SequentialOptimizer, OptState};
@@ -63,7 +64,7 @@ pub use stop::{Stop,Calls};
 pub mod experiment;
 pub use experiment::{Runable,MonoExperiment,ThrExperiment,mono,threaded};
 #[cfg(feature = "mpi")]
-pub use experiment::{DistEvaluate,MasterWorker, distributed, mpi::utils::MPIProcess, mpi::worker::Worker};
+pub use experiment::{MPIExperiment, DistEvaluate,MasterWorker, distributed, mpi::utils::MPIProcess, mpi::worker::Worker};
 
 pub mod recorder;
 pub use recorder::{Recorder,CSVRecorder};

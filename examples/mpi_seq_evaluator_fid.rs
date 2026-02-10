@@ -67,6 +67,9 @@ mod init_func {
 
         objective!(
             pub fn example() -> (FidOutEvaluator, FnState) {
+                let _rank = [! MPI_RANK !];
+                let _size = [! MPI_SIZE !];
+
                 let _a = [! a | Int(0,100, Uniform) | !];
                 let _b = [! b | Nat(0,100, Uniform) | !];
                 let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
@@ -82,7 +85,7 @@ mod init_func {
 
                 let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-                let mut state = match state{
+                let mut state = match [! STATE !]{
                     Some(s) => s,
                     None => FnState { state: 0 },
                 };

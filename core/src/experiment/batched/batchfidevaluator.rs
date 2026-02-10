@@ -125,12 +125,13 @@ where
     fn init(&mut self) {}
     /// Evaluate the batch of solutions held by the evaluator.
     /// It processes each solution based on its current [`Step`]:
-    /// - If `Pending`, it computes the outcome without any saved [`FuncState`].
-    /// - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
-    /// - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
+    ///  - If `Pending`, it computes the outcome without any saved [`FuncState`].
+    ///  - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
+    ///  - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
+    /// 
     /// It returns a tuple containing:
-    /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
-    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
+    ///  - A [`Batch`] of [`Computed`](crate::Computed) solutions.
+    ///  - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
@@ -299,14 +300,20 @@ where
     /// - If `Pending`, it computes the outcome without any saved [`FuncState`].
     /// - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
     /// - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
-    /// It returns a tuple containing:
+    ///   It returns a tuple containing:
     /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
-    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
+    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
     /// 
     /// # Note
-    /// This method uses parallel iteration to evaluate the solutions concurrently. 
-    /// It locks the necessary data structures to ensure thread safety during the evaluation process.
-    /// It updates the stop condition in a thread-safe manner.
+    /// 
+    /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
+    ///   if the `stop` condition is met before finishing. 
+    /// * The order of solutions in the returned batches
+    ///   may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
+    /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,
+    ///   leading to overflowing the expected number of evaluations.
+    /// * Due to the incertainty arround [`Step::Evaluated`] it is not possible to forecast the exact number of
+    ///   solutions that will be [`Step::Partially`] evaluated.
     fn evaluate(
         &mut self,
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
@@ -383,6 +390,14 @@ where
 //-------------------//
 
 #[cfg(feature = "mpi")]
+/// [`FidDistBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a distributed (MPI) way.
+/// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
+/// It implements the [`Evaluate`] and [`DistEvaluate`] traits.
+/// It keeps track of the location of each solution [`Id`] across different MPI ranks in a [`HashMap`], 
+/// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
+/// [`Step::Discard`] are processed first, as it is fast to process.
+/// Then, [`Step::Partially`] are processed to continue their evaluation.
+/// And finally new [`Step::Pending`] solutions are processed.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -409,6 +424,7 @@ where
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
+    /// Create a new [`FidDistBatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>, size: usize) -> Self {
         FidDistBatchEvaluator {
             new_batch: batch,
@@ -418,7 +434,11 @@ where
         }
     }
 
-    pub fn add(&mut self, pair: Shape) {
+    /// Add a solution `pair` to the appropriate internal structure based on its current [`Step`].
+    /// - If `Pending`, it is added to the `new_batch`.
+    /// - If `Partially`, it is added to the `priority_resume` list according to its rank located by `where_is_id`.
+    /// - If `Discard`, it is added to the `priority_discard` list according to its rank located by `where_is_id`.
+    pub fn add(&mut self, pair: Shape) {    
         let step = pair.step();
         match step {
             Step::Pending => self.new_batch.add(pair),
@@ -433,6 +453,9 @@ where
             _ => {}
         }
     }
+    /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
+    /// It also re-chunks the solutions into the appropriate internal structures
+    /// (`new_batch`, `priority_discard`, `priority_resume`) based on their current [`Step`].
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.new_batch.info = batch.info.clone();
         batch.chunk_to_priority(
@@ -455,14 +478,20 @@ where
 }
 
 #[cfg(feature = "mpi")]
+/// Message type for fidelity-aware distributed evaluation, wrapping a solution [`Id`] and a [`Raw`](Solution::Raw) solution.
 pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolId, SInfo>>;
 
 #[cfg(feature = "mpi")]
+/// [`SendRec`] type for fidelity-aware distributed evaluation, wrapping a fidelity-aware message type.
 pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
     SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Cod, Out>;
 
 #[cfg(feature = "mpi")]
-/// Return true if it was able to send a pair else false
+/// Recursive function to send a [`Raw`](Solution::Raw) to an available rank.
+/// It prioritizes discarding solutions first, then resuming partially evaluated solutions,
+/// and finally sending new pending solutions.
+/// If no solutions are available to send, it marks the rank of the [`Worker`](crate::Worker) as idle.
+/// It returns `true` if all ranks are idle or if [`Stop`] returns `true`, `false` otherwise.
 fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     available: Rank,
     sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Op::Cod, Out>,
@@ -564,7 +593,27 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
+    /// Evaluate the batch of solutions held by the evaluator.
+    /// It processes each solution based on its current [`Step`]:
+    /// - If `Pending`, it computes the outcome without any saved [`FuncState`].
+    /// - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
+    /// - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
+    ///   It returns a tuple containing:
+    /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
+    /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
+    /// 
+    /// # Note
+    /// 
+    /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
+    ///   if the `stop` condition is met before finishing. 
+    /// * The order of solutions in the returned batches
+    ///   may not correspond to the order in the original batch, due to the asynchronous nature of MPI distributed evaluations.
+    /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,
+    ///   leading to overflowing the expected number of evaluations.
+    /// * Due to the incertainty arround [`Step::Evaluated`] it is not possible to forecast the exact number of
+    ///   solutions that will be [`Step::Partially`] evaluated.
     fn evaluate(
         &mut self,
         sendrec: &mut SendRec<

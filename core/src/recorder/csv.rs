@@ -1,3 +1,23 @@
+//! CSV recording utilities and recorder implementation.
+//!
+//! This module defines the traits required to serialize solutions, codomain
+//! values, optimizer metadata, and outcomes into CSV files, plus the
+//! [`CSVRecorder`] that writes them to disk.
+//!
+//! # File layout
+//! By default, CSV files are created under the recorder folder (see
+//! [`FolderConfig`](crate::FolderConfig)). Each row is linked by the solution
+//! [`Id`](crate::solution::Id).
+//!
+//! * recorder/
+//!   * obj.csv  — Objective-side inputs
+//!   * opt.csv  — Optimizer-side inputs
+//!   * cod.csv  — Codomain values
+//!   * info.csv — [`SolInfo`](crate::solution::SolInfo) and [`OptInfo`]
+//!   * out.csv  — Raw [`Outcome`](crate::objective::Outcome)
+//!
+//! In MPI mode, recorder folders are suffixed with the rank.
+
 use crate::{
     BasePartial, FidBasePartial, Fidelity, FolderConfig, OptInfo, SolInfo,
     domain::{Codomain, TypeDom, onto::LinkOpt},
@@ -20,7 +40,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-/// A structure containing all [`Writer`](csv::Writer) for a [`CSVRecorder`].
+/// Container holding the [`csv::Writer`] handles used by [`CSVRecorder`].
 pub struct CSVFiles {
     pub obj: Option<Arc<Mutex<csv::Writer<File>>>>,
     pub opt: Option<Arc<Mutex<csv::Writer<File>>>>,
@@ -30,6 +50,7 @@ pub struct CSVFiles {
 }
 
 impl CSVFiles {
+    /// Open all configured CSV files and wrap them in thread-safe writers.
     pub fn new(
         obj: &Option<PathBuf>,
         opt: &Option<PathBuf>,
@@ -73,34 +94,59 @@ impl CSVFiles {
 #[cfg(feature = "mpi")]
 use crate::{experiment::mpi::utils::MPIProcess, recorder::DistRecorder};
 
-/// A [`CSVWritable`] is an object for wich a CSV header can be given,
-/// and how its components can be written as a [`Vec`] of [`String`].
+/// Trait describing how a type is written to CSV.
+///
+/// Implementers provide a header and a row representation for a given value.
+/// `H` is the type of an element used to generate the header
+/// used when the header does not depend on the value to write.
+/// While `C` is the type of the value to write.
+/// 
+/// For instance, [`Codomain`](crate::Codomain) implements this trait
+/// by using itself as `H` (to generate the header columns depending on
+/// the codomain definition), and write its associated [`TypeCodom`](crate::Codomain::TypeCodom) as `C`.
 pub trait CSVWritable<H, C> {
+    /// Header columns for this type.
     fn header(elem: &H) -> Vec<String>;
+    /// Row columns for this value.
     fn write(&self, comp: &C) -> Vec<String>;
 }
 
-/// A [`CSVLeftRight`] describes a [`CSVWritable`] object made of two components (eg. `Obj` and `Opt`).
+/// CSV writer for types that have left/right components (e.g. `Obj` and `Opt`).
+/// For instance, a [`Var`](crate::Var), use itself for the header generation,
+/// and it writes two [`TypeDom`](crate::domain::TypeDom)s for `Obj` [`Domain`](crate::Domain)
+/// and `Opt` [`Domain`](crate::Domain).
 pub trait CSVLeftRight<H, L, R> {
+    /// Header columns for this pair.
     fn header(elem: &H) -> Vec<String>;
+    /// Row columns for the left component.
     fn write_left(&self, comp: &L) -> Vec<String>;
+    /// Row columns for the right component.
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
+/// CSV writer for [`SolutionShape`]s, describing how to write the solution components within a CSV file.
+/// A [`SolutionShape`] is decomposed into an objective-side part and an optimizer-side part, which are written separately.
+/// The [`Searchspace`], defining the structure of a [`Solution`],
+///  is used to generate the header and row columns for both parts, while the [`Solution`] are used 
+/// to generate the row columns for their respective part.
 pub trait SolCSVWrite<PartOpt, SolId, SInfo>: Searchspace<PartOpt, SolId, SInfo>
 where
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
+    /// Write the header for objective-side inputs.
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write the header for optimizer-side inputs.
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write a single objective-side row.
     fn write_partial_obj(
         &self,
         id: &[String],
         sol: &SolObj<Self::SolShape, SolId, SInfo>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     );
+    /// Write a single optimizer-side row.
     fn write_partial_opt(
         &self,
         id: &[String],
@@ -109,13 +155,19 @@ where
     );
 }
 
+/// CSV writer for [`Codomain`]s, describing how to write a [`TypeCodom`](Codomain::TypeCodom)
+/// components within a CSV file.
+/// It uses a [`Codomain`], defining the structure of a [`TypeCodom`](Codomain::TypeCodom),
+/// to generate the header and row columns, while the codomain values are used to generate the row columns.
 pub trait CodCSVWrite<SolId, Out>: Codomain<Out>
 where
     Self: Sized + CSVWritable<Self, Self::TypeCodom>,
     SolId: Id + CSVWritable<(), ()>,
     Out: Outcome,
 {
+    /// Write the codomain header.
     fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write one codomain row for a solution id.
     fn write_codom(
         &self,
         id: &[String],
@@ -124,13 +176,17 @@ where
     );
 }
 
+/// CSV writer for solution and optimizer info ([`SolInfo`],[`OptInfo`]),
+/// describing how to write the metadata associated with a [`Computed`](crate::Computed) solution within a CSV file.
 pub trait InfoCSVWrite<SolId, SInfo, Info>: SolutionShape<SolId, SInfo>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo + CSVWritable<(), ()>,
 {
+    /// Write the info header (solution info + optimizer info).
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write one info row for a solution id.
     fn write_info(
         &self,
         id: &[String],
@@ -139,12 +195,16 @@ where
     );
 }
 
+/// CSV writer for raw [`Outcome`] values.
 pub trait OutCSVWrite<SolId: Id>: Outcome {
+    /// Write the outcome header.
     fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write one outcome row for a solution id.
     fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>);
 }
 
-/// Describes how to write a [`SolutionShape`] within a csv file.
+/// Describes how to write ouputs of an evaluation,
+/// [`CompShape`]s, raw [`Outcome`]s, and associated metadata within CSV files.
 pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Info, Cod, Out>:
     Searchspace<PartOpt, SolId, SInfo>
 where
@@ -160,6 +220,7 @@ where
     SolOpt<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
         HasUncomputed<SolId, Self::Opt, SInfo, Uncomputed = SolOpt<Self::SolShape, SolId, SInfo>>,
 {
+    /// Write a fully computed solution and its associated records.
     fn write(
         &self,
         pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
@@ -170,6 +231,7 @@ where
     );
 }
 
+/// Implementation for [`BasePartial`] [`Solution`]s, which writes the solution components within the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
@@ -177,6 +239,13 @@ where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
+    /// Header row columns: `SolId` fields followed by the searchspace columns.
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
+    /// ```text
+    /// id, var1_name, var2_name, var3_name
+    /// ```
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -185,6 +254,13 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Header row columns: `SolId` fields followed by the searchspace columns.
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
+    /// ```text
+    /// id, var1_name, var2_name, var3_name
+    /// ```
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -193,6 +269,15 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Row columns: `SolId` fields followed by objective-side searchspace values.
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
+    /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
+    /// the row could be:
+    /// ```text
+    /// 3, 10.5,20.4, 30.1
+    /// ```
     fn write_partial_obj(
         &self,
         id: &[String],
@@ -205,6 +290,15 @@ where
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
+    /// Row columns: `SolId` fields followed by optimizer-side searchspace values.
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
+    /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
+    /// the row could be:
+    /// ```text
+    /// 3, 1, 2, 3
+    /// ```
     fn write_partial_opt(
         &self,
         id: &[String],
@@ -219,6 +313,7 @@ where
     }
 }
 
+/// Implementation for [`FidBasePartial`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<FidBasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
     for Scp
 where
@@ -227,6 +322,13 @@ where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
+    /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
+    /// ```text
+    /// id, var1_name, var2_name, var3_name, step, fidelity
+    /// ```
     fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -239,6 +341,13 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
+    /// ```text
+    /// id, var1_name, var2_name, var3_name, step, fidelity
+    /// ```
     fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -251,6 +360,14 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Row columns: `SolId` fields, objective-side searchspace values, then [`Step`] and [`Fidelity`].
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
+    /// the row could be:
+    /// ```text
+    /// 3, 10.5,20.4, 30.1, 2, 0.5
+    /// ```
     fn write_partial_obj(
         &self,
         id: &[String],
@@ -265,6 +382,14 @@ where
         wrt_local.write_record(idstr).unwrap();
         wrt_local.flush().unwrap();
     }
+    /// Row columns: `SolId` fields, optimizer-side searchspace values, then [`Step`] and [`Fidelity`].
+    /// 
+    /// # Example
+    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
+    /// the row could be:
+    /// ```text
+    /// 3, 1,2, 3, 2, 0.5
+    /// ```
     fn write_partial_opt(
         &self,
         id: &[String],
@@ -288,6 +413,14 @@ where
     Cod: Codomain<Out>,
     Out: Outcome,
 {
+    /// Header row columns: `SolId` fields followed by codomain columns.
+    ///
+    /// # Example
+    /// With a [`ConstCodomain`](crate::ConstCodomain) defining `y` and two constraints, the
+    /// header will be:
+    /// ```text
+    /// id, y, c0, c1
+    /// ```
     fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -295,6 +428,14 @@ where
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
+    /// Row columns: `SolId` fields followed by codomain values.
+    ///
+    /// # Example
+    /// For a [`ConstCodomain`](crate::ConstCodomain) with `y=0.42` and two constraints
+    /// `[-1.0, 0.0]`, the row could be:
+    /// ```text
+    /// 3, 0.42, -1.0, 0.0
+    /// ```
     fn write_codom(
         &self,
         id: &[String],
@@ -316,6 +457,14 @@ where
     SInfo: SolInfo + CSVWritable<(), ()>,
     Info: OptInfo + CSVWritable<(), ()>,
 {
+    /// Header row columns: `SolId` fields, then [`SolInfo`] columns, then [`OptInfo`] columns.
+    ///
+    /// # Example
+    /// With a mock `SolInfo` that exposes `age` and `seed`, and a mock `OptInfo` that exposes
+    /// `iter` and `batch`, the header could be:
+    /// ```text
+    /// id, age, seed, iter, batch
+    /// ```
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -325,6 +474,14 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Row columns: `SolId` fields, [`SolInfo`] values, then [`OptInfo`] values if present.
+    ///
+    /// # Example
+    /// With the mock headers above and `id=3`, `age=12`, `seed=42`, `iter=7`, `batch=2`, the row
+    /// could be:
+    /// ```text
+    /// 3, 12, 42, 7, 2
+    /// ```
     fn write_info(
         &self,
         id: &[String],
@@ -350,6 +507,13 @@ where
     SolId: Id + CSVWritable<(), ()>,
     Out: Outcome + CSVWritable<(), ()>,
 {
+    /// Header row columns: `SolId` fields followed by outcome columns.
+    ///
+    /// # Example
+    /// With a mock `Outcome` that exposes `loss` and `acc`, the header could be:
+    /// ```text
+    /// id, loss, acc
+    /// ```
     fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
@@ -358,6 +522,13 @@ where
         lwrt.flush().unwrap();
     }
 
+    /// Row columns: `SolId` fields followed by outcome values.
+    ///
+    /// # Example
+    /// With the mock headers above and `id=3`, `loss=0.12`, `acc=0.97`, the row could be:
+    /// ```text
+    /// 3, 0.12, 0.97
+    /// ```
     fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
         let outstr = self.write(&());
         let idstr = id.iter().chain(outstr.iter());
@@ -416,7 +587,8 @@ where
     }
 }
 
-/// Describes how to write a [`Batch`] within a csv file.
+/// Describes how to write a [`Batch`] of [`Computed`](crate::Computed) [`SolShape`](crate::SolShape), 
+/// and associated metadata within CSV files.
 pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
 where
     SolId: Id + CSVWritable<(), ()>,
@@ -432,6 +604,7 @@ where
     SolOpt<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
         HasUncomputed<SolId, Scp::Opt, SInfo, Uncomputed = SolOpt<Scp::SolShape, SolId, SInfo>>,
 {
+    /// Write a [`Batch`] (`Self`) of computed solutions and their associated raw [`Outcome`].
     fn write(&self, obatch: &OutBatch<SolId, Info, Out>, scp: &Scp, cod: &Cod, wrts: Arc<CSVFiles>);
 }
 
@@ -469,25 +642,27 @@ where
         });
     }
 }
-/// A [`CSVSaver`] taking a path of where the save folder should be created.
-/// The computed [`Codomain`] are always saved by default.
+
+/// Recorder that saves computed solutions and outputs as CSV.
 ///
-/// # Attribute
+/// The computed [`Codomain`] is always saved by default.
 ///
-/// * `path` : `&'static` [`str`]  - The path to where the files should be created.
+/// # Attributes
+///
+/// * `path` : `&'static` [`str`] - The path to where the files should be created.
 /// * `obj` : bool - If `true` computed `Obj` [`Solution`] will be saved.
 /// * `opt` : bool - If `true` computed `Opt` [`Solution`] will be saved.
 /// * `info` : bool - If `true` [`SolInfo`] and [`OptInfo`] from computed [`Solution`] will be saved.
 /// * `out` : bool - If `true` computed [`Outcome`] will be saved.
 ///
-/// # Notes on File hierarchy
+/// # Notes on file hierarchy
 ///
 /// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
 ///
 /// * `path`
 ///  * recorder
-///   * obj.csv             (points from the [`Objective`] view)
-///   * opt.csv             (points from the [`Optimizer`] view)
+///   * obj.csv             ([`Objective`](crate::objective::Objective) points)
+///   * opt.csv             ([`Optimizer`] points)
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
 pub struct CSVRecorder {
@@ -577,6 +752,18 @@ where
             Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
         >,
 {
+    /// Initialize the recorder folder and CSV files, and write CSV headers.
+    ///
+    /// # File hierarchy
+    /// ```text
+    /// recorder/
+    ///   obj.csv
+    ///   opt.csv
+    ///   cod.csv
+    ///   info.csv
+    ///   out.csv
+    /// ```
+    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
     fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
@@ -636,6 +823,7 @@ where
         }
     }
 
+    /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
     fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
@@ -643,7 +831,7 @@ where
                 && !ppobj.try_exists().unwrap()
             {
                 panic!(
-                    "The `Objective` recorder file does not exists, {}.",
+                    "The `Objective` recorder file does not exist, {}.",
                     ppobj.display()
                 )
             }
@@ -652,7 +840,7 @@ where
                 && !ppopt.try_exists().unwrap()
             {
                 panic!(
-                    "The `Optimizer` recorder file  not exists, {}.",
+                    "The `Optimizer` recorder file does not exist, {}.",
                     ppopt.display()
                 )
             }
@@ -660,32 +848,37 @@ where
             if let Some(ppinfo) = &self.path_info
                 && !ppinfo.try_exists().unwrap()
             {
-                panic!("The `Info` file does not exists, {}.", ppinfo.display())
+                panic!("The `Info` file does not exist, {}.", ppinfo.display())
             }
 
             if let Some(ppout) = &self.path_out
                 && !ppout.try_exists().unwrap()
             {
                 panic!(
-                    "The `Output` recorder file does not exists, {}.",
+                    "The `Output` recorder file does not exist, {}.",
                     ppout.display()
                 )
             }
 
             if !self.path_codom.try_exists().unwrap() {
                 panic!(
-                    "The `Codomain` recorder file does not exists, {}.",
+                    "The `Codomain` recorder file does not exist, {}.",
                     self.path_codom.display()
                 )
             }
         } else {
             panic!(
-                "The recorder folder does not exists, {}.",
+                "The recorder folder does not exist, {}.",
                 self.config.path_rec.display()
             );
         }
     }
 
+    /// Write a full batch of computed solutions and their associated outputs.
+    ///
+    /// # Example
+    /// During batched optimization, one call to `save_batch` writes *one row per solution* to each
+    /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_batch(
         &self,
         computed: &Batch<
@@ -710,6 +903,11 @@ where
         );
     }
 
+    /// Write a single computed pair (`CompShape`) and its raw outcome.
+    ///
+    /// # Example
+    /// In sequential optimization, `save_pair` is called per evaluation, appending exactly one row
+    /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_pair(
         &self,
         computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
@@ -729,7 +927,7 @@ where
     }
 }
 
-/// Version of [`CSVSaver`] for MPI-distributed algorithms.
+/// Version of [`CSVRecorder`] for MPI-distributed algorithms.
 /// The computed [`Codomain`] are always saved by default.
 ///
 /// # Attribute
@@ -740,24 +938,17 @@ where
 /// * `save_opt` : bool - If `true` computed `Opt` [`Solution`] will be saved.
 /// * `save_info` : bool - If `true` [`SolInfo`] and [`OptInfo`] from computed [`Solution`] will be saved.
 /// * `save_out` : bool - If `true` computed [`Outcome`] will be saved.
-/// * `checkpoint` : usize - If `>0`, a checkpoint will be created every `checkpoint` call to [`step`](Optimizer::step).
 ///
-/// # Notes on File hierarchy
+/// # Notes on file hierarchy
 ///
 /// The 4 csv files information are linked by the unique [`Id`] of computed [`Solution`].
 ///
 /// * `path`
-///  * evaluations
-///   * obj.csv             (points from the [`Objective`] view)
-///   * opt.csv             (points from the [`Optimizer`] view)
+///  * recorder_rank`{rank}`
+///   * obj.csv             ([`Objective`](crate::objective::Objective) points)
+///   * opt.csv             ([`Optimizer`] points)
 ///   * info.csv            ([`SolInfo`] and [`OptInfo`])
 ///   * out.csv             ([`Outcome`])
-///  * checkpoint
-///   * state_opt.mp      ([`OptState`])
-///   * state_stp.mp      ([`Stop`])
-///   * state_eval.mp     ([`Evaluate`])
-///   * state_param.mp    (Various global parameters as the [`Id`] or experiment identifier.)
-///
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Out, Scp, Op> DistRecorder<PSol, SolId, Out, Scp, Op> for CSVRecorder
 where
@@ -791,6 +982,18 @@ where
             Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
         >,
 {
+    /// Initialize the distributed recorder folder and CSV files, and write CSV headers.
+    ///
+    /// # File hierarchy
+    /// ```text
+    /// recorder_rank{rank}/
+    ///   obj.csv
+    ///   opt.csv
+    ///   cod.csv
+    ///   info.csv
+    ///   out.csv
+    /// ```
+    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
     fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
         if self.config.is_dist {
             let does_exist = self.config.path_rec.try_exists().unwrap();
@@ -855,6 +1058,7 @@ where
         }
     }
 
+    /// Validate that the distributed recorder folder and configured CSV files exist after a load.
     fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
@@ -905,6 +1109,13 @@ where
         }
     }
 
+    /// Write a full [`Batch`] of [`Computed`](crate::Computed)
+    /// solutions and their associated [`Outcome`] (per MPI rank where the initial [`Solution`] was generated).
+    ///
+    /// # Example
+    /// In multi-instance runs ([`MultiInstanceOptimizer`](crate::optimizer::opt::MultiInstanceOptimizer)),
+    /// each rank writes *one row per solution* to its dedicated CSV files
+    /// (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv` under `recorder_rank{rank}/`.
     fn save_batch_dist(
         &self,
         computed: &Batch<
@@ -929,6 +1140,12 @@ where
         );
     }
 
+    /// Write a single computed pair (`CompShape`) and its raw outcome (per MPI rank).
+    ///
+    /// # Example
+    /// In multi-instance runs ([`MultiInstanceOptimizer`](crate::optimizer::opt::MultiInstanceOptimizer)),
+    /// each rank writes *one row per solution* to its dedicated CSV files
+    /// (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv` under `recorder_rank{rank}/`.
     fn save_pair_dist(
         &self,
         computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,

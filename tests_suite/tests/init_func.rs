@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tantale_core::EvalStep;
-use tantale_core::objective::outcome::FuncState;
-use tantale_macros::Outcome;
+use tantale_macros::{FuncState, Outcome};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
@@ -57,11 +56,10 @@ pub struct FidOutUnique {
     pub fid: EvalStep,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(FuncState,Serialize, Deserialize)]
 pub struct FnState {
     pub state: isize,
 }
-impl FuncState for FnState {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Point {
@@ -478,7 +476,7 @@ pub mod sp_evaluator_fid {
 
             let _k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -524,7 +522,7 @@ pub mod sp_ms_nosamp_fid {
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -577,7 +575,7 @@ pub mod sp_ms_samp_fid {
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform) !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -630,7 +628,7 @@ pub mod sp_ms_samp_right_fid {
 
             let k = [! k_{4} | Nat(0,100, Uniform) | Real(0.0,1.0, Uniform)  !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -683,7 +681,7 @@ pub mod sp_ms_noright_fid {
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-           let mut state = match state{
+           let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -736,7 +734,7 @@ pub mod sp_ms_samp_noright_fid {
 
             let k = [! k_{4} | Nat(0,100, Uniform) | !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -789,7 +787,7 @@ pub mod sp_sm_samp_fid {
 
             let k = [! k_{4} | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform) !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
@@ -838,7 +836,7 @@ pub mod sp_sm_samp_noright_fid {
 
             let k = [! k_{4} | Real(0.0,1.0, Uniform) | !];
 
-            let mut state = match state{
+            let mut state = match [! STATE !]{
                 Some(s) => s,
                 None => FnState { state: 0 },
             };

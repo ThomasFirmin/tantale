@@ -1,6 +1,5 @@
 extern crate proc_macro;
 
-use core::num;
 use std::collections::HashSet;
 
 use proc_macro::TokenStream;
@@ -8,7 +7,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{
     Expr, Ident, LitInt, Token, braced,
-    parse::{self, Parse},
+    parse::Parse,
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
@@ -56,33 +55,6 @@ impl Parse for Identifier {
     }
 }
 
-// Parse => SAMPLER
-pub struct AddonToken {
-    pub addon: Option<Punctuated<Ident, Token![,]>>,
-}
-
-impl Parse for AddonToken {
-    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let arrow = input.parse::<Token![=>]>();
-        let addon = match arrow {
-            Err(_) => None,
-            Ok(arr) => {
-                let addon_ident = Punctuated::<Ident, Token![,]>::parse_separated_nonempty(input);
-                match addon_ident {
-                    Err(_) => {
-                        return Err(syn::Error::new(
-                            arr.span(),
-                            "A `=>` should be followed by an addon object separated by commas.",
-                        ));
-                    }
-                    Ok(punc) => Some(punc),
-                }
-            }
-        };
-        Ok(AddonToken { addon })
-    }
-}
-
 // Parse DOMAIN(ARGS) => SAMPLER
 #[derive(Clone)]
 pub struct DomainToken {
@@ -116,7 +88,6 @@ impl Parse for DomainStream {
 pub struct FullDomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
-    pub addon: AddonToken,
     pub is_nodomain: bool,
 }
 
@@ -140,7 +111,6 @@ impl Parse for LineStream {
                 return Err(syn::Error::new(first_bar.span(), msg));
             }
         };
-        let obj_addon = input.parse::<AddonToken>()?;
 
         let second_bar = input.parse::<Token![|]>()?;
 
@@ -153,18 +123,15 @@ impl Parse for LineStream {
                 is_nodomain: true,
             },
         };
-        let opt_addon = input.parse::<AddonToken>()?;
 
         let obj_tokens = FullDomainToken {
             args: obj_domain.args,
             ty: obj_domain.ty,
-            addon: obj_addon,
             is_nodomain: obj_domain.is_nodomain,
         };
         let opt_tokens = FullDomainToken {
             args: opt_domain.args,
             ty: opt_domain.ty,
-            addon: opt_addon,
             is_nodomain: opt_domain.is_nodomain,
         };
 

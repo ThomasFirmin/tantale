@@ -89,6 +89,8 @@ where
     Check: Checkpointer,
     Out: Outcome,
 {
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain), 
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -124,6 +126,9 @@ where
         }
     }
 
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -153,7 +158,13 @@ where
             evaluator: Some(evaluator),
         }
     }
-
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`Recorder`] when [`SeqEvaluator`] has finished evaluating an element.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`SeqEvaluator`]. updates) step.
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -306,6 +317,8 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -341,6 +354,9 @@ where
         }
     }
 
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -371,12 +387,21 @@ where
         }
     }
 
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`],
+    /// per iteration, using the inner [`FidSeqEvaluator`].
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`Recorder`] when [`FidSeqEvaluator`] has finished evaluating an element.
+    ///
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidSeqEvaluator`]. updates) step.
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidSeqEvaluator::new(self.optimizer.step(None, &self.searchspace)),
         };
 
+        self.stop.init();
         'main: loop {
             // Stop part
             if self.stop.stop() {
@@ -527,6 +552,8 @@ where
     Rec: Recorder<PSol, SId, Out, Scp, Op> + Send + Sync + 'static,
     Check: ThrCheckpointer + Send + Sync + 'static,
 {
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -562,6 +589,9 @@ where
         }
     }
 
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -593,6 +623,14 @@ where
         }
     }
 
+    /// Run the [`ThrExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`ThrSeqEvaluator`],
+    /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`Recorder`] when [`ThrSeqEvaluator`] has finished evaluating an element.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`ThrSeqEvaluator`]. updates) step.
     fn run(mut self) {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
@@ -603,6 +641,8 @@ where
         let recorder = Arc::new(self.recorder);
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
+
+        stop.lock().unwrap().init();
         for thr in 0..k {
             let optimizer = op.clone();
             let objective = ob.clone();
@@ -615,7 +655,7 @@ where
 
             let partial = match self.evaluator {
                 Some(ref mut e) => {
-                    let eval = e.pair.pop();
+                    let eval = e.shapes.pop();
                     match eval {
                         Some(ev) => ev,
                         None => optimizer.lock().unwrap().step(None, &scp),
@@ -631,7 +671,7 @@ where
                     }
                     st.lock().unwrap().update(ExpStep::Iteration);
 
-                    let pair = eval.pair.take().unwrap();
+                    let pair = eval.shapes.take().unwrap();
                     let x = pair.get_sobj().get_x();
                     let id = pair.get_id();
                     let out = objective.compute(x);
@@ -773,6 +813,8 @@ where
     Check: ThrCheckpointer + Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
 {
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -808,6 +850,9 @@ where
         }
     }
 
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
@@ -839,6 +884,14 @@ where
         }
     }
 
+    /// Run the [`ThrExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidThrSeqEvaluator`],
+    /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`Recorder`] when [`FidThrSeqEvaluator`] has finished evaluating an element.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidThrSeqEvaluator`]. updates) step.
     fn run(mut self) {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
@@ -849,6 +902,8 @@ where
         let recorder = Arc::new(self.recorder);
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
+        
+        stop.lock().unwrap().init();
         for thr in 0..k {
             let optimizer = op.clone();
             let objective = ob.clone();
@@ -896,7 +951,7 @@ where
                     let y = cod.get_elem(&out);
                     let outputed = (id, out);
                     let computed = pair.into_computed(y.into());
-                    
+
                     if let Some(r) = rec.as_ref() {
                         r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
                     }
@@ -1027,7 +1082,17 @@ where
     Check: DistCheckpointer,
     Out: Outcome,
 {
+    /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
+    /// Here a simple [`BaseWorker`] is used with an inner [`Objective`] and [`MPIProcess`].
     type WType = BaseWorker<'a, RawObj<Scp::SolShape, SId, Op::SInfo>, Out>;
+
+    /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
+    /// all other processes will be [`Worker`](crate::Worker)s.
+    /// It also uses an internal [`DistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
+    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1082,6 +1147,14 @@ where
         }
     }
 
+    /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Objective`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via [`no_check_init`](crate::DistCheckpointer::no_check_init).
+    /// The loading process follows the logic described in the [`DistCheckpointer`] 
+    /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
+    /// 
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1130,22 +1203,33 @@ where
         }
     }
 
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`DistSeqEvaluator`],
+    /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
+    /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`DistRecorder`] when [`DistSeqEvaluator`] has finished evaluating an element.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`DistSeqEvaluator`]. updates) step.
+    /// 
+    /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
+    /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
-                let pairs: Vec<_> = (0..self.proc.size)
+                let shapes: Vec<_> = (0..self.proc.size)
                     .map(|_| self.optimizer.step(None, &self.searchspace))
                     .collect();
-                DistSeqEvaluator::new(pairs)
+                DistSeqEvaluator::new(shapes)
             }
         };
-        if eval.pairs.len() < self.proc.size as usize {
-            let n = self.proc.size as usize - eval.pairs.len();
-            let mut pairs: Vec<_> = (0..n)
+        if eval.shapes.len() < self.proc.size as usize {
+            let n = self.proc.size as usize - eval.shapes.len();
+            let mut shapes: Vec<_> = (0..n)
                 .map(|_| self.optimizer.step(None, &self.searchspace))
                 .collect();
-            eval.pairs.append(&mut pairs);
+            eval.shapes.append(&mut shapes);
         }
 
         // Define send/rec utilitaries and parameters
@@ -1163,6 +1247,8 @@ where
         let mut output;
         let mut computed;
         let mut outputed;
+
+        self.stop.init();
         'main: loop {
             // Stop part
             if self.stop.stop() {
@@ -1323,7 +1409,18 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
+    /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
+    /// Here a [`FidWorker`] is used with an inner [`Stepped`] and [`MPIProcess`].
+    /// It stores a [`FuncState`] to resume previous [`Step::Partially`] evaluations.
     type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check>;
+
+    /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
+    /// all other processes will be [`Worker`](crate::Worker)s.
+    /// It also uses an internal [`FidDistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
+    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// Other processes will use a [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer) associated to the [`DistCheckpointer`].
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1385,6 +1482,14 @@ where
         }
     }
 
+    /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
+    /// [`Codomain`](crate::Codomain), [`Stepped`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their associated [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
+    /// The loading process follows the logic described in the [`DistCheckpointer`] 
+    /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
+    /// 
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1437,6 +1542,19 @@ where
         }
     }
 
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidDistSeqEvaluator`],
+    /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
+    /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`DistRecorder`] when [`FidDistSeqEvaluator`] has finished evaluating an element.
+    /// 
+    /// [`FuncState`]s are used to resume partially evaluated solutions.
+    /// 
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidDistSeqEvaluator`]. updates) step.
+    /// 
+    /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
+    /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
     fn run(mut self) {
         let mut eval = match self.evaluator {
             Some(e) => e,
@@ -1465,6 +1583,8 @@ where
         let mut solout;
         let mut computed;
         let mut outputed;
+
+        self.stop.init();
         'main: loop {
             // Stop part
             if self.stop.stop() {
