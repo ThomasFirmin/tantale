@@ -1,10 +1,34 @@
-//! A [`Searchspace`] is a trait defining interactions with an actual searchspace made of [`Var`](crate::Var).
-//! The [`hpo!`](../../../tantale/macros/macro.hpo.html) handles the complex relationships between [`Domains`](crate::Domain)
-//! to create a [`Sp`] instance made of a [`Vec`] of [`Var`](crate::Var).
+//! # Searchspace
 //!
-//! You can also define a [`Sp`] directly within the [`Objective`](crate::Objective) function with [`objective!`](../../../tantale/macros/macro.objective.html).
-//! It also handles [`Mixed`](crate::Mixed) searchspaces, but it can also automatically disambiguate the mixed input vector of the function to
-//! get the right value at the right place.
+//! This module provides the [`Searchspace`] trait and related types for defining the optimization
+//! search domain. A searchspace specifies the valid variable values that an optimizer can explore
+//! and an objective function can evaluate.
+//!
+//! ## Overview
+//!
+//! A [`Searchspace`] is composed of [`Var`](crate::Var) instances, each defining a variable with:
+//! - An **Obj domain**: The domain for the objective function's input
+//! - An **Opt domain**: The domain for the optimizer's representation
+//! - Mapping functions between these two domains via [`Onto`](crate::Onto)
+//!
+//! ## Dual Domain Architecture
+//!
+//! Tantale uses a **dual domain** approach where each variable has two representations:
+//!
+//! - **Obj (Objective)**: The domain used by the objective function. This is typically the natural
+//!   parameter space of the problem (e.g., categorical choices, specific numeric ranges).
+//! - **Opt (Optimizer)**: The domain used by the optimizer for search. This may be a continuous
+//!   relaxation or transformation suitable for the optimization algorithm.
+//!
+//! The searchspace handles automatic mapping between these domains, allowing optimizers to work
+//! in their preferred representation while objectives receive values in their expected format.
+//!
+//! ## Construction
+//!
+//! Searchspaces are typically constructed using macros:
+//! - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Creates a standalone searchspace instance
+//! - [`objective!`](../../../tantale/macros/macro.objective.html) - Defines a searchspace within the objective function
+//!
 //!
 //! # Example with [`hpo!`](../../../tantale/macros/macro.hpo.html).
 //!
@@ -29,7 +53,7 @@
 //!     let sp = get_searchspace();
 //!     let info = std::sync::Arc::new(EmptyInfo{});
 //!
-//!     let obj = sp.sample_obj(Some(&mut rng), info.clone());
+//!     let obj = sp.sample_obj(&mut rng, info.clone());
 //!     let opt = sp.onto_opt(obj.clone()); // Map obj => opt
 //!     // Paired solutions have the same ID
 //!     let id1 : SId = obj.get_id();
@@ -100,7 +124,7 @@
 //! let info = std::sync::Arc::new(EmptyInfo{});
 //! let mut rng = rand::rng();
 //!
-//! let sample = sp.sample_obj(Some(&mut rng),info);
+//! let sample = sp.sample_obj(&mut rng,info);
 //! let id1: SId = sample.get_id();
 //! let out = searchspace::example(sample.get_x());
 //! println!("ID : {} -- Out {}",id1.id,out.out);
@@ -123,7 +147,68 @@ pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
     <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>,
 >;
 
-/// The [`Searchspace`] handles the [`Domains`](Domain) of the [`Objective`], of the [`Optimizer`], and the [`Codomain`].
+/// Core trait defining the searchspace for optimization problems.
+///
+/// A [`Searchspace`] manages the relationship between objective and optimizer representations
+/// of solutions. It provides methods for sampling, mapping, and validating solutions in both
+/// domains. This trait is central to Tantale's type-safe optimization framework.
+///
+/// # Dual [`Domains`](crate::Domain)
+///
+/// Each searchspace maintains two domain representations:
+/// - **Obj domain** ([`Self::Obj`](Linked::Obj)): Used by the objective function
+/// - **Opt domain** ([`Self::Opt`](Linked::Opt)): Used by the optimizer
+///
+/// The searchspace provides bidirectional mapping between these domains via
+/// [`onto_opt`](Searchspace::onto_opt) and [`onto_obj`](Searchspace::onto_obj).
+///
+/// # Associated Types
+///
+/// - [`SolShape`](Searchspace::SolShape) - The paired solution shape containing both Obj and Opt representations.
+///   It can be : 
+///   * a [`Pair`](crate::solution::shape::Pair) when both `Obj` and `Opt` sides are defined
+///   * a [`Lone`](crate::solution::shape::Lone) when only the `Obj` side is defined
+///
+/// # Key Operations
+///
+/// ## Sampling
+/// - [`sample_obj`](Searchspace::sample_obj) - Generate random Obj domain solution
+/// - [`sample_opt`](Searchspace::sample_opt) - Generate random Opt domain solution
+/// - [`sample_pair`](Searchspace::sample_pair) - Generate paired Obj/Opt solution ([`SolutionShape`](crate::solution::SolutionShape))
+///
+/// ## Mapping
+/// - [`onto_opt`](Searchspace::onto_opt) - Map Obj → Opt domain
+/// - [`onto_obj`](Searchspace::onto_obj) - Map Opt → Obj domain
+///
+/// ## Validation
+/// - [`is_in_obj`](Searchspace::is_in_obj) - Check if solution is valid in Obj domain
+/// - [`is_in_opt`](Searchspace::is_in_opt) - Check if solution is valid in Opt domain
+///
+/// # Usage
+///
+/// ```ignore
+/// // Create searchspace (usually via macro)
+/// let sp = get_searchspace();
+/// let mut rng = rand::rng();
+/// let info = Arc::new(EmptyInfo);
+///
+/// // Optimizer generates in Opt domain
+/// let opt_solution = sp.sample_opt(&mut rng, info.clone());
+///
+/// // Map to Obj domain for evaluation
+/// let obj_solution = sp.onto_obj(opt_solution);
+///
+/// // Evaluate objective function
+/// let outcome = objective_fn(obj_solution.get_x());
+/// ```
+///
+/// # See Also
+///
+/// - [`Sp`] - Concrete searchspace implementation
+/// - [`Var`](crate::Var) - Individual variable definitions
+/// - [`Linked`] - Trait linking Obj and Opt domains
+/// - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Macro for creating searchspaces
+/// - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining searchspaces and wrap objective functions
 pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
 where
     SolOpt: Solution<SolId, Self::Opt, SInfo>,
@@ -131,7 +216,7 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    /// Describes the [`Paired`] linked to the [`Searchspace`].
+    /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`] representations.
     type SolShape: SolutionShape<
             SolId,
             SInfo,
@@ -143,8 +228,15 @@ where
         + HasSolInfo<SInfo>
         + IntoComputed;
 
-    /// Maps a [`Solution`] of type `Obj` onto a [`Solution`] of type `Opt`.
-    /// It uses the [`Onto`](crate::Onto) trait of the [`Domain`](crate::Domain)s defined in [`Var`](crate::Var).
+    /// Maps a solution from the Obj domain to the Opt domain.
+    ///
+    /// This method transforms an objective function solution into the optimizer's representation
+    /// using the [`Onto`](crate::Onto) mappings defined for each variable in the searchspace.
+    /// The resulting solution maintains the same [`Id`] as the input.
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Solution in the Obj domain
     ///
     /// # Example
     ///
@@ -171,7 +263,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), info.clone());
+    /// let obj = sp.sample_obj(&mut rng, info.clone());
     /// let opt = sp.onto_opt(obj.clone()); // Map obj => opt
     ///
     /// for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
@@ -180,9 +272,15 @@ where
     ///
     /// ```
     fn onto_opt(&self, inp: SolOpt::Twin<Self::Obj>) -> Self::SolShape;
-    /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
-    /// It uses the [`onto_obj_fn`](crate::Var::onto_obj_fn) from
-    /// the corresponding [`variables`](Searchspace::variables). To main
+    /// Maps a solution from the Opt domain to the Obj domain.
+    ///
+    /// This method transforms an optimizer solution into the objective function's representation
+    /// using the [`onto_obj_fn`](crate::Var::onto_obj_fn) mappings defined for each variable.
+    /// The resulting solution maintains the same [`Id`] as the input.
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Solution in the Opt domain
     ///
     /// # Example
     ///
@@ -209,7 +307,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt = sp.sample_opt(Some(&mut rng), info.clone());
+    /// let opt = sp.sample_opt(&mut rng, info.clone());
     /// let obj = sp.onto_obj(opt.clone());
     ///
     /// for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
@@ -218,9 +316,14 @@ where
     ///
     /// ```
     fn onto_obj(&self, inp: SolOpt) -> Self::SolShape;
-    /// Sample a random [`Partial`] of type `Obj`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates a random solution in the Obj (objective function) domain.
+    ///
+    /// Samples each variable using its Obj domain sampler.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `info` - Shared solution metadata
     ///
     /// # Example
     ///
@@ -247,7 +350,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), info.clone());
+    /// let obj = sp.sample_obj(&mut rng, info.clone());
     ///
     /// for i in obj.get_x().iter(){
     ///     println!("{}", i);
@@ -255,9 +358,14 @@ where
     ///
     /// ```
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
-    /// Sample a random [`Partial`] of type `Opt`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates a random solution in the Opt (optimizer) domain.
+    ///
+    /// Samples each variable using its Opt domain sampler.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `info` - Shared solution metadata
     ///
     /// # Example
     ///
@@ -285,7 +393,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt= sp.sample_opt(Some(&mut rng), info.clone());
+    /// let opt= sp.sample_opt(&mut rng, info.clone());
     ///
     /// for i in opt.get_x().iter(){
     ///     println!("{}", i);
@@ -293,9 +401,15 @@ where
     ///
     /// ```
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
-    /// Sample a random [`Partial`] of type `Obj`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates a random paired solution containing both Obj and Opt representations.
+    ///
+    /// Samples in the Obj domain and automatically creates the paired Opt representation
+    /// via mapping. Both representations share the same [`Id`].
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `info` - Shared solution metadata
     ///
     /// # Example
     ///
@@ -322,7 +436,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
     ///
     /// for obj in vec_obj.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -331,7 +445,18 @@ where
     /// ```
     ///
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
-    /// Check if a given `Obj` [`Solution`] is within the [`Searchspace`].
+    /// Validates that a solution belongs to the Obj domain of this searchspace.
+    ///
+    /// Checks each variable value against its Obj domain constraints using
+    /// [`Domain::is_in`](crate::Domain::is_in).
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Solution to validate
+    ///
+    /// # Returns
+    ///
+    /// `true` if all variable values satisfy their Obj domain constraints, `false` otherwise.
     ///
     /// # Example
     ///
@@ -358,7 +483,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(Some(&mut rng), info.clone());
+    /// let obj = sp.sample_obj(&mut rng, info.clone());
     ///
     /// sp.is_in_obj(obj.clone());
     ///
@@ -368,7 +493,18 @@ where
         S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
             + Send
             + Sync;
-    /// Check if a given `Opt` [`Solution`] is within the [`Searchspace`].
+    /// Validates that a solution belongs to the Opt domain of this searchspace.
+    ///
+    /// Checks each variable value against its Opt domain constraints using
+    /// [`Domain::is_in`](crate::Domain::is_in).
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Solution to validate
+    ///
+    /// # Returns
+    ///
+    /// `true` if all variable values satisfy their Opt domain constraints, `false` otherwise.
     ///
     /// # Example
     ///
@@ -395,7 +531,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt = sp.sample_opt(Some(&mut rng), info.clone());
+    /// let opt = sp.sample_opt(&mut rng, info.clone());
     ///
     /// sp.is_in_opt(opt.clone());
     ///
@@ -432,7 +568,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_onto_obj(&vec_opt);
     ///
     /// for (opt,obj) in vec_opt.iter().zip(vec_obj.iter()){
@@ -445,9 +581,18 @@ where
     ///
     /// ```
     fn vec_onto_obj(&self, inp: Vec<SolOpt>) -> Vec<Self::SolShape>;
-    /// Maps a [`Vec`] of [`Solution`] of type `Obj` onto a [`Vec`] [`Solution`] of type `Opt`.
-    /// It uses the [`onto_opt_fn`](crate::Var::onto_opt_fn) from
-    /// the corresponding [`variables`](Searchspace::variables). To main
+    /// Maps a vector of solutions from the Obj domain to the Opt domain.
+    ///
+    /// Batch version of [`onto_opt`](Searchspace::onto_opt) for efficient processing of
+    /// multiple solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Vector of solutions in the Obj domain
+    ///
+    /// # Returns
+    ///
+    /// Vector of paired solutions with both Obj and Opt representations.
     ///
     /// # Example
     ///
@@ -474,7 +619,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
     /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_onto_opt(&vec_obj); // Map obj => opt
     ///
     /// for (obj,opt) in vec_obj.iter().zip(vec_opt.iter()){
@@ -487,9 +632,20 @@ where
     ///
     /// ```
     fn vec_onto_opt(&self, inp: Vec<SolOpt::Twin<Self::Obj>>) -> Vec<Self::SolShape>;
-    /// Sample a random [`Partial`] of type `Obj`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates multiple random solutions in the Obj domain.
+    ///
+    /// Batch version of [`sample_obj`](Searchspace::sample_obj) for efficient generation
+    /// of multiple solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `size` - Number of solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of randomly sampled solutions in the Obj domain, each with a unique [`Id`].
     ///
     /// # Example
     ///
@@ -516,7 +672,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
     ///
     /// for obj in vec_obj.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -530,9 +686,22 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Self::Obj>>;
-    /// Sample a random [`Partial`] of type `Opt`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates multiple random solutions in the Opt domain.
+    ///
+    /// Batch version of [`sample_opt`](Searchspace::sample_opt) for efficient generation
+    /// of multiple solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `size` - Number of solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of randomly sampled solutions in the Opt domain, each with a unique [`Id`].
+    ///
+    /// # Example
     ///
     /// ```
     /// # mod sp{
@@ -557,7 +726,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
     /// for obj in vec_opt.clone().iter(){
     ///     println!("Obj: {:?}", obj.get_x());
@@ -565,9 +734,20 @@ where
     ///
     /// ```
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>;
-    /// Sample a random [`Partial`] of type `Obj`.
-    /// It uses the [`sampler_obj`](crate::Var::sampler_obj) from
-    /// the corresponding [`variables`](Searchspace::variables).
+    /// Generates multiple random [`SolutionShape`] with both Obj and Opt representations.
+    ///
+    /// Batch version of [`sample_pair`](Searchspace::sample_pair) for efficient generation
+    /// of multiple paired solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `size` - Number of paired solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of paired solutions ([`SolutionShape`]), each with both Obj and Opt representations sharing a unique [`Id`].
     ///
     /// # Example
     ///
@@ -594,10 +774,12 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vec_pair = sp.vec_sample_pair(&mut rng, 10, info.clone());
     ///
-    /// for obj in vec_obj.clone().iter(){
-    ///     println!("Obj: {:?}", obj.get_x());
+    /// for pair in vec_pair.iter(){
+    ///     println!("Paired: {:?}", pair.get_id());
+    ///     println!("Obj: {:?}", pair.get_sobj().get_x());
+    ///     println!("Opt: {:?}", pair.get_sopt().get_x());
     /// }
     ///
     /// ```
@@ -608,7 +790,18 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape>;
-    /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
+    /// Validates that all solutions in a vector belong to the Obj domain.
+    ///
+    /// Batch version of [`is_in_obj`](Searchspace::is_in_obj) that returns `true` only if
+    /// all solutions satisfy their Obj domain constraints.
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Slice of solutions to validate
+    ///
+    /// # Returns
+    ///
+    /// `true` if all solutions are valid in the Obj domain, `false` otherwise.
     ///
     /// # Example
     ///
@@ -635,7 +828,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vobj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(Some(&mut rng), 10, info.clone());
+    /// let vobj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
     ///
     /// sp.vec_is_in_obj(&vobj);
     ///
@@ -645,8 +838,19 @@ where
         S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
             + Send
             + Sync;
-    /// Check if all [`Solution`] from a given [`Vec`] of `Opt` [`Solution`] are in the [`Searchspace`].
+    /// Validates that all solutions in a vector belong to the Opt domain.
     ///
+    /// Batch version of [`is_in_opt`](Searchspace::is_in_opt) that returns `true` only if
+    /// all solutions satisfy their Opt domain constraints.
+    ///
+    /// # Parameters
+    ///
+    /// * `inp` - Slice of solutions to validate
+    ///
+    /// # Returns
+    ///
+    /// `true` if all solutions are valid in the Opt domain, `false` otherwise.
+    /// 
     /// # Example
     ///
     /// ```
@@ -672,7 +876,7 @@ where
     /// let sp = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vopt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(Some(&mut rng), 10, info.clone());
+    /// let vopt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
     /// sp.vec_is_in_opt(&vopt);
     ///
