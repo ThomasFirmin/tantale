@@ -1,6 +1,6 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    Mixed, BasePartial, MixedTypeDom, EmptyInfo, Objective, SId, Searchspace, SingleCodomain, Sp,
+    BasePartial, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
@@ -18,12 +18,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type BBatch = Batch<
-    SId,
-    EmptyInfo,
-    RSInfo,
-    Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
->;
+type BBatch =
+    Batch<SId, EmptyInfo, RSInfo, Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 #[test]
 fn test_batchevaluator() {

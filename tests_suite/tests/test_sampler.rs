@@ -50,7 +50,7 @@ mod check_sampler {
 }
 
 mod check_sampler_base {
-    use tantale::core::domain::{Mixed, Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::domain::{Bool, Cat, Domain, Int, Mixed, Nat, Real, Unit};
     use tantale::core::sampler::*;
 
     #[test]

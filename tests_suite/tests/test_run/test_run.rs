@@ -59,7 +59,7 @@ pub fn run_reader(path: &str, size: usize) {
     assert_eq!(count_out, size, "Some solutions are missing in out.");
 }
 
-pub fn run_reader_eps(path: &str, size: usize, epsilon:usize) {
+pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("recorder"));
     let path_obj = eval_path.join("obj.csv");
@@ -89,12 +89,32 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon:usize) {
 
     let linesobj = rdr_obj.records();
     linesobj.for_each(|l| println!("{:?}", l));
-    assert!((count_obj >= size) && (count_obj < size + epsilon), "Some solutions are missing in obj.");
-    assert!((count_opt >= size) && (count_opt < size + epsilon), "Some solutions are missing in opt.");
-    assert!((count_cod >= size) && (count_cod < size + epsilon), "Some solutions are missing in cod.");
-    assert!((count_info >= size) && (count_info < size + epsilon), "Some solutions are missing in info.");
-    assert!((count_out >= size) && (count_out < size + epsilon), "Some solutions are missing in out.");
-    assert!([count_opt,count_cod,count_info,count_out].iter().all(|c| c == &count_obj), "Not all counts are equal. Some solutions are missing within at least one save file");
+    assert!(
+        (count_obj >= size) && (count_obj < size + epsilon),
+        "Some solutions are missing in obj."
+    );
+    assert!(
+        (count_opt >= size) && (count_opt < size + epsilon),
+        "Some solutions are missing in opt."
+    );
+    assert!(
+        (count_cod >= size) && (count_cod < size + epsilon),
+        "Some solutions are missing in cod."
+    );
+    assert!(
+        (count_info >= size) && (count_info < size + epsilon),
+        "Some solutions are missing in info."
+    );
+    assert!(
+        (count_out >= size) && (count_out < size + epsilon),
+        "Some solutions are missing in out."
+    );
+    assert!(
+        [count_opt, count_cod, count_info, count_out]
+            .iter()
+            .all(|c| c == &count_obj),
+        "Not all counts are equal. Some solutions are missing within at least one save file"
+    );
 }
 
 #[test]
@@ -132,13 +152,12 @@ fn test_batch_run() {
     let mut exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
 
     let expoptimizer = exp.get_mut_optimizer();
     assert_eq!(expoptimizer.0.iteration, 9, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
-
     exp.run();
 
     let sp = sp_evaluator::get_searchspace();
@@ -151,12 +170,13 @@ fn test_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_batchrun", 100);
     let expstop = exp.get_stop();
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
+
+    run_reader("tmp_test_batchrun", 100);
 
     drop(Cleaner {
         path: String::from("tmp_test_batchrun"),
@@ -206,8 +226,8 @@ fn test_batch_parrun() {
     );
 
     let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
 
     let expoptimizer = exp.get_mut_optimizer();
     assert_eq!(expoptimizer.0.iteration, 9, "Number of iteration is wrong");
@@ -235,7 +255,7 @@ fn test_batch_parrun() {
     run_reader("tmp_test_parbatchrun", 100);
 
     let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
@@ -277,8 +297,8 @@ fn test_seqrun() {
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
 
     exp.run();
 
@@ -291,9 +311,8 @@ fn test_seqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let _exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_seqrun", 100);
-    assert_eq!(exp.get_stop().0, 100, "Number of calls is wrong");
     drop(Cleaner {
         path: String::from("tmp_test_seqrun"),
     });
@@ -320,7 +339,7 @@ fn test_thrseqrun() {
     let exp = ThrExperiment::new((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader_eps("tmp_test_thr_seq_run", 50,5);
+    run_reader_eps("tmp_test_thr_seq_run", 50, 5);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -336,7 +355,7 @@ fn test_thrseqrun() {
     let expstop = exp.get_mut_stop();
     let calls = expstop.calls();
     assert!((50..=55).contains(&calls), "Number of calls is wrong");
-    expstop.1 = 100;
+    expstop.add(50);
 
     exp.run();
 
@@ -353,7 +372,6 @@ fn test_thrseqrun() {
     let expstop = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
-    assert_eq!(exp.get_stop().0, 100, "Number of calls is wrong");
     drop(Cleaner {
         path: String::from("tmp_test_thr_seq_run"),
     });

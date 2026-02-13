@@ -4,7 +4,7 @@ use tantale::core::{
 };
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    Mixed, BasePartial, MixedTypeDom, Objective, SId, Sp,
+    BasePartial, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
@@ -80,12 +80,8 @@ mod init_func {
 
 use init_func::{OutEvaluator, sp_evaluator};
 
-type BBatch = Batch<
-    SId,
-    EmptyInfo,
-    RSInfo,
-    Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
->;
+type BBatch =
+    Batch<SId, EmptyInfo, RSInfo, Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");

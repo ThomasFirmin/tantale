@@ -55,7 +55,7 @@
 //! ## See Also
 //!
 //! - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining the [`Searchspace`](crate::searchspace::Searchspace)
-//!   and wrapping the raw user-defined objective function. 
+//!   and wrapping the raw user-defined objective function.
 //! - [`Objective`] - Core trait for objective functions
 //! - [`Outcome`] - Result type for evaluations
 //! - [`Stepped`] - Multi-fidelity wrapper
@@ -197,7 +197,7 @@ impl CSVWritable<(), ()> for Step {
 /// [`EvalStep`] provides convenient constructors matching each state:
 /// - [`pending()`](EvalStep::pending) - Creates `EvalStep(0)`
 /// - [`partially(n)`](EvalStep::partially) - Creates `EvalStep(n)`
-/// - [`completed()`](EvalStep::completed) - Creates `EvalStep(-1)`
+/// - [`evaluated()`](EvalStep::evaluated) - Creates `EvalStep(-1)`
 /// - [`discard()`](EvalStep::discard) - Creates `EvalStep(-9)`
 /// - [`error()`](EvalStep::error) - Creates `EvalStep(-10)`
 ///
@@ -252,7 +252,7 @@ impl EvalStep {
     pub fn pending() -> Self {
         Self(0)
     }
-    
+
     /// Creates an [`EvalStep`] representing a partially evaluated solution.
     ///
     /// The `value` parameter indicates the current evaluation step.
@@ -271,7 +271,7 @@ impl EvalStep {
     pub fn partially(value: usize) -> Self {
         Self(value as isize)
     }
-    
+
     /// Creates an [`EvalStep`] representing a fully evaluated solution.
     ///
     /// Equivalent to `EvalStep(-1)` and converts to [`Step::Evaluated`].
@@ -279,13 +279,13 @@ impl EvalStep {
     /// # Example
     ///
     /// ```ignore
-    /// let step = EvalStep::completed();
+    /// let step = EvalStep::evaluated();
     /// assert_eq!(step, EvalStep(-1));
     /// ```
-    pub fn completed() -> Self {
+    pub fn evaluated() -> Self {
         Self(-1)
     }
-    
+
     /// Creates an [`EvalStep`] representing a discarded evaluation.
     ///
     /// Equivalent to `EvalStep(-9)` and converts to [`Step::Discard`].
@@ -299,7 +299,7 @@ impl EvalStep {
     pub fn discard() -> Self {
         Self(-9)
     }
-    
+
     /// Creates an [`EvalStep`] representing an evaluation error.
     ///
     /// Equivalent to `EvalStep(-10)` and converts to [`Step::Error`].

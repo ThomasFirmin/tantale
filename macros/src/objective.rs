@@ -1,3 +1,108 @@
+//! # The `objective!` procedural macro
+//!
+//! The `objective!` macro provides a high-level interface for defining both an optimization
+//! searchspace and an objective function in a single declaration. It automatically extracts the searchspace from
+//! the user-defined function body, and wrap this function into the `Objective` or `Stepped` objects.
+//!
+//! ## Purpose
+//!
+//! When optimizing a function, you typically need:
+//! 1. A **searchspace** defining what variables to optimize
+//! 2. An **objective function** that evaluates those variables
+//!
+//! The `objective!` macro combines both, keeping the definition close to the usage:
+//!
+//! ```ignore
+//! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
+//! use tantale::macros::{objective, Outcome};
+//!
+//! #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
+//! struct OutExample {
+//!     obj: f64,
+//!     info: f64,
+//! }
+//!
+//! objective!(
+//!     pub fn example() -> OutExample {
+//!         let _a = [! a | Int(0,100, Uniform) | !];
+//!         let _b = [! b | Nat(0,100, Uniform) | !];
+//!         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+//!         let _d = [! d | Bool(Bernoulli(0.5)) | !];
+//!         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+//!         // ... more variables and computation ...
+//!         OutExample{
+//!             obj: e,
+//!             info: [! f | Real(10.0,20.0, Uniform) | !],
+//!         }
+//!     }
+//! );
+//! ```
+//!
+//! ## Special Keywords
+//!
+//! * `[! MPI_RANK !]` - Get the current MPI process rank (for distributed optimization)
+//! * `[! MPI_SIZE !]` - Get the total number of MPI processes
+//! * `[! STATE !]` - Access the current evaluation state in multi-fidelity optimization
+//!
+//! ## Generated Output
+//!
+//! The macro generates three public items:
+//!
+//! ```ignore
+//! pub type ObjType = /* Mixed or single domain type */;
+//! pub type OptType = /* Mixed or single domain type */;
+//! pub fn get_searchspace() -> Sp<ObjType, OptType> { /* ... */ }
+//! pub fn get_function() -> Objective<Arc<[TypeDom<ObjType>]>, Output> { /* ... */ }
+//! ```
+//!
+//! ## Multi-Fidelity Support
+//!
+//! ```rust,ignore
+//! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
+//! use tantale::macros::{objective, Outcome};
+//!
+//! #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
+//! struct OutExample {
+//!     obj: f64,
+//!     info: f64,
+//!     step: Step,
+//! }
+//!
+//! #[derive(FuncState, Serialize, Deserialize)]
+//! pub struct FnState {
+//!     pub something: isize,
+//! }
+//!
+//! objective!(
+//!     pub fn example() -> (OutExample, FnState) {
+//!         let _a = [! a | Int(0,100, Uniform) | !];
+//!         let _b = [! b | Nat(0,100, Uniform) | !];
+//!         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+//!         let _d = [! d | Bool(Bernoulli(0.5)) | !];
+//!         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+//!         // ... more variables and computation ...
+//!         
+//!         // Manage the internal state
+//!         state.something += 1;
+//!         let evalstate = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
+//!         
+//!         (
+//!             OutExample{
+//!                 obj: e,
+//!                 info: [! f | Real(10.0,20.0, Uniform) | !],
+//!                 step: evalstate,
+//!             },
+//!             state
+//!         )
+//!     }
+//! );
+//! ```
+//!
+//! For multi-fidelity objectives (function returns `(Outcome, FuncState)`):
+//! ```ignore
+//! pub fn get_function() -> Stepped<Arc<[TypeDom<ObjType>]>, Output, State> { /* ... */ }
+//! ```
+//!
 extern crate proc_macro;
 
 use std::collections::HashMap;
@@ -50,6 +155,11 @@ pub fn extract_var(
     variables: &mut Vec<LineStream>,
     is_mixed: bool,
 ) -> syn::Result<bool> {
+    // Recursively extract variable definitions [! var !] from the function body
+    // Scans TokenStream for bracket-delimited groups and identifies:
+    // - Variable declarations: [! ... !] (excludes keywords and special syntax)
+    // - Keywords: [! MPI_RANK !], [! MPI_SIZE !], [! STATE !]
+    // Returns whether the searchspace is Mixed (heterogeneous domain types)
     let mut is_it_mixed = is_mixed;
     let mut tokens = input.clone().into_iter();
 
@@ -94,6 +204,8 @@ fn simple_replacement(
     _mixed_ty: &proc_macro2::Ident,
     _ty: &proc_macro2::Ident,
 ) -> TokenStream {
+    // For non-Mixed domains, directly index the input array
+    // Returns: tantale_in[idx]
     quote! {{tantale_in[#idx]}}.into()
 }
 
@@ -102,6 +214,8 @@ fn complex_replacement(
     mixed_ty: &proc_macro2::Ident,
     ty: &proc_macro2::Ident,
 ) -> TokenStream {
+    // For Mixed domains, pattern match on the enum variant and extract the inner value
+    // Returns: match tantale_in[idx] { Mixed::Type(value) => value, _ => unreachable!(...) }
     quote! {
         {
             match tantale_in[#idx]{
@@ -119,6 +233,8 @@ fn simple_vec_replacement(
     _mixed_ty: &proc_macro2::Ident,
     ty: &proc_macro2::Ident,
 ) -> TokenStream {
+    // For replicated non-Mixed domains, collect a slice of the input array as references
+    // Returns: tantale_in[start..end].iter().collect::<Vec<&TypeDom>>()
     quote! {{tantale_in[#start..#end].iter().collect::<Vec<&<#ty as Domain>::TypeDom>>()}}.into()
 }
 
@@ -128,6 +244,8 @@ fn complex_vec_replacement(
     mixed_ty: &proc_macro2::Ident,
     ty: &proc_macro2::Ident,
 ) -> TokenStream {
+    // For replicated Mixed domains, pattern match each variant and collect the inner values
+    // Returns: Vec of extracted values from the correct Mixed variant
     quote! {
         {
             tantale_in[#start..#end].iter().map(|v| {
@@ -142,6 +260,10 @@ fn complex_vec_replacement(
 }
 
 fn keyword_replacement(keyword: &str) -> TokenStream {
+    // Replace special keywords:
+    // [! MPI_RANK !] -> current process rank (panics if not under mpirun)
+    // [! MPI_SIZE !] -> total number of processes
+    // [! STATE !] -> current FuncState for multi-fidelity optimization
     match keyword {
         "MPI_RANK" => quote! {
             if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
@@ -179,6 +301,9 @@ pub fn reconstruct_simple(
     n_token_idx: usize,
     n_var_idx: usize,
 ) -> (usize, usize, HashMap<String, (usize, usize)>) {
+    // Reconstruct tokens for a homogeneous (non-Mixed) searchspace
+    // Replaces [! var !] placeholders with direct array indexing
+    // Tracks variable boundaries for vector extraction (replication)
     let mut token_idx = n_token_idx;
     let mut var_idx_hash = HashMap::new();
     let mut var_idx = n_var_idx;
@@ -219,7 +344,7 @@ pub fn reconstruct_simple(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx, var_idx,var_idx_hash) = reconstruct_simple(
+                    (token_idx, var_idx, var_idx_hash) = reconstruct_simple(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -249,6 +374,9 @@ pub fn reconstruct_mixed(
     n_token_idx: usize,
     n_var_idx: usize,
 ) -> (usize, usize, HashMap<String, (usize, usize)>) {
+    // Reconstruct tokens for a heterogeneous (Mixed) searchspace
+    // Replaces [! var !] placeholders with pattern-matched enum extraction
+    // Handles both single variables and replicated arrays
     let mut token_idx = n_token_idx;
     let mut var_idx = n_var_idx;
     let mut var_idx_hash = HashMap::new();
@@ -289,7 +417,7 @@ pub fn reconstruct_mixed(
                     }
                 } else {
                     let mut nested_new_stream = TokenStream::new();
-                    (token_idx, var_idx,var_idx_hash) = reconstruct_mixed(
+                    (token_idx, var_idx, var_idx_hash) = reconstruct_mixed(
                         content,
                         &mut nested_new_stream,
                         mixed_ty,
@@ -318,6 +446,9 @@ pub fn reconstruct_tokens(
     repeats: Vec<usize>,
     is_mixed: bool,
 ) {
+    // Dispatch to appropriate reconstruction function based on domain homogeneity
+    // is_mixed = true: uses pattern matching on Mixed enum variants
+    // is_mixed = false: uses direct array indexing
     if is_mixed {
         reconstruct_mixed(input, new_stream, mixed_ty, obj_ty, &repeats, 0, 0);
     } else {
@@ -325,6 +456,15 @@ pub fn reconstruct_tokens(
     }
 }
 
+/// Entry point for the `objective!` procedural macro.
+///
+/// This macro combines the definition of both an optimization searchspace and an objective
+/// function into a single, unified declaration. It automatically:
+/// 1. Extracts variable definitions from the searchspace specification
+/// 2. Replaces `[! var_name !]` placeholders in the function body with appropriate extractors
+/// 3. Handles both homogeneous and heterogeneous (Mixed) domain types
+/// 4. Supports multi-fidelity optimization via `FuncState`
+/// 5. Supports some keyworks like [! MPI_RANK !], [! MPI_SIZE !] for MPI-distributed code, and [! STATE !] for multi-fidelity.
 pub fn obj(input: TokenStream) -> TokenStream {
     let mut fn_item: CustomFunction = syn::parse(input).unwrap();
     let params_span = fn_item.sig.inputs.span();
@@ -453,7 +593,9 @@ pub fn obj(input: TokenStream) -> TokenStream {
     sp_tokens
 }
 
-// Inspired by paste! crate from dtolnay
+// Helper function to detect variable extraction syntax [! var_name !]
+// Returns true if the token stream matches exactly: ! ... !
+// (does not match keywords like [! MPI_RANK !])
 fn is_var(input: &TokenStream) -> bool {
     if is_keyword(input).is_some() {
         return false;

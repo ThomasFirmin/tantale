@@ -1,7 +1,7 @@
 //! # Recorder
 //!
 //! This module defines the recording layer for optimization experiments.
-//! A [`Recorder`] saves the different [`Solutions`](crate::Solution), [`Outcomes`](crate::objective::Outcome), 
+//! A [`Recorder`] saves the different [`Solutions`](crate::Solution), [`Outcomes`](crate::objective::Outcome),
 //! meta-data from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo), [`Codomain`](crate::Codomain) elements...
 //!
 //! ## Overview
@@ -12,9 +12,9 @@
 //! Tantale provide two traits:
 //! - [`Recorder`] - Base trait for single-process experiments
 //! - [`DistRecorder`] - Distributed variant for MPI-based experiments (enabled with `mpi` feature)
-//! 
+//!
 //! ## Usage
-//! 
+//!
 //! Here a [`CSVRecorder`] is used with a [`FolderConfig`](crate::FolderConfig).
 //! ```ignore
 //! // Scenario 1: Starting a new optimization

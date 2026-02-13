@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    Mixed, MixedTypeDom, FidBasePartial, SId, Sp, Stepped,
+    FidBasePartial, Mixed, MixedTypeDom, SId, Sp, Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{EvalStep, objective::outcome::FuncState};
+    use tantale::core::{Step, objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
     #[derive(Serialize, Deserialize)]
@@ -33,7 +33,7 @@ mod init_func {
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
         pub obj: f64,
-        pub fid: EvalStep,
+        pub fid: Step,
     }
 
     impl PartialEq for FidOutEvaluator {

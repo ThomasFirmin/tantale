@@ -4,8 +4,8 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    Mixed, BasePartial, MixedTypeDom, EmptyInfo, FidBasePartial, Objective, SId, Searchspace,
-    SingleCodomain, Sp, Stepped,
+    BasePartial, EmptyInfo, EvalStep, FidBasePartial, Mixed, MixedTypeDom, Objective, SId,
+    Searchspace, SingleCodomain, Sp, Stepped,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
@@ -253,7 +253,8 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| { o.fid.0 == 1 }),
+        braw.into_iter()
+            .all(|(_i, o)| { Into::<EvalStep>::into(o.fid).0 == 1 }),
         "Error while serializing and deserializing function states."
     );
 
@@ -294,7 +295,8 @@ fn test_serde_fidbatchevaluator() {
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
-        braw.into_iter().all(|(_i, o)| { o.fid.0 == 2 }),
+        braw.into_iter()
+            .all(|(_i, o)| { Into::<EvalStep>::into(o.fid).0 == 2 }),
         "Error while serializing and deserializing function states."
     );
 }
@@ -356,7 +358,8 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| { o.fid.0 == 1 }),
+        braw.into_iter()
+            .all(|(_i, o)| { Into::<EvalStep>::into(o.fid).0 == 1 }),
         "Error while serializing and deserializing function states."
     );
 
@@ -404,7 +407,8 @@ fn test_serde_thrfidbatchevaluator() {
     >>::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
-        braw.into_iter().all(|(_i, o)| { o.fid.0 == 2 }),
+        braw.into_iter()
+            .all(|(_i, o)| { Into::<EvalStep>::into(o.fid).0 == 2 }),
         "Error while serializing and deserializing function states."
     );
 }

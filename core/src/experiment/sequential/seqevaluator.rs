@@ -136,7 +136,6 @@ where
 //--- MULTI-THREADED ---//
 //----------------------//
 
-
 /// A simple multi-threaded evaluator for sequential [`ThrExperiment`](crate::experiment::ThrExperiment).
 /// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
 /// at a time, returning the computed solution along with its [`Outcome`].
@@ -188,7 +187,7 @@ where
 /// all [`ThrSeqEvaluator`](crate::experiment::sequential::seqevaluator::ThrSeqEvaluator) at once.
 /// Then it is decomposed into a `Vec<ThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
 /// for single-threaded [`Evaluate`].
-/// 
+///
 /// It contains a vector of [`SolutionShape`](crate::solution::SolutionShape).
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -255,7 +254,7 @@ where
 /// sending them to idle workers as they become available. But, returns only one at a time.
 /// So, while other solutions are being evaluated, the optimizer generates, on demand a new [`Uncomputed`]
 /// , for the newly idle worker.
-/// 
+///
 /// It returns a single [`Computed`](crate::solution::Computed) along with their [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -339,11 +338,11 @@ where
     /// It fills idle [`Worker`](crate::worker::Worker)s with solutions to evaluate,
     /// as long as there are idle workers and remaining solutions to evaluate.
     /// It then waits for a single [`Worker`](crate::Worker) to return a [`Outcome`].
-    /// 
+    ///
     /// It returns a single [`Computed`](crate::solution::Computed) along with its [`Outcome`].
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Can return `None` if no solution has been evaluated, notably due to [`Step::Error`] or [`Step::Discard`].
     /// But, it should not happen in optimzation using [`Objective`].
     fn evaluate(

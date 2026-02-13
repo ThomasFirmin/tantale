@@ -79,7 +79,7 @@ use rand::prelude::{IteratorRandom, Rng};
 ///
 /// let domain = Real::new(0.0, 10.0, Uniform);
 /// let mut rng = thread_rng();
-/// 
+///
 /// // Sample a random value from [0.0, 10.0]
 /// let value = domain.sample(&mut rng);
 /// assert!(domain.is_in(&value));
@@ -101,7 +101,7 @@ pub trait Sampler<D: Domain> {
 
 /// Enumeration of available sampling distributions for bounded numeric domains.
 ///
-/// [`BoundedDistribution`] give a wrapper around different sampling strategies applicable to [`Bounded`] domains 
+/// [`BoundedDistribution`] give a wrapper around different sampling strategies applicable to [`Bounded`] domains
 /// (e.g., [`Real`](crate::domain::Real),[`Int`](crate::domain::Int), [`Nat`](crate::domain::Nat)).
 ///
 /// # Variants
@@ -115,7 +115,7 @@ pub trait Sampler<D: Domain> {
 ///
 /// ```
 /// use tantale::core::{Uniform,BoundedDistribution};
-/// 
+///
 /// let dist: BoundedDistribution = Uniform.into();
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -151,7 +151,7 @@ where
 ///
 /// ```
 /// use tantale::core::{Bernoulli,BoolDistribution};
-/// 
+///
 /// let dist: BoolDistribution = Bernoulli(0.5).into();
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -176,14 +176,14 @@ impl Sampler<Bool> for BoolDistribution {
 ///
 /// - [`Uniform`](CatDistribution::Uniform) - Uniform random selection among categories
 /// - Can be extended in future works...
-/// 
+///
 /// # Conversion
 ///
 /// Individual samplers can be converted into this enum via [`From`]/[`Into`]:
 ///
 /// ```
 /// use tantale::core::{CatDistribution,Uniform};}
-/// 
+///
 /// let dist: CatDistribution = Uniform.into();
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -242,7 +242,7 @@ impl From<Bernoulli> for BoolDistribution {
 ///
 /// let domain = Real::new(0.0, 1.0, Uniform);
 /// let mut rng = thread_rng();
-/// 
+///
 /// // Sample uniformly from [0.0, 1.0]
 /// let value = uniform.sample(&domain, &mut rng);
 /// assert!(value >= 0.0 && value <= 1.0);
@@ -296,7 +296,7 @@ impl Sampler<Cat> for Uniform {
 ///
 /// let domain = Bool(Bernoulli(0.7));
 /// let mut rng = thread_rng();
-/// 
+///
 /// // Sample from Bernoulli(0.7)
 /// let value = bernoulli.sample(&domain, &mut rng);
 /// ```

@@ -204,7 +204,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// // Optimizer provides a value in [0, 1]
     /// let opt_value = 0.75;
-    /// 
+    ///
     /// // Map to objective domain [0, 100]
     /// let obj_value = var.onto_obj(&opt_value).unwrap();
     /// assert_eq!(obj_value, 75.0);
@@ -240,7 +240,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// // Objective domain value [0, 100]
     /// let obj_value = 25.0;
-    /// 
+    ///
     /// // Map to optimizer domain [0, 1]
     /// let opt_value = var.onto_opt(&obj_value).unwrap();
     /// assert_eq!(opt_value, 0.25);
@@ -270,7 +270,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// let mut rng = rand::rng();
     /// let value = var.sample_obj(&mut rng);
-    /// 
+    ///
     /// // Value should be within objective domain bounds
     /// assert!(value >= 0.0 && value <= 100.0);
     /// ```
@@ -299,10 +299,10 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// let mut rng = rand::rng();
     /// let opt_value = var.sample_opt(&mut rng);
-    /// 
+    ///
     /// // Value in optimizer domain [0, 1]
     /// assert!(opt_value >= 0.0 && opt_value <= 1.0);
-    /// 
+    ///
     /// // Can be mapped to objective domain
     /// let obj_value = var.onto_obj(&opt_value).unwrap();
     /// assert!(obj_value >= 0.0 && obj_value <= 100.0);
@@ -469,7 +469,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     /// Maps a value from optimizer domain to objective domain (identity operation).
     ///
     /// Since both domains are the same, this simply clones the input value.
-    /// It is preferable to compute with [`Lone`](crate::solution::Lone) [`SolutionShape`](crate::solution::SolutionShape) 
+    /// It is preferable to compute with [`Lone`](crate::solution::Lone) [`SolutionShape`](crate::solution::SolutionShape)
     /// when using a single domain, but this method is provided for completeness.
     ///
     /// # Example
@@ -491,7 +491,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     /// Maps a value from objective domain to optimizer domain (identity operation).
     ///
     /// Since both domains are the same, this simply clones the input value.
-    /// It is preferable to compute with [`Lone`](crate::solution::Lone) [`SolutionShape`](crate::solution::SolutionShape) 
+    /// It is preferable to compute with [`Lone`](crate::solution::Lone) [`SolutionShape`](crate::solution::SolutionShape)
     /// when using a single domain, but this method is provided for completeness.
     ///
     /// # Example
@@ -594,7 +594,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// let var = Var::new("param", Real::new(0.0, 1.0, Uniform), NoDomain);
     /// let params = var.replicate(3);
-    /// 
+    ///
     /// assert_eq!(params.len(), 3);
     /// assert_eq!(params[0].name, ("param", Some(0)));
     /// assert_eq!(params[2].name, ("param", Some(2)));

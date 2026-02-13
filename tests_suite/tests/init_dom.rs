@@ -1,8 +1,8 @@
 pub use tantale::core::domain::Domain;
-pub use tantale::core::domain::mixed::{Mixed, MixedTypeDom};
 pub use tantale::core::domain::bool::Bool;
 pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
 pub use tantale::core::domain::cat::Cat;
+pub use tantale::core::domain::mixed::{Mixed, MixedTypeDom};
 pub use tantale::core::domain::onto::Onto;
 pub use tantale::core::domain::unit::Unit;
 use tantale_core::sampler::{Bernoulli, Uniform};

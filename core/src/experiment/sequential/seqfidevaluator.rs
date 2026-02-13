@@ -65,7 +65,7 @@ where
         }
     }
 
-    /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`) 
+    /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`)
     /// if the step is not [`Step::Partially`].
     pub fn update(&mut self, pair: Shape) {
         match pair.step() {
@@ -189,7 +189,6 @@ where
 //--- MULTI-THREADED ---//
 //----------------------//
 
-
 /// Sequential evaluator for fidelity-based functions.
 /// It evaluates a single [`SolutionShape`] + [`HasStep`] + [`HasFidelity`] at a time,
 /// maintaining an internal [`FuncState`] for the [`SolutionShape`] being currently evaluated.
@@ -248,7 +247,6 @@ where
 {
 }
 
-
 /// An intermediate representation for a collection of [`FidThrSeqEvaluator`]. Used to [`load!`](crate::load!)
 /// all [`FidThrSeqEvaluator`](crate::experiment::sequential::seqfidevaluator::FidThrSeqEvaluator) at once.
 /// Then it is decomposed into a `Vec<FidThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
@@ -263,14 +261,14 @@ where
     serialize = "SolId:Serialize",
     deserialize = "SolId:for<'a> Deserialize<'a>"
 ))]
-pub struct VecFidThrSeqEvaluator<Shape, SolId, SInfo,FnState>
+pub struct VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    pub pair: Vec<(Shape,FnState)>,
+    pub pair: Vec<(Shape, FnState)>,
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
@@ -312,8 +310,8 @@ where
         let pair = value
             .into_iter()
             .filter_map(|p| match (p.pair, p.state) {
-            (Some(pair), Some(state)) => Some((pair, state)),
-            _ => None,
+                (Some(pair), Some(state)) => Some((pair, state)),
+                _ => None,
             })
             .collect();
         VecFidThrSeqEvaluator {
@@ -333,10 +331,10 @@ where
 /// The internal [`FuncState`] are manage within each [`Worker`](crate::Worker).
 /// This allows the evaluator to handle computations that may require multiple [`Step`]s
 /// and distribute them across multiple [`Worker`](crate::Worker)s.
-/// 
-/// It keeps track of the location of each solution [`Id`] across different MPI [`Rank`]s in a [`HashMap`], 
+///
+/// It keeps track of the location of each solution [`Id`] across different MPI [`Rank`]s in a [`HashMap`],
 /// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
-/// The role of `where_is_id` is to map each solution [`Id`] to the MPI [`Rank`] where an [`Uncomputed`] 
+/// The role of `where_is_id` is to map each solution [`Id`] to the MPI [`Rank`] where an [`Uncomputed`]
 /// is currently being processed, and then remember where each [`FuncState`] is located.
 /// [`Step::Discard`] are managed first, as it is fast to process.
 /// Then, [`Step::Partially`] are managed to continue their evaluation.
@@ -527,14 +525,14 @@ where
     /// Evaluates the current set of [`SolutionShape`]s using the provided [`Stepped`] function.
     /// It manages the internal [`FuncState`] within each [`Worker`](crate::Worker) to handle multi-[`Step`] evaluations.
     /// It fills idle [`Worker`](crate::Worker)s with new or resumed solutions to evaluate.
-    /// 
+    ///
     /// If the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`]
     /// it returns an `Option` containing the following elements [`Computed`](crate::Computed) and [`Outcome`](crate::Outcome):
     /// - An MPI [`Rank`] of the [`Worker`](crate::Worker) that has completed the evaluation.
     /// - A tuple containing:
     ///     - A [`Computed`](crate::Computed) representing the evaluated solution.
     ///     - An [`Outcome`](crate::Outcome) representing the raw output of the evaluation.
-    /// 
+    ///
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`]
     fn evaluate(
         &mut self,

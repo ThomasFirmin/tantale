@@ -4,9 +4,9 @@
 //! at a time.
 //! For threaded and distributed experiments, [`SolutionShape`](crate::solution::SolutionShape) are generated on demand,
 //! when a resource requests a new solution to evaluate.
-//! 
+//!
 //! # Parallelization philosophy
-//! 
+//!
 //! * For [batched experiments](crate::experiment::batched) : a batch should be evaluated as quickly as possible, using all available ressources.
 //!   Evaluation times for each solution in the batch are expected to be similar.
 //!   * Mono-threaded: [`MonoExperiment`](crate::MonoExperiment).

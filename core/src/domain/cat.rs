@@ -1,8 +1,8 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        mixed::{Mixed, MixedTypeDom},
         bounded::{Bounded, BoundedBounds},
+        mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
     },
@@ -15,7 +15,6 @@ use num::cast::AsPrimitive;
 use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
 
 /// Describes a non-ordinal categorical domain. It is made of features,
 /// described by a [`Vec`] of [`String`].
@@ -38,7 +37,7 @@ impl Cat {
     ///
     /// * `values` - An iterator over `&str` describing the features of the categorical [`Domain`].
     /// * `sampler` - A sampler implementing the [`Sampler`] trait for [`Cat`].
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -76,7 +75,7 @@ impl Domain for Cat {
     type TypeDom = String;
 
     /// Sample a `String` using the inner [`CatDistribution`] of [`Cat`].
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -97,11 +96,11 @@ impl Domain for Cat {
     }
 
     /// Method to check if a given point is in the domain.
-    /// 
+    ///
     /// # Attributes
-    /// 
+    ///
     /// * `point` - A borrowed sample from a [`Cat`].
-    /// 
+    ///
     /// # Example
     ///
     /// ```

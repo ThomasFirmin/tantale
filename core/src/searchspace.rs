@@ -165,7 +165,7 @@ pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
 /// # Associated Types
 ///
 /// - [`SolShape`](Searchspace::SolShape) - The paired solution shape containing both Obj and Opt representations.
-///   It can be : 
+///   It can be :
 ///   * a [`Pair`](crate::solution::shape::Pair) when both `Obj` and `Opt` sides are defined
 ///   * a [`Lone`](crate::solution::shape::Lone) when only the `Obj` side is defined
 ///
@@ -850,7 +850,7 @@ where
     /// # Returns
     ///
     /// `true` if all solutions are valid in the Opt domain, `false` otherwise.
-    /// 
+    ///
     /// # Example
     ///
     /// ```

@@ -97,7 +97,7 @@ pub use crate::errors::CheckpointError;
 ///
 /// - [`Evaluate`] - Evaluation Context State
 ///   Maintains evaluation-specific information, varying by experiment type:
-/// 
+///
 /// - [`GlobalParameters`] - Global Counters
 ///   Global parameters of the experiment.
 ///
@@ -169,7 +169,7 @@ where
     ///
     /// Should panic if the checkpoint is invalid or incomplete, indicating data corruption or
     /// incomplete checkpoint writes.
-    /// 
+    ///
     /// # See Also
     /// - [`init`](Self::init) - Used when starting a new experiment
     fn after_load(&mut self);
@@ -277,7 +277,7 @@ where
 /// A [`ThrCheckpointer`] extends [`Checkpointer`] to support multi-threaded experiments where each worker
 /// thread maintains its own [`Evaluate`] state. This is essential for experiments using thread pools where
 /// each thread evaluates solutions independently and needs to checkpoint its local progress.
-/// 
+///
 /// # Relationship to Checkpointer
 ///
 /// [`ThrCheckpointer`] extends [`Checkpointer`] by adding thread-aware variants of key methods:
@@ -532,7 +532,7 @@ where
     fn load_evaluate_dist<Eval: Evaluate>(&self, rank: Rank) -> Result<Eval, CheckpointError>;
     /// Equivalent to [`load_parameters`](Checkpointer::load_parameters) for distributed optimization experiments, returning global parameters (same across ranks).
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
-    /// Retrieves the worker checkpointer. 
+    /// Retrieves the worker checkpointer.
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
 }
 

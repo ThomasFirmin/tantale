@@ -18,7 +18,7 @@ impl Drop for Cleaner {
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{EvalStep, objective::outcome::FuncState};
+    use tantale::core::{Step, objective::outcome::FuncState};
     use tantale::macros::Outcome;
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -30,7 +30,7 @@ mod init_func {
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
         pub obj: f64,
-        pub fid: EvalStep,
+        pub fid: Step,
     }
 
     impl PartialEq for FidOutEvaluator {
@@ -67,7 +67,7 @@ mod init_func {
 
                 let _rank = [! MPI_RANK !];
                 let _size = [! MPI_SIZE !];
-                
+
                 let _a = [! a | Int(0,100, Uniform) | !];
                 let _b = [! b | Nat(0,100, Uniform) | !];
                 let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];

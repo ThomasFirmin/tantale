@@ -221,7 +221,6 @@ where
     }
 }
 
-
 impl<SolId, Dom, Info> IntoComputed for BasePartial<SolId, Dom, Info>
 where
     Dom: Domain,

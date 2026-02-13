@@ -1,8 +1,8 @@
 //! The [`Codomain`](crate::Codomain) describes which elements from the [`Outcome`]
 //! should be used within the [`Optimizer`](crate::Optimizer).
-//! 
+//!
 //! For example, it can extract a [`Single`](crate::Single) ($y$) from the [`Outcome`] in order to minimize, $f(x)=y$.
-//! 
+//!
 //! Moreover, a [`Codomain`](crate::Codomain) can express more complex behaviors, like [`Constrained`](crate::Constrained),
 //! [`Multi`](crate::Multi)-objective, or [`Cost`](crate::Cost)-aware optimization.
 //! The extracted elements from [`Outcome`] form the [`TypeCodom`](crate::Codomain::TypeCodom), a type
@@ -340,7 +340,6 @@ impl<Out: Outcome> Single<Out> for ConstCodomain<Out> {
         self.y_criteria
     }
 }
-
 
 impl<Out: Outcome> Constrained<Out> for ConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {

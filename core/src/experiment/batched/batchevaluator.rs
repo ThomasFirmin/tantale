@@ -22,7 +22,6 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 
-
 /// [`BatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`].
 /// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate.
 /// It implements the [`Evaluate`], [`MonoEvaluate`] and, if the `mpi` feature is enabled, the [`DistEvaluate`] traits.
@@ -47,7 +46,7 @@ where
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo>,
-{   
+{
     /// Create a new [`BatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
         BatchEvaluator { batch }
@@ -66,7 +65,6 @@ where
     Shape: SolutionShape<SolId, SInfo>,
 {
 }
-
 
 impl<PSol, SolId, Op, Scp, Out, St>
     MonoEvaluate<
@@ -101,9 +99,9 @@ where
     /// Samples are evaluated sequentially until all solutions in the batch are evaluated or the `stop` condition is met.
     /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
     /// and the raw [`Outcome`] batch of evaluations.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
     /// if the `stop` condition is met before finishing.
     fn evaluate(
@@ -167,16 +165,16 @@ where
     /// until all solutions in the batch are evaluated or the `stop` condition is met.
     /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
     /// and the raw [`Outcome`] batch of evaluations.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    ///   if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing.
     /// * The order of solutions in the returned batches
     ///   may not correspond to the order in the original batch, due to the asynchronous nature of MPI communication.
     /// * Depending on the [`Stop`] implementation, some workers may still be computing solutions when the stop condition is met,
     ///   leading to overflowing the expected number of evaluations.
-    /// 
+    ///
     fn evaluate(
         &mut self,
         sendrec: &mut SendRec<
@@ -317,11 +315,11 @@ where
     /// Samples are evaluated in parallel using multiple threads until all solutions in the batch are evaluated or the `stop` condition is met.
     /// It returns a tuple containing the [`Computed`](crate::Computed) batch of solutions
     /// and the raw [`Outcome`] batch of evaluations.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    ///   if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing.
     /// * The order of solutions in the returned batches
     ///   may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
     /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,

@@ -1,6 +1,6 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    Mixed, MixedTypeDom, EmptyInfo, FidBasePartial, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    EmptyInfo, FidBasePartial, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped,
     domain::NoDomain,
     experiment::{
         FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,

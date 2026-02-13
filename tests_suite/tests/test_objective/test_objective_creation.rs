@@ -1,4 +1,4 @@
-use tantale_core::{BasePartial, MixedTypeDom, EmptyInfo, SId, Searchspace, Solution, Sp};
+use tantale_core::{BasePartial, EmptyInfo, MixedTypeDom, SId, Searchspace, Solution, Sp};
 
 use super::init_func::*;
 use paste::paste;

@@ -29,7 +29,7 @@ pub fn get_struct() -> OutExample {
         mul7: 7.0,
         mul8: 8.0,
         mul9: 9.0,
-        fid10: EvalStep::completed(),
+        fid10: EvalStep::evaluated(),
         more: 10.0,
         info: 11.0,
     }

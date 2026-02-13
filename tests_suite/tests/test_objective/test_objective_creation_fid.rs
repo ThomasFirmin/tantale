@@ -1,5 +1,5 @@
 use tantale_core::{
-    MixedTypeDom, EmptyInfo, FidBasePartial, FidOutcome, SId, Searchspace, Solution, Sp,
+    EmptyInfo, FidBasePartial, FidOutcome, MixedTypeDom, SId, Searchspace, Solution, Sp,
     objective::Step,
     solution::{HasFidelity, SolutionShape},
 };

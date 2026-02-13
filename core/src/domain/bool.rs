@@ -1,8 +1,8 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        mixed::{Mixed, MixedTypeDom},
         bounded::{Bounded, BoundedBounds},
+        mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
     },
@@ -91,12 +91,12 @@ where
     type Item = TypeDom<Bool>;
     type TargetItem = TypeDom<Bounded<Out>>;
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
     /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -134,12 +134,12 @@ impl Onto<Unit> for Bool {
     type Item = TypeDom<Bool>;
     type TargetItem = TypeDom<Unit>;
     /// [`Onto`] function between a [`Bool`] and a [`Unit`] [`Domain`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
     /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -164,14 +164,14 @@ impl Onto<Mixed> for Bool {
     type Item = TypeDom<Bool>;
     type TargetItem = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Bool`] and a [`Mixed`] [`Domain`].
-    /// 
+    ///
     /// Uses the respective [`onto`](Onto::onto) functions for each possible target [`Domain`] inside the [`Mixed`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
     /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -210,7 +210,7 @@ impl Onto<Bool> for Bool {
     type Item = TypeDom<Bool>;
     type TargetItem = TypeDom<Bool>;
     /// [`Onto`] function between a [`Bool`] and another [`Bool`] [`Domain`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].

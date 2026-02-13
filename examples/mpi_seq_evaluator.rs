@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    Mixed, BasePartial, MixedTypeDom, Objective, SId, Sp,
+    BasePartial, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutShapeEvaluate,

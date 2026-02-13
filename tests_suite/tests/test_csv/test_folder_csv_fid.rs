@@ -1,6 +1,6 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
-    Mixed, MixedTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
+    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
     recorder::{
         Recorder,
         csv::{CSVRecorder, CSVWritable},
@@ -30,7 +30,7 @@ use std::{path::Path, sync::Arc};
 
 mod infos {
     use serde::{Deserialize, Serialize};
-    use tantale_core::EvalStep;
+    use tantale_core::Step;
     use tantale_macros::Outcome;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ mod infos {
         pub mul8: f64,
         pub mul9: f64,
         pub tvec: Vec<f64>,
-        pub state: EvalStep,
+        pub state: Step,
     }
 
     pub fn get_out(fid: usize, a: i64) -> FidOutExample {
@@ -58,7 +58,7 @@ mod infos {
             mul8: 8.8,
             mul9: 9.9,
             tvec: Vec::from([1.1, 2.2, 3.3]),
-            state: EvalStep::partially(0),
+            state: Step::Partially(0),
         }
     }
 }

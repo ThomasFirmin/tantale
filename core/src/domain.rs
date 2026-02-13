@@ -27,8 +27,8 @@
 //! - [`Bool`] for binary values
 //! - [`Cat`] for categorical variables
 //! - [`Unit`] and [`NoDomain`] for degenerate or placeholder domains
-//! 
-//! Some specific traits such as: 
+//!
+//! Some specific traits such as:
 //! - [`Mixed`] for heterogeneous collections of sub-domains
 //! - [`Onto`] for mapping an element from one domain to another domain
 //!
@@ -36,11 +36,11 @@
 //! [`SingleCodomain`] and [`MultiCodomain`] used for objective outputs.
 //!
 //! ## Notes
-//! 
+//!
 //! Combination of [`Domain`]s allows defining a [`Searchspace`](crate::searchspace::Searchspace).
 //! For example:
 //! $\mathcal{S} := [`Domain`]_1 \times \cdots \times [`Domain`]_d $
-//! 
+//!
 //! ## Macro Integration
 //!
 //! Domains are constructed directly or through macros like [`objective!`](../../../tantale/macros/macro.objective.html)
@@ -89,7 +89,7 @@ pub trait PreDomain: Debug {}
 ///
 /// # Associated Type: `TypeDom`
 ///
-/// The associated type [`TypeDom`](Domain::TypeDom)  defines what 
+/// The associated type [`TypeDom`](Domain::TypeDom)  defines what
 /// Rust type represents a single value from the [`Domain`].
 /// # Required Methods
 ///
@@ -153,7 +153,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     ///
     /// [`TypeDom`](Domain::TypeDom) is the associated type that defines what type
     /// represents a single element sampled from the domain.
-    /// 
+    ///
     /// # Examples
     ///
     /// For built-in domains:
@@ -212,7 +212,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
 ///
 /// [`TypeDom<T>`] is a convenience type alias that maps a domain type `T` to its associated
 /// [`Domain::TypeDom`] type. This simplifies type signatures and makes code more readable.
-/// 
+///
 /// # See Also
 ///
 /// - [`Domain::TypeDom`] - The associated type being aliased
@@ -235,7 +235,7 @@ pub mod cat;
 pub use cat::Cat;
 
 pub mod mixed;
-pub use mixed::{Mixed,MixedTypeDom};
+pub use mixed::{Mixed, MixedTypeDom};
 
 pub mod onto;
 pub use onto::Onto;

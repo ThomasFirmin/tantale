@@ -1,3 +1,194 @@
+//! # The `hpo!` Macro - HyperParameter Optimization Searchspace Definition
+//!
+//! The `hpo!` procedural macro provides a declarative way to define optimization searchspaces in Tantale.
+//! It generates a type-safe, dual-domain searchspace from a concise variable specification.
+//!
+//! ## Purpose
+//!
+//! AutoML problems involve optimizing functions across complex, heterogeneous domains where:
+//! - Objective functions may require specific types (integers, categories, booleans)
+//! - Optimizers migth work in its own defined space (e.g. within the unit hypercube)
+//! - Variables need custom sampling and mapping strategies
+//!
+//! The `hpo!` macro abstracts these details, allowing users to simplify variable definitions,
+//! while the macro generates the appropriate searchspace implementation.
+//!
+//! ## Syntax
+//!
+//! ```ignore
+//! hpo!(
+//!     var_name | ObjectiveDomain(args) | OptimizationDomain(args) ;
+//!     // ... more variables ...
+//! );
+//! ```
+//!
+//! ## Generated Output
+//!
+//! Each `hpo!` invocation generates three public items:
+//!
+//! ```ignore
+//! pub type ObjType = /* ... */;  // Objective domain (Mixed or single type)
+//! pub type OptType = /* ... */;  // Optimizer domain (Mixed or single type)
+//! pub fn get_searchspace() -> Sp<ObjType, OptType> { /* ... */ }
+//! ```
+//!
+//! ## Quick Example
+//!
+//! ```ignore
+//! use tantale::macros::hpo;
+//! use tantale::core::{Real, Nat, Cat, Bool, Uniform, Bernoulli};
+//!
+//! hpo!(
+//!     learning_rate | Real(1e-5, 0.1, Uniform)      | ;
+//!     batch_size    | Nat(16, 512, Uniform)         | ;
+//!     optimizer     | Cat(["adam", "sgd"], Uniform) | ;
+//!     dropout       | Bool(Bernoulli(0.5))          | ;
+//! );
+//!
+//! // Now use the generated searchspace:
+//! let sp = get_searchspace();
+//! let mut rng = rand::rng();
+//! let solution = sp.sample_obj(&mut rng, info);
+//! ```
+//!
+//! ## Variable Definition
+//!
+//! Each variable is defined as:
+//! ```ignore
+//! name{repetition} | ObjectiveDomain(args) | OptimizerDomain(args) ;
+//! ```
+//!
+//! - **name**: Identifier for the variable
+//! - **{repetition}**: Optional integer count for replication (e.g., `decay{10}` -> `decay0..9`)
+//! - **ObjectiveDomain**: Required - the domain for objective function inputs
+//!   - Supported types: `Real`, `Nat`, `Int`, `Bool`, `Cat`, `Unit`
+//!     ** The domain types must have a `new(args)` constructor that takes the specified arguments.
+//!     The macro automatically add new() after the type, to simplify notations and improve readability of the searchspace.**
+//! - **(args)**: Domain-specific arguments (bounds, options, samplers)
+//! - **OptimizerDomain**: Optional - domain for optimizer to search within
+//!   ** The domain types must have a `new(args)` constructor that takes the specified arguments.
+//!   The macro automatically add new() after the type, to simplify notations and improve readability of the searchspace.**
+//!   - If omitted, OptimizerDomain is set to NoDomain. Which will be further interpreted as using the ObjectiveDomain
+//! - **;**: Semicolon terminates the variable definition
+//!
+//! ## Domain Types
+//!
+//! | Domain | TypeDom | Use Case | Example |
+//! |--------|---------|----------|---------|
+//! | [`Real`] | `f64` | Continuous values | `Real(0.0, 100.0, Uniform)` |
+//! | [`Nat`] | `u32` | Natural numbers | `Nat(1, 20, Uniform)` |
+//! | [`Int`] | `i32` | Any integers | `Int(-10, 10, Uniform)` |
+//! | [`Bool`] | `bool` | Binary choices | `Bool(Bernoulli(0.5))` |
+//! | [`Cat`] | `&'static str` | Categorical | `Cat(["a", "b"], Uniform)` |
+//! | [`Unit`] | `()` | No-op domain | `Unit(Uniform)` |
+//! | [`NoDomain`] | - | Optimizer=Objective | Omit opt domain |
+//!
+//! ## Dual Domain Architecture
+//!
+//! Each variable has two associated domains:
+//!
+//! - **Objective Domain (`Obj`)**: The domain of values the objective function receives
+//! - **Optimizer Domain (`Opt`)**: The domain the optimizer searches within
+//!
+//! ```ignore
+//! // Optimizer searches [0,1], objective gets integer [1,20]
+//! num_elements | Nat(1, 20, Uniform) | Real(0.0, 1.0, Uniform) ;
+//! ```
+//!
+//! This enables optimizers to work in normalized continuous spaces while objectives
+//! receive natural problem-specific types.
+//!
+//! ## Mixed Domains
+//!
+//! When variables have heterogeneous objective domains:
+//! ```ignore
+//! hpo!(
+//!     x | Real(0.0, 1.0, Uniform) | ;
+//!     y | Nat(0, 100, Uniform)    | ;
+//!     z | Bool(Uniform)           | ;
+//! );
+//! ```
+//!
+//! When all objective domains are **the same type**, `Mixed` is not used:
+//! ```ignore
+//! hpo!(
+//!     x | Real(0.0, 1.0, Uniform) | ;
+//!     y | Real(-5.0, 5.0, Uniform) | ;
+//! );
+//! // ObjType = Real (not Mixed)
+//! ```
+//!
+//! ## Variable Replication
+//!
+//! Create multiple similar variables using `{count}` syntax:
+//!
+//! ```ignore
+//! hpo!(
+//!     // Creates: decay0, decay1, ..., decay9
+//!     decay{10} | Real(-1.0, 1.0, Uniform) | ;
+//! );
+//! ```
+//!
+//! Each replicated variable gets a numeric suffix starting from 0.
+//!
+//! ## Examples
+//!
+//! ### Example 1: Simple Hyperparameter Search
+//! ```ignore
+//! hpo!(
+//!     learning_rate | Real(1e-4, 1e-2, Uniform) | ;
+//!     momentum      | Real(0.7, 0.99, Uniform)  | ;
+//!     weight_decay  | Real(0.0, 0.01, Uniform)  | ;
+//! );
+//! ```
+//!
+//! ### Example 2: Heterogeneous Objective Domains
+//! ```ignore
+//! hpo!(
+//!     num_layers | Nat(1, 10, Uniform)                       | ;
+//!     dropout    | Real(0.0, 0.5, Uniform)                   | ;
+//!     activation | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
+//! );
+//! // ObjType = Mixed (contains Nat, Real, Cat variants)
+//! ```
+//!
+//! ### Example 3: Different Optimizer and Objective Domains
+//! ```ignore
+//! hpo!(
+//!     layer_size    | Nat(10, 512, Uniform)    | Real(0.0, 1.0, Uniform) ;
+//!     learning_rate | Real(1e-5, 0.1, Uniform) |                         ;
+//!     depth         | Nat(1, 100, Uniform)     | Real(0.0, 1.0, Uniform) ;
+//! );
+//! ```
+//!
+//! ### Example 4: Vector Parameters with Replication
+//! ```ignore
+//! hpo!(
+//!     decay_layer{3}   | Real(0, 1.0, Uniform) | ;
+//!     dropout_layer{4} | Real(0, 1.0, Uniform) | ;
+//! );
+//! // Total: 3 + 4 = 7 variables
+//! ```
+//!
+//! ## Type System
+//!
+//! The macro generates type aliases that track the domain structure:
+//!
+//! ```ignore
+//! pub type ObjType = Mixed;  // or SingleDomainType
+//! pub type OptType = Mixed;  // or SingleDomainType
+//! ```
+//!
+//! These types are used throughout the generated `get_searchspace()` function:
+//!
+//! ```ignore
+//! pub fn get_searchspace() -> tantale::core::searchspace::Sp<ObjType, OptType> {
+//!     // ... implementation ...
+//! }
+//! ```
+//!
+//! The resultant `Sp<ObjType, OptType>` is a `Searchspace` containing all variables.
+
 extern crate proc_macro;
 
 use std::collections::HashSet;
@@ -6,14 +197,20 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    Expr, Ident, LitInt, Token, braced,
-    parse::Parse,
-    parse_macro_input,
-    punctuated::Punctuated,
+    Expr, Ident, LitInt, Token, braced, parse::Parse, parse_macro_input, punctuated::Punctuated,
     spanned::Spanned,
 };
 
-// Parse name_{usize}
+/// Parses the variable name and optional repetition count.
+///
+/// Matches patterns like:
+/// - `var_name`: Simple variable name
+/// - `var_name{10}`: Variable name with replication count
+///
+/// # Fields
+///
+/// * `id` - The variable name identifier
+/// * `litint` - Optional replication count (numeric suffix for array expansion)
 pub struct Identifier {
     pub id: Ident,
     pub litint: Option<LitInt>,
@@ -55,7 +252,15 @@ impl Parse for Identifier {
     }
 }
 
-// Parse DOMAIN(ARGS) => SAMPLER
+/// Represents a domain specification parsed from the macro syntax.
+///
+/// Captures a domain type invocation like `Real(0.0, 1.0, Uniform)` or `Cat(["a", "b"], Uniform)`.
+///
+/// # Fields
+///
+/// * `args` - The comma-separated arguments to the domain constructor
+/// * `ty` - The domain type identifier (Real, Nat, Int, Bool, Cat, Unit, etc.)
+/// * `is_nodomain` - Flag indicating if this is a placeholder NoDomain
 #[derive(Clone)]
 pub struct DomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
@@ -63,6 +268,10 @@ pub struct DomainToken {
     pub is_nodomain: bool,
 }
 
+/// A domain specification that may be empty (for optional optimizer domain).
+///
+/// Used to handle cases where the optimizer domain is omitted,
+/// defaulting to use the objective domain.
 pub enum DomainStream {
     DomainToken(DomainToken),
     None,
@@ -85,13 +294,26 @@ impl Parse for DomainStream {
     }
 }
 
+/// A fully-resolved domain token used in the parsed variable.
+///
+/// Unlike `DomainToken`, this always contains valid domain information
+/// and may indicate a NoDomain for the optimizer.
 pub struct FullDomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
     pub is_nodomain: bool,
 }
 
-// Parse Identifier | DomainStream | DomainStream
+/// A complete parsed variable definition line from the `hpo!` macro.
+///
+/// Represents one full line of the macro, containing the variable name,
+/// and both objective and optimizer domain specifications.
+///
+/// # Fields
+///
+/// * `name_part` - The variable name and optional replication count
+/// * `obj_part` - The objective domain specification
+/// * `opt_part` - The optimizer domain specification (may be NoDomain)
 pub struct LineStream {
     pub name_part: Identifier,
     pub obj_part: FullDomainToken,
@@ -143,6 +365,9 @@ impl Parse for LineStream {
     }
 }
 
+/// Intermediate representation of a variable during macro expansion.
+///
+/// Collects all information parsed from one `hpo!` variable definition line.
 struct VarInfo {
     name: Ident,
     repeats: Option<LitInt>,
@@ -152,6 +377,11 @@ struct VarInfo {
     args_opt: Punctuated<Expr, syn::token::Comma>,
     is_nodomain: bool,
 }
+
+/// Processed variable information ready for code generation.
+///
+/// Contains the final domain type tokens and replication information
+/// needed to generate the searchspace code.
 struct WrappedVarInfo {
     name: String,
     repeats: Option<usize>,
@@ -168,6 +398,18 @@ type ParsedSpOut = (
     Vec<usize>,                              // Vec of repeats for each var,
 );
 
+/// Parses all variable definitions and generates searchspace components.
+///
+/// This is the core macro expansion function that:
+/// 1. Validates all variables have unique names
+/// 2. Determines if Mixed domains are needed (heterogeneous types)
+/// 3. Generates code to create Var instances
+/// 4. Handles variable replication
+///
+/// # Returns
+///
+/// * `Ok` - Tuple containing domain identifiers and variable generation code
+/// * `Err` - Parse error with diagnostic information
 pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     // Obj type vec
     let mut tobj_vec: Vec<proc_macro2::Ident> = Vec::new();
@@ -356,6 +598,37 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     ))
 }
 
+/// Generates the complete Rust code for the searchspace.
+///
+/// Creates the public API that users interact with:
+/// - Type aliases for ObjType and OptType
+/// - The `get_searchspace()` function that returns a Sp<ObjType, OptType>
+///
+/// # Arguments
+///
+/// * `ident_mixed_obj` - The objective domain type identifier
+/// * `ident_mixed_opt` - The optimizer domain type identifier
+/// * `push_statements` - Generated code to push Var instances to the variables vector
+///
+/// # Returns
+///
+/// * `Ok` - TokenStream with complete searchspace implementation
+/// * `Err` - Token generation error
+///
+/// # Generated Output
+///
+/// ```ignore
+/// use tantale::core::domain::{Mixed, MixedTypeDom, Domain, NoDomain, onto::Onto};
+///
+/// pub type ObjType = /* ident_mixed_obj */;
+/// pub type OptType = /* ident_mixed_opt */;
+///
+/// pub fn get_searchspace() -> tantale::core::searchspace::Sp<ObjType, OptType> {
+///     let mut variables: Vec<Var<ObjType, OptType>> = Vec::new();
+///     // ... all push_statements ...
+///     Sp { var: variables.into() }
+/// }
+/// ```
 pub fn get_sp_tokens(
     ident_mixed_obj: proc_macro2::Ident,
     ident_mixed_opt: proc_macro2::Ident,
@@ -380,6 +653,22 @@ pub fn get_sp_tokens(
     .into())
 }
 
+/// Entry point for the `hpo!` procedural macro.
+///
+/// This function is invoked automatically by the procedural macro system.
+///
+/// 1. Parse input as a punctuated list of LineStream (separated by `;`)
+/// 2. Extract the underlying LineStream vectors
+/// 3. Call `parse_sp()` to validate and generate variable code
+/// 4. Call `get_sp_tokens()` to generate the final Rust code
+///
+/// # Arguments
+///
+/// * `input` - Raw proc_macro TokenStream from the `hpo!` macro invocation
+///
+/// # Returns
+///
+/// * TokenStream with the generated searchspace code
 pub fn hpo(input: TokenStream) -> TokenStream {
     let lines = parse_macro_input!(
         input with Punctuated::<LineStream,Token![;]>::parse_terminated

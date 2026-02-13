@@ -6,7 +6,7 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
-    Mixed, BasePartial, EmptyInfo, SId, Solution, searchspace::Searchspace, solution::HasId,
+    BasePartial, EmptyInfo, Mixed, SId, Solution, searchspace::Searchspace, solution::HasId,
 };
 
 macro_rules! get_test {

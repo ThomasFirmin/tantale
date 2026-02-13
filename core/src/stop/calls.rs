@@ -10,17 +10,15 @@ use serde::{Deserialize, Serialize};
 pub struct Calls(pub usize, pub usize);
 
 impl Stop for Calls {
-    fn init(&mut self) {
-        self.1 = 0;
-    }
+    fn init(&mut self) {} // No initialization needed
 
     fn stop(&self) -> bool {
         self.0 >= self.1
     }
 
-    /// Update the number of calls with a new [`ExpStep`], incrementing the counter if the step is a fully [`Evaluated`](crate::objective::Step::Evaluated) 
+    /// Update the number of calls with a new [`ExpStep`], incrementing the counter if the step is a fully [`Evaluated`](crate::objective::Step::Evaluated)
     /// or [`Discard`](crate::objective::Step::Discard) evaluation. Other steps do not update the counter.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use tantale::core::{objective::Step, stop::{Calls, ExpStep}};
@@ -48,10 +46,10 @@ impl Calls {
     pub fn calls(&self) -> usize {
         self.0
     }
-    
+
     /// Increase the call counter by a given amount.
     /// This can be used to extend the call limit of a run.
     pub fn add(&mut self, count: usize) {
-        self.0 += count;
+        self.1 += count;
     }
 }

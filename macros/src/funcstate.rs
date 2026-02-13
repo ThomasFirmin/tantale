@@ -10,7 +10,8 @@ pub fn proc_fnstate(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let egenerics = input.generics;
     let ewhere = &egenerics.where_clause;
 
-    quote!{
+    quote! {
         impl #egenerics tantale::core::FuncState for #eident #egenerics #ewhere {}
-    }.into()
+    }
+    .into()
 }

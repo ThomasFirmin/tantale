@@ -1,5 +1,8 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, stop::Calls
+    CSVRecorder, FolderConfig, MessagePack, SaverConfig,
+    experiment::{Runable, mono, threaded},
+    load,
+    stop::Calls,
 };
 
 use tantale_algos::{BatchRandomSearch, random_search::RandomSearch};
@@ -56,7 +59,7 @@ pub fn run_reader(path: &str, size: usize) {
     assert_eq!(count_out, size, "Some solutions are missing in out.");
 }
 
-pub fn run_reader_eps(path: &str, size: usize, epsilon:usize) {
+pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("recorder"));
     let path_obj = eval_path.join("obj.csv");
@@ -86,14 +89,33 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon:usize) {
 
     let linesobj = rdr_obj.records();
     linesobj.for_each(|l| println!("{:?}", l));
-    assert!((count_obj >= size) && (count_obj < size + epsilon), "Some solutions are missing in obj.");
-    assert!((count_opt >= size) && (count_opt < size + epsilon), "Some solutions are missing in opt.");
-    assert!((count_cod >= size) && (count_cod < size + epsilon), "Some solutions are missing in cod.");
-    assert!((count_info >= size) && (count_info < size + epsilon), "Some solutions are missing in info.");
-    assert!((count_out >= size) && (count_out < size + epsilon), "Some solutions are missing in out.");
-    assert!([count_opt,count_cod,count_info,count_out].iter().all(|c| c == &count_obj), "Not all counts are equal. Some solutions are missing within at least one save file");
+    assert!(
+        (count_obj >= size) && (count_obj < size + epsilon),
+        "Some solutions are missing in obj."
+    );
+    assert!(
+        (count_opt >= size) && (count_opt < size + epsilon),
+        "Some solutions are missing in opt."
+    );
+    assert!(
+        (count_cod >= size) && (count_cod < size + epsilon),
+        "Some solutions are missing in cod."
+    );
+    assert!(
+        (count_info >= size) && (count_info < size + epsilon),
+        "Some solutions are missing in info."
+    );
+    assert!(
+        (count_out >= size) && (count_out < size + epsilon),
+        "Some solutions are missing in out."
+    );
+    assert!(
+        [count_opt, count_cod, count_info, count_out]
+            .iter()
+            .all(|c| c == &count_obj),
+        "Not all counts are equal. Some solutions are missing within at least one save file"
+    );
 }
-
 
 #[test]
 fn test_fid_batch_run() {
@@ -114,12 +136,11 @@ fn test_fid_batch_run() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader_eps("tmp_test_fidbatchrun", 264,20);
+    run_reader_eps("tmp_test_fidbatchrun", 264, 20);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
-
 
     let config = FolderConfig::new("tmp_test_fidbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -131,7 +152,10 @@ fn test_fid_batch_run() {
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert!((expoptimizer.0.iteration >= 39) && (expoptimizer.0.iteration <= 41), "Number of iteration is wrong");
+    assert!(
+        (expoptimizer.0.iteration >= 39) && (expoptimizer.0.iteration <= 41),
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
     exp.run();
@@ -140,13 +164,12 @@ fn test_fid_batch_run() {
     let obj = sp_evaluator_fid::get_function();
     let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
 
-
     let config = FolderConfig::new("tmp_test_fidbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    run_reader_eps("tmp_test_fidbatchrun", 524,20);
+    run_reader_eps("tmp_test_fidbatchrun", 524, 20);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
@@ -189,7 +212,6 @@ fn test_fid_batch_parrun() {
     let obj = sp_evaluator_fid::get_function();
     let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
 
-
     let config = FolderConfig::new("tmp_test_fidbatchparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
@@ -208,7 +230,6 @@ fn test_fid_batch_parrun() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let cod = BatchRandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
-
 
     let config = FolderConfig::new("tmp_test_fidbatchparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -254,7 +275,6 @@ fn test_fid_seq_run() {
     let obj = sp_evaluator_fid::get_function();
     let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
 
-
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
@@ -262,15 +282,14 @@ fn test_fid_seq_run() {
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
 
     exp.run();
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
-
 
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -279,32 +298,12 @@ fn test_fid_seq_run() {
     let exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_fidseqrun", 500);
     let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 
     drop(Cleaner {
         path: String::from("tmp_test_fidseqrun"),
     });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn test_fid_thr_seq_run() {
@@ -323,7 +322,7 @@ fn test_fid_thr_seq_run() {
 
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
-    run_reader_eps("tmp_test_fidthrseqrun", 250,249);
+    run_reader_eps("tmp_test_fidthrseqrun", 250, 249);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -336,15 +335,14 @@ fn test_fid_thr_seq_run() {
     let mut exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
 
     exp.run();
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
-
 
     let config = FolderConfig::new("tmp_test_fidthrseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -353,7 +351,7 @@ fn test_fid_thr_seq_run() {
     let exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader_eps("tmp_test_fidthrseqrun", 500, 249);
     let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 
     drop(Cleaner {
         path: String::from("tmp_test_fidthrseqrun"),

@@ -137,12 +137,12 @@ impl Onto<Real> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Real`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Real`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -185,12 +185,12 @@ impl Onto<Nat> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Nat`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Nat`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -233,12 +233,12 @@ impl Onto<Int> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Int`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Int`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -281,12 +281,12 @@ impl Onto<Unit> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Unit`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Unit`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -328,12 +328,12 @@ impl Onto<Bool> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Bool`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Bool`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -377,12 +377,12 @@ impl Onto<Cat> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and a [`Cat`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Cat`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -426,12 +426,12 @@ impl Onto<Mixed> for Mixed {
     /// [`Onto`] function between a [`Mixed`] and another [`Mixed`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
     /// * `target` - A borrowed targetted [`Mixed`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]

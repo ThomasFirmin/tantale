@@ -11,10 +11,10 @@
 //! Following Tantale's dual domain architecture, there are two types of solutions:
 //! - **Obj solutions**: In the objective function's domain
 //! - **Opt solutions**: In the optimizer's domain
-//! 
+//!
 //! [`Twin`](Solution::twin) [`Solution`] are wrapped within a [`SolutionShape`] to maintain the relationship and bounds between both
 //! generated `Obj` and `Opt` [`Solution`]s.
-//! 
+//!
 //! Each solution is statically typed by its corresponding [`Domain`].
 //!
 //! ### Solution Components
@@ -168,38 +168,38 @@ pub trait HasInfo<Info: OptInfo> {
 pub trait HasStep {
     /// Returns the current evaluation [`Step`].
     fn step(&self) -> Step;
-    
+
     /// Returns the raw internal evaluation [`EvalStep`].
     fn raw_step(&self) -> EvalStep;
-    
+
     /// Sets the evaluation state directly via a raw [`EvalStep`].
     fn set_step(&mut self, value: EvalStep);
-    
+
     /// Marks the solution as pending evaluation.
     ///
     /// Sets the state to [`Pending`](Step::Pending), indicating the solution
     /// has not yet been evaluated.
     fn pending(&mut self);
-    
+
     /// Marks the solution as partially evaluated to a specific step.
     ///
     /// # Parameters
     ///
     /// * `value` - The step number reached (non-negative)
     fn partially(&mut self, value: isize);
-    
+
     /// Marks the solution for discard.
     ///
     /// Sets the state to [`Discard`](Step::Discard), indicating the solution
     /// should be rejected without further evaluation (e.g., early stopping).
     fn discard(&mut self);
-    
+
     /// Marks the solution as fully evaluated.
     ///
     /// Sets the state to [`Evaluated`](Step::Evaluated), indicating the solution
     /// has been completely evaluated at the highest fidelity.
     fn evaluated(&mut self);
-    
+
     /// Marks the solution as having encountered an error during evaluation.
     ///
     /// Sets the state to [`Error`](Step::Error), indicating evaluation failed.
@@ -216,7 +216,7 @@ pub trait HasStep {
 pub trait HasFidelity {
     /// Returns the current fidelity level.
     fn fidelity(&self) -> Fidelity;
-    
+
     /// Sets the fidelity level for this solution.
     fn set_fidelity(&mut self, fidelity: Fidelity);
 }
@@ -259,7 +259,7 @@ where
     ///
     /// This type is determined by the [TypeDom](Domain::TypeDom) from the solution's [`Domain`].
     type Raw: Debug + Serialize + for<'de> Deserialize<'de>;
-    
+
     /// Twin solutions share the same [`Id`] but exist in different domains,
     /// enabling transformations between Obj and Opt representations.
     type Twin<B: Domain>: Solution<SolId, B, SInfo, Twin<Dom> = Self>;
@@ -275,7 +275,7 @@ where
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, SInfo>>::Raw,
     ) -> Self::Twin<B>;
-    
+
     /// Returns the raw values for this solution.
     ///
     /// This is the actual sampled point from the domain, represented in the
@@ -290,7 +290,7 @@ where
 pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
     /// The uncomputed solution type contained within.
     type Uncomputed: Uncomputed<SolId, Dom, SInfo>;
-    
+
     /// Returns a reference to the contained uncomputed solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed;
 }
@@ -333,7 +333,7 @@ where
     /// Unlike [`Twin`](Solution::Twin), this always produces an [`Uncomputed`] solution,
     /// preserving the uncomputed status across domain transformations.
     type TwinUC<B: Domain>: Uncomputed<SolId, B, SInfo, Twin<Dom> = Self, TwinUC<Dom> = Self>;
-    
+
     /// Creates an uncomputed twin solution in a different domain.
     ///
     /// # Type Parameters
@@ -351,7 +351,7 @@ where
         &self,
         x: <Self::TwinUC<B> as Solution<SolId, B, SInfo>>::Raw,
     ) -> Self::TwinUC<B>;
-    
+
     /// Creates a new uncomputed solution with specified values.
     ///
     /// # Parameters
@@ -366,7 +366,7 @@ where
     fn new<T>(id: SolId, x: T, info: Arc<SInfo>) -> Self
     where
         T: Into<Self::Raw>;
-    
+
     /// Creates a placeholder uncomputed solution with default/zero values.
     ///
     /// Useful for initializing data structures before filling them with actual solutions.
@@ -380,7 +380,7 @@ where
     ///
     /// An uncomputed solution with default values.
     fn default(info: Arc<SInfo>, size: usize) -> Self;
-    
+
     /// Creates a vector of placeholder uncomputed solutions.
     ///
     /// Batch version of [`default`](Uncomputed::default) for initializing collections.
@@ -422,7 +422,7 @@ pub trait IntoComputed: Sized {
     ///
     /// This type must implement [`HasY`] to provide access to the objective function output.
     type Computed<Cod: Codomain<Out>, Out: Outcome>: HasY<Cod, Out>;
-    
+
     /// Converts this uncomputed solution into a computed one with an objective value.
     ///
     /// # Type Parameters
@@ -441,7 +441,7 @@ pub trait IntoComputed: Sized {
         self,
         y: Arc<Cod::TypeCodom>,
     ) -> Self::Computed<Cod, Out>;
-    
+
     /// Extracts the uncomputed solution and objective value from a computed solution.
     ///
     /// This is the inverse operation of [`into_computed`](IntoComputed::into_computed),

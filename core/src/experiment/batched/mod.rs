@@ -5,9 +5,9 @@
 //! For threaded and distributed experiments, batches are still evaluated sequentially, but
 //! [`Uncomputed`](crate::Uncomputed) solutions within each batch are evaluated in parallel
 //! using multiple threads or distributed processes.
-//! 
+//!
 //! # Parallelization philosophy
-//! 
+//!
 //! * For [batched experiments](crate::experiment::batched) : a batch should be evaluated as quickly as possible, using all available ressources.
 //!   Evaluation times for each solution in the batch are expected to be similar.
 //!   * Mono-threaded: [`MonoExperiment`](crate::MonoExperiment).
@@ -21,7 +21,6 @@
 //!   * Distributed: [`MPIExperiment`](crate::MPIExperiment).
 //!   * Threaded: [`ThrExperiment`](crate::ThrExperiment).
 //!   * Distributed + Threaded: Not yet implemented.
-
 
 pub mod batchevaluator;
 pub mod batchfidevaluator;

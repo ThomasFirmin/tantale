@@ -525,7 +525,7 @@ where
 {
     type SolObj = SolObj;
     type SolOpt = SolObj;
-    
+
     fn get_sobj(&self) -> &Self::SolObj {
         &self.0
     }

@@ -30,9 +30,9 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        mixed::{Mixed, MixedTypeDom},
         bool::Bool,
         cat::Cat,
+        mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
     },
@@ -199,12 +199,12 @@ where
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Bounded<Out>>;
     /// [`Onto`] function between a [`Bounded`] and another [`Bounded`] [`Domain`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -250,12 +250,12 @@ where
     ///
     /// Considering $l_{in}$ and $u_{in}$ the lower and upper bounds of
     /// the input [`Bounded`] [`Domain`], and $x$ the `item`, returns `true` if $x>\frac{u_{in}-l_{in}}{2}$
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -300,7 +300,7 @@ where
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Cat`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -343,18 +343,18 @@ where
     /// the mapping is given by
     ///
     /// $$ \frac{x-l_{in}}{u_{in}-l_{in}}$$
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
-    /// 
+    ///
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
@@ -386,12 +386,12 @@ where
     type Item = TypeDom<Bounded<In>>;
     type TargetItem = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Mixed`][`Domain`].
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]

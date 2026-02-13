@@ -100,7 +100,7 @@ use crate::{experiment::mpi::utils::MPIProcess, recorder::DistRecorder};
 /// `H` is the type of an element used to generate the header
 /// used when the header does not depend on the value to write.
 /// While `C` is the type of the value to write.
-/// 
+///
 /// For instance, [`Codomain`](crate::Codomain) implements this trait
 /// by using itself as `H` (to generate the header columns depending on
 /// the codomain definition), and write its associated [`TypeCodom`](crate::Codomain::TypeCodom) as `C`.
@@ -127,7 +127,7 @@ pub trait CSVLeftRight<H, L, R> {
 /// CSV writer for [`SolutionShape`]s, describing how to write the solution components within a CSV file.
 /// A [`SolutionShape`] is decomposed into an objective-side part and an optimizer-side part, which are written separately.
 /// The [`Searchspace`], defining the structure of a [`Solution`],
-///  is used to generate the header and row columns for both parts, while the [`Solution`] are used 
+///  is used to generate the header and row columns for both parts, while the [`Solution`] are used
 /// to generate the row columns for their respective part.
 pub trait SolCSVWrite<PartOpt, SolId, SInfo>: Searchspace<PartOpt, SolId, SInfo>
 where
@@ -240,7 +240,7 @@ where
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
     /// Header row columns: `SolId` fields followed by the searchspace columns.
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
     /// ```text
@@ -255,7 +255,7 @@ where
     }
 
     /// Header row columns: `SolId` fields followed by the searchspace columns.
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
     /// ```text
@@ -270,7 +270,7 @@ where
     }
 
     /// Row columns: `SolId` fields followed by objective-side searchspace values.
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
     /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
@@ -291,7 +291,7 @@ where
         wrt_local.flush().unwrap();
     }
     /// Row columns: `SolId` fields followed by optimizer-side searchspace values.
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
     /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
@@ -323,7 +323,7 @@ where
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
     /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
     /// ```text
@@ -342,7 +342,7 @@ where
     }
 
     /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
     /// ```text
@@ -361,7 +361,7 @@ where
     }
 
     /// Row columns: `SolId` fields, objective-side searchspace values, then [`Step`] and [`Fidelity`].
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
     /// the row could be:
@@ -383,7 +383,7 @@ where
         wrt_local.flush().unwrap();
     }
     /// Row columns: `SolId` fields, optimizer-side searchspace values, then [`Step`] and [`Fidelity`].
-    /// 
+    ///
     /// # Example
     /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
     /// the row could be:
@@ -587,7 +587,7 @@ where
     }
 }
 
-/// Describes how to write a [`Batch`] of [`Computed`](crate::Computed) [`SolShape`](crate::SolShape), 
+/// Describes how to write a [`Batch`] of [`Computed`](crate::Computed) [`SolShape`](crate::SolShape),
 /// and associated metadata within CSV files.
 pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
 where

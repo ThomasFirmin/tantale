@@ -20,7 +20,7 @@ use crate::{MPI_RANK, MPI_SIZE};
 use mpi::{environment::Universe, topology::SimpleCommunicator};
 
 /// Structure holding MPI-related information about the current process.
-/// 
+///
 /// # Fields
 /// * `universe`: The MPI [`Universe`].
 /// * `world`: The MPI world [`SimpleCommunicator`].
@@ -76,9 +76,9 @@ where
 {
     /// Serialize the message into a byte vector using the provided bincode [`Configuration`].
     /// It uses [`bincode`].
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use tantale::core::experiment::mpi::utils::Msg;
     /// use bincode::config::standard;
@@ -95,9 +95,9 @@ where
     }
     /// Deserialize a message from a byte vector encoded via [`to_bytes`](Msg::to_bytes)
     /// using the provided bincode [`Configuration`]. It uses [`bincode`].
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use tantale::core::experiment::mpi::utils::Msg;
     /// use bincode::config::standard;
@@ -261,7 +261,6 @@ impl IdleWorker {
         self.idle.iter_zeros()
     }
 }
-
 
 /// A structure allowing to send and receive messages to/from [`Worker`](crate::Worker)s.
 /// It holds the current configuration, the MPI process, an [`IdleWorker`] to track idle workers,

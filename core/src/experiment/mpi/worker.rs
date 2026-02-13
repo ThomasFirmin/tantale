@@ -19,9 +19,9 @@ use std::collections::HashMap;
 /// Describes a [`Worker`] used in an MPI-distributed experiment ([`MPIExperiment)`](crate::MPIExperiment)).
 /// A [`Worker`] is mostly used to evaluate [`Uncomputed`](crate::solution::Uncomputed)
 /// [`Raw`](crate::Solution::Raw) solutions.
-/// 
+///
 /// It has an associated [`WorkerState`] type, allowing to store internal state information
-/// during the evaluation process. Allowing per-[`Worker`] checkpointing 
+/// during the evaluation process. Allowing per-[`Worker`] checkpointing
 /// via [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
 pub trait Worker<SolId: Id> {
     type WState: WorkerState;
@@ -93,7 +93,7 @@ where
     /// It waits for messages from the master process (rank 0),
     /// computes the corresponding outputs with the given [`Objective`],
     /// and sends back the results to the master process.
-    /// 
+    ///
     /// If the received message has a tag of `42`, the worker exits the loop and terminates.
     /// Otherwise, it processes the received [`Raw`](crate::Solution::Raw) as an [`XMessage`], computes the output,
     /// and sends back an [`OMessage`] containing the results.
@@ -185,7 +185,7 @@ where
     /// and sends back the results to the master process.
     /// It is able to recover [`FuncState`] from previous [`Step`]s of [`Step::Partially`] [`Uncomputed`](crate::solution::Uncomputed) solutions
     /// evaluated within this [`Worker`].
-    /// 
+    ///
     /// If the received message has a tag of `42`, the worker exits the loop and terminates.
     /// If the tag is `104`, it discards the internal state associated with the given solution [`Id`].
     /// If the tag is `7`, it checkpoints its internal state using the provided [`WorkerCheckpointer`].

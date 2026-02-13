@@ -786,7 +786,6 @@ dependencies = [
  "mpi",
  "num",
  "num_cpus",
- "paste",
  "rand",
  "rayon",
  "rmp-serde",

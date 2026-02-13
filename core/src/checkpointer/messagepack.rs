@@ -1,7 +1,7 @@
 use crate::{
     FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
     checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer},
-    experiment::{Evaluate},
+    experiment::Evaluate,
     optimizer::OptState,
     stop::Stop,
 };
@@ -23,7 +23,7 @@ use crate::{
 use mpi::{Rank, traits::CommunicatorCollectives};
 
 /// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
-/// 
+///
 /// # Attribute
 /// * `config` : [`FolderConfig`] - Describes the folder hierarchy.
 ///
@@ -252,9 +252,9 @@ impl ThrCheckpointer for MessagePack {
 
     /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    /// 
-    /// # Note 
-    /// 
+    ///
+    /// # Note
+    ///
     /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
     /// involved in previous computions.
     /// The number of [`Evaluate`] checkpoints might vary according to how many
@@ -297,9 +297,9 @@ impl ThrCheckpointer for MessagePack {
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    /// 
-    /// # Note 
-    /// 
+    ///
+    /// # Note
+    ///
     /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
     /// involved in previous computions.
     /// The number of [`Evaluate`] checkpoints might vary according to how many
@@ -387,15 +387,15 @@ impl ThrCheckpointer for MessagePack {
     }
 
     /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
-    /// 
-    /// # Note 
-    /// 
+    ///
+    /// # Note
+    ///
     /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
     /// involved in previous computions.
     /// The number of [`Evaluate`] checkpoints might vary according to how many
     /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
     /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
-    /// 
+    ///
     /// # Panic
     /// If no [`Evaluate`] checkpoint was found, then [`panic!`].
     fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
@@ -458,12 +458,12 @@ impl DistCheckpointer for MessagePack {
 
     /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
     /// creates the folder hierarchy based on [`FolderConfig`].
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution. The Master creates
     /// and cheks the folder hierarchy. Then, once done, waits for all workers to reach the same point,
-    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier). 
+    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
     fn init_dist(&mut self, proc: &MPIProcess) {
         if self.config.is_dist {
             let does_exist = self.config.path_check.try_exists().unwrap();
@@ -492,9 +492,9 @@ impl DistCheckpointer for MessagePack {
 
     /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    /// 
+    ///
     /// /// # Note
-    /// 
+    ///
     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
     /// The Master checks the folder hierarchy, if some files or folder are missing, then [`panic!`].
     /// Then, once done, it waits for all workers to reach the same point,
@@ -707,9 +707,9 @@ impl WCheckMessagePack {
 #[cfg(feature = "mpi")]
 impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     /// Checks if folders and files already exists, if so [`panic!`] for [WorkerCheckpointer].
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
     /// The [`Worker`](crate::Worker) wait for the Master to create and check the folder hierarchy,
     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
@@ -725,9 +725,9 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     }
     /// Ran after [`init`](WorkerCheckpointer::init), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
     /// The [`Worker`](crate::Worker) wait for the Master to check the folder hierarchy,
     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).

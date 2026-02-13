@@ -4,14 +4,14 @@
 //! traits and types from the [`opt`] submodule.
 //!
 //! The [`Optimizer`] combined with [`Objective`](crate::Objective) and [`Searchspace`](crate::Searchspace) defines the core optimization loop:
-//! 
-//! $$ x^\star \in \arg\min_{x \in \mathcal{X}} f(x)\enspace, $$ 
-//! where: 
-//! * $x^\star$ is the optimal [`Solution`](crate::Solution), or the best-solution 
+//!
+//! $$ x^\star \in \arg\min_{x \in \mathcal{X}} f(x)\enspace, $$
+//! where:
+//! * $x^\star$ is the optimal [`Solution`](crate::Solution), or the best-solution
 //!   so-far found by the [`Optimizer`](crate::Optimizer)
 //! * $\mathcal{X}$ is the [`Searchspace`](crate::Searchspace)
 //! * $f$ is the user-define function wrapped in [`Objective`](crate::Objective) or [`Stepped`](crate::Stepped)
-//! 
+//!
 //! ## Overview
 //!
 //! Optimizers are responsible for proposing new candidate solutions and updating their
@@ -45,6 +45,4 @@
 //!
 //! See the [`opt`] submodule for trait definitions and details.
 pub mod opt;
-pub use opt::{
-    BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer,
-};
+pub use opt::{BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer};

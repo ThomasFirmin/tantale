@@ -17,7 +17,7 @@
 //!
 //! assert_eq!(sp.var.len(), 2);
 //! ```
-//! 
+//!
 //! # Example: convert to [`SpPar`](crate::SpPar)
 //! ```
 //! use tantale::core::{Sp, SpPar, Var, Real, Unit, Uniform};

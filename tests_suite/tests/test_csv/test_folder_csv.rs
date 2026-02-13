@@ -3,7 +3,7 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
-    Mixed, MixedTypeDom, Codomain, FolderConfig, SId, Searchspace, Solution, Sp,
+    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::{
         Recorder,

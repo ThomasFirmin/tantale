@@ -32,7 +32,6 @@ use crate::{
     solution::shape::{SolObj, SolOpt},
 };
 
-
 /// Fidelity and Step aware [`BatchEvaluator`](crate::experiment::BatchEvaluator) for evaluating batches of solutions.
 /// It holds a [`Batch`] of [`Uncomputed`] [`SolutionShape`] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
 /// It implements the [`Evaluate`] and [`MonoEvaluate`] traits.
@@ -128,7 +127,7 @@ where
     ///  - If `Pending`, it computes the outcome without any saved [`FuncState`].
     ///  - If `Partially`, it retrieves the saved [`FuncState`] and continues the computation.
     ///  - For other steps ([`Step::Discard`],[Step::Error],[`Step::Evaluated`]), it updates the stop condition and removes any saved state.
-    /// 
+    ///
     /// It returns a tuple containing:
     ///  - A [`Batch`] of [`Computed`](crate::Computed) solutions.
     ///  - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
@@ -200,7 +199,6 @@ where
 //----------------//
 //--- THREADED ---//
 //----------------//
-
 
 /// [`FidThrBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a multi-threaded way.
 /// It holds a thread-safe [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
@@ -303,11 +301,11 @@ where
     ///   It returns a tuple containing:
     /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
     /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    ///   if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing.
     /// * The order of solutions in the returned batches
     ///   may not correspond to the order in the original batch, due to the asynchronous nature of multi-threaded evaluations.
     /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,
@@ -393,7 +391,7 @@ where
 /// [`FidDistBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a distributed (MPI) way.
 /// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
 /// It implements the [`Evaluate`] and [`DistEvaluate`] traits.
-/// It keeps track of the location of each solution [`Id`] across different MPI ranks in a [`HashMap`], 
+/// It keeps track of the location of each solution [`Id`] across different MPI ranks in a [`HashMap`],
 /// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
 /// [`Step::Discard`] are processed first, as it is fast to process.
 /// Then, [`Step::Partially`] are processed to continue their evaluation.
@@ -438,7 +436,7 @@ where
     /// - If `Pending`, it is added to the `new_batch`.
     /// - If `Partially`, it is added to the `priority_resume` list according to its rank located by `where_is_id`.
     /// - If `Discard`, it is added to the `priority_discard` list according to its rank located by `where_is_id`.
-    pub fn add(&mut self, pair: Shape) {    
+    pub fn add(&mut self, pair: Shape) {
         let step = pair.step();
         match step {
             Step::Pending => self.new_batch.add(pair),
@@ -603,11 +601,11 @@ where
     ///   It returns a tuple containing:
     /// - A [`Batch`] of [`Computed`](crate::Computed) solutions.
     /// - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// * After each evaluation, the `stop` condition is updated. So, the whole batch may not be evaluated
-    ///   if the `stop` condition is met before finishing. 
+    ///   if the `stop` condition is met before finishing.
     /// * The order of solutions in the returned batches
     ///   may not correspond to the order in the original batch, due to the asynchronous nature of MPI distributed evaluations.
     /// * Depending on the [`Stop`] implementation, some thread may still be computing solutions when the stop condition is met,

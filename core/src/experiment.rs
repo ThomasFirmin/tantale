@@ -49,19 +49,19 @@
 //!   Y             Y
 //! Loop       Terminate
 //! ```
-//! 
+//!
 //! ## Note
-//! 
-//! This workflow is abstract and can be adapted to different execution contexts (single-threaded, multi-threaded, distributed) 
+//!
+//! This workflow is abstract and can be adapted to different execution contexts (single-threaded, multi-threaded, distributed)
 //! and optimizer paradigms (batch vs sequential). The provided experiment types encapsulate these variations while adhering to the same core principles.
-//! 
+//!
 //! # Experiment Types
 //!
 //! Tantale provides three execution contexts, each tailored to different parallelization strategies:
 //!
-//! ** The following bits of code are mock examples for documentation purposes. 
+//! ** The following bits of code are mock examples for documentation purposes.
 //! They are not meant to be compiled or run as-is, but rather to illustrate the intended usage and API of the experiment module. **
-//! 
+//!
 //! ## 1. [`MonoExperiment`] - Single-Threaded Execution
 //!
 //! Sequential execution in a single thread.
@@ -103,13 +103,13 @@
 //!
 //! ```rust,ignore
 //! use tantale::core::{experiment::{distributed,mpi::MPIProcess}, FolderConfig, MessagePack};
-//! 
+//!
 //! // Initialize MPI process containing rank, communicator...
 //! let mpi_process = MPIProcess::new();
-//! 
+//!
 //! let config = FolderConfig::new("distributed_experiment").init(&mpi_process);
 //! let checkpointer = MessagePack::new(config.clone());
-//! 
+//!
 //! let experiment = distributed(
 //!     &mpi_process,
 //!     (searchspace, codomain),
@@ -146,7 +146,7 @@
 //! Single-shot evaluation: input → output
 //! See the [`objective!`] procedural macro for easy definition.
 //! ```rust,ignore
-//! 
+//!
 //! // This is automatically generated and wrapped with the objective! procedural macro.
 //! fn my_objective(x: &MySolution) -> MyOutcome {
 //!     // Compute and return result
@@ -160,9 +160,9 @@
 //! - Can be evaluated partially and resumed
 //! - Useful for iterative algorithms (e.g., neural network training)
 //! - Enables multi-fidelity optimization strategies
-//! 
+//!
 //! See the [`objective!`] procedural macro for easy definition.
-//! 
+//!
 //! ```rust,ignore
 //! // This is automatically generated and wrapped with the objective! procedural macro.
 //! fn training_step(x: &Solution, state: TrainingState) -> (TrainingOutcome, TrainingState) {
@@ -739,10 +739,10 @@ where
 ///
 /// ```rust,ignore
 /// let mut exp = load!(mono, MyOpt, Calls, (searchspace, codomain), obj, (None, checkpointer));
-/// 
+///
 /// let config = FolderConfig::new("results[`FuncWrapper``] / ").init();
 /// let checkpointer = MessagePack::new(config).unwrap();
-/// 
+///
 /// // Inspect current progress
 /// println!("Completed: {}", exp.get_stop().calls());
 ///
@@ -770,10 +770,10 @@ where
 ///     use tantale::core::stop::Calls;
 ///     
 ///     let mpi_process = MPIProcess::new();
-/// 
+///
 ///     let config = FolderConfig::new("results").init(&mpi_process);
 ///     let checkpointer = MessagePack::new(config).unwrap();
-/// 
+///
 ///     let exp = load!(
 ///         distributed,
 ///         &mpi_process,
@@ -797,7 +797,7 @@ where
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<$Op, $St>($space, $objective, $saver)/// 3. **Update** - 
+        $crate::experiment::mono_load::<$Op, $St>($space, $objective, $saver)/// 3. **Update** -
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::threaded_load::<$Op, $St>($space, $objective, $saver)
@@ -1184,7 +1184,7 @@ where
     /// Called once before the optimization loop begins. Can be used to set up
     /// internal data structures or reset state.
     fn init(&mut self);
-    
+
     /// Evaluates solution(s) using the objective function.
     ///
     /// Takes uncomputed solutions from the evaluator's internal state, evaluates them
@@ -1256,7 +1256,7 @@ where
 {
     /// Initializes the evaluator state.
     fn init(&mut self);
-    
+
     /// Evaluates solution(s) using multiple threads.
     ///
     /// Spawns or coordinates worker threads to evaluate solutions in parallel.
@@ -1335,7 +1335,7 @@ where
 {
     /// Initializes the evaluator state for MPI communication.
     fn init(&mut self);
-    
+
     /// Evaluates solution(s) using distributed MPI workers.
     ///
     /// The master process uses this method to distribute solutions to worker processes,

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::EvalStep;
+use tantale_core::objective::Step;
 use tantale_macros::{FuncState, Outcome};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -39,7 +39,7 @@ pub struct FidOutExample {
     pub bool_v: bool,
     pub neuron: Neuron,
     pub vec: Vec<u64>,
-    pub fid: EvalStep,
+    pub fid: Step,
 }
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -53,10 +53,10 @@ pub struct FidOutUnique {
     pub bool_v: f64,
     pub point: Point,
     pub vec: Vec<f64>,
-    pub fid: EvalStep,
+    pub fid: Step,
 }
 
-#[derive(FuncState,Serialize, Deserialize)]
+#[derive(FuncState, Serialize, Deserialize)]
 pub struct FnState {
     pub state: isize,
 }
@@ -401,7 +401,7 @@ impl PartialEq for OutEvaluator {
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutEvaluator {
     pub obj: f64,
-    pub fid: EvalStep,
+    pub fid: Step,
 }
 
 impl PartialEq for FidOutEvaluator {
@@ -481,7 +481,7 @@ pub mod sp_evaluator_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | !],
@@ -527,7 +527,7 @@ pub mod sp_ms_nosamp_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
@@ -580,7 +580,7 @@ pub mod sp_ms_samp_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
@@ -633,7 +633,7 @@ pub mod sp_ms_samp_right_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
@@ -686,7 +686,7 @@ pub mod sp_ms_noright_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
@@ -739,7 +739,7 @@ pub mod sp_ms_samp_noright_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutExample{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | Real(0.0,1.0, Uniform) !],
@@ -792,7 +792,7 @@ pub mod sp_sm_samp_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0, Uniform)| Real(1000.0,2000.0, Uniform) !],
@@ -841,7 +841,7 @@ pub mod sp_sm_samp_noright_fid {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutUnique{
                     obj: [! j | Real(0.0,1.0, Uniform)| Real(1000.0,2000.0, Uniform) !],

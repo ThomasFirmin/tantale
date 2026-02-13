@@ -1,10 +1,10 @@
 use crate::{
     domain::{
         Domain, PreDomain, TypeDom,
-        mixed::{Mixed, MixedTypeDom},
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         cat::Cat,
+        mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
     },
     errors::OntoError,
@@ -115,7 +115,7 @@ where
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -162,7 +162,7 @@ where
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -197,7 +197,7 @@ impl Onto<Cat> for Unit {
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Cat`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -231,15 +231,15 @@ impl Onto<Mixed> for Unit {
     type Item = TypeDom<Unit>;
     type TargetItem = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Mixed`][`Domain`].
-    /// 
-    /// Considering $x$ the `item`, the mapping is done depending on the target [`Mixed`] [`Domain`] variant 
+    ///
+    /// Considering $x$ the `item`, the mapping is done depending on the target [`Mixed`] [`Domain`] variant
     /// using the inner `d` [`Domain`] using [`Onto::onto`]
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
@@ -298,7 +298,7 @@ where
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
-    /// 
+    ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
