@@ -140,8 +140,8 @@ impl Onto<Real> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Real`] - A borrowed targetted [`Real`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Real`].
     /// 
     /// # Errors
     ///
@@ -188,8 +188,8 @@ impl Onto<Nat> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Nat`] - A borrowed targetted [`Nat`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Nat`].
     /// 
     /// # Errors
     ///
@@ -236,8 +236,8 @@ impl Onto<Int> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Int`] - A borrowed targetted [`Int`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Int`].
     /// 
     /// # Errors
     ///
@@ -284,8 +284,8 @@ impl Onto<Unit> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Unit`].
     /// 
     /// # Errors
     ///
@@ -331,8 +331,8 @@ impl Onto<Bool> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Bool`].
     /// 
     /// # Errors
     ///
@@ -380,8 +380,8 @@ impl Onto<Cat> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Cat`].
     /// 
     /// # Errors
     ///
@@ -429,8 +429,8 @@ impl Onto<Mixed> for Mixed {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`TypeDom<BaseDom>`] - A borrowed point from the [`Mixed`].
-    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// * `item` - A borrowed point from the [`Mixed`].
+    /// * `target` - A borrowed targetted [`Mixed`].
     /// 
     /// # Errors
     ///

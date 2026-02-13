@@ -26,16 +26,16 @@
 //!
 //! ```text
 //! path/
-//! ├── recorder/
-//! │   ├── obj.csv
-//! │   ├── opt.csv
-//! │   ├── info.csv
-//! │   └── out.csv
-//! └── checkpointer/
-//!     ├── state_opt.mp
-//!     ├── state_stp.mp
-//!     ├── state_eval.mp
-//!     └── state_param.mp
+//! |-- recorder/
+//! |   |-- obj.csv
+//! |   |-- opt.csv
+//! |   |-- info.csv
+//! |   |-- out.csv
+//! |-- checkpointer/
+//!     |-- state_opt.mp
+//!     |-- state_stp.mp
+//!     |-- state_eval.mp
+//!     |-- state_param.mp
 //! ```
 //!
 //! With the `mpi` feature enabled, distributed runs can add rank-specific subfolders.

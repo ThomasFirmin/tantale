@@ -9,44 +9,44 @@
 //! An optimization experiment in Tantale follows this general workflow:
 //!
 //! ```text
-//! ┌─────────────────┐
-//! │   Initialize    │  ← Load from checkpoint or start fresh
-//! └────────┬────────┘
-//!          │
-//!          ▼
-//! ┌─────────────────┐
-//! │  Generate       │  ← Optimizer produces candidate solutions
-//! │  Solutions      │
-//! └────────┬────────┘
-//!          │
-//!          ▼
-//! ┌─────────────────┐
-//! │  Evaluate       │  ← Objective function evaluates solutions
-//! │  Objective      │
-//! └────────┬────────┘
-//!          │
-//!          ▼
-//! ┌─────────────────┐
-//! │  Update         │  ← Optimizer updates its internal state
-//! │  Optimizer      │
-//! └────────┬────────┘
-//!          │
-//!          ▼
-//! ┌─────────────────┐
-//! │  Record &       │  ← Save results and checkpoint state
-//! │  Checkpoint     │
-//! └────────┬────────┘
-//!          │
-//!          ▼
-//! ┌─────────────────┐
-//! │  Check Stop     │  ← Evaluate stopping criterion
-//! │  Criterion      │
-//! └────────┬────────┘
-//!          │
-//!     No   │   Yes
-//!   ┌──────┴──────┐
-//!   │             │
-//!   ▼             ▼
+//! -------------------
+//! |   Initialize    |  <- Load from checkpoint or start fresh
+//! -------------------
+//!          |
+//!          Y
+//! -------------------
+//! |  Generate       |  <- Optimizer produces candidate solutions
+//! |  Solutions      |
+//! -------------------
+//!          |
+//!          Y
+//! -------------------
+//! |  Evaluate       |  <- Objective function evaluates solutions
+//! |  Objective      |
+//! -------------------
+//!          |
+//!          Y
+//! -------------------
+//! |  Update         |  <- Optimizer updates its internal state
+//! |  Optimizer      |
+//! -------------------
+//!          |
+//!          Y
+//! -------------------
+//! |  Record &       |  <- Save results and checkpoint state
+//! |  Checkpoint     |
+//! -------------------
+//!          |
+//!          Y
+//! -------------------
+//! |  Check Stop     |  <- Evaluate stopping criterion
+//! |  Criterion      |
+//! -------------------
+//!          |
+//!     No   |   Yes
+//!   ---------------
+//!   |             |
+//!   Y             Y
 //! Loop       Terminate
 //! ```
 //! 

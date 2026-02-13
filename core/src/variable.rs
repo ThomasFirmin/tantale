@@ -1,11 +1,14 @@
-//! A [`Var`] is used to tie together two related [`Domains`](crate::core::domain::Domain).
-//! The one of the [`Objective`](crate::core::objective::Objective) [`Domain`](crate::core::domain::Domain) (`Obj`) function, and the one
-//! of the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`](crate::core::domain::Domain) (`Opt`).
-//! The  [`Var`] struct describes the flexible nature of the relationship.
-//! First, one can define custom [`sampler`](crate::core::domain::sampler) function and link it to a [`Domain`](crate::core::domain::Domain).
-//! Moreover, one can also define custom [`Onto`](crate::core::onto::Onto) functions to map `Opt` onto `Obj`, and conversely.
-//! A [`Var`] is named via a tuple made of a `static` [`str`] and a [`usize`] used as a suffix for replications of a same [`Var`].
+//! A [`Var`] ties together two related [`Domain`](crate::domain::Domain) types.
 //!
+//! One domain describes the inputs expected by the [`Objective`](crate::objective::Objective)
+//! (`Obj`), and the other describes the search space explored by the
+//! [`Optimizer`](crate::optimizer::Optimizer) (`Opt`). A [`Var`] captures how
+//! those domains relate and allows customization of sampling and mapping:
+//! - Attach a custom [`Sampler`](crate::sampler::Sampler) to a [`Domain`](crate::domain::Domain).
+//! - Define [`Onto`](crate::domain::Onto) mappings from `Opt` to `Obj` and back.
+//!
+//! A [`Var`] is named by a tuple `(&'static str, usize)`, where the string
+//! is the base name and the `usize` acts as a suffix for replications.
 
 pub mod var;
 #[doc(inline)]

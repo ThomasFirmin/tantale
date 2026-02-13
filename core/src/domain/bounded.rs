@@ -97,9 +97,9 @@ impl<T> BoundedBounds for T where
 /// by a [`RangeInclusive`].
 ///
 /// # Attributes
-/// * `bounds`: [`RangeInclusive`]`<T>` - A [`RangeInclusive`] object of type `<T>`.
-/// * `mid`: `T` - Middle point of the [`Bounded`] [`Domain`]. $\frac{\texttt{lower}+\texttt{upper}}{2}$
-/// * `width`: `T` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
+/// * `bounds` - A [`RangeInclusive`] object of type `<T>`.
+/// * `mid` - Middle point of the [`Bounded`] [`Domain`]. $\frac{\texttt{lower}+\texttt{upper}}{2}$
+/// * `width` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
 ///
 pub struct Bounded<T: BoundedBounds> {
     pub bounds: RangeInclusive<T>,
@@ -115,8 +115,8 @@ impl<T: BoundedBounds> Bounded<T> {
     /// * The `width` attribute is automatically computed with $\texttt{upper}-\texttt{lower}$.
     ///
     /// # Parameters
-    /// * `lower`: `T` - Lower bound of the [`Bounded`] [`Domain`].
-    /// * `upper`: `T` - Upper bound of the [`Bounded`] [`Domain`].
+    /// * `lower` - Lower bound of the [`Bounded`] [`Domain`].
+    /// * `upper` - Upper bound of the [`Bounded`] [`Domain`].
     ///
     pub fn new<S: Sampler<Self> + Into<BoundedDistribution>>(
         lower: T,
@@ -202,8 +202,8 @@ where
     /// 
     /// # Parameters
     ///
-    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Bounded`].
     /// 
     /// # Errors
     ///
@@ -253,8 +253,8 @@ where
     /// 
     /// # Parameters
     ///
-    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Bool`].
     /// 
     /// # Errors
     ///
@@ -298,8 +298,8 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Cat`].
     /// 
     /// # Errors
     ///
@@ -346,8 +346,8 @@ where
     /// 
     /// # Parameters
     ///
-    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Unit`].
     /// 
     /// # Errors
     ///
@@ -389,8 +389,8 @@ where
     /// 
     /// # Parameters
     ///
-    /// * `item` : `In` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Mixed`].
     /// 
     /// # Errors
     ///
@@ -437,10 +437,10 @@ where
 ///
 /// # Attributes
 ///
-/// * `lower`: `f64` - Lower bound of the [`Real`] [`Domain`].
-/// * `upper`: `f64` - Upper bound of the [`Real`] [`Domain`].
-/// * `mid`: `f64` - Middle point of the [`Real`] [`Domain`].
-/// * `width`: `f64` - Width of the [`Real`] [`Domain`].
+/// * `lower` - Lower bound of the [`Real`] [`Domain`].
+/// * `upper` - Upper bound of the [`Real`] [`Domain`].
+/// * `mid` - Middle point of the [`Real`] [`Domain`].
+/// * `width` - Width of the [`Real`] [`Domain`].
 ///
 /// # Examples
 ///
@@ -462,10 +462,10 @@ pub type Real = Bounded<f64>;
 ///
 /// # Attributes
 ///
-/// * `lower`: `u64` - Lower bound of the [`Nat`] [`Domain`].
-/// * `upper`: `u64` - Upper bound of the [`Nat`] [`Domain`].
-/// * `mid`: `u64` - Middle point of the [`Nat`] [`Domain`].
-/// * `width`: `u64` - Width of the [`Nat`] [`Domain`].
+/// * `lower` - Lower bound of the [`Nat`] [`Domain`].
+/// * `upper` - Upper bound of the [`Nat`] [`Domain`].
+/// * `mid` - Middle point of the [`Nat`] [`Domain`].
+/// * `width` - Width of the [`Nat`] [`Domain`].
 ///
 /// # Examples
 ///
@@ -487,10 +487,10 @@ pub type Nat = Bounded<u64>;
 ///
 /// # Attributes
 ///
-/// * `lower`: `i64` - Lower bound of the [`Int`] [`Domain`].
-/// * `upper`: `i64` - Upper bound of the [`Int`] [`Domain`].
-/// * `mid`: `i64` - Middle point of the [`Int`] [`Domain`].
-/// * `width`: `i64` - Width of the [`Int`] [`Domain`].
+/// * `lower` - Lower bound of the [`Int`] [`Domain`].
+/// * `upper` - Upper bound of the [`Int`] [`Domain`].
+/// * `mid` - Middle point of the [`Int`] [`Domain`].
+/// * `width` - Width of the [`Int`] [`Domain`].
 ///
 /// # Examples
 ///

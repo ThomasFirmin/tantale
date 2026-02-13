@@ -113,8 +113,8 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` - A borrowed targetted [`Bounded`].
     /// 
     /// # Errors
     ///
@@ -160,8 +160,8 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` - A borrowed targetted [`Bool`].
     /// 
     /// # Errors
     ///
@@ -195,8 +195,8 @@ impl Onto<Cat> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Cat`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` - A borrowed targetted [`Cat`].
     /// 
     /// # Errors
     ///
@@ -237,8 +237,8 @@ impl Onto<Mixed> for Unit {
     /// 
     /// # Parameters
     ///
-    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` - A borrowed targetted [`Mixed`].
     /// 
     /// # Errors
     ///
@@ -296,8 +296,8 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : [`f64`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `target` - A borrowed targetted [`Unit`].
     /// 
     /// # Errors
     ///

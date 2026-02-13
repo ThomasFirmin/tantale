@@ -42,12 +42,6 @@
 //!
 //! The [`IntoComputed`] trait enables conversion from uncomputed to computed states.
 //!
-//! ## Type Safety and Heterogeneity
-//!
-//! Solutions are statically typed by their [`Domain`]. For heterogeneous collections of different
-//! domain types, Tantale provides the [`Mixed`](crate::Mixed) domain, which wraps various domain
-//! types in a unified interface.
-//!
 //! ## Multi-Fidelity Support
 //!
 //! For multi-fidelity optimization, solutions can track:
@@ -316,10 +310,10 @@ pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
 /// # Lifecycle
 ///
 /// ```text
-/// Uncomputed ---[evaluate]--> Computed
-///     ↑                            |
-///     |                            |
-///     +-------[extract]------------+
+///        Uncomputed --[evaluate]-> Computed
+///              ^                       |
+///              |                       |
+/// TypeCodom <--+------[extract]--------+
 /// ```
 ///
 /// # Builder methods

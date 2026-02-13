@@ -23,8 +23,8 @@ use std::fmt;
 ///
 /// # Attributes
 ///
-///  * `values` : `Vec<String>` - The features defining the categorical [`Domain`].
-///  * `sampler` : [`CatDistribution`] - The sampling algorithm used to sample within the categorical [`Domain`].
+///  * `values` - The features defining the categorical [`Domain`].
+///  * `sampler` - The sampling algorithm used to sample within the categorical [`Domain`].
 /// ```
 #[derive(Clone)]
 pub struct Cat {
@@ -36,8 +36,8 @@ impl Cat {
     ///
     /// # Attributes
     ///
-    /// * `values` : `I` - An iterator over `&str` describing the features of the categorical [`Domain`].
-    /// * `sampler` : `S` - A sampler implementing the [`Sampler`] trait for [`Cat`].
+    /// * `values` - An iterator over `&str` describing the features of the categorical [`Domain`].
+    /// * `sampler` - A sampler implementing the [`Sampler`] trait for [`Cat`].
     /// 
     /// # Example
     ///
@@ -100,7 +100,7 @@ impl Domain for Cat {
     /// 
     /// # Attributes
     /// 
-    /// * `point` : `&`[`TypeDom`](Domain::TypeDom) - a borrowed sample from a [`Cat`].
+    /// * `point` - A borrowed sample from a [`Cat`].
     /// 
     /// # Example
     ///
@@ -163,8 +163,8 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Bounded`]`<Out>` - A borrowed targetted [`Domain`].
+    /// * `item` - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -216,8 +216,8 @@ impl Onto<Unit> for Cat {
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Unit`] - A borrowed targetted [`Domain`].
+    /// * `item` - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -255,8 +255,8 @@ impl Onto<Mixed> for Cat {
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`BaseDom`]`<N,T>` - A borrowed targetted [`Domain`].
+    /// * `item` - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///
@@ -315,8 +315,8 @@ impl Onto<Cat> for Cat {
     ///
     /// # Parameters
     ///
-    /// * `item` : `&<`[`Self`]` as `[`Domain`]`>::`[`TypeDom`](Domain::TypeDom) - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
-    /// * `target` : `&`[`Cat`] - A borrowed targetted [`Domain`].
+    /// * `item` - A borrowed point from the [`Self`] domain to map to the `target` [`Domain`].
+    /// * `target` - A borrowed targetted [`Domain`].
     ///
     /// # Errors
     ///

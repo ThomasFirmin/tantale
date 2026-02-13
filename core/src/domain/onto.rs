@@ -37,8 +37,8 @@ pub trait Onto<Target> {
     type Item;
     /// # Parameters
     ///
-    /// * `item` : `&`[`Onto::Item`] - A borrowed sample from the [`Domain`].
-    /// * `target` : `&Target` - A borrowed targetted [`Domain`] in which [`Onto::Item`] is mapped.
+    /// * `item` - A borrowed sample from the [`Domain`].
+    /// * `target` - A borrowed targetted [`Domain`] in which [`Onto::Item`] is mapped.
     ///
     /// # Errors
     ///
