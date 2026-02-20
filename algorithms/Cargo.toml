@@ -8,6 +8,7 @@ path = "src/lib.rs"
 
 [dependencies]
 tantale_core = {path="../core"}
+tantale_macros = {path="../macros"}
 num = "0.4.3"
 rand = "0.9.0"
 rayon = {version = "1.10.0"}

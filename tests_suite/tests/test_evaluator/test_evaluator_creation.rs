@@ -1,6 +1,6 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BasePartial, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp,
+    BaseSol, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
@@ -19,7 +19,7 @@ use std::{
 };
 
 type BBatch =
-    Batch<SId, EmptyInfo, RSInfo, Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
+    Batch<SId, EmptyInfo, RSInfo, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 #[test]
 fn test_batchevaluator() {
@@ -33,7 +33,7 @@ fn test_batchevaluator() {
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -53,16 +53,16 @@ fn test_batchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     > as MonoEvaluate<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop);
 
     let mut hcobj = HashMap::new();
@@ -147,7 +147,7 @@ fn test_thrbatchevaluator() {
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -167,16 +167,16 @@ fn test_thrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     > as ThrEvaluate<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
     >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
 
     let mut hcobj = HashMap::new();
@@ -264,7 +264,7 @@ fn test_seqevaluator() {
 
     let mut rng = rand::rng();
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
@@ -275,9 +275,9 @@ fn test_seqevaluator() {
     let (comp, raw) = <SeqEvaluator<
         SId,
         EmptyInfo,
-        Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     > as MonoEvaluate<
-        BasePartial<SId, Mixed, EmptyInfo>,
+        BaseSol<SId, Mixed, EmptyInfo>,
         SId,
         RandomSearch,
         Sp<Mixed, NoDomain>,
@@ -288,7 +288,7 @@ fn test_seqevaluator() {
             SId,
             EmptyInfo,
             Sp<Mixed, NoDomain>,
-            BasePartial<SId, Mixed, EmptyInfo>,
+            BaseSol<SId, Mixed, EmptyInfo>,
             SingleCodomain<OutEvaluator>,
             OutEvaluator,
         >,

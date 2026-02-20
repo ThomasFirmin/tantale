@@ -6,7 +6,7 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
-    BasePartial, EmptyInfo, Mixed, SId, Solution, searchspace::Searchspace, solution::HasId,
+    BaseSol, EmptyInfo, Mixed, SId, Solution, searchspace::Searchspace, solution::HasId,
 };
 
 macro_rules! get_test {
@@ -18,10 +18,10 @@ macro_rules! get_test {
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
                 let rng = &mut rand::rng();
-                let sample: BasePartial<SId,$sp::ObjType,_> = Searchspace::<BasePartial<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
+                let sample: BaseSol<SId,$sp::ObjType,_> = Searchspace::<BaseSol<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
 
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
-                let nsample : BasePartial<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
+                let nsample : BaseSol<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
                 let x = sample.get_x();
                 let nx = nsample.get_x();

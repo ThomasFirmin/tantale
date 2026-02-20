@@ -93,6 +93,11 @@ use std::{fmt::Debug, sync::Arc};
 /// [`SolInfo`] provides a way to attach auxiliary information to solutions, such as iteration
 /// numbers, timestamps, or optimizer-specific data. This information persists across checkpointing
 /// and is available to recorders.
+/// 
+/// # Associated Derive Macro
+/// 
+/// The `SolInfo` derive macro automatically implements the trait for any struct
+/// satisfying the required trait bounds.
 pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 
 /// Trait for objects with a unique solution identifier.
@@ -481,7 +486,7 @@ pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::{BasePartial, FidBasePartial, Fidelity};
+pub use partial::{BaseSol, FidelitySol, Fidelity};
 
 pub mod computed;
 pub use computed::Computed;

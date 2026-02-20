@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BasePartial, Mixed, MixedTypeDom, Objective, SId, Sp,
+    BaseSol, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutShapeEvaluate,
@@ -107,7 +107,7 @@ fn main() {
 
         let mut rng = rand::rng();
         let pair = <Sp<Mixed, NoDomain> as Searchspace<
-            BasePartial<SId, Mixed, EmptyInfo>,
+            BaseSol<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
@@ -124,9 +124,9 @@ fn main() {
         let out = <DistSeqEvaluator<
             SId,
             EmptyInfo,
-            Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            BasePartial<SId, Mixed, EmptyInfo>,
+            BaseSol<SId, Mixed, EmptyInfo>,
             SId,
             RandomSearch,
             Sp<Mixed, NoDomain>,
@@ -139,7 +139,7 @@ fn main() {
                     SId,
                     EmptyInfo,
                     Sp<Mixed, NoDomain>,
-                    BasePartial<SId, Mixed, EmptyInfo>,
+                    BaseSol<SId, Mixed, EmptyInfo>,
                     SingleCodomain<OutEvaluator>,
                     OutEvaluator,
                 >,

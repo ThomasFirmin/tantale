@@ -774,6 +774,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tantale_core",
+ "tantale_macros",
 ]
 
 [[package]]

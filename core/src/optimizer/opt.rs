@@ -13,6 +13,11 @@ use std::fmt::Debug;
 ///
 /// This typically aggregates informations about
 /// the current iteration of the [`Optimizer`].
+/// 
+/// # Associated Derive Macro
+/// 
+/// The `OptInfo` derive macro automatically implements the trait for any struct
+/// satisfying the required trait bounds.
 pub trait OptInfo
 where
     Self: Serialize + for<'de> Deserialize<'de> + Debug + Default,
@@ -23,6 +28,11 @@ where
 ///
 /// Implementations should capture all information required to resume an
 /// optimization after checkpointing.
+/// 
+/// # Associated Derive Macro
+/// 
+/// The `OptState` derive macro automatically implements the trait for any struct
+/// satisfying the required trait bounds.
 pub trait OptState
 where
     Self: Serialize + for<'de> Deserialize<'de>,

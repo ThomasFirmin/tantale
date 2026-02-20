@@ -1,5 +1,5 @@
 use rand::rngs::ThreadRng;
-use tantale_core::BasePartial;
+use tantale_core::BaseSol;
 
 #[test]
 fn obj_test() {
@@ -77,7 +77,7 @@ fn obj_test() {
     fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
     where
         Scp: Searchspace<
-                BasePartial<SId, searchspace::OptType, EmptyInfo>,
+                BaseSol<SId, searchspace::OptType, EmptyInfo>,
                 SId,
                 EmptyInfo,
                 Opt = searchspace::OptType,

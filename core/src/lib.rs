@@ -59,8 +59,6 @@
 //!
 //! ## Examples
 //!
-//! ### Batch run with checkpointing (mono)
-//!
 //! ### Define a searchspace with `objective!`
 //!
 //! The `objective!` macro builds a [`Searchspace`] and wraps a user-defined
@@ -148,6 +146,8 @@
 //! );
 //! ```
 //!
+//! ### Batch run with checkpointing (mono)
+//! 
 //! ```rust,ignore
 //! use tantale_core::{
 //!     CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
@@ -264,7 +264,7 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BasePartial, Batch, Computed, FidBasePartial, Fidelity, HasFidelity, HasId, HasInfo,
+    BaseSol, Batch, Computed, FidelitySol, Fidelity, HasFidelity, HasId, HasInfo,
     HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch, ParSId, SId, SolInfo, Solution,
 };
 

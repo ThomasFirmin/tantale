@@ -19,7 +19,7 @@
 //! In MPI mode, recorder folders are suffixed with the rank.
 
 use crate::{
-    BasePartial, FidBasePartial, Fidelity, FolderConfig, OptInfo, SolInfo,
+    BaseSol, FidelitySol, Fidelity, FolderConfig, OptInfo, SolInfo,
     domain::{Codomain, TypeDom, onto::LinkOpt},
     objective::{Outcome, Step},
     optimizer::Optimizer,
@@ -232,9 +232,9 @@ where
 }
 
 /// Implementation for [`BasePartial`] [`Solution`]s, which writes the solution components within the CSV files.
-impl<Scp, SolId, SInfo> SolCSVWrite<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
+impl<Scp, SolId, SInfo> SolCSVWrite<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
-    Scp: Searchspace<BasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+    Scp: Searchspace<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
         + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
@@ -314,10 +314,10 @@ where
 }
 
 /// Implementation for [`FidBasePartial`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
-impl<Scp, SolId, SInfo> SolCSVWrite<FidBasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
     for Scp
 where
-    Scp: Searchspace<FidBasePartial<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
+    Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
         + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,

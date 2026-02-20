@@ -94,8 +94,17 @@ use std::fmt::Debug;
 /// An [`Outcome`] is expected to be a named-field struct carrying the values used by
 /// the [`Codomain`](crate::domain::codomain::Codomain) (objectives, constraints, cost,
 /// or any metadata). It must be serializable for checkpointing and compatible with
-/// CSV recording. The recommended way to implement this trait is the
-/// [`Outcome`][tantale::macros::Outcome] derive macro.
+/// CSV recording.
+/// 
+/// # Associated Derive Macro
+/// 
+/// The [`Outcome`](crate::objective::Outcome) trait is automatically implemented by the
+/// `Outcome` derive macro.
+/// It implements [`Outcome`](crate::objective::Outcome) for any struct with named fields that also implements
+/// [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize), and [`Deserialize`](serde::Deserialize).
+/// It also implements [`CSVWritable`](crate::recorder::csv::CSVWritable)
+/// for the struct, writing all fields that are compatible with CSV recording
+/// (see module-level documentation for supported types).
 pub trait Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,

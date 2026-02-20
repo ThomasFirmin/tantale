@@ -20,7 +20,7 @@ use tantale_core::solution::{
     HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, IntoComputed,
     SolutionShape, Uncomputed,
 };
-use tantale_core::{Computed, EmptyInfo, FidBasePartial, Stepped};
+use tantale_core::{Computed, EmptyInfo, FidelitySol, Stepped};
 
 use crate::init_func::FnState;
 
@@ -436,7 +436,7 @@ fn test_csv_func() {
     let config = Arc::new(FolderConfig::new("tmp_test_fid"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
     <CSVRecorder as Recorder<
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         FidOutExample,
         Sp<Mixed, _>,
@@ -449,7 +449,7 @@ fn test_csv_func() {
         Calls,
         CSVRecorder,
         Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
     >(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
 
     // run_recorder(

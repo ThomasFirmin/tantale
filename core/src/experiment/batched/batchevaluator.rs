@@ -23,7 +23,7 @@ use crate::experiment::{
 };
 
 /// [`BatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`].
-/// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate.
+/// It holds a [`Batch`] of [`Uncomputed`] [`SolutionShape`] to evaluate.
 /// It implements the [`Evaluate`], [`MonoEvaluate`] and, if the `mpi` feature is enabled, the [`DistEvaluate`] traits.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -233,7 +233,7 @@ where
 //----------------//
 
 /// [`ThrBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a multi-threaded way.
-/// It holds a thread-safe [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate.
+/// It holds a thread-safe [`Batch`] of [`Uncomputed`] [`SolutionShape`] to evaluate.
 /// It implements the [`Evaluate`] and [`ThrEvaluate`] traits.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(

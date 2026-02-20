@@ -1,8 +1,8 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{BasePartial, Computed, ParSId, Solution};
+use tantale::core::{BaseSol, Computed, ParSId, Solution};
 use tantale_core::domain::TypeDom;
 use tantale_core::solution::{HasId, HasSolInfo, HasY, Uncomputed};
-use tantale_core::{Codomain, FidBasePartial, SingleCodomain};
+use tantale_core::{Codomain, FidelitySol, SingleCodomain};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -66,5 +66,5 @@ macro_rules! get_default_vec {
     };
 }
 
-get_default_vec!(mixed_size_3 ; BasePartial ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
-get_default_vec!(fidmixed_size_3 ; FidBasePartial ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+get_default_vec!(mixed_size_3 ; BaseSol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+get_default_vec!(fidmixed_size_3 ; FidelitySol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());

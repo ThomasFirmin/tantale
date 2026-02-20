@@ -4,7 +4,7 @@ use tantale::core::{
 };
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BasePartial, Mixed, MixedTypeDom, Objective, SId, Sp,
+    BaseSol, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
@@ -81,7 +81,7 @@ mod init_func {
 use init_func::{OutEvaluator, sp_evaluator};
 
 type BBatch =
-    Batch<SId, EmptyInfo, RSInfo, Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
+    Batch<SId, EmptyInfo, RSInfo, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -112,7 +112,7 @@ fn main() {
 
         let mut rng = rand::rng();
         let sobj = <Sp<Mixed, NoDomain> as Searchspace<
-            BasePartial<SId, Mixed, EmptyInfo>,
+            BaseSol<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -132,9 +132,9 @@ fn main() {
             SId,
             EmptyInfo,
             RSInfo,
-            Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            BasePartial<SId, Mixed, EmptyInfo>,
+            BaseSol<SId, Mixed, EmptyInfo>,
             SId,
             BatchRandomSearch,
             Sp<Mixed, NoDomain>,
@@ -142,7 +142,7 @@ fn main() {
             Calls,
             Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
             _,
-            OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
+            OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
 
         let mut hcobj = HashMap::new();

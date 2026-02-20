@@ -7,11 +7,11 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{BasePartial, EmptyInfo, Id, Real, SId};
+//! use tantale::core::{BaseSol, EmptyInfo, Id, Real, SId};
 //!
 //! let x = std::sync::Arc::from(vec![0.1, 0.2, 0.3]);
 //! let info = std::sync::Arc::new(EmptyInfo {});
-//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
 use crate::domain::Domain;
@@ -29,7 +29,7 @@ use std::{
     sync::Arc,
 };
 
-/// Describes the fidelity of a [`FidBasePartial`], i.e. a given budget for evaluation.
+/// Describes the fidelity of a [`FidelitySol`], i.e. a given budget for evaluation.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Fidelity(f64);
 
@@ -73,11 +73,11 @@ impl Fidelity {
 ///
 /// # Example
 /// ```
-/// use tantale::core::{BasePartial, EmptyInfo, Id, Real, SId, Solution};
+/// use tantale::core::{BaseSol, EmptyInfo, Id, Real, SId, Solution};
 ///
 /// let x = std::sync::Arc::from(vec![0.0; 5]);
 /// let info = std::sync::Arc::new(EmptyInfo {});
-/// let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+/// let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 ///
 /// assert_eq!(sol.get_x().len(), 5);
 /// ```
@@ -86,7 +86,7 @@ impl Fidelity {
     serialize = "Dom::TypeDom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct BasePartial<SolId, Dom, Info>
+pub struct BaseSol<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -97,7 +97,7 @@ where
     pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasId<SolId> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasId<SolId> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -108,7 +108,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasSolInfo<Info> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasSolInfo<Info> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -119,14 +119,14 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
     type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = BasePartial<SolId, B, Info>;
+    type Twin<B: Domain> = BaseSol<SolId, B, Info>;
 
     /// Return the raw representation for evaluation by the objective.
     fn get_x(&self) -> Self::Raw {
@@ -140,7 +140,7 @@ where
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
     ) -> Self::Twin<B> {
-        BasePartial {
+        BaseSol {
             id: self.id,
             x,
             info: self.info.clone(),
@@ -148,14 +148,14 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinUC<B: Domain> = BasePartial<SolId, B, Info>;
-    /// Creates a new [`BasePartial`] from a slice of [`TypeDom`](Domain::TypeDom).
+    type TwinUC<B: Domain> = BaseSol<SolId, B, Info>;
+    /// Creates a new [`BaseSol`] from a slice of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Attributes
     ///
@@ -165,12 +165,12 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Solution,BasePartial,Real,EmptyInfo,SId,Id};
+    /// use tantale::core::{Solution,BaseSol,Real,EmptyInfo,SId,Id};
     ///
     /// let x = std::sync::Arc::from(vec![0.0;5]);
     /// let info = std::sync::Arc::new(EmptyInfo{});
     ///
-    /// let real_sol = BasePartial::<_,Real,_>::new(SId::generate(),x,info);
+    /// let real_sol = BaseSol::<_,Real,_>::new(SId::generate(),x,info);
     ///
     /// for elem in real_sol.get_x().iter(){
     ///     println!("{},", elem);
@@ -181,7 +181,7 @@ where
     where
         T: Into<Self::Raw>,
     {
-        BasePartial {
+        BaseSol {
             id,
             x: x.into(),
             info,
@@ -194,7 +194,7 @@ where
         &self,
         x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
     ) -> Self::TwinUC<B> {
-        BasePartial {
+        BaseSol {
             id: self.id,
             x,
             info: self.info.clone(),
@@ -206,7 +206,7 @@ where
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
         let x = vec![Dom::TypeDom::default(); size];
-        BasePartial {
+        BaseSol {
             id,
             x: x.into(),
             info,
@@ -221,7 +221,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> IntoComputed for BasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> IntoComputed for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -258,11 +258,11 @@ where
 ///
 /// # Example
 /// ```
-/// use tantale::core::{FidBasePartial, EmptyInfo, Id, Real, SId, Solution};
+/// use tantale::core::{FidelitySol, EmptyInfo, Id, Real, SId, Solution};
 ///
 /// let x = std::sync::Arc::from(vec![0.0; 3]);
 /// let info = std::sync::Arc::new(EmptyInfo {});
-/// let mut sol = FidBasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+/// let mut sol = FidelitySol::<SId, Real, _>::new(SId::generate(), x, info);
 /// // By default, the solution is pending with zero fidelity.
 /// assert_eq!(sol.step(), Step::Pending);
 /// assert_eq!(sol.fidelity().0, 0.0);
@@ -276,7 +276,7 @@ where
     serialize = "Dom::TypeDom: Serialize",
     deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
 ))]
-pub struct FidBasePartial<SolId, Dom, Info>
+pub struct FidelitySol<SolId, Dom, Info>
 where
     SolId: Id,
     Dom: Domain,
@@ -289,7 +289,7 @@ where
     pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasId<SolId> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasId<SolId> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -300,7 +300,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasSolInfo<Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasSolInfo<Info> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -311,7 +311,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasFidelity for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasFidelity for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -325,7 +325,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasStep for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> HasStep for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
@@ -372,14 +372,14 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
     type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
 
     /// Return the raw representation for evaluation by the objective.
     fn get_x(&self) -> Self::Raw {
@@ -394,7 +394,7 @@ where
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
     ) -> Self::Twin<B> {
-        FidBasePartial {
+        FidelitySol {
             id: self.id,
             x,
             step: self.step,
@@ -404,20 +404,20 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
     SolId: Id,
 {
-    type TwinUC<B: Domain> = FidBasePartial<SolId, B, Info>;
+    type TwinUC<B: Domain> = FidelitySol<SolId, B, Info>;
 
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
         T: Into<Self::Raw>,
     {
-        FidBasePartial {
+        FidelitySol {
             id,
             x: x.into(),
             step: EvalStep::pending(),
@@ -434,7 +434,7 @@ where
         &self,
         x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
     ) -> Self::TwinUC<B> {
-        FidBasePartial {
+        FidelitySol {
             id: self.id,
             x,
             step: self.step,
@@ -446,7 +446,7 @@ where
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
         let x = vec![Dom::TypeDom::default(); size];
-        FidBasePartial {
+        FidelitySol {
             id,
             x: x.into(),
             step: EvalStep::pending(),
@@ -463,7 +463,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> IntoComputed for FidBasePartial<SolId, Dom, Info>
+impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,

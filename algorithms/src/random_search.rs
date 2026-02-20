@@ -1,7 +1,5 @@
-use std::{cell::RefCell, sync::Arc};
-
 use tantale_core::{
-    BasePartial, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped,
+    BaseSol, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped,
     domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
@@ -17,13 +15,14 @@ use tantale_core::{
     recorder::csv::CSVWritable,
     searchspace::{CompShape, OptionCompShape, Searchspace},
     solution::{
-        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidBasePartial,
+        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol,
         shape::RawObj,
     },
 };
 
 use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, sync::Arc};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
@@ -83,11 +82,11 @@ impl Default for RandomSearch {
     }
 }
 
-impl<Out, Scp> Optimizer<BasePartial<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for RandomSearch
 where
     Out: Outcome,
-    Scp: Searchspace<BasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
@@ -103,11 +102,11 @@ where
     }
 }
 
-impl<Out, Scp> Optimizer<FidBasePartial<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for RandomSearch
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidBasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
@@ -125,7 +124,7 @@ where
 
 impl<Out, Scp>
     SequentialOptimizer<
-        BasePartial<SId, Scp::Opt, EmptyInfo>,
+        BaseSol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
@@ -134,14 +133,14 @@ impl<Out, Scp>
     > for RandomSearch
 where
     Out: Outcome,
-    Scp: Searchspace<BasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn step(
         &mut self,
         _x: OptionCompShape<
             Scp,
-            BasePartial<SId, Scp::Opt, EmptyInfo>,
+            BaseSol<SId, Scp::Opt, EmptyInfo>,
             SId,
             Self::SInfo,
             Self::Cod,
@@ -155,7 +154,7 @@ where
 
 impl<Out, Scp, FnState>
     SequentialOptimizer<
-        FidBasePartial<SId, Scp::Opt, EmptyInfo>,
+        FidelitySol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
@@ -164,7 +163,7 @@ impl<Out, Scp, FnState>
     > for RandomSearch
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidBasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
@@ -174,7 +173,7 @@ where
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidBasePartial<SId, Scp::Opt, EmptyInfo>,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
             SId,
             Self::SInfo,
             Self::Cod,
@@ -271,11 +270,11 @@ where
     Batch::new(pairs, info.into())
 }
 
-impl<Out, Scp> Optimizer<BasePartial<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for BatchRandomSearch
 where
     Out: Outcome,
-    Scp: Searchspace<BasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     type State = BatchRSState;
     type Cod = SingleCodomain<Out>;
@@ -293,7 +292,7 @@ where
 
 impl<Out, Scp>
     BatchOptimizer<
-        BasePartial<SId, Scp::Opt, EmptyInfo>,
+        BaseSol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
@@ -302,7 +301,7 @@ impl<Out, Scp>
     > for BatchRandomSearch
 where
     Out: Outcome,
-    Scp: Searchspace<BasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
@@ -315,7 +314,7 @@ where
             SId,
             Self::SInfo,
             Self::Info,
-            CompShape<Scp, BasePartial<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+            CompShape<Scp, BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
@@ -327,11 +326,11 @@ where
 //--- STEPPED ---//
 //---------------//
 
-impl<Out, Scp> Optimizer<FidBasePartial<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for BatchRandomSearch
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidBasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     type State = BatchRSState;
     type Cod = SingleCodomain<Out>;
@@ -349,7 +348,7 @@ where
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
-        FidBasePartial<SId, Scp::Opt, EmptyInfo>,
+        FidelitySol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
@@ -358,7 +357,7 @@ impl<Out, Scp, FnState>
     > for BatchRandomSearch
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidBasePartial<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
@@ -376,7 +375,7 @@ where
             Self::Info,
             CompShape<
                 Scp,
-                FidBasePartial<SId, Scp::Opt, EmptyInfo>,
+                FidelitySol<SId, Scp::Opt, EmptyInfo>,
                 SId,
                 Self::SInfo,
                 Self::Cod,

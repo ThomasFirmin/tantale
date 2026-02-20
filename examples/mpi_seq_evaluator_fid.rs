@@ -2,7 +2,7 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    FidBasePartial, Mixed, MixedTypeDom, SId, Sp, Stepped,
+    FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -141,7 +141,7 @@ fn main() {
 
         let mut rng = rand::rng();
         let pair = <Sp<Mixed, NoDomain> as Searchspace<
-            FidBasePartial<SId, Mixed, EmptyInfo>,
+            FidelitySol<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
@@ -158,9 +158,9 @@ fn main() {
         let out = <FidDistSeqEvaluator<
             SId,
             EmptyInfo,
-            Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            FidBasePartial<SId, Mixed, EmptyInfo>,
+            FidelitySol<SId, Mixed, EmptyInfo>,
             SId,
             RandomSearch,
             Sp<Mixed, NoDomain>,
@@ -173,7 +173,7 @@ fn main() {
                     SId,
                     EmptyInfo,
                     Sp<Mixed, NoDomain>,
-                    FidBasePartial<SId, Mixed, EmptyInfo>,
+                    FidelitySol<SId, Mixed, EmptyInfo>,
                     SingleCodomain<FidOutEvaluator>,
                     FidOutEvaluator,
                 >,
@@ -217,9 +217,9 @@ fn main() {
             let out = <FidDistSeqEvaluator<
                 SId,
                 EmptyInfo,
-                Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidBasePartial<SId, Mixed, EmptyInfo>,
+                FidelitySol<SId, Mixed, EmptyInfo>,
                 SId,
                 RandomSearch,
                 Sp<Mixed, NoDomain>,
@@ -232,7 +232,7 @@ fn main() {
                         SId,
                         EmptyInfo,
                         Sp<Mixed, NoDomain>,
-                        FidBasePartial<SId, Mixed, EmptyInfo>,
+                        FidelitySol<SId, Mixed, EmptyInfo>,
                         SingleCodomain<FidOutEvaluator>,
                         FidOutEvaluator,
                     >,

@@ -4,7 +4,7 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BasePartial, EmptyInfo, EvalStep, FidBasePartial, Mixed, MixedTypeDom, Objective, SId,
+    BaseSol, EmptyInfo, EvalStep, FidelitySol, Mixed, MixedTypeDom, Objective, SId,
     Searchspace, SingleCodomain, Sp, Stepped,
     domain::NoDomain,
     experiment::{
@@ -20,26 +20,26 @@ type BEvaluator = BatchEvaluator<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
 >;
 type ThrBEvaluator = ThrBatchEvaluator<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
 >;
 type FBEvaluator = FidBatchEvaluator<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     FnState,
 >;
 type FThrBEvaluator = FidThrBatchEvaluator<
     SId,
     EmptyInfo,
     RSInfo,
-    Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     FnState,
 >;
 
@@ -54,8 +54,8 @@ fn test_serde_batchevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        BasePartial<SId, _, _>,
+    let sobj: Vec<BaseSol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
+        BaseSol<SId, _, _>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -68,7 +68,7 @@ fn test_serde_batchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, _, _>, SId, _, EmptyInfo>,
+        Lone<BaseSol<SId, _, _>, SId, _, EmptyInfo>,
     > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
@@ -84,16 +84,16 @@ fn test_serde_batchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     > as MonoEvaluate<
-        BasePartial<SId, _, EmptyInfo>,
+        BaseSol<SId, _, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     let pairs = bcomp
@@ -127,8 +127,8 @@ fn test_serde_thrbatchevaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<BasePartial<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        BasePartial<SId, _, _>,
+    let sobj: Vec<BaseSol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
+        BaseSol<SId, _, _>,
         SId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -141,7 +141,7 @@ fn test_serde_thrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, _, _>, SId, _, EmptyInfo>,
+        Lone<BaseSol<SId, _, _>, SId, _, EmptyInfo>,
     > = rmp_serde::decode::from_slice(&eval_ser).unwrap();
 
     assert!(
@@ -163,16 +163,16 @@ fn test_serde_thrbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<BasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     > as ThrEvaluate<
-        BasePartial<SId, _, EmptyInfo>,
+        BaseSol<SId, _, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     let pairs = bcomp
@@ -213,9 +213,9 @@ fn test_serde_fidbatchevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidBasePartial<_, _, _>> =
+    let sobj: Vec<FidelitySol<_, _, _>> =
         <Sp<Mixed, NoDomain> as Searchspace<
-            FidBasePartial<SId, Mixed, EmptyInfo>,
+            FidelitySol<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -239,17 +239,17 @@ fn test_serde_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop);
 
     assert!(
@@ -281,17 +281,17 @@ fn test_serde_fidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as MonoEvaluate<
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop);
 
     assert!(
@@ -312,9 +312,9 @@ fn test_serde_thrfidbatchevaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidBasePartial<_, _, _>> =
+    let sobj: Vec<FidelitySol<_, _, _>> =
         <Sp<Mixed, NoDomain> as Searchspace<
-            FidBasePartial<SId, Mixed, EmptyInfo>,
+            FidelitySol<SId, Mixed, EmptyInfo>,
             SId,
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
@@ -344,17 +344,17 @@ fn test_serde_thrfidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
     >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(
@@ -393,17 +393,17 @@ fn test_serde_thrfidbatchevaluator() {
         SId,
         EmptyInfo,
         RSInfo,
-        Lone<FidBasePartial<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
     > as ThrEvaluate<
-        FidBasePartial<SId, Mixed, EmptyInfo>,
+        FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidBasePartial<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
     >>::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone());
 
     assert!(

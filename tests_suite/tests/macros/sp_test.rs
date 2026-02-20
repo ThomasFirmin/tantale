@@ -7,7 +7,7 @@ mod test {
     pub fn main() {
         use std::sync::Arc;
         use tantale::core::{
-            BasePartial, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Solution, Sp,
+            BaseSol, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Solution, Sp,
             sampler::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
         };
@@ -25,7 +25,7 @@ mod test {
 
         fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
         where
-            Scp: Searchspace<BasePartial<SId, OptType, EmptyInfo>, SId, EmptyInfo, Opt = OptType>,
+            Scp: Searchspace<BaseSol<SId, OptType, EmptyInfo>, SId, EmptyInfo, Opt = OptType>,
         {
             let info = std::sync::Arc::new(EmptyInfo {});
             let obj = sp.sample_obj(rng, info);
