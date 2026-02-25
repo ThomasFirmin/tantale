@@ -6,12 +6,13 @@
 
 extern crate proc_macro;
 
+mod csvwritable;
+mod funcstate;
 mod hpo;
 mod objective;
-mod outcome;
-mod funcstate;
 mod optinfo;
 mod optstate;
+mod outcome;
 mod solinfo;
 
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
@@ -23,12 +24,11 @@ mod solinfo;
 /// Objective functions in Tantale must return an `Outcome` - a structured type describing
 /// the evaluation result. The `Outcome` macro:
 /// 1. Implements the [`Outcome`](crate::Outcome) trait marker
-/// 2. Automatically generates CSV logging headers and row data
-/// 3. Optionally tracks multi-fidelity evaluation state via `Step` fields
+/// 2. Optionally tracks multi-fidelity evaluation state via `Step` fields
 ///
 /// ## Quick Example
 ///
-/// ```ignore
+/// ```
 /// use tantale::macros::Outcome;
 /// use serde::{Serialize, Deserialize};
 ///
@@ -42,29 +42,12 @@ mod solinfo;
 ///
 /// Generated:
 /// - `impl Outcome for ModelResult` - Marks type as objective output
-/// - `impl CSVWritable` - Enables CSV logging of results
-///   - Headers: `["train_loss", "val_loss", "accuracy"]`
-///   - Rows: for example `["0.523", "0.612", "0.845"]`
-///
-/// ## Supported Field Types
-///
-/// The macro automatically detects field types and generates appropriate serialization:
-///
-/// | Field Type | Conversion to CSV | Example |
-/// |-----------|---|---------|
-/// | `f64`, `f32` | to_string() | `0.523` |
-/// | `i32`, `i64`, `isize` | to_string() | `-42` |
-/// | `u32`, `u64`, `usize` | to_string() | `100` |
-/// | `bool` | to_string() | `true` |
-/// | `String` | to_string() | `"sigmoid"` |
-/// | `Vec<T>` | Debug format `[...]` | `[1.0, 2.0, 3.0]` |
-/// | `Step` | to_string() | `Evaluated` |
 ///
 /// ## Multi-Fidelity with `Step`
 ///
 /// For multi-fidelity optimization, a field of type `Step` tracks evaluation progress:
 ///
-/// ```ignore
+/// ```
 /// use tantale::macros::{Outcome, FuncState};
 /// use tantale::core::Step;
 /// use serde::{Serialize, Deserialize};
@@ -80,61 +63,6 @@ mod solinfo;
 /// //     fn get_step(&self) -> EvalStep { self.epoch.into() }
 /// // }
 /// ```
-///
-/// ## CSV Output Format
-///
-/// The macro implements [`CSVWritable`](crate::recorder::CSVWritable) for automatic result logging:
-///
-/// ```ignore
-/// #[derive(Outcome)]
-/// pub struct Metrics {
-///     pub rmse: f64,
-///     pub mae: f64,
-///     pub r2: f64,
-/// }
-///
-/// // Generates:
-/// // header() -> ["rmse", "mae", "r2"]
-/// // write()  -> ["0.234", "0.189", "0.856"] (for each evaluation)
-/// ```
-///
-/// The header is derived automatically from field names, and values are serialized
-/// based on their types (numeric to_string, Vec with debug format, etc.).
-///
-/// ## Fields with Vectors
-///
-/// Vec fields are serialized using debug format for multi-valued results:
-///
-/// ```ignore
-/// #[derive(Outcome)]
-/// pub struct PredictionResult {
-///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
-///     pub error: f64,              // 0.05
-/// }
-///
-/// // CSV output:
-/// // header() -> ["predictions", "error"]
-/// // write()  -> ["[0.1, 0.2, 0.3]", "0.05"]
-/// ```
-///
-/// ## Field Naming
-///
-/// Field names automatically become CSV column headers:
-///
-/// ```ignore
-/// #[derive(Outcome)]
-/// pub struct Metrics {
-///     pub train_loss: f64,     // CSV header: "train_loss"
-///     pub val_loss: f64,       // CSV header: "val_loss"
-///     pub fit_time_ms: u32,    // CSV header: "fit_time_ms"
-/// }
-/// ```
-///
-/// ## Limitations
-///
-/// 1. **All fields must have identifiers** - Tuple structs are not supported
-/// 3. **Supported types only** - Custom types require implementing CSVWritable manually
-/// 4. **Field order preserved** - CSV columns match struct field order
 #[proc_macro_derive(Outcome)]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
@@ -278,9 +206,9 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// pub type OptType = /* ... */;  // Optimizer domain (Mixed or single type)
 /// pub fn get_searchspace() -> Sp<ObjType, OptType> { /* ... */ }
 /// ```
-/// 
+///
 /// The resultant `Sp<ObjType, OptType>` is a `Searchspace` containing all variables.
-/// 
+///
 /// ## Quick Example
 ///
 /// ```ignore
@@ -530,23 +458,23 @@ pub fn optstate(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// representing metadata associated with individual solutions during optimization.
 ///
 /// ## Purpose
-/// 
+///
 /// `SolInfo` provides a structured way to attach metadata to individual solutions, such as:
 /// - Evaluation fidelity level
 /// - Acquisition function values
 /// - Uncertainty estimates
 /// - Any other per-solution information relevant to the optimization process
-/// 
+///
 /// ## Requirements
 /// The struct must:
 /// - Derive or implement `Serialize`, `Deserialize`, and `Debug` from standard traits
 /// - Contain fields relevant to per-solution metadata
-/// 
+///
 /// ## Example
 /// ```ignore
 /// use tantale::macros::SolInfo;
 /// use serde::{Serialize, Deserialize};
-/// 
+///
 /// #[derive(SolInfo, Serialize, Deserialize, Debug)]
 /// pub struct MySolInfo {
 ///     pub acquisition_value: f64,
@@ -556,4 +484,101 @@ pub fn optstate(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(SolInfo)]
 pub fn solinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     solinfo::proc_solinfo(input)
+}
+
+/// The `CSVWritable` derive macro implements the `CSVWritable` trait for types
+/// that can be serialized to CSV format.
+///
+/// ## Purpose
+///
+/// `CSVWritable` provides a structured way to write objects to CSV files.
+///
+/// ## Quick Example
+///
+/// ```ignore
+/// use tantale::macros::CSVWritable;
+///
+/// #[derive(CSVWritable)]
+/// pub struct ModelResult {
+///     pub train_loss: f64,
+///     pub val_loss: f64,
+///     pub accuracy: f64,
+/// }
+/// ```
+///
+/// Generated:
+/// - `impl CSVWritable` - Enables CSV logging of results
+///   - Headers: `["train_loss", "val_loss", "accuracy"]`
+///   - Rows: for example `["0.523", "0.612", "0.845"]`
+///
+/// ## Supported Field Types
+///
+/// The macro automatically detects field types and generates appropriate serialization:
+///
+/// | Field Type | Conversion to CSV | Example |
+/// |-----------|---|---------|
+/// | `f64`, `f32` | to_string() | `0.523` |
+/// | `i32`, `i64`, `isize` | to_string() | `-42` |
+/// | `u32`, `u64`, `usize` | to_string() | `100` |
+/// | `bool` | to_string() | `true` |
+/// | `String` | to_string() | `"sigmoid"` |
+/// | `Vec<T>` | Debug format `[...]` | `[1.0, 2.0, 3.0]` |
+/// | `Step` | to_string() | `Evaluated` |
+///
+/// ## CSV Output Format
+///
+/// The macro implements [`CSVWritable`](crate::recorder::CSVWritable) for automatic result logging:
+///
+/// ```ignore
+/// #[derive(CSVWritable)]
+/// pub struct Metrics {
+///     pub rmse: f64,
+///     pub mae: f64,
+///     pub r2: f64,
+/// }
+///
+/// // Generates:
+/// // header() -> ["rmse", "mae", "r2"]
+/// // write()  -> ["0.234", "0.189", "0.856"] (for each evaluation)
+/// ```
+///
+/// The header is derived automatically from field names, and values are serialized
+/// based on their types (numeric to_string, Vec with debug format, etc.).
+///
+/// ## Fields with Vectors
+///
+/// Vec fields are serialized using debug format for multi-valued results:
+///
+/// ```ignore
+/// #[derive(CSVWritable)]
+/// pub struct PredictionResult {
+///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
+///     pub error: f64,              // 0.05
+/// }
+///
+/// // CSV output:
+/// // header() -> ["predictions", "error"]
+/// // write()  -> ["[0.1, 0.2, 0.3]", "0.05"]
+/// ```
+///
+/// ## Field Naming
+///
+/// Field names automatically become CSV column headers:
+///
+/// ```ignore
+/// #[derive(CSVWritable)]
+/// pub struct Metrics {
+///     pub train_loss: f64,     // CSV header: "train_loss"
+///     pub val_loss: f64,       // CSV header: "val_loss"
+///     pub fit_time_ms: u32,    // CSV header: "fit_time_ms"
+/// }
+/// ```
+///
+/// ## Limitations
+///
+/// 1. **Supported types only** - Custom types require implementing CSVWritable manually
+/// 2. **Field order preserved** - CSV columns match struct field order
+#[proc_macro_derive(CSVWritable)]
+pub fn csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    csvwritable::proc_csvwritable(input)
 }

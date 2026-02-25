@@ -373,14 +373,7 @@ where
             SId,
             Self::SInfo,
             Self::Info,
-            CompShape<
-                Scp,
-                FidelitySol<SId, Scp::Opt, EmptyInfo>,
-                SId,
-                Self::SInfo,
-                Self::Cod,
-                Out,
-            >,
+            CompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {

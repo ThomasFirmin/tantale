@@ -53,7 +53,7 @@ pub fn extract_var(
     // Recursively extract variable definitions [! var !] from the function body
     // Scans TokenStream for bracket-delimited groups and identifies:
     // - Variable declarations: [! ... !] (excludes keywords and special syntax)
-    // - Keywords: [! MPI_RANK !], [! MPI_SIZE !], [! STATE !]
+    // - Keywords: [! MPI_RANK !], [! MPI_SIZE !], [! STATE !], [! FIDELITY !]
     // Returns whether the searchspace is Mixed (heterogeneous domain types)
     let mut is_it_mixed = is_mixed;
     let mut tokens = input.clone().into_iter();
@@ -159,6 +159,7 @@ fn keyword_replacement(keyword: &str) -> TokenStream {
     // [! MPI_RANK !] -> current process rank (panics if not under mpirun)
     // [! MPI_SIZE !] -> total number of processes
     // [! STATE !] -> current FuncState for multi-fidelity optimization
+    // [! FIDELITY !] -> current fidelity level for multi-fidelity optimization
     match keyword {
         "MPI_RANK" => quote! {
             if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
@@ -178,6 +179,10 @@ fn keyword_replacement(keyword: &str) -> TokenStream {
         .into(),
         "STATE" => quote! {
             tantale_state
+        }
+        .into(),
+        "FIDELITY" => quote! {
+            tantale_fidelity.0
         }
         .into(),
         _ => quote! {
@@ -359,7 +364,7 @@ pub fn reconstruct_tokens(
 /// 2. Replaces `[! var_name !]` placeholders in the function body with appropriate extractors
 /// 3. Handles both homogeneous and heterogeneous (Mixed) domain types
 /// 4. Supports multi-fidelity optimization via `FuncState`
-/// 5. Supports some keyworks like [! MPI_RANK !], [! MPI_SIZE !] for MPI-distributed code, and [! STATE !] for multi-fidelity.
+/// 5. Supports some keyworks like [! MPI_RANK !], [! MPI_SIZE !] for MPI-distributed code, [! STATE !] and [! FIDELITY !] for multi-fidelity.
 pub fn obj(input: TokenStream) -> TokenStream {
     let mut fn_item: CustomFunction = syn::parse(input).unwrap();
     let params_span = fn_item.sig.inputs.span();
@@ -434,7 +439,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
         fn_item
             .sig
             .inputs
-            .push(parse_quote! {fidelity : tantale::core::solution::partial::Fidelity});
+            .push(parse_quote! {tantale_fidelity : tantale::core::solution::partial::Fidelity});
         fn_item
             .sig
             .inputs
@@ -535,7 +540,7 @@ fn is_keyword(input: &TokenStream) -> Option<String> {
     }
 
     match ident.as_str() {
-        "MPI_RANK" | "MPI_SIZE" | "STATE" => Some(ident),
+        "MPI_RANK" | "MPI_SIZE" | "STATE" | "FIDELITY" => Some(ident),
         _ => None,
     }
 }

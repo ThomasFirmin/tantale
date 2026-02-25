@@ -90,7 +90,7 @@
 //!   * By definition, in Tantale an [`Optimizer`](crate::Optimizer) maximimizes the [`Objective`](crate::Objective).
 //!
 
-use std::fmt::Debug;
+use std::{cmp::Ordering, fmt::Debug};
 
 use crate::{EvalStep, FidOutcome, objective::outcome::Outcome, recorder::csv::CSVWritable};
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,7 @@ pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>: Debug {
-    type TypeCodom: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>;
+    type TypeCodom: Debug + Serialize + for<'a> Deserialize<'a>;
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;
 }
 
@@ -200,6 +200,20 @@ impl PartialEq for ElemSingleCodomain {
     }
 }
 
+impl Eq for ElemSingleCodomain {}
+
+impl Ord for ElemSingleCodomain {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.value.total_cmp(&other.value)
+    }
+}
+
+impl PartialOrd for ElemSingleCodomain {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
 
@@ -252,6 +266,23 @@ pub struct ElemCostCodomain {
 impl PartialEq for ElemCostCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.cost == other.cost
+    }
+}
+
+impl Eq for ElemCostCodomain {}
+
+impl Ord for ElemCostCodomain {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.value.total_cmp(&other.value) {
+            Ordering::Equal => self.cost.total_cmp(&other.cost).reverse(),
+            ord => ord,
+        }
+    }
+}
+
+impl PartialOrd for ElemCostCodomain {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -322,6 +353,26 @@ pub struct ElemConstCodomain {
 impl PartialEq for ElemConstCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.constraints == other.constraints
+    }
+}
+
+impl Eq for ElemConstCodomain {}
+
+impl Ord for ElemConstCodomain {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let const_sum: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
+        let other_const_sum: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
+
+        match const_sum.total_cmp(&other_const_sum) {
+            Ordering::Equal => self.value.total_cmp(&other.value),
+            ord => ord.reverse(),
+        }
+    }
+}
+
+impl PartialOrd for ElemConstCodomain {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -399,6 +450,29 @@ impl PartialEq for ElemCostConstCodomain {
         self.value == other.value
             && self.cost == other.cost
             && self.constraints == other.constraints
+    }
+}
+
+impl Eq for ElemCostConstCodomain {}
+
+impl Ord for ElemCostConstCodomain {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let const_sum: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
+        let other_const_sum: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
+
+        match const_sum.total_cmp(&other_const_sum) {
+            Ordering::Equal => match self.value.total_cmp(&other.value) {
+                Ordering::Equal => self.cost.total_cmp(&other.cost).reverse(),
+                ord => ord,
+            },
+            ord => ord.reverse(),
+        }
+    }
+}
+
+impl PartialOrd for ElemCostConstCodomain {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

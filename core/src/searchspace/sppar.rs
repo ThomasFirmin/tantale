@@ -337,6 +337,94 @@ where
             )
             .collect()
     }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_obj<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<SolOpt::Twin<Self::Obj>>
+    where
+        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj> + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    ))
+                },
+            )
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    where
+        F: Fn(SolOpt) -> SolOpt + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    ))
+                },
+            )
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_pair` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_pair<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>
+    where
+        F: Fn(Self::SolShape) -> Self::SolShape + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    );
+                    f(s)
+                },
+            )
+            .collect()
+    }
 }
 
 /// Parallel [`Searchspace`] implementation for objective-only domains.
@@ -545,6 +633,94 @@ where
                         thread_rng,
                         info.clone(),
                     )
+                },
+            )
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_obj<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<SolOpt::Twin<Self::Obj>>
+    where
+        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj> + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    ))
+                },
+            )
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    where
+        F: Fn(SolOpt) -> SolOpt + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    ))
+                },
+            )
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_pair` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_pair<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>
+    where
+        F: Fn(Self::SolShape) -> Self::SolShape + Send + Sync,
+        R: Rng,
+    {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                StdRng::from_os_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                        self,
+                        thread_rng,
+                        info.clone(),
+                    );
+                    f(s)
                 },
             )
             .collect()

@@ -4,8 +4,8 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseSol, EmptyInfo, EvalStep, FidelitySol, Mixed, MixedTypeDom, Objective, SId,
-    Searchspace, SingleCodomain, Sp, Stepped,
+    BaseSol, EmptyInfo, EvalStep, FidelitySol, Mixed, MixedTypeDom, Objective, SId, Searchspace,
+    SingleCodomain, Sp, Stepped,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
@@ -213,12 +213,11 @@ fn test_serde_fidbatchevaluator() {
     let mut stop = Calls::new(50);
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidelitySol<_, _, _>> =
-        <Sp<Mixed, NoDomain> as Searchspace<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
-            EmptyInfo,
-        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
+    let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
+        FidelitySol<SId, Mixed, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval: FidBatchEvaluator<_, _, _, _, FnState> = FidBatchEvaluator::new(batch);
@@ -312,12 +311,11 @@ fn test_serde_thrfidbatchevaluator() {
     let stop = Arc::new(Mutex::new(Calls::new(50)));
 
     let mut rng = rand::rng();
-    let sobj: Vec<FidelitySol<_, _, _>> =
-        <Sp<Mixed, NoDomain> as Searchspace<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
-            EmptyInfo,
-        >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
+    let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
+        FidelitySol<SId, Mixed, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
     let batch = Batch::new(pairs, info.clone());
     let eval: FidThrBatchEvaluator<_, _, _, _, FnState> = FidThrBatchEvaluator::new(batch);

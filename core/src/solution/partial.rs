@@ -31,7 +31,7 @@ use std::{
 
 /// Describes the fidelity of a [`FidelitySol`], i.e. a given budget for evaluation.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct Fidelity(f64);
+pub struct Fidelity(pub f64);
 
 impl Display for Fidelity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,8 +59,8 @@ impl Fidelity {
         Shape::SolObj: HasFidelity,
         Shape::SolOpt: HasFidelity,
     {
-        pair.get_mut_sobj().set_fidelity(self);
-        pair.get_mut_sopt().set_fidelity(self);
+        pair.get_mut_sobj().set_fidelity(self.0);
+        pair.get_mut_sopt().set_fidelity(self.0);
     }
 }
 
@@ -320,8 +320,8 @@ where
     fn fidelity(&self) -> Fidelity {
         self.fid
     }
-    fn set_fidelity(&mut self, fidelity: Fidelity) {
-        self.fid = fidelity;
+    fn set_fidelity(&mut self, fidelity: f64) {
+        self.fid = Fidelity(fidelity);
     }
 }
 

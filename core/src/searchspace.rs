@@ -40,13 +40,12 @@
 //!     use std::sync::Arc;
 //!     use serde::{Serialize,Deserialize};
 //!
-//!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!     
 //!     hpo!(
-//!         a | Real(0.0,1.0,Uniform) |                       ;
-//!         b | Nat(0,100,Uniform)    | Real(0.0,1.0,Uniform) ;
-//!         c | Cat(&ACTIVATION)      | Real(0.0,1.0,Uniform) ;
-//!         d | Bool()                | Real(0.0,1.0,Uniform) ;
+//!         a | Real(0.0,1.0,Uniform)            |                       ;
+//!         b | Nat(0,100,Uniform)               | Real(0.0,1.0,Uniform) ;
+//!         c | Cat(["relu", "tanh", "sigmoid"]) | Real(0.0,1.0,Uniform) ;
+//!         d | Bool()                           | Real(0.0,1.0,Uniform) ;
 //!     );
 //!
 //!     let mut rng =rand::rng();
@@ -102,7 +101,6 @@
 //!     use tantale::macros::{objective,Outcome};
 //!     use serde::{Serialize,Deserialize};
 //!
-//!     static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
 //!     #[derive(Outcome,Serialize,Deserialize)]
 //!     pub struct OutStruct{pub out:f64}
 //!
@@ -110,7 +108,7 @@
 //!         pub fn example() -> OutStruct {
 //!             let a = [! a | Real(0.0,1.0,Uniform)    |                       !];
 //!             let b = [! b | Nat(0,100,Uniform)       | Real(0.0,1.0,Uniform) !];
-//!             let c = [! c | Cat(&ACTIVATION)         | Real(0.0,1.0,Uniform) !];
+//!             let c = [! c | Cat(["relu", "tanh", "sigmoid"])         | Real(0.0,1.0,Uniform) !];
 //!             let d = [! d | Bool()                   | Real(0.0,1.0,Uniform) !];
 //!                
 //!             println!("a {}, b {}, c {}, d {}", a, b, c, d);
@@ -245,13 +243,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -289,13 +286,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -332,13 +328,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -371,17 +366,15 @@ where
     ///
     /// ```
     /// # mod sp{
-    /// #        use tantale::core::{uniform_cat, uniform_nat, uniform_real,
-    /// #                            Bool, Cat, Nat, Real, Searchspace, SId};
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0)                   |                               ;
-    /// #            b | Nat(0,100)        | Real(0.0,1.0)  ;
-    /// #            c | Cat(&ACTIVATION)  | Real(0.0,1.0)  ;
-    /// #            d | Bool()                          | Real(0.0,1.0)                 ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -418,13 +411,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -465,13 +457,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -513,13 +504,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -550,13 +540,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -601,13 +590,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -654,13 +642,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -708,13 +695,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -756,13 +742,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -790,6 +775,187 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<Self::SolShape>;
+
+    /// Generates multiple `Obj` solutions and applies a transformation to each.
+    ///
+    /// This is similar to [`vec_sample_obj`](Searchspace::vec_sample_obj), but allows a
+    /// user-provided closure to post-process each sampled `Obj` solution before returning the vector.
+    /// This is useful for adding custom metadata, mutating fields, or enforcing additional
+    /// constraints on the generated `Obj` solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Closure applied to each sampled `Obj` solution
+    /// * `rng` - Random number generator
+    /// * `size` - Number of `Obj` solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of `Obj` solutions after applying `f` to each sample.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use std::sync::Arc;
+    ///
+    /// let sp = sp::get_searchspace();
+    /// let info = Arc::new(EmptyInfo);
+    /// let mut rng = rand::rng();
+    ///
+    /// let sols = sp.vec_apply_obj(
+    ///     |sol| sol.set_fidelity(1.0),
+    ///     &mut rng,
+    ///     5,
+    ///     info.clone(),
+    /// );
+    ///
+    /// for sol in sols.iter() {
+    ///     assert_eq!(sol.get_fidelity(), 1.0);
+    /// }
+    /// ```
+    fn vec_apply_obj<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<SolOpt::Twin<Self::Obj>>
+    where
+        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj> + Send + Sync,
+        R: Rng;
+
+    /// Generates multiple `Opt` solutions and applies a transformation to each.
+    ///
+    /// This is similar to [`vec_sample_opt`](Searchspace::vec_sample_opt), but allows a
+    /// user-provided closure to post-process each sampled `Opt` solution before returning the vector.
+    /// This is useful for adding custom metadata, mutating fields, or enforcing additional
+    /// constraints on the generated `Opt` solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Closure applied to each sampled `Opt` solution
+    /// * `rng` - Random number generator
+    /// * `size` - Number of `Opt` solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of `Opt` solutions after applying `f` to each sample.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use std::sync::Arc;
+    ///
+    /// let sp = sp::get_searchspace();
+    /// let info = Arc::new(EmptyInfo);
+    /// let mut rng = rand::rng();
+    ///
+    /// let sols = sp.vec_apply_obj(
+    ///     |sol| sol.set_fidelity(1.0),
+    ///     &mut rng,
+    ///     5,
+    ///     info.clone(),
+    /// );
+    ///
+    /// for sol in sols.iter() {
+    ///     assert_eq!(sol.get_fidelity(), 1.0);
+    /// }
+    /// ```
+    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    where
+        F: Fn(SolOpt) -> SolOpt + Send + Sync,
+        R: Rng;
+
+    /// Generates multiple paired solutions and applies a transformation to each.
+    ///
+    /// This is similar to [`vec_sample_pair`](Searchspace::vec_sample_pair), but allows a
+    /// user-provided closure to post-process each sampled pair before returning the vector.
+    /// This is useful for adding custom metadata, mutating fields, or enforcing additional
+    /// constraints on the generated [`SolutionShape`].
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Closure applied to each sampled paired solution
+    /// * `rng` - Random number generator
+    /// * `size` - Number of paired solutions to generate
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Returns
+    ///
+    /// Vector of paired solutions after applying `f` to each sample.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use std::sync::Arc;
+    ///
+    /// let sp = sp::get_searchspace();
+    /// let info = Arc::new(EmptyInfo);
+    /// let mut rng = rand::rng();
+    ///
+    /// let pairs = sp.vec_apply_pair(
+    ///     |pair| pair.set_fidelity(1.0),
+    ///     &mut rng,
+    ///     5,
+    ///     info.clone(),
+    /// );
+    ///
+    /// for pair in pairs.iter() {
+    ///     assert_eq!(pair.get_fidelity(), 1.0);
+    /// }
+    /// ```
+    fn vec_apply_pair<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>
+    where
+        F: Fn(Self::SolShape) -> Self::SolShape + Send + Sync,
+        R: Rng;
+
     /// Validates that all solutions in a vector belong to the Obj domain.
     ///
     /// Batch version of [`is_in_obj`](Searchspace::is_in_obj) that returns `true` only if
@@ -810,13 +976,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///
@@ -858,13 +1023,12 @@ where
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
     /// #        use tantale::macros::hpo;
     /// #
-    /// #        static ACTIVATION: [&str; 3] = ["relu", "tanh", "sigmoid"];
     /// #
     /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)     |                         ;
-    /// #            b | Nat(0,100, Uniform)        | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(&ACTIVATION, Uniform)  | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))       | Real(0.0,1.0, Uniform)  ;
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
     /// #        );
     /// #    }
     ///

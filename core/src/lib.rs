@@ -69,11 +69,12 @@
 //! The macro generates a searchspace based on the variables defined in the function body, and an objective that wraps the user function.
 //! The searchspace and objective can then be created via generated function: `my_module::get_searchspace()` and `my_module::get_function()`.
 //!
-//! ```rust,ignore
+//! ```rust
 //! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-//! use tantale::macros::{objective, Outcome};
+//! use tantale::macros::{objective, Outcome, CSVWritable};
+//! use serde::{Serialize, Deserialize};
 //!
-//! #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
+//! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
 //!     obj: f64,
 //!     info: f64,
@@ -105,11 +106,12 @@
 //! can be evaluated by [`Step`](crate::objective::Step). Hence, the function must maintain an internal state that is updated at each step.
 //! To trigger the wrapping within a [`Stepped`] objective, the user must defined an [`Outcome`] containing a [`Step`](crate::objective::Step).
 //!
-//! ```rust,ignore
+//! ```rust
 //! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-//! use tantale::macros::{objective, Outcome};
+//! use tantale::macros::{objective, Outcome, CSVWritable};
+//! use serde::{Serialize, Deserialize};
 //!
-//! #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
+//! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
 //!     obj: f64,
 //!     info: f64,
@@ -147,13 +149,13 @@
 //! ```
 //!
 //! ### Batch run with checkpointing (mono)
-//! 
+//!
 //! ```rust,ignore
-//! use tantale_core::{
+//! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
 //!     experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale_algos::BatchRandomSearch;
+//! use tantale::algos::BatchRandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
@@ -172,11 +174,11 @@
 //! ### Sequential run with threaded execution
 //!
 //! ```rust,ignore
-//! use tantale_core::{
+//! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, Objective,
 //!     experiment::{Runable, threaded}, stop::Calls,
 //! };
-//! use tantale_algos::random_search::RandomSearch;
+//! use tantale::algos::RandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
@@ -195,10 +197,10 @@
 //! ### Multi-fidelity batch run
 //!
 //! ```rust,ignore
-//! use tantale_core::{
+//! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale_algos::BatchRandomSearch;
+//! use tantale::algos::BatchRandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
@@ -250,8 +252,8 @@ pub mod domain;
 pub use domain::{
     Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Domain,
-    FidCriteria, HasEvalStep, Int, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat, Onto, Real,
-    Single, SingleCodomain, Unit,
+    FidCriteria, HasEvalStep, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Mixed, MixedTypeDom,
+    Multi, MultiCodomain, Nat, NoDomain, Onto, Real, Single, SingleCodomain, Unit,
 };
 
 pub mod sampler;
@@ -264,8 +266,9 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Batch, Computed, FidelitySol, Fidelity, HasFidelity, HasId, HasInfo,
-    HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch, ParSId, SId, SolInfo, Solution,
+    BaseSol, Batch, Computed, Fidelity, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo,
+    HasStep, HasUncomputed, HasY, Id, IntoComputed, OutBatch, ParSId, SId, SolInfo, Solution,
+    SolutionShape, shape::RawObj,
 };
 
 pub mod searchspace;
@@ -280,7 +283,7 @@ pub use crate::objective::{
 
 pub mod optimizer;
 pub use crate::optimizer::{
-    BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer,
+    BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer, opt::CompBatch,
 };
 
 pub mod stop;
@@ -289,7 +292,7 @@ pub use stop::{Calls, Stop};
 pub mod experiment;
 #[cfg(feature = "mpi")]
 pub use experiment::{
-    DistEvaluate, MPIExperiment, MasterWorker, distributed, mpi::utils::MPIProcess,
+    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, mpi::utils::MPIProcess,
     mpi::worker::Worker,
 };
 pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded};

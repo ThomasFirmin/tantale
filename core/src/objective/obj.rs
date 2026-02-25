@@ -133,9 +133,9 @@ type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, Fn
 /// Both [`Objective`] (single-shot evaluation) and [`Stepped`] (multi-[`Step`](crate::objective::Step))
 /// implement this trait so they can be used interchangeably by higher-level
 /// components.
-/// 
+///
 /// # Associated Derive Macro
-/// 
+///
 /// The `FuncWrapper` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
 pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}

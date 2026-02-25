@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::objective::Step;
-use tantale_macros::{FuncState, Outcome};
+use tantale_core::{objective::Step, recorder::CSVWritable};
+use tantale_macros::{CSVWritable, FuncState, Outcome};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
@@ -14,6 +14,37 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
+impl CSVWritable<(), ()> for OutExample {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+            String::from("int_v"),
+            String::from("poi"),
+            String::from("nat_v"),
+            String::from("ipn"),
+            String::from("cat_v"),
+            String::from("bool_v"),
+            String::from("neuron_number"),
+            String::from("neuron_activation"),
+            String::from("vec"),
+        ])
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+            self.int_v.to_string(),
+            format!("({},{})", self.poi.0, self.poi.1),
+            self.nat_v.to_string(),
+            format!("({},{},{})", self.ipn.0, self.ipn.1, self.ipn.2),
+            self.cat_v.clone(),
+            self.bool_v.to_string(),
+            self.neuron.number.to_string(),
+            self.neuron.activation.clone(),
+            format!("{:?}", self.vec),
+        ])
+    }
+}
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutUnique {
@@ -26,6 +57,38 @@ pub struct OutUnique {
     pub bool_v: f64,
     pub point: Point,
     pub vec: Vec<f64>,
+}
+
+impl CSVWritable<(), ()> for OutUnique {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+            String::from("int_v"),
+            String::from("poi"),
+            String::from("nat_v"),
+            String::from("ipn"),
+            String::from("cat_v"),
+            String::from("bool_v"),
+            String::from("point_x"),
+            String::from("point_y"),
+            String::from("vec"),
+        ])
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+            self.int_v.to_string(),
+            format!("({},{})", self.poi.0, self.poi.1),
+            self.nat_v.to_string(),
+            format!("({},{},{})", self.ipn.0, self.ipn.1, self.ipn.2),
+            self.cat_v.to_string(),
+            self.bool_v.to_string(),
+            self.point.x.to_string(),
+            self.point.y.to_string(),
+            format!("{:?}", self.vec),
+        ])
+    }
 }
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -42,6 +105,40 @@ pub struct FidOutExample {
     pub fid: Step,
 }
 
+impl CSVWritable<(), ()> for FidOutExample {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+            String::from("int_v"),
+            String::from("poi"),
+            String::from("nat_v"),
+            String::from("ipn"),
+            String::from("cat_v"),
+            String::from("bool_v"),
+            String::from("neuron_number"),
+            String::from("neuron_activation"),
+            String::from("vec"),
+            String::from("fid"),
+        ])
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+            self.int_v.to_string(),
+            format!("({},{})", self.poi.0, self.poi.1),
+            self.nat_v.to_string(),
+            format!("({},{},{})", self.ipn.0, self.ipn.1, self.ipn.2),
+            self.cat_v.clone(),
+            self.bool_v.to_string(),
+            self.neuron.number.to_string(),
+            self.neuron.activation.clone(),
+            format!("{:?}", self.vec),
+            self.fid.to_string(),
+        ])
+    }
+}
+
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutUnique {
     pub obj: f64,
@@ -54,6 +151,40 @@ pub struct FidOutUnique {
     pub point: Point,
     pub vec: Vec<f64>,
     pub fid: Step,
+}
+
+impl CSVWritable<(), ()> for FidOutUnique {
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+            String::from("int_v"),
+            String::from("poi"),
+            String::from("nat_v"),
+            String::from("ipn"),
+            String::from("cat_v"),
+            String::from("bool_v"),
+            String::from("point_x"),
+            String::from("point_y"),
+            String::from("vec"),
+            String::from("fid"),
+        ])
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+            self.int_v.to_string(),
+            format!("({},{})", self.poi.0, self.poi.1),
+            self.nat_v.to_string(),
+            format!("({},{},{})", self.ipn.0, self.ipn.1, self.ipn.2),
+            self.cat_v.to_string(),
+            self.bool_v.to_string(),
+            self.point.x.to_string(),
+            self.point.y.to_string(),
+            format!("{:?}", self.vec),
+            self.fid.to_string(),
+        ])
+    }
 }
 
 #[derive(FuncState, Serialize, Deserialize)]
@@ -387,7 +518,7 @@ pub mod sp_sm_samp_noright {
     );
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize)]
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct OutEvaluator {
     pub obj: f64,
 }
@@ -398,7 +529,7 @@ impl PartialEq for OutEvaluator {
     }
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize)]
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct FidOutEvaluator {
     pub obj: f64,
     pub fid: Step,
@@ -857,6 +988,55 @@ pub mod sp_sm_samp_noright_fid {
                 },
                 state
             )
+        }
+    );
+}
+
+pub mod sp_evaluator_sh {
+    use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
+    use tantale_core::{
+        Bool, Cat, Int, Nat, Real,
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+    };
+    use tantale_macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (FidOutEvaluator, FnState) {
+
+            let fid = [! FIDELITY !];
+
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if fid == 5. {Step::Evaluated} else{Step::Partially(fid as isize)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
         }
     );
 }

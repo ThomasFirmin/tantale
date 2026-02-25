@@ -18,12 +18,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type BBatch = Batch<
-    SId,
-    EmptyInfo,
-    RSInfo,
-    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
->;
+type BBatch =
+    Batch<SId, EmptyInfo, RSInfo, Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 #[test]
 fn test_fidbatchevaluator() {

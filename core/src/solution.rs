@@ -83,19 +83,20 @@ use crate::{
     EvalStep, OptInfo, Outcome,
     domain::{Codomain, Domain},
     objective::Step,
+    solution::shape::CompPair,
 };
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 /// Metadata associated with a solution during optimization.
 ///
 /// [`SolInfo`] provides a way to attach auxiliary information to solutions, such as iteration
 /// numbers, timestamps, or optimizer-specific data. This information persists across checkpointing
 /// and is available to recorders.
-/// 
+///
 /// # Associated Derive Macro
-/// 
+///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
 pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
@@ -139,6 +140,12 @@ pub trait HasSolInfo<Info: SolInfo> {
 ///
 /// [`HasY`] provides access to a solution's evaluation result ([`TypeCodom`](Codomain::TypeCodom)), representing the output of the
 /// objective function. This trait is typically implemented by [`Computed`] solutions.
+///
+/// # Note
+///
+/// When the [`TypeCodom`](Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
+/// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
+/// [`Computed`], [`Pair`], [`Lone`], are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
 pub trait HasY<Cod: Codomain<Out>, Out: Outcome> {
     /// Returns the objective function value associated with this solution.
     ///
@@ -223,7 +230,7 @@ pub trait HasFidelity {
     fn fidelity(&self) -> Fidelity;
 
     /// Sets the fidelity level for this solution.
-    fn set_fidelity(&mut self, fidelity: Fidelity);
+    fn set_fidelity(&mut self, fidelity: f64);
 }
 
 /// Core trait representing a candidate solution in the optimization process.
@@ -253,9 +260,9 @@ pub trait HasFidelity {
 /// - [`BasePartial`](partial::BasePartial) - Standard solution implementation
 /// - [`FidBasePartial`](partial::FidBasePartial) - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
-pub trait Solution<SolId, Dom, SInfo>: HasId<SolId> + HasSolInfo<SInfo>
+pub trait Solution<SolId, Dom, SInfo>
 where
-    Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
+    Self: Sized + Debug + HasId<SolId> + HasSolInfo<SInfo> + Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
     SInfo: SolInfo,
     Dom: Domain,
@@ -469,6 +476,203 @@ pub trait IntoComputed: Sized {
     ) -> (Self, Arc<Cod::TypeCodom>);
 }
 
+impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialEq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialEq,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.get_y() == other.get_y()
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Eq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Eq,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialOrd for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialOrd,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.get_y().partial_cmp(&other.get_y())
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Ord for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Ord,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_y().cmp(&other.get_y())
+    }
+}
+
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialEq
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialEq,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.get_y() == other.get_y()
+    }
+}
+
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Eq
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Eq,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+}
+
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialOrd
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialOrd,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.get_y().partial_cmp(&other.get_y())
+    }
+}
+
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Ord
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Ord,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_y().cmp(&other.get_y())
+    }
+}
+
+impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialEq
+    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialEq,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.get_y() == other.get_y()
+    }
+}
+
+impl<SolObj, SolId, Obj, SInfo, Cod, Out> Eq for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Eq,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+}
+
+impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialOrd
+    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialOrd,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.get_y().partial_cmp(&other.get_y())
+    }
+}
+
+impl<SolObj, SolId, Obj, SInfo, Cod, Out> Ord for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Ord,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_y().cmp(&other.get_y())
+    }
+}
+
 /// Type alias for the twin solution type in an alternative domain.
 ///
 /// [`SolTwin`] extracts the [`Twin`](Solution::Twin) associated type from a solution,
@@ -486,7 +690,7 @@ pub mod id;
 pub use id::{Id, ParSId, SId};
 
 pub mod partial;
-pub use partial::{BaseSol, FidelitySol, Fidelity};
+pub use partial::{BaseSol, Fidelity, FidelitySol};
 
 pub mod computed;
 pub use computed::Computed;

@@ -5,6 +5,12 @@
 //! solution with an [`Objective`](crate::Objective). This is the evaluated form used by
 //! optimizers and recorders.
 //!
+//! # Note
+//!
+//! For [`TypeCodom`](crate::domain::codomain::TypeCodom) that are [`Ord`] the
+//! [`Computed`] solution implements [`Ord`] and can be used in sorted collections.
+//! Same applies for [`PartialOrd`], [`PartialEq`] and [`Eq`].
+//!
 //! # Examples
 //! ```
 //! use tantale::core::{BasePartial, Computed, SingleCodomain, EmptyInfo, Id, Outcome, Real, SId};
@@ -177,7 +183,7 @@ where
     }
 
     /// Update the [`Fidelity`] of the underlying solution.
-    fn set_fidelity(&mut self, fidelity: Fidelity) {
+    fn set_fidelity(&mut self, fidelity: f64) {
         self.sol.set_fidelity(fidelity);
     }
 }

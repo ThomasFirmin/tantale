@@ -19,7 +19,7 @@
 //! In MPI mode, recorder folders are suffixed with the rank.
 
 use crate::{
-    BaseSol, FidelitySol, Fidelity, FolderConfig, OptInfo, SolInfo,
+    BaseSol, Fidelity, FidelitySol, FolderConfig, OptInfo, SolInfo,
     domain::{Codomain, TypeDom, onto::LinkOpt},
     objective::{Outcome, Step},
     optimizer::Optimizer,
@@ -314,8 +314,7 @@ where
 }
 
 /// Implementation for [`FidBasePartial`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
-impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
-    for Scp
+impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
         + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,

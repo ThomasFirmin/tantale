@@ -19,7 +19,7 @@ impl Drop for Cleaner {
 mod init_func {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Step, objective::outcome::FuncState};
-    use tantale::macros::Outcome;
+    use tantale::macros::{CSVWritable, Outcome};
 
     #[derive(Serialize, Deserialize, Debug)]
     pub struct FnState {
@@ -27,7 +27,7 @@ mod init_func {
     }
     impl FuncState for FnState {}
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
         pub obj: f64,
         pub fid: Step,

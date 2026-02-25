@@ -113,6 +113,16 @@ where
     SolObj: Solution<SolId, Obj, SInfo>,
     SolOpt: Solution<SolId, Opt, SInfo>;
 
+/// Type alias for a computed [`Pair`] solution.
+pub type CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> = Pair<
+    Computed<SolObj, SolId, Obj, Cod, Out, SInfo>,
+    Computed<SolOpt, SolId, Opt, Cod, Out, SInfo>,
+    SolId,
+    Obj,
+    Opt,
+    SInfo,
+>;
+
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
 where
     SolId: Id,
@@ -258,7 +268,7 @@ where
         self.0.fidelity()
     }
 
-    fn set_fidelity(&mut self, fidelity: Fidelity) {
+    fn set_fidelity(&mut self, fidelity: f64) {
         self.0.set_fidelity(fidelity);
         self.1.set_fidelity(fidelity);
     }
@@ -395,6 +405,7 @@ where
     SInfo: SolInfo,
     SolObj: Solution<SolId, Obj, SInfo>;
 
+/// Type alias for a computed [`Lone`] solution.
 pub type CompLone<SolObj, SolId, Obj, SInfo, Cod, Out> =
     Lone<Computed<SolObj, SolId, Obj, Cod, Out, SInfo>, SolId, Obj, SInfo>;
 
@@ -511,7 +522,7 @@ where
         self.0.fidelity()
     }
 
-    fn set_fidelity(&mut self, fidelity: Fidelity) {
+    fn set_fidelity(&mut self, fidelity: f64) {
         self.0.set_fidelity(fidelity);
     }
 }

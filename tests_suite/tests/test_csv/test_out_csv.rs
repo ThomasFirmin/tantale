@@ -3,9 +3,9 @@ use tantale::core::recorder::csv::CSVWritable;
 mod outcome {
     use serde::{Deserialize, Serialize};
     use tantale_core::objective::Step;
-    use tantale_macros::Outcome;
+    use tantale_macros::{CSVWritable, Outcome};
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct OutExample {
         pub fid2: f64,
         pub con3: f64,

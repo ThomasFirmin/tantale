@@ -221,7 +221,7 @@
 //!
 //! ```rust,ignore
 //! use tantale::core::*;
-//! use tantale_algos::RandomSearch;
+//! use tantale::algos::RandomSearch;
 //!
 //! // Define the problem
 //! let searchspace = /* ... */;
@@ -328,7 +328,7 @@ pub use basics::MPIExperiment;
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::mono, Objective, stop::Calls};
-/// use tantale_algos::RandomSearch;
+/// use tantale::algos::RandomSearch;
 ///
 /// let sp = my_searchspace();
 /// let cod = RandomSearch::codomain(|out| out.value);
@@ -393,7 +393,7 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::threaded, Objective, stop::Calls};
-/// use tantale_algos::BatchRandomSearch;
+/// use tantale::algos::BatchRandomSearch;
 ///
 /// let sp = my_searchspace();
 /// let cod = BatchRandomSearch::codomain(|out| out.value);
@@ -505,7 +505,7 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::mono_load, MessagePack, FolderConfig};
-/// use tantale_algos::RandomSearch;
+/// use tantale::algos::RandomSearch;
 /// use tantale::core::stop::Calls;
 ///
 /// // Load from checkpoint
@@ -579,7 +579,7 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::threaded_load, MessagePack, FolderConfig};
-/// use tantale_algos::BatchRandomSearch;
+/// use tantale::algos::BatchRandomSearch;
 /// use tantale::core::stop::Calls;
 ///
 /// let config = FolderConfig::new("my_experiment").init();
@@ -717,7 +717,7 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{load, MessagePack, FolderConfig};
-/// use tantale_algos::RandomSearch;
+/// use tantale::algos::RandomSearch;
 /// use tantale::core::stop::Calls;
 ///
 /// let config = FolderConfig::new("results").init();
@@ -766,7 +766,7 @@ where
 /// #[cfg(feature = "mpi")]
 /// {
 ///     use tantale::core::{load, MessagePack, FolderConfig, experiment::mpi::utils::MPIProcess};
-///     use tantale_algos::RandomSearch;
+///     use tantale::algos::RandomSearch;
 ///     use tantale::core::stop::Calls;
 ///     
 ///     let mpi_process = MPIProcess::new();
@@ -878,7 +878,7 @@ macro_rules! load {
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::mono, Objective, stop::Calls};
-/// use tantale_algos::RandomSearch;
+/// use tantale::algos::RandomSearch;
 ///
 /// // Create experiment
 /// let experiment = mono(

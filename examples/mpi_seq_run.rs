@@ -18,9 +18,9 @@ impl Drop for Cleaner {
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::macros::Outcome;
+    use tantale::macros::{CSVWritable, Outcome};
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
         pub obj: f64,
     }

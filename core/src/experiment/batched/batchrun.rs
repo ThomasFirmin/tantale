@@ -876,14 +876,13 @@ where
         st.lock().unwrap().init();
         'main: loop {
             // Stop part
-            let mut stlock = st.lock().unwrap();
             {
+                let mut stlock = st.lock().unwrap();
                 if stlock.stop() {
                     break 'main;
                 };
                 stlock.update(ExpStep::Iteration);
             }
-
             // Evaluation part
             (computed, outputed) =
                 ThrEvaluate::<

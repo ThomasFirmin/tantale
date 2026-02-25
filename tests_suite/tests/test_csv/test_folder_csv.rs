@@ -28,9 +28,9 @@ use std::{path::Path, sync::Arc};
 
 mod infos {
     use serde::{Deserialize, Serialize};
-    use tantale_macros::Outcome;
+    use tantale_macros::{CSVWritable, Outcome};
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct OutExample {
         pub fid2: usize,
         pub con3: i64,

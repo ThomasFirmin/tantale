@@ -328,8 +328,7 @@ where
 
         let length = self.batch.lock().unwrap().size();
         (0..length).into_par_iter().for_each(|_| {
-            let mut stplock = stop.lock().unwrap();
-            if !stplock.stop() {
+            if !stop.lock().unwrap().stop() {
                 let mut pair = self.batch.lock().unwrap().pop().unwrap();
                 let sid = pair.get_id();
                 let step = pair.step();
@@ -343,7 +342,7 @@ where
                         let step = pair.step();
                         match step {
                             Step::Evaluated | Step::Discard | Step::Error => {
-                                stplock.update(ExpStep::Distribution(step));
+                                stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                             _ => {
                                 self.states.lock().unwrap().insert(sid, state);
@@ -361,7 +360,7 @@ where
                         let step = pair.step();
                         match step {
                             Step::Evaluated | Step::Discard | Step::Error => {
-                                stplock.update(ExpStep::Distribution(step));
+                                stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                             _ => {
                                 self.states.lock().unwrap().insert(sid, state);
@@ -371,7 +370,7 @@ where
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
                     }
                     _ => {
-                        stplock.update(ExpStep::Distribution(Step::Evaluated));
+                        stop.lock().unwrap().update(ExpStep::Distribution(step));
                         self.states.lock().unwrap().remove(&sid);
                     }
                 };

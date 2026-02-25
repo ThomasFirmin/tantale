@@ -38,7 +38,7 @@ use crate::{
 use crate::experiment::mpi::utils::MPIProcess;
 
 pub mod csv;
-pub use csv::CSVRecorder;
+pub use csv::{CSVRecorder, CSVWritable};
 
 pub mod nosaver;
 pub use nosaver::NoSaver;

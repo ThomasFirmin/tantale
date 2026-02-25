@@ -105,12 +105,8 @@ mod init_func {
 
 use init_func::{FidOutEvaluator, FnState, sp_evaluator};
 
-type BBatch = Batch<
-    SId,
-    EmptyInfo,
-    RSInfo,
-    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
->;
+type BBatch =
+    Batch<SId, EmptyInfo, RSInfo, Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");

@@ -95,9 +95,9 @@ use std::fmt::Debug;
 /// the [`Codomain`](crate::domain::codomain::Codomain) (objectives, constraints, cost,
 /// or any metadata). It must be serializable for checkpointing and compatible with
 /// CSV recording.
-/// 
+///
 /// # Associated Derive Macro
-/// 
+///
 /// The [`Outcome`](crate::objective::Outcome) trait is automatically implemented by the
 /// `Outcome` derive macro.
 /// It implements [`Outcome`](crate::objective::Outcome) for any struct with named fields that also implements

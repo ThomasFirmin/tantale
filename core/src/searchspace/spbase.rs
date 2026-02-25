@@ -275,6 +275,73 @@ where
             })
             .collect()
     }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_obj<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<SolOpt::Twin<Self::Obj>>
+    where
+        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj>,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                    self,
+                    rng,
+                    info.clone(),
+                ))
+            })
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    where
+        F: Fn(SolOpt) -> SolOpt,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                    self,
+                    rng,
+                    info.clone(),
+                ))
+            })
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_pair` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_pair<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>
+    where
+        F: Fn(Self::SolShape) -> Self::SolShape,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                    self,
+                    rng,
+                    info.clone(),
+                );
+                f(s)
+            })
+            .collect()
+    }
 }
 
 /// Sequential [`Searchspace`] implementation for objective-only domains.
@@ -441,6 +508,73 @@ where
                 self, sol,
             )
         })
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_obj<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<SolOpt::Twin<Self::Obj>>
+    where
+        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj>,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_obj(
+                    self,
+                    rng,
+                    info.clone(),
+                ))
+            })
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    where
+        F: Fn(SolOpt) -> SolOpt,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                f(<Self as Searchspace<SolOpt, SolId, SInfo>>::sample_opt(
+                    self,
+                    rng,
+                    info.clone(),
+                ))
+            })
+            .collect()
+    }
+
+    /// Equivalent to `vec_sample_pair` but applies a function to each sampled solution.
+    /// See module-level examples in [`crate::searchspace`].
+    fn vec_apply_pair<F, R>(
+        &self,
+        f: F,
+        rng: &mut R,
+        size: usize,
+        info: Arc<SInfo>,
+    ) -> Vec<Self::SolShape>
+    where
+        F: Fn(Self::SolShape) -> Self::SolShape,
+        R: Rng,
+    {
+        (0..size)
+            .map(|_| {
+                let s = <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_pair(
+                    self,
+                    rng,
+                    info.clone(),
+                );
+                f(s)
+            })
+            .collect()
     }
 }
 

@@ -223,6 +223,10 @@ where
     pub fn pop(&mut self) -> Option<Shape> {
         self.pairs.pop()
     }
+
+    pub fn extract(self) -> (Vec<Shape>, Arc<Info>) {
+        (self.pairs, self.info)
+    }
 }
 
 impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
