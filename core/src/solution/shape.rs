@@ -168,8 +168,8 @@ where
     SolObj: Solution<SolId, Obj, SInfo>,
     SolOpt: Solution<SolId, Opt, SInfo>,
 {
-    fn get_id(&self) -> SolId {
-        self.0.get_id()
+    fn id(&self) -> SolId {
+        self.0.id()
     }
 }
 
@@ -183,8 +183,8 @@ where
     SolObj: Solution<SolId, Obj, SInfo>,
     SolOpt: Solution<SolId, Opt, SInfo>,
 {
-    fn get_sinfo(&self) -> Arc<SInfo> {
-        self.0.get_sinfo()
+    fn sinfo(&self) -> Arc<SInfo> {
+        self.0.sinfo()
     }
 }
 
@@ -200,8 +200,8 @@ where
     SolObj: Solution<SolId, Obj, SInfo> + HasY<Cod, Out>,
     SolOpt: Solution<SolId, Opt, SInfo> + HasY<Cod, Out>,
 {
-    fn get_y(&self) -> Arc<Cod::TypeCodom> {
-        self.0.get_y()
+    fn y(&self) -> Arc<Cod::TypeCodom> {
+        self.0.y()
     }
 }
 
@@ -440,8 +440,8 @@ where
     SInfo: SolInfo,
     SolObj: Solution<SolId, Obj, SInfo> + HasId<SolId>,
 {
-    fn get_id(&self) -> SolId {
-        self.0.get_id()
+    fn id(&self) -> SolId {
+        self.0.id()
     }
 }
 
@@ -452,8 +452,8 @@ where
     SInfo: SolInfo,
     SolObj: Solution<SolId, Obj, SInfo> + HasSolInfo<SInfo>,
 {
-    fn get_sinfo(&self) -> Arc<SInfo> {
-        self.0.get_sinfo()
+    fn sinfo(&self) -> Arc<SInfo> {
+        self.0.sinfo()
     }
 }
 
@@ -466,8 +466,8 @@ where
     Out: Outcome,
     SolObj: Solution<SolId, Obj, SInfo> + HasY<Cod, Out>,
 {
-    fn get_y(&self) -> Arc<Cod::TypeCodom> {
-        self.0.get_y()
+    fn y(&self) -> Arc<Cod::TypeCodom> {
+        self.0.y()
     }
 }
 

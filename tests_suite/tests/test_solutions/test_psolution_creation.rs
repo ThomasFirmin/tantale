@@ -24,12 +24,12 @@ where
         "Solution `x` mismatch."
     );
     assert_eq!(
-        sol.get_id().pid,
+        sol.id().pid,
         <u32 as AsPrimitive<usize>>::as_(pid),
         "Solution PID mismatch."
     );
     assert_eq!(
-        sol.get_sinfo().info,
+        sol.sinfo().info,
         42.0,
         "Wrong solution info from TestSInfo."
     );

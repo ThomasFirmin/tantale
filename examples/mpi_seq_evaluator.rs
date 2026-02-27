@@ -113,11 +113,11 @@ fn main() {
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
         let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
-            .map(|s| (s.get_id(), s.get_sobj().x.clone()))
+            .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
         let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
-            .map(|s| (s.get_id(), s.get_sopt().x.clone()))
+            .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();
         let mut eval = DistSeqEvaluator::new(pair);
 

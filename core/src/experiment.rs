@@ -257,7 +257,7 @@
 
 use crate::{
     SId, Searchspace,
-    checkpointer::{Checkpointer, ThrCheckpointer},
+    checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
     domain::onto::LinkOpt,
     objective::{FuncWrapper, Outcome},
     optimizer::Optimizer,
@@ -292,7 +292,7 @@ pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
 // SEQUENTIAL
 pub mod sequential;
 pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
-pub use sequential::seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, VecFidThrSeqEvaluator};
+pub use sequential::seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, HashFidThrSeqEvaluator};
 
 #[cfg(feature = "mpi")]
 pub use batched::batchfidevaluator::FidDistBatchEvaluator;
@@ -361,7 +361,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,
@@ -549,7 +549,7 @@ where
     Scp: Searchspace<PSol, SId, Op::SInfo>,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
     Eval: Evaluate,

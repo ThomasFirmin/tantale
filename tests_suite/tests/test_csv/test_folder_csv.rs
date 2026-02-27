@@ -105,10 +105,10 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let batch = opt.first_step(sp);
-    let mut obatch = OutBatch::empty(batch.get_info());
-    let mut cbatch = Batch::empty(batch.get_info());
+    let mut obatch = OutBatch::empty(batch.info());
+    let mut cbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
-        let id = pair.get_id();
+        let id = pair.id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
@@ -130,10 +130,10 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     recorder.save_batch(&cbatch, &obatch, sp, cod);
 
     let batch = opt.first_step(sp);
-    let mut tobatch = OutBatch::empty(batch.get_info());
-    let mut tcbatch = Batch::empty(batch.get_info());
+    let mut tobatch = OutBatch::empty(batch.info());
+    let mut tcbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
-        let id = pair.get_id();
+        let id = pair.id();
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
@@ -244,8 +244,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let record = line_obj.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_id().id)]);
+        let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.id().id)]);
         let x_str: Vec<String> = pair
             .get_sobj()
             .get_x()
@@ -262,7 +262,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let record = line_opt.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
+        let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().get_id().id)]);
         let x_str: Vec<String> = pair
             .get_sopt()
@@ -280,7 +280,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let record = line_cod.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
+        let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
         let cod_str: Vec<String> = cod.write(&pair.get_sobj().get_y());
         str_content.extend(cod_str);
@@ -293,7 +293,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let record = line_info.unwrap();
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
-        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
+        let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
 
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
         let sinfo_str = pair.get_sobj().get_sinfo().write(&());
@@ -332,13 +332,13 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let content = iter_obatch
             .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
             .unwrap();
-        let pair = iter_cbatch.find(|p| p.get_id().id == id).unwrap();
+        let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
             MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> =
-            Vec::from([format!("{}", pair.get_sobj().sol.get_id().id)]);
+            Vec::from([format!("{}", pair.get_sobj().sol.id().id)]);
         let out_str: Vec<String> = content.1.write(&());
         str_content.extend(out_str);
 

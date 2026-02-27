@@ -1,7 +1,7 @@
 use crate::{
     Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop,
     domain::onto::LinkOpt,
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
@@ -24,7 +24,7 @@ use mpi::Rank;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
-use std::marker::PhantomData;
+use std::{collections::VecDeque, fs::remove_file, marker::PhantomData, path::PathBuf, sync::{Arc, Mutex}};
 
 /// Sequential evaluator for fidelity-based functions.
 /// It evaluates a single [`SolutionShape`] + [`HasStep`] + [`HasFidelity`],
@@ -43,9 +43,13 @@ where
     FnState: FuncState,
 {
     pub pair: Option<Shape>,
-    state: Option<FnState>,
-    id: PhantomData<SolId>,
-    sinfo: PhantomData<SInfo>,
+    #[serde(skip)]
+    pub states: HashMap<SolId, Option<FnState>>,
+    #[serde(skip)]
+    pub new_state: Option<SolId>,
+    #[serde(skip)]
+    pub remove_state: Option<SolId>,
+    _sinfo: PhantomData<SInfo>,
 }
 
 impl<SolId, SInfo, Shape, FnState> FidSeqEvaluator<SolId, SInfo, Shape, FnState>
@@ -59,19 +63,19 @@ where
     pub fn new(pair: Shape) -> Self {
         FidSeqEvaluator {
             pair: Some(pair),
-            state: None,
-            id: PhantomData,
-            sinfo: PhantomData,
+            states: HashMap::new(),
+            new_state: None,
+            remove_state: None,
+            _sinfo: PhantomData,
         }
     }
 
     /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`)
     /// if the step is not [`Step::Partially`].
     pub fn update(&mut self, pair: Shape) {
-        match pair.step() {
-            Step::Partially(_) => {}
-            _ => self.state = None,
-        };
+        if !self.states.contains_key(&pair.id()){
+            self.states.insert(pair.id(), None);
+        }
         self.pair = Some(pair);
     }
 }
@@ -138,10 +142,10 @@ where
             .pair
             .take()
             .expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
-        let id = pair.get_id();
+        let id = pair.id();
         let step = pair.step();
         let fid = pair.fidelity();
-        let state = self.state.take();
+        let state = self.states.get_mut(&id).unwrap().take();
         match step {
             Step::Pending | Step::Partially(_) => {
                 // No saved state
@@ -154,33 +158,17 @@ where
                         stop.update(ExpStep::Distribution(new_step));
                     }
                     _ => {
-                        self.state = Some(state);
+                        self.states.insert(id, Some(state));
+                        self.new_state = Some(id);
                     }
                 };
                 Some((pair.into_computed(y.into()), (id, out)))
             }
             _ => {
                 stop.update(ExpStep::Distribution(step));
-                self.state = None;
+                self.states.remove(&id);
                 None
             }
-        }
-    }
-}
-
-impl<SolId, SInfo, Shape, FnState> From<Shape> for FidSeqEvaluator<SolId, SInfo, Shape, FnState>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    FnState: FuncState,
-{
-    fn from(value: Shape) -> Self {
-        FidSeqEvaluator {
-            pair: Some(value),
-            state: None,
-            id: PhantomData,
-            sinfo: PhantomData,
         }
     }
 }
@@ -206,8 +194,9 @@ where
     FnState: FuncState,
 {
     pub pair: Option<Shape>,
+    pub id: SolId,
+    #[serde(skip)]
     pub state: Option<FnState>,
-    _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
 
@@ -219,22 +208,20 @@ where
     FnState: FuncState,
 {
     /// Creates a new [`FidSeqEvaluator`] with the given [`SolutionShape`].
-    pub fn new(pair: Option<Shape>, state: Option<FnState>) -> Self {
+    pub fn new(pair: Shape, state: Option<FnState>) -> Self {
+        let id = pair.id();
         FidThrSeqEvaluator {
-            pair,
+            pair: Some(pair),
+            id,
             state,
-            _id: PhantomData,
             _sinfo: PhantomData,
         }
     }
     /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`)
     /// if the step is not [`Step::Partially`].
-    pub fn update(&mut self, pair: Shape) {
-        match pair.step() {
-            Step::Partially(_) => {}
-            _ => self.state = None,
-        };
+    pub fn update(&mut self, pair: Shape, state: Option<FnState>) {
         self.pair = Some(pair);
+        self.state = state;
     }
 }
 
@@ -245,6 +232,86 @@ where
     SInfo: SolInfo,
     FnState: FuncState,
 {
+}
+
+impl<PSol, SolId, Op, Scp, Out, St, FnState>
+    ThrEvaluate<
+        PSol,
+        SolId,
+        Op,
+        Scp,
+        Out,
+        St,
+        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
+    > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
+where
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    SolId: Id,
+    Op: SequentialOptimizer<
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
+    Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+    Scp::SolShape: HasStep + HasFidelity,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+    St: Stop,
+    Out: FidOutcome,
+    FnState: FuncState,
+{
+    /// Initializes the evaluator. Currently does nothing.
+    fn init(&mut self) {}
+    /// Evaluates the current [`SolutionShape`] using the provided [`Stepped`] function.
+    /// It manages the internal [`FuncState`] to handle multi-[`Step`] evaluations.
+    /// If the evaluation results in a final step ([`Step::Evaluated`], [`Step::Discard`], or [`Step::Error`]),
+    /// the current [`FuncState`] is cleared.
+    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`](crate::Outcome)
+    /// if the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`].
+    /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
+    fn evaluate(
+        &mut self,
+        ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
+        cod: Arc<Op::Cod>,
+        stop: Arc<Mutex<St>>,
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
+        let mut pair = self.pair.take().expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
+        let id = pair.id();
+        let step = pair.step();
+        let fid = pair.fidelity();
+        let state = self.state.take();
+        match step {
+            Step::Pending | Step::Partially(_) => {
+                // No saved state
+                let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
+                let y = cod.get_elem(&out);
+                pair.set_step(out.get_step());
+                let new_step = pair.step();
+                match new_step {
+                    Step::Evaluated | Step::Discard | Step::Error => {
+                        stop.lock().unwrap().update(ExpStep::Distribution(new_step));
+                    }
+                    _ => {
+                        self.state = Some(state);
+                    }
+                };
+                Some((pair.into_computed(y.into()), (id, out)))
+            }
+            _ => {
+                stop.lock().unwrap().update(ExpStep::Distribution(step));
+                self.state = None;
+                None
+            }
+        }
+    }
 }
 
 /// An intermediate representation for a collection of [`FidThrSeqEvaluator`]. Used to [`load!`](crate::load!)
@@ -261,19 +328,20 @@ where
     serialize = "SolId:Serialize",
     deserialize = "SolId:for<'a> Deserialize<'a>"
 ))]
-pub struct VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+pub struct HashFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    pub pair: Vec<(Shape, FnState)>,
-    _id: PhantomData<SolId>,
+    pub pairs: VecDeque<(FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>, Option<PathBuf>)>,
+    #[serde(skip)]
+    pub states: HashMap<SolId, Option<FnState>>,
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<Shape, SolId, SInfo, FnState> Evaluate for VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+impl<Shape, SolId, SInfo, FnState> Evaluate for HashFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
@@ -282,41 +350,56 @@ where
 {
 }
 
-impl<Shape, SolId, SInfo, FnState> From<VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>
-    for Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>
+impl<Shape, SolId, SInfo, FnState> HashFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    fn from(val: VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>) -> Self {
-        val.pair
-            .into_iter()
-            .map(|(pair, state)| FidThrSeqEvaluator::new(Some(pair), Some(state)))
-            .collect()
+    /// Creates a new [`HashFidThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
+    pub fn new(pairs: VecDeque<(FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>, Option<PathBuf>)>) -> Self {
+        HashFidThrSeqEvaluator {
+            pairs,
+            states: HashMap::new(),
+            _sinfo: PhantomData,
+        }
+    }
+
+    pub fn update_state(&mut self, id: SolId, state: Option<FnState>) {
+        if let Some(state) = state {
+            self.states.insert(id, Some(state));
+        } else {
+            self.states.remove(&id);
+        }
+    }
+
+    pub fn get_one_evaluator(&mut self) -> Option<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>> {
+        if let Some((mut eval, path)) = self.pairs.pop_front() {
+            if let Some(path) = path {
+                remove_file(path);
+            }
+            let id = eval.pair.as_ref().unwrap().id();
+            let state = self.states.get_mut(&id).unwrap().take();
+            eval.state = state;
+            Some(eval)
+        } else {
+            None
+        }
     }
 }
 
-impl<Shape, SolId, SInfo, FnState> From<Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>>
-    for VecFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+impl<Shape, SolId, SInfo, FnState> From<(Vec<(FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>, Option<PathBuf>)>,HashMap<SolId, Option<FnState>>)> for HashFidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
     SInfo: SolInfo,
     FnState: FuncState,
 {
-    fn from(value: Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>) -> Self {
-        let pair = value
-            .into_iter()
-            .filter_map(|p| match (p.pair, p.state) {
-                (Some(pair), Some(state)) => Some((pair, state)),
-                _ => None,
-            })
-            .collect();
-        VecFidThrSeqEvaluator {
-            pair,
-            _id: PhantomData,
+    fn from((pairs, states): (Vec<(FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>, Option<PathBuf>)>, HashMap<SolId, Option<FnState>>)) -> Self {
+        HashFidThrSeqEvaluator {
+            pairs: pairs.into(),
+            states,
             _sinfo: PhantomData,
         }
     }
@@ -385,17 +468,19 @@ where
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.get_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id()).unwrap();
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = *self.where_is_id.get(&pair.get_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id()).unwrap();
                 self.priority_discard.add(pair, rank);
             }
             _ => {}
         }
     }
 }
+
+
 
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Shape> Evaluate for FidDistSeqEvaluator<SolId, SInfo, Shape>
@@ -456,8 +541,8 @@ where
     if stop.stop() {
         true
     } else if let Some(pair) = priority_discard.pop(available) {
-        sendrec.discard_order(available, pair.get_id());
-        where_is_id.remove(&pair.get_id());
+        sendrec.discard_order(available, pair.id());
+        where_is_id.remove(&pair.id());
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
@@ -469,11 +554,11 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
-        where_is_id.insert(pair.get_id(), available);
+        where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         false
     } else if let Some(pair) = new_pairs.pop() {
-        where_is_id.insert(pair.get_id(), available);
+        where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         false
     } else {
@@ -568,7 +653,7 @@ where
         if !sendrec.waiting.is_empty() && !stop.stop() {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            let id = pair.get_id();
+            let id = pair.id();
             pair.set_step(out.get_step());
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {

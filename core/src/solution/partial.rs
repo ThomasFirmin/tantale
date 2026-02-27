@@ -103,7 +103,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    fn get_id(&self) -> SolId {
+    fn id(&self) -> SolId {
         self.id
     }
 }
@@ -114,7 +114,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    fn get_sinfo(&self) -> Arc<Info> {
+    fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
@@ -295,7 +295,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    fn get_id(&self) -> SolId {
+    fn id(&self) -> SolId {
         self.id
     }
 }
@@ -306,7 +306,7 @@ where
     Info: SolInfo,
     SolId: Id,
 {
-    fn get_sinfo(&self) -> Arc<Info> {
+    fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
 }

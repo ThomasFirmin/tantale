@@ -141,12 +141,12 @@ where
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
-        let mut obatch = OutBatch::empty(self.batch.get_info());
-        let mut cbatch = Batch::empty(self.batch.get_info());
+        let mut obatch = OutBatch::empty(self.batch.info());
+        let mut cbatch = Batch::empty(self.batch.info());
 
         while !self.batch.is_empty() && !stop.stop() {
             let mut pair = self.batch.pop().unwrap();
-            let sid = pair.get_id();
+            let sid = pair.id();
             let step = pair.step();
             let fid = pair.fidelity();
             match step {
@@ -218,7 +218,12 @@ where
     FnState: FuncState,
 {
     pub batch: Arc<Mutex<Batch<SolId, SInfo, Info, Shape>>>,
-    states: Arc<Mutex<HashMap<SolId, FnState>>>,
+    #[serde(skip)]
+    pub states: Arc<Mutex<HashMap<SolId, Option<FnState>>>>,
+    #[serde(skip)]
+    pub new_states: Arc<Mutex<Vec<SolId>>>,
+    #[serde(skip)]
+    pub remove_states: Arc<Mutex<Vec<SolId>>>,
 }
 
 impl<SolId, SInfo, Info, Shape, FnState> FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
@@ -235,6 +240,8 @@ where
         FidThrBatchEvaluator {
             batch,
             states: Arc::new(Mutex::new(HashMap::new())),
+            new_states: Arc::new(Mutex::new(Vec::new())),
+            remove_states: Arc::new(Mutex::new(Vec::new())),
         }
     }
     /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
@@ -322,7 +329,7 @@ where
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
-        let info = self.batch.lock().unwrap().get_info();
+        let info = self.batch.lock().unwrap().info();
         let obatch = Arc::new(Mutex::new(OutBatch::empty(info.clone())));
         let cbatch = Arc::new(Mutex::new(Batch::empty(info)));
 
@@ -330,7 +337,7 @@ where
         (0..length).into_par_iter().for_each(|_| {
             if !stop.lock().unwrap().stop() {
                 let mut pair = self.batch.lock().unwrap().pop().unwrap();
-                let sid = pair.get_id();
+                let sid = pair.id();
                 let step = pair.step();
                 let fid = pair.fidelity();
                 match step {
@@ -345,7 +352,8 @@ where
                                 stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                             _ => {
-                                self.states.lock().unwrap().insert(sid, state);
+                                self.states.lock().unwrap().insert(sid, Some(state));
+                                self.new_states.lock().unwrap().push(sid);
                             }
                         };
                         obatch.lock().unwrap().add((sid, out));
@@ -353,7 +361,7 @@ where
                     }
                     Step::Partially(_) => {
                         // get previous state and save next
-                        let state = self.states.lock().unwrap().remove(&sid);
+                        let state = self.states.lock().unwrap().get_mut(&sid).unwrap().take();
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                         let y = cod.get_elem(&out);
                         pair.set_step(out.get_step());
@@ -363,7 +371,8 @@ where
                                 stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                             _ => {
-                                self.states.lock().unwrap().insert(sid, state);
+                                self.states.lock().unwrap().insert(sid, Some(state));
+                                self.new_states.lock().unwrap().push(sid);
                             }
                         };
                         obatch.lock().unwrap().add((sid, out));
@@ -372,6 +381,7 @@ where
                     _ => {
                         stop.lock().unwrap().update(ExpStep::Distribution(step));
                         self.states.lock().unwrap().remove(&sid);
+                        self.remove_states.lock().unwrap().push(sid);
                     }
                 };
             }
@@ -440,11 +450,11 @@ where
         match step {
             Step::Pending => self.new_batch.add(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.get_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id()).unwrap();
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = *self.where_is_id.get(&pair.get_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id()).unwrap();
                 self.priority_discard.add(pair, rank);
             }
             _ => {}
@@ -526,8 +536,8 @@ where
     if stop.stop() {
         true
     } else if let Some(pair) = priority_discard.pop(available) {
-        sendrec.discard_order(available, pair.get_id());
-        where_is_id.remove(&pair.get_id());
+        sendrec.discard_order(available, pair.id());
+        where_is_id.remove(&pair.id());
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
@@ -539,11 +549,11 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
-        where_is_id.insert(pair.get_id(), available);
+        where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         false
     } else if let Some(pair) = new_batch.pop() {
-        where_is_id.insert(pair.get_id(), available);
+        where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         false
     } else {
@@ -630,8 +640,8 @@ where
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
-        let mut obatch = OutBatch::empty(self.new_batch.get_info());
-        let mut cbatch = Batch::empty(self.new_batch.get_info());
+        let mut obatch = OutBatch::empty(self.new_batch.info());
+        let mut cbatch = Batch::empty(self.new_batch.info());
 
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
@@ -656,12 +666,12 @@ where
             pair.set_step(out.get_step());
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
-                    self.where_is_id.remove(&pair.get_id());
+                    self.where_is_id.remove(&pair.id());
                 }
                 _ => {}
             };
             stop.update(ExpStep::Distribution(pair.step()));
-            obatch.add((pair.get_id(), out));
+            obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
             stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
@@ -679,7 +689,7 @@ where
             let y = cod.get_elem(&out);
             pair.set_step(out.get_step());
             stop.update(ExpStep::Distribution(pair.step()));
-            obatch.add((pair.get_id(), out));
+            obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
         }
         // For saving in case of early stopping before full evaluation of all elements

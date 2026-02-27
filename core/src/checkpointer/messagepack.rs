@@ -1,6 +1,6 @@
 use crate::{
-    FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
-    checkpointer::{CheckpointError, Checkpointer, ThrCheckpointer},
+    Id, FuncState, FolderConfig, GlobalParameters, OPT_ID, RUN_ID, SOL_ID,
+    checkpointer::{CheckpointError, Checkpointer, MonoCheckpointer, ThrCheckpointer},
     experiment::Evaluate,
     optimizer::OptState,
     stop::Stop,
@@ -42,6 +42,7 @@ pub struct MessagePack {
     path_optim: PathBuf,
     path_config: PathBuf,
 }
+impl Checkpointer for MessagePack {}
 
 impl MessagePack {
     /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
@@ -60,7 +61,7 @@ impl MessagePack {
     }
 }
 
-impl Checkpointer for MessagePack {
+impl MonoCheckpointer for MessagePack {
     type Config = FolderConfig;
 
     /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
@@ -83,7 +84,7 @@ impl Checkpointer for MessagePack {
     }
     /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    fn after_load(&mut self) {
+    fn before_load(&mut self) {
         // Check if all folder and files exist
         if self.config.path_check.try_exists().unwrap() {
             if !self.path_config.try_exists().unwrap() {
@@ -226,6 +227,50 @@ impl Checkpointer for MessagePack {
             )))
         }
     }
+    
+    /// Saves a checkpoint from a [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn save_func_state<FnState:crate::FuncState, SolId:crate::Id>(&self,id: &SolId,func_state: &FnState) {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let mut file = File::create(path_ste).unwrap();
+        rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
+    }
+    
+    /// Loads checkpoints from already saved [`FuncState`](crate::FuncState) of functions, according to a [`FolderConfig`].
+    fn load_func_state<FnState:crate::FuncState, SolId:crate::Id>(&self)->Option<Vec<(SolId,FnState)>> {
+        let mut vec_func_state = Vec::new();
+        if self.config.path_check.try_exists().unwrap() {
+            for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_func_") {
+                    let rdr = File::open(&path).unwrap();
+                    let (id,func_state): (SolId, FnState) = rmp_serde::decode::from_read(rdr).unwrap();
+                    vec_func_state.push((id, func_state));
+                }
+            }
+            Some(vec_func_state)
+        } else {
+            println!(
+                "INFO: The given path does not have any checkpoint folder, so no FuncState checkpoint file can be loaded."
+            );
+            None
+        }
+    }
+    
+    /// Removes a checkpoint from an already saved [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn remove_func_state<FnState:crate::FuncState, SolId:crate::Id>(&self,id: &SolId) -> Result<bool, CheckpointError> {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        if path_ste.exists() {
+            std::fs::remove_file(path_ste).unwrap();
+            Ok(true)
+        } else {
+            Err(CheckpointError(String::from(
+                "The given FuncState file does not exist.",
+            )))
+        }
+    }
 }
 
 impl ThrCheckpointer for MessagePack {
@@ -260,7 +305,7 @@ impl ThrCheckpointer for MessagePack {
     /// The number of [`Evaluate`] checkpoints might vary according to how many
     /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
     /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
-    fn after_load_thr(&mut self) {
+    fn before_load_thr(&mut self) {
         // Check if all folder and files exist
         if self.config.path_check.try_exists().unwrap() {
             if !self.path_config.try_exists().unwrap() {
@@ -310,17 +355,12 @@ impl ThrCheckpointer for MessagePack {
         state: &OState,
         stop: &St,
         eval: &Eval,
-        k: usize,
     ) {
         let mut wrt = File::create(&self.path_optim).unwrap();
         rmp_serde::encode::write(&mut wrt, state).unwrap();
         let mut wrt = File::create(&self.path_stop).unwrap();
         rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let path_eval = self
-            .config
-            .path_check
-            .join(Path::new(&format!("state_eval_thr_{}.mp", k)));
-        let mut wrt = File::create(&path_eval).unwrap();
+        let mut wrt = File::create(&self.path_eval).unwrap();
         rmp_serde::encode::write(&mut wrt, eval).unwrap();
 
         let global = GlobalParameters {
@@ -337,7 +377,7 @@ impl ThrCheckpointer for MessagePack {
     /// according to a [`FolderConfig`].
     fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
-    ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
+    ) -> Result<(OState, St, Eval), CheckpointError> {
         let global: GlobalParameters = self.load_parameters()?;
         SOL_ID.store(global.sold_id, Ordering::Release);
         OPT_ID.store(global.sold_id, Ordering::Release);
@@ -398,36 +438,20 @@ impl ThrCheckpointer for MessagePack {
     ///
     /// # Panic
     /// If no [`Evaluate`] checkpoint was found, then [`panic!`].
-    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
+    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError> {
         // Check if file exist
-        let k = num_cpus::get();
-        let mut vec_eval = Vec::new();
         if self.config.path_check.try_exists().unwrap() {
-            for i in 0..k {
-                let path_eval = self
-                    .config
-                    .path_check
-                    .join(Path::new(&format!("state_eval_thr_{}.mp", i)));
-                if path_eval.is_file() {
-                    let rdr = File::open(&path_eval).unwrap();
-                    vec_eval.push(rmp_serde::decode::from_read(rdr).unwrap());
-                } else {
-                    println!(
-                        "INFO: The Evaluate checkpoint file for thread {} does not exists. It is replaced by a new empty Evaluate.",
-                        i
-                    );
-                }
+            if self.path_eval.is_file() {
+                let rdr = File::open(&self.path_eval).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Evaluate` file state_eval.mp does not exists.",
+                )))
             }
         } else {
-            return Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )));
-        }
-        if !vec_eval.is_empty() {
-            Ok(vec_eval)
-        } else {
             Err(CheckpointError(String::from(
-                "The given path does not have any Evaluate checkpoint file",
+                "The given path does not have any checkpoint folder",
             )))
         }
     }
@@ -447,6 +471,50 @@ impl ThrCheckpointer for MessagePack {
         } else {
             Err(CheckpointError(String::from(
                 "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
+
+    /// Saves a checkpoint from a [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn save_func_state_thr<FnState:crate::FuncState, SolId:crate::Id>(&self,id: &SolId,func_state: &FnState) {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let mut file = File::create(path_ste).unwrap();
+        rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
+    }
+    
+    /// Loads checkpoints from already saved [`FuncState`](crate::FuncState) of functions, according to a [`FolderConfig`].
+    fn load_func_state_thr<FnState:FuncState, SolId:Id>(&self)->Option<Vec<(SolId,FnState)>> {
+        let mut vec_func_state = Vec::new();
+        if self.config.path_check.try_exists().unwrap() {
+            for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_func_") {
+                    let rdr = File::open(&path).unwrap();
+                    let (id,func_state): (SolId, FnState) = rmp_serde::decode::from_read(rdr).unwrap();
+                    vec_func_state.push((id, func_state));
+                }
+            }
+            Some(vec_func_state)
+        } else {
+            println!(
+                "INFO: The given path does not have any checkpoint folder, so no FuncState checkpoint file can be loaded."
+            );
+            None
+        }
+    }
+    
+    /// Removes a checkpoint from an already saved [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn remove_func_state_thr<FnState:FuncState, SolId:Id>(&self,id: &SolId) -> Result<bool, CheckpointError> {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        if path_ste.exists() {
+            std::fs::remove_file(path_ste).unwrap();
+            Ok(true)
+        } else {
+            Err(CheckpointError(String::from(
+                "The given FuncState file does not exist.",
             )))
         }
     }
@@ -499,7 +567,7 @@ impl DistCheckpointer for MessagePack {
     /// The Master checks the folder hierarchy, if some files or folder are missing, then [`panic!`].
     /// Then, once done, it waits for all workers to reach the same point,
     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
-    fn after_load_dist(&mut self, proc: &MPIProcess) {
+    fn before_load_dist(&mut self, proc: &MPIProcess) {
         if self.config.is_dist {
             // Check if all folder and files exist
             if self.config.path_check.try_exists().unwrap() {
@@ -667,6 +735,50 @@ impl DistCheckpointer for MessagePack {
         }
     }
 
+    /// Saves a checkpoint from a [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn save_func_state_dist<FnState:crate::FuncState, SolId:crate::Id>(&self,id: &SolId,func_state: &FnState) {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let mut file = File::create(path_ste).unwrap();
+        rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
+    }
+    
+    /// Loads checkpoints from already saved [`FuncState`](crate::FuncState) of functions, according to a [`FolderConfig`].
+    fn load_func_state_dist<FnState:FuncState, SolId:Id>(&self)->Option<Vec<(SolId,FnState)>> {
+        let mut vec_func_state = Vec::new();
+        if self.config.path_check.try_exists().unwrap() {
+            for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_func_") {
+                    let rdr = File::open(&path).unwrap();
+                    let (id,func_state): (SolId, FnState) = rmp_serde::decode::from_read(rdr).unwrap();
+                    vec_func_state.push((id, func_state));
+                }
+            }
+            Some(vec_func_state)
+        } else {
+            println!(
+                "INFO: The given path does not have any checkpoint folder, so no FuncState checkpoint file can be loaded."
+            );
+            None
+        }
+    }
+    
+    /// Removes a checkpoint from an already saved [`FuncState`](crate::FuncState) of a function, according to a [`FolderConfig`].
+    fn remove_func_state_dist<FnState:FuncState, SolId:Id>(&self,id: &SolId) -> Result<bool, CheckpointError> {
+        let id_str = id.to_string();
+        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        if path_ste.exists() {
+            std::fs::remove_file(path_ste).unwrap();
+            Ok(true)
+        } else {
+            Err(CheckpointError(String::from(
+                "The given FuncState file does not exist.",
+            )))
+        }
+    }
+
     /// Returns a [`WorkerCheckpointer`] based on the given [`MPIProcess`].
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
         WCheckMessagePack::new(self.config.clone(), proc)
@@ -732,7 +844,7 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     /// The [`Worker`](crate::Worker) wait for the Master to check the folder hierarchy,
     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
     /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
-    fn after_load(&mut self, proc: &MPIProcess) {
+    fn before_load(&mut self, proc: &MPIProcess) {
         proc.world.barrier();
         // Check if all folder and files exist
         if !self.0.try_exists().unwrap() {

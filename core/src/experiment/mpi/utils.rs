@@ -158,7 +158,7 @@ where
 {
     /// Create a new [`XMessage`] from a given [`Solution`].
     fn new(sol: &PSol) -> Self {
-        XMessage(sol.get_id(), sol.get_x())
+        XMessage(sol.id(), sol.get_x())
     }
 }
 
@@ -191,7 +191,7 @@ where
 {
     /// Create a new [`FXMessage`] from a given [`Solution`].
     fn new(sol: &PSol) -> Self {
-        FXMessage(sol.get_id(), sol.get_x(), sol.raw_step(), sol.fidelity())
+        FXMessage(sol.id(), sol.get_x(), sol.raw_step(), sol.fidelity())
     }
 }
 
@@ -260,6 +260,10 @@ impl IdleWorker {
     pub fn iter_busy(&self) -> IterZeros<'_, usize, bitvec::prelude::Lsb0> {
         self.idle.iter_zeros()
     }
+    /// Count the number of idle workers.
+    pub fn count_idle(&self) -> usize {
+        self.idle.count_ones()
+    }
 }
 
 /// A structure allowing to send and receive messages to/from [`Worker`](crate::Worker)s.
@@ -323,7 +327,7 @@ where
 
     /// Send an Obj [`Raw`](Solution::Raw) to a worker given a certain [`Rank`].
     pub fn send_to_rank(&mut self, rank: Rank, pair: Shape) {
-        let sid = pair.get_id();
+        let sid = pair.id();
         let msg = Msg::new(pair.get_sobj());
         send_msg(self.proc, msg, rank, 0, self.config);
         self.idle.set_busy(rank);

@@ -30,7 +30,7 @@
 //! ```ignore
 //! let obj_solution = sp.sample_obj(&mut rng, info.clone());
 //! let paired = sp.onto_opt(obj_solution); // Creates twin in Opt domain
-//! assert_eq!(paired.get_obj().get_id(), paired.get_opt().get_id());
+//! assert_eq!(paired.get_obj().id(), paired.get_opt().id());
 //! ```
 //!
 //! ## Solution States
@@ -108,7 +108,7 @@ pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 /// enabling tracking and correlation throughout the optimization process.
 pub trait HasId<SolId: Id> {
     /// Returns the solution's unique identifier.
-    fn get_id(&self) -> SolId;
+    fn id(&self) -> SolId;
 
     /// Checks if another object is a twin (shares the same [`Id`]).
     ///
@@ -123,7 +123,7 @@ pub trait HasId<SolId: Id> {
     ///
     /// `true` if both objects share the same [`Id`], `false` otherwise.
     fn is_twin<Twin: HasId<SolId>>(&self, solb: Twin) -> bool {
-        self.get_id() == solb.get_id()
+        self.id() == solb.id()
     }
 }
 
@@ -133,7 +133,7 @@ pub trait HasId<SolId: Id> {
 /// include iteration numbers, timestamps, or other optimizer-specific information specifically related to the solution.
 pub trait HasSolInfo<Info: SolInfo> {
     /// Returns the solution's [`SolInfo`] wrapped in [`Arc`].
-    fn get_sinfo(&self) -> Arc<Info>;
+    fn sinfo(&self) -> Arc<Info>;
 }
 
 /// Trait for objects with an associated objective function value.
@@ -152,7 +152,7 @@ pub trait HasY<Cod: Codomain<Out>, Out: Outcome> {
     /// # Returns
     ///
     /// A shared reference to the codomain value (objective function output).
-    fn get_y(&self) -> Arc<Cod::TypeCodom>;
+    fn y(&self) -> Arc<Cod::TypeCodom>;
 }
 
 /// Trait for objects carrying optimizer-specific metadata.
@@ -161,7 +161,7 @@ pub trait HasY<Cod: Codomain<Out>, Out: Outcome> {
 /// solutions, distinct from general [`SolInfo`].
 pub trait HasInfo<Info: OptInfo> {
     /// Returns the optimizer-specific metadata for this solution.
-    fn get_info(&self) -> Arc<Info>;
+    fn info(&self) -> Arc<Info>;
 }
 
 /// Trait for solutions supporting multi-fidelity evaluation tracking.
@@ -488,7 +488,7 @@ where
     Dom: Domain,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.get_y() == other.get_y()
+        self.y() == other.y()
     }
 }
 
@@ -517,7 +517,7 @@ where
     Dom: Domain,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.get_y().partial_cmp(&other.get_y())
+        self.y().partial_cmp(&other.y())
     }
 }
 
@@ -533,7 +533,7 @@ where
     Dom: Domain,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_y().cmp(&other.get_y())
+        self.y().cmp(&other.y())
     }
 }
 
@@ -552,7 +552,7 @@ where
     Opt: Domain,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.get_y() == other.get_y()
+        self.y() == other.y()
     }
 }
 
@@ -587,7 +587,7 @@ where
     Opt: Domain,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.get_y().partial_cmp(&other.get_y())
+        self.y().partial_cmp(&other.y())
     }
 }
 
@@ -606,7 +606,7 @@ where
     Opt: Domain,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_y().cmp(&other.get_y())
+        self.y().cmp(&other.y())
     }
 }
 
@@ -623,7 +623,7 @@ where
     Obj: Domain,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.get_y() == other.get_y()
+        self.y() == other.y()
     }
 }
 
@@ -653,7 +653,7 @@ where
     Obj: Domain,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.get_y().partial_cmp(&other.get_y())
+        self.y().partial_cmp(&other.y())
     }
 }
 
@@ -669,7 +669,7 @@ where
     Obj: Domain,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_y().cmp(&other.get_y())
+        self.y().cmp(&other.y())
     }
 }
 

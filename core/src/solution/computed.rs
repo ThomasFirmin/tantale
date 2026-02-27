@@ -104,8 +104,8 @@ where
     SolId: Id,
 {
     /// Return the identifier of the underlying uncomputed solution.
-    fn get_id(&self) -> SolId {
-        self.sol.get_id()
+    fn id(&self) -> SolId {
+        self.sol.id()
     }
 }
 
@@ -120,8 +120,8 @@ where
     SolId: Id,
 {
     /// Return the [`SolInfo`](crate::SolInfo) associated with the underlying solution.
-    fn get_sinfo(&self) -> Arc<Info> {
-        self.sol.get_sinfo()
+    fn sinfo(&self) -> Arc<Info> {
+        self.sol.sinfo()
     }
 }
 
@@ -198,7 +198,7 @@ where
     SolId: Id,
 {
     /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
-    fn get_y(&self) -> Arc<Cod::TypeCodom> {
+    fn y(&self) -> Arc<Cod::TypeCodom> {
         self.y.clone()
     }
 }

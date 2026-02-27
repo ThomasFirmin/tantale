@@ -294,11 +294,11 @@ where
         self.into_iter().for_each(|pair| match pair.step() {
             Step::Pending => new_batch.add(pair),
             Step::Partially(_) => {
-                let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                let rank = where_is_id.remove(&pair.id()).unwrap();
                 priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = where_is_id.remove(&pair.get_id()).unwrap();
+                let rank = where_is_id.remove(&pair.id()).unwrap();
                 priority_discard.add(pair, rank);
             }
             _ => {}
@@ -314,7 +314,7 @@ where
     Shape: SolutionShape<SolId, SInfo>,
 {
     /// Return the optimizer metadata shared by the batch.
-    fn get_info(&self) -> Arc<Info> {
+    fn info(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
@@ -455,7 +455,7 @@ where
     Info: OptInfo,
     Out: Outcome,
 {
-    fn get_info(&self) -> Arc<Info> {
+    fn info(&self) -> Arc<Info> {
         self.info.clone()
     }
 }

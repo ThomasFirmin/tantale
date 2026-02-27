@@ -73,7 +73,7 @@ fn test_serde_batchevaluator() {
 
     assert!(
         eval.batch.into_iter().zip(&neval.batch).all(|(i, j)| {
-            (i.get_id() == j.get_id())
+            (i.id() == j.id())
                 && (i.get_sobj().x == j.get_sobj().x)
                 && (i.get_sopt().x == j.get_sopt().x)
         }),
@@ -108,7 +108,7 @@ fn test_serde_batchevaluator() {
 
     assert!(
         neval.batch.into_iter().zip(&nneval.batch).all(|(i, j)| {
-            (i.get_id() == j.get_id())
+            (i.id() == j.id())
                 && (i.get_sobj().x == j.get_sobj().x)
                 && (i.get_sopt().x == j.get_sopt().x)
         }),
@@ -152,7 +152,7 @@ fn test_serde_thrbatchevaluator() {
             .iter()
             .zip(&neval.batch.lock().unwrap().pairs)
             .all(|(i, j)| {
-                (i.get_id() == j.get_id())
+                (i.id() == j.id())
                     && (i.get_sobj().x == j.get_sobj().x)
                     && (i.get_sopt().x == j.get_sopt().x)
             }),
@@ -194,7 +194,7 @@ fn test_serde_thrbatchevaluator() {
             .iter()
             .zip(&nneval.batch.lock().unwrap().pairs)
             .all(|(i, j)| {
-                (i.get_id() == j.get_id())
+                (i.id() == j.id())
                     && (i.get_sobj().x == j.get_sobj().x)
                     && (i.get_sopt().x == j.get_sopt().x)
             }),
@@ -227,7 +227,7 @@ fn test_serde_fidbatchevaluator() {
 
     assert!(
         eval.batch.into_iter().zip(&neval.batch).all(|(i, j)| {
-            (i.get_id() == j.get_id())
+            (i.id() == j.id())
                 && (i.get_sobj().x == j.get_sobj().x)
                 && (i.get_sopt().x == j.get_sopt().x)
         }),
@@ -269,7 +269,7 @@ fn test_serde_fidbatchevaluator() {
 
     assert!(
         neval.batch.into_iter().zip(&nneval.batch).all(|(i, j)| {
-            (i.get_id() == j.get_id())
+            (i.id() == j.id())
                 && (i.get_sobj().x == j.get_sobj().x)
                 && (i.get_sopt().x == j.get_sopt().x)
         }),
@@ -331,7 +331,7 @@ fn test_serde_thrfidbatchevaluator() {
             .iter()
             .zip(&neval.batch.lock().unwrap().pairs)
             .all(|(i, j)| {
-                (i.get_id() == j.get_id())
+                (i.id() == j.id())
                     && (i.get_sobj().x == j.get_sobj().x)
                     && (i.get_sopt().x == j.get_sopt().x)
             }),
@@ -380,7 +380,7 @@ fn test_serde_thrfidbatchevaluator() {
             .iter()
             .zip(&nneval.batch.lock().unwrap().pairs)
             .all(|(i, j)| {
-                (i.get_id() == j.get_id())
+                (i.id() == j.id())
                     && (i.get_sobj().x == j.get_sobj().x)
                     && (i.get_sopt().x == j.get_sopt().x)
             }),

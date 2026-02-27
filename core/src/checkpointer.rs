@@ -56,7 +56,11 @@
 //! - MPI-specific traits are only available with the `mpi` feature.
 //! - See [`experiment::Runable`](crate::experiment::Runable) for how checkpointers are integrated into optimization loops.
 
-use crate::{GlobalParameters, SaverConfig, experiment::Evaluate, optimizer::OptState, stop::Stop};
+#[cfg(feature = "mpi")]
+use std::panic;
+use std::{collections::HashMap, path::PathBuf};
+
+use crate::{FuncState, GlobalParameters, Id, SaverConfig, experiment::Evaluate, optimizer::OptState, stop::Stop};
 #[cfg(feature = "mpi")]
 use crate::{
     config::NoConfig,
@@ -72,6 +76,23 @@ pub use messagepack::MessagePack;
 use serde::{Deserialize, Serialize};
 
 pub use crate::errors::CheckpointError;
+
+// Marker trait for checkpointing management in optimization experiments.
+///
+/// A [`Checkpointer`] provides the ability to save and restore the complete state of an optimization
+/// experiment, enabling resumption after interruptions. It manages the persistence of four key state
+/// components necessary to restart an experiment from any checkpoint.
+/// 
+/// # See Also
+/// - [`MonoCheckpointer`] - For single-threaded optimization experiments
+/// - [`ThrCheckpointer`] - For multi-threaded optimization experiments
+/// - [`DistCheckpointer`] - For distributed MPI-based optimization experiments
+pub trait Checkpointer 
+where
+    Self: Sized,
+{
+    
+}
 
 /// Core trait for checkpointing management in optimization experiments.
 ///
@@ -122,9 +143,7 @@ pub use crate::errors::CheckpointError;
 /// - [`experiment::Runable`](crate::experiment::Runable) - Integration point where [`Checkpointer`] is used in optimization loops
 /// - [`MessagePack`] - Concrete implementation using MessagePack serialization
 /// - [`FolderConfig`](crate::FolderConfig) - Configuration for file-based checkpoint storage
-pub trait Checkpointer
-where
-    Self: Sized,
+pub trait MonoCheckpointer: Checkpointer
 {
     /// Configuration type that implements [`SaverConfig`].
     ///
@@ -154,12 +173,12 @@ where
     /// ```
     ///
     /// # See Also
-    /// - [`after_load`](Self::after_load) - Used when resuming an existing experiment
+    /// - [`before_load`](Self::before_load) - Used when resuming an existing experiment
     fn init(&mut self);
 
-    /// Verifies checkpoint integrity after loading a saved experiment.
+    /// Verifies checkpoint integrity before loading a saved experiment.
     ///
-    /// This method must be called after loading a checkpoint and before calling any `load_*` methods.
+    /// This method must be called before using any `load_*` methods.
     /// It validates that:
     /// - The checkpoint directory exists
     /// - All required checkpoint files are present and intact
@@ -172,7 +191,7 @@ where
     ///
     /// # See Also
     /// - [`init`](Self::init) - Used when starting a new experiment
-    fn after_load(&mut self);
+    fn before_load(&mut self);
 
     /// Saves the complete state of an optimization experiment to a checkpoint.
     ///
@@ -202,7 +221,7 @@ where
     /// Loads the complete state of an optimization experiment from a checkpoint.
     ///
     /// This is the primary checkpoint recovery method, restoring all three essential state components.
-    /// Call [`after_load`](Self::after_load) before using this method to verify checkpoint integrity.
+    /// Call [`before_load`](Self::before_load) before using this method to verify checkpoint integrity.
     ///
     /// # Type Parameters
     ///
@@ -227,7 +246,7 @@ where
     /// # Example
     ///
     /// ```ignore
-    /// checkpointer.after_load()?;
+    /// checkpointer.before_load()?;
     /// let (opt_state, stop, eval) = checkpointer.load()?;
     /// ```
     fn load<OState: OptState, St: Stop, Eval: Evaluate>(
@@ -270,6 +289,14 @@ where
     ///
     /// Usually called internally by [`load`](Self::load). Direct usage rare..
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
+
+    /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn save_func_state<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState);
+    /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn load_func_state<FnState:FuncState, SolId:Id>(&self)-> HashMap<SolId, Option<FnState>>;
+    /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
+    fn remove_func_state<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
+
 }
 
 /// Extended checkpointer trait for multi-threaded optimization experiments.
@@ -282,18 +309,16 @@ where
 ///
 /// [`ThrCheckpointer`] extends [`Checkpointer`] by adding thread-aware variants of key methods:
 /// - `init()` → `init_thr()` - Initialize for multi-threaded storage
-/// - `after_load()` → `after_load_thr()` - Verify multi-threaded checkpoint
+/// - `before_load()` → `before_load_thr()` - Verify multi-threaded checkpoint
 /// - `save_state()` → `save_state_thr()` - Save with thread context
 /// - `load()` → `load_thr()` - Restore multiple thread states
 /// - Individual load methods remain unchanged (they apply to shared state)
 ///
 /// # See Also
 ///
-/// - [`Checkpointer`] - For single-threaded optimization
+/// - [`MonoCheckpointer`] - For single-threaded optimization
 /// - [`DistCheckpointer`] - For distributed MPI optimization
 pub trait ThrCheckpointer: Checkpointer
-where
-    Self: Sized,
 {
     /// Configuration type (inherited from [`Checkpointer`]).
     ///
@@ -302,28 +327,36 @@ where
 
     /// Equivalent to [`init`](Checkpointer::init) for threaded optimization experiment.
     fn init_thr(&mut self);
-    /// Equivalent to [`after_load`](Checkpointer::after_load) for threaded optimization experiment.
-    fn after_load_thr(&mut self);
-    /// Equivalent to [`save_state`](Checkpointer::save_state) for threaded optimization experiment, with thread context.
+    /// Equivalent to [`before_load`](Checkpointer::before_load) for threaded optimization experiment.
+    fn before_load_thr(&mut self);
+    /// Equivalent to [`save_state`](Checkpointer::save_state) for threaded optimization experiment.
     fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
         eval: &Eval,
-        thread: usize,
+        thread:usize,
     );
-    /// Equivalent to [`load`](Checkpointer::load) for threaded optimization experiment, returning thread-specific states.
+    /// Equivalent to [`load`](MonoCheckpointer::load) for threaded optimization experiment, returning thread-specific states.
     fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
-    ) -> Result<(OState, St, Vec<Eval>), CheckpointError>;
-    /// Equivalent to [`load_stop`](Checkpointer::load_stop) for threaded optimization experiment, returning thread-specific stop state.
+    ) -> Result<(OState, St, Eval), CheckpointError>;
+    /// Equivalent to [`load_stop`](MonoCheckpointer::load_stop) for threaded optimization experiment, returning thread-specific stop state.
     fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError>;
-    /// Equivalent to [`load_optimizer`](Checkpointer::load_optimizer) for threaded optimization experiment, returning thread-specific optimizer state.
+    /// Equivalent to [`load_optimizer`](MonoCheckpointer::load_optimizer) for threaded optimization experiment, returning thread-specific optimizer state.
     fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError>;
-    /// Equivalent to [`load_evaluate`](Checkpointer::load_evaluate) for threaded optimization experiment, returning thread-specific evaluation states.
-    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError>;
-    /// Equivalent to [`load_parameters`](Checkpointer::load_parameters) for threaded optimization experiment, returning shared global parameters.
+    /// Equivalent to [`load_evaluate`](MonoCheckpointer::load_evaluate) for threaded optimization experiment, returning thread-specific evaluation states.
+    fn load_evaluate_thr<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError>;
+    /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for threaded optimization experiment, returning shared global parameters.
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
+    /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn save_func_state_thr<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState);
+    /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn load_func_state_thr<FnState:FuncState, SolId:Id>(&self)-> HashMap<SolId, Option<FnState>>;
+    /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
+    fn remove_func_state_thr<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
+    /// Loads all the thread-specific evaluation states from a checkpoint, returning a vector of evaluation states for each thread.
+    fn load_all_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<(Eval,Option<PathBuf>)>, CheckpointError>;
 }
 
 #[cfg(feature = "mpi")]
@@ -357,10 +390,9 @@ where
 ///
 /// - [`DistCheckpointer`] - For controller-side distributed checkpointing
 /// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI context information
-/// - [`WorkerState`] - Type astertrait for worker-local state
+/// - [`WorkerState`] - Type trait for worker-local state
 pub trait WorkerCheckpointer<WState>
 where
-    Self: Sized,
     WState: WorkerState,
 {
     /// Initializes checkpoint storage for a worker process in a new distributed experiment.
@@ -387,10 +419,10 @@ where
     /// ```
     ///
     /// # See Also
-    /// - [`after_load`](Self::after_load) - Used when resuming an existing distributed experiment
+    /// - [`before_load`](Self::before_load) - Used when resuming an existing distributed experiment
     fn init(&mut self, proc: &MPIProcess);
 
-    /// Verifies worker checkpoint integrity after loading an existing distributed experiment.
+    /// Verifies worker checkpoint integrity before loading an existing distributed experiment.
     ///
     /// This method must be called before calling any `load_*` methods
     /// on this worker. It validates that the checkpoint for the current rank exists and is intact.
@@ -410,13 +442,13 @@ where
     ///
     /// ```ignore
     /// let mut worker_check = checkpointer.get_check_worker::<MyWorkerState>(&proc);
-    /// worker_check.after_load(&proc)?;  // Verify checkpoint exists
+    /// worker_check.before_load(&proc)?;  // Verify checkpoint exists
     /// let state = worker_check.load(rank)?;
     /// ```
     ///
     /// # See Also
     /// - [`init`](Self::init) - Used when starting a new distributed experiment
-    fn after_load(&mut self, proc: &MPIProcess);
+    fn before_load(&mut self, proc: &MPIProcess);
 
     /// Saves the local worker state to a checkpoint.
     ///
@@ -488,8 +520,8 @@ where
 ///
 /// # Relationship to Other Traits
 ///
-/// - **[`Checkpointer`]** - Single-threaded base trait
 /// - **[`WorkerCheckpointer`]** - Worker-side counterpart for per-rank local state
+/// - **[`MonoCheckpointer`]** - Single-threaded base trait
 /// - **[`ThrCheckpointer`]** - Multi-threaded variant (unrelated to distribution)
 ///
 /// # See Also
@@ -508,7 +540,7 @@ where
 
     /// Equivalent to [`init`](Checkpointer::init) for distributed optimization experiments.
     fn init_dist(&mut self, proc: &MPIProcess);
-    fn after_load_dist(&mut self, proc: &MPIProcess);
+    fn before_load_dist(&mut self, proc: &MPIProcess);
     /// Define an initialization for [`Workers`](crate::experiment::mpi::worker::Worker) that do not have a [`Checkpointer`].
     fn no_check_init(proc: &MPIProcess);
     /// Equivalent to [`save_state`](Checkpointer::save_state) for distributed optimization experiments, with rank context.
@@ -534,20 +566,22 @@ where
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
     /// Retrieves the worker checkpointer.
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
+    
 }
 
 #[cfg(feature = "mpi")]
 /// An empty [`WorkerState`]
 #[derive(Serialize, Deserialize)]
 pub struct NoCheck;
+impl Checkpointer for NoCheck {}
 
 #[cfg(feature = "mpi")]
-impl Checkpointer for NoCheck {
+impl MonoCheckpointer for NoCheck {
     type Config = NoConfig;
 
     fn init(&mut self) {}
 
-    fn after_load(&mut self) {}
+    fn before_load(&mut self) {}
 
     fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
@@ -578,6 +612,18 @@ impl Checkpointer for NoCheck {
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
+    
+    fn save_func_state<FnState:FuncState, SolId:Id>(&self,_id: &SolId,_func_state: &FnState) {
+        panic!("NoCheck should not be called to save function state.")
+    }
+    
+    fn load_func_state<FnState:FuncState, SolId:Id>(&self)-> HashMap<SolId, Option<FnState>> {
+        panic!("NoCheck should not be called to load function state.")
+    }
+    
+    fn remove_func_state<SolId:Id>(&self, _id: &SolId) -> Result<bool, CheckpointError> {
+        panic!("NoCheck should not be called to remove function state.")
+    }
 }
 
 #[cfg(feature = "mpi")]
@@ -585,7 +631,7 @@ impl DistCheckpointer for NoCheck {
     type WCheck<WState: WorkerState> = NoWCheck;
 
     fn init_dist(&mut self, _proc: &MPIProcess) {}
-    fn after_load_dist(&mut self, _proc: &MPIProcess) {}
+    fn before_load_dist(&mut self, _proc: &MPIProcess) {}
     fn no_check_init(_proc: &MPIProcess) {}
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
@@ -629,7 +675,7 @@ pub struct NoWCheck;
 #[cfg(feature = "mpi")]
 impl<S: WorkerState> WorkerCheckpointer<S> for NoWCheck {
     fn init(&mut self, _proc: &MPIProcess) {}
-    fn after_load(&mut self, _proc: &MPIProcess) {}
+    fn before_load(&mut self, _proc: &MPIProcess) {}
     fn save_state(&self, _state: &S, _rank: Rank) {}
     fn load(&self, _rank: Rank) -> Result<S, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")

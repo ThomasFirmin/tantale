@@ -48,7 +48,7 @@ use mpi::Rank;
 pub trait Id
 where
     Self:
-        Sized + PartialEq + Eq + Clone + Copy + Debug + Serialize + for<'a> Deserialize<'a> + Hash,
+        Sized + PartialEq + Eq + Clone + Copy + Debug + ToString + Serialize + for<'a> Deserialize<'a> + Hash,
 {
     /// Generate a new unique identifier.
     fn generate() -> Self;
@@ -76,6 +76,13 @@ impl DistSId {
         }
     }
 }
+#[cfg(feature = "mpi")]
+impl ToString for DistSId {
+    fn to_string(&self) -> String {
+        format!("{}_{}", self.rank, self.id)
+    }
+}
+
 #[cfg(feature = "mpi")]
 impl Id for DistSId {
     /// Generate a new distributed identifier using the MPI rank and a global counter.
@@ -124,6 +131,13 @@ pub struct ParSId {
     pub pid: usize,
     pub id: usize,
 }
+
+impl ToString for ParSId {
+    fn to_string(&self) -> String {
+        format!("{}_{}", self.pid, self.id)
+    }
+}
+
 impl Id for ParSId {
     /// Generate a new process-local identifier from the current process id.
     fn generate() -> Self {
@@ -180,6 +194,13 @@ impl Hash for ParSId {
 pub struct SId {
     pub id: usize,
 }
+
+impl ToString for SId {
+    fn to_string(&self) -> String {
+        format!("{}", self.id)
+    }
+}
+
 impl Id for SId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {

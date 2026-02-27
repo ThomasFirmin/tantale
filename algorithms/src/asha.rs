@@ -14,7 +14,7 @@
 //! 1. $\mathcal{X}$ &emsp;&emsp; *A [searchspace](tantale_core::Searchspace)*
 //! 2. $b_0$ &emsp;&emsp; *Initial budget*
 //! 3. $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
-//! 4. $\eta$ &emsp;&emsp; *Scaling**
+//! 4. $\eta$ &emsp;&emsp; *Scaling*
 //! 5.
 //! 6. $B = [b_0, b_0\cdot\eta^1,b_0\cdot\eta^2, \cdots, b_{\text{max}}]$ &emsp; *Precompute the budget levels*
 //! 7. $\mathcal{R} = (R_i)_{i \in [0,\cdots,|B|]}\enspace \text{s.t. } R_i = \emptyset$ &emsp; *Initialize empty rungs for each budget level*
@@ -26,9 +26,9 @@
 //! 13. &emsp;&emsp; $R_i \gets R_i \cup \{(x,y)\}$ &emsp; *Add the generated solution to the rung $R_i$*
 //! 14.
 //! 15. **function** generate() &emsp; *Generates a new [solution](tantale_core::Solution) to evaluate at the appropriate budget level*
-//! 16. &emsp; $\mathbf{s} \gets \text{Top}_k\left(R_i,\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
-//! 17. &emsp; $i \gets \lvert B \rvert - 2$ &emsp; *Start from the second highest budget level*
-//! 18. &emsp; **while** $\lvert \mathbf{s} \rvert = 0$ **or** $i > 0$ **do**
+//! 16. &emsp; $i \gets \lvert B \rvert - 1$ &emsp; *Start from the highest budget level*
+//! 17. &emsp; $\mathbf{s} \gets \text{Top}_k\left(R_i,\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
+//! 18. &emsp; **while** $\lvert \mathbf{s} \rvert = 0$ **and** $i > 0$ **do**
 //! 19. &emsp; &emsp; $\mathbf{s} \gets \text{Top}_k\left(R_i,\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
 //! 20. &emsp; &emsp; $i \gets i - 1$ &emsp; *Move to the next lower budget level*
 //! 21. &emsp; **if** $i = 0$ **then**
@@ -65,12 +65,10 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
-    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, recorder::CSVWritable,
+    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolutionShape, Step, Stepped, recorder::CSVWritable, searchspace::OptionCompShape
 };
 
-use rand::prelude::ThreadRng;
+use rand::{distr::slice::Empty, prelude::ThreadRng};
 use serde::{Deserialize, Serialize};
 
 /// Internal state of the Successive Halving optimizer.
@@ -80,26 +78,31 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Fields
 ///
-/// * `batch` - Initial batch size. Determines the total number of candidates evaluated at the first stage of each iteration.
-/// * `budget_min` - Minimum budget (lowest fidelity level). Represents the starting resource
-///   allocation for candidates, typically a small value (e.g., 1 epoch for neural networks).
-/// * `budget_max` - Maximum budget (highest fidelity level). The upper bound for resource
-///   allocation. Once reached, the process restarts with `budget_min`.
-/// * `budget` - Current budget level. This value increases by `scaling` at each stage until
-///   it reaches `budget_max`.
+/// * `budgets` - A vector of budget levels corresponding to the halving rounds. 
+///    Precomputed as $[b_0, b_0 \cdot \eta^1, b_0 \cdot \eta^2, \ldots, b_{\text{max}}]$.
 /// * `scaling` - Scaling factor ($\eta$) by which the budget is multiplied at each stage.
 ///   Must be $\geq 1.0$. Common values are 2.0 or 3.0.
 /// * `iteration` - Current iteration count. Increments after each call to [`step()`](ASHA::step).
+/// * `rung` - A vector of vectors representing the rungs of the Successive Halving process.
 #[derive(Serialize, Deserialize)]
-pub struct SHState {
-    pub batch: usize,
-    pub budget_min: f64,
-    pub budget_max: f64,
-    pub budget: f64,
+#[serde(bound(
+    serialize = "SShape: Serialize",
+    deserialize = "SShape: for<'a> Deserialize<'a>",
+))]
+pub struct ASHAState<SShape>
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity,
+{
+    pub budgets: Vec<f64>,
     pub scaling: f64,
     pub iteration: usize,
+    pub rung: Vec<Vec<SShape>>,
+    
 }
-impl OptState for SHState {}
+impl<SShape> OptState for ASHAState<SShape> 
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity,
+{}
 
 /// Metadata for a Successive Halving optimization step, associated to each [`Batch`].
 ///
@@ -107,35 +110,35 @@ impl OptState for SHState {}
 ///
 /// * `iteration` - The iteration number at which this batch was created..
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct SHInfo {
+pub struct ASHAInfo {
     pub iteration: usize,
 }
-impl OptInfo for SHInfo {}
+impl OptInfo for ASHAInfo {}
 
-impl SHInfo {
-    /// Creates a new [`SHInfo`] for the given iteration number.
+impl ASHAInfo {
+    /// Creates a new [`ASHAInfo`] for the given iteration number.
     ///
     /// # Arguments
     ///
     /// * `iteration` - The iteration count at which this info was created
     pub fn new(iteration: usize) -> Self {
-        SHInfo { iteration }
+        ASHAInfo { iteration }
     }
 }
 
-/// CSV serialization support for [`SHInfo`].
+/// CSV serialization support for [`ASHAInfo`].
 ///
 /// Enables recording of Successive Halving optimization metadata to CSV files.
-/// The generic parameters are `(),()` because [`SHInfo`] is self-contained: no external
+/// The generic parameters are `(),()` because [`ASHAInfo`] is self-contained: no external
 /// context is needed to define the CSV header or write values.
-impl CSVWritable<(), ()> for SHInfo {
-    /// Returns the CSV header for [`SHInfo`] columns.
+impl CSVWritable<(), ()> for ASHAInfo {
+    /// Returns the CSV header for [`ASHAInfo`] columns.
     /// Header: `"iteration"`
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("iteration")])
     }
 
-    /// Serializes this [`SHInfo`] to CSV fields.
+    /// Serializes this [`ASHAInfo`] to CSV fields.
     /// Writes the `iteration` field as a string.
     fn write(&self, _comp: &()) -> Vec<String> {
         Vec::from([self.iteration.to_string()])
@@ -166,11 +169,16 @@ impl CSVWritable<(), ()> for SHInfo {
 ///
 /// # Internal State
 ///
-/// - [`SHState`]: Checkpointable state including budget, scaling factor, and iteration count
-/// - [`ThreadRng`]: Deterministic random number generator for reproducible sampling. Not in [`SHState`] since RNG cannot be serialized nor deserialized.
-pub struct ASHA(pub SHState, ThreadRng);
+/// - [`ASHAState`]: Checkpointable state including budget, scaling factor, and iteration count
+/// - [`ThreadRng`]: Deterministic random number generator for reproducible sampling. Not in [`ASHAState`] since RNG cannot be serialized nor deserialized.
+pub struct ASHA<SShape>(pub ASHAState<SShape>, pub ThreadRng)
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity;
 
-impl ASHA {
+impl<SShape> ASHA<SShape>
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity,
+{
     /// Creates a new Successive Halving optimizer with the specified parameters.
     ///
     /// # Parameters
@@ -191,7 +199,7 @@ impl ASHA {
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `batch` is too small relative to the number of halving rounds needed
-    pub fn new(batch: usize, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -199,22 +207,19 @@ impl ASHA {
             "Maximum budget must be > minimum budget"
         );
 
-        let i_max = scaling.powf((budget_max / budget_min).log(scaling));
-        assert!(
-            batch as f64 >= i_max,
-            "Batch size should be greater or equal than {i_max}"
-        );
-
         let rng = rand::rng();
+        let budgets: Vec<f64> = (0..)
+            .map(|i| budget_min * scaling.powi(i))
+            .take_while(|&b| b <= budget_max)
+            .collect();
+        let length = budgets.len()-1; // Exclude the initial budget level for the rungs
 
         ASHA(
-            SHState {
-                batch,
-                budget_min,
-                budget_max,
-                budget: budget_min,
+            ASHAState {
+                budgets,
                 scaling,
                 iteration: 0,
+                rung: Vec::with_capacity(length),
             },
             rng,
         )
@@ -245,15 +250,17 @@ impl ASHA {
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for ASHA
+    for ASHA<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
 {
-    type State = SHState;
+    type State = ASHAState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = SHInfo;
+    type Info = ASHAInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&mut self) -> &Self::State {
@@ -269,53 +276,27 @@ where
     }
 }
 
-/// Implementation of the [`BatchOptimizer`](crate::BatchOptimizer) trait for Successive Halving.
+/// Implementation of the [`SequentialOptimizer`](crate::SequentialOptimizer) trait for Successive Halving.
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState>
-    BatchOptimizer<
+    SequentialOptimizer<
         FidelitySol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
-    > for ASHA
+    > for ASHA<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
+    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
-    /// Generates the initial [`Batch`] of candidates at minimum [`Fidelity`](tantale_core::Fidelity).
-    ///
-    /// Creates `batch` random candidates from the search space, each set to evaluate
-    /// at `budget_min` fidelity. This is the starting point for the first iteration.
-    ///
-    /// # Arguments
-    ///
-    /// * `scp` - The [`Searchspace`] from which candidates are sampled
-    ///
-    /// # Returns
-    ///
-    /// A [`Batch`](tantale_core::Batch) of sampled solutions with fidelity set to `budget_min`
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = SHInfo::new(self.0.iteration);
-        let pairs: Vec<_> = scp.vec_apply_pair(
-            |mut pair| {
-                pair.set_fidelity(self.0.budget);
-                pair
-            },
-            &mut self.1,
-            self.0.batch,
-            EmptyInfo.into(),
-        );
-        Batch::new(pairs, info.into())
-    }
-
     /// Executes one iteration of Successive Halving on computed candidates.
     ///
     /// This method implements the core algorithm:
@@ -339,67 +320,37 @@ where
     /// - A fresh initial [`Batch`] from `first_step()`
     fn step(
         &mut self,
-        x: CompBatch<
-            SId,
-            Self::SInfo,
-            Self::Info,
-            Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
-            Self::Cod,
-            Out,
-        >,
+        x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let (pairs, _) = x.extract();
-        let mut pairs: Vec<_> = pairs
-            .into_iter()
-            .filter_map(|comp| match comp.step() {
-                Step::Partially(_) => Some(comp),
-                _ => None,
-            })
-            .collect();
-
-        if pairs.is_empty() {
-            // All candidates completed their maximum fidelity: restart with fresh batch
-            self.0.budget = self.0.budget_min;
-            <ASHA as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                self, scp,
-            )
-        } else {
-            // Compute number of candidates to keep
-            let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
-
-            // Increase fidelity for next evaluation round (capped at budget_max)
-            self.0.budget = (self.0.budget * self.0.scaling).min(self.0.budget_max);
-            self.0.iteration += 1;
-
-            // Partition candidates by performance: worst k candidates go before index k
-            pairs.select_nth_unstable(k);
-            let new_pairs: Vec<_> = pairs
-                .into_iter()
-                .enumerate()
-                .map(|(i, computed)| {
-                    let (mut pair, _): (Scp::SolShape, _) = IntoComputed::extract(computed);
-                    if i < k {
-                        // Discard worst performers
-                        pair.discard();
-                    } else {
-                        // Schedule best performers for next fidelity level
-                        pair.set_fidelity(self.0.budget);
-                    }
-                    pair
-                })
-                .collect();
-
-            if new_pairs.is_empty() {
-                // Safety check: if no candidates remain, restart
-                self.0.budget = self.0.budget_min;
-                <ASHA as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                    self, scp,
-                )
-            } else {
-                Batch::new(new_pairs, SHInfo::new(self.0.iteration).into())
+    ) -> Scp::SolShape {
+        if let Some(comp) = x
+        {
+            if let Step::Partially(_) = comp.step() {
+                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
+                self.0.rung[idx - 1].push(comp); // idx cannot be 0 since the first budget level is the initial one
             }
+            
+            let mut i = self.0.budgets.len() - 1;
+            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            while k == 0 && i > 0 {
+                i -= 1;
+                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            }
+            if i == 0 {
+                let mut p = scp.sample_pair(&mut self.1, EmptyInfo.into());
+                p.set_fidelity(self.0.budgets[0]);
+                p
+            } else {
+                self.0.rung[i].select_nth_unstable(k);
+                let (mut p,_): (Scp::SolShape, _) = IntoComputed::extract(self.0.rung[i].pop().unwrap());
+                p.set_fidelity(self.0.budgets[i]);
+                p
+            }
+        } else {
+            let mut p = scp.sample_pair(&mut self.1, EmptyInfo.into());
+            p.set_fidelity(self.0.budgets[0]);
+            p
         }
-    }
+        
+    }   
 }

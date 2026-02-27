@@ -1,13 +1,5 @@
 use crate::{
-    Id, Optimizer, Outcome, Searchspace, Stop,
-    checkpointer::Checkpointer,
-    domain::onto::LinkOpt,
-    experiment::Evaluate,
-    objective::FuncWrapper,
-    optimizer::opt::OpSInfType,
-    recorder::Recorder,
-    searchspace::CompShape,
-    solution::{SolutionShape, Uncomputed, shape::RawObj},
+    Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::MonoCheckpointer, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
 };
 
 #[cfg(feature = "mpi")]
@@ -52,7 +44,7 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SolId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
@@ -89,7 +81,7 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SolId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: ThrCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,

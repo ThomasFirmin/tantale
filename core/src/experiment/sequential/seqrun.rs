@@ -1,18 +1,16 @@
 use std::{
-    sync::{Arc, Mutex},
-    thread,
+    collections::VecDeque, sync::{Arc, Mutex}, thread
 };
 
 use crate::{
     Codomain, FidOutcome, SId, Solution, Stepped,
-    checkpointer::{Checkpointer, ThrCheckpointer},
+    checkpointer::{MonoCheckpointer, ThrCheckpointer},
     domain::onto::LinkOpt,
     experiment::{
-        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment,
-        sequential::{
+        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment, sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
-            seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, VecFidThrSeqEvaluator},
-        },
+            seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, HashFidThrSeqEvaluator},
+        }
     },
     objective::{Objective, Outcome, Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
@@ -85,7 +83,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: Outcome,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
@@ -135,6 +133,8 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
+        checkpointer.before_load();
+
         let (state, stop, evaluator) = checkpointer.load().unwrap();
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
@@ -144,7 +144,6 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
 
         MonoExperiment {
             searchspace,
@@ -312,7 +311,7 @@ where
         SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
 {
@@ -363,8 +362,16 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
+        checkpointer.before_load();
+
+
+        let opt_state = checkpointer.load_optimizer().unwrap();
+        let stop = checkpointer.load_stop().unwrap();
+        let mut evaluator: FidSeqEvaluator<_,_,_,_> = checkpointer.load_evaluate().unwrap();
+        let states = checkpointer.load_func_state();
+        evaluator.states = states;
+        
+        let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
                 r.after_load(&searchspace, &codomain);
@@ -372,7 +379,6 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
 
         MonoExperiment {
             searchspace,
@@ -571,7 +577,7 @@ where
         };
         let checkpointer = match checkpointer {
             Some(mut c) => {
-                c.init();
+                c.init_thr();
                 Some(c)
             }
             None => None,
@@ -598,10 +604,14 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator): (_, _, Vec<ThrSeqEvaluator<_, _, _>>) =
-            checkpointer.load_thr().unwrap();
-        let evaluator: VecThrSeqEvaluator<_, _, _> = evaluator.into();
-        let optimizer = Op::from_state(state);
+        checkpointer.before_load_thr();
+        let stop = checkpointer.load_stop_thr().unwrap();
+        let opt_state = checkpointer.load_optimizer_thr().unwrap();
+        let evaluators: Vec<(ThrSeqEvaluator<_,_,_>, _)> = 
+        checkpointer.load_all_evaluate_thr().unwrap();
+
+        let evaluator = evaluators.into();
+        let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
                 rec.after_load(&searchspace, &codomain);
@@ -609,7 +619,7 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
+
         ThrExperiment {
             searchspace,
             codomain,
@@ -630,69 +640,68 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrSeqEvaluator`]. updates) step.
-    fn run(mut self) {
+    fn run(self) {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
-        let stop = Arc::new(Mutex::new(self.stop));
+        let st = Arc::new(Mutex::new(self.stop));
         let scp = Arc::new(self.searchspace);
         let checkpointer = Arc::new(self.checkpointer);
         let recorder = Arc::new(self.recorder);
+        let evaluator = match self.evaluator {
+            Some(e) => Arc::new(Mutex::new(e)),
+            None => Arc::new(Mutex::new(VecThrSeqEvaluator::new(VecDeque::new()))),
+        };
+
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
 
-        stop.lock().unwrap().init();
+        st.lock().unwrap().init();
         for thr in 0..k {
             let optimizer = op.clone();
             let objective = ob.clone();
             let scp = scp.clone();
             let cod = cod.clone();
-            let st = stop.clone();
+            let stop = st.clone();
             let check = checkpointer.clone();
             let rec = recorder.clone();
             let info = Arc::new(Op::Info::default());
+            let evaluator = evaluator.clone();
 
-            let partial = match self.evaluator {
-                Some(ref mut e) => {
-                    let eval = e.shapes.pop();
-                    match eval {
-                        Some(ev) => ev,
-                        None => optimizer.lock().unwrap().step(None, &scp),
-                    }
-                }
-                None => optimizer.lock().unwrap().step(None, &scp),
-            };
             let handle = thread::spawn(move || {
-                let mut eval = ThrSeqEvaluator::new(partial);
+                let mut eval = match evaluator.lock().unwrap().get_one_evaluator() {
+                    Some(e) => e,
+                    None => ThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp).into()),
+                };
                 loop {
-                    if st.lock().unwrap().stop() {
+                    if stop.lock().unwrap().stop() {
                         break;
                     }
-                    st.lock().unwrap().update(ExpStep::Iteration);
+                    stop.lock().unwrap().update(ExpStep::Iteration);
 
-                    let pair = eval.shapes.take().unwrap();
-                    let x = pair.get_sobj().get_x();
-                    let id = pair.get_id();
-                    let out = objective.compute(x);
-                    st.lock()
-                        .unwrap()
-                        .update(ExpStep::Distribution(Step::Evaluated));
-
+                    let pair = eval.pair.take().expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
+                    let id = pair.id();
+                    // No saved state
+                    let out = objective.compute(pair.get_sobj().get_x());
                     let y = cod.get_elem(&out);
-                    let outputed = (id, out);
                     let computed = pair.into_computed(y.into());
+                    let outputed = (id, out);
+                    stop.lock().unwrap().update(ExpStep::Distribution(Step::Evaluated));
 
                     if let Some(r) = rec.as_ref() {
                         r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
                     }
 
-                    eval.update(optimizer.lock().unwrap().step(Some(computed), &scp));
-                    st.lock().unwrap().update(ExpStep::Optimization);
+                    eval = match evaluator.lock().unwrap().get_one_evaluator() {
+                        Some(e) => e,
+                        None => ThrSeqEvaluator::new(optimizer.lock().unwrap().step(Some(computed), &scp)),
+                    };
+                    stop.lock().unwrap().update(ExpStep::Optimization);
 
                     if let Some(c) = check.as_ref() {
                         c.save_state_thr(
                             optimizer.lock().unwrap().get_state(),
-                            &*st.lock().unwrap(),
+                            &*stop.lock().unwrap(),
                             &eval,
                             thr,
                         );
@@ -785,10 +794,10 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Check,
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        VecFidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo, FnState>,
+        HashFidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo, FnState>,
     >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + 'static,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     Op: SequentialOptimizer<
             PSol,
             SId,
@@ -797,8 +806,8 @@ where
             Scp,
             Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
         > + Send
-        + Sync
-        + 'static,
+        + Sync + 'static
+    ,
     Op::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
     Op::Info: Send + Sync + 'static,
@@ -811,6 +820,7 @@ where
     Rec: Recorder<PSol, SId, Out, Scp, Op> + Send + Sync + 'static,
     Check: ThrCheckpointer + Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
+    RawObj<Scp::SolShape,SId,Op::SInfo>: 'static
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -832,7 +842,7 @@ where
         };
         let checkpointer = match checkpointer {
             Some(mut c) => {
-                c.init();
+                c.init_thr();
                 Some(c)
             }
             None => None,
@@ -850,7 +860,7 @@ where
     }
 
     /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
-    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load(
         space: (Scp, Op::Cod),
@@ -859,10 +869,15 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator): (_, _, Vec<FidThrSeqEvaluator<_, _, _, _>>) =
-            checkpointer.load_thr().unwrap();
-        let evaluator: VecFidThrSeqEvaluator<_, _, _, _> = evaluator.into();
-        let optimizer = Op::from_state(state);
+        checkpointer.before_load_thr();
+        let stop = checkpointer.load_stop_thr().unwrap();
+        let opt_state = checkpointer.load_optimizer_thr().unwrap();
+        let evaluators: Vec<(FidThrSeqEvaluator<_,_,_,_>, _)> = 
+        checkpointer.load_all_evaluate_thr().unwrap();
+        let fn_states = checkpointer.load_func_state_thr();
+
+        let evaluator = (evaluators, fn_states).into();
+        let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
                 rec.after_load(&searchspace, &codomain);
@@ -870,7 +885,7 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
+
         ThrExperiment {
             searchspace,
             codomain,
@@ -891,77 +906,94 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidThrSeqEvaluator`]. updates) step.
-    fn run(mut self) {
+    fn run(self) {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
-        let stop = Arc::new(Mutex::new(self.stop));
+        let st = Arc::new(Mutex::new(self.stop));
         let scp = Arc::new(self.searchspace);
         let checkpointer = Arc::new(self.checkpointer);
         let recorder = Arc::new(self.recorder);
+        let hash_evaluator = match self.evaluator {
+            Some(e) => Arc::new(Mutex::new(e)),
+            None => Arc::new(Mutex::new(HashFidThrSeqEvaluator::new(VecDeque::new()))),
+        };
+
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
 
-        stop.lock().unwrap().init();
+        st.lock().unwrap().init();
         for thr in 0..k {
             let optimizer = op.clone();
             let objective = ob.clone();
             let scp = scp.clone();
             let cod = cod.clone();
-            let st = stop.clone();
+            let stop = st.clone();
             let check = checkpointer.clone();
             let rec = recorder.clone();
             let info = Arc::new(Op::Info::default());
+            let hash_evaluator = hash_evaluator.clone();
 
-            let (partial, state) = match self.evaluator {
-                Some(ref mut e) => {
-                    let eval = e.pair.pop();
-                    match eval {
-                        Some((p, s)) => (Some(p), Some(s)),
-                        None => (Some(optimizer.lock().unwrap().step(None, &scp)), None),
-                    }
-                }
-                None => (Some(optimizer.lock().unwrap().step(None, &scp)), None),
-            };
             let handle = thread::spawn(move || {
-                let mut eval = FidThrSeqEvaluator::new(partial, state);
+                let mut eval = match hash_evaluator.lock().unwrap().get_one_evaluator() {
+                    Some(e) => e,
+                    None => FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp).into(), None),
+                };
                 loop {
-                    if st.lock().unwrap().stop() {
+                    if stop.lock().unwrap().stop() {
                         break;
                     }
-                    st.lock().unwrap().update(ExpStep::Iteration);
+                    stop.lock().unwrap().update(ExpStep::Iteration);
 
-                    let mut pair = eval.pair.take().unwrap();
-                    let state = eval.state.take();
-                    let x = pair.get_sobj().get_x();
-                    let id = pair.get_id();
-                    let fidelity = pair.fidelity();
-                    let (out, state) = objective.compute(x, fidelity, state);
-                    pair.set_step(out.get_step());
-                    let new_step = pair.step();
-                    match new_step {
-                        Step::Evaluated | Step::Discard | Step::Error => {
-                            st.lock().unwrap().update(ExpStep::Distribution(new_step));
-                        }
+                    let pair = eval.pair.take().expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
+                    let id = pair.id();
+                    let step = pair.step();
+                    match step {
+                        Step::Pending | Step::Partially(_) => {
+                            let state = eval.state.take();
+                            let fid = pair.fidelity();
+                            let (out, state) = objective.compute(pair.get_sobj().get_x(), fid, state);
+                            if let Some(c) = check.as_ref() {
+                                c.save_func_state_thr(&id, &state);
+                            }
+                            
+                            let new_step = out.get_step();
+                            let y = cod.get_elem(&out);
+                            let mut computed = pair.into_computed(y.into());
+                            let outputed = (id, out);
+                            computed.set_step(new_step);
+                            stop.lock().unwrap().update(ExpStep::Distribution(new_step.into()));
+
+                            if let Some(r) = rec.as_ref() {
+                                r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
+                            }
+                            if let Some(c) = check.as_ref(){
+                                c.save_func_state_thr(&id, &state);
+                            }
+                            hash_evaluator.lock().unwrap().update_state(id, Some(state));
+                            let new_sol = optimizer.lock().unwrap().step(Some(computed), &scp);
+                            let new_eval = FidThrSeqEvaluator::new(new_sol, None);
+                            hash_evaluator.lock().unwrap().pairs.push_front((new_eval,None));
+                        },
                         _ => {
-                            eval.state = Some(state);
-                        }
-                    };
-                    let y = cod.get_elem(&out);
-                    let outputed = (id, out);
-                    let computed = pair.into_computed(y.into());
-
-                    if let Some(r) = rec.as_ref() {
-                        r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
+                            hash_evaluator.lock().unwrap().states.remove(&id);
+                            stop.lock().unwrap().update(ExpStep::Distribution(step));
+                            if let Some(c) = check.as_ref(){
+                                c.remove_func_state_thr(&id);
+                            }
+                        },
                     }
 
-                    eval.update(optimizer.lock().unwrap().step(Some(computed), &scp));
-                    st.lock().unwrap().update(ExpStep::Optimization);
+                    eval = match hash_evaluator.lock().unwrap().get_one_evaluator() {
+                        Some(e) => e,
+                        None => FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp), None),
+                    };
+                    stop.lock().unwrap().update(ExpStep::Optimization);
 
                     if let Some(c) = check.as_ref() {
                         c.save_state_thr(
                             optimizer.lock().unwrap().get_state(),
-                            &*st.lock().unwrap(),
+                            &*stop.lock().unwrap(),
                             &eval,
                             thr,
                         );
@@ -1177,6 +1209,7 @@ where
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
+            checkpointer.before_load_dist(proc);
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1186,7 +1219,6 @@ where
                 }
                 None => None,
             };
-            checkpointer.after_load_dist(proc);
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1512,6 +1544,7 @@ where
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
+            checkpointer.before_load_dist(proc);
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1521,7 +1554,6 @@ where
                 }
                 None => None,
             };
-            checkpointer.after_load_dist(proc);
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1535,8 +1567,8 @@ where
             })
         } else {
             let mut check = checkpointer.get_check_worker(proc);
+            check.before_load(proc);
             let state = check.load(proc.rank).unwrap();
-            check.after_load(proc);
             let mut w = FidWorker::new(objective, Some(check), proc);
             w.state = state;
             MasterWorker::Worker(w)
@@ -1614,7 +1646,16 @@ where
             // Optimizer part
             eval.update(self.optimizer.step(computed, &self.searchspace));
             self.stop.update(ExpStep::Optimization);
-
+            // If more than 1 process is idle, it means that the optimizer is not able to give new solutions to at least 2 processes,
+            // so the optimizer has to generate new solution ex-nihilo.
+            let idle_count = sendrec.idle.count_idle();
+            if idle_count > 1{
+                for _ in 0..idle_count{
+                    eval.update(self.optimizer.step(None, &self.searchspace));
+                }
+                self.stop.update(ExpStep::Optimization);
+            }
+            
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
                 c.save_state_dist(

@@ -113,14 +113,14 @@ where
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
-        let mut obatch = OutBatch::empty(self.batch.get_info());
-        let mut cbatch = Batch::empty(self.batch.get_info());
+        let mut obatch = OutBatch::empty(self.batch.info());
+        let mut cbatch = Batch::empty(self.batch.info());
 
         while !self.batch.is_empty() && !stop.stop() {
             let pair = self.batch.pop().unwrap();
             let out = ob.compute(pair.get_sobj().get_x());
             let y = cod.get_elem(&out);
-            obatch.add((pair.get_id(), out));
+            obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
             stop.update(ExpStep::Distribution(Step::Evaluated));
         }
@@ -199,7 +199,7 @@ where
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
-        let info = self.batch.get_info();
+        let info = self.batch.info();
         let mut obatch = OutBatch::empty(info.clone());
         let mut cbatch = Batch::empty(info);
 
@@ -216,7 +216,7 @@ where
         while !sendrec.waiting.is_empty() {
             let (_, pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            obatch.add((pair.get_id(), out));
+            obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
             if !stop.stop() && !self.batch.is_empty() {
                 sendrec.send_to_worker(self.batch.pop().unwrap());
@@ -339,7 +339,7 @@ where
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
-        let info = self.batch.lock().unwrap().get_info();
+        let info = self.batch.lock().unwrap().info();
         let obatch = Arc::new(Mutex::new(OutBatch::empty(info.clone())));
         let cbatch = Arc::new(Mutex::new(Batch::empty(info)));
         let length = self.batch.lock().unwrap().size();
@@ -351,7 +351,7 @@ where
                 let pair = self.batch.lock().unwrap().pop().unwrap();
                 let out = ob.clone().compute(pair.get_sobj().get_x());
                 let y = cod.clone().get_elem(&out);
-                obatch.lock().unwrap().add((pair.get_id(), out));
+                obatch.lock().unwrap().add((pair.id(), out));
                 cbatch.lock().unwrap().add(pair.into_computed(y.into()));
             }
         });

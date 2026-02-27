@@ -119,11 +119,11 @@ fn main() {
         let pair = sp.vec_onto_obj(sobj);
         let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
-            .map(|s| (s.get_id(), s.get_sobj().x.clone()))
+            .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
         let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
             .iter()
-            .map(|s| (s.get_id(), s.get_sopt().x.clone()))
+            .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();
         let batch: BBatch = Batch::new(pair, info.clone());
         let mut eval = BatchEvaluator::new(batch);
@@ -159,8 +159,8 @@ fn main() {
             .for_each(|((sobj, sopt), pair)| {
                 hsobj.insert(sobj.0, sobj.1);
                 hsopt.insert(sopt.0, sopt.1);
-                hcobj.insert(pair.get_sobj().get_id(), pair.get_sobj());
-                hcopt.insert(pair.get_sopt().get_id(), pair.get_sopt());
+                hcobj.insert(pair.get_sobj().id(), pair.get_sobj());
+                hcopt.insert(pair.get_sopt().id(), pair.get_sopt());
             });
 
         assert_eq!(bcomp.pairs.len(), 20, "Number of shapes is wrong.");
@@ -190,7 +190,7 @@ fn main() {
         assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
 
         (&bcomp).into_iter().for_each(|pair| {
-            let id = pair.get_id();
+            let id = pair.id();
             let cobj = hcobj.get(&id).unwrap();
             let copt = hcopt.get(&id).unwrap();
             let sobj = hsobj.get(&id).unwrap();

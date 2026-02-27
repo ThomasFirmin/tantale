@@ -487,7 +487,7 @@ where
         info: Option<Arc<Info>>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let mut sinfostr = self.get_sinfo().write(&());
+        let mut sinfostr = self.sinfo().write(&());
         let idstr = match info {
             Some(i) => {
                 sinfostr.append(&mut i.write(&()));
@@ -562,11 +562,11 @@ where
         cod: &Cod,
         wrts: &CSVFiles,
     ) {
-        let id = pair.get_id();
+        let id = pair.id();
         let idstr = id.write(&());
 
         // CODOM
-        <Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.get_y(), wrts.cod.clone());
+        <Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
         // OBJ
         if let Some(f) = wrts.obj.clone() {
             self.write_partial_obj(&idstr, pair.get_sobj().get_uncomputed(), f);
@@ -635,7 +635,7 @@ where
         cod: &Cod,
         wrts: Arc<CSVFiles>,
     ) {
-        let info = self.get_info();
+        let info = self.info();
         self.into_par_iter().zip(obatch).for_each(|(cpair, opair)| {
             scp.write(cpair, opair, Some(info.clone()), cod, &wrts.clone())
         });

@@ -1,17 +1,8 @@
 use crate::{
-    FidOutcome, SId, Stepped,
-    checkpointer::Checkpointer,
-    domain::onto::LinkOpt,
-    experiment::{
+    FidOutcome, SId, Stepped, ThrCheckpointer, checkpointer::MonoCheckpointer, domain::onto::LinkOpt, experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment,
         OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment,
-    },
-    objective::{Objective, Outcome, outcome::FuncState},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    recorder::Recorder,
-    searchspace::{CompShape, Searchspace},
-    solution::{HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj},
-    stop::{ExpStep, Stop},
+    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
 };
 
 use std::{
@@ -78,7 +69,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: Outcome,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
@@ -128,6 +119,7 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
+        checkpointer.before_load();
         let (state, stop, evaluator) = checkpointer.load().unwrap();
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
@@ -137,7 +129,6 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
 
         MonoExperiment {
             searchspace,
@@ -303,7 +294,7 @@ where
         SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: MonoCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
 {
@@ -355,6 +346,8 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
+        checkpointer.before_load();
+
         let (state, stop, evaluator) = checkpointer.load().unwrap();
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
@@ -364,7 +357,6 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
 
         MonoExperiment {
             searchspace,
@@ -539,7 +531,7 @@ where
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: ThrCheckpointer,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -562,7 +554,7 @@ where
         };
         let checkpointer = match checkpointer {
             Some(mut c) => {
-                c.init();
+                c.init_thr();
                 Some(c)
             }
             None => None,
@@ -589,7 +581,9 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        checkpointer.before_load_thr();
+
+        let (state, stop, evaluator) = checkpointer.load_thr().unwrap();
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
             Some(mut rec) => {
@@ -598,7 +592,7 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
+        
         ThrExperiment {
             searchspace,
             codomain,
@@ -671,7 +665,7 @@ where
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
                 if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                    c.save_state_thr(self.optimizer.get_state(), &*stlock, &eval, 0)
                 }
             }
         }
@@ -779,7 +773,7 @@ where
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
     Rec: Recorder<PSol, SId, Out, Scp, Op>,
-    Check: Checkpointer,
+    Check: ThrCheckpointer,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -803,7 +797,7 @@ where
         };
         let checkpointer = match checkpointer {
             Some(mut c) => {
-                c.init();
+                c.init_thr();
                 Some(c)
             }
             None => None,
@@ -831,8 +825,15 @@ where
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
+        checkpointer.before_load_thr();
+
+        let opt_state = checkpointer.load_optimizer_thr().unwrap();
+        let stop = checkpointer.load_stop_thr().unwrap();
+        let mut evaluator: FidThrBatchEvaluator<_,_,_,_,_> = checkpointer.load_evaluate_thr().unwrap();
+        let fn_states = checkpointer.load_func_state_thr();
+        evaluator.states = Arc::new(Mutex::new(fn_states));
+
+        let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
                 rec.after_load(&searchspace, &codomain);
@@ -840,7 +841,7 @@ where
             }
             None => None,
         };
-        checkpointer.after_load();
+        
         ThrExperiment {
             searchspace,
             codomain,
@@ -896,11 +897,38 @@ where
                     OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
                 >::evaluate(&mut eval, ob.clone(), cod.clone(), st.clone());
 
+            // Individually checkpoint function states preventing rewriting
+            // already written states.
+            // Then remove states from evaluation that have been evaluated, discard or errored.
+            if let Some(c) = &self.checkpointer {
+                let mut lck_new_st = eval.new_states.lock().unwrap();
+                lck_new_st.iter().for_each(
+                    |id|
+                    {
+                        let lck_st = eval.states.lock().unwrap();
+                        let state = lck_st.get(id).expect("When checkpointing, cannot find newly created state in hash states.");
+                        match state {
+                            Some(s) => c.save_func_state_thr(id, s),
+                            None => panic!("When checkpointing, newly created state is None."),
+                        }
+                    }
+                );
+                lck_new_st.clear();
+                let mut llck_rmv_st = eval.remove_states.lock().unwrap();
+                llck_rmv_st.iter().for_each(
+                    |id|
+                    {
+                        c.remove_func_state_thr(id);
+                    }
+                );
+                llck_rmv_st.clear();
+            }
+
             // Saver part
             if let Some(r) = &self.recorder {
                 r.save_batch(&computed, &outputed, &scp, &cod);
             }
-
+            
             // Optimizer part
             batch = self.optimizer.step(computed, &scp);
             eval.update(batch);
@@ -910,7 +938,7 @@ where
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
                 if let Some(c) = &self.checkpointer {
-                    c.save_state(self.optimizer.get_state(), &*stlock, &eval)
+                    c.save_state_thr(self.optimizer.get_state(), &*stlock, &eval, 0)
                 }
             }
         }
@@ -1118,6 +1146,7 @@ where
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
+            checkpointer.before_load_dist(proc);
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1127,7 +1156,6 @@ where
                 }
                 None => None,
             };
-            checkpointer.after_load_dist(proc);
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1444,6 +1472,7 @@ where
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
+            checkpointer.before_load_dist(proc);
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1453,7 +1482,6 @@ where
                 }
                 None => None,
             };
-            checkpointer.after_load_dist(proc);
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1467,8 +1495,8 @@ where
             })
         } else {
             let mut check = checkpointer.get_check_worker(proc);
+            check.before_load(proc);
             let state = check.load(proc.rank).unwrap();
-            check.after_load(proc);
             let mut w = FidWorker::new(objective, Some(check), proc);
             w.state = state;
             MasterWorker::Worker(w)

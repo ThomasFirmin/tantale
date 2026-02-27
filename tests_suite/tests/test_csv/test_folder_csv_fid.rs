@@ -116,10 +116,10 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
     let batch = opt.first_step(sp);
-    let mut obatch = OutBatch::empty(batch.get_info());
-    let mut cbatch = Batch::empty(batch.get_info());
+    let mut obatch = OutBatch::empty(batch.info());
+    let mut cbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
-        let id = pair.get_id();
+        let id = pair.id();
         println!("ID : {:?}", id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
@@ -139,10 +139,10 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     recorder.save_batch(&cbatch, &obatch, sp, cod);
 
     let batch = opt.first_step(sp);
-    let mut tobatch = OutBatch::empty(batch.get_info());
-    let mut tcbatch = Batch::empty(batch.get_info());
+    let mut tobatch = OutBatch::empty(batch.info());
+    let mut tcbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
-        let id = pair.get_id();
+        let id = pair.id();
         println!("ID : {:?}", id);
         let aelem = pair.get_sobj().get_x()[0].clone();
         let aelem = match aelem {
@@ -266,11 +266,11 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
             .find(|p| {
-                println!("Oh NOOOO {} ! = {}", p.get_id().id, id);
-                p.get_id().id == id
+                println!("Oh NOOOO {} ! = {}", p.id().id, id);
+                p.id().id == id
             })
             .unwrap();
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_id().id)]);
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.id().id)]);
         let x_str: Vec<String> = pair
             .get_sobj()
             .get_x()
@@ -293,8 +293,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
             .find(|p| {
-                println!("Oh NOOOO {} ! = {}", p.get_id().id, id);
-                p.get_id().id == id
+                println!("Oh NOOOO {} ! = {}", p.id().id, id);
+                p.id().id == id
             })
             .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().get_id().id)]);
@@ -320,8 +320,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
             .find(|p| {
-                println!("Oh NOOOO {} ! = {}", p.get_id().id, id);
-                p.get_id().id == id
+                println!("Oh NOOOO {} ! = {}", p.id().id, id);
+                p.id().id == id
             })
             .unwrap();
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
@@ -338,13 +338,13 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch
             .find(|p| {
-                println!("Oh NOOOO {} ! = {}", p.get_id().id, id);
-                p.get_id().id == id
+                println!("Oh NOOOO {} ! = {}", p.id().id, id);
+                p.id().id == id
             })
             .unwrap();
 
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
-        let sinfo_str = pair.get_sinfo().write(&());
+        let sinfo_str = pair.sinfo().write(&());
         str_content.extend(sinfo_str);
         let info_str = computed_info.write(&());
         str_content.extend(info_str);
@@ -382,8 +382,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             .unwrap();
         let pair = iter_cbatch
             .find(|p| {
-                println!("Oh NOOOO {} ! = {}", p.get_id().id, id);
-                p.get_id().id == id
+                println!("Oh NOOOO {} ! = {}", p.id().id, id);
+                p.id().id == id
             })
             .unwrap();
         let true_con = match pair.get_sobj().sol.get_x()[0] {
@@ -391,7 +391,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             _ => panic!("Wrong type for con2"),
         };
         let mut str_content: Vec<String> =
-            Vec::from([format!("{}", pair.get_sobj().sol.get_id().id)]);
+            Vec::from([format!("{}", pair.get_sobj().sol.id().id)]);
         let out_str: Vec<String> = content.1.write(&());
         str_content.extend(out_str);
 

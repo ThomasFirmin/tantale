@@ -171,7 +171,7 @@ fn main() {
                 use tantale::core::experiment::MPIRunable;
                 e.run();
             }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
+            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a worker"),
         }
     } else {
         exp.run();
