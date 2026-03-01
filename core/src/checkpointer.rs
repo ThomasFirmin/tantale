@@ -91,7 +91,18 @@ pub trait Checkpointer
 where
     Self: Sized,
 {
-    
+    type FnStateCheck: FuncStateCheckpointer;
+}
+
+pub trait FuncStateCheckpointer {
+    /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn save_func_state<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState);
+    /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
+    fn load_func_state<FnState:FuncState, SolId:Id>(&self, id: &SolId)-> Option<FnState>;
+    /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
+    fn remove_func_state<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
+    /// Load all the [`FuncState`] returning a vector of function states for each function ID.
+    fn load_all_func_state<FnState:FuncState, SolId:Id>(&self) -> Vec<(SolId, Option<FnState>)>;
 }
 
 /// Core trait for checkpointing management in optimization experiments.
@@ -287,16 +298,8 @@ pub trait MonoCheckpointer: Checkpointer
     ///
     /// # Note
     ///
-    /// Usually called internally by [`load`](Self::load). Direct usage rare..
+    /// Usually called internally by [`load`](Self::load). Direct usage rare.
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
-
-    /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn save_func_state<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState);
-    /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn load_func_state<FnState:FuncState, SolId:Id>(&self)-> HashMap<SolId, Option<FnState>>;
-    /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
-    fn remove_func_state<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
-
 }
 
 /// Extended checkpointer trait for multi-threaded optimization experiments.
@@ -569,11 +572,34 @@ where
     
 }
 
-#[cfg(feature = "mpi")]
-/// An empty [`WorkerState`]
+/// An empty [`Checkpointer`] implementation that performs no checkpointing.
 #[derive(Serialize, Deserialize)]
 pub struct NoCheck;
-impl Checkpointer for NoCheck {}
+
+#[derive(Serialize, Deserialize)]
+pub struct NoFuncStateCheck;
+
+impl FuncStateCheckpointer for NoFuncStateCheck {
+    fn save_func_state<FnState: FuncState, SolId: Id>(&self, _id: &SolId, _func_state: &FnState) {
+        panic!("NoCheck should not be called to save function state.")
+    }
+
+    fn load_func_state<FnState: FuncState, SolId: Id>(&self, _id: &SolId) -> Option<FnState> {
+        panic!("NoCheck should not be called to load function state.")
+    }
+
+    fn remove_func_state<SolId: Id>(&self, _id: &SolId) -> Result<bool, CheckpointError> {
+        panic!("NoCheck should not be called to remove function state.")
+    }
+
+    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, Option<FnState>)> {
+        panic!("NoCheck should not be called to load all function state.")
+    }
+}
+
+impl Checkpointer for NoCheck {
+    type FnStateCheck = NoFuncStateCheck;
+}
 
 #[cfg(feature = "mpi")]
 impl MonoCheckpointer for NoCheck {
@@ -611,18 +637,6 @@ impl MonoCheckpointer for NoCheck {
 
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
-    }
-    
-    fn save_func_state<FnState:FuncState, SolId:Id>(&self,_id: &SolId,_func_state: &FnState) {
-        panic!("NoCheck should not be called to save function state.")
-    }
-    
-    fn load_func_state<FnState:FuncState, SolId:Id>(&self)-> HashMap<SolId, Option<FnState>> {
-        panic!("NoCheck should not be called to load function state.")
-    }
-    
-    fn remove_func_state<SolId:Id>(&self, _id: &SolId) -> Result<bool, CheckpointError> {
-        panic!("NoCheck should not be called to remove function state.")
     }
 }
 

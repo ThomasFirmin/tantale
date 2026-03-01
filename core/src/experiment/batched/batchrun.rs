@@ -348,8 +348,15 @@ where
         let (recorder, mut checkpointer) = saver;
         checkpointer.before_load();
 
-        let (state, stop, evaluator) = checkpointer.load().unwrap();
-        let optimizer = Op::from_state(state);
+        let opt_state = checkpointer.load_optimizer().unwrap();
+        let stop = checkpointer.load_stop().unwrap();
+        // FINISH REWRITING FIDBATCHEVALUATOR
+        let mut evaluator: FidBatchEvaluator<_,_,_,_,_,_> = checkpointer.load_evaluate().unwrap();
+        let states = checkpointer.load_func_state();
+        
+        evaluator.states = states;
+
+        let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
                 r.after_load(&searchspace, &codomain);

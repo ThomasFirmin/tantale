@@ -430,6 +430,22 @@ where
 
             let (computed, outputed) = output.unzip();
 
+            // Checkpoint part
+            // Save the new state of the evaluated solution, and remove the old one if needed
+            if let Some(c) = &self.checkpointer {
+                if let Some(id) = eval.new_state {
+                    let state = eval.states.get(&id).unwrap().as_ref();
+                    if let Some(s) = state {
+                        c.save_func_state(&id, s);
+                    } else {
+                        panic!("The new state of the evaluated solution should not be None (missing) during checkpoint.");
+                    }
+                }
+                if let Some(id) = eval.remove_state {
+                    c.remove_func_state(&id);
+                }
+            }
+
             // Saver part
             if let Some(comp) = &computed
                 && let Some(out) = &outputed

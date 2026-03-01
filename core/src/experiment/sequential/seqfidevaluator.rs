@@ -1,7 +1,7 @@
 use crate::{
     Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop,
     domain::onto::LinkOpt,
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
@@ -35,37 +35,37 @@ use std::{collections::VecDeque, fs::remove_file, marker::PhantomData, path::Pat
     serialize = "SolId:Serialize",
     deserialize = "SolId:for<'a> Deserialize<'a>"
 ))]
-pub struct FidSeqEvaluator<SolId, SInfo, Shape, FnState>
+pub struct FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     pub pair: Option<Shape>,
     #[serde(skip)]
-    pub states: HashMap<SolId, Option<FnState>>,
-    #[serde(skip)]
-    pub new_state: Option<SolId>,
-    #[serde(skip)]
-    pub remove_state: Option<SolId>,
+    pub  states: FnStPool,
+    _id: PhantomData<SolId>,
+    _fnstate: PhantomData<FnState>,
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<SolId, SInfo, Shape, FnState> FidSeqEvaluator<SolId, SInfo, Shape, FnState>
+impl<SolId, SInfo, Shape, FnState, FnStPool> FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     /// Creates a new [`FidSeqEvaluator`] with the given [`SolutionShape`].
-    pub fn new(pair: Shape) -> Self {
+    pub fn new(pair: Shape, ) -> Self {
         FidSeqEvaluator {
             pair: Some(pair),
-            states: HashMap::new(),
-            new_state: None,
-            remove_state: None,
+            states: FnStPool::new(),
+            _id: PhantomData,
+            _fnstate: PhantomData,
             _sinfo: PhantomData,
         }
     }
@@ -73,14 +73,11 @@ where
     /// Updates the internal [`SolutionShape`] and resets the internal [`FuncState`] (`None`)
     /// if the step is not [`Step::Partially`].
     pub fn update(&mut self, pair: Shape) {
-        if !self.states.contains_key(&pair.id()){
-            self.states.insert(pair.id(), None);
-        }
         self.pair = Some(pair);
     }
 }
 
-impl<SolId, SInfo, Shape, FnState> Evaluate for FidSeqEvaluator<SolId, SInfo, Shape, FnState>
+impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluate for FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -167,6 +164,7 @@ where
             _ => {
                 stop.update(ExpStep::Distribution(step));
                 self.states.remove(&id);
+                self.remove_state = Some(id);
                 None
             }
         }

@@ -1,5 +1,7 @@
+use indexmap::IndexMap;
+
 use crate::{
-    Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::MonoCheckpointer, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
+    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
 };
 
 #[cfg(feature = "mpi")]
@@ -136,4 +138,119 @@ where
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
     pub(crate) evaluator: Option<Eval>,
+}
+
+pub trait FuncStatePool<FnState, SolId> : Default
+where 
+    SolId: Id,
+    FnState: FuncState,
+{
+    /// Insert a new [`FuncState`] into the pool, associated with a solution [`Id`].
+    fn insert(&mut self, id: SolId, state: FnState);
+    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    fn remove(&mut self, id: &SolId) -> bool;
+    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    fn retrieve(&mut self, id: &SolId) -> Option<FnState>;
+}
+
+pub struct IdxMapPool<SolId, FnState, FnStCheck>
+where
+    SolId: Id,
+    FnState: FuncState,
+    FnStCheck: FuncStateCheckpointer,
+{
+    pub pool: IndexMap<SolId, Option<FnState>>,
+    pub check: Option<FnStCheck>,
+}
+
+impl<FnStCheck, SolId, FnState> IdxMapPool<SolId, FnState, FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+    SolId: Id,
+    FnState: FuncState,
+{
+    pub fn new(check: Option<FnStCheck>) -> Self {
+        Self {
+            pool: IndexMap::new(),
+            check,
+        }
+    }
+}
+
+impl<FnStCheck, SolId, FnState> Default for IdxMapPool<SolId, FnState, FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+    SolId: Id,
+    FnState: FuncState,
+{
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
+impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for IdxMapPool<SolId, FnState, FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+    SolId: Id,
+    FnState: FuncState,
+{
+    fn insert(&mut self, id: SolId, state: FnState) {
+        self.pool.insert(id, Some(state));
+    }
+
+    fn remove(&mut self, id: &SolId) -> bool {
+        self.pool.swap_remove(id).is_some()
+    }
+
+    fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
+        if let Some(state_opt) = self.pool.get_mut(id) {
+            state_opt.take()
+        } else {
+            None
+        }
+    }
+}
+
+pub struct LoadPool<FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+{
+    pub check: FnStCheck,
+}
+
+impl<FnStCheck> LoadPool<FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+{
+    pub fn new(check: FnStCheck) -> Self {
+        Self { check }
+    }
+}
+
+impl<FnStCheck> Default for LoadPool<FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+{
+    fn default() -> Self {
+        panic!("LoadPool cannot be default constructed without a checkpointer")
+    }
+}
+
+impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for LoadPool<FnStCheck>
+where
+    FnStCheck: FuncStateCheckpointer,
+    SolId: Id,
+    FnState: FuncState,
+{
+    fn insert(&mut self, id: SolId, state: FnState) {
+        self.check.save_func_state(&id, &state);
+    }
+
+    fn remove(&mut self, id: &SolId) -> bool {
+        self.check.remove_func_state(id).is_ok()
+    }
+
+    fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
+        self.check.load_func_state(id)
+    }
 }

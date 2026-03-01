@@ -50,7 +50,8 @@ where
     FnState: FuncState,
 {
     pub batch: Batch<SolId, SInfo, Info, Shape>,
-    states: HashMap<SolId, FnState>,
+    #[serde(skip)]
+    pub states: HashMap<SolId, Option<FnState>>,
 }
 
 impl<SolId, SInfo, Info, Shape, FnState> FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
