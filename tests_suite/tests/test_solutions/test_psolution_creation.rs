@@ -45,7 +45,7 @@ macro_rules! get_default_sol {
             $(
                 let sol = $sol::<ParSId,$dom,TestSInfo>::default(sinfo.clone(),$size);
                 _test_solution_assertion($size,&sol, $pid);
-                idsol.push(sol.get_id().id);
+                idsol.push(sol.id().id);
             )*
             let mut unique = HashSet::new();
             idsol.iter().all(|x| unique.insert(x));

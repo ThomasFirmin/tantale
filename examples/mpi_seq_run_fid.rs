@@ -1,4 +1,5 @@
 use tantale::algos::RandomSearch;
+use tantale_algos::random_search;
 use tantale_core::{
     CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
     experiment::{self, distributed, mpi::utils::MPIProcess},
@@ -234,7 +235,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new();
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -249,7 +250,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid").init(&proc);
@@ -282,7 +283,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid").init(&proc);

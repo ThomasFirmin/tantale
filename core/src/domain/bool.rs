@@ -54,7 +54,7 @@ impl Domain for Bool {
 
     /// Method to check if a given point is in the domain.
     ///
-    /// # Attributes
+    /// # Parameters
     ///
     /// * `point` : `&`[`TypeDom`](Domain::TypeDom) - a borrowed sample from a [`Bool`].
     ///

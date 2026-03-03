@@ -4,6 +4,8 @@
 //!
 //! ## Tutorials
 //! * [Quick start](QuickStart)
+//! * [Multi-threaded optimization](MultiThreadedOptimization) (Coming soon)
+//! * [MPI-Distributed optimization](MPIOptimization) (Coming soon)
 //!
 //! ## Advanced guides
 //! * [Create your batched optimizer](CreateBatchOptimizer)

@@ -5,7 +5,7 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::{BatchRandomSearch, random_search::RandomSearch};
+use tantale_algos::{BatchRandomSearch, random_search::{self, RandomSearch}};
 
 use super::init_func::sp_evaluator;
 use crate::init_func::OutEvaluator;
@@ -129,7 +129,7 @@ fn test_batch_run() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod: SingleCodomain<OutEvaluator> = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod: SingleCodomain<OutEvaluator> = random_search::codomain(|o: &OutEvaluator| o.obj);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -142,7 +142,7 @@ fn test_batch_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
@@ -162,7 +162,7 @@ fn test_batch_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
@@ -195,7 +195,7 @@ fn test_batch_parrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = BatchRandomSearch::new(7);
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
@@ -209,7 +209,7 @@ fn test_batch_parrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
@@ -237,7 +237,7 @@ fn test_batch_parrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = BatchRandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
@@ -273,7 +273,7 @@ fn test_seqrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = RandomSearch::new();
-    let cod: SingleCodomain<OutEvaluator> = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod: SingleCodomain<OutEvaluator> = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_seqrun").init();
@@ -287,7 +287,7 @@ fn test_seqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
@@ -304,7 +304,7 @@ fn test_seqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
@@ -330,7 +330,7 @@ fn test_thrseqrun() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new();
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -343,7 +343,7 @@ fn test_thrseqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
@@ -361,7 +361,7 @@ fn test_thrseqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = RandomSearch::codomain(|o: &OutEvaluator| o.obj);
+    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();

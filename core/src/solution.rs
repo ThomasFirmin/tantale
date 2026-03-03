@@ -185,7 +185,12 @@ pub trait HasStep {
     fn raw_step(&self) -> EvalStep;
 
     /// Sets the evaluation state directly via a raw [`EvalStep`].
-    fn set_step(&mut self, value: EvalStep);
+    fn set_raw_step(&mut self, value: EvalStep);
+
+    /// Sets the evaluation state via a high-level [`Step`].
+    fn set_step(&mut self, value: Step) {
+        self.set_raw_step(value.into());
+    }
 
     /// Marks the solution as pending evaluation.
     ///

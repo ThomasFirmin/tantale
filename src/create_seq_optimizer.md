@@ -1,24 +1,51 @@
 # Creating a new Optimizer
 
-We consider the [Successive Halving](https://arxiv.org/abs/1502.07943) algorithm described by the following pseudo-code:
+We consider the [Asynchronous Successive Halving](https://arxiv.org/abs/1502.07943) algorithm described by the following pseudo-code:
 
-**Successive Halving (SH)**
+**Asynchronous Successive Halving (ASHA)**
 ---
-**Inputs** 
-1. $\mathcal{X}$ &emsp;&emsp; *A [searchspace](crate::core::Searchspace)*
-2. $n$ &emsp;&emsp; *[Batch](crate::core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
-3. $b_0$ &emsp;&emsp; *Initial budget*
-4. $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
-5. $\eta$ &emsp;&emsp; *Scaling*
-6. 
-7. $b \gets b_0$
-8. $L \gets \textbf{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](crate::core::Solution)s*
-9. **while** $b < b_\text{max}$ **do**
-10. &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](crate::core::Fidelity) $b$*
-11. &emsp; $L \gets \textbf{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](crate::core::Computed)*
-12. &emsp; $b \gets \eta \times b$
-13. **return best of $(L,\mathbf{y})$**
+**Inputs**
+1. &emsp; $\mathcal{X}$ &emsp;&emsp; *A [searchspace](tantale_core::Searchspace)*
+2. &emsp; $b_0$ &emsp;&emsp; *Initial budget*
+3. &emsp; $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
+4. &emsp; $\eta$ &emsp;&emsp; *Scaling*
+5. &emsp;
+6. &emsp; $B = [b_0, b_0\cdot\eta^1,b_0\cdot\eta^2, \cdots, b_{\text{max}}]$ &emsp; *Precompute the budget levels*
+7. &emsp; $\mathcal{R} = (R_i)_{i \in [0,\cdots,|B|]}\enspace \text{s.t. } R_i = \emptyset$ &emsp; *Initialize empty rungs for each budget level*
+8. &emsp;
+9. &emsp; **function** worker() &emsp; *Each worker runs this function asynchronously*
+10. &emsp; &emsp; **while** not stop **do**
+11. &emsp; &emsp;&emsp; $(x,i) \gets \text{generate()}$ &emsp; *Generate a new [solution](tantale_core::Solution) to evaluate at the budget level $B_i$*
+12. &emsp; &emsp;&emsp; $y \gets f(x;B_i)$ &emsp; *Evaluate $x$ with [fidelity](tantale_core::Fidelity) $B_i$*
+13. &emsp; &emsp;&emsp; $R_i \gets R_i \cup \{(x,y)\}$ &emsp; *Add the generated solution to the rung $R_i$*
+14. &emsp;
+15. &emsp; **function** generate() &emsp; *Generates a new [solution](tantale_core::Solution) to evaluate at the appropriate budget level*
+16. &emsp; &emsp; $i \gets \lvert B \rvert - 1$ &emsp; *Start from the highest budget level*
+17. &emsp; &emsp; $\mathbf{x} \gets \emptyset$ &emsp; *Initialize empty set for top $k$ solutions*
+18. &emsp; &emsp; **while** $\lvert \mathbf{x} \rvert = 0$ **and** $i > 0$ **do**
+19. &emsp; &emsp; &emsp; $\mathbf{x} \gets \text{Top}_k\left(R_i,\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert R_i \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
+20. &emsp; &emsp; &emsp; $i \gets i - 1$ &emsp; *Move to the next lower budget level*
+21. &emsp; &emsp; **if** $i = 0$ **then**
+22. &emsp; &emsp;&emsp; **return** $(\text{Random}(\mathcal{X},1),0)$
+23. &emsp; &emsp; **else**
+24. &emsp; &emsp;&emsp; $R_i \gets R_i \setminus \mathbf{x}_0$ &emsp; *Remove the selected solutions from the rung*
+25. &emsp; &emsp;&emsp; **return** $(\mathbf{x}_0, i)$
 ---
+
+## Preliminary technical details
+
+The optimizer uses a thread-local [`StdRng`] for random sampling. The RNG is not part of the optimizer state, as it cannot be serialized or deserialized. The [`StdRng`] is defined at the module level as follows:
+```rust
+use rand::{SeedableRng, rngs::StdRng};
+
+thread_local! {
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+}
+```
+It is called with a private method `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
+```rust,ignore
+self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+```
 
 ## Defining the state
 
@@ -26,100 +53,50 @@ First, we need to define the [`OptState`](crate::core::OptState). This marker tr
 defines all necessary information for each iteration of the optimizer.
 It is also used for checkpointing, resuming an experiment, and creating the optimizer object from its state.
 
-According to the previous pseudo-code Successive Halving requires:
+According to the previous pseudo-code ASHA requires:
 - A [`Searchspace`](crate::core::Optimizer): It is given as a parameter to the [`Optimizer`](crate::core::Optimizer) at every iteration. So, there is no need to specify this into [`OptState`](crate::core::OptState).
-- $n$, the batch size: This is parameter used for initialization, so it must be specified in [`OptState`](crate::core::OptState).
-- $b_0$, the initial budget: same argument as for $n$.
-- $b_{\text{max}}$, the maximum budget: same argument as for $n$.
-- $b$, the current budget for a given iteration: this must specified within [`OptState`](crate::core::OptState). It is the trace of the current iteration.
-- $\eta$, the scaling: same argument as for $n$.
-- $L$, the batch of sampled [`Solution`](crate::core::Solution)s: checkpointing of batches is handled externally by
-an [`Evaluate`](crate::core::Evaluate) object.
+- $B$, all available budgets: this must specified within [`OptState`](crate::core::OptState).
+- $\eta$, the scaling factor: Used for initialization and to compute the number of minimum candidate with a rung.
+- $\mathcal{R}$, the different rungs made of [`Computed`](crate::core::Computed)s.
 
-We add an extra field `iteration`, to count the number of calls to the SH `step` function, later described in the implementation of [`BatchOptimizer](crate::core::BatchOptimizer).
+AshaState is generic over all [`SolutionShape`](crate::core::SolutionShape), i.e. pairs of `Obj` and `Opt` [`Solution`](crate::core::Solution).
+But, these are constrained by [`HasStep`](crate::core::HasStep) and [`HasFidelity`](crate::core::HasFidelity) because we are within the multi-fidelity optimization framework. To simplify things, it must also implements [`Ord`](std::cmp::Ord) (based on [`HasY`](crate::core::HasY) of [`Computed`](crate::core::Computed)) to simplify the Top k selection of the best [`Computed`](crate::core::Computed).
+
+A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` and `Deserializable`, which explains this:
+```rust,ignore
+#[serde(bound(serialize = "SShape: Serialize", deserialize = "SShape: for<'a> Deserialize<'a>"))]
+```
+
+Then, the [`OptState`](crate::core::OptState) is given by:
 
 ```rust
+use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
 use tantale::macros::OptState;
-use serde::{Serialize,Deserialize}
+use std::cmp::Ord;
+use serde::{Serialize,Deserialize};
 
-#[derive(OptState,Serialize,Deserialize)]
-pub struct SHState{
-    pub batch: usize, // batch size
-    pub budget_min: f64, // b0
-    pub budget_max: f64, // bmax
-    pub budget: f64, // b
-    pub scaling: f64, // eta
-    pub iteration: usize, // i
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SShape: Serialize",
+    deserialize = "SShape: for<'a> Deserialize<'a>",
+))]
+pub struct AshaState<SShape>
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+{
+    pub budgets: Vec<f64>,
+    pub scaling: f64,
+    pub rungs: Vec<Vec<SShape>>,
 }
 ```
+
 ## Defining per-iteration metadata
 
-[`OptInfo`](crate::core::OptInfo) describes object for per-optimizer-iteration meta-data.
-But, some meta-data can be also linked to single solution.
-For optimizers which do not generate any [`OptInfo`](crate::core::OptInfo), Tantale provides a built-in [`OptInfo`](crate::core::OptInfo) named [`EmptyInfo`](crate::core::EmptyInfo).
-
-To record [`OptInfo`](crate::core::OptInfo) within a CSV file, the [`CSVWritable`](crate::macros::CSVWritable) derive macro can be applied.
-But, only if usage conditions, described within the corresponding documentation, are met. Or you can implement by hand the
-[`CSVWritable`](crate::core::CSVWritable) trait.
-
-```rust
-use tantale::macros::{OptInfo, CSVWritable};
-use serde::{Serialize,Deserialize};
-
-#[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-pub struct SHInfo{
-    pub iteration: usize,
-}
-```
-
-or with [`CSVWritable`](crate::core::CSVWritable) implemented by hand:
-
-```rust
-use tantale::macros::{OptInfo};
-use tantale::core::CSVWritable;
-use serde::{Serialize,Deserialize};
-
-#[derive(OptInfo, Serialize, Deserialize)]
-pub struct SHInfo{
-    pub iteration: usize,
-}
-
-// Extra implementation for CSV compatibility
-// (),() because SHInfo is autosufficient
-// left (): there is no need of another object to define the header in a CSV;
-// right (): the component to be written is SHInfo itself.
-// See some impl on Domains for examples. 
-// SolInfo should always be (),().
-impl CSVWritable<(), ()> for SHInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("iteration")])
-    }
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.iteration.to_string()])
-    }
-}
-```
+ASHA does not have per-iteration metadata.
 
 ## Defining per-solution metadata
 
-We previously described meta-data linked to **all** solutions generated by a single optimizer's iteration.
-But, some meta-data can be also linked to single solution. This meta-data is defined by an object implementing the [`SolInfo`](crate::core::SolInfo). In the case of SH, no meta-data can be associated to single-solution.
-Indeed, the budget $b$ is handled by [`FidelitySol`](crate::core::FidelitySol) containing a [`Fidelity`](crate::core::Fidelity) field.
-Thus, Tantale provides a built-in [`SolInfo`](crate::core::SolInfo) named [`EmptyInfo`](crate::core::EmptyInfo).
-
-If some meta-data **would have been necessary**, which is not the case for SH, then we could define it like this:
-
-```rust
-// THIS IS A MOCK IMPLEMENTATION
-// SUCCESSIVE HALVING DOES NOT REQUIRE PER-SOLUTION META-DATA
-use tantale::macros::{SolInfo, CSVWritable};
-use serde::{Serialize, Deserialize};
-
-#[derive(SolInfo, CSVWritable, Serialize, Deserialize)]
-pub struct MockSolInfo{
-    pub expected_score: f64
-}
-```
+ASHA does not have per-solution metadata, associated fidelities/budgets are stored within a [`FidelitySol`](crate::core::FidelitySol)
 
 ## Characterize the optimizer
 
@@ -143,71 +120,73 @@ Finally, two methods have to be written:
 
 ### Creating Successive Halving struct
 
-SH requires a [`ThreadRng`](rand::prelude::ThreadRng) to generate random samples from the searchspace (line 8).
-But, it is not serializable, nor deserializable, so it cannot be stored within the 
-[`OptState`](crate::core::OptState).
+ASHA only requires its [`OptState`], i.e. [`AshaState`].
 
 Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` method
 to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer.
 
 ``` rust
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
+# use std::cmp::Ord;
 # use serde::{Serialize,Deserialize};
+# use rand::{SeedableRng, rngs::StdRng};
 # 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
-#     pub iteration: usize,
+# thread_local! {
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+# }
+#
+# #[derive(Serialize, Deserialize)]
+# #[serde(bound(
+#     serialize = "SShape: Serialize",
+#     deserialize = "SShape: for<'a> Deserialize<'a>",
+# ))]
+# pub struct AshaState<SShape>
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+# {
+#     pub budgets: Vec<f64>,
+#     pub scaling: f64,
+#     pub rungs: Vec<Vec<SShape>>,
 # }
 
 use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-use serde::{Serialize,Deserialize};
-use rand::prelude::ThreadRng;
 
-pub struct SuccessiveHalving(pub SHState, ThreadRng);
+pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+where
+    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+    Out: FidOutcome,
+{
+    let out = SingleCodomain {
+        y_criteria: extractor,
+    };
+    out.into()
+}
 
-impl SuccessiveHalving {
-    pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
+pub struct Asha(pub AshaState);
+
+impl AshaState {
+    pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-
-        let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-        assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-
-        SuccessiveHalving(
-            SHState {
-                batch,
-                budget_min,
-                budget_max,
-                budget: budget_min,
+        assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
+        
+        // Create all different budgets
+        let mut budgets: Vec<f64> = (0..)
+            .map(|i| budget_min * scaling.powi(i))
+            .take_while(|&b| b < budget_max)
+            .collect();
+        budgets.push(budget_max); // Add the last maximum budget
+        
+        let length = budgets.len();
+        Asha(
+            AshaState {
+                budgets,
                 scaling,
-                iteration: 0,
+                // Create i rungs, even if rung 0 will not be used, it simplifies computations
+                rung: (0..length).map(|_| Vec::new()).collect(),
             },
-            rand::rng(),
         )
-    }
-
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: FidOutcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
     }
 }
 ```
@@ -215,271 +194,268 @@ impl SuccessiveHalving {
 
 ### Implementing Optimizer trait
 
-We consider `SHState` and `SHInfo` previously described. SH only require the `Opt` [`Domain`](crate::core::Domain) to
+We consider the `AshaState` previously described. Asha only requires the `Opt` [`Domain`](crate::core::Domain) to
 be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generic over this domain.
-This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that the SH can be used whatever
-the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
+This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that ASHA can be used whatever
+the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
+
+Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolShape`](crate::core::SolShape) must follows the same bound described within `AshaState`.
 
 ```rust
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
+# use std::cmp::Ord;
 # use serde::{Serialize,Deserialize};
+# use rand::{SeedableRng, rngs::StdRng};
 # 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
-#     pub iteration: usize,
+# thread_local! {
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+# }
+#
+# #[derive(Serialize, Deserialize)]
+# #[serde(bound(
+#     serialize = "SShape: Serialize",
+#     deserialize = "SShape: for<'a> Deserialize<'a>",
+# ))]
+# pub struct AshaState<SShape>
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+# {
+#     pub budgets: Vec<f64>,
+#     pub scaling: f64,
+#     pub rungs: Vec<Vec<SShape>>,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# use serde::{Serialize,Deserialize};
-# use rand::prelude::ThreadRng;
 # 
-# pub struct SuccessiveHalving(pub SHState, ThreadRng);
+# pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+# where
+#     Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+#     Out: FidOutcome,
+# {
+#     let out = SingleCodomain {
+#         y_criteria: extractor,
+#     };
+#     out.into()
+# }
 # 
-# impl SuccessiveHalving {
-#     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
+# pub struct Asha(pub AshaState);
+# 
+# impl AshaState {
+#     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-# 
-#         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-#         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-# 
-#         SuccessiveHalving(
-#             SHState {
-#                 batch,
-#                 budget_min,
-#                 budget_max,
-#                 budget: budget_min,
+#         assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
+#         
+#         // Create all different budgets
+#         let mut budgets: Vec<f64> = (0..)
+#             .map(|i| budget_min * scaling.powi(i))
+#             .take_while(|&b| b < budget_max)
+#             .collect();
+#         budgets.push(budget_max); // Add the last maximum budget
+#         
+#         let length = budgets.len();
+#         Asha(
+#             AshaState {
+#                 budgets,
 #                 scaling,
-#                 iteration: 0,
+#                 // Create i rungs, even if rung 0 will not be used, it simplifies computations
+#                 rung: (0..length).map(|_| Vec::new()).collect(),
 #             },
-#             rand::rng(),
 #         )
-#     }
-# 
-#     pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-#     where
-#         Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#         Out: FidOutcome,
-#     {
-#         let out = SingleCodomain {
-#             y_criteria: extractor,
-#         };
-#         out.into()
 #     }
 # }
 
 use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
 
-impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for SuccessiveHalving
+impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
 {
-    type State = SHState;
+    type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
-    type SInfo = EmptyInfo;
-    type Info = SHInfo;
-    
-    fn get_state(&mut self) -> &Self::State {
+    type SInfo = EmptyInfo; // No metadata
+    type Info = EmptyInfo; // No metadata
+
+    fn get_state(&self) -> &Self::State {
         &self.0
     }
     
+    fn get_mut_state(&mut self) -> &Self::State {
+        &self.0
+    }
+
     fn from_state(state: Self::State) -> Self {
-        SuccessiveHalving(state, rand::rng())
+        Asha(state)
     }
 }
 ```
 
-### Implementing BatchOptimizer trait
+### Implementing SequentialOptimizer trait
 
-We have implemented the Optimizer trait to characterize SH.
+We have implemented the Optimizer trait to characterize ASHA.
 Now we can define computations of an iteration.
-SH generates a [`Batch`](crate::core::Batch) of [`FidelitySol`](crate::core::FidelitySol); solutions that will be further pruned, i.e. [`Discarded`](crate::core::Step::Discard).
-SH is then a [`BatchOptimizer`](crate::core::BatchOptimizer).
-We have to define two functions:
-- `first_step`: Able to generate a [`Batch`](core::crate::Batch) ex-nihilo, without a previous [`Computed`](core::crate::Computed) [`Batch`](core::crate::Batch). It is used to initialize the algorithm (line 8.). 
-- `step`: the usual iteration of the algorithm after initialization (line 9. to ).
+ASHA generates on demand [`FidelitySol`](crate::core::FidelitySol).So, ASHA is a [`SequentialOptimizer`](crate::core::SequentialOptimizer).
+We have to define one functions:
+- `step`: the usual iteration of the algorithm after initialization. It should be able ot generate solutions when it receives one or no
+  [`Computed`](crate::core::Computed).
 
 ```rust
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
+# use std::cmp::Ord;
 # use serde::{Serialize,Deserialize};
+# use rand::{SeedableRng, rngs::StdRng};
 # 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
-#     pub iteration: usize,
+# thread_local! {
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+# }
+#
+# #[derive(Serialize, Deserialize)]
+# #[serde(bound(
+#     serialize = "SShape: Serialize",
+#     deserialize = "SShape: for<'a> Deserialize<'a>",
+# ))]
+# pub struct AshaState<SShape>
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+# {
+#     pub budgets: Vec<f64>,
+#     pub scaling: f64,
+#     pub rungs: Vec<Vec<SShape>>,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# use serde::{Serialize,Deserialize};
-# use rand::prelude::ThreadRng;
 # 
-# pub struct SuccessiveHalving(pub SHState, ThreadRng);
+# pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+# where
+#     Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+#     Out: FidOutcome,
+# {
+#     let out = SingleCodomain {
+#         y_criteria: extractor,
+#     };
+#     out.into()
+# }
 # 
-# impl SuccessiveHalving {
-#     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
+# pub struct Asha(pub AshaState);
+# 
+# impl AshaState {
+#     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-# 
-#         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-#         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-# 
-#         SuccessiveHalving(
-#             SHState {
-#                 batch,
-#                 budget_min,
-#                 budget_max,
-#                 budget: budget_min,
+#         assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
+#         
+#         // Create all different budgets
+#         let mut budgets: Vec<f64> = (0..)
+#             .map(|i| budget_min * scaling.powi(i))
+#             .take_while(|&b| b < budget_max)
+#             .collect();
+#         budgets.push(budget_max); // Add the last maximum budget
+#         
+#         let length = budgets.len();
+#         Asha(
+#             AshaState {
+#                 budgets,
 #                 scaling,
-#                 iteration: 0,
+#                 // Create i rungs, even if rung 0 will not be used, it simplifies computations
+#                 rung: (0..length).map(|_| Vec::new()).collect(),
 #             },
-#             rand::rng(),
 #         )
-#     }
-# 
-#     pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-#     where
-#         Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#         Out: FidOutcome,
-#     {
-#         let out = SingleCodomain {
-#             y_criteria: extractor,
-#         };
-#         out.into()
 #     }
 # }
 # 
-# use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
-# 
-# impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for SuccessiveHalving
+# impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+#     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 # where
 #     Out: FidOutcome,
 #     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+#     Scp::SolShape: HasStep + HasFidelity,
+#     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+#         SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
-#     type State = SHState;
+#     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
 #     type Cod = SingleCodomain<Out>;
-#     type SInfo = EmptyInfo;
-#     type Info = SHInfo;
-#     
+#     type SInfo = EmptyInfo; // No metadata
+#     type Info = EmptyInfo; // No metadata
+# 
 #     fn get_state(&mut self) -> &Self::State {
 #         &self.0
 #     }
-#     
+# 
 #     fn from_state(state: Self::State) -> Self {
-#         SuccessiveHalving(state, rand::rng())
+#         Asha(state)
 #     }
 # }
 
-use tantale_core::{Batch, BatchOptimizer, Codomain, CompBatch, FuncState, HasFidelity, HasStep, IntoComputed, RawObj, Step, Stepped};
+use tantale_core::{SequentialOptimizer, Codomain, OptionCompShape, FuncState, HasFidelity, HasStep, IntoComputed, RawObj, Step, Stepped};
+
 
 impl<Out, Scp, FnState>
-    BatchOptimizer<
+    SequentialOptimizer<
         FidelitySol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
-    > for SuccessiveHalving
+    > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
+    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity +Ord,
     FnState: FuncState,
 {
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = SHInfo::new(self.0.iteration);
-        let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity
-            |mut pair| 
-            {
-                pair.set_fidelity(self.0.budget);
-                pair
-            },
-            &mut self.1,
-            self.0.batch,
-            EmptyInfo.into(), // EmptyInfo because to solution metadata
-        );
-        Batch::new(pairs, info.into())
-    }
-
     fn step(
-            &mut self,
-            x: CompBatch<SId, Self::SInfo, Self::Info, Scp, FidelitySol<SId,Scp::Opt,EmptyInfo>, Self::Cod, Out>,
-            scp: &Scp,
-        ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-            
-            let (pairs,_) = x.extract(); // Extract component of CompBatch
-            // Keep only Partially computed solution
-            let mut pairs: Vec<_> = pairs.into_iter().filter_map(
-                |comp|
-                match comp.step() {
-                    Step::Partially(_) => Some(comp),
-                    _ => None,
-                }
-            ).collect();
-
-            // If no solution is remaining, then generate a new batch with first_step
-            if pairs.is_empty() {
-                self.0.budget = self.0.budget_min; // Reset budget
-                <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
-            }else{
-                // Compute the k to extract top k solution and discard others
-                let k = pairs.len() - (((pairs.len() as f64)/ self.0.scaling) as usize).max(1);
-                self.0.budget = (self.0.budget*self.0.scaling).min(self.0.budget_max); // min to prevent overflowing budget_max
-                self.0.iteration += 1;
-
-                // worst solutions before index k, top k  solution at index k and after
-                pairs.select_nth_unstable(k);
-                // Extract Uncomputed solution from Computed
-                let new_pairs:Vec<_> = pairs.into_iter().enumerate().map(
-                    |(i,computed)|
-                    {
-                        let (mut pair, _): (Scp::SolShape, _) = IntoComputed::extract(computed);
-                        if i < k {
-                            pair.discard(); // Discard all solution before k and k others
-                        } else {
-                            pair.set_fidelity(self.0.budget); // Set new budget for solution after index k
-                        }
-                        pair
-                    }
-                ).collect();
-
-                // If no solution remaining then generate new ones
-                if new_pairs.is_empty() {
-                    self.0.budget = self.0.budget_min; // Reset budget
-                    <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
-                } else {
-                    Batch::new(new_pairs, SHInfo::new(self.0.iteration).into())
-                }
+        &mut self,
+        x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        scp: &Scp,
+    ) -> Scp::SolShape {
+        // If input is not empty (a solution has been computed)
+        if let Some(comp) = x
+        {
+            // If this solution is partially computed, then store it within the next rung.
+            if let Step::Partially(_) = comp.step() {
+                // The idx of the budget cannot be stored within the solution
+                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
+                self.0.rung[idx + 1].push(comp); // Store it within the next rung
             }
-            
-    }
+
+            let mut i = self.0.budgets.len() - 1;
+            // Compute top k for final rung. (should be 0 if we are within the first iterations)
+            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            // Find a rung with promotable solutions
+            while k == 0 && i > 0 {
+                i -= 1;
+                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            }
+            // If no rung was found, generate a random solution
+            if k == 0 {
+                let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
+                p.set_fidelity(self.0.budgets[0]); // Modify default fidelity to minimum budget
+                p // return p
+            } else {
+                // Select the top k (modify in place rung[i]), last elements are the top k
+                self.0.rung[i].select_nth_unstable(k);
+                // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
+                let (mut p,_): (Scp::SolShape, _) = IntoComputed::extract(self.0.rung[i].pop().unwrap()); 
+                p.set_fidelity(self.0.budgets[i]); // Modify previous fidelity with new budget
+                p
+            }
+        } else {// If input is None (no computed, e.g. initialization of ASHA)
+            // Randomly sample a new candidate with minimum budget
+            let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
+            p.set_fidelity(self.0.budgets[0]);
+            p
+        }
+    }   
 }
+
 ```

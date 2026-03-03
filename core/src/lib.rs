@@ -155,12 +155,12 @@
 //!     CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
 //!     experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale::algos::BatchRandomSearch;
+//! use tantale::algos::{random_search, BatchRandomSearch};
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = BatchRandomSearch::new(7);
-//! let cod: SingleCodomain<_> = BatchRandomSearch::codomain(|o: OutExample| o.obj);
+//! let cod: SingleCodomain<_> = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_batch").init();
@@ -178,12 +178,12 @@
 //!     CSVRecorder, FolderConfig, MessagePack, Objective,
 //!     experiment::{Runable, threaded}, stop::Calls,
 //! };
-//! use tantale::algos::RandomSearch;
+//! use tantale::algos::{random_search, RandomSearch};
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = RandomSearch::new();
-//! let cod = RandomSearch::codomain(|o: OutExample| o.obj);
+//! let cod = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_seq_threads").init();
@@ -200,12 +200,12 @@
 //! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale::algos::BatchRandomSearch;
+//! use tantale::algos::{random_search,BatchRandomSearch};
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = BatchRandomSearch::new(7);
-//! let cod = BatchRandomSearch::codomain(|o: OutExample| o.obj);
+//! let cod = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_fidelity").init();
@@ -300,9 +300,9 @@ pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded};
 pub mod recorder;
 #[cfg(feature = "mpi")]
 pub use recorder::DistRecorder;
-pub use recorder::{CSVRecorder, Recorder};
+pub use recorder::{CSVRecorder, CSVWritable, Recorder};
 
 pub mod checkpointer;
 #[cfg(feature = "mpi")]
 pub use checkpointer::DistCheckpointer;
-pub use checkpointer::{MonoCheckpointer, MessagePack, ThrCheckpointer};
+pub use checkpointer::{Checkpointer, MonoCheckpointer, MessagePack, ThrCheckpointer};

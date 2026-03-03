@@ -1,13 +1,8 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped,
-    domain::NoDomain,
-    experiment::{
-        FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,
-        ThrEvaluate, sequential::seqfidevaluator::FidSeqEvaluator,
-    },
-    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
-    stop::Calls,
+    EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped, checkpointer::NoFuncStateCheck, domain::NoDomain, experiment::{
+        FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrEvaluate, basics::IdxMapPool, sequential::seqfidevaluator::FidSeqEvaluator
+    }, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator_fid;
@@ -47,7 +42,7 @@ fn test_fidbatchevaluator() {
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
     let batch: BBatch = Batch::new(pair, info.clone());
-    let mut eval = FidBatchEvaluator::new(batch);
+    let mut eval = FidBatchEvaluator::new(batch, IdxMapPool::new(None));
 
     let (bcomp, braw) = <FidBatchEvaluator<
         SId,
@@ -55,6 +50,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -147,6 +143,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -169,6 +166,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -191,6 +189,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -213,6 +212,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -257,7 +257,7 @@ fn test_fidthrbatchevaluator() {
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
     let batch: BBatch = Batch::new(pair, info.clone());
-    let mut eval = FidThrBatchEvaluator::new(batch);
+    let mut eval = FidThrBatchEvaluator::new(batch, IdxMapPool::new(None));
 
     let (bcomp, braw) = <FidThrBatchEvaluator<
         SId,
@@ -265,6 +265,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -357,6 +358,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -379,6 +381,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -401,6 +404,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -423,6 +427,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -458,13 +463,14 @@ fn test_seqfidevaluator() {
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
-    let mut eval = FidSeqEvaluator::new(pair);
+    let mut eval = FidSeqEvaluator::new(Some(pair), IdxMapPool::new(None));
 
     let out = <FidSeqEvaluator<
         SId,
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -496,12 +502,12 @@ fn test_seqfidevaluator() {
         "Opt Partial and Computed do not point to the same solutions."
     );
     assert_eq!(
-        comp.get_id(),
+        comp.id(),
         sobj_bis.0,
         "Obj Id Computed and Partial do not point to the same solutions."
     );
     assert_eq!(
-        comp.get_id(),
+        comp.id(),
         sopt_bis.0,
         "Opt Id Computed and Partial do not point to the same solutions."
     );
@@ -520,6 +526,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -547,6 +554,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -574,6 +582,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -601,6 +610,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
+        IdxMapPool<SId,FnState,NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,

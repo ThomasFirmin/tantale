@@ -163,8 +163,8 @@ where
         self.sol.error();
     }
 
-    fn set_step(&mut self, value: EvalStep) {
-        self.sol.set_step(value);
+    fn set_raw_step(&mut self, value: EvalStep) {
+        self.sol.set_raw_step(value);
     }
 }
 

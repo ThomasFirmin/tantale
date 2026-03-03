@@ -304,12 +304,12 @@ fn test_seqevaluator() {
         "Opt Partial and Computed do not point to the same solutions."
     );
     assert_eq!(
-        comp.get_id(),
+        comp.id(),
         sobj_bis.0,
         "Obj Id Computed and Partial do not point to the same solutions."
     );
     assert_eq!(
-        comp.get_id(),
+        comp.id(),
         sopt_bis.0,
         "Opt Id Computed and Partial do not point to the same solutions."
     );

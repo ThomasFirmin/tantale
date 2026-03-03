@@ -367,7 +367,7 @@ where
     }
 
     /// Set the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
-    fn set_step(&mut self, value: EvalStep) {
+    fn set_raw_step(&mut self, value: EvalStep) {
         self.step = value;
     }
 }

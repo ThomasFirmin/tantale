@@ -1,5 +1,3 @@
-use indexmap::IndexMap;
-
 use crate::{
     FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
 };
@@ -9,6 +7,8 @@ use crate::{
     checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, recorder::DistRecorder,
     solution::HasY,
 };
+
+use indexmap::IndexMap;
 
 //--------------------//
 //--- MONOTHREADED ---//
@@ -140,8 +140,11 @@ where
     pub(crate) evaluator: Option<Eval>,
 }
 
-pub trait FuncStatePool<FnState, SolId> : Default
+/// Trait defining the interface for a pool of [`FuncState`]s associated with solution identifiers.
+/// This abstraction allows for different implementations of function state management, such as in-memory pools or checkpointer-backed storage.
+pub trait FuncStatePool<FnState, SolId>
 where 
+    Self: Default,
     SolId: Id,
     FnState: FuncState,
 {
@@ -153,6 +156,9 @@ where
     fn retrieve(&mut self, id: &SolId) -> Option<FnState>;
 }
 
+/// An implementation of [`FuncStatePool`] that uses an in-memory [`IndexMap`] to store function states.
+/// This pool is suitable for scenarios where memory is sufficient to hold all function states.
+/// It also optionally integrates a function state checkpointer for persistence, but does not rely on it for retrieval.
 pub struct IdxMapPool<SolId, FnState, FnStCheck>
 where
     SolId: Id,
@@ -169,10 +175,21 @@ where
     SolId: Id,
     FnState: FuncState,
 {
+    /// Create a new [`IdxMapPool`] with an optional function state checkpointer.
     pub fn new(check: Option<FnStCheck>) -> Self {
         Self {
             pool: IndexMap::new(),
             check,
+        }
+    }
+}
+
+impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterator<(SolId, FnState)> for IdxMapPool<SolId, FnState, FnStCheck>{
+    fn from_iter<T: IntoIterator<Item = (SolId, FnState)>>(iter: T) -> Self {
+        let pool = iter.into_iter().map(|(id, state)| (id, Some(state))).collect();
+        Self {
+            pool,
+            check: None,
         }
     }
 }
@@ -194,14 +211,22 @@ where
     SolId: Id,
     FnState: FuncState,
 {
+    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
     fn insert(&mut self, id: SolId, state: FnState) {
+        if let Some(c) = &self.check {
+            c.save_func_state(&id, &state);
+        }
         self.pool.insert(id, Some(state));
     }
-
+    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// Returns `true` if the state was present and removed, `false` otherwise.
     fn remove(&mut self, id: &SolId) -> bool {
+        if let Some(c) = &self.check {
+            let _ = c.remove_func_state(id);
+        }
         self.pool.swap_remove(id).is_some()
     }
-
+    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
         if let Some(state_opt) = self.pool.get_mut(id) {
             state_opt.take()

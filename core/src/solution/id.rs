@@ -24,9 +24,7 @@ use crate::{SOL_ID, recorder::csv::CSVWritable};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    sync::atomic::Ordering,
+    fmt::{Debug, Display}, hash::{Hash, Hasher}, sync::atomic::Ordering
 };
 
 #[cfg(feature = "mpi")]
@@ -77,9 +75,9 @@ impl DistSId {
     }
 }
 #[cfg(feature = "mpi")]
-impl ToString for DistSId {
-    fn to_string(&self) -> String {
-        format!("{}_{}", self.rank, self.id)
+impl Display for DistSId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.rank, self.id)
     }
 }
 
@@ -132,9 +130,9 @@ pub struct ParSId {
     pub id: usize,
 }
 
-impl ToString for ParSId {
-    fn to_string(&self) -> String {
-        format!("{}_{}", self.pid, self.id)
+impl Display for ParSId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.pid, self.id)
     }
 }
 
@@ -195,9 +193,9 @@ pub struct SId {
     pub id: usize,
 }
 
-impl ToString for SId {
-    fn to_string(&self) -> String {
-        format!("{}", self.id)
+impl Display for SId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id)
     }
 }
 

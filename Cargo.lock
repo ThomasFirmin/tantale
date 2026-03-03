@@ -852,6 +852,7 @@ version = "0.1.0"
 dependencies = [
  "csv",
  "num",
+ "num_cpus",
  "paste",
  "rand",
  "rayon",

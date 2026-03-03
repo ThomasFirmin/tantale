@@ -328,7 +328,7 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// // ObjType = Mixed (enum for Nat, Real, Cat variants)
 /// ```
 ///
-/// ### Example 3: Different Optimizer and Objective Domains
+/// ### Example 3: Different Objective and Optimizer Domains
 /// ```ignore
 /// hpo!(
 ///     layer_size    | Nat(10, 512, Uniform)    | Real(10.0, 20.0, Uniform) ;

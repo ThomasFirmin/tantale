@@ -82,8 +82,10 @@ where
     type SInfo: SolInfo;
     type Info: OptInfo;
 
-    /// Returns the current [`OptState`] of the [`Optimizer`].
-    fn get_state(&mut self) -> &Self::State;
+    /// Returns a mutable reference to the [`OptState`] of the [`Optimizer`].
+    fn get_mut_state(&mut self) -> &Self::State;
+    /// Returns a reference to the [`OptState`] of the [`Optimizer`].
+    fn get_state(&self) -> &Self::State;
     /// Builds an [`Optimizer`] from a previously saved [`OptState`].
     fn from_state(state: Self::State) -> Self;
 }

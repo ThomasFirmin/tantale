@@ -15,7 +15,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, fs::remove_file, marker::PhantomData, path::PathBuf, sync::{Arc, Mutex}};
+use std::{collections::VecDeque, marker::PhantomData,sync::{Arc, Mutex}};
 
 /// A simple sequential evaluator for sequential [`MonoExperiment`](crate::experiment::MonoExperiment).
 /// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
@@ -253,7 +253,7 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    pub pairs: VecDeque<(ThrSeqEvaluator<Shape, SolId, SInfo>, Option<PathBuf>)>,
+    pub pairs: VecDeque<ThrSeqEvaluator<Shape, SolId, SInfo>>,
     _id: PhantomData<SolId>,
     _sinfo: PhantomData<SInfo>,
 }
@@ -273,29 +273,22 @@ where
     SInfo: SolInfo,
 {
     /// Creates a new [`VecThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
-    pub fn new(pairs: VecDeque<(ThrSeqEvaluator<Shape, SolId, SInfo>, Option<PathBuf>)>) -> Self {
+    pub fn new(pairs: VecDeque<ThrSeqEvaluator<Shape, SolId, SInfo>>) -> Self {
         VecThrSeqEvaluator {pairs,_id: PhantomData,_sinfo: PhantomData}
     }
 
     pub fn get_one_evaluator(&mut self) -> Option<ThrSeqEvaluator<Shape, SolId, SInfo>> {
-        if let Some((pair, path)) = self.pairs.pop_front() {
-            if let Some(path) = path {
-                remove_file(path);
-            }
-            Some(pair)
-        } else {
-            None
-        }
+        self.pairs.pop_front()
     }
 }
 
-impl<Shape, SolId, SInfo> From<Vec<(ThrSeqEvaluator<Shape, SolId, SInfo>, Option<PathBuf>)>> for VecThrSeqEvaluator<Shape, SolId, SInfo>
+impl<Shape, SolId, SInfo> From<Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>> for VecThrSeqEvaluator<Shape, SolId, SInfo>
 where
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
 {
-    fn from(value: Vec<(ThrSeqEvaluator<Shape, SolId, SInfo>, Option<PathBuf>)>) -> Self {
+    fn from(value: Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>) -> Self {
         VecThrSeqEvaluator { pairs: value.into(), _id: PhantomData, _sinfo: PhantomData }
     }
 }

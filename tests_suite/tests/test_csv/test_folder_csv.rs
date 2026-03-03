@@ -12,6 +12,7 @@ use tantale::core::{
     solution::{Batch, HasInfo, OutBatch},
     stop::{Calls, Stop},
 };
+use tantale_algos::random_search;
 use tantale_core::Computed;
 use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
@@ -263,7 +264,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().get_id().id)]);
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().id().id)]);
         let x_str: Vec<String> = pair
             .get_sopt()
             .get_x()
@@ -281,8 +282,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let id: usize = record[0].parse().unwrap();
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
-        let cod_str: Vec<String> = cod.write(&pair.get_sobj().get_y());
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().id().id)]);
+        let cod_str: Vec<String> = cod.write(&pair.get_sobj().y());
         str_content.extend(cod_str);
         let record_str: Vec<String> = record.iter().map(|x| x.to_string()).collect();
         assert_eq!(
@@ -295,8 +296,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut iter_cbatch = computed_batch.into_iter();
         let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
 
-        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().get_id().id)]);
-        let sinfo_str = pair.get_sobj().get_sinfo().write(&());
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().id().id)]);
+        let sinfo_str = pair.get_sobj().sinfo().write(&());
         str_content.extend(sinfo_str);
         let info_str = computed_info.write(&());
         str_content.extend(info_str);
@@ -376,7 +377,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod = BatchRandomSearch::codomain(|x: &OutExample| x.mul6);
+    let cod = random_search::codomain(|x: &OutExample| x.mul6);
 
     let mut rs = BatchRandomSearch::new(3);
     let mut stop = Calls::new(100);

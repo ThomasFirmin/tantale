@@ -28,8 +28,30 @@ thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
 }
 
+/// Creates a codomain for Successive Halving optimization.
+///
+/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
+/// [`Criteria`](tantale_core::Criteria).
+///
+/// # Arguments
+///
+/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
+///   optimization objective from the [`Outcome`](tantale_core::Outcome).
+pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+where
+    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+    Out: Outcome,
+{
+    let out = SingleCodomain {
+        y_criteria: extractor,
+    };
+    out.into()
+}
+
+/// Metadata for a Random Search optimization step, associated to each [`Batch`].
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RSInfo {
+    /// The iteration number at which this batch was created
     pub iteration: usize,
 }
 impl OptInfo for RSInfo {}
@@ -46,26 +68,44 @@ impl CSVWritable<(), ()> for RSInfo {
 //--- SEQUENTIAL ---//
 //------------------//
 
+/// State for the Sequential Random Search optimizer.
+/// This struct is intentionally minimal, as Random Search does not require any internal state to function.
 #[derive(Serialize, Deserialize)]
 pub struct SeqRSState;
 impl OptState for SeqRSState {}
 
+/// Sequential Random Search optimizer implementation.
+/// This optimizer samples solutions on-demand and  at random 
+/// from the [`Searchspace`] at each iteration, without any internal state or memory of past evaluations.
+/// 
+/// # Note
+/// 
+/// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types, 
+/// allowing it to handle [`Step`]-based optimization scenarios.
+/// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain 
+/// any state or history of evaluations.
+/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
+/// 
+/// # Note on RNG
+/// 
+/// The optimizer uses a thread-local [`StdRng`] for random sampling.
+/// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
+/// The [`StdRng`] is defined at the module level as follows:
+/// ```rust,ignore
+/// thread_local! {
+///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+/// }
+/// ```
+/// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
+/// ```rust,ignore
+/// self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+/// ```
 pub struct RandomSearch(pub SeqRSState);
 
 impl RandomSearch {
+    /// Creates a new instance of the Sequential [`RandomSearch`] optimizer with an initial state.
     pub fn new() -> Self {
         RandomSearch(SeqRSState)
-    }
-
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: Outcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
     }
 
     fn with_rng<F, T>(&self, f: F) -> T
@@ -93,7 +133,11 @@ where
     type SInfo = EmptyInfo;
     type Info = EmptyInfo;
 
-    fn get_state(&mut self) -> &Self::State {
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
 
@@ -113,13 +157,18 @@ where
     type SInfo = EmptyInfo;
     type Info = EmptyInfo;
 
-    fn get_state(&mut self) -> &Self::State {
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+    
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
         Self(state)
     }
+    
 }
 
 impl<Out, Scp>
@@ -204,9 +253,12 @@ where
 //--- Batched ---//
 //------------------//
 
+/// State for the [`BatchRandomSearch`] optimizer.
 #[derive(Serialize, Deserialize)]
 pub struct BatchRSState {
+    /// The number of solutions to sample at each iteration (batch size).
     pub batch: usize,
+    /// The current iteration count. Increments after each call to [`step()`](BatchRandomSearch::step).
     pub iteration: usize,
     _emptyinfo: Arc<EmptyInfo>,
 }
@@ -222,9 +274,24 @@ impl BatchRSState {
 }
 impl OptState for BatchRSState {}
 
+/// Batched Random Search optimizer implementation.
+/// This optimizer samples batches of solutions at random from the [`Searchspace`] at each iteration,
+/// without any internal state or memory of past evaluations, except for the iteration count.
+/// 
+/// # Note
+/// 
+/// It implements [`BatchOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types, 
+/// allowing it to handle [`Step`]-based optimization scenarios.
+/// [`BatchRandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it
+/// does not maintain any state or history of evaluations. 
+/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
+/// 
+/// When the input batch only contains [`Evaluated`](Step::Evaluated),
+/// the next batch will be sampled as usual, without any change in behavior.
 pub struct BatchRandomSearch(pub BatchRSState, ThreadRng);
 
 impl BatchRandomSearch {
+    /// Creates a new instance of the [`BatchRandomSearch`] optimizer with the specified batch size.
     pub fn new(batch: usize) -> Self {
         let rng = rand::rng();
         BatchRandomSearch(
@@ -235,17 +302,6 @@ impl BatchRandomSearch {
             },
             rng,
         )
-    }
-
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: Outcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
     }
 }
 
@@ -281,13 +337,18 @@ where
     type SInfo = EmptyInfo;
     type Info = RSInfo;
 
-    fn get_state(&mut self) -> &Self::State {
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+    
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
         Self(state, rand::rng())
     }
+    
 }
 
 impl<Out, Scp>
@@ -337,13 +398,18 @@ where
     type SInfo = EmptyInfo;
     type Info = RSInfo;
 
-    fn get_state(&mut self) -> &Self::State {
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+    
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
 
     fn from_state(state: Self::State) -> Self {
         Self(state, rand::rng())
     }
+    
 }
 
 impl<Out, Scp, FnState>

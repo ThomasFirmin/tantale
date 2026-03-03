@@ -32,16 +32,16 @@ macro_rules! get_test {
                 let st_ser = rmp_serde::encode::to_vec(&computed).unwrap();
                 let ncomputed : Computed<BaseSol<SId,_,EmptyInfo>,SId,$dom,$cod<OutExample>,_,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
-                let id = computed.get_id();
-                let nid = ncomputed.get_id();
+                let id = computed.id();
+                let nid = ncomputed.id();
                 assert_eq!(id,nid, "IDs are not equal");
 
                 let x = computed.get_x();
                 let nx = ncomputed.get_x();
                 assert!(x.iter().zip(nx.iter()).all($comp),"Solutions x are not equal");
 
-                let y = computed.get_y();
-                let ny = ncomputed.get_y();
+                let y = computed.y();
+                let ny = ncomputed.y();
                 assert_eq!(y,ny,"Codomain y are not equal");
             }
         }

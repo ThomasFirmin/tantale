@@ -1,4 +1,5 @@
 use crate::experiment::OutBatchEvaluate;
+use crate::experiment::basics::FuncStatePool;
 use crate::{
     Codomain, Id, OptInfo, Searchspace, SolInfo,
     domain::onto::LinkOpt,
@@ -17,11 +18,14 @@ use crate::{
 use mpi::Rank;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use std::{
-    collections::HashMap,
     fmt::Debug,
     sync::{Arc, Mutex},
 };
+
+#[cfg(feature = "mpi")]
+use std::collections::HashMap;
 
 #[cfg(feature = "mpi")]
 use crate::{
@@ -41,32 +45,37 @@ use crate::{
     serialize = "SolId:Serialize",
     deserialize = "SolId:for<'a> Deserialize<'a>"
 ))]
-pub struct FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+pub struct FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     pub batch: Batch<SolId, SInfo, Info, Shape>,
     #[serde(skip)]
-    pub states: HashMap<SolId, Option<FnState>>,
+    pub pool: FnStPool,
+    _fnstate: std::marker::PhantomData<FnState>,
+
 }
 
-impl<SolId, SInfo, Info, Shape, FnState> FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     /// Create a new [`FidBatchEvaluator`] with the given `batch` of solutions to evaluate.
-    pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
+    pub fn new(batch: Batch<SolId, SInfo, Info, Shape>, pool: FnStPool) -> Self {
         FidBatchEvaluator {
             batch,
-            states: HashMap::new(),
+            pool,
+            _fnstate: std::marker::PhantomData,
         }
     }
 
@@ -76,18 +85,19 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape, FnState> Evaluate
-    for FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
+    for FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
 }
 
-impl<PSol, SolId, Op, Scp, Out, St, FnState>
+impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     MonoEvaluate<
         PSol,
         SolId,
@@ -97,7 +107,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
-    > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
+    > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     SolId: Id,
@@ -120,6 +130,7 @@ where
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
@@ -155,14 +166,13 @@ where
                     // No saved state
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
                     let y = cod.get_elem(&out);
-                    pair.set_step(out.get_step());
+                    pair.set_raw_step(out.get_step());
                     let new_step = pair.step();
                     match new_step {
-                        Step::Evaluated | Step::Discard | Step::Error => {
-                            stop.update(ExpStep::Distribution(new_step));
-                        }
+                        Step::Partially(_) => self.pool.insert(sid, state),
                         _ => {
-                            self.states.insert(sid, state);
+                            self.pool.remove(&sid);
+                            stop.update(ExpStep::Distribution(new_step));
                         }
                     };
                     obatch.add((sid, out));
@@ -170,17 +180,17 @@ where
                 }
                 Step::Partially(_) => {
                     // get previous state and save next
-                    let state = self.states.remove(&sid);
+                    let state = self.pool.retrieve(&sid);
                     let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                     let y = cod.get_elem(&out);
-                    pair.set_step(out.get_step());
+                    pair.set_raw_step(out.get_step());
                     let new_step = pair.step();
                     match new_step {
                         Step::Evaluated | Step::Discard | Step::Error => {
                             stop.update(ExpStep::Distribution(new_step));
                         }
                         _ => {
-                            self.states.insert(sid, state);
+                            self.pool.insert(sid, state);
                         }
                     };
                     obatch.add((sid, out));
@@ -188,7 +198,7 @@ where
                 }
                 _ => {
                     stop.update(ExpStep::Distribution(step));
-                    self.states.remove(&sid);
+                    self.pool.remove(&sid);
                 }
             };
         }
@@ -210,59 +220,71 @@ where
     serialize = "SolId:Serialize",
     deserialize = "SolId:for<'a> Deserialize<'a>"
 ))]
-pub struct FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+pub struct FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     pub batch: Arc<Mutex<Batch<SolId, SInfo, Info, Shape>>>,
     #[serde(skip)]
-    pub states: Arc<Mutex<HashMap<SolId, Option<FnState>>>>,
-    #[serde(skip)]
-    pub new_states: Arc<Mutex<Vec<SolId>>>,
-    #[serde(skip)]
-    pub remove_states: Arc<Mutex<Vec<SolId>>>,
+    pub pool: Arc<Mutex<FnStPool>>,
+    _fnstate: PhantomData<FnState>,
 }
 
-impl<SolId, SInfo, Info, Shape, FnState> FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
     /// Create a new [`FidThrBatchEvaluator`] with the given `batch` of solutions to evaluate.
-    pub fn new(batch: Batch<SolId, SInfo, Info, Shape>) -> Self {
+    pub fn new(batch: Batch<SolId, SInfo, Info, Shape>, pool: FnStPool) -> Self {
         let batch = Arc::new(Mutex::new(batch));
+        let pool = Arc::new(Mutex::new(pool));
         FidThrBatchEvaluator {
             batch,
-            states: Arc::new(Mutex::new(HashMap::new())),
-            new_states: Arc::new(Mutex::new(Vec::new())),
-            remove_states: Arc::new(Mutex::new(Vec::new())),
+            pool,
+            _fnstate: PhantomData,
         }
     }
     /// Update the internal batch of solutions to evaluate, by replacing it with the given `batch`.
     pub fn update(&mut self, batch: Batch<SolId, SInfo, Info, Shape>) {
         self.batch = Arc::new(Mutex::new(batch));
     }
+
+    /// Pop a solution from the internal batch of solutions to evaluate, and retrieve its associated function state if it is partially evaluated.
+    pub fn pop(&mut self) -> (Option<Shape>, Option<FnState>) {
+        let pair = self.batch.lock().unwrap().pop();
+        if let Some(p) = pair{
+            let id = p.id();
+            (Some(p), self.pool.lock().unwrap().retrieve(&id))
+        } else {
+            (None, None)
+        }
+    }
+
 }
 
-impl<SolId, SInfo, Info, Shape, FnState> Evaluate
-    for FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
+    for FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
+    FnStPool: FuncStatePool<FnState, SolId>,
 {
 }
 
-impl<PSol, SolId, Op, Scp, Out, St, FnState>
+impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     ThrEvaluate<
         PSol,
         SolId,
@@ -272,7 +294,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
-    > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState>
+    > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id + Send + Sync,
@@ -298,6 +320,7 @@ where
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
+    FnStPool: FuncStatePool<FnState, SolId> + Send + Sync,
 {
     /// Initialize the evaluator. Currently does nothing.
     fn init(&mut self) {}
@@ -338,51 +361,30 @@ where
         (0..length).into_par_iter().for_each(|_| {
             if !stop.lock().unwrap().stop() {
                 let mut pair = self.batch.lock().unwrap().pop().unwrap();
+                let state = self.pool.lock().unwrap().retrieve(&pair.id());
                 let sid = pair.id();
                 let step = pair.step();
                 let fid = pair.fidelity();
                 match step {
-                    Step::Pending => {
+                    Step::Pending | Step::Partially(_) => {
                         // No saved state
-                        let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
-                        let y = cod.get_elem(&out);
-                        pair.set_step(out.get_step());
-                        let step = pair.step();
-                        match step {
-                            Step::Evaluated | Step::Discard | Step::Error => {
-                                stop.lock().unwrap().update(ExpStep::Distribution(step));
-                            }
-                            _ => {
-                                self.states.lock().unwrap().insert(sid, Some(state));
-                                self.new_states.lock().unwrap().push(sid);
-                            }
-                        };
-                        obatch.lock().unwrap().add((sid, out));
-                        cbatch.lock().unwrap().add(pair.into_computed(y.into()));
-                    }
-                    Step::Partially(_) => {
-                        // get previous state and save next
-                        let state = self.states.lock().unwrap().get_mut(&sid).unwrap().take();
                         let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
                         let y = cod.get_elem(&out);
-                        pair.set_step(out.get_step());
+                        pair.set_raw_step(out.get_step());
                         let step = pair.step();
                         match step {
-                            Step::Evaluated | Step::Discard | Step::Error => {
-                                stop.lock().unwrap().update(ExpStep::Distribution(step));
-                            }
+                            Step::Partially(_) => self.pool.lock().unwrap().insert(sid, state),
                             _ => {
-                                self.states.lock().unwrap().insert(sid, Some(state));
-                                self.new_states.lock().unwrap().push(sid);
-                            }
+                                self.pool.lock().unwrap().remove(&sid);
+                                stop.lock().unwrap().update(ExpStep::Distribution(step));
+                            },
                         };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
-                    }
+                    },
                     _ => {
+                        self.pool.lock().unwrap().remove(&sid);
                         stop.lock().unwrap().update(ExpStep::Distribution(step));
-                        self.states.lock().unwrap().remove(&sid);
-                        self.remove_states.lock().unwrap().push(sid);
                     }
                 };
             }
@@ -664,7 +666,7 @@ where
         while !sendrec.waiting.is_empty() && !stop_loop {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            pair.set_step(out.get_step());
+            pair.set_raw_step(out.get_step());
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
                     self.where_is_id.remove(&pair.id());
@@ -688,7 +690,7 @@ where
         while !sendrec.waiting.is_empty() {
             let (_, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            pair.set_step(out.get_step());
+            pair.set_raw_step(out.get_step());
             stop.update(ExpStep::Distribution(pair.step()));
             obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));

@@ -26,8 +26,8 @@ macro_rules! get_test {
                 let x = sample.get_x();
                 let nx = nsample.get_x();
 
-                let id = sample.get_id();
-                let nid = nsample.get_id();
+                let id = sample.id();
+                let nid = nsample.id();
 
                 assert!(x.iter().zip(nx.iter()).all($comp),"Solutions x are not equal");
                 assert_eq!(id,nid, "IDs are not equal");

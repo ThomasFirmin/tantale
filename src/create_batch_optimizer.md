@@ -5,19 +5,19 @@ We consider the [Successive Halving](https://arxiv.org/abs/1502.07943) algorithm
 **Successive Halving (SH)**
 ---
 **Inputs** 
-1. $\mathcal{X}$ &emsp;&emsp; *A [searchspace](crate::core::Searchspace)*
-2. $n$ &emsp;&emsp; *[Batch](crate::core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
-3. $b_0$ &emsp;&emsp; *Initial budget*
-4. $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
-5. $\eta$ &emsp;&emsp; *Scaling*
-6. 
-7. $b \gets b_0$
-8. $L \gets \text{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](crate::core::Solution)s*
-9. **while** $b < b_\text{max}$ **do**
-10. &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](crate::core::Fidelity) $b$*
-11. &emsp; $L \gets \text{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](crate::core::Computed)*
-12. &emsp; $b \gets \eta \times b$
-13. **return best of $(L,\mathbf{y})$**
+1. &emsp; $\mathcal{X}$ &emsp;&emsp; *A [searchspace](crate::core::Searchspace)*
+2. &emsp; $n$ &emsp;&emsp; *[Batch](crate::core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
+3. &emsp; $b_0$ &emsp;&emsp; *Initial budget*
+4. &emsp; $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
+5. &emsp; $\eta$ &emsp;&emsp; *Scaling*
+6. &emsp; 
+7. &emsp; $b \gets b_0$
+8. &emsp; $L \gets \text{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](crate::core::Solution)s*
+9. &emsp; **while** $b < b_\text{max}$ **do**
+10. &emsp; &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](crate::core::Fidelity) $b$*
+11. &emsp; &emsp; $L \gets \text{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](crate::core::Computed)*
+12. &emsp; &emsp; $b \gets \eta \times b$
+13. &emsp; **return best of $(L,\mathbf{y})$**
 ---
 
 ## Defining the state
@@ -36,14 +36,14 @@ According to the previous pseudo-code Successive Halving requires:
 - $L$, the batch of sampled [`Solution`](crate::core::Solution)s: checkpointing of batches is handled externally by
 an [`Evaluate`](crate::core::Evaluate) object.
 
-We add an extra field `iteration`, to count the number of calls to the SH `step` function, later described in the implementation of [`BatchOptimizer](crate::core::BatchOptimizer).
+We add an extra field `iteration`, to count the number of calls to the SHA `step` function, later described in the implementation of [`BatchOptimizer](crate::core::BatchOptimizer).
 
 ```rust
 use tantale::macros::OptState;
-use serde::{Serialize,Deserialize}
+use serde::{Serialize,Deserialize};
 
 #[derive(OptState,Serialize,Deserialize)]
-pub struct SHState{
+pub struct ShaState{
     pub batch: usize, // batch size
     pub budget_min: f64, // b0
     pub budget_max: f64, // bmax
@@ -67,7 +67,7 @@ use tantale::macros::{OptInfo, CSVWritable};
 use serde::{Serialize,Deserialize};
 
 #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-pub struct SHInfo{
+pub struct ShaInfo{
     pub iteration: usize,
 }
 ```
@@ -80,17 +80,17 @@ use tantale::core::CSVWritable;
 use serde::{Serialize,Deserialize};
 
 #[derive(OptInfo, Serialize, Deserialize)]
-pub struct SHInfo{
+pub struct ShaInfo{
     pub iteration: usize,
 }
 
 // Extra implementation for CSV compatibility
-// (),() because SHInfo is autosufficient
+// (),() because ShaInfo is autosufficient
 // left (): there is no need of another object to define the header in a CSV;
-// right (): the component to be written is SHInfo itself.
+// right (): the component to be written is ShaInfo itself.
 // See some impl on Domains for examples. 
 // SolInfo should always be (),().
-impl CSVWritable<(), ()> for SHInfo {
+impl CSVWritable<(), ()> for ShaInfo {
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("iteration")])
     }
@@ -143,11 +143,11 @@ Finally, two methods have to be written:
 
 ### Creating Successive Halving struct
 
-SH requires a [`ThreadRng`](rand::prelude::ThreadRng) to generate random samples from the searchspace (line 8).
+SHA requires a [`ThreadRng`](rand::rngs::ThreadRng) to generate random samples from the searchspace (line 8).
 But, it is not serializable, nor deserializable, so it cannot be stored within the 
 [`OptState`](crate::core::OptState).
 
-Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` method
+Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` function within the module
 to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer.
 
 ``` rust
@@ -155,7 +155,7 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 # use serde::{Serialize,Deserialize}
 # 
 # #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
+# pub struct ShaState{
 #     pub batch: usize, // batch size
 #     pub budget_min: f64, // b0
 #     pub budget_max: f64, // bmax
@@ -167,7 +167,7 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 # use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
+# pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 
@@ -175,9 +175,20 @@ use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
 use serde::{Serialize,Deserialize};
 use rand::prelude::ThreadRng;
 
-pub struct SuccessiveHalving(pub SHState, ThreadRng);
+pub struct Sha(pub ShaState, ThreadRng);
 
-impl SuccessiveHalving {
+pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+where
+    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+    Out: FidOutcome,
+{
+    let out = SingleCodomain {
+        y_criteria: extractor,
+    };
+    out.into()
+}
+
+impl Sha {
     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
@@ -186,8 +197,8 @@ impl SuccessiveHalving {
         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
 
-        SuccessiveHalving(
-            SHState {
+        Sha(
+            ShaState {
                 batch,
                 budget_min,
                 budget_max,
@@ -198,34 +209,23 @@ impl SuccessiveHalving {
             rand::rng(),
         )
     }
-
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: FidOutcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
-    }
 }
 ```
 
 
 ### Implementing Optimizer trait
 
-We consider `SHState` and `SHInfo` previously described. SH only require the `Opt` [`Domain`](crate::core::Domain) to
+We consider `ShaState` and `ShaInfo` previously described. SHA only requires the `Opt` [`Domain`](crate::core::Domain) to
 be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generic over this domain.
-This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that the SH can be used whatever
-the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
+This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that the SHA can be used whatever
+the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
 ```rust
 # use tantale::macros::OptState;
 # use serde::{Serialize,Deserialize}
 # 
 # #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
+# pub struct ShaState{
 #     pub batch: usize, // batch size
 #     pub budget_min: f64, // b0
 #     pub budget_max: f64, // bmax
@@ -237,7 +237,7 @@ the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, 
 # use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
+# pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 # 
@@ -245,9 +245,9 @@ the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, 
 # use serde::{Serialize,Deserialize};
 # use rand::prelude::ThreadRng;
 # 
-# pub struct SuccessiveHalving(pub SHState, ThreadRng);
+# pub struct Sha(pub ShaState, ThreadRng);
 # 
-# impl SuccessiveHalving {
+# impl Sha {
 #     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
@@ -256,8 +256,8 @@ the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, 
 #         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
 #         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
 # 
-#         SuccessiveHalving(
-#             SHState {
+#         Sha(
+#             ShaState {
 #                 batch,
 #                 budget_min,
 #                 budget_max,
@@ -283,22 +283,26 @@ the `Opt` [`Domain`](crate::core::Domain) is. SH is a multi-fidelity optimizer, 
 
 use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
 
-impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for SuccessiveHalving
+impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-    type State = SHState;
+    type State = ShaState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = SHInfo;
+    type Info = ShaInfo;
     
-    fn get_state(&mut self) -> &Self::State {
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
     
     fn from_state(state: Self::State) -> Self {
-        SuccessiveHalving(state, rand::rng())
+        Sha(state, rand::rng())
     }
 }
 ```
@@ -307,10 +311,10 @@ where
 
 We have implemented the Optimizer trait to characterize SH.
 Now we can define computations of an iteration.
-SH generates a [`Batch`](crate::core::Batch) of [`FidelitySol`](crate::core::FidelitySol); solutions that will be further pruned, i.e. [`Discarded`](crate::core::Step::Discard).
-SH is then a [`BatchOptimizer`](crate::core::BatchOptimizer).
+SHA generates a [`Batch`](crate::core::Batch) of [`FidelitySol`](crate::core::FidelitySol); solutions that will be further pruned, i.e. [`Discarded`](crate::core::Step::Discard).
+SHA is then a [`BatchOptimizer`](crate::core::BatchOptimizer).
 We have to define two functions:
-- `first_step`: Able to generate a [`Batch`](core::crate::Batch) ex-nihilo, without a previous [`Computed`](core::crate::Computed) [`Batch`](core::crate::Batch). It is used to initialize the algorithm (line 8.). 
+- `first_step`: Able to generate a [`Batch`](crate::core::Batch) ex-nihilo, without a previous [`Computed`](crate::core::Computed) [`Batch`](crate::core::Batch). It is used to initialize the algorithm (line 8.). 
 - `step`: the usual iteration of the algorithm after initialization (line 9. to ).
 
 ```rust
@@ -318,7 +322,7 @@ We have to define two functions:
 # use serde::{Serialize,Deserialize}
 # 
 # #[derive(OptState,Serialize,Deserialize)]
-# pub struct SHState{
+# pub struct ShaState{
 #     pub batch: usize, // batch size
 #     pub budget_min: f64, // b0
 #     pub budget_max: f64, // bmax
@@ -330,7 +334,7 @@ We have to define two functions:
 # use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
-# pub struct SHInfo{
+# pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 # 
@@ -338,9 +342,9 @@ We have to define two functions:
 # use serde::{Serialize,Deserialize};
 # use rand::prelude::ThreadRng;
 # 
-# pub struct SuccessiveHalving(pub SHState, ThreadRng);
+# pub struct Sha(pub ShaState, ThreadRng);
 # 
-# impl SuccessiveHalving {
+# impl Sha {
 #     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
@@ -349,8 +353,8 @@ We have to define two functions:
 #         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
 #         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
 # 
-#         SuccessiveHalving(
-#             SHState {
+#         Sha(
+#             ShaState {
 #                 batch,
 #                 budget_min,
 #                 budget_max,
@@ -376,22 +380,22 @@ We have to define two functions:
 # 
 # use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
 # 
-# impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for SuccessiveHalving
+# impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for Sha
 # where
 #     Out: FidOutcome,
 #     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 # {
-#     type State = SHState;
+#     type State = ShaState;
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo;
-#     type Info = SHInfo;
+#     type Info = ShaInfo;
 #     
 #     fn get_state(&mut self) -> &Self::State {
 #         &self.0
 #     }
 #     
 #     fn from_state(state: Self::State) -> Self {
-#         SuccessiveHalving(state, rand::rng())
+#         Sha(state, rand::rng())
 #     }
 # }
 
@@ -405,7 +409,7 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
-    > for SuccessiveHalving
+    > for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
@@ -415,7 +419,7 @@ where
     FnState: FuncState,
 {
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = SHInfo::new(self.0.iteration);
+        let info = ShaInfo::new(self.0.iteration);
         let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity
             |mut pair| 
             {
@@ -448,7 +452,7 @@ where
             // If no solution is remaining, then generate a new batch with first_step
             if pairs.is_empty() {
                 self.0.budget = self.0.budget_min; // Reset budget
-                <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
+                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
             }else{
                 // Compute the k to extract top k solution and discard others
                 let k = pairs.len() - (((pairs.len() as f64)/ self.0.scaling) as usize).max(1);
@@ -474,9 +478,9 @@ where
                 // If no solution remaining then generate new ones
                 if new_pairs.is_empty() {
                     self.0.budget = self.0.budget_min; // Reset budget
-                    <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
+                    <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
                 } else {
-                    Batch::new(new_pairs, SHInfo::new(self.0.iteration).into())
+                    Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
                 }
             }
             

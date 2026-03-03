@@ -5,7 +5,7 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::SuccessiveHalving;
+use tantale_algos::{Sha, sha};
 
 use super::init_func::sp_evaluator_sh;
 use crate::init_func::FidOutEvaluator;
@@ -128,8 +128,8 @@ fn test_fid_batch_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = SuccessiveHalving::new(10, 1., 5., 1.61); // log(max/min)
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let opt = Sha::new(10, 1., 5., 1.61); // log(max/min)
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_sh_run").init();
@@ -143,37 +143,37 @@ fn test_fid_batch_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, SuccessiveHalving, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, Sha, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 25, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.iteration, 20, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     exp.run();
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, SuccessiveHalving, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, Sha, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_sh_run", 210);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 50, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     drop(Cleaner {
@@ -192,8 +192,8 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = SuccessiveHalving::new(10, 1., 5., 1.61);
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let opt = Sha::new(10, 1., 5., 1.61);
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
@@ -207,37 +207,37 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, SuccessiveHalving, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(threaded, Sha, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 25, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.iteration, 20, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     exp.run();
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = SuccessiveHalving::codomain(|o: &FidOutEvaluator| o.obj);
+    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, SuccessiveHalving, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(threaded, Sha, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_sh_parrun", 210);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 50, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     drop(Cleaner {

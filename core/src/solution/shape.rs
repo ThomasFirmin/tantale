@@ -248,9 +248,9 @@ where
         self.1.error();
     }
 
-    fn set_step(&mut self, value: EvalStep) {
-        self.0.set_step(value);
-        self.1.set_step(value);
+    fn set_raw_step(&mut self, value: EvalStep) {
+        self.0.set_raw_step(value);
+        self.1.set_raw_step(value);
     }
 }
 
@@ -506,8 +506,8 @@ where
         self.0.error();
     }
 
-    fn set_step(&mut self, value: EvalStep) {
-        self.0.set_step(value);
+    fn set_raw_step(&mut self, value: EvalStep) {
+        self.0.set_raw_step(value);
     }
 }
 

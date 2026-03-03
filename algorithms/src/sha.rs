@@ -20,19 +20,19 @@
 //! **Successive Halving (SH)**
 //! ---
 //! **Inputs**
-//! 1. $\mathcal{X}$ &emsp;&emsp; *A [searchspace](tantale_core::Searchspace)*
-//! 2. $n$ &emsp;&emsp; *[batch](tantale_core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
-//! 3. $b_0$ &emsp;&emsp; *Initial budget*
-//! 4. $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
-//! 5. $\eta$ &emsp;&emsp; *Scaling*
-//! 6.
-//! 7. $b \gets b_0$
-//! 8. $L \gets \text{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](tantale_core::Solution)s*
-//! 9. **while** $b < b_\text{max}$ **do**
-//! 10. &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](tantale_core::Fidelity) $b$*
-//! 11. &emsp; $L \gets \text{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
-//! 12. &emsp; $b \gets \eta \times b$
-//! 13. **return best of $(L,\mathbf{y})$**
+//! 1. &emsp; $\mathcal{X}$ &emsp;&emsp; *A [searchspace](tantale_core::Searchspace)*
+//! 2. &emsp; $n$ &emsp;&emsp; *[batch](tantale_core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
+//! 3. &emsp; $b_0$ &emsp;&emsp; *Initial budget*
+//! 4. &emsp; $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
+//! 5. &emsp; $\eta$ &emsp;&emsp; *Scaling*
+//! 6. &emsp;
+//! 7. &emsp; $b \gets b_0$
+//! 8. &emsp; $L \gets \text{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](tantale_core::Solution)s*
+//! 9. &emsp; **while** $b < b_\text{max}$ **do**
+//! 10. &emsp; &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](tantale_core::Fidelity) $b$*
+//! 11. &emsp; &emsp; $L \gets \text{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](tantale_core::Computed)*
+//! 12. &emsp; &emsp; $b \gets \eta \times b$
+//! 13. &emsp; **return best of $(L,\mathbf{y})$**
 //! ---
 //!
 //! # Type Parameters
@@ -70,6 +70,27 @@ use tantale_core::{
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 
+
+/// Creates a codomain for Successive Halving optimization.
+///
+/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
+/// [`Criteria`](tantale_core::Criteria).
+///
+/// # Arguments
+///
+/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
+///   optimization objective from the [`Outcome`](tantale_core::Outcome).
+pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
+where
+    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
+    Out: FidOutcome,
+{
+    let out = SingleCodomain {
+        y_criteria: extractor,
+    };
+    out.into()
+}
+
 /// Internal state of the Successive Halving optimizer.
 ///
 /// This structure maintains all essential information needed to resume an optimization
@@ -86,9 +107,9 @@ use serde::{Deserialize, Serialize};
 ///   it reaches `budget_max`.
 /// * `scaling` - Scaling factor ($\eta$) by which the budget is multiplied at each stage.
 ///   Must be $\geq 1.0$. Common values are 2.0 or 3.0.
-/// * `iteration` - Current iteration count. Increments after each call to [`step()`](SuccessiveHalving::step).
+/// * `iteration` - Current iteration count. Increments after each call to [`step()`](Sha::step).
 #[derive(Serialize, Deserialize)]
-pub struct SHState {
+pub struct ShaState {
     pub batch: usize,
     pub budget_min: f64,
     pub budget_max: f64,
@@ -96,7 +117,7 @@ pub struct SHState {
     pub scaling: f64,
     pub iteration: usize,
 }
-impl OptState for SHState {}
+impl OptState for ShaState {}
 
 /// Metadata for a Successive Halving optimization step, associated to each [`Batch`].
 ///
@@ -104,35 +125,35 @@ impl OptState for SHState {}
 ///
 /// * `iteration` - The iteration number at which this batch was created..
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct SHInfo {
+pub struct ShaInfo {
     pub iteration: usize,
 }
-impl OptInfo for SHInfo {}
+impl OptInfo for ShaInfo {}
 
-impl SHInfo {
-    /// Creates a new [`SHInfo`] for the given iteration number.
+impl ShaInfo {
+    /// Creates a new [`ShaInfo`] for the given iteration number.
     ///
     /// # Arguments
     ///
     /// * `iteration` - The iteration count at which this info was created
     pub fn new(iteration: usize) -> Self {
-        SHInfo { iteration }
+        ShaInfo { iteration }
     }
 }
 
-/// CSV serialization support for [`SHInfo`].
+/// CSV serialization support for [`ShaInfo`].
 ///
 /// Enables recording of Successive Halving optimization metadata to CSV files.
-/// The generic parameters are `(),()` because [`SHInfo`] is self-contained: no external
+/// The generic parameters are `(),()` because [`ShaInfo`] is self-contained: no external
 /// context is needed to define the CSV header or write values.
-impl CSVWritable<(), ()> for SHInfo {
-    /// Returns the CSV header for [`SHInfo`] columns.
+impl CSVWritable<(), ()> for ShaInfo {
+    /// Returns the CSV header for [`ShaInfo`] columns.
     /// Header: `"iteration"`
     fn header(_elem: &()) -> Vec<String> {
         Vec::from([String::from("iteration")])
     }
 
-    /// Serializes this [`SHInfo`] to CSV fields.
+    /// Serializes this [`ShaInfo`] to CSV fields.
     /// Writes the `iteration` field as a string.
     fn write(&self, _comp: &()) -> Vec<String> {
         Vec::from([self.iteration.to_string()])
@@ -163,11 +184,11 @@ impl CSVWritable<(), ()> for SHInfo {
 ///
 /// # Internal State
 ///
-/// - [`SHState`]: Checkpointable state including budget, scaling factor, and iteration count
-/// - [`ThreadRng`]: Deterministic random number generator for reproducible sampling. Not in [`SHState`] since RNG cannot be serialized nor deserialized.
-pub struct SuccessiveHalving(pub SHState, ThreadRng);
+/// - [`ShaState`]: Checkpointable state including budget, scaling factor, and iteration count
+/// - [`ThreadRng`]: Deterministic random number generator for reproducible sampling. Not in [`ShaState`] since RNG cannot be serialized nor deserialized.
+pub struct Sha(pub ShaState, ThreadRng);
 
-impl SuccessiveHalving {
+impl Sha {
     /// Creates a new Successive Halving optimizer with the specified parameters.
     ///
     /// # Parameters
@@ -204,8 +225,8 @@ impl SuccessiveHalving {
 
         let rng = rand::rng();
 
-        SuccessiveHalving(
-            SHState {
+        Sha(
+            ShaState {
                 batch,
                 budget_min,
                 budget_max,
@@ -216,44 +237,24 @@ impl SuccessiveHalving {
             rng,
         )
     }
-
-    /// Creates a codomain for Successive Halving optimization.
-    ///
-    /// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
-    /// [`Criteria`](tantale_core::Criteria).
-    ///
-    /// # Arguments
-    ///
-    /// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
-    ///   optimization objective from the [`Outcome`](tantale_core::Outcome).
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: FidOutcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
-    }
 }
 
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for SuccessiveHalving
+    for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-    type State = SHState;
+    type State = ShaState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = SHInfo;
+    type Info = ShaInfo;
 
     /// Returns a reference to the current optimizer state.
-    fn get_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
 
@@ -262,7 +263,7 @@ where
     /// Used for checkpointing and resuming optimization experiments.
     /// Creates a fresh random number generator for the reconstructed optimizer.
     fn from_state(state: Self::State) -> Self {
-        SuccessiveHalving(state, rand::rng())
+        Sha(state, rand::rng())
     }
 }
 
@@ -278,7 +279,7 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
-    > for SuccessiveHalving
+    > for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
@@ -300,7 +301,7 @@ where
     ///
     /// A [`Batch`](tantale_core::Batch) of sampled solutions with fidelity set to `budget_min`
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = SHInfo::new(self.0.iteration);
+        let info = ShaInfo::new(self.0.iteration);
         let pairs: Vec<_> = scp.vec_apply_pair(
             |mut pair| {
                 pair.set_fidelity(self.0.budget);
@@ -359,7 +360,7 @@ where
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
             self.0.budget = self.0.budget_min;
-            <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
                 self, scp,
             )
         } else {
@@ -391,11 +392,11 @@ where
             if new_pairs.is_empty() {
                 // Safety check: if no candidates remain, restart
                 self.0.budget = self.0.budget_min;
-                <SuccessiveHalving as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
                     self, scp,
                 )
             } else {
-                Batch::new(new_pairs, SHInfo::new(self.0.iteration).into())
+                Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
             }
         }
     }

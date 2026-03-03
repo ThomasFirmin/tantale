@@ -30,14 +30,14 @@ where
         std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
         "Solution `x` mismatch."
     );
-    assert_eq!(sol.get_y().value, 1.0, "Wrong value from codomain.");
+    assert_eq!(sol.y().value, 1.0, "Wrong value from codomain.");
     assert_eq!(
-        sol.get_sinfo().info,
+        sol.sinfo().info,
         42.0,
         "Wrong solution info from TestSInfo."
     );
     assert_eq!(
-        sol.get_id().pid,
+        sol.id().pid,
         <u32 as AsPrimitive<usize>>::as_(pid),
         "Solution PID mismatch."
     );
@@ -57,7 +57,7 @@ macro_rules! get_default_sol {
                 let psol = $sol::<ParSId,$dom,TestSInfo>::default(sinfo.clone(),$size);
                 let sol = Computed::new(psol,y.clone());
                 _test_solution_assertion($size,&sol, $pid);
-                idsol.push(sol.get_id().id);
+                idsol.push(sol.id().id);
             )*
             let mut unique = HashSet::new();
             idsol.iter().all(|x| unique.insert(x));

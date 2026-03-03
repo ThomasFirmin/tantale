@@ -292,7 +292,7 @@ pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
 // SEQUENTIAL
 pub mod sequential;
 pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
-pub use sequential::seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, HashFidThrSeqEvaluator};
+pub use sequential::seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator};
 
 #[cfg(feature = "mpi")]
 pub use batched::batchfidevaluator::FidDistBatchEvaluator;
@@ -328,10 +328,10 @@ pub use basics::MPIExperiment;
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::mono, Objective, stop::Calls};
-/// use tantale::algos::RandomSearch;
+/// use tantale::algos::{random_search, RandomSearch};
 ///
 /// let sp = my_searchspace();
-/// let cod = RandomSearch::codomain(|out| out.value);
+/// let cod = random_search::codomain(|out| out.value);
 /// let obj = Objective::new(my_function);
 /// let opt = RandomSearch::new();
 /// let stop = Calls::new(100);
@@ -393,10 +393,10 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::threaded, Objective, stop::Calls};
-/// use tantale::algos::BatchRandomSearch;
+/// use tantale::algos::{random_search, BatchRandomSearch};
 ///
 /// let sp = my_searchspace();
-/// let cod = BatchRandomSearch::codomain(|out| out.value);
+/// let cod = random_search::codomain(|out| out.value);
 /// let obj = Objective::new(my_function);
 /// let opt = BatchRandomSearch::new(10);  // Batch size 10
 /// let stop = Calls::new(100);
