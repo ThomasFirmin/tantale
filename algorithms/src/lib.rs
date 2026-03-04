@@ -14,7 +14,7 @@ pub mod random_search;
 pub use random_search::{BatchRSState, BatchRandomSearch, RSInfo, RandomSearch};
 
 pub mod sha;
-pub use sha::{ShaInfo, ShaState, Sha};
+pub use sha::{Sha, ShaInfo, ShaState};
 
 pub mod asha;
 pub use asha::Asha;

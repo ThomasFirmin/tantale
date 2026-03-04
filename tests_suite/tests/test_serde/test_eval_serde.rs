@@ -4,10 +4,15 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseSol, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed, MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer}, domain::NoDomain, experiment::{
+    BaseSol, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed, MixedTypeDom,
+    MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer},
+    domain::NoDomain,
+    experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
         ThrBatchEvaluator, ThrEvaluate, basics::IdxMapPool,
-    }, solution::{Batch, HasId, Lone, SolutionShape}
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
 };
 
 use super::init_func::{FidOutEvaluator, FnState, OutEvaluator, sp_evaluator, sp_evaluator_fid};
@@ -30,7 +35,7 @@ type FBEvaluator = FidBatchEvaluator<
     RSInfo,
     Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     FnState,
-    IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+    IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
 >;
 type FThrBEvaluator = FidThrBatchEvaluator<
     SId,
@@ -38,7 +43,7 @@ type FThrBEvaluator = FidThrBatchEvaluator<
     RSInfo,
     Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
     FnState,
-    IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+    IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
 >;
 
 struct Cleaner {
@@ -239,11 +244,18 @@ fn test_serde_fidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidBatchEvaluator<_, _, _, _, FnState, IdxMapPool<SId,FnState,MPFnStateCheckpointer>> = FidBatchEvaluator::new(batch, IdxMapPool::new(Some(fn_check)));
+    let eval: FidBatchEvaluator<
+        _,
+        _,
+        _,
+        _,
+        FnState,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
+    > = FidBatchEvaluator::new(batch, IdxMapPool::new(Some(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
-    
+
     let config = FolderConfig::new("tmp_test_serde_fidbatchevaluator").into();
     let mut checkpointer = MessagePack::new(config).unwrap();
     let fn_check = checkpointer.new_func_state_checkpointer();
@@ -252,7 +264,7 @@ fn test_serde_fidbatchevaluator() {
     pool.check = Some(fn_check);
     neval.pool = pool;
     checkpointer.after_load();
-    
+
     assert!(
         eval.batch.into_iter().zip(&neval.batch).all(|(i, j)| {
             (i.id() == j.id())
@@ -268,7 +280,7 @@ fn test_serde_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -295,7 +307,7 @@ fn test_serde_fidbatchevaluator() {
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let mut nneval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
-    
+
     let config = FolderConfig::new("tmp_test_serde_fidbatchevaluator").into();
     let mut checkpointer = MessagePack::new(config).unwrap();
     let fn_check = checkpointer.new_func_state_checkpointer();
@@ -320,7 +332,7 @@ fn test_serde_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -369,11 +381,18 @@ fn test_serde_thrfidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, IdxMapPool<SId,FnState,MPFnStateCheckpointer>> = FidThrBatchEvaluator::new(batch, IdxMapPool::new(Some(fn_check)));
+    let eval: FidThrBatchEvaluator<
+        _,
+        _,
+        _,
+        _,
+        FnState,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
+    > = FidThrBatchEvaluator::new(batch, IdxMapPool::new(Some(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
-    
+
     let config = FolderConfig::new("tmp_test_serde_fidthrbatchevaluator").into();
     let mut checkpointer = MessagePack::new(config).unwrap();
     let fn_check = checkpointer.new_func_state_checkpointer();
@@ -404,7 +423,7 @@ fn test_serde_thrfidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -431,7 +450,7 @@ fn test_serde_thrfidbatchevaluator() {
 
     let eval_ser = rmp_serde::encode::to_vec(&neval).unwrap();
     let mut nneval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
-    
+
     let config = FolderConfig::new("tmp_test_serde_fidthrbatchevaluator").into();
     let mut checkpointer = MessagePack::new(config).unwrap();
     let fn_check = checkpointer.new_func_state_checkpointer();
@@ -463,7 +482,7 @@ fn test_serde_thrfidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,MPFnStateCheckpointer>,
+        IdxMapPool<SId, FnState, MPFnStateCheckpointer>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,

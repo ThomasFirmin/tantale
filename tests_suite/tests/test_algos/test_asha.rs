@@ -79,10 +79,10 @@ fn test_fid_seq_run() {
         let last = budgets.last_mut().unwrap();
         *last = last.round();
     }
-    
+
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = Asha::new(1.,5.,1.61); // log(max/min)
+    let opt = Asha::new(1., 5., 1.61); // log(max/min)
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Calls::new(50);
@@ -109,7 +109,11 @@ fn test_fid_seq_run() {
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
     exp.run();
 
@@ -126,7 +130,11 @@ fn test_fid_seq_run() {
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     drop(Cleaner {
@@ -183,10 +191,18 @@ fn test_fid_seq_parrun() {
 
     let expstop = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 50 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 50 and {}", max_call);
+    assert!(
+        expstop.calls() >= 50 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 50 and {}",
+        max_call
+    );
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     exp.run();
@@ -203,9 +219,17 @@ fn test_fid_seq_parrun() {
     run_reader("tmp_test_asha_parrun");
     let expstop = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 100 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 100 and {}", max_call);
+    assert!(
+        expstop.calls() >= 100 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 100 and {}",
+        max_call
+    );
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     drop(Cleaner {

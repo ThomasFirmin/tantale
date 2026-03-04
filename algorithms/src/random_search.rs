@@ -75,19 +75,19 @@ pub struct SeqRSState;
 impl OptState for SeqRSState {}
 
 /// Sequential Random Search optimizer implementation.
-/// This optimizer samples solutions on-demand and  at random 
+/// This optimizer samples solutions on-demand and  at random
 /// from the [`Searchspace`] at each iteration, without any internal state or memory of past evaluations.
-/// 
+///
 /// # Note
-/// 
-/// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types, 
+///
+/// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
 /// allowing it to handle [`Step`]-based optimization scenarios.
-/// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain 
+/// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
 /// any state or history of evaluations.
 /// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-/// 
+///
 /// # Note on RNG
-/// 
+///
 /// The optimizer uses a thread-local [`StdRng`] for random sampling.
 /// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
 /// The [`StdRng`] is defined at the module level as follows:
@@ -160,7 +160,7 @@ where
     fn get_state(&self) -> &Self::State {
         &self.0
     }
-    
+
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
@@ -168,7 +168,6 @@ where
     fn from_state(state: Self::State) -> Self {
         Self(state)
     }
-    
 }
 
 impl<Out, Scp>
@@ -277,15 +276,15 @@ impl OptState for BatchRSState {}
 /// Batched Random Search optimizer implementation.
 /// This optimizer samples batches of solutions at random from the [`Searchspace`] at each iteration,
 /// without any internal state or memory of past evaluations, except for the iteration count.
-/// 
+///
 /// # Note
-/// 
-/// It implements [`BatchOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types, 
+///
+/// It implements [`BatchOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
 /// allowing it to handle [`Step`]-based optimization scenarios.
 /// [`BatchRandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it
-/// does not maintain any state or history of evaluations. 
+/// does not maintain any state or history of evaluations.
 /// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-/// 
+///
 /// When the input batch only contains [`Evaluated`](Step::Evaluated),
 /// the next batch will be sampled as usual, without any change in behavior.
 pub struct BatchRandomSearch(pub BatchRSState, ThreadRng);
@@ -340,7 +339,7 @@ where
     fn get_state(&self) -> &Self::State {
         &self.0
     }
-    
+
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
@@ -348,7 +347,6 @@ where
     fn from_state(state: Self::State) -> Self {
         Self(state, rand::rng())
     }
-    
 }
 
 impl<Out, Scp>
@@ -409,7 +407,7 @@ where
     fn get_state(&self) -> &Self::State {
         &self.0
     }
-    
+
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
@@ -417,7 +415,6 @@ where
     fn from_state(state: Self::State) -> Self {
         Self(state, rand::rng())
     }
-    
 }
 
 impl<Out, Scp, FnState>

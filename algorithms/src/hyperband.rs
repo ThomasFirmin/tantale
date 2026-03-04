@@ -1,14 +1,14 @@
 //! The [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
 //!
 //! # Overview
-//! 
-//! The objective of Hyperband is to efficiently allocate a fixed budget of resources 
+//!
+//! The objective of Hyperband is to efficiently allocate a fixed budget of resources
 //! (e.g., time, epochs, etc.) across a set of hyperparameter configurations to identify the best performing configuration.
-//! Hyperband achieves this by iteratively evaluating a large number of configurations with a small budget 
+//! Hyperband achieves this by iteratively evaluating a large number of configurations with a small budget
 //! and then successively halving the number of configurations while increasing the budget for the remaining ones.
 //!
 //! # Pseudo-code
-//! 
+//!
 //! **Asynchronous Successive Halving (ASHA)**
 //! ---
 //! **Inputs**
@@ -67,14 +67,16 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use serde::de::{self, Deserialize, Deserializer, Visitor};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::searchspace::CompShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo};
 use tantale_core::{
-    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolutionShape, Stepped, searchspace::OptionCompShape
+    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
+    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer,
+    SingleCodomain, SolutionShape, Stepped, searchspace::OptionCompShape,
 };
-use serde::ser::{Serialize, Serializer, SerializeStruct};
-use serde::de::{self, Deserialize, Deserializer, Visitor};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -100,41 +102,45 @@ where
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-pub struct HyperbandState<Optim,Out,Scp>
+pub struct HyperbandState<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     pub budget_min: f64,
     pub budget_max: f64,
     pub scaling: f64,
     pub s_max: usize,
-    pub current_s : usize,
+    pub current_s: usize,
     pub inner: Optim,
     _out: PhantomData<Out>,
     _scp: PhantomData<Scp>,
 }
 
-impl<Optim,Out,Scp> OptState for HyperbandState<Optim,Out,Scp> 
+impl<Optim, Out, Scp> OptState for HyperbandState<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
-{}
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+}
 
 /// Information about the current state of the Hyperband optimization process.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
-#[serde(bound(serialize = "Info: Serialize", deserialize = "Info: for<'a> Deserialize<'a>"))]
-pub struct HyperbandInfo<Info:OptInfo>{
+#[serde(bound(
+    serialize = "Info: Serialize",
+    deserialize = "Info: for<'a> Deserialize<'a>"
+))]
+pub struct HyperbandInfo<Info: OptInfo> {
     /// The current bracket index.
     pub bracket: usize,
     /// The inner information produced by the underlying optimizer for the current bracket.
     pub inner_info: Arc<Info>,
 }
-impl<Info:OptInfo> OptInfo for HyperbandInfo<Info> {}
+impl<Info: OptInfo> OptInfo for HyperbandInfo<Info> {}
 
-impl<Info: OptInfo + CSVWritable<(),()>> CSVWritable<(), ()> for HyperbandInfo<Info> {
+impl<Info: OptInfo + CSVWritable<(), ()>> CSVWritable<(), ()> for HyperbandInfo<Info> {
     /// The header consists of the "bracket" column followed by the inner information columns.
     fn header(_elem: &()) -> Vec<String> {
         let head = Vec::from([String::from("bracket")]);
@@ -145,11 +151,11 @@ impl<Info: OptInfo + CSVWritable<(),()>> CSVWritable<(), ()> for HyperbandInfo<I
     fn write(&self, _comp: &()) -> Vec<String> {
         let head = Vec::from([self.bracket.to_string()]);
         let inner_head = self.inner_info.write(&());
-        [head, inner_head].concat()   
+        [head, inner_head].concat()
     }
 }
 
-impl<Info:OptInfo> HyperbandInfo<Info>{
+impl<Info: OptInfo> HyperbandInfo<Info> {
     /// Creates a new instance of [`HyperbandInfo`] with the specified bracket index and inner information.
     pub fn new(bracket: usize, inner_info: Arc<Info>) -> Self {
         HyperbandInfo {
@@ -159,19 +165,33 @@ impl<Info:OptInfo> HyperbandInfo<Info>{
     }
 }
 
-pub struct Hyperband<Optim,Out,Scp>(pub HyperbandState<Optim,Out,Scp>)
+pub struct Hyperband<Optim, Out, Scp>(pub HyperbandState<Optim, Out, Scp>)
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>
-            + BudgetPruner<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
-    Out : FidOutcome,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>
+        + BudgetPruner<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            SInfo = EmptyInfo,
+        >,
+    Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>;
 
-impl<Optim,Out,Scp> Hyperband<Optim,Out,Scp> 
+impl<Optim, Out, Scp> Hyperband<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>
-            + BudgetPruner<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>
+        + BudgetPruner<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            SInfo = EmptyInfo,
+        >,
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     /// Creates a new instance of the Hyperband optimizer.
     /// This function initializes the internal state of the optimizer based on the provided sampler bounded by [`BudgetPruner`].
@@ -183,39 +203,45 @@ where
 
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
         let current_s = s_max;
-        
-        Hyperband(
-            HyperbandState {
-                budget_min,
-                budget_max,
-                scaling,
-                current_s,
-                s_max,
-                inner: sampler,
-                _out: PhantomData,
-                _scp: PhantomData,
-            },
-        )
+
+        Hyperband(HyperbandState {
+            budget_min,
+            budget_max,
+            scaling,
+            current_s,
+            s_max,
+            inner: sampler,
+            _out: PhantomData,
+            _scp: PhantomData,
+        })
     }
 }
 
-impl<Optim,Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for Hyperband<Optim,Out,Scp> 
+impl<Optim, Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for Hyperband<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>
-            + BudgetPruner<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>
+        + BudgetPruner<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            SInfo = EmptyInfo,
+        >,
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-    type State = HyperbandState<Optim,Out,Scp>;
+    type State = HyperbandState<Optim, Out, Scp>;
     type Cod = Optim::Cod;
     type SInfo = Optim::SInfo;
     type Info = HyperbandInfo<Optim::Info>;
-    
+
     /// Provides mutable access to the internal state of the [`Hyperband`] optimizer.
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
-    
+
     /// Provides immutable access to the internal state of the [`Hyperband`] optimizer.
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -225,14 +251,34 @@ where
     fn from_state(state: Self::State) -> Self {
         Hyperband(state)
     }
-
 }
 
-impl<Optim,Out,Scp, FnState> BatchOptimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, Stepped<RawObj<Scp::SolShape,SId,EmptyInfo>,Out,FnState>> for Hyperband<Optim,Out,Scp> 
+impl<Optim, Out, Scp, FnState>
+    BatchOptimizer<
+        FidelitySol<SId, Scp::Opt, EmptyInfo>,
+        SId,
+        Scp::Opt,
+        Out,
+        Scp,
+        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+    > for Hyperband<Optim, Out, Scp>
 where
-    Optim: 
-        BatchOptimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, Stepped<RawObj<Scp::SolShape,SId,EmptyInfo>,Out,FnState>, SInfo = EmptyInfo>
-        + BudgetPruner<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: BatchOptimizer<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+            SInfo = EmptyInfo,
+        > + BudgetPruner<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            SInfo = EmptyInfo,
+        >,
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
@@ -257,8 +303,7 @@ where
             CompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape>
-    {
+    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             let (pairs, info) = x.extract();
             let extracted = Batch::new(pairs, info.inner_info.clone());
@@ -266,24 +311,24 @@ where
             let (pairs, info) = self.0.inner.step(extracted, scp).extract();
             let new_info = HyperbandInfo::new(self.0.current_s, info);
             Batch::new(pairs, new_info.into())
-        }
-        else{
+        } else {
             if self.0.current_s == 0 {
                 self.0.current_s = self.0.s_max;
-            }
-            else {
+            } else {
                 self.0.current_s -= 1;
             }
 
-            let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32) / (self.0.current_s + 1) as f64).ceil() as usize;
+            let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
+                / (self.0.current_s + 1) as f64)
+                .ceil() as usize;
             self.0.inner.set_batch_size(n);
             let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
             self.0.inner.set_budgets(self.0.budget_min, r);
-            
+
             let to_discard = self.0.inner.drain();
 
             if to_discard.is_empty() {
-               self.first_step(scp)
+                self.first_step(scp)
             } else {
                 let new_info = HyperbandInfo::new(self.0.current_s, Optim::Info::default().into());
                 Batch::new(to_discard, new_info.into())
@@ -300,12 +345,32 @@ where
     }
 }
 
-
-impl<Optim,Out,Scp, FnState> SequentialOptimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, Stepped<RawObj<Scp::SolShape,SId,EmptyInfo>,Out,FnState>> for Hyperband<Optim,Out,Scp> 
+impl<Optim, Out, Scp, FnState>
+    SequentialOptimizer<
+        FidelitySol<SId, Scp::Opt, EmptyInfo>,
+        SId,
+        Scp::Opt,
+        Out,
+        Scp,
+        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+    > for Hyperband<Optim, Out, Scp>
 where
-    Optim: 
-        SequentialOptimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, Stepped<RawObj<Scp::SolShape,SId,EmptyInfo>,Out,FnState>, SInfo = EmptyInfo>
-        + BudgetPruner<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: SequentialOptimizer<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+            SInfo = EmptyInfo,
+        > + BudgetPruner<
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Scp::Opt,
+            Out,
+            Scp,
+            SInfo = EmptyInfo,
+        >,
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
@@ -315,30 +380,30 @@ where
 {
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, FidelitySol<SId,Scp::Opt,EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<
+            Scp,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
         scp: &Scp,
-    ) -> Scp::SolShape 
-    {
+    ) -> Scp::SolShape {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             self.0.inner.step(x, scp)
-        }
-        else{
-            let to_discard = x.map_or(
-                self.0.inner.drain_one(),
-                |mut comp| 
-                {
-                    comp.discard();
-                    Some(IntoComputed::extract(comp).0)
-                }
-            );
-            
+        } else {
+            let to_discard = x.map_or(self.0.inner.drain_one(), |mut comp| {
+                comp.discard();
+                Some(IntoComputed::extract(comp).0)
+            });
+
             if let Some(discard) = to_discard {
                 discard
-            } else{
+            } else {
                 if self.0.current_s == 0 {
                     self.0.current_s = self.0.s_max;
-                }
-                else {
+                } else {
                     self.0.current_s -= 1;
                 }
                 let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
@@ -349,24 +414,16 @@ where
     }
 }
 
-
-
-
-
-
 //-------------//
 //--- SERDE ---//
 //-------------//
 
-
-
-
-struct HyperbandStateVisitor<Optim,Out,Scp>
+struct HyperbandStateVisitor<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
     Optim::State: Serialize + for<'de> Deserialize<'de>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     _optim: PhantomData<Optim>,
     _out: PhantomData<Out>,
@@ -384,12 +441,12 @@ enum HBField {
 
 struct HBFieldVisitor;
 
-impl<Optim,Out,Scp> Serialize for HyperbandState<Optim,Out,Scp> 
+impl<Optim, Out, Scp> Serialize for HyperbandState<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
     Optim::State: Serialize,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -406,12 +463,12 @@ where
     }
 }
 
-impl<Optim,Out,Scp> HyperbandStateVisitor<Optim,Out,Scp>
+impl<Optim, Out, Scp> HyperbandStateVisitor<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
     Optim::State: Serialize + for<'de> Deserialize<'de>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     fn new() -> Self {
         HyperbandStateVisitor {
@@ -422,10 +479,11 @@ where
     }
 }
 
-impl<'de> Visitor<'de> for HBFieldVisitor{
+impl<'de> Visitor<'de> for HBFieldVisitor {
     type Value = HBField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("`budget_min`, `budget_max`, `scaling`, `s_max`, `current_s` or `inner`")
+        formatter
+            .write_str("`budget_min`, `budget_max`, `scaling`, `s_max`, `current_s` or `inner`")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -439,42 +497,64 @@ impl<'de> Visitor<'de> for HBFieldVisitor{
             "s_max" => Ok(HBField::SMax),
             "current_s" => Ok(HBField::CurrentS),
             "inner" => Ok(HBField::Inner),
-            _ => Err(de::Error::unknown_field(value, &["budget_min", "budget_max", "scaling", "s_max", "current_s", "inner"])),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "budget_min",
+                    "budget_max",
+                    "scaling",
+                    "s_max",
+                    "current_s",
+                    "inner",
+                ],
+            )),
         }
     }
 }
-impl<'de> Deserialize<'de> for HBField{
+impl<'de> Deserialize<'de> for HBField {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de> 
+    where
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_identifier(HBFieldVisitor)
     }
 }
 
-impl<'de, Optim,Out,Scp> Visitor<'de> for HyperbandStateVisitor<Optim,Out,Scp> 
+impl<'de, Optim, Out, Scp> Visitor<'de> for HyperbandStateVisitor<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
     Optim::State: Serialize + Deserialize<'de>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-    type Value = HyperbandState<Optim,Out,Scp>;
-    
+    type Value = HyperbandState<Optim, Out, Scp>;
+
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("struct HyperbandState")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::SeqAccess<'de>, 
+    where
+        A: de::SeqAccess<'de>,
     {
-        let budget_min = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
-        let budget_max = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
-        let scaling = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(2, &self))?;
-        let current_s = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(3, &self))?;
-        let s_max = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(4, &self))?;
-        let inner_state = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        let budget_min = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let budget_max = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let current_s = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let s_max = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let inner_state = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
         Ok(HyperbandState {
             budget_min,
             budget_max,
@@ -484,7 +564,7 @@ where
             inner: Optim::from_state(inner_state),
             _out: PhantomData,
             _scp: PhantomData,
-        })    
+        })
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
@@ -559,12 +639,12 @@ where
     }
 }
 
-impl<'de, Optim,Out,Scp> Deserialize<'de> for HyperbandState<Optim,Out,Scp> 
+impl<'de, Optim, Out, Scp> Deserialize<'de> for HyperbandState<Optim, Out, Scp>
 where
-    Optim : Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
     Optim::State: Serialize + Deserialize<'de>,
-    Out : FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

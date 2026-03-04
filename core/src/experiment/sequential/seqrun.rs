@@ -1,5 +1,7 @@
 use std::{
-    collections::VecDeque, sync::{Arc, Mutex}, thread
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+    thread,
 };
 
 use crate::{
@@ -7,10 +9,12 @@ use crate::{
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
     domain::onto::LinkOpt,
     experiment::{
-        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment, basics::{FuncStatePool, IdxMapPool}, sequential::{
+        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment,
+        basics::{FuncStatePool, IdxMapPool},
+        sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
-        }
+        },
     },
     objective::{Objective, Outcome, Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
@@ -145,7 +149,7 @@ where
             None => None,
         };
         checkpointer.after_load();
-        
+
         MonoExperiment {
             searchspace,
             codomain,
@@ -294,7 +298,13 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Check,
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        FidSeqEvaluator<SId, Op::SInfo, Scp::SolShape, FnState, IdxMapPool<SId,FnState,Check::FnStateCheck>>,
+        FidSeqEvaluator<
+            SId,
+            Op::SInfo,
+            Scp::SolShape,
+            FnState,
+            IdxMapPool<SId, FnState, Check::FnStateCheck>,
+        >,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
@@ -366,13 +376,12 @@ where
         checkpointer.before_load();
         let fnstatecheck = checkpointer.new_func_state_checkpointer();
 
-
         let opt_state = checkpointer.load_optimizer().unwrap();
         let stop = checkpointer.load_stop().unwrap();
-        let mut evaluator: FidSeqEvaluator<_,_,_,_, _> = checkpointer.load_evaluate().unwrap();
+        let mut evaluator: FidSeqEvaluator<_, _, _, _, _> = checkpointer.load_evaluate().unwrap();
         let fn_states = fnstatecheck.load_all_func_state();
         evaluator.pool = IdxMapPool::from_iter(fn_states);
-        
+
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
@@ -407,9 +416,15 @@ where
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
-                let fn_check = self.checkpointer.as_ref().map(|c| c.new_func_state_checkpointer());
-                FidSeqEvaluator::new(self.optimizer.step(None, &self.searchspace).into(), IdxMapPool::new(fn_check))
-            },
+                let fn_check = self
+                    .checkpointer
+                    .as_ref()
+                    .map(|c| c.new_func_state_checkpointer());
+                FidSeqEvaluator::new(
+                    self.optimizer.step(None, &self.searchspace).into(),
+                    IdxMapPool::new(fn_check),
+                )
+            }
         };
 
         self.stop.init();
@@ -613,8 +628,8 @@ where
         checkpointer.before_load_thr();
         let stop = checkpointer.load_stop_thr().unwrap();
         let opt_state = checkpointer.load_optimizer_thr().unwrap();
-        let evaluators: Vec<ThrSeqEvaluator<_,_,_>> = 
-        checkpointer.load_all_evaluate_thr().unwrap();
+        let evaluators: Vec<ThrSeqEvaluator<_, _, _>> =
+            checkpointer.load_all_evaluate_thr().unwrap();
 
         let evaluator = evaluators.into();
         let optimizer = Op::from_state(opt_state);
@@ -686,14 +701,18 @@ where
                     }
                     stop.lock().unwrap().update(ExpStep::Iteration);
 
-                    let pair = eval.pair.take().expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
+                    let pair = eval.pair.take().expect(
+                        "The pair ThrSeqEvaluator should not be empty (None) during evaluate.",
+                    );
                     let id = pair.id();
                     // No saved state
                     let out = objective.compute(pair.get_sobj().get_x());
                     let y = cod.get_elem(&out);
                     let computed = pair.into_computed(y.into());
                     let outputed = (id, out);
-                    stop.lock().unwrap().update(ExpStep::Distribution(Step::Evaluated));
+                    stop.lock()
+                        .unwrap()
+                        .update(ExpStep::Distribution(Step::Evaluated));
 
                     if let Some(r) = rec.as_ref() {
                         r.save_pair(&computed, &outputed, &scp, &cod, Some(info.clone()));
@@ -701,7 +720,9 @@ where
 
                     eval = match evaluator.lock().unwrap().get_one_evaluator() {
                         Some(e) => e,
-                        None => ThrSeqEvaluator::new(optimizer.lock().unwrap().step(Some(computed), &scp)),
+                        None => ThrSeqEvaluator::new(
+                            optimizer.lock().unwrap().step(Some(computed), &scp),
+                        ),
                     };
                     stop.lock().unwrap().update(ExpStep::Optimization);
 
@@ -801,7 +822,13 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Check,
         Out,
         Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        PoolFidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo, FnState, IdxMapPool<SId,FnState,Check::FnStateCheck>>,
+        PoolFidThrSeqEvaluator<
+            Scp::SolShape,
+            SId,
+            Op::SInfo,
+            FnState,
+            IdxMapPool<SId, FnState, Check::FnStateCheck>,
+        >,
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
@@ -813,8 +840,8 @@ where
             Scp,
             Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
         > + Send
-        + Sync + 'static
-    ,
+        + Sync
+        + 'static,
     Op::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
     Op::Info: Send + Sync + 'static,
@@ -828,7 +855,7 @@ where
     Check: ThrCheckpointer + Send + Sync + 'static,
     Check::FnStateCheck: Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
-    RawObj<Scp::SolShape,SId,Op::SInfo>: 'static
+    RawObj<Scp::SolShape, SId, Op::SInfo>: 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -882,9 +909,9 @@ where
 
         let stop = checkpointer.load_stop_thr().unwrap();
         let opt_state = checkpointer.load_optimizer_thr().unwrap();
-        let evaluators: Vec<FidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo, FnState>> = 
-        checkpointer.load_all_evaluate_thr().unwrap();
-        
+        let evaluators: Vec<FidThrSeqEvaluator<Scp::SolShape, SId, Op::SInfo, FnState>> =
+            checkpointer.load_all_evaluate_thr().unwrap();
+
         let fn_states = fnstatecheck.load_all_func_state();
         let pool = IdxMapPool::from_iter(fn_states);
         let evaluator = (evaluators, pool).into();
@@ -928,14 +955,20 @@ where
         let pool_evaluator = match self.evaluator {
             Some(e) => Arc::new(Mutex::new(e)),
             None => {
-                let fn_check = self.checkpointer.as_ref().map(|c| c.new_func_state_checkpointer());
+                let fn_check = self
+                    .checkpointer
+                    .as_ref()
+                    .map(|c| c.new_func_state_checkpointer());
                 let pool = IdxMapPool::new(fn_check);
-                Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(VecDeque::new(), pool)))
-            },
+                Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(
+                    VecDeque::new(),
+                    pool,
+                )))
+            }
         };
         let recorder = Arc::new(self.recorder);
         let checkpointer = Arc::new(self.checkpointer);
-        
+
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
 
@@ -954,7 +987,9 @@ where
             let handle = thread::spawn(move || {
                 let mut eval = match pool_evaluator.lock().unwrap().get_one_evaluator() {
                     Some(e) => e,
-                    None => FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp), None),
+                    None => {
+                        FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp), None)
+                    }
                 };
                 loop {
                     if stop.lock().unwrap().stop() {
@@ -962,20 +997,26 @@ where
                     }
                     stop.lock().unwrap().update(ExpStep::Iteration);
 
-                    let pair = eval.pair.take().expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
+                    let pair = eval.pair.take().expect(
+                        "The pair ThrSeqEvaluator should not be empty (None) during evaluate.",
+                    );
                     let id = pair.id();
                     let step = pair.step();
                     match step {
                         Step::Pending | Step::Partially(_) => {
                             let state = eval.state.take();
                             let fid = pair.fidelity();
-                            let (out, state) = objective.compute(pair.get_sobj().get_x(), fid, state);
-                            
-                            
+                            let (out, state) =
+                                objective.compute(pair.get_sobj().get_x(), fid, state);
+
                             let new_step = out.get_step().into();
                             match new_step {
-                                Step::Partially(_) => {pool_evaluator.lock().unwrap().pool.insert(id, state);},
-                                _ => {pool_evaluator.lock().unwrap().pool.remove(&id);},
+                                Step::Partially(_) => {
+                                    pool_evaluator.lock().unwrap().pool.insert(id, state);
+                                }
+                                _ => {
+                                    pool_evaluator.lock().unwrap().pool.remove(&id);
+                                }
                             }
 
                             let y = cod.get_elem(&out);
@@ -991,16 +1032,19 @@ where
                             let new_sol = optimizer.lock().unwrap().step(Some(computed), &scp);
                             let new_eval = FidThrSeqEvaluator::new(new_sol, None);
                             pool_evaluator.lock().unwrap().pairs.push_back(new_eval);
-                        },
+                        }
                         _ => {
                             pool_evaluator.lock().unwrap().pool.remove(&id);
                             stop.lock().unwrap().update(ExpStep::Distribution(step));
-                        },
+                        }
                     }
 
                     eval = match pool_evaluator.lock().unwrap().get_one_evaluator() {
                         Some(e) => e,
-                        None => FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp), None),
+                        None => FidThrSeqEvaluator::new(
+                            optimizer.lock().unwrap().step(None, &scp),
+                            None,
+                        ),
                     };
                     stop.lock().unwrap().update(ExpStep::Optimization);
 
@@ -1224,7 +1268,7 @@ where
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
             checkpointer.before_load_dist(proc);
-            
+
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1668,13 +1712,13 @@ where
             // If more than 1 process is idle, it means that the optimizer is not able to give new solutions to at least 2 processes,
             // so the optimizer has to generate new solution ex-nihilo.
             let idle_count = sendrec.idle.count_idle();
-            if idle_count > 1{
-                for _ in 0..idle_count{
+            if idle_count > 1 {
+                for _ in 0..idle_count {
                     eval.update(self.optimizer.step(None, &self.searchspace));
                 }
                 self.stop.update(ExpStep::Optimization);
             }
-            
+
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
                 c.save_state_dist(

@@ -1,8 +1,14 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped, checkpointer::NoFuncStateCheck, domain::NoDomain, experiment::{
-        FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrEvaluate, basics::IdxMapPool, sequential::seqfidevaluator::FidSeqEvaluator
-    }, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
+    EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    checkpointer::NoFuncStateCheck,
+    domain::NoDomain,
+    experiment::{
+        FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,
+        ThrEvaluate, basics::IdxMapPool, sequential::seqfidevaluator::FidSeqEvaluator,
+    },
+    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
+    stop::Calls,
 };
 
 use super::init_func::sp_evaluator_fid;
@@ -50,7 +56,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -143,7 +149,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -166,7 +172,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -189,7 +195,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -212,7 +218,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -265,7 +271,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -358,7 +364,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -381,7 +387,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -404,7 +410,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -427,7 +433,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -470,7 +476,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -526,7 +532,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -554,7 +560,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -582,7 +588,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -610,7 +616,7 @@ fn test_seqfidevaluator() {
         EmptyInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        IdxMapPool<SId,FnState,NoFuncStateCheck>,
+        IdxMapPool<SId, FnState, NoFuncStateCheck>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,

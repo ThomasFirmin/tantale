@@ -292,7 +292,9 @@ pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
 // SEQUENTIAL
 pub mod sequential;
 pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
-pub use sequential::seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator};
+pub use sequential::seqfidevaluator::{
+    FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator,
+};
 
 #[cfg(feature = "mpi")]
 pub use batched::batchfidevaluator::FidDistBatchEvaluator;

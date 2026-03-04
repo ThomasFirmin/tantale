@@ -1,5 +1,10 @@
 use crate::{
-    FidOutcome, HasFidelity, HasStep, domain::{Codomain, Domain, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj}
+    FidOutcome, HasFidelity, HasStep,
+    domain::{Codomain, Domain, onto::LinkOpt},
+    objective::{FuncWrapper, Outcome},
+    recorder::csv::CSVWritable,
+    searchspace::{CompShape, OptionCompShape, Searchspace},
+    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
@@ -168,8 +173,7 @@ where
 }
 
 /// Multi-fidelity marker trait for optimizers.
-pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>:
-    Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
     SolId: Id,
@@ -193,7 +197,7 @@ where
     fn get_scaling(&self) -> f64;
 
     /// Drains all pending candidates from the optimizer, typically for cleanup.
-    /// For example, in Hyperband, this can be used to clear all pending candidates 
+    /// For example, in Hyperband, this can be used to clear all pending candidates
     /// when a new bracket is started, as they may not be relevant to the new budget configuration.
     fn drain(&mut self) -> Vec<Scp::SolShape>;
 

@@ -391,8 +391,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };
-        let mut str_content: Vec<String> =
-            Vec::from([format!("{}", pair.get_sobj().sol.id().id)]);
+        let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sobj().sol.id().id)]);
         let out_str: Vec<String> = content.1.write(&());
         str_content.extend(out_str);
 

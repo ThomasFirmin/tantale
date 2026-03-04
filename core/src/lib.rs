@@ -305,4 +305,4 @@ pub use recorder::{CSVRecorder, CSVWritable, Recorder};
 pub mod checkpointer;
 #[cfg(feature = "mpi")]
 pub use checkpointer::DistCheckpointer;
-pub use checkpointer::{Checkpointer, MonoCheckpointer, MessagePack, ThrCheckpointer};
+pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};

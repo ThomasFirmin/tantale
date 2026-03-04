@@ -148,14 +148,8 @@ fn main() {
         let (comp, raw) = out.unwrap();
 
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
-        let comobjid = sobj_bis
-            .iter()
-            .find(|(id, _)| &comp.id() == id)
-            .unwrap();
-        let comoptid = sopt_bis
-            .iter()
-            .find(|(id, _)| &comp.id() == id)
-            .unwrap();
+        let comobjid = sobj_bis.iter().find(|(id, _)| &comp.id() == id).unwrap();
+        let comoptid = sopt_bis.iter().find(|(id, _)| &comp.id() == id).unwrap();
         let rawobjid = sobj_bis.iter().find(|(id, _)| &raw.0 == id);
         let rawoptid = sopt_bis.iter().find(|(id, _)| &raw.0 == id);
 

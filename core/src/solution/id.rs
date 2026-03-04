@@ -24,7 +24,9 @@ use crate::{SOL_ID, recorder::csv::CSVWritable};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{Debug, Display}, hash::{Hash, Hasher}, sync::atomic::Ordering
+    fmt::{Debug, Display},
+    hash::{Hash, Hasher},
+    sync::atomic::Ordering,
 };
 
 #[cfg(feature = "mpi")]
@@ -45,8 +47,16 @@ use mpi::Rank;
 /// ```
 pub trait Id
 where
-    Self:
-        Sized + PartialEq + Eq + Clone + Copy + Debug + ToString + Serialize + for<'a> Deserialize<'a> + Hash,
+    Self: Sized
+        + PartialEq
+        + Eq
+        + Clone
+        + Copy
+        + Debug
+        + ToString
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Hash,
 {
     /// Generate a new unique identifier.
     fn generate() -> Self;

@@ -62,12 +62,14 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj, SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner, recorder::CSVWritable
+    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
+    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
+    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner,
+    recorder::CSVWritable,
 };
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
-
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -240,8 +242,7 @@ impl Sha {
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for Sha
+impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
@@ -268,15 +269,13 @@ where
     fn from_state(state: Self::State) -> Self {
         Sha(state, rand::rng())
     }
-    
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for Sha
+impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{ 
+{
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run.
     /// Updates the `budget_min`, `budget_max`, and resets the current `budget` to `budget_min`.
@@ -307,10 +306,9 @@ where
         self.0.scaling
     }
 
-    /// Successive Halving does not maintain pending candidates across iterations, 
+    /// Successive Halving does not maintain pending candidates across iterations,
     /// as candidates are either evaluated or discarded at each step. Therefore, this method simply returns an empty vector.
-    fn drain(&mut self) -> Vec<Scp::SolShape>
-    {
+    fn drain(&mut self) -> Vec<Scp::SolShape> {
         Vec::new() // Successive Halving does not maintain pending candidates, so we return an empty vector
     }
 
@@ -412,9 +410,7 @@ where
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
             self.0.budget = self.0.budget_min;
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                self, scp,
-            )
+            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
         } else {
             // Compute number of candidates to keep
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);

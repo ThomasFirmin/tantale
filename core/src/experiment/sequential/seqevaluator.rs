@@ -15,7 +15,11 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, marker::PhantomData,sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 /// A simple sequential evaluator for sequential [`MonoExperiment`](crate::experiment::MonoExperiment).
 /// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
@@ -203,11 +207,10 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,Out>,
+            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Out: Outcome,
 {
@@ -226,12 +229,17 @@ where
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
-        let pair = self.pair.take().expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
+        let pair = self
+            .pair
+            .take()
+            .expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
         let id = pair.id();
         // No saved state
         let out = ob.compute(pair.get_sobj().get_x());
         let y = cod.get_elem(&out);
-        stop.lock().unwrap().update(ExpStep::Distribution(Step::Evaluated));
+        stop.lock()
+            .unwrap()
+            .update(ExpStep::Distribution(Step::Evaluated));
         Some((pair.into_computed(y.into()), (id, out)))
     }
 }
@@ -274,7 +282,11 @@ where
 {
     /// Creates a new [`VecThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
     pub fn new(pairs: VecDeque<ThrSeqEvaluator<Shape, SolId, SInfo>>) -> Self {
-        VecThrSeqEvaluator {pairs,_id: PhantomData,_sinfo: PhantomData}
+        VecThrSeqEvaluator {
+            pairs,
+            _id: PhantomData,
+            _sinfo: PhantomData,
+        }
     }
 
     pub fn get_one_evaluator(&mut self) -> Option<ThrSeqEvaluator<Shape, SolId, SInfo>> {
@@ -282,14 +294,19 @@ where
     }
 }
 
-impl<Shape, SolId, SInfo> From<Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>> for VecThrSeqEvaluator<Shape, SolId, SInfo>
+impl<Shape, SolId, SInfo> From<Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>>
+    for VecThrSeqEvaluator<Shape, SolId, SInfo>
 where
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
 {
     fn from(value: Vec<ThrSeqEvaluator<Shape, SolId, SInfo>>) -> Self {
-        VecThrSeqEvaluator { pairs: value.into(), _id: PhantomData, _sinfo: PhantomData }
+        VecThrSeqEvaluator {
+            pairs: value.into(),
+            _id: PhantomData,
+            _sinfo: PhantomData,
+        }
     }
 }
 

@@ -2,12 +2,12 @@
 //!
 //! # Overview
 //!
-//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s to evaluate, 
-//! without waiting for the completion of evaluations from other workers. 
+//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s to evaluate,
+//! without waiting for the completion of evaluations from other workers.
 //! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving strategy of eliminating poor performers at increasing fidelity levels.
 //!
 //! # Pseudo-code
-//! 
+//!
 //! **Asynchronous Successive Halving (ASHA)**
 //! ---
 //! **Inputs**
@@ -66,7 +66,11 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner, searchspace::OptionCompShape};
+    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
+    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer,
+    SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner,
+    searchspace::OptionCompShape,
+};
 
 use rand::{SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
@@ -108,7 +112,7 @@ pub struct AshaState<SShape>
 where
     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
-    /// A vector of budget levels corresponding to the halving rounds. 
+    /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
@@ -117,22 +121,22 @@ where
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     current_budget: f64,
 }
-impl<SShape> OptState for AshaState<SShape> 
-where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
-{}
+impl<SShape> OptState for AshaState<SShape> where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord
+{
+}
 
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)multi-fidelity optimizer.
 ///
-/// A [`SequentialOptimizer`](tantale_core::SequentialOptimizer) implementing the 
+/// A [`SequentialOptimizer`](tantale_core::SequentialOptimizer) implementing the
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
 ///
 /// # Overview
 ///
 /// [`Asha`] manages the optimization process through on-demand generation of candidates :
 /// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
-/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level, 
-///   selecting the top performers and promoting them to the next level of fidelity, if the rung is has enough candidates. 
+/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
+///   selecting the top performers and promoting them to the next level of fidelity, if the rung is has enough candidates.
 /// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
 ///
 /// # Type Parameters
@@ -147,9 +151,9 @@ where
 /// # Internal State
 ///
 /// - [`AshaState`]: Checkpointable state including budget, scaling factor, and iteration count
-/// 
+///
 /// # Note on RNG
-/// 
+///
 /// The optimizer uses a thread-local [`StdRng`] for random sampling.
 /// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
 /// The [`StdRng`] is defined at the module level as follows:
@@ -206,17 +210,15 @@ where
             let last = budgets.last_mut().unwrap();
             *last = last.round();
         }
-        
+
         let length = budgets.len();
         let current_budget = budgets[0];
-        Asha(
-            AshaState {
-                budgets,
-                scaling,
-                rung: (0..length).map(|_| Vec::new()).collect(),
-                current_budget,
-            },
-        )
+        Asha(AshaState {
+            budgets,
+            scaling,
+            rung: (0..length).map(|_| Vec::new()).collect(),
+            current_budget,
+        })
     }
     pub fn with_rng<F, T>(&self, f: F) -> T
     where
@@ -236,7 +238,7 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
@@ -260,7 +262,6 @@ where
     fn from_state(state: Self::State) -> Self {
         Asha(state)
     }
-    
 }
 
 impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
@@ -270,8 +271,8 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
-{ 
+        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+{
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
     /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
@@ -292,7 +293,10 @@ where
 
     /// Returns the current minimum and maximum budgets of this optimizer.
     fn get_budgets(&self) -> (f64, f64) {
-        (*self.0.budgets.first().unwrap(), *self.0.budgets.last().unwrap())
+        (
+            *self.0.budgets.first().unwrap(),
+            *self.0.budgets.last().unwrap(),
+        )
     }
 
     /// Updates the scaling factor for this optimizer.
@@ -313,9 +317,18 @@ where
     /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
     /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
     /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Scp::SolShape>
-    {
-        let clear = self.0.rung.drain(..).flatten().map(|comp| {let mut sol: Scp::SolShape = IntoComputed::extract(comp).0; sol.discard(); sol}).collect();
+    fn drain(&mut self) -> Vec<Scp::SolShape> {
+        let clear = self
+            .0
+            .rung
+            .drain(..)
+            .flatten()
+            .map(|comp| {
+                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                sol.discard();
+                sol
+            })
+            .collect();
         self.0.rung = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
         clear
     }
@@ -350,30 +363,30 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
     ///
     /// This method implements the core algorithm:
-    /// 
+    ///
     /// - If a candidate is provided, it is added to the appropriate rung based on its fidelity.
     /// - The optimizer then checks the rungs starting from the highest budget level, selecting the
     ///   top performers and promoting them to the next level of fidelity if the rung has enough candidates.
-    /// - If no candidates are available for promotion, it continues down the rungs until 
+    /// - If no candidates are available for promotion, it continues down the rungs until
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
-    /// 
+    ///
     /// # Note on function states management
-    /// 
-    /// Solutions are not discarded by default. 
+    ///
+    /// Solutions are not discarded by default.
     /// They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
     /// This allows for asynchronous evaluation without waiting for all candidates to complete before proceeding to the next round.
-    /// 
+    ///
     /// In Tantale, states are stored internally (in RAM or written in a file via checkpointing),
-    /// until a solution is [`Discarded`](tantale_core::Step::Discard), 
+    /// until a solution is [`Discarded`](tantale_core::Step::Discard),
     /// [`Evaluated`](tantale_core::Step::Evaluated) or [`Errored`](tantale_core::Step::Error).
-    /// 
+    ///
     /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
     /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
     /// So when using ASHA a total of:
@@ -381,49 +394,59 @@ where
     /// - 4 states at rung 1 (budget level 1)
     /// - 1 state at rung 2 (budget level 2)
     ///   are stored in memory until the next generation step, where they will be promoted or discarded.
-    /// 
-    /// So memory management is crucial when using ASHA, 
+    ///
+    /// So memory management is crucial when using ASHA,
     /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
-    /// 
+    ///
     /// In MPI-distributed optimization:
     /// - If there is no Parallel File Sytems, function states and worker states are stored within the worker local memory, and are not shared across workers.
     /// - If there is a Parallel File System, function states and worker states are stored in a shared file system.
-    /// 
+    ///
     /// To simplify things, a function state is local to a worker, and is not shared across workers.
-    /// 
+    ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
-    /// 
+    ///
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<
+            Scp,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
         scp: &Scp,
     ) -> Scp::SolShape {
-        let mut p=
-            if let Some(comp) = x
-            {
-                if let Step::Partially(_) = comp.step() {
-                    let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
-                    self.0.rung[idx + 1].push(comp);
-                }
+        let mut p = if let Some(comp) = x {
+            if let Step::Partially(_) = comp.step() {
+                let idx = self
+                    .0
+                    .budgets
+                    .iter()
+                    .position(|&b| b == comp.fidelity().0)
+                    .unwrap();
+                self.0.rung[idx + 1].push(comp);
+            }
 
-                let mut i = self.0.budgets.len() - 1;
-                let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-                while k == 0 && i > 0 {
-                    i -= 1;
-                    k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-                }
-                if k == 0 {
-                    self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-                } else {
-                    self.0.rung[i].select_nth_unstable(k);
-                    self.0.current_budget = self.0.budgets[i];
-                    IntoComputed::extract(self.0.rung[i].pop().unwrap()).0
-                }
-            } else {
-                self.0.current_budget = self.0.budgets[0];
+            let mut i = self.0.budgets.len() - 1;
+            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            while k == 0 && i > 0 {
+                i -= 1;
+                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            }
+            if k == 0 {
                 self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-            };
+            } else {
+                self.0.rung[i].select_nth_unstable(k);
+                self.0.current_budget = self.0.budgets[i];
+                IntoComputed::extract(self.0.rung[i].pop().unwrap()).0
+            }
+        } else {
+            self.0.current_budget = self.0.budgets[0];
+            self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+        };
         p.set_fidelity(self.0.current_budget);
         p
-    }   
+    }
 }

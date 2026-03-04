@@ -1,5 +1,11 @@
 use crate::{
-    FolderConfig, FuncState, GlobalParameters, Id, OPT_ID, RUN_ID, SOL_ID, checkpointer::{CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer}, experiment::Evaluate, optimizer::OptState, stop::Stop
+    FolderConfig, FuncState, GlobalParameters, Id, OPT_ID, RUN_ID, SOL_ID,
+    checkpointer::{
+        CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
+    },
+    experiment::Evaluate,
+    optimizer::OptState,
+    stop::Stop,
 };
 
 use core::panic;
@@ -22,30 +28,43 @@ pub struct MPFnStateCheckpointer {
     config: Arc<FolderConfig>,
 }
 
-impl FuncStateCheckpointer for MPFnStateCheckpointer{
-    fn save_func_state<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState) {
+impl FuncStateCheckpointer for MPFnStateCheckpointer {
+    fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState) {
         let id_str = id.to_string();
-        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .config
+            .path_check
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         let mut file = File::create(path_ste).unwrap();
-        rmp_serde::encode::write(&mut file, &(id,func_state)).unwrap();
+        rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
     }
 
-    fn load_func_state<FnState:FuncState, SolId:Id>(&self, id: &SolId)-> Option<FnState> {
+    fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<FnState> {
         let id_str = id.to_string();
-        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .config
+            .path_check
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             let rdr = File::open(&path_ste).unwrap();
-            let (id_loaded, func_state): (SolId, FnState) = rmp_serde::decode::from_read(rdr).unwrap();
-            assert_eq!(*id, id_loaded, "Loaded FuncState id does not match the requested id.");
+            let (id_loaded, func_state): (SolId, FnState) =
+                rmp_serde::decode::from_read(rdr).unwrap();
+            assert_eq!(
+                *id, id_loaded,
+                "Loaded FuncState id does not match the requested id."
+            );
             Some(func_state)
         } else {
             None
         }
     }
 
-    fn remove_func_state<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
+    fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
         let id_str = id.to_string();
-        let path_ste = self.config.path_check.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .config
+            .path_check
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             std::fs::remove_file(path_ste).unwrap();
             Ok(true)
@@ -56,15 +75,23 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer{
         }
     }
 
-    fn load_all_func_state<FnState:FuncState, SolId:Id>(&self) -> Vec<(SolId, FnState)> {
+    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)> {
         let mut vec_func_state = Vec::new();
         if self.config.path_check.try_exists().unwrap() {
             for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_func_") {
+                if path.is_file()
+                    && path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with("state_func_")
+                {
                     let rdr = File::open(&path).unwrap();
-                    let (id, func_state): (SolId, FnState) = rmp_serde::decode::from_read(rdr).unwrap();
+                    let (id, func_state): (SolId, FnState) =
+                        rmp_serde::decode::from_read(rdr).unwrap();
                     vec_func_state.push((id, func_state));
                 }
             }
@@ -177,15 +204,21 @@ impl MonoCheckpointer for MessagePack {
     fn after_load(&mut self) {
         // rename old checkpoint folder
         let mut i = 0;
-        let mut new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+        let mut new_path = self
+            .config
+            .path_check
+            .with_file_name(format!("checkpoint_backup_{}", i));
         while new_path.exists() {
-            new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+            new_path = self
+                .config
+                .path_check
+                .with_file_name(format!("checkpoint_backup_{}", i));
             i += 1;
         }
         rename(&self.config.path_check, &new_path).unwrap();
         create_dir_all(&self.config.path_check).unwrap();
     }
-    
+
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
     fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
@@ -360,7 +393,14 @@ impl ThrCheckpointer for MessagePack {
             for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_eval_") {
+                if path.is_file()
+                    && path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with("state_eval_")
+                {
                     found = true;
                     break;
                 }
@@ -384,11 +424,17 @@ impl ThrCheckpointer for MessagePack {
     /// If a folder with the generated backup name already exists, we increment the number until we find a unique backup name.
     /// Create a new checkpoint folder with the original name, to be ready for new checkpoints.
     fn after_load(&mut self) {
-         // rename old checkpoint folder
-         let mut i = 0;
-        let mut new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+        // rename old checkpoint folder
+        let mut i = 0;
+        let mut new_path = self
+            .config
+            .path_check
+            .with_file_name(format!("checkpoint_backup_{}", i));
         while new_path.exists() {
-            new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+            new_path = self
+                .config
+                .path_check
+                .with_file_name(format!("checkpoint_backup_{}", i));
             i += 1;
         }
         rename(&self.config.path_check, &new_path).unwrap();
@@ -409,13 +455,16 @@ impl ThrCheckpointer for MessagePack {
         state: &OState,
         stop: &St,
         eval: &Eval,
-        thr:usize
+        thr: usize,
     ) {
         let mut wrt = File::create(&self.path_optim).unwrap();
         rmp_serde::encode::write(&mut wrt, state).unwrap();
         let mut wrt = File::create(&self.path_stop).unwrap();
         rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let path_eval_thr = self.config.path_check.join(Path::new(&format!("state_eval_{}.mp", thr)));
+        let path_eval_thr = self
+            .config
+            .path_check
+            .join(Path::new(&format!("state_eval_{}.mp", thr)));
         let mut wrt = File::create(&path_eval_thr).unwrap();
         rmp_serde::encode::write(&mut wrt, eval).unwrap();
 
@@ -500,14 +549,21 @@ impl ThrCheckpointer for MessagePack {
             )))
         }
     }
-    
+
     fn load_all_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
         let mut vec_eval = Vec::new();
         if self.config.path_check.try_exists().unwrap() {
             for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.is_file() && path.file_name().unwrap().to_str().unwrap().starts_with("state_eval_") {
+                if path.is_file()
+                    && path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with("state_eval_")
+                {
                     let rdr = File::open(&path).unwrap();
                     let eval: Eval = rmp_serde::decode::from_read(rdr).unwrap();
                     vec_eval.push(eval);
@@ -615,14 +671,20 @@ impl DistCheckpointer for MessagePack {
     /// The backup name is generated by appending "_backup_" and a number to the original checkpoint folder name.
     /// If a folder with the generated backup name already exists, we increment the number until we find a unique backup name.
     /// Create a new checkpoint folder with the original name, to be ready for new checkpoints.
-    /// A [`world barrier`](mpi::collective::CommunicatorCollectives::barrier) 
+    /// A [`world barrier`](mpi::collective::CommunicatorCollectives::barrier)
     /// is used to synchronize all processes after renaming the old checkpoint folder, to ensure that no process starts saving new checkpoints before the old checkpoint folder has been renamed.
     fn after_load_dist(&mut self, proc: &MPIProcess) {
         // rename old checkpoint folder
         let mut i = 0;
-        let mut new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+        let mut new_path = self
+            .config
+            .path_check
+            .with_file_name(format!("checkpoint_backup_{}", i));
         while new_path.exists() {
-            new_path = self.config.path_check.with_file_name(format!("checkpoint_backup_{}",i));
+            new_path = self
+                .config
+                .path_check
+                .with_file_name(format!("checkpoint_backup_{}", i));
             i += 1;
         }
         rename(&self.config.path_check, &new_path).unwrap();
@@ -763,7 +825,7 @@ impl DistCheckpointer for MessagePack {
 
 #[cfg(feature = "mpi")]
 /// A [`WorkerCheckpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
-/// 
+///
 /// # Notes
 /// The worker checkpoint file hierarchy is as follows, it varies from usual mono-thread [`Checkpointer`]:
 /// * `path` from [`FolderConfig`]

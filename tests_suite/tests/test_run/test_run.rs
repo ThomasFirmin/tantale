@@ -5,7 +5,10 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::{BatchRandomSearch, random_search::{self, RandomSearch}};
+use tantale_algos::{
+    BatchRandomSearch,
+    random_search::{self, RandomSearch},
+};
 
 use super::init_func::sp_evaluator;
 use crate::init_func::OutEvaluator;

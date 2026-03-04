@@ -58,10 +58,10 @@ where
     #[serde(skip)]
     pub pool: FnStPool,
     _fnstate: std::marker::PhantomData<FnState>,
-
 }
 
-impl<SolId, SInfo, Info, Shape, FnState, FnStPool> FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool>
+    FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -235,7 +235,8 @@ where
     _fnstate: PhantomData<FnState>,
 }
 
-impl<SolId, SInfo, Info, Shape, FnState, FnStPool> FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool>
+    FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -262,14 +263,13 @@ where
     /// Pop a solution from the internal batch of solutions to evaluate, and retrieve its associated function state if it is partially evaluated.
     pub fn pop(&mut self) -> (Option<Shape>, Option<FnState>) {
         let pair = self.batch.lock().unwrap().pop();
-        if let Some(p) = pair{
+        if let Some(p) = pair {
             let id = p.id();
             (Some(p), self.pool.lock().unwrap().retrieve(&id))
         } else {
             (None, None)
         }
     }
-
 }
 
 impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
@@ -377,11 +377,11 @@ where
                             _ => {
                                 self.pool.lock().unwrap().remove(&sid);
                                 stop.lock().unwrap().update(ExpStep::Distribution(step));
-                            },
+                            }
                         };
                         obatch.lock().unwrap().add((sid, out));
                         cbatch.lock().unwrap().add(pair.into_computed(y.into()));
-                    },
+                    }
                     _ => {
                         self.pool.lock().unwrap().remove(&sid);
                         stop.lock().unwrap().update(ExpStep::Distribution(step));

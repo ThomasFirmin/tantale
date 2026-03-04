@@ -6,7 +6,10 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::{BatchRandomSearch, random_search::{self, RandomSearch}};
+use tantale_algos::{
+    BatchRandomSearch,
+    random_search::{self, RandomSearch},
+};
 
 use super::init_func::sp_evaluator;
 use crate::init_func::OutEvaluator;
@@ -609,7 +612,11 @@ fn test_fid_thr_seq_run() {
 
     let expstop = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 50 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 50 and {}", max_call);
+    assert!(
+        expstop.calls() >= 50 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 50 and {}",
+        max_call
+    );
     expstop.add(50);
 
     exp.run();
@@ -626,7 +633,11 @@ fn test_fid_thr_seq_run() {
     run_reader_eps("tmp_test_fidthrseqrun", 500, 249);
     let expstop = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 100 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 100 and {}", max_call);
+    assert!(
+        expstop.calls() >= 100 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 100 and {}",
+        max_call
+    );
 
     drop(Cleaner {
         path: String::from("tmp_test_fidthrseqrun"),

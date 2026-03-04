@@ -24,7 +24,11 @@ use mpi::Rank;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
-use std::{collections::VecDeque, marker::PhantomData, sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 /// Sequential evaluator for fidelity-based functions.
 /// It evaluates a single [`SolutionShape`] + [`HasStep`] + [`HasFidelity`],
@@ -45,7 +49,7 @@ where
 {
     pub pair: Option<Shape>,
     #[serde(skip)]
-    pub  pool: FnStPool,
+    pub pool: FnStPool,
     _id: PhantomData<SolId>,
     _fnstate: PhantomData<FnState>,
     _sinfo: PhantomData<SInfo>,
@@ -79,7 +83,7 @@ where
     /// Takes the current [`SolutionShape`] and its corresponding [`FuncState`] (if any) from the [`FuncStatePool`].
     pub fn take(&mut self) -> (Option<Shape>, Option<FnState>) {
         let pair = self.pair.take();
-        if let Some(p) = pair{
+        if let Some(p) = pair {
             let id = p.id();
             (Some(p), self.pool.retrieve(&id))
         } else {
@@ -88,7 +92,8 @@ where
     }
 }
 
-impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluate for FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
+impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluate
+    for FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -148,8 +153,9 @@ where
         cod: &Op::Cod,
         stop: &mut St,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
-        let (pair,state) = self.take();
-        let mut pair = pair.expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
+        let (pair, state) = self.take();
+        let mut pair =
+            pair.expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
 
         let id = pair.id();
         let step = pair.step();
@@ -166,7 +172,7 @@ where
                     _ => {
                         self.pool.remove(&id);
                         stop.update(ExpStep::Distribution(new_step));
-                    },
+                    }
                 };
                 Some((pair.into_computed(y.into()), (id, out)))
             }
@@ -232,7 +238,7 @@ where
     /// Takes the current [`SolutionShape`] and its corresponding [`FuncState`] (if any) from the [`FuncStatePool`].
     pub fn take(&mut self) -> (Option<Shape>, Option<FnState>) {
         let pair = self.pair.take();
-        if let Some(p) = pair{
+        if let Some(p) = pair {
             (Some(p), self.state.take())
         } else {
             (None, None)
@@ -299,7 +305,8 @@ where
         stop: Arc<Mutex<St>>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let (pair, state) = self.take();
-        let mut pair = pair.expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
+        let mut pair =
+            pair.expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
         let id = pair.id();
         let step = pair.step();
         let fid = pair.fidelity();
@@ -355,7 +362,8 @@ where
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<Shape, SolId, SInfo, FnState, FnStatePool> Evaluate for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
+impl<Shape, SolId, SInfo, FnState, FnStatePool> Evaluate
+    for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
@@ -365,7 +373,8 @@ where
 {
 }
 
-impl<Shape, SolId, SInfo, FnState, FnStatePool> PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
+impl<Shape, SolId, SInfo, FnState, FnStatePool>
+    PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
@@ -374,7 +383,10 @@ where
     FnStatePool: FuncStatePool<FnState, SolId>,
 {
     /// Creates a new [`HashFidThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
-    pub fn new(pairs: VecDeque<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>, pool: FnStatePool) -> Self {
+    pub fn new(
+        pairs: VecDeque<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>,
+        pool: FnStatePool,
+    ) -> Self {
         PoolFidThrSeqEvaluator {
             pairs,
             pool,
@@ -382,7 +394,9 @@ where
         }
     }
 
-    pub fn get_one_evaluator(&mut self) -> Option<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>> {
+    pub fn get_one_evaluator(
+        &mut self,
+    ) -> Option<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>> {
         if let Some(mut eval) = self.pairs.pop_front() {
             let id = eval.pair.as_ref().unwrap().id();
             let state = self.pool.retrieve(&id);
@@ -394,7 +408,11 @@ where
     }
 }
 
-impl<Shape, SolId, SInfo, FnState, FnStatePool> From<(Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>, FnStatePool)> for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
+impl<Shape, SolId, SInfo, FnState, FnStatePool>
+    From<(
+        Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>,
+        FnStatePool,
+    )> for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: Id,
@@ -402,7 +420,12 @@ where
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
 {
-    fn from((pairs, pool): (Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>, FnStatePool)) -> Self {
+    fn from(
+        (pairs, pool): (
+            Vec<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>,
+            FnStatePool,
+        ),
+    ) -> Self {
         PoolFidThrSeqEvaluator {
             pairs: pairs.into(),
             pool,
@@ -485,8 +508,6 @@ where
         }
     }
 }
-
-
 
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Shape> Evaluate for FidDistSeqEvaluator<SolId, SInfo, Shape>

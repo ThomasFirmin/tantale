@@ -1,5 +1,13 @@
 use crate::{
-    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::Evaluate, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
+    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer,
+    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
+    domain::onto::LinkOpt,
+    experiment::Evaluate,
+    objective::FuncWrapper,
+    optimizer::opt::OpSInfType,
+    recorder::Recorder,
+    searchspace::CompShape,
+    solution::{SolutionShape, Uncomputed, shape::RawObj},
 };
 
 #[cfg(feature = "mpi")]
@@ -143,7 +151,7 @@ where
 /// Trait defining the interface for a pool of [`FuncState`]s associated with solution identifiers.
 /// This abstraction allows for different implementations of function state management, such as in-memory pools or checkpointer-backed storage.
 pub trait FuncStatePool<FnState, SolId>
-where 
+where
     Self: Default,
     SolId: Id,
     FnState: FuncState,
@@ -184,13 +192,15 @@ where
     }
 }
 
-impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterator<(SolId, FnState)> for IdxMapPool<SolId, FnState, FnStCheck>{
+impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterator<(SolId, FnState)>
+    for IdxMapPool<SolId, FnState, FnStCheck>
+{
     fn from_iter<T: IntoIterator<Item = (SolId, FnState)>>(iter: T) -> Self {
-        let pool = iter.into_iter().map(|(id, state)| (id, Some(state))).collect();
-        Self {
-            pool,
-            check: None,
-        }
+        let pool = iter
+            .into_iter()
+            .map(|(id, state)| (id, Some(state)))
+            .collect();
+        Self { pool, check: None }
     }
 }
 
@@ -205,7 +215,8 @@ where
     }
 }
 
-impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for IdxMapPool<SolId, FnState, FnStCheck>
+impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId>
+    for IdxMapPool<SolId, FnState, FnStCheck>
 where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,

@@ -59,7 +59,10 @@
 #[cfg(feature = "mpi")]
 use std::panic;
 
-use crate::{FuncState, GlobalParameters, Id, SaverConfig, experiment::Evaluate, optimizer::OptState, stop::Stop};
+use crate::{
+    FuncState, GlobalParameters, Id, SaverConfig, experiment::Evaluate, optimizer::OptState,
+    stop::Stop,
+};
 #[cfg(feature = "mpi")]
 use crate::{
     config::NoConfig,
@@ -80,12 +83,12 @@ pub use crate::errors::CheckpointError;
 /// A [`Checkpointer`] provides the ability to save and restore the complete state of an optimization
 /// experiment, enabling resumption after interruptions. It manages the persistence of four key state
 /// components necessary to restart an experiment from any checkpoint.
-/// 
+///
 /// # See Also
 /// - [`MonoCheckpointer`] - For single-threaded optimization experiments
 /// - [`ThrCheckpointer`] - For multi-threaded optimization experiments
 /// - [`DistCheckpointer`] - For distributed MPI-based optimization experiments
-pub trait Checkpointer 
+pub trait Checkpointer
 where
     Self: Sized,
 {
@@ -95,13 +98,13 @@ where
 
 pub trait FuncStateCheckpointer {
     /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn save_func_state<FnState:FuncState, SolId:Id>(&self,id: &SolId,func_state: &FnState);
+    fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState);
     /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn load_func_state<FnState:FuncState, SolId:Id>(&self, id: &SolId)-> Option<FnState>;
+    fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<FnState>;
     /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
-    fn remove_func_state<SolId:Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
+    fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
     /// Load all the [`FuncState`] returning a vector of function states for each function ID.
-    fn load_all_func_state<FnState:FuncState, SolId:Id>(&self) -> Vec<(SolId, FnState)>;
+    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)>;
 }
 
 /// Core trait for checkpointing management in optimization experiments.
@@ -153,8 +156,7 @@ pub trait FuncStateCheckpointer {
 /// - [`experiment::Runable`](crate::experiment::Runable) - Integration point where [`Checkpointer`] is used in optimization loops
 /// - [`MessagePack`] - Concrete implementation using MessagePack serialization
 /// - [`FolderConfig`](crate::FolderConfig) - Configuration for file-based checkpoint storage
-pub trait MonoCheckpointer: Checkpointer
-{
+pub trait MonoCheckpointer: Checkpointer {
     /// Configuration type that implements [`SaverConfig`].
     ///
     /// This associated type determines how the checkpointer is configured.
@@ -323,8 +325,7 @@ pub trait MonoCheckpointer: Checkpointer
 ///
 /// - [`MonoCheckpointer`] - For single-threaded optimization
 /// - [`DistCheckpointer`] - For distributed MPI optimization
-pub trait ThrCheckpointer: Checkpointer
-{
+pub trait ThrCheckpointer: Checkpointer {
     /// Configuration type (inherited from [`Checkpointer`]).
     ///
     /// Must implement [`SaverConfig`].
@@ -342,7 +343,7 @@ pub trait ThrCheckpointer: Checkpointer
         state: &OState,
         stop: &St,
         eval: &Eval,
-        thread:usize,
+        thread: usize,
     );
     fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
@@ -355,8 +356,6 @@ pub trait ThrCheckpointer: Checkpointer
     fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError>;
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for threaded optimization experiment, returning shared global parameters.
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
-
-
 }
 
 #[cfg(feature = "mpi")]
@@ -570,7 +569,6 @@ where
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
     /// Retrieves the worker checkpointer.
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
-    
 }
 
 /// An empty [`Checkpointer`] implementation that performs no checkpointing.
@@ -593,16 +591,14 @@ impl FuncStateCheckpointer for NoFuncStateCheck {
         panic!("NoCheck should not be called to remove function state.")
     }
 
-    fn load_all_func_state<FnState: FuncState, SolId: Id>(
-        &self,
-    ) -> Vec<(SolId, FnState)> {
+    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)> {
         panic!("NoCheck should not be called to load all function state.")
     }
 }
 
 impl Checkpointer for NoCheck {
     type FnStateCheck = NoFuncStateCheck;
-    
+
     fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
         NoFuncStateCheck
     }
