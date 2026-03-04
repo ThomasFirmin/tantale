@@ -176,7 +176,13 @@ impl AshaState {
             .map(|i| budget_min * scaling.powi(i))
             .take_while(|&b| b < budget_max)
             .collect();
-        budgets.push(budget_max); // Add the last maximum budget
+        //If final budget does not round to budget_max, add budget_max as final budget level
+        if budgets.last().unwrap().round() != budget_max {
+            budgets.push(budget_max);
+        } else {
+            // else rounds final budget to budget_max, round to budget_max
+            budgets.last_mut().unwrap().round();
+        }
         
         let length = budgets.len();
         Asha(
@@ -252,7 +258,14 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #             .map(|i| budget_min * scaling.powi(i))
 #             .take_while(|&b| b < budget_max)
 #             .collect();
-#         budgets.push(budget_max); // Add the last maximum budget
+#         //If final budget does not round to budget_max, add budget_max as final budget level
+#         if budgets.last().unwrap().round() != budget_max {
+#             budgets.push(budget_max);
+#         } else {
+#             // else rounds final budget to budget_max, round to budget_max
+#             let last = budgets.last_mut().unwrap();
+#             *last = last.round();
+#         }
 #         
 #         let length = budgets.len();
 #         Asha(

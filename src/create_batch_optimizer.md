@@ -483,7 +483,14 @@ where
                     Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
                 }
             }
-            
+    }
+
+    fn set_batch_size(&mut self, batch_size : usise){
+        self.0.batch = batch_size
+    }
+
+    fn get_batch_size(&self) -> usize {
+        self.0.batch
     }
 }
 ```

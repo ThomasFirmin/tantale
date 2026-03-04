@@ -1,9 +1,5 @@
 use crate::{
-    domain::{Codomain, Domain, onto::LinkOpt},
-    objective::{FuncWrapper, Outcome},
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
+    FidOutcome, HasFidelity, HasStep, domain::{Codomain, Domain, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj}
 };
 
 use serde::{Deserialize, Serialize};
@@ -120,6 +116,12 @@ where
         x: CompBatch<SolId, Self::SInfo, Self::Info, Scp, PSol, Self::Cod, Out>,
         scp: &Scp,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+
+    /// Sets the batch size for the optimizer.
+    fn set_batch_size(&mut self, batch_size: usize);
+
+    /// Returns the current batch size of the optimizer.
+    fn get_batch_size(&self) -> usize;
 }
 
 /// Sequential optimizer interface.
@@ -163,4 +165,38 @@ where
     fn interact(&self);
     /// Update internal state after interaction.
     fn update(&self);
+}
+
+/// Multi-fidelity marker trait for optimizers.
+pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>:
+    Optimizer<PSol, SolId, Opt, Out, Scp>
+where
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
+    SolId: Id,
+    Opt: Domain,
+    Out: FidOutcome,
+    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+{
+    /// Sets the minimum and maximum budgets for the optimizer.
+    fn set_budgets(&mut self, budget_min: f64, budget_max: f64);
+
+    /// Returns the current minimum and maximum budgets of the optimizer.
+    fn get_budgets(&self) -> (f64, f64);
+
+    /// Get the current budget level used by the optimizer for pruning candidates.
+    fn get_current_budget(&self) -> f64;
+
+    /// Sets the scaling factor for budget levels in the optimizer.
+    fn set_scaling(&mut self, scaling: f64);
+
+    /// Returns the current scaling factor for budget levels in the optimizer.
+    fn get_scaling(&self) -> f64;
+
+    /// Drains all pending candidates from the optimizer, typically for cleanup.
+    /// For example, in Hyperband, this can be used to clear all pending candidates 
+    /// when a new bracket is started, as they may not be relevant to the new budget configuration.
+    fn drain(&mut self) -> Vec<Scp::SolShape>;
+
+    /// Drains a single pending candidate from the optimizer, if available.
+    fn drain_one(&mut self) -> Option<Scp::SolShape>;
 }

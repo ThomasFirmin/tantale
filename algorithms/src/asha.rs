@@ -66,8 +66,7 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolutionShape, Step, Stepped, searchspace::OptionCompShape
-};
+    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner, searchspace::OptionCompShape};
 
 use rand::{SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
@@ -115,6 +114,8 @@ where
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
     pub rung: Vec<Vec<SShape>>,
+    /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+    current_budget: f64,
 }
 impl<SShape> OptState for AshaState<SShape> 
 where
@@ -197,14 +198,23 @@ where
             .map(|i| budget_min * scaling.powi(i))
             .take_while(|&b| b < budget_max)
             .collect();
-        budgets.push(budget_max);
+        //If final budget does not round to budget_max, add budget_max as final budget level
+        if budgets.last().unwrap().round() != budget_max {
+            budgets.push(budget_max);
+        } else {
+            // else rounds final budget to budget_max, round to budget_max
+            let last = budgets.last_mut().unwrap();
+            *last = last.round();
+        }
         
         let length = budgets.len();
+        let current_budget = budgets[0];
         Asha(
             AshaState {
                 budgets,
                 scaling,
                 rung: (0..length).map(|_| Vec::new()).collect(),
+                current_budget,
             },
         )
     }
@@ -234,6 +244,11 @@ where
     type Info = EmptyInfo;
 
     /// Returns a reference to the current optimizer state.
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the current optimizer state.
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
@@ -244,6 +259,76 @@ where
     /// Creates a fresh random number generator for the reconstructed optimizer.
     fn from_state(state: Self::State) -> Self {
         Asha(state)
+    }
+    
+}
+
+impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+{ 
+    /// Reinitializes the budget parameters for this optimizer.
+    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
+    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
+    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
+        self.0.budgets = (0..)
+            .map(|i| budget_min * self.0.scaling.powi(i))
+            .take_while(|&b| b < budget_max)
+            .collect();
+        //If final budget does not round to budget_max, add budget_max as final budget level
+        if self.0.budgets.last().unwrap().round() != budget_max {
+            self.0.budgets.push(budget_max);
+        } else {
+            // else rounds final budget to budget_max, round to budget_max
+            let last = self.0.budgets.last_mut().unwrap();
+            *last = last.round();
+        }
+    }
+
+    /// Returns the current minimum and maximum budgets of this optimizer.
+    fn get_budgets(&self) -> (f64, f64) {
+        (*self.0.budgets.first().unwrap(), *self.0.budgets.last().unwrap())
+    }
+
+    /// Updates the scaling factor for this optimizer.
+    fn set_scaling(&mut self, scaling: f64) {
+        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        self.0.scaling = scaling;
+    }
+
+    /// Returns the current scaling factor for this optimizer.
+    fn get_scaling(&self) -> f64 {
+        self.0.scaling
+    }
+
+    fn get_current_budget(&self) -> f64 {
+        self.0.current_budget
+    }
+
+    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
+    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
+    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
+    fn drain(&mut self) -> Vec<Scp::SolShape>
+    {
+        let clear = self.0.rung.drain(..).flatten().map(|comp| {let mut sol: Scp::SolShape = IntoComputed::extract(comp).0; sol.discard(); sol}).collect();
+        self.0.rung = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
+        clear
+    }
+
+    fn drain_one(&mut self) -> Option<Scp::SolShape> {
+        for rung in self.0.rung.iter_mut() {
+            if let Some(comp) = rung.pop() {
+                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                sol.discard();
+                return Some(sol);
+            }
+        }
+        None
     }
 }
 
@@ -313,33 +398,32 @@ where
         x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
     ) -> Scp::SolShape {
-        if let Some(comp) = x
-        {
-            if let Step::Partially(_) = comp.step() {
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
-                self.0.rung[idx + 1].push(comp);
-            }
+        let mut p=
+            if let Some(comp) = x
+            {
+                if let Step::Partially(_) = comp.step() {
+                    let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
+                    self.0.rung[idx + 1].push(comp);
+                }
 
-            let mut i = self.0.budgets.len() - 1;
-            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            while k == 0 && i > 0 {
-                i -= 1;
-                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            }
-            if k == 0 {
-                let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
-                p.set_fidelity(self.0.budgets[0]);
-                p
+                let mut i = self.0.budgets.len() - 1;
+                let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+                while k == 0 && i > 0 {
+                    i -= 1;
+                    k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+                }
+                if k == 0 {
+                    self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+                } else {
+                    self.0.rung[i].select_nth_unstable(k);
+                    self.0.current_budget = self.0.budgets[i];
+                    IntoComputed::extract(self.0.rung[i].pop().unwrap()).0
+                }
             } else {
-                self.0.rung[i].select_nth_unstable(k);
-                let (mut p,_): (Scp::SolShape, _) = IntoComputed::extract(self.0.rung[i].pop().unwrap());
-                p.set_fidelity(self.0.budgets[i]);
-                p
-            }
-        } else {
-            let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
-            p.set_fidelity(self.0.budgets[0]);
-            p
-        }
+                self.0.current_budget = self.0.budgets[0];
+                self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+            };
+        p.set_fidelity(self.0.current_budget);
+        p
     }   
 }

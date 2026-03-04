@@ -62,9 +62,7 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
-    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, recorder::CSVWritable,
+    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj, SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner, recorder::CSVWritable
 };
 
 use rand::prelude::ThreadRng;
@@ -254,6 +252,11 @@ where
     type Info = ShaInfo;
 
     /// Returns a reference to the current optimizer state.
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the current optimizer state.
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
@@ -264,6 +267,56 @@ where
     /// Creates a fresh random number generator for the reconstructed optimizer.
     fn from_state(state: Self::State) -> Self {
         Sha(state, rand::rng())
+    }
+    
+}
+
+impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for Sha
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{ 
+    /// Reinitializes the budget parameters for this optimizer.
+    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run.
+    /// Updates the `budget_min`, `budget_max`, and resets the current `budget` to `budget_min`.
+    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
+        self.0.budget_min = budget_min;
+        self.0.budget_max = budget_max;
+        self.0.budget = budget_min;
+    }
+
+    /// Returns the current minimum and maximum budgets of this optimizer.
+    fn get_budgets(&self) -> (f64, f64) {
+        (self.0.budget_min, self.0.budget_max)
+    }
+
+    /// Retrieves the current budget level used by this optimizer for pruning candidates.
+    fn get_current_budget(&self) -> f64 {
+        self.0.budget
+    }
+
+    /// Updates the scaling factor for this optimizer.
+    fn set_scaling(&mut self, scaling: f64) {
+        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        self.0.scaling = scaling;
+    }
+
+    /// Retrieves the current scaling factor of this optimizer.
+    fn get_scaling(&self) -> f64 {
+        self.0.scaling
+    }
+
+    /// Successive Halving does not maintain pending candidates across iterations, 
+    /// as candidates are either evaluated or discarded at each step. Therefore, this method simply returns an empty vector.
+    fn drain(&mut self) -> Vec<Scp::SolShape>
+    {
+        Vec::new() // Successive Halving does not maintain pending candidates, so we return an empty vector
+    }
+
+    /// Drains a single pending candidate from the optimizer, if available.
+    fn drain_one(&mut self) -> Option<Scp::SolShape> {
+        None // Successive Halving does not maintain pending candidates, so we return None
     }
 }
 
@@ -348,8 +401,7 @@ where
         >,
         scp: &Scp,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let (pairs, _) = x.extract();
-        let mut pairs: Vec<_> = pairs
+        let mut pairs: Vec<_> = x
             .into_iter()
             .filter_map(|comp| match comp.step() {
                 Step::Partially(_) => Some(comp),
@@ -399,5 +451,13 @@ where
                 Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
             }
         }
+    }
+
+    fn set_batch_size(&mut self, batch_size: usize) {
+        self.0.batch = batch_size;
+    }
+
+    fn get_batch_size(&self) -> usize {
+        self.0.batch
     }
 }

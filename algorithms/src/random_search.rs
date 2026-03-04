@@ -381,6 +381,14 @@ where
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
+
+    fn set_batch_size(&mut self, batch_size: usize) {
+        self.0.batch = batch_size;
+    }
+
+    fn get_batch_size(&self) -> usize {
+        self.0.batch
+    }
 }
 
 //---------------//
@@ -458,5 +466,13 @@ where
         }
         .into();
         Batch::new(pairs, info)
+    }
+
+    fn set_batch_size(&mut self, batch_size: usize) {
+        self.0.batch = batch_size;
+    }
+
+    fn get_batch_size(&self) -> usize {
+        self.0.batch
     }
 }
