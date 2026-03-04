@@ -5,7 +5,7 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::{Asha, asha};
+use tantale_algos::{Asha, Hyperband, asha};
 
 use super::init_func::sp_evaluator_sh;
 use crate::init_func::FidOutEvaluator;
@@ -61,10 +61,10 @@ pub fn run_reader(path: &str) {
 #[test]
 fn test_fid_seq_run() {
     drop(Cleaner {
-        path: String::from("tmp_test_asha_run"),
+        path: String::from("tmp_test_hyperband_asha_run"),
     });
     let _cleaner = Cleaner {
-        path: String::from("tmp_test_asha_run"),
+        path: String::from("tmp_test_hyperband_asha_run"),
     };
 
     let mut budgets: Vec<f64> = (0..)
@@ -82,34 +82,35 @@ fn test_fid_seq_run() {
     
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = Asha::new(1.,5.,1.61); // log(max/min)
+    let asha = Asha::new(1.,5.,1.61); // log(max/min)
+    let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_asha_run").init();
+    let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_asha_run");
+    run_reader("tmp_test_hyperband_asha_run");
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let config = FolderConfig::new("tmp_test_asha_run").init();
+    let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Asha<_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(expoptimizer.0.inner.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.inner.0.budgets, budgets);
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
     exp.run();
 
@@ -117,20 +118,20 @@ fn test_fid_seq_run() {
     let obj = sp_evaluator_sh::get_function();
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let config = FolderConfig::new("tmp_test_asha_run").init();
+    let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Asha<_>, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_asha_run");
+    let exp = load!(mono, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
+    run_reader("tmp_test_hyperband_asha_run");
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(expoptimizer.0.inner.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.inner.0.budgets, budgets);
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     drop(Cleaner {
-        path: String::from("tmp_test_asha_run"),
+        path: String::from("tmp_test_hyperband_asha_run"),
     });
 }
 
@@ -158,7 +159,8 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = Asha::new(1., 5., 1.61);
+    let asha = Asha::new(1., 5., 1.61);
+    let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Calls::new(50);
@@ -179,14 +181,14 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, Asha<_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(threaded, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(expstop.calls() >= 50 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 50 and {}", max_call);
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(expoptimizer.0.inner.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.inner.0.budgets, budgets);
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     exp.run();
@@ -199,13 +201,13 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, Asha<_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(threaded, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_asha_parrun");
     let expstop = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(expstop.calls() >= 100 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 100 and {}", max_call);
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budgets, budgets);
+    assert_eq!(expoptimizer.0.inner.0.budgets, budgets, "Budgets are wrong, {:?} != {:?}", expoptimizer.0.inner.0.budgets, budgets);
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 
     drop(Cleaner {
