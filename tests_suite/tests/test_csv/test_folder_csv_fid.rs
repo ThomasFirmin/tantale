@@ -1,10 +1,7 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
-    recorder::{
-        Recorder,
-        csv::{CSVRecorder, CSVWritable},
-    },
+    recorder::csv::{CSVRecorder, CSVWritable},
     solution::{Batch, OutBatch},
     stop::{Calls, Stop},
 };
@@ -21,7 +18,7 @@ use tantale_core::solution::{
     HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, IntoComputed,
     SolutionShape, Uncomputed,
 };
-use tantale_core::{Computed, EmptyInfo, FidelitySol, Stepped};
+use tantale_core::{BatchRecorder, Computed, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
 
 use crate::init_func::FnState;
 
@@ -110,7 +107,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
     Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, FidOutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol, SId, FidOutExample, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, FidOutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<FidOutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -137,7 +134,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save_batch(&cbatch, &obatch, sp, cod);
+    recorder.save(&cbatch, &obatch, sp, cod);
 
     let batch = opt.first_step(sp);
     let mut tobatch = OutBatch::empty(batch.info());
@@ -160,7 +157,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save_batch(&tcbatch, &tobatch, sp, cod);
+    recorder.save(&tcbatch, &tobatch, sp, cod);
     run_reader::<Scp, Op, St, CSVRecorder, Fn, PSol>(
         "tmp_test_fid",
         cbatch,
@@ -217,7 +214,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
     Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, FidOutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol, SId, FidOutExample, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, FidOutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<FidOutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -429,19 +426,20 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod = random_search::codomain(|x: &FidOutExample| x.mul6);
+    let cod: SingleCodomain<FidOutExample> = random_search::codomain(|x: &FidOutExample| x.mul6);
 
     let mut rs = BatchRandomSearch::new(3);
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test_fid"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<
+    <CSVRecorder as BatchRecorder<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
         FidOutExample,
-        Sp<Mixed, _>,
+        Sp<Mixed, NoDomain>,
         BatchRandomSearch,
-    >>::init_batch::<Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>>(&mut recorder, &sp, &cod);
+        Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
+    >>::init(&mut recorder, &sp, &cod);
 
     run_recorder::<
         Sp<Mixed, NoDomain>,
@@ -451,15 +449,6 @@ fn test_csv_func() {
         Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
         FidelitySol<SId, Mixed, EmptyInfo>,
     >(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
-
-    // run_recorder(
-    //     &sp,
-    //     &cod,
-    //     &mut rs,
-    //     &mut stop,
-    //     &mut recorder,
-    //     12,
-    // );
 }
 
 struct Cleaner;

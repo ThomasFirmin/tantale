@@ -1,41 +1,31 @@
 use crate::{
-    FidOutcome, SId, Stepped, ThrCheckpointer,
-    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
-    domain::onto::LinkOpt,
-    experiment::{
+    BatchRecorder, FidOutcome, SId, Stepped, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment,
         OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment,
         basics::IdxMapPool,
-    },
-    objective::{Objective, Outcome, outcome::FuncState},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    recorder::Recorder,
-    searchspace::{CompShape, Searchspace},
-    solution::{HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj},
-    stop::{ExpStep, Stop},
-};
-
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
+    }, 
+    objective::{Objective, Outcome, outcome::FuncState}, 
+    optimizer::opt::{BatchOptimizer, OpSInfType}, 
+    searchspace::{CompShape, Searchspace}, 
+    solution::{HasY, HasFidelity, HasStep, SolutionShape, Uncomputed, shape::RawObj}, 
+    stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
 use crate::{
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
+    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    },
-    recorder::DistRecorder,
-    solution::{
-        HasY,
-        shape::{SolObj, SolOpt},
-    },
+    }, solution::shape::{SolObj, SolOpt}
+};
+
+use std::{
+    fmt::Debug,
+    sync::{Arc, Mutex},
 };
 
 //--------------------//
@@ -76,11 +66,12 @@ where
             Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
     Check: MonoCheckpointer,
     Out: Outcome,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -95,7 +86,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init_batch(&searchspace, &codomain);
+                r.init(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -135,7 +126,7 @@ where
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load_batch(&searchspace, &codomain);
+                rec.after_load(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -194,7 +185,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
+                r.save(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
             // Optimizer part
@@ -312,7 +303,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>>,
     Check: MonoCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
@@ -330,7 +321,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init_batch(&searchspace, &codomain);
+                r.init(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -384,7 +375,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
-                r.after_load_batch(&searchspace, &codomain);
+                r.after_load(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -452,7 +443,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &self.searchspace, &self.codomain);
+                r.save(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
             // Optimizer part
@@ -571,7 +562,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
     Check: ThrCheckpointer,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
@@ -588,7 +579,7 @@ where
         let (recorder, checkpointer) = saver;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init_batch(&searchspace, &codomain);
+                r.init(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -633,7 +624,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load_batch(&searchspace, &codomain);
+                rec.after_load(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -700,7 +691,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
+                r.save(&computed, &outputed, &scp, &cod);
             }
 
             // Optimizer part
@@ -825,7 +816,7 @@ where
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
-    Rec: Recorder<PSol, SId, Out, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>>,
     Check: ThrCheckpointer,
     Check::FnStateCheck: Send + Sync,
 {
@@ -844,7 +835,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init_batch(&searchspace, &codomain);
+                r.init(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -891,7 +882,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load_batch(&searchspace, &codomain);
+                rec.after_load(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -964,7 +955,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch(&computed, &outputed, &scp, &cod);
+                r.save(&computed, &outputed, &scp, &cod);
             }
 
             // Optimizer part
@@ -1086,7 +1077,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
-    Rec: DistRecorder<PSol, SId, Out, Scp, Op>,
+    Rec: DistBatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,>,
     Check: DistCheckpointer,
     Out: Outcome,
 {
@@ -1126,7 +1117,7 @@ where
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_batch_dist(proc, &searchspace, &codomain);
+                    r.init_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1190,7 +1181,7 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_batch_dist(proc, &searchspace, &codomain);
+                    r.after_load_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1280,7 +1271,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
+                r.save_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
             // Optimizer part
@@ -1402,7 +1393,7 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
     St: Stop,
-    Rec: DistRecorder<PSol, SId, Out, Scp, Op>,
+    Rec: DistBatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,>,
     Check: DistCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
@@ -1445,7 +1436,7 @@ where
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_batch_dist(proc, &searchspace, &codomain);
+                    r.init_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1518,7 +1509,7 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_batch_dist(proc, &searchspace, &codomain);
+                    r.after_load_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1610,7 +1601,7 @@ where
 
             // Saver part
             if let Some(r) = &self.recorder {
-                r.save_batch_dist(&computed, &outputed, &self.searchspace, &self.codomain);
+                r.save_dist(&computed, &outputed, &self.searchspace, &self.codomain);
             }
 
             // Optimizer part

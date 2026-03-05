@@ -5,15 +5,12 @@ use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
     optimizer::opt::BatchOptimizer,
-    recorder::{
-        Recorder,
-        csv::{CSVRecorder, CSVWritable},
-    },
+    recorder::csv::{CSVRecorder, CSVWritable},
     solution::{Batch, HasInfo, OutBatch},
     stop::{Calls, Stop},
 };
 use tantale_algos::random_search;
-use tantale_core::{Computed, Objective};
+use tantale_core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
@@ -99,7 +96,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
     Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, OutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol, SId, OutExample, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, OutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -128,7 +125,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save_batch(&cbatch, &obatch, sp, cod);
+    recorder.save(&cbatch, &obatch, sp, cod);
 
     let batch = opt.first_step(sp);
     let mut tobatch = OutBatch::empty(batch.info());
@@ -153,7 +150,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save_batch(&tcbatch, &tobatch, sp, cod);
+    recorder.save(&tcbatch, &tobatch, sp, cod);
     run_reader::<Scp, Op, St, CSVRecorder, Fn, PSol>(
         "tmp_test", cbatch, obatch, tcbatch, tobatch, cod, size,
     );
@@ -198,7 +195,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         HasUncomputed<SId, Scp::Opt, Op::SInfo, Uncomputed = SolOpt<Scp::SolShape, SId, Op::SInfo>>,
     Op: BatchOptimizer<PSol, SId, LinkOpt<Scp>, OutExample, Scp, Fn>,
     St: Stop + Send + Sync,
-    Rec: Recorder<PSol, SId, OutExample, Scp, Op>,
+    Rec: BatchRecorder<PSol, SId, OutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
     Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<OutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
@@ -382,23 +379,16 @@ fn test_csv_func() {
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<_, SId, OutExample, Sp<Mixed, _>, BatchRandomSearch>>::
-    init_batch::<Objective<Arc<[MixedTypeDom]>, OutExample>,>(
-        &mut recorder,
-        &sp,
-        &cod,
-    );
+    <CSVRecorder as BatchRecorder<
+        BaseSol<SId, Mixed, EmptyInfo>,
+        SId,
+        OutExample,
+        Sp<Mixed, NoDomain>,
+        BatchRandomSearch,
+        Objective<Arc<[MixedTypeDom]>, OutExample>,
+    >>::init(&mut recorder, &sp, &cod);
 
     run_recorder(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
-
-    // run_recorder(
-    //     &sp,
-    //     &cod,
-    //     &mut rs,
-    //     &mut stop,
-    //     &mut recorder,
-    //     12,
-    // );
 }
 
 struct Cleaner;

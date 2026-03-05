@@ -66,10 +66,7 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer,
-    SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner,
-    searchspace::OptionCompShape,
+    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolInfo, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -110,7 +107,7 @@ where
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
@@ -122,10 +119,25 @@ where
     pub current_budget: f64,
 }
 impl<SShape> OptState for AshaState<SShape> where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord
+    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord
 {
 }
 
+/// [`SolInfo`] for single-solution metadata of ASHA.
+/// Used to track the maximum budget level a solution can reach.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AshaInfo(f64);
+impl SolInfo for AshaInfo {}
+
+impl CSVWritable<(),()> for AshaInfo{
+    fn header(_elem: &()) -> Vec<String> {
+        vec!["budget_max".to_string()]
+    }
+
+    fn write(&self, _comp: &()) -> Vec<String> {
+        vec![self.0.to_string()]
+    }
+}
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)multi-fidelity optimizer.
 ///
 /// A [`SequentialOptimizer`](tantale_core::SequentialOptimizer) implementing the
@@ -138,6 +150,53 @@ impl<SShape> OptState for AshaState<SShape> where
 /// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
 ///   selecting the top performers and promoting them to the next level of fidelity, if the rung is has enough candidates.
 /// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
+///
+/// # Workflow
+///
+/// ```text
+///  Worker requests solution
+///           |
+///           v
+///  +------------------------------+
+///  | Provide a Computed solution? |
+///  +------------------------------+
+///     Yes /     \ No
+///        /       \
+///       v         v
+///  +--------+   +---------------------+
+///  | Add to |   | Start from highest  |
+///  | rung   |-->| budget rung         |
+///  +--------+   +---------------------+
+///                      |
+///                      v
+///               +----------------+
+///               | Rung has top-k |  No
+///               | candidates?    | ----+
+///               +----------------+     |
+///                      | Yes           |
+///                      v               v
+///               +-------------+   +----------+
+///               | Promote     |   | Move to  |
+///               | top config  |   | next     |
+///               | to next     |   | rung     |
+///               | fidelity    |   +----------+
+///               +-------------+        |
+///                      |               |
+///                      +<--------------+
+///                      |
+///                      v
+///                +----------+
+///               / At lowest  \
+///              /    rung?     \
+///              \              /  Yes
+///               \            / ------> Sample random config
+///                \    No    /              at b_min
+///                 +-------+                  |
+///                     |                      |
+///                     +<---------------------+
+///                     v
+///           Return solution to worker
+/// ```
 ///
 /// # Type Parameters
 ///
@@ -164,15 +223,15 @@ impl<SShape> OptState for AshaState<SShape> where
 /// ```
 /// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
 /// ```rust,ignore
-/// self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+/// self.with_rng(|rng| scp.sample_pair(rng, AshaInfo::default().into()))
 /// ```
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
+    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord;
 
 impl<SShape> Asha<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -228,18 +287,18 @@ where
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, AshaInfo>, SId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
-    type SInfo = EmptyInfo;
+    type SInfo = AshaInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -260,14 +319,14 @@ where
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, AshaInfo>, SId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -354,19 +413,19 @@ where
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
+        FidelitySol<SId, Scp::Opt, AshaInfo>,
         SId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, SId, AshaInfo>, Out, FnState>,
     > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
@@ -413,7 +472,7 @@ where
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            FidelitySol<SId, Scp::Opt, AshaInfo>,
             SId,
             Self::SInfo,
             Self::Cod,
@@ -423,8 +482,6 @@ where
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_) = comp.step() {
-                println!("ASHA FIDELITY : {}", comp.fidelity().0);
-                println!("ASHA BUDGETS {:?}", self.0.budgets);
                 let idx = self
                     .0
                     .budgets
@@ -442,7 +499,7 @@ where
                 k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
             }
             if k == 0 {
-                self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+                self.with_rng(|rng| scp.sample_pair(rng, AshaInfo(self.0.budgets[self.0.budgets.len()-1]).into()))
             } else {
                 self.0.rung[i].select_nth_unstable(k);
                 self.0.current_budget = self.0.budgets[i];
@@ -450,7 +507,7 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+            self.with_rng(|rng| scp.sample_pair(rng, AshaInfo(self.0.budgets[self.0.budgets.len()-1]).into()))
         };
         p.set_fidelity(self.0.current_budget);
         p

@@ -2,16 +2,27 @@
 //!
 //! This module defines the recording layer for optimization experiments.
 //! A [`Recorder`] saves the different [`Solutions`](crate::Solution), [`Outcomes`](crate::objective::Outcome),
-//! meta-data from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo), [`Codomain`](crate::Codomain) elements...
+//! metadata from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo), 
+//! and [`Codomain`](crate::Codomain) elements.
 //!
 //! ## Overview
 //!
 //! Tantale provides concrete recorders such as [`CSVRecorder`] as well as a no-op recorder
 //! [`NoSaver`] for experiments where persistence is not required.
 //!
-//! Tantale provide two traits:
-//! - [`Recorder`] - Base trait for single-process experiments
-//! - [`DistRecorder`] - Distributed variant for MPI-based experiments (enabled with `mpi` feature)
+//! ## Recorder Traits
+//!
+//! Tantale provides specialized recorder traits based on the experiment type:
+//!
+//! ### Single-Process Experiments
+//! - [`Recorder`] - Base marker trait for all recorder implementations
+//! - [`SeqRecorder`] - For sequential optimizers (one solution at a time)
+//! - [`BatchRecorder`] - For batch optimizers (multiple solutions per iteration)
+//!
+//! ### Distributed Experiments (MPI)
+//! When the `mpi` feature is enabled:
+//! - [`DistSeqRecorder`] - For distributed sequential experiments
+//! - [`DistBatchRecorder`] - For distributed batch experiments
 //!
 //! ## Usage
 //!
@@ -21,11 +32,11 @@
 //! let mut recorder = CSVRecorder::new(config)?;
 //! recorder.init(); // Done inside the Runable
 //! // ... optimization loop with periodic checkpointing ...
-//! recorder.save_pair(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
+//! recorder.save(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, Optimizer, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed}
+    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed}
 };
 
 #[cfg(feature = "mpi")]
@@ -37,34 +48,50 @@ pub use csv::{CSVRecorder, CSVWritable};
 pub mod nosaver;
 pub use nosaver::NoSaver;
 
-/// Base recorder trait for saving evaluated solutions and outcomes.
+/// Marker trait for recorder implementations used by the experiment runner to save evaluation results.
 ///
 /// A [`Recorder`] is invoked by the experiment runner to persist evaluation results. It receives
 /// computed solutions and outcomes as they are produced by the optimization loop. Implementations
-/// can store results in files (e.g. CSV)
-///
-/// # Lifecycle
-///
-/// Recorders follow a simple lifecycle:
-/// - [`init`](Recorder::init) is called for a new experiment
-/// - [`after_load`](Recorder::after_load) is called when resuming an experiment
-/// - [`save_pair`](Recorder::save_pair) saves a single evaluated [`SolutionShape`]
-/// - [`save_batch`](Recorder::save_batch) saves a [`Batch`](crate::Batch) of evaluated solutions
+/// can store results in files (e.g., CSV), databases, or other storage backends.
+/// 
+/// This is a base trait that all recorders must implement. The actual recording functionality
+/// is provided by specialized traits like [`SeqRecorder`] and [`BatchRecorder`].
 ///
 /// # See Also
 ///
+/// - [`SeqRecorder`] - Sequential experiment recorder trait
+/// - [`BatchRecorder`] - Batch experiment recorder trait  
 /// - [`CSVRecorder`] - File-based CSV recorder implementation
-/// - [`NoSaver`] - No-op recorder
-/// - [`DistRecorder`] - MPI distributed recorder
-pub trait Recorder<PSol, SolId, Out, Scp, Op>
+/// - [`NoSaver`] - No-op recorder for experiments without persistence
+pub trait Recorder { }
+
+/// Recorder trait for sequential optimization experiments.
+///
+/// [`SeqRecorder`] is used with [`SequentialOptimizer`](crate::SequentialOptimizer)s,
+/// which generate and evaluate one solution at a time. Each call to [`save`](SeqRecorder::save)
+/// records a single evaluated solution and its associated outcome.
+///
+/// # Usage
+///
+/// Implementations must provide three methods:
+/// - [`init`](SeqRecorder::init) - Initialize storage for a new experiment
+/// - [`after_load`](SeqRecorder::after_load) - Prepare for resuming a loaded experiment
+/// - [`save`](SeqRecorder::save) - Record a single evaluated solution
+///
+/// # See Also
+///
+/// - [`BatchRecorder`] - For batch optimization experiments
+/// - [`DistSeqRecorder`] - For distributed sequential experiments (MPI)
+pub trait SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Out: Outcome,
-    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
+    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder storage for a new sequential experiment.
     ///
@@ -75,38 +102,64 @@ where
     ///
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init_seq<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    fn init(&mut self, scp: &Scp, cod: &Op::Cod);
 
     /// Prepare the recorder for resuming from a [`load`](crate::load)ed sequential experiment.
     ///
     /// # Parameters
     ///
-    /// * `scp` - Searchspace describing the solution structure
-    /// * `cod` - Codomain describing objective outputs
-    fn after_load_seq<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn after_load(&mut self, scp: &Scp, cod: &Op::Cod);
 
     /// Save a single evaluated solution and its outcome.
     ///
+    /// This method is called after each solution evaluation to persist the result.
+    ///
     /// # Parameters
     ///
-    /// * `computed` - The fully computed solution
+    /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
     /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`](crate::objective::Outcome)
     /// * `scp` - [`Searchspace`] used to interpret the solution
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
-    /// * `info` - Optional [`OptInfo`](crate::OptInfo) metadata associated with the evaluation
-    fn save_pair(
+    fn save(
         &self,
         computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
     );
+}
 
-    /// Initialize recorder storage for a new batched experiment.
+/// Recorder trait for batch optimization experiments.
+///
+/// [`BatchRecorder`] is used with [`BatchOptimizer`](crate::BatchOptimizer)s,
+/// which generate and evaluate multiple solutions per iteration. Each call to [`save`](BatchRecorder::save)
+/// records a batch of evaluated solutions and their associated outcomes.
+///
+/// # Usage
+///
+/// Implementations must provide three methods:
+/// - [`init`](BatchRecorder::init) - Initialize storage for a new experiment
+/// - [`after_load`](BatchRecorder::after_load) - Prepare for resuming a loaded experiment
+/// - [`save`](BatchRecorder::save) - Record a batch of evaluated solutions
+///
+/// # See Also
+///
+/// - [`SeqRecorder`] - For sequential optimization experiments
+/// - [`DistBatchRecorder`] - For distributed batch experiments (MPI)
+pub trait BatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
+where
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    SolId: Id,
+    Out: Outcome,
+    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
+    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+{
+/// Initialize recorder storage for a new batched experiment.
     ///
     /// This method should create any required files, headers, or database tables.
     /// It is called once before the optimization loop starts.
@@ -115,19 +168,15 @@ where
     ///
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    fn init(&mut self, scp: &Scp, cod: &Op::Cod);
 
     /// Prepare the recorder for resuming from a [`load`](crate::load)ed batched experiment.
     ///
     /// # Parameters
     ///
-    /// * `scp` - Searchspace describing the solution structure
-    /// * `cod` - Codomain describing objective outputs
-    fn after_load_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn after_load(&mut self, scp: &Scp, cod: &Op::Cod);
 
     /// Save a batch of evaluated [`Solution`](crate::Solution)s and [`Outcome`](crate::objective::Outcome)s.
     ///
@@ -137,82 +186,158 @@ where
     /// * `outputed` - The output [`Batch`](crate::Batch) with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    fn save_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+    fn save
     (
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
-    )
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-        Op::Info: Send + Sync;
+    );
 }
 
+
 #[cfg(feature = "mpi")]
-/// Distributed recorder trait for MPI-based experiments.
+/// Distributed recorder trait for MPI-based sequential experiments.
 ///
-/// [`DistRecorder`] extends [`Recorder`] and is used when optimization is MPI-distributed across multiple MPI-process.
+/// [`DistSeqRecorder`] extends [`Recorder`] for sequential optimizers running in an
+/// MPI-distributed environment. It provides the same functionality as [`SeqRecorder`]
+/// but with additional MPI context for coordinating recording across multiple processes.
 ///
 /// # MPI Context
 ///
-/// The `proc: &MPIProcess` parameter provides the rank and communicator needed to
-/// manage distributed recorders.
+/// Each method receives a `proc: &MPIProcess` parameter that provides the rank and
+/// communicator needed to manage distributed recording, ensuring proper coordination
+/// when multiple MPI processes write to shared storage.
 ///
 /// # See Also
 ///
-/// - [`Recorder`] - Base recorder trait
+/// - [`SeqRecorder`] - Single-process sequential recorder
+/// - [`DistBatchRecorder`] - Distributed batch recorder
 /// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI process context
-pub trait DistRecorder<PSol, SolId, Out, Scp, Op>: Recorder<PSol, SolId, Out, Scp, Op>
+pub trait DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Out: Outcome,
-    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
+    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
-    /// Similar to [`init_seq`](Recorder::init_seq) but for distributed sequential experiments.
-    fn init_seq_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    /// Initialize recorder storage for a new distributed sequential experiment.
+    ///
+    /// Similar to [`SeqRecorder::init`] but with MPI process context.
+    ///
+    /// # Parameters
+    ///
+    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
 
-    /// Similar to [`after_load_seq`](Recorder::after_load_seq) but for distributed sequential experiments.
-    fn after_load_seq_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+    /// Prepare the recorder for resuming from a loaded distributed sequential experiment.
+    ///
+    /// Similar to [`SeqRecorder::after_load`] but with MPI process context.
+    ///
+    /// # Parameters
+    ///
+    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
 
-    /// Similar to [`save_pair`](Recorder::save_pair) but for distributed sequential experiments.
-    fn save_pair_dist(
+    /// Save a single evaluated solution in a distributed sequential experiment.
+    ///
+    /// Similar to [`SeqRecorder::save`] but allows MPI-aware implementations to coordinate
+    /// writes across processes.
+    ///
+    /// # Parameters
+    ///
+    /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
+    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`](crate::objective::Outcome)
+    /// * `scp` - [`Searchspace`] used to interpret the solution
+    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
+    fn save_dist(
         &self,
         computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
     );
+}
 
-    /// Similar to [`init_batch`](Recorder::init_batch) but for distributed batched experiments.
-    fn init_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// Similar to [`after_load_batch`](Recorder::after_load_batch) but for distributed batched experiments.
-    fn after_load_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// Similar to [`save_batch`](Recorder::save_batch) but for distributed batched experiments.
-    fn save_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+#[cfg(feature = "mpi")]
+/// Distributed recorder trait for MPI-based batch experiments.
+///
+/// [`DistBatchRecorder`] extends [`Recorder`] for batch optimizers running in an
+/// MPI-distributed environment. It provides the same functionality as [`BatchRecorder`]
+/// but with additional MPI context for coordinating recording across multiple processes.
+///
+/// # MPI Context
+///
+/// Each method receives a `proc: &MPIProcess` parameter that provides the rank and
+/// communicator needed to manage distributed recording, ensuring proper coordination
+/// when multiple MPI processes write to shared storage.
+///
+/// # See Also
+///
+/// - [`BatchRecorder`] - Single-process batch recorder
+/// - [`DistSeqRecorder`] - Distributed sequential recorder
+/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI process context
+pub trait DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
+where
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    SolId: Id,
+    Out: Outcome,
+    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
+    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+{
+    /// Initialize recorder storage for a new distributed batch experiment.
+    ///
+    /// Similar to [`BatchRecorder::init`] but with MPI process context.
+    ///
+    /// # Parameters
+    ///
+    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
+
+    /// Prepare the recorder for resuming from a loaded distributed batch experiment.
+    ///
+    /// Similar to [`BatchRecorder::after_load`] but with MPI process context.
+    ///
+    /// # Parameters
+    ///
+    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
+
+    /// Save a batch of evaluated solutions in a distributed batch experiment.
+    ///
+    /// Similar to [`BatchRecorder::save`] but allows MPI-aware implementations to coordinate
+    /// writes across processes.
+    ///
+    /// # Parameters
+    ///
+    /// * `computed` - The computed batch with optimizer metadata
+    /// * `outputed` - The output batch with outcomes
+    /// * `scp` - [`Searchspace`] used to interpret the solutions
+    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
+    fn save_dist
     (
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
-    )
-    where
-        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-        Op::Info: Send + Sync;
+    );
 }

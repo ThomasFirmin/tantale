@@ -298,9 +298,9 @@ pub use experiment::{
 pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded};
 
 pub mod recorder;
+pub use recorder::{CSVRecorder, CSVWritable, Recorder, SeqRecorder, BatchRecorder, NoSaver};
 #[cfg(feature = "mpi")]
-pub use recorder::DistRecorder;
-pub use recorder::{CSVRecorder, CSVWritable, Recorder};
+pub use recorder::{DistBatchRecorder, DistSeqRecorder};
 
 pub mod checkpointer;
 #[cfg(feature = "mpi")]

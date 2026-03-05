@@ -165,6 +165,50 @@ impl CSVWritable<(), ()> for ShaInfo {
 /// - This process continues until `budget_max` is reached
 /// - Then the cycle repeats with a fresh batch at `budget_min`
 ///
+/// # Workflow
+///
+/// ```text
+///  Start
+///    |
+///    v
+/// +------------------+
+/// | Sample n configs |  <--- budget = b_min
+/// +------------------+
+///    |
+///    v
+/// +------------------+
+/// | Evaluate batch   |  at fidelity = budget
+/// +------------------+
+///    |
+///    v
+/// +------------------+
+/// | Keep top k       |  k = floor(n / eta)
+/// | Discard rest     |
+/// +------------------+
+///    |
+///    v
+/// +------------------+
+/// | budget *= eta    |
+/// +------------------+
+///     |
+///     v
+///     ^
+///    / \
+///   /   \
+///  /     \
+/// / Max?  \  No ---> Evaluate survivors at new fidelity
+/// \ budget/           (loop back to "Evaluate batch")
+///  \     /
+///   \   /
+///    \ /
+///     v
+/// Yes |
+///     v
+/// +------------------+
+/// | Restart cycle    |  (loop back to "Sample n configs")
+/// +------------------+
+/// ```
+///
 /// # Type Parameters
 ///
 /// This optimizer is generic over:

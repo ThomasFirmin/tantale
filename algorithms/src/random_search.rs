@@ -78,6 +78,36 @@ impl OptState for SeqRSState {}
 /// This optimizer samples solutions on-demand and  at random
 /// from the [`Searchspace`] at each iteration, without any internal state or memory of past evaluations.
 ///
+/// # Workflow
+///
+/// ```text
+///  Worker requests solution
+///           |
+///           v
+///  +--------------------+
+///  | Prior solution     |
+///  | provided?          |
+///  +--------------------+
+///     Yes /         | No
+///        /          |
+///       v           |
+///  +----------+     |
+///  | Check    |     +----------------+
+///  | status   |                      |
+///  +----------+                      |
+///       |                            v
+///       v                  +-------------------+  
+///   / Partially \          | Sample new random |  
+///  /   stepped?  \  No --> | solution from     |
+///  \             /         | searchspace       |
+///   \   Yes    /           +-------------------+  
+///     +-----+                        |      
+///        |                           |
+///        v                           v
+///  Return same solution      Return the solution
+///  (continue evaluation)
+/// ```
+///
 /// # Note
 ///
 /// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
@@ -274,6 +304,47 @@ impl OptState for BatchRSState {}
 /// Batched Random Search optimizer implementation.
 /// This optimizer samples batches of solutions at random from the [`Searchspace`] at each iteration,
 /// without any internal state or memory of past evaluations, except for the iteration count.
+///
+/// # Workflow
+///
+/// ```text
+///  Start / Previous batch evaluated
+///           |
+///           v
+///  +--------------------+
+///  | Prior batch        |
+///  | provided?          |
+///  +--------------------+
+///      No /     \ Yes
+///        /       \
+///       v         v
+///  +--------+   +--------------------+
+///  | First  |   | For each solution: |
+///  | batch  |   +--------------------+
+///  +--------+            |
+///       |                v
+///       |        +----------------+
+///       |        | Partially      |  Yes
+///       |        | stepped?       | ---+
+///       |        +----------------+    |
+///       |                | No          |
+///       |                v             |
+///       |        +----------------+    |
+///       |        | Sample new     |    |
+///       |        | random config  |    |
+///       |        +----------------+    |
+///       |                |             |
+///       |                +<------------+
+///       |                |
+///       v                v
+///  +--------------------+
+///  | Assemble batch     |
+///  | Increment iteration|
+///  +--------------------+
+///           |
+///           v
+///    Return batch for evaluation
+/// ```
 ///
 /// # Note
 ///

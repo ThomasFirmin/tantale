@@ -12,7 +12,7 @@ use crate::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, recorder::DistRecorder,
+    checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess,
     solution::HasY,
 };
 
@@ -53,7 +53,7 @@ where
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -90,7 +90,7 @@ where
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
-    Rec: Recorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -131,7 +131,7 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
-    Rec: DistRecorder<PSol, SolId, Out, Scp, Op>,
+    Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,

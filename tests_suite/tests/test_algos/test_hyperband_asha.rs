@@ -1,5 +1,5 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, optimizer::opt::BudgetPruner, stop::Calls
+    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, stop::Calls
 };
 
 use tantale_algos::{Asha, Hyperband, asha};
@@ -98,7 +98,7 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -121,7 +121,7 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_hyperband_asha_run");
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
@@ -144,9 +144,9 @@ fn test_fid_seq_parrun() {
     drop(Cleaner {
         path: String::from("tmp_test_hyperband_asha_parrun"),
     });
-    // let _cleaner = Cleaner {
-    //     path: String::from("tmp_test_hyperband_asha_parrun"),
-    // };
+    let _cleaner = Cleaner {
+        path: String::from("tmp_test_hyperband_asha_parrun"),
+    };
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -182,7 +182,7 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(threaded, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -207,7 +207,7 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, Hyperband<Asha<_>,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(threaded, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_hyperband_asha_parrun");
     let expstop = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -221,7 +221,7 @@ fn test_fid_seq_parrun() {
     let current_max = 5. * 1.61_f64.powi(- (expoptimizer.0.current_s as i32));
     assert_eq!(current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(), "Current max budget is not equal to inner budget max");
 
-    // drop(Cleaner {
-    //     path: String::from("tmp_test_hyperband_asha_parrun"),
-    // });
+    drop(Cleaner {
+        path: String::from("tmp_test_hyperband_asha_parrun"),
+    });
 }
