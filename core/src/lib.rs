@@ -287,7 +287,7 @@ pub use crate::optimizer::{
 };
 
 pub mod stop;
-pub use stop::{Calls, Stop};
+pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
 #[cfg(feature = "mpi")]

@@ -95,7 +95,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init_batch(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -135,7 +135,7 @@ where
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load_batch(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -204,7 +204,7 @@ where
 
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_mut_state(), &self.stop, &eval)
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
             }
         }
     }
@@ -330,7 +330,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init_batch(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -384,7 +384,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
-                r.after_load(&searchspace, &codomain);
+                r.after_load_batch(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -462,7 +462,7 @@ where
 
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_mut_state(), &self.stop, &eval);
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
             }
         }
     }
@@ -565,7 +565,6 @@ where
             Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: Send + Sync,
@@ -589,7 +588,7 @@ where
         let (recorder, checkpointer) = saver;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init_batch(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -634,7 +633,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load_batch(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -713,7 +712,7 @@ where
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
                 if let Some(c) = &self.checkpointer {
-                    c.save_state_thr(self.optimizer.get_mut_state(), &*stlock, &eval, 0)
+                    c.save_state_thr(self.optimizer.get_state(), &*stlock, &eval, 0)
                 }
             }
         }
@@ -818,7 +817,6 @@ where
             Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
         >,
     Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
@@ -846,7 +844,7 @@ where
         let (searchspace, codomain) = space;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init_batch(&searchspace, &codomain);
                 Some(r)
             }
             None => None,
@@ -893,7 +891,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load_batch(&searchspace, &codomain);
                 Some(rec)
             }
             None => None,
@@ -978,7 +976,7 @@ where
                 let mut stlock = st.lock().unwrap();
                 stlock.update(ExpStep::Optimization);
                 if let Some(c) = &self.checkpointer {
-                    c.save_state_thr(self.optimizer.get_mut_state(), &*stlock, &eval, 0)
+                    c.save_state_thr(self.optimizer.get_state(), &*stlock, &eval, 0)
                 }
             }
         }
@@ -1128,7 +1126,7 @@ where
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_dist(proc, &searchspace, &codomain);
+                    r.init_batch_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1192,7 +1190,7 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_dist(proc, &searchspace, &codomain);
+                    r.after_load_batch_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1293,7 +1291,7 @@ where
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
                 c.save_state_dist(
-                    self.optimizer.get_mut_state(),
+                    self.optimizer.get_state(),
                     &self.stop,
                     &eval,
                     self.proc.rank,
@@ -1447,7 +1445,7 @@ where
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_dist(proc, &searchspace, &codomain);
+                    r.init_batch_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1520,7 +1518,7 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_dist(proc, &searchspace, &codomain);
+                    r.after_load_batch_dist(proc, &searchspace, &codomain);
                     Some(r)
                 }
                 None => None,
@@ -1623,7 +1621,7 @@ where
             // Checkpointing part
             if let Some(c) = &self.checkpointer {
                 c.save_state_dist(
-                    self.optimizer.get_mut_state(),
+                    self.optimizer.get_state(),
                     &self.stop,
                     &eval,
                     self.proc.rank,

@@ -119,7 +119,7 @@ where
     /// A vector of vectors representing the rungs of the Successive Halving process.
     pub rung: Vec<Vec<SShape>>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
-    current_budget: f64,
+    pub current_budget: f64,
 }
 impl<SShape> OptState for AshaState<SShape> where
     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord
@@ -200,15 +200,12 @@ where
         );
         let mut budgets: Vec<f64> = (0..)
             .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b < budget_max)
+            .take_while(|&b| b <= budget_max)
             .collect();
-        //If final budget does not round to budget_max, add budget_max as final budget level
-        if budgets.last().unwrap().round() != budget_max {
-            budgets.push(budget_max);
-        } else {
-            // else rounds final budget to budget_max, round to budget_max
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *budgets.last().unwrap() != budget_max {
             let last = budgets.last_mut().unwrap();
-            *last = last.round();
+            *last = budget_max;
         }
 
         let length = budgets.len();
@@ -243,7 +240,6 @@ where
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = EmptyInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -279,16 +275,14 @@ where
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
         self.0.budgets = (0..)
             .map(|i| budget_min * self.0.scaling.powi(i))
-            .take_while(|&b| b < budget_max)
+            .take_while(|&b| b <= budget_max)
             .collect();
-        //If final budget does not round to budget_max, add budget_max as final budget level
-        if self.0.budgets.last().unwrap().round() != budget_max {
-            self.0.budgets.push(budget_max);
-        } else {
-            // else rounds final budget to budget_max, round to budget_max
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *self.0.budgets.last().unwrap() != budget_max {
             let last = self.0.budgets.last_mut().unwrap();
-            *last = last.round();
+            *last = budget_max;
         }
+        self.0.current_budget = self.0.budgets[0];
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -308,6 +302,15 @@ where
     /// Returns the current scaling factor for this optimizer.
     fn get_scaling(&self) -> f64 {
         self.0.scaling
+    }
+
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64) {
+        assert!(
+            budget >= self.0.budgets[0] && budget <= self.0.budgets[self.0.budgets.len() - 1],
+            "Current budget must be within the range of defined budgets"
+        );
+        self.0.current_budget = budget;
     }
 
     fn get_current_budget(&self) -> f64 {
@@ -420,13 +423,16 @@ where
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_) = comp.step() {
+                println!("ASHA FIDELITY : {}", comp.fidelity().0);
+                println!("ASHA BUDGETS {:?}", self.0.budgets);
                 let idx = self
                     .0
                     .budgets
                     .iter()
-                    .position(|&b| b == comp.fidelity().0)
-                    .unwrap();
-                self.0.rung[idx + 1].push(comp);
+                    .position(|&b| b == comp.fidelity().0);
+                if let Some(i) = idx {
+                    self.0.rung[i + 1].push(comp);
+                }
             }
 
             let mut i = self.0.budgets.len() - 1;

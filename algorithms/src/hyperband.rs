@@ -120,7 +120,15 @@ where
 
 impl<Optim, Out, Scp> OptState for HyperbandState<Optim, Out, Scp>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>
+           + BudgetPruner<
+                FidelitySol<SId, Scp::Opt, EmptyInfo>,
+                SId,
+                Scp::Opt,
+                Out,
+                Scp,
+                SInfo = EmptyInfo,
+            >,
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
@@ -197,12 +205,13 @@ where
     /// This function initializes the internal state of the optimizer based on the provided sampler bounded by [`BudgetPruner`].
     /// The initial budget levels are computed based on the minimum and maximum budgets and the scaling factor from the sampler.
     /// The internal state is encapsulated in a `HyperbandState` struct, which includes all necessary information to resume optimization after checkpointing.
-    pub fn new(sampler: Optim) -> Self {
+    pub fn new(mut sampler: Optim) -> Self {
         let (budget_min, budget_max) = sampler.get_budgets();
         let scaling = sampler.get_scaling();
 
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
-        let current_s = s_max;
+        let current_s = 0; // To start with if current_s = 0, to correctly initialize
+        sampler.set_current_budget(budget_max);
 
         Hyperband(HyperbandState {
             budget_min,
@@ -235,7 +244,6 @@ where
     type State = HyperbandState<Optim, Out, Scp>;
     type Cod = Optim::Cod;
     type SInfo = Optim::SInfo;
-    type Info = HyperbandInfo<Optim::Info>;
 
     /// Provides mutable access to the internal state of the [`Hyperband`] optimizer.
     fn get_mut_state(&mut self) -> &Self::State {
@@ -286,6 +294,8 @@ where
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
+    type Info = HyperbandInfo<Optim::Info>;
+    
     /// Computes the first batch of candidates for the Hyperband optimization process.
     /// It uses the inner [`BudgetPruner`] to generate the initial batch of candidates based on the current budget configuration.
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
@@ -391,6 +401,9 @@ where
         scp: &Scp,
     ) -> Scp::SolShape {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
+            if let Some(c) = &x{
+                println!("FIDELITY : {} | {} | {}", c.fidelity(), self.0.inner.get_current_budget(), self.0.inner.get_budgets().1);
+            }
             self.0.inner.step(x, scp)
         } else {
             let to_discard = x.map_or(self.0.inner.drain_one(), |mut comp| {
@@ -408,6 +421,7 @@ where
                 }
                 let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
                 self.0.inner.set_budgets(self.0.budget_min, r);
+                println!("AFTER Current budget: {} | Max budget: {}", self.0.inner.get_current_budget(), self.0.inner.get_budgets().1);
                 self.0.inner.step(None, scp)
             }
         }
@@ -443,7 +457,15 @@ struct HBFieldVisitor;
 
 impl<Optim, Out, Scp> Serialize for HyperbandState<Optim, Out, Scp>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>,
+    Optim: Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp, SInfo = EmptyInfo>
+           + BudgetPruner<
+                FidelitySol<SId, Scp::Opt, EmptyInfo>,
+                SId,
+                Scp::Opt,
+                Out,
+                Scp,
+                SInfo = EmptyInfo,
+            >,
     Optim::State: Serialize,
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
@@ -546,10 +568,10 @@ where
         let scaling = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-        let current_s = seq
+        let s_max = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(3, &self))?;
-        let s_max = seq
+        let current_s = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
         let inner_state = seq

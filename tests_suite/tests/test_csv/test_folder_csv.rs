@@ -13,7 +13,7 @@ use tantale::core::{
     stop::{Calls, Stop},
 };
 use tantale_algos::random_search;
-use tantale_core::Computed;
+use tantale_core::{Computed, Objective};
 use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
@@ -73,7 +73,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
-        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
+        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, OutExample>
         + Send
         + Sync,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: SolutionShape<
@@ -89,7 +89,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
             >,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, OutExample, Op::SInfo>,
         > + HasY<Op::Cod, OutExample>
-        + InfoCSVWrite<SId, Op::SInfo, Op::Info>
+        + InfoCSVWrite<SId, Op::SInfo>
         + HasY<Op::Cod, OutExample>
         + Send
         + Sync,
@@ -172,7 +172,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
-        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, OutExample>
+        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, OutExample>
         + Send
         + Sync,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, OutExample>: SolutionShape<
@@ -188,7 +188,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             >,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, OutExample, Op::SInfo>,
         > + HasY<Op::Cod, OutExample>
-        + InfoCSVWrite<SId, Op::SInfo, Op::Info>
+        + InfoCSVWrite<SId, Op::SInfo>
         + HasY<Op::Cod, OutExample>
         + Send
         + Sync,
@@ -382,7 +382,8 @@ fn test_csv_func() {
     let mut stop = Calls::new(100);
     let config = Arc::new(FolderConfig::new("tmp_test"));
     let mut recorder = CSVRecorder::new(config, true, true, true, true).unwrap();
-    <CSVRecorder as Recorder<_, SId, OutExample, Sp<Mixed, _>, BatchRandomSearch>>::init(
+    <CSVRecorder as Recorder<_, SId, OutExample, Sp<Mixed, _>, BatchRandomSearch>>::
+    init_batch::<Objective<Arc<[MixedTypeDom]>, OutExample>,>(
         &mut recorder,
         &sp,
         &cod,

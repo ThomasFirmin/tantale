@@ -95,37 +95,28 @@ where
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-///
-/// # Fields
-///
-/// * `batch` - Initial batch size. Determines the total number of candidates evaluated at the first stage of each iteration.
-/// * `budget_min` - Minimum budget (lowest fidelity level). Represents the starting resource
-///   allocation for candidates, typically a small value (e.g., 1 epoch for neural networks).
-/// * `budget_max` - Maximum budget (highest fidelity level). The upper bound for resource
-///   allocation. Once reached, the process restarts with `budget_min`.
-/// * `budget` - Current budget level. This value increases by `scaling` at each stage until
-///   it reaches `budget_max`.
-/// * `scaling` - Scaling factor ($\eta$) by which the budget is multiplied at each stage.
-///   Must be $\geq 1.0$. Common values are 2.0 or 3.0.
-/// * `iteration` - Current iteration count. Increments after each call to [`step()`](Sha::step).
 #[derive(Serialize, Deserialize)]
 pub struct ShaState {
+    /// Initial batch size for each iteration. Determines how many candidates are evaluated at the lowest fidelity level.
     pub batch: usize,
+    /// Minimum budget (lowest fidelity level). Represents the starting resource allocation for candidates.
     pub budget_min: f64,
+    /// Maximum budget (highest fidelity level). The upper bound for resource allocation. 
+    /// Once reached, the process restarts with `budget_min`.
     pub budget_max: f64,
-    pub budget: f64,
+    /// Current budget level. This value increases by `scaling` at each stage until it reaches `budget_max`.
+    pub current_budget: f64,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
     pub scaling: f64,
+    /// Current iteration count. Increments after each call to [`step()`](Sha::step).
     pub iteration: usize,
 }
 impl OptState for ShaState {}
 
 /// Metadata for a Successive Halving optimization step, associated to each [`Batch`].
-///
-/// # Fields
-///
-/// * `iteration` - The iteration number at which this batch was created..
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ShaInfo {
+    /// The iteration number at which this info was created. Increments after each call to [`step()`](Sha::step).
     pub iteration: usize,
 }
 impl OptInfo for ShaInfo {}
@@ -230,7 +221,7 @@ impl Sha {
                 batch,
                 budget_min,
                 budget_max,
-                budget: budget_min,
+                current_budget: budget_min,
                 scaling,
                 iteration: 0,
             },
@@ -250,7 +241,6 @@ where
     type State = ShaState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = ShaInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -282,7 +272,7 @@ where
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
         self.0.budget_min = budget_min;
         self.0.budget_max = budget_max;
-        self.0.budget = budget_min;
+        self.0.current_budget = budget_min;
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -290,9 +280,18 @@ where
         (self.0.budget_min, self.0.budget_max)
     }
 
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64) {
+        assert!(
+            budget >= self.0.budget_min && budget <= self.0.budget_max,
+            "Current budget must be between budget_min and budget_max"
+        );
+        self.0.current_budget = budget;
+    }
+    
     /// Retrieves the current budget level used by this optimizer for pruning candidates.
     fn get_current_budget(&self) -> f64 {
-        self.0.budget
+        self.0.current_budget
     }
 
     /// Updates the scaling factor for this optimizer.
@@ -339,6 +338,8 @@ where
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
+    type Info = ShaInfo;
+    
     /// Generates the initial [`Batch`] of candidates at minimum [`Fidelity`](tantale_core::Fidelity).
     ///
     /// Creates `batch` random candidates from the search space, each set to evaluate
@@ -355,7 +356,7 @@ where
         let info = ShaInfo::new(self.0.iteration);
         let pairs: Vec<_> = scp.vec_apply_pair(
             |mut pair| {
-                pair.set_fidelity(self.0.budget);
+                pair.set_fidelity(self.0.current_budget);
                 pair
             },
             &mut self.1,
@@ -409,14 +410,14 @@ where
 
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
-            self.0.budget = self.0.budget_min;
+            self.0.current_budget = self.0.budget_min;
             <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
         } else {
             // Compute number of candidates to keep
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
 
             // Increase fidelity for next evaluation round (capped at budget_max)
-            self.0.budget = (self.0.budget * self.0.scaling).min(self.0.budget_max);
+            self.0.current_budget = (self.0.current_budget * self.0.scaling).min(self.0.budget_max);
             self.0.iteration += 1;
 
             // Partition candidates by performance: worst k candidates go before index k
@@ -431,7 +432,7 @@ where
                         pair.discard();
                     } else {
                         // Schedule best performers for next fidelity level
-                        pair.set_fidelity(self.0.budget);
+                        pair.set_fidelity(self.0.current_budget);
                     }
                     pair
                 })
@@ -439,7 +440,7 @@ where
 
             if new_pairs.is_empty() {
                 // Safety check: if no candidates remain, restart
-                self.0.budget = self.0.budget_min;
+                self.0.current_budget = self.0.budget_min;
                 <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
                     self, scp,
                 )

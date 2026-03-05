@@ -123,7 +123,7 @@ fn test_fid_batch_run() {
         path: String::from("tmp_test_sh_run"),
     });
     let _cleaner = Cleaner {
-        path: String::from("tmp_test_sh_parrun"),
+        path: String::from("tmp_test_sh_run"),
     };
 
     let sp = sp_evaluator_sh::get_searchspace();

@@ -21,7 +21,7 @@ use std::fmt::Debug;
 /// satisfying the required trait bounds.
 pub trait OptInfo
 where
-    Self: Serialize + for<'de> Deserialize<'de> + Debug + Default,
+    Self: Serialize + for<'de> Deserialize<'de> + CSVWritable<(), ()> + Debug + Default,
 {
 }
 
@@ -55,9 +55,6 @@ impl CSVWritable<(), ()> for EmptyInfo {
     }
 }
 
-/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`OptInfo`].
-pub type OpInfType<Op, PSol, Scp, SolId, Out> =
-    <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Info;
 /// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`SolInfo`].
 pub type OpSInfType<Op, PSol, Scp, SolId, Out> =
     <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::SInfo;
@@ -81,7 +78,6 @@ where
     type State: OptState;
     type Cod: Codomain<Out>;
     type SInfo: SolInfo;
-    type Info: OptInfo;
 
     /// Returns a mutable reference to the [`OptState`] of the [`Optimizer`].
     fn get_mut_state(&mut self) -> &Self::State;
@@ -109,6 +105,8 @@ where
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
+    type Info: OptInfo + Send + Sync;
+
     /// Executed once at the beginning of the optimization. Does not require previous
     /// computed solutions.
     fn first_step(&mut self, scp: &Scp) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
@@ -186,6 +184,9 @@ where
 
     /// Returns the current minimum and maximum budgets of the optimizer.
     fn get_budgets(&self) -> (f64, f64);
+
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64);
 
     /// Get the current budget level used by the optimizer for pruning candidates.
     fn get_current_budget(&self) -> f64;

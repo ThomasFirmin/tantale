@@ -300,7 +300,6 @@ where
             Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: Send + Sync,

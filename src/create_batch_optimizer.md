@@ -135,6 +135,7 @@ Then, multiple associated types have to be defined:
 * [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
 * [`Cod`](crate::core::Optimizer::Cod): The [`Codomain`](crate::core::Codomain) the algorithm is optimizing (e.g. single or multi-objectives)
 * [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
+and for [`BatchOptimizer`](crate::core::BatchOptimizer):
 * [`Info`](crate::core::OptInfo): Per-iteration meta-data
 
 Finally, two methods have to be written:
@@ -291,7 +292,6 @@ where
     type State = ShaState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = ShaInfo;
     
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -388,12 +388,15 @@ We have to define two functions:
 #     type State = ShaState;
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo;
-#     type Info = ShaInfo;
 #     
 #     fn get_state(&mut self) -> &Self::State {
 #         &self.0
 #     }
 #     
+#     fn get_mut_state(&mut self) -> &Self::State {
+#         &self.0
+#     }
+#
 #     fn from_state(state: Self::State) -> Self {
 #         Sha(state, rand::rng())
 #     }
@@ -418,6 +421,8 @@ where
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
+    type Info = ShaInfo;
+
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         let info = ShaInfo::new(self.0.iteration);
         let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity

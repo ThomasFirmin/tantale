@@ -131,7 +131,6 @@ where
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = EmptyInfo;
 
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -155,7 +154,6 @@ where
     type State = SeqRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = EmptyInfo;
 
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -334,7 +332,6 @@ where
     type State = BatchRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = RSInfo;
 
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -363,6 +360,8 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
+    type Info = RSInfo;
+
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
@@ -402,7 +401,6 @@ where
     type State = BatchRSState;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-    type Info = RSInfo;
 
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -434,6 +432,8 @@ where
         SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
 {
+    type Info = RSInfo;
+    
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }

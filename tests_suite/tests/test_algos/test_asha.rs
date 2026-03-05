@@ -69,15 +69,11 @@ fn test_fid_seq_run() {
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
-        .take_while(|&b| b < 5.)
+        .take_while(|&b| b <= 5.)
         .collect();
-    //If final budget does not round to budget_max, add budget_max as final budget level
-    if budgets.last().unwrap().round() != 5. {
-        budgets.push(5.);
-    } else {
-        // else rounds final budget to budget_max, round to budget_max
+    if *budgets.last().unwrap() != 5. {
         let last = budgets.last_mut().unwrap();
-        *last = last.round();
+        *last = 5.;
     }
 
     let sp = sp_evaluator_sh::get_searchspace();
@@ -153,15 +149,11 @@ fn test_fid_seq_parrun() {
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
-        .take_while(|&b| b < 5.)
+        .take_while(|&b| b <= 5.)
         .collect();
-    //If final budget does not round to budget_max, add budget_max as final budget level
-    if budgets.last().unwrap().round() != 5. {
-        budgets.push(5.);
-    } else {
-        // else rounds final budget to budget_max, round to budget_max
+    if *budgets.last().unwrap() != 5. {
         let last = budgets.last_mut().unwrap();
-        *last = last.round();
+        *last = 5.;
     }
 
     let sp = sp_evaluator_sh::get_searchspace();

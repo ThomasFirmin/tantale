@@ -23,15 +23,9 @@
 //! // ... optimization loop with periodic checkpointing ...
 //! recorder.save_pair(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
 //! ```
-use std::sync::Arc;
 
 use crate::{
-    Optimizer,
-    domain::onto::LinkOpt,
-    objective::Outcome,
-    optimizer::opt::CompBatch,
-    searchspace::{CompShape, Searchspace},
-    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
+    BatchOptimizer, FuncWrapper, Optimizer, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed}
 };
 
 #[cfg(feature = "mpi")]
@@ -72,7 +66,7 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
-    /// Initialize recorder storage for a new experiment.
+    /// Initialize recorder storage for a new sequential experiment.
     ///
     /// This method should create any required files, headers, or database tables.
     /// It is called once before the optimization loop starts.
@@ -81,17 +75,21 @@ where
     ///
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init(&mut self, scp: &Scp, cod: &Op::Cod);
+    fn init_seq<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// Prepare the recorder for resuming from a [`load`](crate::load)ed experiment.
+    /// Prepare the recorder for resuming from a [`load`](crate::load)ed sequential experiment.
     ///
     /// # Parameters
     ///
     /// * `scp` - Searchspace describing the solution structure
     /// * `cod` - Codomain describing objective outputs
-    fn after_load(&mut self, scp: &Scp, cod: &Op::Cod);
+    fn after_load_seq<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// Save a single evaluated solution and its outcome..
+    /// Save a single evaluated solution and its outcome.
     ///
     /// # Parameters
     ///
@@ -106,8 +104,30 @@ where
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Option<Arc<Op::Info>>,
     );
+
+    /// Initialize recorder storage for a new batched experiment.
+    ///
+    /// This method should create any required files, headers, or database tables.
+    /// It is called once before the optimization loop starts.
+    ///
+    /// # Parameters
+    ///
+    /// * `scp` - [`Searchspace`] describing the solution structure
+    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
+    fn init_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+
+    /// Prepare the recorder for resuming from a [`load`](crate::load)ed batched experiment.
+    ///
+    /// # Parameters
+    ///
+    /// * `scp` - Searchspace describing the solution structure
+    /// * `cod` - Codomain describing objective outputs
+    fn after_load_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
     /// Save a batch of evaluated [`Solution`](crate::Solution)s and [`Outcome`](crate::objective::Outcome)s.
     ///
@@ -117,13 +137,17 @@ where
     /// * `outputed` - The output [`Batch`](crate::Batch) with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    fn save_batch(
+    fn save_batch<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+    (
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
-    );
+    )
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+        Op::Info: Send + Sync;
 }
 
 #[cfg(feature = "mpi")]
@@ -150,28 +174,45 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
-    /// Similar to [`init`](Recorder::init) but with MPI context for distributed experiments.
-    fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
+    /// Similar to [`init_seq`](Recorder::init_seq) but for distributed sequential experiments.
+    fn init_seq_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// SImilar to [`after_load`](Recorder::after_load) but with MPI context for distributed experiments.
-    fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
+    /// Similar to [`after_load_seq`](Recorder::after_load_seq) but for distributed sequential experiments.
+    fn after_load_seq_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
 
-    /// Similar to [`save_pair`](Recorder::save_pair) but with MPI context for distributed experiments.
+    /// Similar to [`save_pair`](Recorder::save_pair) but for distributed sequential experiments.
     fn save_pair_dist(
         &self,
         computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
-        info: Option<Arc<Op::Info>>,
     );
 
-    /// Similar to [`save_batch`](Recorder::save_batch) but with MPI context for distributed experiments.
-    fn save_batch_dist(
+    /// Similar to [`init_batch`](Recorder::init_batch) but for distributed batched experiments.
+    fn init_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+
+    /// Similar to [`after_load_batch`](Recorder::after_load_batch) but for distributed batched experiments.
+    fn after_load_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod)
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>;
+
+    /// Similar to [`save_batch`](Recorder::save_batch) but for distributed batched experiments.
+    fn save_batch_dist<FnWrap:FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+    (
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
-    );
+    )
+    where
+        Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+        Op::Info: Send + Sync;
 }

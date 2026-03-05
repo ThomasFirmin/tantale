@@ -112,7 +112,6 @@ Then, multiple associated types have to be defined:
 * [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
 * [`Cod`](crate::core::Optimizer::Cod): The [`Codomain`](crate::core::Codomain) the algorithm is optimizing (e.g. single or multi-objectives)
 * [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
-* [`Info`](crate::core::OptInfo): Per-iteration meta-data
 
 Finally, two methods have to be written:
 * `get_state`: returns the current [`OptState`](crate::core::OptState) of the optimizer.
@@ -174,14 +173,12 @@ impl AshaState {
         // Create all different budgets
         let mut budgets: Vec<f64> = (0..)
             .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b < budget_max)
+            .take_while(|&b| b <= budget_max)
             .collect();
-        //If final budget does not round to budget_max, add budget_max as final budget level
-        if budgets.last().unwrap().round() != budget_max {
-            budgets.push(budget_max);
-        } else {
-            // else rounds final budget to budget_max, round to budget_max
-            budgets.last_mut().unwrap().round();
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *budgets.last().unwrap() != budget_max {
+            let last = budgets.last_mut().unwrap();
+            *last = budget_max;
         }
         
         let length = budgets.len();
@@ -256,15 +253,12 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #         // Create all different budgets
 #         let mut budgets: Vec<f64> = (0..)
 #             .map(|i| budget_min * scaling.powi(i))
-#             .take_while(|&b| b < budget_max)
+#             .take_while(|&b| b <= budget_max)
 #             .collect();
-#         //If final budget does not round to budget_max, add budget_max as final budget level
-#         if budgets.last().unwrap().round() != budget_max {
-#             budgets.push(budget_max);
-#         } else {
-#             // else rounds final budget to budget_max, round to budget_max
+#         //If final budget is not budget_max, modify final budget to be budget_max
+#         if *budgets.last().unwrap() != budget_max {
 #             let last = budgets.last_mut().unwrap();
-#             *last = last.round();
+#             *last = budget_max;
 #         }
 #         
 #         let length = budgets.len();
@@ -293,7 +287,6 @@ where
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo; // No metadata
-    type Info = EmptyInfo; // No metadata
 
     fn get_state(&self) -> &Self::State {
         &self.0
@@ -367,9 +360,13 @@ We have to define one functions:
 #         // Create all different budgets
 #         let mut budgets: Vec<f64> = (0..)
 #             .map(|i| budget_min * scaling.powi(i))
-#             .take_while(|&b| b < budget_max)
+#             .take_while(|&b| b <= budget_max)
 #             .collect();
-#         budgets.push(budget_max); // Add the last maximum budget
+#         //If final budget is not budget_max, modify final budget to be budget_max
+#         if *budgets.last().unwrap() != budget_max {
+#             let last = budgets.last_mut().unwrap();
+#             *last = budget_max;
+#         }
 #         
 #         let length = budgets.len();
 #         Asha(
@@ -395,7 +392,6 @@ We have to define one functions:
 #     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo; // No metadata
-#     type Info = EmptyInfo; // No metadata
 # 
 #     fn get_state(&mut self) -> &Self::State {
 #         &self.0

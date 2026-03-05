@@ -4,11 +4,10 @@ use crate::{
     optimizer::Optimizer,
     recorder::Recorder,
     searchspace::{CompShape, Searchspace},
-    solution::{Batch, HasY, Id, OutBatch, SolutionShape, Uncomputed},
+    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
 };
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[cfg(feature = "mpi")]
 use crate::{experiment::mpi::utils::MPIProcess, recorder::DistRecorder};
@@ -33,29 +32,52 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
-    fn init(&mut self, _scp: &Scp, _cod: &Op::Cod) {}
-    fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {}
+    fn init_seq<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn after_load_seq<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
     fn save_pair(
         &self,
         _computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &Op::Cod,
-        _info: Option<Arc<Op::Info>>,
     ) {
+        
     }
-    fn save_batch(
+
+    fn init_batch<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn after_load_batch<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn save_batch<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+    (
         &self,
-        _computed: &Batch<
-            SolId,
-            Op::SInfo,
-            Op::Info,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
-        >,
-        _outputed: &OutBatch<SolId, Op::Info, Out>,
+        _computed: &crate::CompBatch<SolId, Op::SInfo, <Op>::Info, Scp, PSol, Op::Cod, Out>,
+        _outputed: &OutBatch<SolId, <Op>::Info, Out>,
         _scp: &Scp,
         _cod: &Op::Cod,
-    ) {
+    )
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+        <Op>::Info: Send + Sync {
+        
     }
 }
 
@@ -70,28 +92,51 @@ where
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
-    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {}
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {}
+    fn init_seq_dist<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn after_load_seq_dist<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
     fn save_pair_dist(
         &self,
         _computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &Op::Cod,
-        _info: Option<Arc<Op::Info>>,
     ) {
+        
     }
-    fn save_batch_dist(
+
+    fn init_batch_dist<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn after_load_batch_dist<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod)
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap> {
+        
+    }
+
+    fn save_batch_dist<FnWrap:crate::FuncWrapper<crate::RawObj<Scp::SolShape, SolId, Op::SInfo>>>
+    (
         &self,
-        _computed: &Batch<
-            SolId,
-            Op::SInfo,
-            Op::Info,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
-        >,
-        _outputed: &OutBatch<SolId, Op::Info, Out>,
+        _computed: &crate::CompBatch<SolId, Op::SInfo, <Op>::Info, Scp, PSol, Op::Cod, Out>,
+        _outputed: &OutBatch<SolId, <Op>::Info, Out>,
         _scp: &Scp,
         _cod: &Op::Cod,
-    ) {
+    )
+    where
+        Op: crate::BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+        <Op>::Info: Send + Sync {
+        
     }
 }

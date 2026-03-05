@@ -311,7 +311,6 @@ where
             >,
         >,
     Op::Cod: Send + Sync,
-    Op::Info: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,

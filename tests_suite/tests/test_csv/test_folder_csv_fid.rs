@@ -82,7 +82,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         + HasFidelity,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
-        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, FidOutExample>
+        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, FidOutExample>
         + Send
         + Sync,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, FidOutExample>: SolutionShape<
@@ -98,7 +98,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
             >,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, FidOutExample, Op::SInfo>,
         > + HasY<Op::Cod, FidOutExample>
-        + InfoCSVWrite<SId, Op::SInfo, Op::Info>
+        + InfoCSVWrite<SId, Op::SInfo>
         + HasY<Op::Cod, FidOutExample>
         + HasStep
         + HasFidelity
@@ -189,7 +189,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         + HasFidelity,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
-        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Info, Op::Cod, FidOutExample>
+        + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, FidOutExample>
         + Send
         + Sync,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, FidOutExample>: SolutionShape<
@@ -205,7 +205,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             >,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, Op::Cod, FidOutExample, Op::SInfo>,
         > + HasY<Op::Cod, FidOutExample>
-        + InfoCSVWrite<SId, Op::SInfo, Op::Info>
+        + InfoCSVWrite<SId, Op::SInfo>
         + HasY<Op::Cod, FidOutExample>
         + HasStep
         + HasFidelity
@@ -441,7 +441,7 @@ fn test_csv_func() {
         FidOutExample,
         Sp<Mixed, _>,
         BatchRandomSearch,
-    >>::init(&mut recorder, &sp, &cod);
+    >>::init_batch::<Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>>(&mut recorder, &sp, &cod);
 
     run_recorder::<
         Sp<Mixed, NoDomain>,
