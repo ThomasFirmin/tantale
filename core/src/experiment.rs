@@ -1090,6 +1090,7 @@ where
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
+     #[allow(clippy::type_complexity)]
     pub fn run(self) -> Option<CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>> {
         match self {
             MasterWorker::Master(exp) => Some(exp.run()),

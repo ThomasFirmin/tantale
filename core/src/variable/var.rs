@@ -27,7 +27,7 @@
 //! };
 //!
 //! // Optimizer works in [0, 1], objective function expects [0, 100]
-//! let var = Var::new("learning_rate", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+//! let var = Var::<Real, Unit>::new("learning_rate", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
 //!
 //! let mut rng = rand::rng();
 //! let opt_value = var.sample_opt(&mut rng); // Sample from Unit [0, 1]
@@ -48,7 +48,7 @@
 //! };
 //!
 //! // Both optimizer and objective use the same Real domain
-//! let var = Var::new("temperature", Real::new(0.0, 100.0, Uniform), NoDomain);
+//! let var = Var::<Real, NoDomain>::new("temperature", Real::new(0.0, 100.0, Uniform), NoDomain);
 //!
 //! let mut rng = rand::rng();
 //! let value = var.sample_obj(&mut rng);
@@ -72,7 +72,7 @@
 //!     variable::Var,
 //! };
 //!
-//! let var = Var::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
+//! let var = Var::<Real, Unit>::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
 //! let weights = var.replicate(10); // Creates weight0, weight1, ..., weight9
 //!
 //! assert_eq!(weights.len(), 10);
@@ -162,12 +162,12 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
     /// // Create a variable mapping between Unit [0,1] and Real [0,100]
-    /// let var = Var::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     /// assert_eq!(var.name, ("alpha", None));
     /// ```
     pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt> {
@@ -196,11 +196,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// // Optimizer provides a value in [0, 1]
     /// let opt_value = 0.75;
@@ -232,11 +232,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// // Objective domain value [0, 100]
     /// let obj_value = 25.0;
@@ -262,11 +262,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("temperature", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("temperature", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// let mut rng = rand::rng();
     /// let value = var.sample_obj(&mut rng);
@@ -291,11 +291,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// let mut rng = rand::rng();
     /// let opt_value = var.sample_opt(&mut rng);
@@ -328,11 +328,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// assert!(var.is_in_obj(&50.0));
     /// assert!(var.is_in_obj(&0.0));
@@ -361,11 +361,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
     ///
     /// // Unit domain is [0, 1]
     /// assert!(var.is_in_opt(&0.5));
@@ -402,12 +402,12 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, Unit, Uniform},
+    ///     Real, Unit, Uniform,
     ///     variable::Var,
     /// };
     /// use std::sync::Arc;
     ///
-    /// let var = Var::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
+    /// let var = Var::<Real, Unit>::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
     /// let weights = var.replicate(5);
     ///
     /// assert_eq!(weights.len(), 5);
@@ -450,12 +450,12 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
     /// // Both optimizer and objective use Real domain directly
-    /// let var = Var::new("param", Real::new(0.0, 100.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("param", Real::new(0.0, 100.0, Uniform), NoDomain);
     /// assert_eq!(var.name, ("param", None));
     /// ```
     pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj, NoDomain> {
@@ -476,11 +476,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain},
+    ///     Real, NoDomain,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// let value = 5.0;
     /// assert_eq!(var.onto_obj(&value).unwrap(), 5.0);
     /// ```
@@ -498,11 +498,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// let value = 7.5;
     /// assert_eq!(var.onto_opt(&value).unwrap(), 7.5);
     /// ```
@@ -516,11 +516,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// let mut rng = rand::rng();
     /// let value = var.sample_obj(&mut rng);
     /// assert!(value >= 0.0 && value <= 10.0);
@@ -534,11 +534,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// let mut rng = rand::rng();
     /// let value = var.sample_opt(&mut rng);
     /// assert!(value >= 0.0 && value <= 10.0);
@@ -552,11 +552,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// assert!(var.is_in_obj(&5.0));
     /// assert!(!var.is_in_obj(&15.0));
     /// ```
@@ -569,11 +569,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// assert!(var.is_in_opt(&5.0));
     /// assert!(!var.is_in_opt(&-5.0));
     /// ```
@@ -588,11 +588,11 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     domain::{Real, NoDomain, Uniform},
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///
-    /// let var = Var::new("param", Real::new(0.0, 1.0, Uniform), NoDomain);
+    /// let var = Var::<Real, NoDomain>::new("param", Real::new(0.0, 1.0, Uniform), NoDomain);
     /// let params = var.replicate(3);
     ///
     /// assert_eq!(params.len(), 3);
