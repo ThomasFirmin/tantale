@@ -275,7 +275,7 @@ where
     /// The native type representing variable values in this domain.
     ///
     /// This type is determined by the [TypeDom](Domain::TypeDom) from the solution's [`Domain`].
-    type Raw: Debug + Serialize + for<'de> Deserialize<'de>;
+    type Raw: Clone + Debug + Serialize + for<'de> Deserialize<'de>;
 
     /// Twin solutions share the same [`Id`] but exist in different domains,
     /// enabling transformations between Obj and Opt representations.
@@ -297,7 +297,16 @@ where
     ///
     /// This is the actual sampled point from the domain, represented in the
     /// domain's [`Raw`](Solution::Raw) type.
-    fn get_x(&self) -> Self::Raw;
+    fn get_x(&self) -> &Self::Raw;
+
+    /// Creates a clone of the raw values for this solution.
+    fn clone_x(&self) -> Self::Raw {
+        self.get_x().clone()
+    }
+
+    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
+    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
+    fn _clone_sol(&self) -> Self;
 }
 
 /// Trait for objects containing an uncomputed solution.

@@ -25,7 +25,7 @@ macro_rules! get_test {
                 let sample_obj : FidelitySol<SId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let (out, state) = func(sample_obj.get_x(), sample_obj.fidelity(), None);
+                let (out, state) = func(sample_obj.clone_x(), sample_obj.fidelity(), None);
 
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Partially(1),"The EvalState should be partial");
@@ -71,9 +71,9 @@ macro_rules! get_test {
                 let sample_opt : FidelitySol<SId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::sample_opt(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::onto_obj(&sp, sample_opt);
-                assert_eq!(converted_obj.get_sobj().get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
+                assert_eq!(converted_obj.get_sobj().clone_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
 
                 let step: Step = out.get_step().into();
                 assert_eq!(step,Step::Partially(2),"The EvalState should be partial");
@@ -113,17 +113,17 @@ macro_rules! get_test {
                 assert!(sp.var[13].is_in_obj(&MixedTypeDom::Real(out.obj)), "Element [13] of tantale_in not int variable [13].");
 
                 // 3
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step,Step::Partially(3),"The EvalState should be partial");
                 assert!(state.state == 3,"The state should be == 3");
                 // 4
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step,Step::Partially(4),"The EvalState should be partial");
                 assert!(state.state == 4,"The state should be == 4");
                 // 5
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step,Step::Evaluated,"The EvalState should be partial");
                 assert!(state.state == 5,"The state should be == 5");
@@ -159,7 +159,7 @@ macro_rules! get_test_real {
                 let sample_obj : FidelitySol<SId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let (out, state) = func(sample_obj.get_x(), sample_obj.fidelity(), None);
+                let (out, state) = func(sample_obj.clone_x(), sample_obj.fidelity(), None);
 
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Partially(1),"The EvalState should be partial");
@@ -202,9 +202,9 @@ macro_rules! get_test_real {
                 let sample_opt : FidelitySol<SId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::sample_opt(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = <Sp<_,_> as Searchspace<FidelitySol<SId,_,_>, SId,EmptyInfo>>::onto_obj(&sp,sample_opt);
-                assert_eq!(converted_obj.get_sobj().get_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
+                assert_eq!(converted_obj.get_sobj().clone_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
 
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Partially(2),"The EvalState should be partial");
@@ -243,17 +243,17 @@ macro_rules! get_test_real {
                 assert!(sp.var[13].is_in_obj(&out.obj), "Element [13] of tantale_in not int variable [13].");
 
                 // 3
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Partially(3),"The EvalState should be partial");
                 assert!(state.state == 3,"The state should be == 3");
                 // 4
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Partially(4),"The EvalState should be partial");
                 assert!(state.state == 4,"The state should be == 4");
                 // 5
-                let (out, state) = func(converted_obj.get_sobj().get_x(), converted_obj.fidelity(), Some(state));
+                let (out, state) = func(converted_obj.get_sobj().clone_x(), converted_obj.fidelity(), Some(state));
                 let step: Step = out.get_step().into();
                 assert_eq!(step, Step::Evaluated,"The EvalState should be partial");
                 assert!(state.state == 5,"The state should be == 5");

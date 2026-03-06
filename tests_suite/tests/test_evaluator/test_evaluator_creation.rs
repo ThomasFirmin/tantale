@@ -1,13 +1,9 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BaseSol, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp,
-    domain::NoDomain,
-    experiment::{
+    BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
         ThrEvaluate, sequential::seqevaluator::SeqEvaluator,
-    },
-    solution::{Batch, HasId, Lone, SolutionShape},
-    stop::Calls,
+    }, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator;
@@ -30,6 +26,7 @@ fn test_batchevaluator() {
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
+    let mut acc = SingleCodomain::new_accumulator();
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
@@ -63,7 +60,7 @@ fn test_batchevaluator() {
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
@@ -109,6 +106,10 @@ fn test_batchevaluator() {
     );
     assert_eq!(stop.calls(), 20, "Number of calls is wrong.");
 
+    let best = (&bcomp).into_iter().max().unwrap();
+    let best_acc = acc.get().unwrap();
+    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+
     (&bcomp).into_iter().for_each(|pair| {
         let id = pair.id();
         let cobj = hcobj.get(&id).unwrap();
@@ -144,6 +145,7 @@ fn test_thrbatchevaluator() {
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
+    let acc = Arc::new(Mutex::new(SingleCodomain::new_accumulator()));
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
@@ -177,7 +179,7 @@ fn test_thrbatchevaluator() {
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
@@ -227,6 +229,11 @@ fn test_thrbatchevaluator() {
         "Number of calls is wrong."
     );
 
+    let binding = acc.lock().unwrap();
+    let best = (&bcomp).into_iter().max().unwrap();
+    let best_acc = binding.get().unwrap();
+    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+
     (&bcomp).into_iter().for_each(|pair| {
         let id = pair.id();
         let cobj = hcobj.get(&id).unwrap();
@@ -261,6 +268,7 @@ fn test_seqevaluator() {
     let obj = Arc::new(Objective::new(func));
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
+    let mut acc = SingleCodomain::new_accumulator();
 
     let mut rng = rand::rng();
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
@@ -292,7 +300,11 @@ fn test_seqevaluator() {
             SingleCodomain<OutEvaluator>,
             OutEvaluator,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
+
+    let best = &comp;
+    let best_acc = acc.get().unwrap();
+    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
 
     assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
     assert!(

@@ -376,7 +376,7 @@ where
         sol: &SolObj<Self::SolShape, SolId, SInfo>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let solstr = self.write_left(&sol.get_x());
+        let solstr = self.write_left(sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
@@ -397,7 +397,7 @@ where
         sol: &SolOpt<Self::SolShape, SolId, SInfo>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let solstr = self.write_right(&sol.get_x());
+        let solstr = self.write_right(sol.get_x());
         let idstr = id.iter().chain(solstr.iter());
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
@@ -465,7 +465,7 @@ where
         sol: &SolObj<Self::SolShape, SolId, SInfo>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let solstr = self.write_left(&sol.get_x());
+        let solstr = self.write_left(sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
         let idstr = id.iter().chain(solstr.iter()).chain(stepstr).chain(fidstr);
@@ -487,7 +487,7 @@ where
         sol: &SolOpt<Self::SolShape, SolId, SInfo>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let solstr = self.write_right(&sol.get_x());
+        let solstr = self.write_right(sol.get_x());
         let stepstr = &sol.step().write(&());
         let fidstr = &sol.fidelity().write(&());
         let idstr = id.iter().chain(solstr.iter()).chain(stepstr).chain(fidstr);

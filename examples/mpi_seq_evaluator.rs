@@ -2,17 +2,14 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BaseSol, Mixed, MixedTypeDom, Objective, SId, Sp,
-    domain::{NoDomain, TypeDom},
-    experiment::{
+    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
         DistEvaluate, OutShapeEvaluate,
         mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
         },
         sequential::seqevaluator::DistSeqEvaluator,
-    },
-    solution::{HasId, Lone, SolutionShape},
+    }, solution::{HasId, Lone, SolutionShape}
 };
 
 use std::sync::Arc;
@@ -104,6 +101,7 @@ fn main() {
         let obj = Arc::new(Objective::new(func));
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
+        let mut acc = SingleCodomain::new_accumulator();
 
         let mut rng = rand::rng();
         let pair = <Sp<Mixed, NoDomain> as Searchspace<
@@ -144,7 +142,7 @@ fn main() {
                     OutEvaluator,
                 >,
             >,
-        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         let (comp, raw) = out.unwrap();
 
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");

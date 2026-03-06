@@ -1,14 +1,9 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped,
-    checkpointer::NoFuncStateCheck,
-    domain::NoDomain,
-    experiment::{
+    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp, Stepped, checkpointer::NoFuncStateCheck, domain::NoDomain, experiment::{
         FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,
         ThrEvaluate, basics::IdxMapPool, sequential::seqfidevaluator::FidSeqEvaluator,
-    },
-    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
-    stop::Calls,
+    }, solution::{Batch, HasId, IntoComputed, Lone, SolutionShape}, stop::Calls
 };
 
 use super::init_func::sp_evaluator_fid;
@@ -28,9 +23,10 @@ fn test_fidbatchevaluator() {
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
     let obj = Arc::new(Stepped::new(func));
-    let info = std::sync::Arc::new(RSInfo { iteration: 0 });
-    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let info = Arc::new(RSInfo { iteration: 0 });
+    let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
+    let mut acc = SingleCodomain::new_accumulator();
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
@@ -66,7 +62,7 @@ fn test_fidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
@@ -136,6 +132,10 @@ fn test_fidbatchevaluator() {
             "Opt Computed do not point to the same solutions."
         );
     });
+    
+    let best = (&bcomp).into_iter().max().unwrap();
+    let best_acc = acc.get().unwrap();
+    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
 
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -159,7 +159,7 @@ fn test_fidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -182,7 +182,7 @@ fn test_fidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -205,7 +205,7 @@ fn test_fidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -228,7 +228,7 @@ fn test_fidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     assert_eq!(
         stop.calls(),
@@ -243,9 +243,10 @@ fn test_fidthrbatchevaluator() {
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
     let obj = Arc::new(Stepped::new(func));
-    let info = std::sync::Arc::new(RSInfo { iteration: 0 });
-    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let info = Arc::new(RSInfo { iteration: 0 });
+    let sinfo = Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
+    let acc = Arc::new(Mutex::new(SingleCodomain::new_accumulator()));
 
     let mut rng = rand::rng();
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
@@ -281,7 +282,7 @@ fn test_fidthrbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
@@ -352,6 +353,13 @@ fn test_fidthrbatchevaluator() {
         );
     });
 
+    {
+        let binding = acc.lock().unwrap();
+        let best = (&bcomp).into_iter().max().unwrap();
+        let best_acc = binding.get().unwrap();
+        assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+    }
+
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -374,7 +382,7 @@ fn test_fidthrbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -397,7 +405,7 @@ fn test_fidthrbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -420,7 +428,7 @@ fn test_fidthrbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
     let pairs: Vec<_> = bcomp
         .into_iter()
         .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
@@ -443,7 +451,7 @@ fn test_fidthrbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone());
+    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
 
     assert_eq!(
         stop.lock().unwrap().calls(),
@@ -458,8 +466,9 @@ fn test_seqfidevaluator() {
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
     let obj = Arc::new(Stepped::new(func));
-    let sinfo = std::sync::Arc::new(EmptyInfo {});
+    let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
+    let mut acc= SingleCodomain::new_accumulator();
 
     let mut rng = rand::rng();
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
@@ -495,7 +504,7 @@ fn test_seqfidevaluator() {
                 FidOutEvaluator,
             >,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, raw) = out.unwrap();
 
     assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
@@ -551,7 +560,7 @@ fn test_seqfidevaluator() {
                 FidOutEvaluator,
             >,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
     eval.update(IntoComputed::extract(comp).0);
 
@@ -579,7 +588,7 @@ fn test_seqfidevaluator() {
                 FidOutEvaluator,
             >,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
     eval.update(IntoComputed::extract(comp).0);
 
@@ -607,7 +616,7 @@ fn test_seqfidevaluator() {
                 FidOutEvaluator,
             >,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
     eval.update(IntoComputed::extract(comp).0);
 
@@ -635,9 +644,16 @@ fn test_seqfidevaluator() {
                 FidOutEvaluator,
             >,
         >,
-    >>::evaluate(&mut eval, &obj, &cod, &mut stop);
+    >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
+    
+    let best = &comp;
+    let best_acc = acc.get().unwrap();
+    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+
     eval.update(IntoComputed::extract(comp).0);
 
     assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
+
+
 }

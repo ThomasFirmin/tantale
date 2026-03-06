@@ -158,7 +158,7 @@ where
 {
     /// Create a new [`XMessage`] from a given [`Solution`].
     fn new(sol: &PSol) -> Self {
-        XMessage(sol.id(), sol.get_x())
+        XMessage(sol.id(), sol.clone_x())
     }
 }
 
@@ -191,7 +191,7 @@ where
 {
     /// Create a new [`FXMessage`] from a given [`Solution`].
     fn new(sol: &PSol) -> Self {
-        FXMessage(sol.id(), sol.get_x(), sol.raw_step(), sol.fidelity())
+        FXMessage(sol.id(), sol.clone_x(), sol.raw_step(), sol.fidelity())
     }
 }
 

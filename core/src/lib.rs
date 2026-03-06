@@ -252,8 +252,9 @@ pub mod domain;
 pub use domain::{
     Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Domain,
-    FidCriteria, HasEvalStep, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Mixed, MixedTypeDom,
+    FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Mixed, MixedTypeDom,
     Multi, MultiCodomain, Nat, NoDomain, Onto, Real, Single, SingleCodomain, Unit,
+    Accumulator, BestComputed, ParetoComputed,
 };
 
 pub mod sampler;

@@ -4,14 +4,7 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop,
-    domain::onto::LinkOpt,
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
-    objective::Step,
-    optimizer::opt::{OpSInfType, SequentialOptimizer},
-    searchspace::CompShape,
-    solution::{HasId, IntoComputed, SolutionShape, Uncomputed, shape::RawObj},
-    stop::ExpStep,
+    Accumulator, Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate}, objective::Step, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{HasId, IntoComputed, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
 };
 
 use serde::{Deserialize, Serialize};
@@ -105,15 +98,17 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out> {
         let pair = self
             .pair
             .take()
             .expect("The pair SeqEvaluator should not be empty (None) during evaluate.");
         let id = pair.id();
-        let out = ob.compute(pair.get_sobj().get_x());
+        let out = ob.compute(pair.get_sobj().clone_x());
         let y = cod.get_elem(&out);
         let computed = pair.into_computed(y.into());
+        acc.accumulate(&computed);
         stop.update(ExpStep::Distribution(Step::Evaluated));
 
         // For saving in case of early stopping before full evaluation of all elements
@@ -228,6 +223,7 @@ where
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
+        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let pair = self
             .pair
@@ -235,12 +231,15 @@ where
             .expect("The pair ThrSeqEvaluator should not be empty (None) during evaluate.");
         let id = pair.id();
         // No saved state
-        let out = ob.compute(pair.get_sobj().get_x());
+        let out = ob.compute(pair.get_sobj().clone_x());
         let y = cod.get_elem(&out);
+        let computed = pair.into_computed(y.into());
+        let out = (id, out);
+        acc.lock().unwrap().accumulate(&computed);
         stop.lock()
             .unwrap()
             .update(ExpStep::Distribution(Step::Evaluated));
-        Some((pair.into_computed(y.into()), (id, out)))
+        Some((computed, out))
     }
 }
 
@@ -425,6 +424,7 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
         while sendrec.idle.has_idle() && !self.shapes.is_empty() && !stop.stop() {
@@ -442,8 +442,9 @@ where
                 sendrec.send_to_worker(self.shapes.pop().unwrap());
             }
             let output = (pair.id(), out);
-            let comp = pair.into_computed(y.into());
-            Some((comp, output))
+            let computed = pair.into_computed(y.into());
+            acc.accumulate(&computed);
+            Some((computed, output))
         } else {
             None
         }

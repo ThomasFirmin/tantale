@@ -21,7 +21,7 @@ macro_rules! get_test {
                 let sample_obj : BaseSol<SId,_,_> = <Sp<_,_> as Searchspace<BaseSol<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x());
+                let out = func(sample_obj.clone_x());
 
                 assert!(sp.var[0].is_in_obj(&MixedTypeDom::Int(out.int_v)),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.var[1].is_in_obj(&MixedTypeDom::Nat(out.nat_v)),"Element [1] of tantale_in not int variable [1].");
@@ -89,7 +89,7 @@ macro_rules! get_test_real {
                 let sample_obj : BaseSol<SId,_,_> = <Sp<_,_> as Searchspace<BaseSol<SId,_,_>, SId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
-                let out = func(sample_obj.get_x());
+                let out = func(sample_obj.clone_x());
 
                 assert!(sp.var[0].is_in_obj(&out.int_v),"Element [0] of tantale_in not int variable [0].");
                 assert!(sp.var[1].is_in_obj(&out.nat_v),"Element [1] of tantale_in not int variable [1].");

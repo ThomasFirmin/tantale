@@ -2,19 +2,14 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
-    checkpointer::NoCheck,
-    domain::{NoDomain, TypeDom},
-    experiment::{
+    Codomain, FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped, checkpointer::NoCheck, domain::{NoDomain, TypeDom}, experiment::{
         DistEvaluate, DistOutShapeEvaluate,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec},
             worker::{FidWorker, Worker},
         },
         sequential::seqfidevaluator::FidDistSeqEvaluator,
-    },
-    objective::Step,
-    solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape},
+    }, objective::Step, solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape}
 };
 
 use std::sync::Arc;
@@ -138,6 +133,7 @@ fn main() {
         let obj = Arc::new(Stepped::new(func));
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
+        let mut acc = SingleCodomain::new_accumulator();
 
         let mut rng = rand::rng();
         let pair = <Sp<Mixed, NoDomain> as Searchspace<
@@ -178,7 +174,7 @@ fn main() {
                     FidOutEvaluator,
                 >,
             >,
-        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop,&mut acc);
         let (_, (comp, raw)) = out.unwrap();
 
         assert_eq!(stop.calls(), 0, "Number of calls is wrong.");
@@ -231,7 +227,7 @@ fn main() {
                         FidOutEvaluator,
                     >,
                 >,
-            >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
+            >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
             let (_, (comp, _)) = out.unwrap();
             step = comp.step();
             eval.update(IntoComputed::extract(comp).0);

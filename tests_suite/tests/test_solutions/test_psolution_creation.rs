@@ -19,7 +19,7 @@ where
         Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
 {
     assert_eq!(
-        sol.get_x(),
+        sol.clone_x(),
         std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
         "Solution `x` mismatch."
     );

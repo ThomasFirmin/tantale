@@ -234,8 +234,16 @@ where
     type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Cod, Out, Info>;
 
     /// Return the raw representation of the underlying solution.
-    fn get_x(&self) -> Self::Raw {
+    fn get_x(&self) -> &Self::Raw {
         self.sol.get_x()
+    }
+    
+    fn clone_x(&self) -> Self::Raw {
+        self.sol.clone_x()
+    }
+
+    fn _clone_sol(&self) -> Self {
+        Self::new(self.sol._clone_sol(), self.y.clone())
     }
 
     fn twin<B: Domain>(

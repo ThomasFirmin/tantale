@@ -1,14 +1,7 @@
 use crate::{
-    Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop,
-    domain::onto::LinkOpt,
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
-    objective::{Step, outcome::FuncState},
-    optimizer::opt::{OpSInfType, SequentialOptimizer},
-    searchspace::CompShape,
-    solution::{
-        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj,
-    },
-    stop::ExpStep,
+    Accumulator, Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{
+        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj
+    }, stop::ExpStep
 };
 #[cfg(feature = "mpi")]
 use crate::{
@@ -152,6 +145,7 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
@@ -163,7 +157,7 @@ where
         match step {
             Step::Pending | Step::Partially(_) => {
                 // No saved state
-                let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
+                let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
                 pair.set_raw_step(out.get_step());
                 let new_step = pair.step();
@@ -174,7 +168,10 @@ where
                         stop.update(ExpStep::Distribution(new_step));
                     }
                 };
-                Some((pair.into_computed(y.into()), (id, out)))
+                let computed = pair.into_computed(y.into());
+                let out = (id, out);
+                acc.accumulate(&computed);
+                Some((computed, out))
             }
             _ => {
                 stop.update(ExpStep::Distribution(step));
@@ -303,6 +300,7 @@ where
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
+        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
@@ -313,7 +311,7 @@ where
         match step {
             Step::Pending | Step::Partially(_) => {
                 // No saved state
-                let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
+                let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
                 pair.set_raw_step(out.get_step());
                 let new_step = pair.step();
@@ -323,7 +321,10 @@ where
                     }
                     _ => self.state = Some(state),
                 };
-                Some((pair.into_computed(y.into()), (id, out)))
+                let computed = pair.into_computed(y.into());
+                let out = (id, out);
+                acc.lock().unwrap().accumulate(&computed);
+                Some((computed, out))
             }
             _ => {
                 stop.lock().unwrap().update(ExpStep::Distribution(step));
@@ -660,6 +661,7 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
@@ -698,7 +700,10 @@ where
                 &mut self.priority_resume,
                 stop,
             );
-            Some((available, (pair.into_computed(y.into()), (id, out))))
+            let computed = pair.into_computed(y.into());
+            let out = (id, out);
+            acc.accumulate(&computed);
+            Some((available, (computed, out)))
         } else {
             None
         }

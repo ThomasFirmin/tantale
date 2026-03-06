@@ -129,8 +129,22 @@ where
     type Twin<B: Domain> = BaseSol<SolId, B, Info>;
 
     /// Return the raw representation for evaluation by the objective.
-    fn get_x(&self) -> Self::Raw {
+    fn get_x(&self) -> &Self::Raw {
+        &self.x
+    }
+
+    fn clone_x(&self) -> Self::Raw {
         self.x.clone()
+    }
+
+    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
+    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
+    fn _clone_sol(&self) -> Self {
+        BaseSol {
+            id: self.id,
+            x: self.x.clone(),
+            info: self.info.clone(),
+        }
     }
 
     /// Create a twin solution with the same id and info but a different raw representation.
@@ -382,8 +396,25 @@ where
     type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
 
     /// Return the raw representation for evaluation by the objective.
-    fn get_x(&self) -> Self::Raw {
+    fn get_x(&self) -> &Self::Raw {
+        &self.x
+    }
+
+    /// Creates a clone of the raw values for this solution.
+    fn clone_x(&self) -> Self::Raw {
         self.x.clone()
+    }
+
+    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
+    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
+    fn _clone_sol(&self) -> Self {
+        FidelitySol {
+            id: self.id,
+            x: self.x.clone(),
+            step: self.step,
+            fid: self.fid,
+            info: self.info.clone(),
+        }
     }
 
     /// Create a twin solution with the same id and info but a different raw representation.

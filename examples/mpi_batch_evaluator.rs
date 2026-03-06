@@ -4,16 +4,13 @@ use tantale::core::{
 };
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseSol, Mixed, MixedTypeDom, Objective, SId, Sp,
-    domain::{NoDomain, TypeDom},
-    experiment::{
+    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
         DistEvaluate, OutBatchEvaluate,
         mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
         },
-    },
-    solution::{Batch, HasId, Lone, SolutionShape},
+    }, solution::{Batch, HasId, Lone, SolutionShape}
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -109,6 +106,7 @@ fn main() {
         let info = std::sync::Arc::new(RSInfo { iteration: 0 });
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
+        let mut acc = SingleCodomain::new_accumulator();
 
         let mut rng = rand::rng();
         let sobj = <Sp<Mixed, NoDomain> as Searchspace<
@@ -143,7 +141,7 @@ fn main() {
             Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
             _,
             OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop);
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();
         let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();

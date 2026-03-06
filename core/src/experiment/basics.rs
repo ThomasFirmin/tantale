@@ -2,7 +2,7 @@ use crate::{
     FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::onto::LinkOpt,
-    experiment::Evaluate,
+    experiment::{CompAcc, Evaluate},
     objective::FuncWrapper,
     optimizer::opt::OpSInfType,
     recorder::Recorder,
@@ -66,6 +66,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
+    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
 }
 
@@ -103,6 +104,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
+    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
 }
 
@@ -145,6 +147,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
+    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
 }
 

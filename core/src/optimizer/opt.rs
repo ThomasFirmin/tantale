@@ -1,10 +1,5 @@
 use crate::{
-    FidOutcome, HasFidelity, HasStep,
-    domain::{Codomain, Domain, onto::LinkOpt},
-    objective::{FuncWrapper, Outcome},
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
+    FidOutcome, HasFidelity, HasStep, domain::{Codomain, Domain, onto::LinkOpt}, experiment::CompAcc, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj}
 };
 
 use serde::{Deserialize, Serialize};
@@ -114,10 +109,23 @@ where
     ///
     /// It consumes a [`Batch`] of computed solutions and returns a new batch of
     /// uncomputed candidates.
+    ///
+    /// The `acc` parameter provides a view of the best solutions
+    /// accumulated since the start of the experiment:
+    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
+    ///   [`BestComputed`](crate::domain::codomain::BestComputed) holding the single best solution seen so far.
+    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
+    ///   [`ParetoComputed`](crate::domain::codomain::ParetoComputed) holding the current Pareto front.
+    ///
+    /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
+    /// updated after each batch evaluation. The [`Optimizer`] should use it read-only
+    /// to inform the generation of new candidates (e.g. for surrogate models or
+    /// elitist strategies).
     fn step(
         &mut self,
         x: CompBatch<SolId, Self::SInfo, Self::Info, Scp, PSol, Self::Cod, Out>,
         scp: &Scp,
+        acc: &CompAcc<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
 
     /// Sets the batch size for the optimizer.
@@ -138,16 +146,30 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Computes a single iteration of the [`Optimizer`].
     ///
     /// It consumes an optional computed solution and returns a new uncomputed
     /// candidate. [`Self`] is mutable to update the internal state.
+    ///
+    /// The `acc` parameter provides a read-only view of the best solutions
+    /// accumulated since the start of the experiment:
+    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
+    ///   [`BestComputed`](crate::BestComputed) holding the single best solution seen so far.
+    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
+    ///   [`ParetoComputed`](crate::ParetoComputed) holding the current Pareto front.
+    ///
+    /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
+    /// updated after each solution evaluation. The [`Optimizer`] should use it
+    /// read-only to inform the generation of new candidates (e.g. for surrogate
+    /// models or elitist strategies).
     fn step(
         &mut self,
         x: OptionCompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
+        acc: &CompAcc<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape;
 }
 

@@ -1,11 +1,7 @@
 use crate::{
-    FolderConfig, FuncState, GlobalParameters, Id, OPT_ID, RUN_ID, SOL_ID,
-    checkpointer::{
+    Accumulator, Codomain, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome, RUN_ID, SOL_ID, SolInfo, SolutionShape, checkpointer::{
         CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
-    },
-    experiment::Evaluate,
-    optimizer::OptState,
-    stop::Stop,
+    }, experiment::Evaluate, optimizer::OptState, stop::Stop
 };
 
 use core::panic;
@@ -117,6 +113,7 @@ pub struct MessagePack {
     path_eval: PathBuf,
     path_optim: PathBuf,
     path_config: PathBuf,
+    path_acc: PathBuf,
 }
 impl Checkpointer for MessagePack {
     type FnStateCheck = MPFnStateCheckpointer;
@@ -135,12 +132,14 @@ impl MessagePack {
         let path_eval = config.path_check.join(Path::new("state_eval.mp"));
         let path_optim = config.path_check.join(Path::new("state_optim.mp"));
         let path_config = config.path_check.join(Path::new("state_config.mp"));
+        let path_acc = config.path_check.join(Path::new("state_acc.mp"));
         Some(MessagePack {
             config,
             path_stop,
             path_eval,
             path_optim,
             path_config,
+            path_acc,
         })
     }
 }
@@ -187,6 +186,18 @@ impl MonoCheckpointer for MessagePack {
                 panic!(
                     "The `stop` file does not exist in {}",
                     self.path_stop.display()
+                )
+            }
+            if !self.path_eval.try_exists().unwrap() {
+                panic!(
+                    "The `eval` file does not exist in {}",
+                    self.path_eval.display()
+                )
+            }
+            if !self.path_acc.try_exists().unwrap() {
+                panic!(
+                    "The `accumulator` file does not exist in {}",
+                    self.path_acc.display()
                 )
             }
         } else {
@@ -333,6 +344,45 @@ impl MonoCheckpointer for MessagePack {
             )))
         }
     }
+    
+    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome
+    {
+        let mut wrt = File::create(&self.path_acc).unwrap();
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+    }
+    
+    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome 
+    {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_acc.is_file() {
+                let rdr = File::open(&self.path_acc).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Accumulator` file state_acc.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
 }
 
 impl ThrCheckpointer for MessagePack {
@@ -386,6 +436,12 @@ impl ThrCheckpointer for MessagePack {
                 panic!(
                     "The `stop` file does not exist in {}",
                     self.path_stop.display()
+                )
+            }
+            if !self.path_acc.try_exists().unwrap() {
+                panic!(
+                    "The `accumulator` file does not exist in {}",
+                    self.path_acc.display()
                 )
             }
             // Check if at least one evaluate file exists
@@ -576,6 +632,45 @@ impl ThrCheckpointer for MessagePack {
             )))
         }
     }
+
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome
+    {
+        let mut wrt = File::create(&self.path_acc).unwrap();
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+    }
+    
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome 
+    {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_acc.is_file() {
+                let rdr = File::open(&self.path_acc).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Accumulator` file state_acc.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
+    }
 }
 
 #[cfg(feature = "mpi")]
@@ -651,6 +746,12 @@ impl DistCheckpointer for MessagePack {
                     panic!(
                         "The `eval` file does not exist in {}",
                         self.path_eval.display()
+                    )
+                }
+                if !self.path_acc.try_exists().unwrap() {
+                    panic!(
+                        "The `accumulator` file does not exist in {}",
+                        self.path_acc.display()
                     )
                 }
             } else {
@@ -820,6 +921,45 @@ impl DistCheckpointer for MessagePack {
     /// Returns a [`WorkerCheckpointer`] based on the given [`MPIProcess`].
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
         WCheckMessagePack::new(self.config.clone(), proc)
+    }
+
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc, _rank: Rank)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome
+    {
+        let mut wrt = File::create(&self.path_acc).unwrap();
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+    }
+    
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, _rank: Rank) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome 
+    {
+        // Check if file exist
+        if self.config.path_check.try_exists().unwrap() {
+            if self.path_acc.is_file() {
+                let rdr = File::open(&self.path_acc).unwrap();
+                Ok(rmp_serde::decode::from_read(rdr).unwrap())
+            } else {
+                Err(CheckpointError(String::from(
+                    "The `Accumulator` file state_acc.mp does not exists.",
+                )))
+            }
+        } else {
+            Err(CheckpointError(String::from(
+                "The given path does not have any checkpoint folder",
+            )))
+        }
     }
 }
 

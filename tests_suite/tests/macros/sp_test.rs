@@ -70,7 +70,7 @@ mod test {
             OutStruct { out: 42.0 }
         }
 
-        let out = compute_obj(pair.get_sobj().get_x());
+        let out = compute_obj(pair.get_sobj().clone_x());
         println!("OUT {}", out.out);
     }
 }

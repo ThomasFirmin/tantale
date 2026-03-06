@@ -60,12 +60,10 @@
 use std::panic;
 
 use crate::{
-    FuncState, GlobalParameters, Id, SaverConfig, experiment::Evaluate, optimizer::OptState,
-    stop::Stop,
+    Accumulator, Codomain, FuncState, GlobalParameters, HasY, Id, Outcome, SaverConfig, SolInfo, SolutionShape, experiment::Evaluate, optimizer::OptState, stop::Stop,config::NoConfig
 };
 #[cfg(feature = "mpi")]
 use crate::{
-    config::NoConfig,
     experiment::mpi::{utils::MPIProcess, worker::WorkerState},
 };
 
@@ -269,41 +267,37 @@ pub trait MonoCheckpointer: Checkpointer {
     ) -> Result<(OState, St, Eval), CheckpointError>;
 
     /// Loads only the termination criteria state from a checkpoint.
-    ///
-    /// This method enables partial checkpoint recovery of [`Stop`]
-    /// avoiding unnecessary deserialization of optimizer and evaluation states.
-    ///
-    /// # Note
-    ///
-    /// Usually called internally by [`load`](Self::load). Direct usage is rare.
     fn load_stop<St: Stop>(&self) -> Result<St, CheckpointError>;
 
     /// Loads only the optimizer state from a checkpoint.
-    ///
-    /// This method enables partial checkpoint recovery of [`OptState`]
-    /// avoiding unnecessary deserialization of termination criteria and evaluation states.
-    ///
-    /// # Note
-    ///
-    /// Usually called internally by [`load`](Self::load). Direct usage is rare.
     fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError>;
 
     /// Loads only the evaluation state from a checkpoint.
-    ///
-    /// This method enables partial checkpoint recovery of [`Evaluate`]
-    /// avoiding unnecessary deserialization of optimizer and termination criteria states.
-    ///
-    /// # Note
-    ///
-    /// Usually called internally by [`load`](Self::load). Direct usage is rare.
     fn load_evaluate<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError>;
 
     /// Loads the global parameters from a checkpoint.
-    ///
-    /// # Note
-    ///
-    /// Usually called internally by [`load`](Self::load). Direct usage rare.
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
+
+    /// Saves the state of an accumulator to a checkpoint.
+    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
+
+    /// Loads the state of an accumulator from a checkpoint.
+    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
+
 }
 
 /// Extended checkpointer trait for multi-threaded optimization experiments.
@@ -356,6 +350,26 @@ pub trait ThrCheckpointer: Checkpointer {
     fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError>;
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for threaded optimization experiment, returning shared global parameters.
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
+
+    /// Saves the state of an accumulator to a checkpoint.
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
+
+    /// Loads the state of an accumulator from a checkpoint.
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
 }
 
 #[cfg(feature = "mpi")]
@@ -567,6 +581,25 @@ where
     fn load_evaluate_dist<Eval: Evaluate>(&self, rank: Rank) -> Result<Eval, CheckpointError>;
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for distributed optimization experiments, returning global parameters (same across ranks).
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
+    /// Saves the state of an accumulator to a checkpoint.
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc, rank: Rank)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
+
+    /// Loads the state of an accumulator from a checkpoint.
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, rank: Rank) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome;
     /// Retrieves the worker checkpointer.
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
 }
@@ -643,6 +676,109 @@ impl MonoCheckpointer for NoCheck {
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
+
+    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc)
+        where
+            Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+            C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+            SolId: Id,
+            SInfo: SolInfo,
+            Cod: Codomain<Out>,
+            Out: Outcome {
+        panic!("NoCheck should not be called to save an accumulator.")
+    }
+
+    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+        where
+            Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+            C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+            SolId: Id,
+            SInfo: SolInfo,
+            Cod: Codomain<Out>,
+            Out: Outcome {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+}
+
+impl ThrCheckpointer for NoCheck{
+    type Config = NoConfig;
+
+    fn init_thr(&mut self) 
+    {
+
+    }
+
+    fn before_load_thr(&mut self) 
+    {
+
+    }
+
+    fn after_load(&mut self) 
+    {
+
+    }
+
+    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+        _state: &OState,
+        _stop: &St,
+        _eval: &Eval,
+        _thread: usize,
+    ) 
+    {
+        panic!("NoCheck should not be called to save an experiment.")
+    }
+
+    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+        &self,
+    ) -> Result<(OState, St, Vec<Eval>), CheckpointError> 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_all_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError> 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError> 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc)
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome 
+    {
+        panic!("NoCheck should not be called to save an accumulator.")
+    }
+
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    where
+        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        SolId: Id,
+        SInfo: SolInfo,
+        Cod: Codomain<Out>,
+        Out: Outcome 
+    {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
 }
 
 #[cfg(feature = "mpi")]
@@ -682,6 +818,29 @@ impl DistCheckpointer for NoCheck {
     fn load_parameters_dist(&self, _rank: Rank) -> Result<GlobalParameters, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
+
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc, _rank: Rank)
+        where
+            Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+            C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+            SolId: Id,
+            SInfo: SolInfo,
+            Cod: Codomain<Out>,
+            Out: Outcome {
+        panic!("NoCheck should not be called to save an accumulator.")
+    }
+
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, _rank: Rank) -> Result<Acc, CheckpointError>
+        where
+            Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
+            C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+            SolId: Id,
+            SInfo: SolInfo,
+            Cod: Codomain<Out>,
+            Out: Outcome {
+        panic!("NoCheck should not be called to load an experiment.")
+    }
+
     fn get_check_worker<WState: WorkerState>(&self, _proc: &MPIProcess) -> Self::WCheck<WState> {
         panic!("NoCheck should not be called to load an experiment.")
     }

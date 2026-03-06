@@ -81,6 +81,7 @@ use std::sync::Arc;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use tantale_core::experiment::CompAcc;
 use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::searchspace::CompShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
@@ -458,12 +459,13 @@ where
             CompShape<Scp, FidelitySol<SId, Scp::Opt, Self::SInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
+        acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, Self::SInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             let (pairs, info) = x.extract();
             let extracted = Batch::new(pairs, info.inner_info.clone());
 
-            let (pairs, info) = self.0.inner.step(extracted, scp).extract();
+            let (pairs, info) = self.0.inner.step(extracted, scp, acc).extract();
             let new_info = HyperbandInfo::new(self.0.current_s, info);
             Batch::new(pairs, new_info.into())
         } else {
@@ -567,9 +569,10 @@ where
             Out,
         >,
         scp: &Scp,
+        acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, Self::SInfo>, SId, Self::SInfo, Self::Cod, Out>
     ) -> Scp::SolShape {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
-            self.0.inner.step(x, scp)
+            self.0.inner.step(x, scp, acc)
         } else {
             let to_discard = x.map_or(self.0.inner.drain_one(), |mut comp| {
                 comp.discard();
@@ -586,7 +589,7 @@ where
                 }
                 let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
                 self.0.inner.set_budgets(self.0.budget_min, r);
-                self.0.inner.step(None, scp)
+                self.0.inner.step(None, scp, acc)
             }
         }
         

@@ -62,10 +62,7 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
-    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, optimizer::opt::BudgetPruner,
-    recorder::CSVWritable,
+    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj, SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, recorder::CSVWritable
 };
 
 use rand::prelude::ThreadRng;
@@ -195,9 +192,9 @@ impl CSVWritable<(), ()> for ShaInfo {
 ///     ^
 ///    / \
 ///   /   \
-///  /     \
-/// / Max?  \  No ---> Evaluate survivors at new fidelity
-/// \ budget/           (loop back to "Evaluate batch")
+///  /     \   No
+/// / Max?  \ ---> Evaluate survivors at new fidelity
+/// \ budget/       (loop back to "Evaluate batch")
 ///  \     /
 ///   \   /
 ///    \ /
@@ -443,6 +440,7 @@ where
             Out,
         >,
         scp: &Scp,
+        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()

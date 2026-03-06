@@ -256,15 +256,7 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    SId, Searchspace,
-    checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
-    domain::onto::LinkOpt,
-    objective::{FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    searchspace::CompShape,
-    solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
-    stop::Stop,
+    Accumulator, SId, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -835,6 +827,9 @@ macro_rules! load {
     };
 }
 
+/// Type alias for an [`Accumulator`](crate::Accumulator) made of [`CompShape`](crate::searchspace::CompShape).
+pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> = TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
+
 /// The core trait defining the optimization loop interface.
 ///
 /// [`Runable`] orchestrates the complete optimization pipeline by combining:
@@ -844,18 +839,33 @@ macro_rules! load {
 /// - [`Stop`] - Determines when to terminate
 /// - [`Recorder`] - Saves evaluated solutions
 /// - [`Checkpointer`] - Saves experiment state for recovery
+/// - [`Accumulator`](crate::Accumulator) - Tracks best solutions across the experiment
 ///
 /// # The Optimization Loop
 ///
 /// An implementation of [`Runable`] executes this general loop:
 ///
 /// 1. **Initialization** - Set up optimizer state, load from checkpoint if resuming
-/// 2. **Generation** - Optimizer produces candidate solution(s) while updating its internal state based on results
+/// 2. **Generation** - Optimizer produces candidate solution(s) while updating its
+///    internal state based on results, informed by the [`Accumulator`](crate::Accumulator)
 /// 3. **Evaluation** - Objective function evaluates solution(s)
-/// 4. **Recording** - Save evaluated solutions (if recorder present)
-/// 5. **Checkpointing** - Save experiment state (if checkpointer present)
-/// 6. **Check Stop** - Evaluate stopping criterion
-/// 7. **Repeat** - Continue from step 2 until stop criterion met
+/// 4. **Accumulation** - [`update_accumulator`](Runable::update_accumulator) update best solutions for each
+///    newly evaluated solution into the running accumulator
+/// 5. **Recording** - Save evaluated solutions (if recorder present)
+/// 6. **Checkpointing** - Save experiment state (if checkpointer present)
+/// 7. **Check Stop** - Evaluate stopping criterion
+/// 8. **Repeat** - Continue from step 2 until stop criterion met
+///
+/// # Accumulator
+///
+/// The [`Accumulator`](crate::Accumulator) tracks the most relevant solutions evaluated so far.
+///
+/// - **Single-objective** codomains (implementing [`Single`](crate::Single)) use
+///   [`BestComputed`](crate::BestComputed): the single solution with the highest
+///   [`TypeCodom`](crate::Codomain::TypeCodom) value (via [`Ord`]) is retained.
+/// - **Multi-objective** codomains (implementing [`Multi`](crate::Multi)) use
+///   [`ParetoComputed`](crate::ParetoComputed): the current Pareto front is maintained
+///   using the [`Dominate`](crate::domain::codomain::Dominate) relation.
 ///
 /// # Design Philosophy
 ///
@@ -865,7 +875,7 @@ macro_rules! load {
 ///
 /// This allows:
 /// - The same optimizer to run in different contexts (mono/threaded/distributed)
-/// - Transparent checkpointing without algorithm modifications
+/// - Transparent checkpointing and accumulation without algorithm modifications
 /// - Flexible evaluation strategies (batch vs sequential, parallel vs serial)
 ///
 /// # Implementations
@@ -934,6 +944,9 @@ macro_rules! load {
 /// - [`load!`] - Macro for loading experiments from checkpoints
 /// - [`Optimizer`] - Trait for optimization algorithms
 /// - [`Stop`] - Trait for stopping criteria
+/// - [`crate::domain::codomain::Accumulator`] - Trait for accumulating best solutions across iterations
+/// - [`crate::domain::codomain::BestComputed`] - Accumulator for single-objective codomains
+/// - [`crate::domain::codomain::ParetoComputed`] - Accumulator for multi-objective codomains
 pub trait Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -947,6 +960,13 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
 {
+    /// Creates a new experiment from its components.
+    ///
+    /// Constructs an experiment ready to run from scratch. The optimizer's internal
+    /// state is initialized fresh, and the accumulator starts empty.
+    ///
+    /// Prefer the [`mono`], [`threaded`] or [`distributed`] functions which
+    /// infer the concrete experiment type automatically.
     fn new(
         space: (Scp, Op::Cod),
         objective: Fn,
@@ -954,22 +974,85 @@ where
         stop: St,
         saver: (Option<Rec>, Option<Check>),
     ) -> Self;
-    fn run(self);
+
+    /// Runs the optimization loop to completion.
+    ///
+    /// Executes the full pipeline, generation, evaluation, accumulation, recording,
+    /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
+    /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
+    /// 
+    /// It return an [`Accumulator`](crate::Accumulator) containing the best solutions found during the run.
+    fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+
+    /// Restores an experiment from a checkpoint.
+    ///
+    /// Reconstructs the full experiment state (optimizer, stop criterion, accumulator)
+    /// from the provided [`Checkpointer`]. The searchspace, codomain, and objective are
+    /// supplied explicitly because they are not serialized.
+    ///
+    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the [`load!`] macro.
     fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self;
+
+    /// Returns a reference to the [`Stop`] criterion.
     fn get_stop(&self) -> &St;
+
+    /// Returns a reference to the [`Searchspace`].
     fn get_searchspace(&self) -> &Scp;
+
+    /// Returns a reference to the [`Codomain`](crate::Codomain).
     fn get_codomain(&self) -> &Op::Cod;
+
+    /// Returns a reference to the objective function wrapper.
     fn get_objective(&self) -> &Fn;
+
+    /// Returns a reference to the [`Optimizer`].
     fn get_optimizer(&self) -> &Op;
+
+    /// Returns a reference to the [`Recorder`], if any.
     fn get_recorder(&self) -> Option<&Rec>;
+
+    /// Returns a reference to the [`Checkpointer`], if any.
     fn get_checkpointer(&self) -> Option<&Check>;
+
+    /// Returns a mutable reference to the [`Stop`] criterion.
+    ///
+    /// Useful for extending or adjusting the budget after loading from a checkpoint:
+    ///
+    /// ```rust,ignore
+    /// let mut exp = load!(mono, MyOpt, Calls, space, obj, (None, checkpointer));
+    /// exp.get_mut_stop().add(500); // run 500 more evaluations
+    /// exp.run();
+    /// ```
     fn get_mut_stop(&mut self) -> &mut St;
+
+    /// Returns a mutable reference to the [`Searchspace`].
     fn get_mut_searchspace(&mut self) -> &mut Scp;
+
+    /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
     fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+
+    /// Returns a mutable reference to the objective function wrapper.
     fn get_mut_objective(&mut self) -> &mut Fn;
+
+    /// Returns a mutable reference to the [`Optimizer`].
     fn get_mut_optimizer(&mut self) -> &mut Op;
+
+    /// Returns a mutable reference to the [`Recorder`], if any.
     fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
+
+    /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
+
+    /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
+    fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+
+    /// Returns a mutable reference to the [`Accumulator`](crate::Accumulator).
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+
+    /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
+    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>){
+        self.get_mut_accumalator().accumulate(comp);
+    }
 }
 
 #[cfg(feature = "mpi")]
@@ -1007,10 +1090,10 @@ where
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
-    pub fn run(self) {
+    pub fn run(self) -> Option<CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>> {
         match self {
-            MasterWorker::Master(exp) => exp.run(),
-            MasterWorker::Worker(worker) => worker.run(),
+            MasterWorker::Master(exp) => Some(exp.run()),
+            MasterWorker::Worker(worker) => {worker.run(); None},
         }
     }
 }
@@ -1040,7 +1123,7 @@ where
         stop: St,
         saver: (Option<Rec>, Option<Check>),
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
-    fn run(self);
+    fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1061,6 +1144,17 @@ where
     fn get_mut_optimizer(&mut self) -> &mut Op;
     fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
+    /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
+    fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+
+    /// Returns a mutable reference to the [`Accumulator`](crate::Accumulator).
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    
+    /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
+    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>){
+        self.get_mut_accumalator().accumulate(comp);
+    }
+
 }
 
 //------------------------//
@@ -1201,8 +1295,10 @@ where
     ///
     /// The evaluated solution(s) in a format specific to the evaluator implementation.
     /// This could be a single solution or a batch depending on the concrete type.
-    fn evaluate(&mut self, ob: &Fn, cod: &Op::Cod, stop: &mut St) -> OutType;
+    fn evaluate(&mut self, ob: &Fn, cod: &Op::Cod, stop: &mut St, acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) -> OutType;
 }
+
+type ArcMutexCompAcc<Scp, PSol, SolId, SInfo, Cod, Out> = Arc<Mutex<CompAcc<Scp, PSol, SolId, SInfo, Cod, Out>>>;
 
 /// Multi-threaded evaluation strategy.
 ///
@@ -1273,7 +1369,7 @@ where
     /// # Returns
     ///
     /// The evaluated solutions after parallel evaluation completes.
-    fn evaluate(&mut self, ob: Arc<Fn>, cod: Arc<Op::Cod>, stop: Arc<Mutex<St>>) -> OutType;
+    fn evaluate(&mut self, ob: Arc<Fn>, cod: Arc<Op::Cod>, stop: Arc<Mutex<St>>, acc: ArcMutexCompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) -> OutType;
 }
 
 #[cfg(feature = "mpi")]
@@ -1363,5 +1459,6 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     ) -> OutType;
 }

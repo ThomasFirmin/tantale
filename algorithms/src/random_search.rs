@@ -1,23 +1,17 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped,
-    domain::{
+    BaseSol, Codomain, Criteria, FidOutcome, Objective, Solution, Stepped, domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
-    },
-    objective::{
+    }, experiment::CompAcc, objective::{
         Step,
         outcome::{FuncState, Outcome},
-    },
-    optimizer::{
+    }, optimizer::{
         EmptyInfo, OptInfo, OptState,
         opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
-    },
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{
+    }, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{
         Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol,
         shape::RawObj,
-    },
+    }
 };
 
 use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
@@ -223,6 +217,7 @@ where
             Out,
         >,
         scp: &Scp,
+        _acc: &CompAcc<Scp, BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape {
         self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
     }
@@ -256,6 +251,7 @@ where
             Out,
         >,
         scp: &Scp,
+        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape {
         match x {
             Some(comp) => {
@@ -446,6 +442,7 @@ where
             CompShape<Scp, BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
+        _acc: &CompAcc<Scp, BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
@@ -518,6 +515,7 @@ where
             CompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         >,
         scp: &Scp,
+        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         let pairs: Vec<_> = x
             .into_iter()

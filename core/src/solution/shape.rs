@@ -53,7 +53,7 @@ pub type RawOpt<SolShape, SolId, SInfo> =
 
 /// Trait linking objective- and optimizer-side solutions with a shared [`Id`](crate::Id).
 pub trait SolutionShape<SolId: Id, SInfo: SolInfo>:
-    Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug
+    Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug + Sized
 where
     Self: Serialize + for<'a> Deserialize<'a>,
 {
@@ -74,6 +74,11 @@ where
     fn extract_sobj(self) -> Self::SolObj;
     /// Extract the optimizer-side solution, consuming the shape.
     fn extract_sopt(self) -> Self::SolOpt;
+
+    /// Creates a clone of this shape with the same solutions, metadata, and [`Id`], used
+    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
+    fn _clone_shape(&self) -> Self;
+
 }
 
 /// A pair made of an objective [`Solution`] and its optimizer twin.
@@ -304,6 +309,11 @@ where
     }
     fn extract_sopt(self) -> Self::SolOpt {
         self.1
+    }
+    fn _clone_shape(&self) -> Self {
+        let obj = self.get_sobj()._clone_sol();
+        let opt = self.get_sopt()._clone_sol();
+        Self::new(obj, opt)
     }
 }
 
@@ -554,6 +564,10 @@ where
     }
     fn extract_sopt(self) -> Self::SolOpt {
         self.0
+    }
+    fn _clone_shape(&self) -> Self {
+        let obj = self.get_sobj()._clone_sol();
+        Self::new(obj)
     }
 }
 

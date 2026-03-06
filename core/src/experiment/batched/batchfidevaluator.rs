@@ -1,3 +1,5 @@
+use crate::Accumulator;
+use crate::domain::codomain::TypeAcc;
 use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
 use crate::{
@@ -148,6 +150,7 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -164,7 +167,7 @@ where
             match step {
                 Step::Pending => {
                     // No saved state
-                    let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, None);
+                    let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, None);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
                     let new_step = pair.step();
@@ -175,13 +178,17 @@ where
                             stop.update(ExpStep::Distribution(new_step));
                         }
                     };
-                    obatch.add((sid, out));
-                    cbatch.add(pair.into_computed(y.into()));
+                    let computed = pair.into_computed(y.into());
+                    let out = (sid, out);
+                    acc.accumulate(&computed);
+
+                    cbatch.add(computed);
+                    obatch.add(out);
                 }
                 Step::Partially(_) => {
                     // get previous state and save next
                     let state = self.pool.retrieve(&sid);
-                    let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
+                    let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
                     let new_step = pair.step();
@@ -316,6 +323,7 @@ where
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + Debug + Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
@@ -347,6 +355,7 @@ where
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
+        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -367,7 +376,7 @@ where
                 match step {
                     Step::Pending | Step::Partially(_) => {
                         // No saved state
-                        let (out, state) = ob.compute(pair.get_sobj().get_x(), fid, state);
+                        let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                         let y = cod.get_elem(&out);
                         pair.set_raw_step(out.get_step());
                         let step = pair.step();
@@ -378,8 +387,13 @@ where
                                 stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                         };
-                        obatch.lock().unwrap().add((sid, out));
-                        cbatch.lock().unwrap().add(pair.into_computed(y.into()));
+
+                        let computed  = pair.into_computed(y.into());
+                        let out = (sid, out);
+                        acc.lock().unwrap().accumulate(&computed);
+
+                        cbatch.lock().unwrap().add(computed);
+                        obatch.lock().unwrap().add(out);
                     }
                     _ => {
                         self.pool.lock().unwrap().remove(&sid);
@@ -637,6 +651,7 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -673,8 +688,14 @@ where
                 _ => {}
             };
             stop.update(ExpStep::Distribution(pair.step()));
-            obatch.add((pair.id(), out));
-            cbatch.add(pair.into_computed(y.into()));
+
+            let out = (pair.id(), out);
+            let computed = pair.into_computed(y.into());
+
+            acc.accumulate(&computed);
+
+            obatch.add(out);
+            cbatch.add(computed);
             stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,

@@ -1,14 +1,7 @@
 use crate::{
-    Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
-    domain::{Codomain, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
-    objective::{Objective, Step},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    searchspace::CompShape,
-    solution::{
-        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
-    },
-    stop::{ExpStep, Stop},
+    Accumulator, Id, OptInfo, Outcome, Searchspace, SolInfo, Solution, domain::{Codomain, codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
+        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj
+    }, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -109,6 +102,7 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -118,10 +112,15 @@ where
 
         while !self.batch.is_empty() && !stop.stop() {
             let pair = self.batch.pop().unwrap();
-            let out = ob.compute(pair.get_sobj().get_x());
+            let id = pair.id();
+            let out = ob.compute(pair.get_sobj().clone_x());
             let y = cod.get_elem(&out);
-            obatch.add((pair.id(), out));
-            cbatch.add(pair.into_computed(y.into()));
+            let computed = pair.into_computed(y.into());
+
+            acc.accumulate(&computed);
+
+            obatch.add((id, out));
+            cbatch.add(computed);
             stop.update(ExpStep::Distribution(Step::Evaluated));
         }
         // For saving in case of early stopping before full evaluation of all elements
@@ -189,6 +188,7 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
+        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<
             SolId,
@@ -215,9 +215,14 @@ where
         // Recv / sendv loop
         while !sendrec.waiting.is_empty() {
             let (_, pair, out) = sendrec.rec_computed();
+            let id = pair.id();
             let y = cod.get_elem(&out);
-            obatch.add((pair.id(), out));
-            cbatch.add(pair.into_computed(y.into()));
+
+            let computed = pair.into_computed(y.into());
+            acc.accumulate(&computed);
+
+            obatch.add((id, out));
+            cbatch.add(computed);
             if !stop.stop() && !self.batch.is_empty() {
                 sendrec.send_to_worker(self.batch.pop().unwrap());
                 stop.update(crate::stop::ExpStep::Distribution(Step::Evaluated));
@@ -305,6 +310,7 @@ where
     Scp::SolShape: Send + Sync,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         Debug + SolutionShape<SolId, Op::SInfo> + Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
 {
@@ -328,6 +334,7 @@ where
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
+        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
     ) -> (
         Batch<
             SolId,
@@ -348,10 +355,13 @@ where
                 stplock.update(ExpStep::Distribution(Step::Evaluated));
                 drop(stplock);
                 let pair = self.batch.lock().unwrap().pop().unwrap();
-                let out = ob.clone().compute(pair.get_sobj().get_x());
+                let id = pair.id();
+                let out = ob.clone().compute(pair.get_sobj().clone_x());
                 let y = cod.clone().get_elem(&out);
-                obatch.lock().unwrap().add((pair.id(), out));
-                cbatch.lock().unwrap().add(pair.into_computed(y.into()));
+                let computed = pair.into_computed(y.into());
+                acc.lock().unwrap().accumulate(&computed);
+                obatch.lock().unwrap().add((id, out));
+                cbatch.lock().unwrap().add(computed);
             }
         });
         let obatch = Arc::try_unwrap(obatch).unwrap().into_inner().unwrap();

@@ -94,5 +94,5 @@ fn obj_test() {
         pair
     }
     let sample = get_pair(&sp, &mut rng);
-    searchspace::example(sample.get_sobj().get_x());
+    searchspace::example(sample.get_sobj().clone_x());
 }

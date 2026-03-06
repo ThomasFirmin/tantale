@@ -1,17 +1,13 @@
 use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-    thread,
+    collections::VecDeque, ops::Deref, sync::{Arc, Mutex}, thread
 };
 
 use crate::{
-    Codomain, FidOutcome, SId, SeqRecorder, Solution, Stepped, checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer}, domain::onto::LinkOpt, experiment::{
-        MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment,
-        basics::{FuncStatePool, IdxMapPool},
-        sequential::{
+    Accumulator, Codomain, FidOutcome, SId, SeqRecorder, Solution, Stepped, checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
+        CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, Runable, ThrExperiment, basics::{FuncStatePool, IdxMapPool}, sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
-        },
+        }
     }, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
         HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj,
     }, stop::{ExpStep, Stop}
@@ -102,6 +98,9 @@ where
             }
             None => None,
         };
+
+        let accumulator = Op::Cod::new_accumulator();
+
         MonoExperiment {
             searchspace,
             codomain,
@@ -110,6 +109,7 @@ where
             stop,
             recorder,
             checkpointer,
+            accumulator,
             evaluator: None,
         }
     }
@@ -135,6 +135,7 @@ where
             }
             None => None,
         };
+        let accumulator = checkpointer.load_accumulator().unwrap();
         checkpointer.after_load();
 
         MonoExperiment {
@@ -145,9 +146,11 @@ where
             stop,
             recorder,
             checkpointer: Some(checkpointer),
+            accumulator,
             evaluator: Some(evaluator),
         }
     }
+    
     /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
@@ -155,10 +158,10 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`SeqEvaluator`]. updates) step.
-    fn run(mut self) {
+    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
-            None => SeqEvaluator::new(self.optimizer.step(None, &self.searchspace)),
+            None => SeqEvaluator::new(self.optimizer.step(None, &self.searchspace, &self.accumulator)),
         };
 
         let mut computed;
@@ -181,7 +184,7 @@ where
                 _,
                 OutShapeEvaluate<SId, Op::SInfo, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
-                &mut eval, &self.objective, &self.codomain, &mut self.stop
+                &mut eval, &self.objective, &self.codomain, &mut self.stop, &mut self.accumulator
             );
 
             // Check if stop
@@ -196,13 +199,16 @@ where
 
             eval = self
                 .optimizer
-                .step(Some(computed), &self.searchspace)
+                .step(Some(computed), &self.searchspace, &self.accumulator)
                 .into();
             self.stop.update(ExpStep::Optimization);
             if let Some(c) = &self.checkpointer {
-                c.save_state(self.optimizer.get_state(), &self.stop, &eval)
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+                c.save_accumulator(&self.accumulator);
             }
         }
+
+        self.accumulator
     }
 
     fn get_stop(&self) -> &St {
@@ -259,6 +265,14 @@ where
 
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
+    }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
     }
 }
 
@@ -337,6 +351,7 @@ where
             }
             None => None,
         };
+        let accumulator = Op::Cod::new_accumulator();
         MonoExperiment {
             searchspace,
             codomain,
@@ -345,6 +360,7 @@ where
             stop,
             recorder,
             checkpointer,
+            accumulator,
             evaluator: None,
         }
     }
@@ -376,6 +392,9 @@ where
             }
             None => None,
         };
+
+        let accumulator = checkpointer.load_accumulator().unwrap();
+
         checkpointer.after_load();
 
         MonoExperiment {
@@ -386,6 +405,7 @@ where
             stop,
             recorder,
             checkpointer: Some(checkpointer),
+            accumulator,
             evaluator: Some(evaluator),
         }
     }
@@ -398,7 +418,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidSeqEvaluator`]. updates) step.
-    fn run(mut self) {
+    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -407,7 +427,7 @@ where
                     .as_ref()
                     .map(|c| c.new_func_state_checkpointer());
                 FidSeqEvaluator::new(
-                    self.optimizer.step(None, &self.searchspace).into(),
+                    self.optimizer.step(None, &self.searchspace, &self.accumulator).into(),
                     IdxMapPool::new(fn_check),
                 )
             }
@@ -432,7 +452,7 @@ where
                 _,
                 Option<OutShapeEvaluate<SId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
             >::evaluate(
-                &mut eval, &self.objective, &self.codomain, &mut self.stop
+                &mut eval, &self.objective, &self.codomain, &mut self.stop, &mut self.accumulator
             );
 
             let (computed, outputed) = output.unzip();
@@ -445,12 +465,14 @@ where
                 r.save(comp, out, &self.searchspace, &self.codomain);
             }
 
-            eval.update(self.optimizer.step(computed, &self.searchspace));
+            eval.update(self.optimizer.step(computed, &self.searchspace, &self.accumulator));
             self.stop.update(ExpStep::Optimization);
             if let Some(c) = &self.checkpointer {
                 c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+                c.save_accumulator(&self.accumulator);
             }
         }
+        self.accumulator
     }
 
     fn get_stop(&self) -> &St {
@@ -510,6 +532,14 @@ where
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
     }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
+    }
 }
 
 //---------------------//
@@ -562,6 +592,7 @@ where
     Out: Outcome + Send + Sync + 'static,
     Rec: SeqRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>> + Send + Sync + 'static,
     Check: ThrCheckpointer + Send + Sync + 'static,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>: Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -588,6 +619,8 @@ where
             }
             None => None,
         };
+        let accumulator = Op::Cod::new_accumulator();
+
         ThrExperiment {
             searchspace,
             codomain,
@@ -596,6 +629,7 @@ where
             stop,
             recorder,
             checkpointer,
+            accumulator,
             evaluator: None,
         }
     }
@@ -625,6 +659,8 @@ where
             }
             None => None,
         };
+        let accumulator = checkpointer.load_accumulator_thr().unwrap();
+
         checkpointer.after_load();
 
         ThrExperiment {
@@ -635,6 +671,7 @@ where
             stop,
             recorder,
             checkpointer: Some(checkpointer),
+            accumulator,
             evaluator: Some(evaluator),
         }
     }
@@ -647,7 +684,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrSeqEvaluator`]. updates) step.
-    fn run(self) {
+    fn run(self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -655,6 +692,7 @@ where
         let scp = Arc::new(self.searchspace);
         let checkpointer = Arc::new(self.checkpointer);
         let recorder = Arc::new(self.recorder);
+        let accumulator = Arc::new(Mutex::new(self.accumulator));
         let evaluator = match self.evaluator {
             Some(e) => Arc::new(Mutex::new(e)),
             None => Arc::new(Mutex::new(VecThrSeqEvaluator::new(VecDeque::new()))),
@@ -672,12 +710,13 @@ where
             let stop = st.clone();
             let check = checkpointer.clone();
             let rec = recorder.clone();
+            let acc = accumulator.clone();
             let evaluator = evaluator.clone();
 
             let handle = thread::spawn(move || {
                 let mut eval = match evaluator.lock().unwrap().get_one_evaluator() {
                     Some(e) => e,
-                    None => ThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp)),
+                    None => ThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp, acc.lock().unwrap().deref())),
                 };
                 loop {
                     if stop.lock().unwrap().stop() {
@@ -690,7 +729,7 @@ where
                     );
                     let id = pair.id();
                     // No saved state
-                    let out = objective.compute(pair.get_sobj().get_x());
+                    let out = objective.compute(pair.get_sobj().clone_x());
                     let y = cod.get_elem(&out);
                     let computed = pair.into_computed(y.into());
                     let outputed = (id, out);
@@ -705,7 +744,7 @@ where
                     eval = match evaluator.lock().unwrap().get_one_evaluator() {
                         Some(e) => e,
                         None => ThrSeqEvaluator::new(
-                            optimizer.lock().unwrap().step(Some(computed), &scp),
+                            optimizer.lock().unwrap().step(Some(computed), &scp, acc.lock().unwrap().deref()),
                         ),
                     };
                     stop.lock().unwrap().update(ExpStep::Optimization);
@@ -717,6 +756,7 @@ where
                             &eval,
                             thr,
                         );
+                        c.save_accumulator_thr(&*acc.lock().unwrap());
                     }
                 }
             });
@@ -725,6 +765,7 @@ where
         for worker in workers {
             let _ = worker.join();
         }
+        Arc::try_unwrap(accumulator).unwrap().into_inner().unwrap()
     }
 
     fn get_stop(&self) -> &St {
@@ -781,6 +822,14 @@ where
 
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
+    }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
     }
 }
 
@@ -839,6 +888,7 @@ where
     Check::FnStateCheck: Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
     RawObj<Scp::SolShape, SId, Op::SInfo>: 'static,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>: Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -865,6 +915,7 @@ where
             }
             None => None,
         };
+        let accumulator = Op::Cod::new_accumulator();
         ThrExperiment {
             searchspace,
             codomain,
@@ -873,6 +924,7 @@ where
             stop,
             recorder,
             checkpointer,
+            accumulator,
             evaluator: None,
         }
     }
@@ -907,6 +959,7 @@ where
             }
             None => None,
         };
+        let accumulator = checkpointer.load_accumulator_thr().unwrap();
         checkpointer.after_load();
 
         ThrExperiment {
@@ -917,6 +970,7 @@ where
             stop,
             recorder,
             checkpointer: Some(checkpointer),
+            accumulator,
             evaluator: Some(evaluator),
         }
     }
@@ -929,7 +983,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidThrSeqEvaluator`]. updates) step.
-    fn run(self) {
+    fn run(self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -951,6 +1005,7 @@ where
         };
         let recorder = Arc::new(self.recorder);
         let checkpointer = Arc::new(self.checkpointer);
+        let accumulator = Arc::new(Mutex::new(self.accumulator));
 
         let k = num_cpus::get();
         let mut workers = Vec::with_capacity(k);
@@ -964,13 +1019,14 @@ where
             let stop = st.clone();
             let check = checkpointer.clone();
             let rec = recorder.clone();
+            let acc = accumulator.clone();
             let pool_evaluator = pool_evaluator.clone();
 
             let handle = thread::spawn(move || {
                 let mut eval = match pool_evaluator.lock().unwrap().get_one_evaluator() {
                     Some(e) => e,
                     None => {
-                        FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp), None)
+                        FidThrSeqEvaluator::new(optimizer.lock().unwrap().step(None, &scp, acc.lock().unwrap().deref()), None)
                     }
                 };
                 loop {
@@ -989,7 +1045,7 @@ where
                             let state = eval.state.take();
                             let fid = pair.fidelity();
                             let (out, state) =
-                                objective.compute(pair.get_sobj().get_x(), fid, state);
+                                objective.compute(pair.get_sobj().clone_x(), fid, state);
 
                             let new_step = out.get_step().into();
                             match new_step {
@@ -1005,13 +1061,14 @@ where
                             let mut computed = pair.into_computed(y.into());
                             let outputed = (id, out);
                             computed.set_step(new_step);
+                            acc.lock().unwrap().accumulate(&computed);
                             stop.lock().unwrap().update(ExpStep::Distribution(new_step));
 
                             if let Some(r) = rec.as_ref() {
                                 r.save(&computed, &outputed, &scp, &cod);
                             }
 
-                            let new_sol = optimizer.lock().unwrap().step(Some(computed), &scp);
+                            let new_sol = optimizer.lock().unwrap().step(Some(computed), &scp, acc.lock().unwrap().deref());
                             let new_eval = FidThrSeqEvaluator::new(new_sol, None);
                             pool_evaluator.lock().unwrap().pairs.push_back(new_eval);
                         }
@@ -1024,7 +1081,7 @@ where
                     eval = match pool_evaluator.lock().unwrap().get_one_evaluator() {
                         Some(e) => e,
                         None => FidThrSeqEvaluator::new(
-                            optimizer.lock().unwrap().step(None, &scp),
+                            optimizer.lock().unwrap().step(None, &scp, acc.lock().unwrap().deref()),
                             None,
                         ),
                     };
@@ -1037,6 +1094,7 @@ where
                             &eval,
                             thr,
                         );
+                        c.save_accumulator_thr(&*acc.lock().unwrap());
                     }
                 }
             });
@@ -1045,6 +1103,7 @@ where
         for worker in workers {
             let _ = worker.join();
         }
+        Arc::try_unwrap(accumulator).unwrap().into_inner().unwrap()
     }
 
     fn get_stop(&self) -> &St {
@@ -1103,6 +1162,14 @@ where
 
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
+    }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
     }
 }
 
@@ -1203,6 +1270,7 @@ where
                 }
                 None => None,
             };
+            let accumulator = Op::Cod::new_accumulator();
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1212,6 +1280,7 @@ where
                 stop,
                 recorder,
                 checkpointer,
+                accumulator,
                 evaluator: None,
             })
         } else {
@@ -1260,8 +1329,9 @@ where
                 }
                 None => None,
             };
+            let accumulator = Op::Cod::new_accumulator();
             checkpointer.after_load_dist(proc);
-
+            
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1271,6 +1341,7 @@ where
                 stop,
                 recorder,
                 checkpointer: Some(checkpointer),
+                accumulator,
                 evaluator: Some(evaluator),
             })
         } else {
@@ -1290,12 +1361,12 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) {
+    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
                 let shapes: Vec<_> = (0..self.proc.size)
-                    .map(|_| self.optimizer.step(None, &self.searchspace))
+                    .map(|_| self.optimizer.step(None, &self.searchspace, &self.accumulator))
                     .collect();
                 DistSeqEvaluator::new(shapes)
             }
@@ -1303,7 +1374,7 @@ where
         if eval.shapes.len() < self.proc.size as usize {
             let n = self.proc.size as usize - eval.shapes.len();
             let mut shapes: Vec<_> = (0..n)
-                .map(|_| self.optimizer.step(None, &self.searchspace))
+                .map(|_| self.optimizer.step(None, &self.searchspace, &self.accumulator))
                 .collect();
             eval.shapes.append(&mut shapes);
         }
@@ -1339,6 +1410,7 @@ where
                 &self.objective,
                 &self.codomain,
                 &mut self.stop,
+                &mut self.accumulator,
             );
             (computed, outputed) = output.unzip();
 
@@ -1351,7 +1423,7 @@ where
             }
 
             // Optimizer part
-            eval.update(self.optimizer.step(computed, &self.searchspace));
+            eval.update(self.optimizer.step(computed, &self.searchspace, &self.accumulator));
             self.stop.update(ExpStep::Optimization);
 
             // Checkpoint part
@@ -1362,6 +1434,7 @@ where
                     &eval,
                     self.proc.rank,
                 );
+                c.save_accumulator_dist(&self.accumulator, self.proc.rank);
             }
         }
         // Flush all waiting solution within eval.
@@ -1373,10 +1446,12 @@ where
                 &eval,
                 self.proc.rank,
             );
+            c.save_accumulator_dist(&self.accumulator, self.proc.rank);
         }
         // Receive everything overflowing stop
         sendrec.flush();
         stop_order(self.proc, 1..self.proc.size);
+        self.accumulator
     }
 
     fn get_stop(&self) -> &St {
@@ -1433,6 +1508,14 @@ where
 
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
+    }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
     }
 }
 
@@ -1534,6 +1617,7 @@ where
                 }
                 None => None,
             };
+            let accumulator = Op::Cod::new_accumulator();
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1543,6 +1627,7 @@ where
                 stop,
                 recorder,
                 checkpointer,
+                accumulator,
                 evaluator: None,
             })
         } else {
@@ -1597,6 +1682,7 @@ where
                 }
                 None => None,
             };
+            let accumulator = checkpointer.load_accumulator_dist(proc.rank).unwrap();
             checkpointer.after_load_dist(proc);
 
             MasterWorker::Master(MPIExperiment {
@@ -1608,6 +1694,7 @@ where
                 stop,
                 recorder,
                 checkpointer: Some(checkpointer),
+                accumulator,
                 evaluator: Some(evaluator),
             })
         } else {
@@ -1633,12 +1720,12 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) {
+    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
                 let init_vec: Vec<_> = (0..self.proc.size + 1)
-                    .map(|_| self.optimizer.step(None, &self.searchspace))
+                    .map(|_| self.optimizer.step(None, &self.searchspace, &self.accumulator))
                     .collect();
                 FidDistSeqEvaluator::new(init_vec, self.proc.size as usize)
             }
@@ -1676,6 +1763,7 @@ where
                 &self.objective,
                 &self.codomain,
                 &mut self.stop,
+                &mut self.accumulator,
             );
             (rank, solout) = output.unzip();
             (computed, outputed) = solout.unzip();
@@ -1689,14 +1777,14 @@ where
             }
 
             // Optimizer part
-            eval.update(self.optimizer.step(computed, &self.searchspace));
+            eval.update(self.optimizer.step(computed, &self.searchspace, &self.accumulator));
             self.stop.update(ExpStep::Optimization);
             // If more than 1 process is idle, it means that the optimizer is not able to give new solutions to at least 2 processes,
             // so the optimizer has to generate new solution ex-nihilo.
             let idle_count = sendrec.idle.count_idle();
             if idle_count > 1 {
                 for _ in 0..idle_count {
-                    eval.update(self.optimizer.step(None, &self.searchspace));
+                    eval.update(self.optimizer.step(None, &self.searchspace, &self.accumulator));
                 }
                 self.stop.update(ExpStep::Optimization);
             }
@@ -1709,6 +1797,7 @@ where
                     &eval,
                     self.proc.rank,
                 );
+                c.save_accumulator_dist(&self.accumulator, self.proc.rank);
                 if let Some(r) = rank {
                     sendrec.rank_checkpoint_order(r);
                 }
@@ -1723,10 +1812,12 @@ where
                 &eval,
                 self.proc.rank,
             );
+            c.save_accumulator_dist(&self.accumulator, self.proc.rank);
         }
         // Receive everything overflowing stop
         sendrec.flush();
         stop_order(self.proc, 1..self.proc.size);
+        self.accumulator
     }
 
     fn get_stop(&self) -> &St {
@@ -1785,5 +1876,13 @@ where
 
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
         self.checkpointer.as_mut()
+    }
+
+    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
+
+    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
     }
 }
