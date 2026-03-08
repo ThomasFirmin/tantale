@@ -21,7 +21,7 @@ impl Stop for Evaluated {
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{objective::Step, stop::{Evaluated, ExpStep}};
+    /// use tantale::core::{objective::Step, stop::{Stop, Evaluated, ExpStep}};
     /// let mut calls = Evaluated::new(3);
     /// calls.update(ExpStep::Distribution(Step::Evaluated));
     /// calls.update(ExpStep::Distribution(Step::Partially(5)));

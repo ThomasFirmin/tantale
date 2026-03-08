@@ -32,7 +32,11 @@
 //!
 //! # Example with [`hpo!`](../../../tantale/macros/macro.hpo.html).
 //!
-//! ```
+//! This is a mock example to illustrate the usage of the searchspace and its mapping functions.
+//! See concrete examples within the repository for more detailed use cases.
+//! 
+//! ```rust,ignore
+//! 
 //!     use tantale::core::{Bool, Cat, Nat, Real, Searchspace,
 //!                         Uniform, Bernoulli,
 //!                         EmptyInfo, Solution, SId};
@@ -48,7 +52,7 @@
 //!         d | Bool()                           | Real(0.0,1.0,Uniform) ;
 //!     );
 //!
-//!     let mut rng =rand::rng();
+//!     let mut rng: rand::rngs::ThreadRng = rand::rng();
 //!     let sp = get_searchspace();
 //!     let info = std::sync::Arc::new(EmptyInfo{});
 //!
@@ -95,36 +99,37 @@
 //!
 //! ```
 //! mod searchspace{
-//!     use tantale::core::{Bool, Cat, Nat, Real, Searchspace,
-//!                         Uniform, Bernoulli,
-//!                         EmptyInfo, Solution, SId};
+//!     use tantale::core::{Bool, Cat, Nat, Real, Uniform, Bernoulli};
 //!     use tantale::macros::{objective,Outcome};
 //!     use serde::{Serialize,Deserialize};
-//!
-//!     #[derive(Outcome,Serialize,Deserialize)]
+//! 
+//!     #[derive(Outcome,Debug,Serialize,Deserialize)]
 //!     pub struct OutStruct{pub out:f64}
-//!
+//! 
 //!     objective!(
 //!         pub fn example() -> OutStruct {
 //!             let a = [! a | Real(0.0,1.0,Uniform)    |                       !];
 //!             let b = [! b | Nat(0,100,Uniform)       | Real(0.0,1.0,Uniform) !];
-//!             let c = [! c | Cat(["relu", "tanh", "sigmoid"])         | Real(0.0,1.0,Uniform) !];
-//!             let d = [! d | Bool()                   | Real(0.0,1.0,Uniform) !];
+//!             let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform)         | Real(0.0,1.0,Uniform) !];
+//!             let d = [! d | Bool(Bernoulli(0.5))                   | Real(0.0,1.0,Uniform) !];
 //!                
 //!             println!("a {}, b {}, c {}, d {}", a, b, c, d);
 //!             OutStruct{out:42.0}
 //!         }
 //!     );
 //! }
-//!
-//! use tantale::core::{EmptyInfo,Searchspace,Solution,SId};
+//! 
+//! use tantale::core::{Sp, BaseSol, EmptyInfo,Searchspace,Solution,SId, HasId};
+//! use searchspace::{ObjType, OptType};
+//! 
 //! let sp = searchspace::get_searchspace();
 //! let info = std::sync::Arc::new(EmptyInfo{});
-//! let mut rng = rand::rng();
-//!
-//! let sample = sp.sample_obj(&mut rng,info);
-//! let id1: SId = sample.get_id();
-//! let out = searchspace::example(sample.get_x());
+//! let mut rng: rand::rngs::ThreadRng = rand::rng();
+//! 
+//! let sample: BaseSol<SId,ObjType,EmptyInfo> = 
+//! <Sp<ObjType, OptType> as Searchspace<BaseSol<_,OptType,_>, _, _>>::sample_obj(&sp, &mut rng, info.clone());
+//! let id1: SId = sample.id();
+//! let out = searchspace::example(sample.clone_x());
 //! println!("ID : {} -- Out {}",id1.id,out.out);
 //! ```
 
@@ -187,7 +192,7 @@ pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
 /// ```ignore
 /// // Create searchspace (usually via macro)
 /// let sp = get_searchspace();
-/// let mut rng = rand::rng();
+/// let mut rng: rand::rngs::ThreadRng = rand::rng();
 /// let info = Arc::new(EmptyInfo);
 ///
 /// // Optimizer generates in Opt domain
@@ -252,19 +257,19 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(&mut rng, info.clone());
-    /// let opt = sp.onto_opt(obj.clone()); // Map obj => opt
+    /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
+    /// let opt: Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, SId, _, _, _> = sp.onto_opt(obj); // Map obj => opt
     ///
-    /// for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
-    ///     println!("Obj: {} => Opt: {}", i, o);
+    /// for (i, o) in opt.get_sobj().get_x().iter().zip(opt.get_sopt().get_x().iter()) {
+    ///     println!("Obj: {:?} => Opt: {}", i, o);
     /// }
     ///
     /// ```
@@ -295,19 +300,19 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt = sp.sample_opt(&mut rng, info.clone());
-    /// let obj = sp.onto_obj(opt.clone());
+    /// let opt: BaseSol<SId, Bounded<f64>, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
+    /// let obj = sp.onto_obj(opt); // Map opt => obj
     ///
-    /// for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
-    ///     println!("Opt: {} => Obj: {}", i, o);
+    /// for (i, o) in obj.get_sopt().get_x().iter().zip(obj.get_sobj().get_x().iter()) {
+    ///     println!("Opt: {} => Obj: {:?}", i, o);
     /// }
     ///
     /// ```
@@ -337,18 +342,18 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(&mut rng, info.clone());
+    /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     ///
     /// for i in obj.get_x().iter(){
-    ///     println!("{}", i);
+    ///     println!("{:?}", i);
     /// }
     ///
     /// ```
@@ -378,15 +383,15 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt= sp.sample_opt(&mut rng, info.clone());
+    /// let opt: BaseSol<SId, Bounded<f64>, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     ///
     /// for i in opt.get_x().iter(){
     ///     println!("{}", i);
@@ -420,19 +425,19 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
-    /// use std::{fmt::Debug, sync::Arc};
+    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape, HasId};
+    /// use std::sync::Arc;
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
+    /// let pair: Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, SId, _, _, _> = sp.sample_pair(&mut rng, info.clone());
     ///
-    /// for obj in vec_obj.clone().iter(){
-    ///     println!("Obj: {:?}", obj.get_x());
-    /// }
+    /// println!("Paired ID: {:?}", pair.id());
+    /// println!("Obj: {:?}", pair.get_sobj().get_x());
+    /// println!("Opt: {:?}", pair.get_sopt().get_x());
     ///
     /// ```
     ///
@@ -466,17 +471,17 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let obj = sp.sample_obj(&mut rng, info.clone());
+    /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     ///
-    /// sp.is_in_obj(obj.clone());
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::is_in_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &obj));
     ///
     /// ```
     fn is_in_obj<S>(&self, inp: &S) -> bool
@@ -513,17 +518,17 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let opt = sp.sample_opt(&mut rng, info.clone());
+    /// let opt: BaseSol<SId, Real, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     ///
-    /// sp.is_in_opt(opt.clone());
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::is_in_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &opt));
     ///
     /// ```
     fn is_in_opt<S>(&self, inp: &S) -> bool
@@ -549,23 +554,21 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
     /// use std::sync::Arc;
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_onto_obj(&vec_opt);
+    /// let vec_opt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
+    /// let vec_pair: Vec<Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, _, _, _, _>> = sp.vec_onto_obj(vec_opt);
     ///
-    /// for (opt,obj) in vec_opt.iter().zip(vec_obj.iter()){
-    ///     println!("[");
-    ///     for (i,o) in opt.get_x().iter().zip(obj.get_x().iter()){
-    ///         println!("Opt: {} => Obj: {}", i, o);
+    /// for pair in vec_pair {
+    ///     for (i, o) in pair.get_sopt().get_x().iter().zip(pair.get_sobj().get_x().iter()){
+    ///         println!("Opt: {} => Obj: {:?}", i, o);
     ///     }
-    ///     println!("]\n");
     /// }
     ///
     /// ```
@@ -599,23 +602,21 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
     /// use std::sync::Arc;
     ///
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
-    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_onto_opt(&vec_obj); // Map obj => opt
+    /// let vec_obj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
+    /// let vec_pair: Vec<Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, _, _, _, EmptyInfo>> = sp.vec_onto_opt(vec_obj); // Map obj => opt
     ///
-    /// for (obj,opt) in vec_obj.iter().zip(vec_opt.iter()){
-    ///     println!("[");
-    ///     for (i,o) in obj.get_x().iter().zip(opt.get_x().iter()){
-    ///         println!("Obj: {} => Opt: {}", i, o);
+    /// for pair in vec_pair.iter(){
+    ///     for (i, o) in pair.get_sobj().get_x().iter().zip(pair.get_sopt().get_x().iter()){
+    ///         println!("Obj: {:?} => Opt: {}", i, o);
     ///     }
-    ///     println!("]\n");
     /// }
     ///
     /// ```
@@ -651,17 +652,17 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
     /// use std::{fmt::Debug, sync::Arc};
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_obj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
+    /// let vec_obj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
     ///
-    /// for obj in vec_obj.clone().iter(){
+    /// for obj in vec_obj.into_iter(){
     ///     println!("Obj: {:?}", obj.get_x());
     /// }
     ///
@@ -704,18 +705,18 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_opt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
+    /// let vec_opt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
-    /// for obj in vec_opt.clone().iter(){
-    ///     println!("Obj: {:?}", obj.get_x());
+    /// for opt in vec_opt.into_iter(){
+    ///     println!("Opt: {:?}", opt.get_x());
     /// }
     ///
     /// ```
@@ -751,18 +752,18 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{Solution, Sp, BaseSol, Real, Mixed, Pair, EmptyInfo, HasId, SId, Searchspace, SolutionShape};
     /// use std::{fmt::Debug, sync::Arc};
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vec_pair = sp.vec_sample_pair(&mut rng, 10, info.clone());
+    /// let vec_pair: Vec<Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, SId, _, _, _>> = sp.vec_sample_pair(&mut rng, 10, info.clone());
     ///
     /// for pair in vec_pair.iter(){
-    ///     println!("Paired: {:?}", pair.get_id());
+    ///     println!("Paired: {:?}", pair.id());
     ///     println!("Obj: {:?}", pair.get_sobj().get_x());
     ///     println!("Opt: {:?}", pair.get_sopt().get_x());
     /// }
@@ -809,22 +810,23 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use tantale::core::{Sp, Mixed, Real, EmptyInfo, Searchspace, SId, FidelitySol, HasFidelity};
     /// use std::sync::Arc;
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sols = sp.vec_apply_obj(
-    ///     |sol| sol.set_fidelity(1.0),
+    /// let sols: Vec<FidelitySol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_apply_obj(
+    ///     &sp,
+    ///     |mut sol: FidelitySol<SId, Mixed, EmptyInfo>| { sol.set_fidelity(1.0); sol },
     ///     &mut rng,
     ///     5,
     ///     info.clone(),
     /// );
     ///
     /// for sol in sols.iter() {
-    ///     assert_eq!(sol.get_fidelity(), 1.0);
+    ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
     fn vec_apply_obj<F, R>(
@@ -871,22 +873,23 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use tantale::core::{Sp, Mixed, Real, FidelitySol, EmptyInfo, Searchspace, SId, HasFidelity};
     /// use std::sync::Arc;
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sols = sp.vec_apply_obj(
-    ///     |sol| sol.set_fidelity(1.0),
+    /// let sols: Vec<FidelitySol<SId, Real, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_apply_opt(
+    ///     &sp,
+    ///     |mut sol: FidelitySol<SId, Real, EmptyInfo>| { sol.set_fidelity(1.0); sol },
     ///     &mut rng,
     ///     5,
     ///     info.clone(),
     /// );
     ///
     /// for sol in sols.iter() {
-    ///     assert_eq!(sol.get_fidelity(), 1.0);
+    ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
     fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
@@ -927,22 +930,22 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use tantale::core::{FidelitySol, EmptyInfo, Searchspace, Pair, Sp, Mixed, Real, SId, HasFidelity};
     /// use std::sync::Arc;
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
-    /// let mut rng = rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let pairs = sp.vec_apply_pair(
-    ///     |pair| pair.set_fidelity(1.0),
+    /// let pairs: Vec<Pair<FidelitySol<SId, Mixed, EmptyInfo>, FidelitySol<SId, Real, EmptyInfo>, SId, _, _, _>> = sp.vec_apply_pair(
+    ///     |mut pair: Pair<_, _, _, Mixed, Real, EmptyInfo>| { pair.set_fidelity(1.0); pair },
     ///     &mut rng,
     ///     5,
     ///     info.clone(),
     /// );
     ///
     /// for pair in pairs.iter() {
-    ///     assert_eq!(pair.get_fidelity(), 1.0);
+    ///     assert_eq!(pair.fidelity().0, 1.0);
     /// }
     /// ```
     fn vec_apply_pair<F, R>(
@@ -985,17 +988,17 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Searchspace,Solution,Partial,EmptyInfo,SId,Vec};
+    /// use tantale::core::{BaseSol, Sp, Mixed, Real, Searchspace, Solution, EmptyInfo, SId};
     /// use std::sync::Arc;
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vobj : Vec<Partial<SId,_,_>> = sp.vec_sample_obj(&mut rng, 10, info.clone());
+    /// let vobj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
     ///
-    /// sp.vec_is_in_obj(&vobj);
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &vobj));
     ///
     /// ```
     fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
@@ -1032,17 +1035,17 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution,EmptyInfo,SId};
+    /// use tantale::core::{BaseSol, Sp, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
-    /// let mut rng =rand::rng();
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sp = sp::get_searchspace();
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     ///
-    /// let vopt : Vec<Partial<SId,_,_>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
+    /// let vopt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
-    /// sp.vec_is_in_opt(&vopt);
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &vopt));
     ///
     /// ```
     fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool

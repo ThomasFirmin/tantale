@@ -108,7 +108,7 @@
 //!
 //! ```rust
 //! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-//! use tantale::macros::{objective, Outcome, CSVWritable};
+//! use tantale::macros::{objective, Outcome, CSVWritable, FuncState};
 //! use serde::{Serialize, Deserialize};
 //!
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
@@ -269,7 +269,7 @@ pub mod solution;
 pub use solution::{
     BaseSol, Batch, Computed, Fidelity, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo,
     HasStep, HasUncomputed, HasY, Id, IntoComputed, OutBatch, ParSId, SId, SolInfo, Solution,
-    SolutionShape, shape::RawObj,
+    SolutionShape, shape::RawObj, Pair, Lone, Uncomputed,
 };
 
 pub mod searchspace;

@@ -28,10 +28,10 @@ use std::{fmt, ops::RangeInclusive};
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.is_in(&sample));
-/// assert_eq!(dom.bounds.start(), 0.0);
-/// assert_eq!(dom.bounds.end(), 1.0);
-/// assert_eq!(dom.mid(), 0.5);
-/// assert_eq!(dom.width(), 1.0);
+/// assert_eq!(*dom.bounds.start(), 0.0);
+/// assert_eq!(*dom.bounds.end(), 1.0);
+/// assert_eq!(dom.mid, 0.5);
+/// assert_eq!(dom.width, 1.0);
 /// ```
 pub struct Unit {
     pub bounds: RangeInclusive<f64>,

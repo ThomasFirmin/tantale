@@ -7,7 +7,7 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{BaseSol, EmptyInfo, Id, Real, SId};
+//! use tantale::core::{Uncomputed, BaseSol, EmptyInfo, Id, Real, SId};
 //!
 //! let x = std::sync::Arc::from(vec![0.1, 0.2, 0.3]);
 //! let info = std::sync::Arc::new(EmptyInfo {});
@@ -73,7 +73,7 @@ impl Fidelity {
 ///
 /// # Example
 /// ```
-/// use tantale::core::{BaseSol, EmptyInfo, Id, Real, SId, Solution};
+/// use tantale::core::{Uncomputed, BaseSol, EmptyInfo, Id, Real, SId, Solution};
 ///
 /// let x = std::sync::Arc::from(vec![0.0; 5]);
 /// let info = std::sync::Arc::new(EmptyInfo {});
@@ -179,7 +179,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use tantale::core::{Solution,BaseSol,Real,EmptyInfo,SId,Id};
+    /// use tantale::core::{Solution, Uncomputed, BaseSol, Id, Real, EmptyInfo, SId};
     ///
     /// let x = std::sync::Arc::from(vec![0.0;5]);
     /// let info = std::sync::Arc::new(EmptyInfo{});
@@ -272,7 +272,7 @@ where
 ///
 /// # Example
 /// ```
-/// use tantale::core::{FidelitySol, EmptyInfo, Id, Real, SId, Solution};
+/// use tantale::core::{Id, Step, Fidelity, Uncomputed, FidelitySol, HasFidelity, HasId, HasStep, EmptyInfo, Real, SId, Solution};
 ///
 /// let x = std::sync::Arc::from(vec![0.0; 3]);
 /// let info = std::sync::Arc::new(EmptyInfo {});
@@ -281,7 +281,7 @@ where
 /// assert_eq!(sol.step(), Step::Pending);
 /// assert_eq!(sol.fidelity().0, 0.0);
 /// // We can set the fidelity to a specific value, for example 0.5.
-/// sol.set_fidelity(Fidelity(0.5));
+/// sol.set_fidelity(0.5);
 /// assert_eq!(sol.get_x().len(), 3);
 /// assert_eq!(sol.fidelity().0, 0.5);
 /// ```

@@ -13,35 +13,37 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{BasePartial, Computed, SingleCodomain, EmptyInfo, Id, Outcome, Real, SId};
+//! use tantale::core::{Solution, BaseSol, Computed, Codomain, SingleCodomain, EmptyInfo, Id, Real, SId, Uncomputed};
+//! use tantale::macros::Outcome;
 //! use std::sync::Arc;
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Outcome, Serialize, Deserialize)]
+//! #[derive(Outcome, Serialize, Deserialize, Debug)]
 //! struct Out { value: f64 }
 //!
 //! let cod = SingleCodomain::new(|o: &Out| o.value);
 //! let x = Arc::from(vec![0.1, 0.2]);
 //! let info = Arc::new(EmptyInfo {});
-//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! let y = Arc::new(cod.get_elem(&Out { value: 0.5 }));
 //!
-//! let computed: Computed<_, SId, Real, _, Out, _> = Computed::new(sol, y);
+//! let computed: Computed<_, SId, Real, SingleCodomain<Out>, Out, _> = Computed::new(sol, y);
 //! assert_eq!(computed.get_x().len(), 2);
 //! ```
 //!
 //! ```
-//! use tantale::core::{BasePartial, SingleCodomain, EmptyInfo, Id, IntoComputed, Outcome, Real, SId};
+//! use tantale::core::{Solution, BaseSol, Codomain, SingleCodomain, EmptyInfo, Id, IntoComputed, Real, SId, Uncomputed};
+//! use tantale::macros::Outcome;
 //! use std::sync::Arc;
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Outcome, Serialize, Deserialize)]
+//! #[derive(Outcome, Serialize, Deserialize, Debug)]
 //! struct Out { value: f64 }
 //!
 //! let cod = SingleCodomain::new(|o: &Out| o.value);
 //! let x = Arc::from(vec![0.4, 0.8]);
 //! let info = Arc::new(EmptyInfo {});
-//! let sol = BasePartial::<SId, Real, _>::new(SId::generate(), x, info);
+//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! let y = Arc::new(cod.get_elem(&Out { value: 1.2 }));
 //!
 //! let computed = sol.into_computed::<SingleCodomain<Out>, Out>(y);

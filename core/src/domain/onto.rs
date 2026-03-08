@@ -12,10 +12,10 @@
 //! let mut rng = rand::rng();
 //! let sample = dom.sample(&mut rng);
 //! assert!(dom.is_in(&sample));
-//! assert_eq!(dom.bounds.start(), 0);
-//! assert_eq!(dom.bounds.end(), 255);
-//! assert_eq!(dom.mid(), 127);
-//! assert_eq!(dom.width(), 255);
+//! assert_eq!(*dom.bounds.start(), 0);
+//! assert_eq!(*dom.bounds.end(), 255);
+//! assert_eq!(dom.mid, 127);
+//! assert_eq!(dom.width, 255);
 //! ```
 
 use crate::{Domain, errors::OntoError};

@@ -11,8 +11,8 @@
 //! ```
 //! use tantale::core::{Sp, Var, Real, Unit, Uniform};
 //!
-//! let v1 = Var::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
 //! let sp = Sp { var: vec![v1, v2].into_boxed_slice() };
 //!
 //! assert_eq!(sp.var.len(), 2);
@@ -22,8 +22,8 @@
 //! ```
 //! use tantale::core::{Sp, SpPar, Var, Real, Unit, Uniform};
 //!
-//! let v1 = Var::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
 //! let sp = Sp { var: vec![v1, v2].into_boxed_slice() };
 //! let sp_par: SpPar<_, _> = sp.into();
 //!
@@ -32,16 +32,16 @@
 //!
 //! # Example: sampling pairs with [`Searchspace`]
 //! ```
-//! use tantale::core::{BasePartial, EmptyInfo, SId, Searchspace, Sp, Var, Real, Unit, Uniform};
+//! use tantale::core::{BaseSol, EmptyInfo, HasId, SId, Searchspace, Sp, Var, Real, Unit, Uniform};
 //! use std::sync::Arc;
 //!
-//! let v1 = Var::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
+//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
 //! let sp = Sp { var: vec![v1, v2].into_boxed_slice() };
 //! let info = Arc::new(EmptyInfo {});
 //! let mut rng = rand::rng();
 //!
-//! type OptSol = BasePartial<SId, Unit, EmptyInfo>;
+//! type OptSol = BaseSol<SId, Unit, EmptyInfo>;
 //! let pair = <Sp<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::sample_pair(
 //!     &sp,
 //!     &mut rng,
@@ -64,7 +64,7 @@
 //! );
 //!
 //! assert_eq!(pairs.len(), 3);
-//! let _ = pair.get_id();
+//! let _ = pair.id();
 //! ```
 
 use crate::{

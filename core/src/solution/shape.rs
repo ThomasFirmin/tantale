@@ -6,17 +6,17 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{BasePartial, EmptyInfo, Id, Pair, Real, SId, SolutionShape, Unit};
+//! use tantale::core::{BaseSol, EmptyInfo, HasId, Id, Pair, Real, SId, SolutionShape, Unit, Uncomputed};
 //! use std::sync::Arc;
 //!
 //! let info = Arc::new(EmptyInfo {});
-//! let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-//! let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.8]), info);
+//! let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+//! let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.8]), info);
 //! let pair = Pair::new(obj, opt);
 //!
-//! assert_eq!(pair.get_sobj().get_id(), pair.get_id());
-//! assert_eq!(pair.get_sopt().get_id(), pair.get_id());
-//! assert_eq!(pair.get_sobj().get_id(), pair.get_sopt().get_id());
+//! assert_eq!(pair.get_sobj().id(), pair.id());
+//! assert_eq!(pair.get_sopt().id(), pair.id());
+//! assert_eq!(pair.get_sobj().id(), pair.get_sopt().id());
 //! ```
 
 use crate::{
@@ -85,17 +85,17 @@ where
 ///
 /// # Example
 /// ```
-/// use tantale::core::{BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+/// use tantale::core::{SolutionShape, Uncomputed, BaseSol, EmptyInfo, HasId, Pair, Real, Id, SId, Unit};
 /// use std::sync::Arc;
 ///
 /// let info = Arc::new(EmptyInfo {});
-/// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-/// let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info);
+/// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+/// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info);
 /// let pair = Pair::new(obj, opt);
 ///
-/// assert_eq!(pair.get_sobj().get_id(), pair.get_id());
-/// assert_eq!(pair.get_sopt().get_id(), pair.get_id());
-/// assert_eq!(pair.get_sobj().get_id(), pair.get_sopt().get_id());
+/// assert_eq!(pair.get_sobj().id(), pair.id());
+/// assert_eq!(pair.get_sopt().id(), pair.id());
+/// assert_eq!(pair.get_sobj().id(), pair.get_sopt().id());
 /// ```
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
@@ -389,14 +389,14 @@ where
 ///
 /// # Example
 /// ```
-/// use tantale::core::{BasePartial, EmptyInfo, Id, Lone, Real, SId};
+/// use tantale::core::{Uncomputed, BaseSol, EmptyInfo, HasId, Id, SolutionShape, Lone, Real, SId};
 /// use std::sync::Arc;
 ///
 /// let info = Arc::new(EmptyInfo {});
-/// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info);
+/// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info);
 /// let lone = Lone::new(obj);
 ///
-/// assert_eq!(lone.get_id(), lone.get_sobj().get_id());
+/// assert_eq!(lone.id(), lone.get_sobj().id());
 /// ```
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(

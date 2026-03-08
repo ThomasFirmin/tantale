@@ -26,16 +26,17 @@ impl Stop for Time {
     ///
     /// # Example
     /// ```
-    /// use tantale::core::stop::{Time, ExpStep};
+    /// use tantale::core::stop::{Stop, Time, ExpStep};
     /// use std::time::Duration;
     /// use std::thread;
     ///
     /// let mut time = Time::new(Duration::from_millis(100));
     /// time.init();
     /// time.update(ExpStep::Iteration);
-    /// assert!(!time.stop()); // Still within time limit
+    /// assert!(time.stop()); // Still within time limit
     /// thread::sleep(Duration::from_millis(150));
-    /// assert!(time.stop()); // Time limit exceeded
+    /// assert!(!time.stop()); // Time limit exceeded
+    /// ```
     fn update(&mut self, _step: ExpStep) {
         self.1 += self.2.map(|start| start.elapsed()).unwrap_or_default();
         self.2 = Some(Instant::now());

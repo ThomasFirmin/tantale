@@ -44,14 +44,12 @@ impl Cat {
     /// use tantale::core::{Cat,Domain,Uniform};
     ///
     /// let mut rng = rand::rng();
-    ///
-    /// let mut rng = rand::rng();
     /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
     ///
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.is_in(&sample));
     /// let check = ["relu", "tanh", "sigmoid"];
-    /// assert_eq!(dom.values(), &check);
+    /// assert_eq!(dom.values, check);
     /// ```
     pub fn new<'a, S: Sampler<Self> + Into<CatDistribution>, I: IntoIterator<Item = &'a str>>(
         values: I,
@@ -82,14 +80,12 @@ impl Domain for Cat {
     /// use tantale::core::{Cat,Domain,Uniform};
     ///
     /// let mut rng = rand::rng();
-    ///
-    /// let mut rng = rand::rng();
     /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
     ///
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.is_in(&sample));
     /// let check = ["relu", "tanh", "sigmoid"];
-    /// assert_eq!(dom.values(), &check);
+    /// assert_eq!(dom.values, check);
     /// ```
     fn sample<R: Rng>(&self, rng: &mut R) -> TypeDom<Self> {
         self.sampler.sample(self, rng)
@@ -107,14 +103,12 @@ impl Domain for Cat {
     /// use tantale::core::{Cat,Domain,Uniform};
     ///
     /// let mut rng = rand::rng();
-    ///
-    /// let mut rng = rand::rng();
     /// let dom = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
     ///
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.is_in(&sample));
     /// let check = ["relu", "tanh", "sigmoid"];
-    /// assert_eq!(dom.values(), &check);
+    /// assert_eq!(dom.values, check);
     /// ```
     fn is_in(&self, point: &TypeDom<Self>) -> bool {
         self.values.contains(point)

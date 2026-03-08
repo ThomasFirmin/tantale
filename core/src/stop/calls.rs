@@ -21,7 +21,7 @@ impl Stop for Calls {
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{objective::Step, stop::{Calls, ExpStep}};
+    /// use tantale::core::{Step, stop::{Stop, Calls, ExpStep}};
     /// let mut calls = Calls::new(3);
     /// calls.update(ExpStep::Distribution(Step::Evaluated));
     /// calls.update(ExpStep::Distribution(Step::Partially(5)));

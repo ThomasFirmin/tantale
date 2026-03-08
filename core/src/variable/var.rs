@@ -22,7 +22,7 @@
 //!
 //! ```
 //! use tantale::core::{
-//!     domain::{Real, Unit, Uniform},
+//!     Real, Unit, Uniform,
 //!     variable::Var,
 //! };
 //!
@@ -43,7 +43,7 @@
 //!
 //! ```
 //! use tantale::core::{
-//!     domain::{Real, NoDomain, Uniform},
+//!     Real, NoDomain, Uniform,
 //!     variable::Var,
 //! };
 //!
@@ -68,7 +68,7 @@
 //!
 //! ```
 //! use tantale::core::{
-//!     domain::{Real, Unit, Uniform},
+//!     Real, Unit, Uniform,
 //!     variable::Var,
 //! };
 //!
@@ -476,7 +476,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// ```
     /// use tantale::core::{
-    ///     Real, NoDomain,
+    ///     Real, NoDomain, Uniform,
     ///     variable::Var,
     /// };
     ///

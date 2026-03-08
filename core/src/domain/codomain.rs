@@ -25,12 +25,12 @@
 //!
 //! ```
 //! // An example of a multi-objective, constrained and cost codomain.
-//! use crate::{Codomain, CostConstMultiCodomain};
+//! use tantale::core::{Codomain, CostConstMultiCodomain};
 //! use tantale::macros::Outcome;
 //! use serde::{Serialize,Deserialize};
 //!
 //! // Define a specific struct as the output of the function
-//! #[derive(Outcome,Serialize,Deserialize)]
+//! #[derive(Outcome,Debug,Serialize,Deserialize)]
 //! pub struct  OutExample{
 //!     pub mul1 : f64,
 //!     pub mul2 : f64,

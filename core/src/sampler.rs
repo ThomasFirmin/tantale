@@ -32,11 +32,10 @@
 //! ## Usage
 //!
 //! ```
-//! use tantale::core::{Real, Sampler, Uniform};
-//! use rand::thread_rng;
+//! use tantale::core::{Domain, Real, Sampler, Uniform};
 //!
 //! let domain = Real::new(0.0, 1.0, Uniform);
-//! let mut rng = thread_rng();
+//! let mut rng = rand::rng();
 //! let value = domain.sample(&mut rng);
 //! ```
 //!
@@ -74,11 +73,10 @@ use rand::prelude::{IteratorRandom, Rng};
 /// # Example
 ///
 /// ```
-/// use tantale::core::{Real, Sampler, Uniform};
-/// use rand::thread_rng;
+/// use tantale::core::{Domain, Real, Sampler, Uniform};
 ///
 /// let domain = Real::new(0.0, 10.0, Uniform);
-/// let mut rng = thread_rng();
+/// let mut rng = rand::rng();
 ///
 /// // Sample a random value from [0.0, 10.0]
 /// let value = domain.sample(&mut rng);
@@ -182,7 +180,7 @@ impl Sampler<Bool> for BoolDistribution {
 /// Individual samplers can be converted into this enum via [`From`]/[`Into`]:
 ///
 /// ```
-/// use tantale::core::{CatDistribution,Uniform};}
+/// use tantale::core::{CatDistribution,Uniform};
 ///
 /// let dist: CatDistribution = Uniform.into();
 /// ```
@@ -238,13 +236,12 @@ impl From<Bernoulli> for BoolDistribution {
 ///
 /// ```
 /// use tantale::core::{Sampler, Uniform, Real};
-/// use rand::thread_rng;
 ///
 /// let domain = Real::new(0.0, 1.0, Uniform);
-/// let mut rng = thread_rng();
+/// let mut rng = rand::rng();
 ///
 /// // Sample uniformly from [0.0, 1.0]
-/// let value = uniform.sample(&domain, &mut rng);
+/// let value = Uniform.sample(&domain, &mut rng);
 /// assert!(value >= 0.0 && value <= 1.0);
 /// ```
 ///

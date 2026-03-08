@@ -7,12 +7,12 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{Batch, BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+//! use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
 //! use std::sync::Arc;
 //!
 //! let info = Arc::new(EmptyInfo {});
-//! let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-//! let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info.clone());
+//! let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+//! let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
 //! let pair = Pair::new(obj, opt);
 //!
 //! let mut batch = Batch::new(vec![pair], info);
@@ -69,12 +69,12 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+    /// use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let pair = Pair::new(obj, opt);
     ///
     /// let batch = Batch::new(vec![pair], info);
@@ -93,10 +93,10 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, EmptyInfo};
+    /// use tantale::core::{BaseSol, Batch, EmptyInfo, Lone, Real, SId, Uncomputed};
     /// use std::sync::Arc;
     ///
-    /// let batch: Batch<_, _, EmptyInfo, _> = Batch::empty(Arc::new(EmptyInfo {}));
+    /// let batch: Batch<SId, EmptyInfo, EmptyInfo, Lone<BaseSol<SId, Real, EmptyInfo>, SId, Real, EmptyInfo>> = Batch::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());
     /// ```
     pub fn empty(info: Arc<Info>) -> Self {
@@ -112,12 +112,12 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+    /// use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let pair = Pair::new(obj, opt);
     ///
     /// let mut batch = Batch::empty(info);
@@ -132,14 +132,14 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+    /// use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj1 = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt1 = BasePartial::<SId, Unit, _>::new(obj1.get_id(), Arc::from(vec![0.9]), info.clone());
-    /// let obj2 = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info.clone());
-    /// let opt2 = BasePartial::<SId, Unit, _>::new(obj2.get_id(), Arc::from(vec![0.8]), info.clone());
+    /// let obj1 = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt1 = BaseSol::<SId, Unit, _>::new(obj1.id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj2 = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info.clone());
+    /// let opt2 = BaseSol::<SId, Unit, _>::new(obj2.id(), Arc::from(vec![0.8]), info.clone());
     /// let pairs = vec![Pair::new(obj1, opt1), Pair::new(obj2, opt2)];
     ///
     /// let mut batch = Batch::empty(info);
@@ -154,12 +154,12 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, BasePartial, EmptyInfo, Id, Pair, Real, SId, Unit};
+    /// use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj = BasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt = BasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let pair = Pair::new(obj, opt);
     ///
     /// let mut a = Batch::new(vec![pair], info.clone());
@@ -175,10 +175,10 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, EmptyInfo};
+    /// use tantale::core::{BaseSol, Batch, EmptyInfo, Lone, Real, SId, Uncomputed};
     /// use std::sync::Arc;
     ///
-    /// let batch: Batch<_, _, EmptyInfo, _> = Batch::empty(Arc::new(EmptyInfo {}));
+    /// let batch: Batch<SId, EmptyInfo, EmptyInfo, Lone<BaseSol<SId, Real, EmptyInfo>, SId, Real, EmptyInfo>> = Batch::empty(Arc::new(EmptyInfo {}));
     /// assert_eq!(batch.size(), 0);
     /// ```
     pub fn size(&self) -> usize {
@@ -189,10 +189,10 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, EmptyInfo};
+    /// use tantale::core::{BaseSol, Batch, EmptyInfo, Lone, Real, SId, Uncomputed};
     /// use std::sync::Arc;
     ///
-    /// let batch: Batch<_, _, EmptyInfo, _> = Batch::empty(Arc::new(EmptyInfo {}));
+    /// let batch: Batch<SId, EmptyInfo, EmptyInfo, Lone<BaseSol<SId, Real, EmptyInfo>, SId, Real, EmptyInfo>> = Batch::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -242,12 +242,12 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, EmptyInfo, FidBasePartial, HasStep, Id, Pair, Real, SId, Unit};
+    /// use tantale::core::{Batch, EmptyInfo, FidelitySol, HasStep, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj = FidBasePartial::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt = FidBasePartial::<SId, Unit, _>::new(obj.get_id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj = FidelitySol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt = FidelitySol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let mut pair = Pair::new(obj, opt);
     /// pair.evaluated(); // Only modified by internal state, not by the user.
     ///
@@ -470,7 +470,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch, SId};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
     /// use serde::{Deserialize, Serialize};
     /// use tantale::macros::Outcome;
@@ -491,10 +491,15 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
+    /// use serde::{Deserialize, Serialize};
+    /// use tantale::macros::Outcome;
     ///
-    /// let batch: OutBatch<_, _, _> = OutBatch::empty(Arc::new(EmptyInfo {}));
+    /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
+    /// struct Out { value: f64 }
+    ///
+    /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());
     /// ```
     pub fn empty(info: Arc<Info>) -> Self {
@@ -508,7 +513,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch, SId};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
     /// use serde::{Deserialize, Serialize};
     /// use tantale::macros::Outcome;
@@ -529,7 +534,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch, SId};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
     /// use serde::{Deserialize, Serialize};
     /// use tantale::macros::Outcome;
@@ -550,7 +555,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch, SId};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
     /// use serde::{Deserialize, Serialize};
     /// use tantale::macros::Outcome;
@@ -572,10 +577,15 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
+    /// use serde::{Deserialize, Serialize};
+    /// use tantale::macros::Outcome;
     ///
-    /// let batch: OutBatch<_, _, _> = OutBatch::empty(Arc::new(EmptyInfo {}));
+    /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
+    /// struct Out { value: f64 }
+    ///
+    /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert_eq!(batch.size(), 0);
     /// ```
     pub fn size(&self) -> usize {
@@ -586,10 +596,15 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, OutBatch};
+    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
     /// use std::sync::Arc;
+    /// use serde::{Deserialize, Serialize};
+    /// use tantale::macros::Outcome;
     ///
-    /// let batch: OutBatch<_, _, _> = OutBatch::empty(Arc::new(EmptyInfo {}));
+    /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
+    /// struct Out { value: f64 }
+    ///
+    /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
