@@ -1,11 +1,13 @@
 //! # Tantale
-//!
+//! 
+//! *This is the first version and release of the Tantale core library. 
+//! It is a core library with very few algorithms, but it contains all the necessary building blocks to create your own optimizers, search spaces, and experiments.
+//! The library is designed to be flexible and extensible, allowing users to easily create their own custom components.*
+//! 
 //! Tantale is a library dedicated to AutoML containing utilitaries to build search spaces, objective functions, algorithms, and parallelization. It is a core library with very few algorithms.
-//!
+//! 
 //! ## Tutorials
 //! * [Quick start](QuickStart)
-//! * [Multi-threaded optimization](MultiThreadedOptimization) (Coming soon)
-//! * [MPI-Distributed optimization](MPIOptimization) (Coming soon)
 //!
 //! ## Advanced guides
 //! * [Create your batched optimizer](CreateBatchOptimizer)
@@ -18,13 +20,58 @@
 //! * [Create your recorder](CreateRecorder) (Coming soon)
 //! * [Create your checkpointer](CreateCheckpointer) (Coming soon)
 //!
+//! # Notes on future releases
+//! 
+//! * The library is in its early stages and is expected to evolve.
+//! 
+//! Interfacing Tantale with a Python API is currently under study.
+//! 
+//! Four algorithms are currently implemented:
+//! - [`random_search`](crate::algos::random_search) - A simple random search algorithm that can be used in sequential or batch mode. It can be used in mono, multi-threaded, or distributed mode.
+//! - [`asha`](crate::algos::asha) - A simple sequential implementation of the ASHA algorithm for multi-fidelity optimization. It can be used in mono, multi-threaded, or distributed mode.
+//! - [`sha`](crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization. It can be used in mono, multi-threaded, or distributed mode.
+//! - [`hyperband`](crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization. It can be used in mono, multi-threaded, or distributed mode, and
+//!   combined with the SHA or ASHA algorithms.
+//! - More algorithms and extensions of the core library are coming soon.
+//! 
+//! Tantale handle simple [`Objective`](crate::core::Objective) functions, but also [`Stepped`](crate::core::Stepped) functions,
+//! which are functions that can be evaluated at different fidelity levels. This is useful for multi-fidelity optimization algorithms such as ASHA and SHA.
+//! 
+//! For now Tantale mostly handles HyperParameter Optimization (HPO) problems, 
+//! but it is designed to be flexible and extensible enough to also handle Neural Architecture Search (NAS) problems.
+//! **NAS is planned for a future release.**
+//! 
+//! This first version of the core has all the necessary building blocks to create multi-objective optimizers.
+//! **Multi-objective optimization is planned for a future release.**
+//! 
+//! For now recording results is only possible in CSV format, but the library is designed to be flexible and extensible enough to also handle other formats or strategies such as JSON or SQLite.
+//! **More recording strategies are planned for a future release.**
+//! 
+//! For now checkpointing is only possible using the MessagePack format, but the library is designed to be flexible and extensible enough to also handle other formats.
+//! **More checkpointing strategies are planned for a future release.**
 
 #[doc = include_str!("quick_start.md")]
-pub struct QuickStart {}
+pub struct QuickStart;
 #[doc = include_str!("create_batch_optimizer.md")]
-pub struct CreateBatchOptimizer {}
+pub struct CreateBatchOptimizer;
 #[doc = include_str!("create_seq_optimizer.md")]
-pub struct CreateSequentialOptimizer {}
+pub struct CreateSequentialOptimizer;
+
+#[doc = include_str!("create_domain.md")]
+pub struct CreateDomain;
+#[doc = include_str!("create_searchspace.md")]
+pub struct CreateSearchSpace;
+#[doc = include_str!("create_solution.md")]
+pub struct CreateSolution;
+#[doc = include_str!("create_experiment.md")]
+pub struct CreateExperiment;
+#[doc = include_str!("create_stop_criterion.md")]
+pub struct CreateStopCriterion;
+#[doc = include_str!("create_recorder.md")]
+pub struct CreateRecorder;
+#[doc = include_str!("create_checkpointer.md")]
+pub struct CreateCheckpointer;
+
 
 #[doc(inline)]
 pub use macros::Outcome;

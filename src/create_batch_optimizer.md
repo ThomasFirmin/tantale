@@ -145,7 +145,7 @@ Finally, two methods have to be written:
 
 ### Creating Successive Halving struct
 
-SHA requires a [`ThreadRng`](rand::rngs::ThreadRng) to generate random samples from the searchspace (line 8).
+SHA requires a [`ThreadRng`](https://docs.rs/rand/latest/rand/rngs/struct.ThreadRng.html) to generate random samples from the searchspace (line 8).
 But, it is not serializable, nor deserializable, so it cannot be stored within the 
 [`OptState`](crate::core::OptState).
 

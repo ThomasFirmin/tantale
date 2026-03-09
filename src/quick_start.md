@@ -267,7 +267,7 @@ To run the MPI distributed example, you'll need first to install a distribution 
 
 Then you can add `tantale` with the feature `mpi` to your project:
 ```console
-foo@bar:~$ cargo add tantale --feature mpi
+foo@bar:~$ cargo add tantale --features mpi
 ```
 
 ```rust

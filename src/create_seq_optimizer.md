@@ -34,7 +34,7 @@ We consider the [Asynchronous Successive Halving](https://arxiv.org/abs/1502.079
 
 ## Preliminary technical details
 
-The optimizer uses a thread-local [`StdRng`] for random sampling. The RNG is not part of the optimizer state, as it cannot be serialized or deserialized. The [`StdRng`] is defined at the module level as follows:
+The optimizer uses a thread-local [`StdRng`](https://docs.rs/rand/latest/rand/rngs/struct.StdRng.html) for random sampling. The RNG is not part of the optimizer state, as it cannot be serialized or deserialized. The [`StdRng`](https://docs.rs/rand/latest/rand/rngs/struct.StdRng.html) is defined at the module level as follows:
 ```rust
 use rand::{SeedableRng, rngs::StdRng};
 use std::cell::RefCell;
@@ -125,7 +125,7 @@ Finally, two methods have to be written:
 
 ### Creating Successive Halving struct
 
-ASHA only requires its [`OptState`], i.e. [`AshaState`].
+ASHA only requires its [`OptState`](crate::core::OptState), i.e. `AshaState`.
 
 Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` method
 to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer. ASHA must be generic over all
@@ -224,7 +224,7 @@ be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generi
 This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that ASHA can be used whatever
 the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
-Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolShape`](crate::core::SolShape) must follows the same bound described within `AshaState`.
+Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolutionShape`](crate::core::SolutionShape) must follows the same bound described within `AshaState`.
 
 ```rust
 # use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
