@@ -25,7 +25,6 @@ tantale_core = { path = "core", version = "0.1.0" }
 tantale_macros = { path = "macros", version = "0.1.0" }
 tantale_algos = { path = "algorithms", version = "0.1.0" }
 tantale_tests = { path = "tests_suite", version = "0.1.0" }
-tantale_examples = { path = "examples", version = "0.1.0" }
 
 [dependencies]
 tantale_core.workspace = true
