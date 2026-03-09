@@ -1,6 +1,6 @@
 mod check_bounds {
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-    use tantale_core::sampler::{Bernoulli, Uniform};
+    use tantale::core::sampler::{Bernoulli, Uniform};
     #[test]
     fn create_real() {
         let real_1 = Real::new(0.0, 10.0, Uniform);
@@ -155,7 +155,7 @@ mod check_bounds {
 
 mod check_mid {
     use tantale::core::{Int, Nat, Real, Unit};
-    use tantale_core::sampler::Uniform;
+    use tantale::core::sampler::Uniform;
 
     #[test]
     fn mid_real() {
@@ -196,7 +196,7 @@ mod check_mid {
 
 mod check_width {
     use tantale::core::{Int, Nat, Real};
-    use tantale_core::sampler::Uniform;
+    use tantale::core::sampler::Uniform;
 
     #[test]
     fn width_real_zero() {
@@ -232,7 +232,7 @@ mod check_width {
 
 mod check_default_sampler {
     use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-    use tantale_core::sampler::{Bernoulli, Uniform};
+    use tantale::core::sampler::{Bernoulli, Uniform};
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
@@ -291,7 +291,7 @@ mod check_default_sampler {
 
 mod check_default_sampler_base {
     use tantale::core::{Bool, Cat, Domain, Int, Mixed, Nat, Real, Unit};
-    use tantale_core::sampler::{Bernoulli, Uniform};
+    use tantale::core::sampler::{Bernoulli, Uniform};
 
     #[test]
     fn sampler_real() {

@@ -1,6 +1,6 @@
 use tantale::algos::RandomSearch;
-use tantale_algos::random_search;
-use tantale_core::{
+use tantale::algos::random_search;
+use tantale::core::{
     CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
     experiment::{self, distributed, mpi::utils::MPIProcess},
     load,
@@ -56,12 +56,12 @@ mod init_func {
 
     pub mod sp_evaluator {
         use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
-        use tantale_core::{
+        use tantale::core::{
             Bool, Cat, Int, Nat, Real,
             objective::Step,
             sampler::{Bernoulli, Uniform},
         };
-        use tantale_macros::objective;
+        use tantale::macros::objective;
 
         objective!(
             pub fn example() -> (FidOutEvaluator, FnState) {

@@ -1,11 +1,11 @@
-use tantale_core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Calls,
 };
 
-use tantale_algos::{
+use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
@@ -290,7 +290,7 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -306,7 +306,7 @@ fn test_fid_seq_run() {
 
     let exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_fidseqrun", 500);
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 
     drop(Cleaner {
@@ -346,7 +346,7 @@ fn test_fid_thr_seq_run() {
 
     let mut exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     let max_calls = 50 + num_cpus::get();
     assert!(
         expstop.calls() >= 50 && expstop.calls() <= max_calls,
@@ -367,7 +367,7 @@ fn test_fid_thr_seq_run() {
 
     let exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader_eps("tmp_test_fidthrseqrun", 500, 249);
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let max_calls = 100 + 2 * num_cpus::get();
     assert!(
         expstop.calls() >= 100 && expstop.calls() <= max_calls,

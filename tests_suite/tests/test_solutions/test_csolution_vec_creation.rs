@@ -1,8 +1,8 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{BaseSol, Computed, ParSId, Solution};
-use tantale_core::domain::TypeDom;
-use tantale_core::solution::{HasId, HasSolInfo, HasY, Uncomputed};
-use tantale_core::{Codomain, FidelitySol, SingleCodomain};
+use tantale::core::domain::TypeDom;
+use tantale::core::solution::{HasId, HasSolInfo, HasY, Uncomputed};
+use tantale::core::{Codomain, FidelitySol, SingleCodomain};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

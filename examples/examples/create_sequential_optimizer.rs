@@ -109,7 +109,7 @@ where
     }
 }
 
-use tantale_core::{
+use tantale::core::{
     CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped,
 };
 

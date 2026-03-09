@@ -1,7 +1,7 @@
 use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
-use tantale_algos::RandomSearch;
-use tantale_core::{
+use tantale::algos::RandomSearch;
+use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -50,7 +50,7 @@ mod init_func {
         use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
-        use tantale_core::sampler::{Bernoulli, Uniform};
+        use tantale::core::sampler::{Bernoulli, Uniform};
 
         objective!(
             pub fn example() -> OutEvaluator {
@@ -112,11 +112,11 @@ fn main() {
             SId,
             EmptyInfo,
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
-        let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+        let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+        let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();

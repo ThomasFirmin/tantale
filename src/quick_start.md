@@ -270,7 +270,7 @@ Then you can add `tantale` with the feature `mpi` to your project:
 foo@bar:~$ cargo add tantale --features mpi
 ```
 
-```rust
+```rust,ignore
 # mod searchspace {
 #     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};

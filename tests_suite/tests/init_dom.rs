@@ -5,7 +5,7 @@ pub use tantale::core::domain::cat::Cat;
 pub use tantale::core::domain::mixed::{Mixed, MixedTypeDom};
 pub use tantale::core::domain::onto::Onto;
 pub use tantale::core::domain::unit::Unit;
-use tantale_core::sampler::{Bernoulli, Uniform};
+use tantale::core::sampler::{Bernoulli, Uniform};
 
 pub fn get_domain_real() -> Real {
     Real::new(0.0, 10.0, Uniform)

@@ -1,7 +1,7 @@
 mod test {
     use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale_core::domain::TypeDom;
+    use tantale::core::domain::TypeDom;
 
     #[test]
     pub fn main() {

@@ -793,8 +793,8 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "tantale",
  "tantale_core",
- "tantale_macros",
 ]
 
 [[package]]
@@ -816,13 +816,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "tantale_examples"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "csv",
+ "mpi",
+ "num",
+ "paste",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tantale",
+]
+
+[[package]]
 name = "tantale_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
- "tantale_core",
+ "tantale",
+]
+
+[[package]]
+name = "tantale_tests"
+version = "0.1.0"
+dependencies = [
+ "csv",
+ "num",
+ "num_cpus",
+ "paste",
+ "rand",
+ "rayon",
+ "rmp-serde",
+ "serde",
+ "tantale",
 ]
 
 [[package]]

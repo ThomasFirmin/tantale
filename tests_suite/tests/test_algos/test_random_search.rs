@@ -1,4 +1,4 @@
-use tantale_core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain,
     experiment::{MonoExperiment, ThrExperiment},
     experiment::{Runable, mono, threaded},
@@ -6,7 +6,7 @@ use tantale_core::{
     stop::Calls,
 };
 
-use tantale_algos::{
+use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
@@ -158,7 +158,7 @@ fn test_batch_run() {
 
     let mut exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -177,7 +177,7 @@ fn test_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
@@ -232,7 +232,7 @@ fn test_batch_parrun() {
         (rec, check)
     );
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -261,7 +261,7 @@ fn test_batch_parrun() {
     );
     run_reader("tmp_test_parbatchrun", 100);
 
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
@@ -303,7 +303,7 @@ fn test_seqrun() {
 
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -359,7 +359,7 @@ fn test_thrseqrun() {
 
     let mut exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     let calls = expstop.calls();
     assert!((50..=55).contains(&calls), "Number of calls is wrong");
     expstop.add(50);
@@ -376,7 +376,7 @@ fn test_thrseqrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
     drop(Cleaner {
@@ -554,7 +554,7 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -570,7 +570,7 @@ fn test_fid_seq_run() {
 
     let exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_fidseqrun", 500);
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 
     drop(Cleaner {
@@ -610,7 +610,7 @@ fn test_fid_thr_seq_run() {
 
     let mut exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 50 && expstop.calls() <= max_call,
@@ -631,7 +631,7 @@ fn test_fid_thr_seq_run() {
 
     let exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader_eps("tmp_test_fidthrseqrun", 500, 249);
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 100 && expstop.calls() <= max_call,

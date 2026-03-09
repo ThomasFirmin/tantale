@@ -1,7 +1,7 @@
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{ParSId, solution::Uncomputed};
-use tantale_core::domain::TypeDom;
-use tantale_core::{BaseSol, FidelitySol};
+use tantale::core::domain::TypeDom;
+use tantale::core::{BaseSol, FidelitySol};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

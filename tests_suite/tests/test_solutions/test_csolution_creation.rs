@@ -3,7 +3,7 @@ use tantale::core::{
     BaseSol, Codomain, Computed, FidelitySol, ParSId, SingleCodomain,
     solution::{HasId, HasSolInfo, HasY, Uncomputed},
 };
-use tantale_core::Solution;
+use tantale::core::Solution;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

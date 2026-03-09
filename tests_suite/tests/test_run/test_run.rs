@@ -1,11 +1,11 @@
-use tantale_core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain,
     experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded},
     load,
     stop::Calls,
 };
 
-use tantale_algos::{
+use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
@@ -154,7 +154,7 @@ fn test_batch_run() {
 
     let mut exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -173,7 +173,7 @@ fn test_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
@@ -228,7 +228,7 @@ fn test_batch_parrun() {
         (rec, check)
     );
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -257,7 +257,7 @@ fn test_batch_parrun() {
     );
     run_reader("tmp_test_parbatchrun", 100);
 
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 17, "Number of iteration is wrong");
@@ -299,7 +299,7 @@ fn test_seqrun() {
 
     let mut exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -355,7 +355,7 @@ fn test_thrseqrun() {
 
     let mut exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     let calls = expstop.calls();
     assert!((50..=55).contains(&calls), "Number of calls is wrong");
     expstop.add(50);
@@ -372,7 +372,7 @@ fn test_thrseqrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(threaded, RandomSearch, Calls, (sp, cod), obj, (rec, check));
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
     drop(Cleaner {

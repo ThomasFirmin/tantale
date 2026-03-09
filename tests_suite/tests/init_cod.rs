@@ -7,7 +7,7 @@ pub use tantale::core::{
     },
     objective::EvalStep,
 };
-use tantale_macros::Outcome;
+use tantale::macros::Outcome;
 
 use serde::{Deserialize, Serialize};
 

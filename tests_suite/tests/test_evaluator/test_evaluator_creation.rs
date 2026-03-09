@@ -1,5 +1,5 @@
-use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
-use tantale_core::{
+use tantale::algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
+use tantale::core::{
     BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain,
     Sp,
     domain::NoDomain,
@@ -40,11 +40,11 @@ fn test_batchevaluator() {
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+    let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.id(), s.get_sobj().x.clone()))
         .collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+    let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
@@ -68,9 +68,9 @@ fn test_batchevaluator() {
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
-    let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
 
     let compiter = (&bcomp).into_iter();
 
@@ -163,11 +163,11 @@ fn test_thrbatchevaluator() {
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
-    let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+    let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.id(), s.get_sobj().x.clone()))
         .collect();
-    let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+    let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
         .iter()
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
@@ -197,9 +197,9 @@ fn test_thrbatchevaluator() {
     );
 
     let mut hcobj = HashMap::new();
-    let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+    let mut hsobj: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
     let mut hcopt = HashMap::new();
-    let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+    let mut hsopt: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
 
     let compiter = (&bcomp).into_iter();
 

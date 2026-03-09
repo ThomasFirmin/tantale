@@ -1,7 +1,7 @@
 use super::init_dom::*;
 use paste::paste;
 use tantale::core::recorder::csv::CSVWritable;
-use tantale_core::sampler::{Bernoulli, Uniform};
+use tantale::core::sampler::{Bernoulli, Uniform};
 
 macro_rules! get_test {
     ($($dom_func : ident ; $name : ident ; $in : expr ; $dom : ident),+) => {

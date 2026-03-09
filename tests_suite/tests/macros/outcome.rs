@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::objective::EvalStep;
-use tantale_macros::Outcome;
+use tantale::core::objective::EvalStep;
+use tantale::macros::Outcome;
 
 #[test]
 fn mixed_derive() {
     use tantale::core::CostConstMultiCodomain;
-    use tantale_core::Codomain;
+    use tantale::core::Codomain;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {

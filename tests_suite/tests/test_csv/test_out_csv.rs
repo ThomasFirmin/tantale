@@ -2,8 +2,8 @@ use tantale::core::recorder::csv::CSVWritable;
 
 mod outcome {
     use serde::{Deserialize, Serialize};
-    use tantale_core::objective::Step;
-    use tantale_macros::{CSVWritable, Outcome};
+    use tantale::core::objective::Step;
+    use tantale::macros::{CSVWritable, Outcome};
 
     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct OutExample {

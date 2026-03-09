@@ -1,5 +1,5 @@
 use rand::rngs::ThreadRng;
-use tantale_core::BaseSol;
+use tantale::core::BaseSol;
 
 #[test]
 fn obj_test() {

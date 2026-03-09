@@ -9,24 +9,24 @@ use tantale::core::{
     solution::{Batch, HasInfo, OutBatch},
     stop::{Calls, Stop},
 };
-use tantale_algos::random_search;
-use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
-use tantale_core::objective::FuncWrapper;
-use tantale_core::objective::Step;
-use tantale_core::optimizer::opt::CompBatch;
-use tantale_core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
-use tantale_core::searchspace::CompShape;
-use tantale_core::solution::shape::{SolObj, SolOpt};
-use tantale_core::solution::{
+use tantale::algos::random_search;
+use tantale::core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
+use tantale::core::objective::FuncWrapper;
+use tantale::core::objective::Step;
+use tantale::core::optimizer::opt::CompBatch;
+use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
+use tantale::core::searchspace::CompShape;
+use tantale::core::solution::shape::{SolObj, SolOpt};
+use tantale::core::solution::{
     HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
 };
-use tantale_core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
+use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 
 use std::{path::Path, sync::Arc};
 
 mod infos {
     use serde::{Deserialize, Serialize};
-    use tantale_macros::{CSVWritable, Outcome};
+    use tantale::macros::{CSVWritable, Outcome};
 
     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct OutExample {
@@ -118,12 +118,12 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         cbatch.add(pair);
         obatch.add((id, outcome));
     });
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
 
     recorder.save(&cbatch, &obatch, sp, cod);
 
@@ -143,12 +143,12 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         tcbatch.add(pair);
         tobatch.add((id, outcome));
     });
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
-    stop.update(tantale_core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
+    stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
 
     recorder.save(&tcbatch, &tobatch, sp, cod);
     run_reader::<Scp, Op, St, CSVRecorder, Fn, PSol>(

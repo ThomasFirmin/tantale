@@ -1,11 +1,11 @@
-use tantale_core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Calls,
 };
 
-use tantale_algos::{Asha, Hyperband, asha};
+use tantale::algos::{Asha, Hyperband, asha};
 
 use super::init_func::sp_evaluator_sh;
 use crate::init_func::FidOutEvaluator;
@@ -254,7 +254,7 @@ fn test_fid_seq_parrun() {
         (rec, check)
     );
 
-    let expstop = exp.get_mut_stop();
+    let expstop: &mut Calls = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 50 && expstop.calls() <= max_call,
@@ -313,7 +313,7 @@ fn test_fid_seq_parrun() {
         (rec, check)
     );
     run_reader("tmp_test_hyperband_asha_parrun");
-    let expstop = exp.get_stop();
+    let expstop: &Calls = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 100 && expstop.calls() <= max_call,

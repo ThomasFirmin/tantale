@@ -2,8 +2,8 @@ use mpi::traits::Communicator;
 use tantale::core::{
     EmptyInfo, Searchspace, SingleCodomain, experiment::BatchEvaluator, stop::Calls,
 };
-use tantale_algos::{BatchRandomSearch, RSInfo};
-use tantale_core::{
+use tantale::algos::{BatchRandomSearch, RSInfo};
+use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -51,7 +51,7 @@ mod init_func {
         use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
-        use tantale_core::sampler::{Bernoulli, Uniform};
+        use tantale::core::sampler::{Bernoulli, Uniform};
 
         objective!(
             pub fn example() -> OutEvaluator {
@@ -118,11 +118,11 @@ fn main() {
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
-        let sobj_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+        let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale_core::MixedTypeDom]>)> = pair
+        let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();
@@ -148,9 +148,9 @@ fn main() {
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();
-        let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+        let mut hsobj: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
         let mut hcopt = HashMap::new();
-        let mut hsopt: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
+        let mut hsopt: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
 
         let compiter = (&bcomp).into_iter();
 

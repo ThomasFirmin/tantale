@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
 use tantale::macros::{CSVWritable, FuncState, Outcome, objective};
+use serde::{Deserialize, Serialize};
 
 #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 struct OutExample {

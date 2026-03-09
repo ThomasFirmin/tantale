@@ -1,13 +1,36 @@
-[package]
-name = "tantale"
+[workspace]
+members = ["macros", "core", "algorithms", "tests_suite", "examples"]
+
+[workspace.package]
+authors = ["Thomas Firmin"]
 version = "0.1.0"
 edition = "2024"
 license = "CECILL-C"
 readme = "README.md"
 rust-version = "1.91.1"
 repository = "https://github.com/ThomasFirmin/tantale"
-description = "Tantale is a Rust library for Automated Machine Learning (AutoML) focusing on Hyperparameter Optimization and Neural Architecture Search. It provides a modular and extensible framework for defining search spaces, objectives, and optimization algorithms, with support for distributed computing and parallel execution."
-keywords = ["automl", "hpo", "nas"]
+documentation = "https://docs.rs/tantale/latest/tantale/"
+description  = "Tantale is a Rust library for Automated Machine Learning (AutoML) focusing on Hyperparameter Optimization and Neural Architecture Search. It provides a modular and extensible framework for defining search spaces, objectives, and optimization algorithms, with support for distributed computing and parallel execution."
+keywords     = ["automl", "hpo", "nas"]
+
+[workspace.dependencies]
+tantale        = {path = ".", version = "0.1.0"}
+tantale_core   = {path = "core", version = "0.1.0"}
+tantale_macros = {path = "macros", version = "0.1.0"}
+tantale_algos  = {path = "algorithms", version = "0.1.0"}
+
+[package]
+name                    = "tantale"
+version.workspace       = true
+edition.workspace       = true
+authors.workspace       = true
+license.workspace       = true
+readme.workspace        = true
+rust-version.workspace  = true
+repository.workspace    = true
+documentation.workspace = true
+description.workspace   = true
+keywords.workspace      = true
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
@@ -15,19 +38,10 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 [badges]
 maintenance = { status = "actively-developed" }
 
-
-[workspace]
-members = ["macros", "core", "algorithms"]
-
-[workspace.dependencies]
-tantale_core = { path = "core", version = "0.1.0" }
-tantale_macros = { path = "macros", version = "0.1.0" }
-tantale_algos = { path = "algorithms", version = "0.1.0" }
-
 [dependencies]
-tantale_core.workspace = true
+tantale_core.workspace   = true
 tantale_macros.workspace = true
-tantale_algos.workspace = true
+tantale_algos.workspace  = true
 
 [features]
 mpi = ["tantale_core/mpi", "tantale_algos/mpi"]

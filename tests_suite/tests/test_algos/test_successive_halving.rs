@@ -1,11 +1,11 @@
-use tantale_core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Calls,
 };
 
-use tantale_algos::{Sha, sha};
+use tantale::algos::{Sha, sha};
 
 use super::init_func::sp_evaluator_sh;
 use crate::init_func::FidOutEvaluator;

@@ -11,7 +11,7 @@ use tantale::core::{
     searchspace::Searchspace,
     solution::{HasId, HasY},
 };
-use tantale_core::Mixed;
+use tantale::core::Mixed;
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($cod : ident | $func : ident ,)+] | $comp : expr ),*) => {
@@ -65,7 +65,7 @@ get_test!(
         ]
         | |(a, b)| a == b,
     sp_only_real
-        | tantale_core::Real
+        | tantale::core::Real
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
@@ -78,7 +78,7 @@ get_test!(
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_int
-        | tantale_core::Int
+        | tantale::core::Int
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
@@ -91,7 +91,7 @@ get_test!(
         ]
         | |(a, b)| a == b,
     sp_only_nat
-        | tantale_core::Nat
+        | tantale::core::Nat
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
@@ -104,7 +104,7 @@ get_test!(
         ]
         | |(a, b)| a == b,
     sp_only_unit
-        | tantale_core::Unit
+        | tantale::core::Unit
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
@@ -117,7 +117,7 @@ get_test!(
         ]
         | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
     sp_only_bool
-        | tantale_core::Bool
+        | tantale::core::Bool
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
@@ -130,7 +130,7 @@ get_test!(
         ]
         | |(a, b)| a == b,
     sp_only_cat
-        | tantale_core::Cat
+        | tantale::core::Cat
         | [
             SingleCodomain | get_elemsingle,
             CostCodomain | get_elemcost,
