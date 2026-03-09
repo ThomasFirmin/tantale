@@ -782,7 +782,6 @@ dependencies = [
  "tantale_algos",
  "tantale_core",
  "tantale_macros",
- "tantale_tests",
 ]
 
 [[package]]
