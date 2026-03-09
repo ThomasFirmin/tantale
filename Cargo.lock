@@ -781,7 +781,6 @@ dependencies = [
  "serde",
  "tantale_algos",
  "tantale_core",
- "tantale_examples",
  "tantale_macros",
  "tantale_tests",
 ]
@@ -815,25 +814,6 @@ dependencies = [
  "rmp-serde",
  "serde",
  "tantale",
-]
-
-[[package]]
-name = "tantale_examples"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "csv",
- "mpi",
- "num",
- "paste",
- "rand",
- "rayon",
- "serde",
- "serde_json",
- "tantale",
- "tantale_algos",
- "tantale_core",
- "tantale_macros",
 ]
 
 [[package]]
