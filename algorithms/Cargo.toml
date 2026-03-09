@@ -8,7 +8,7 @@ rust-version = "1.91.1"
 repository = "https://github.com/ThomasFirmin/tantale"
 description = "This the algorithms module for Tantale. Tantale is a Rust library for Automated Machine Learning (AutoML) focusing on Hyperparameter Optimization and Neural Architecture Search. It provides a modular and extensible framework for defining search spaces, objectives, and optimization algorithms, with support for distributed computing and parallel execution."
 categories = ["machine-learning", "optimization", "neural-networks", "automl"]
-keywords = ["automl", "hyperparameter optimization", "neural architecture search", "distributed computing", "parallel execution"]
+keywords = ["automl", "hpo", "nas"]
 
 [lib]
 path = "src/lib.rs"
