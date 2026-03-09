@@ -110,19 +110,19 @@
 //! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
 //! use tantale::macros::{objective, Outcome, CSVWritable, FuncState};
 //! use serde::{Serialize, Deserialize};
-//! 
+//!
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
 //!     obj: f64,
 //!     info: f64,
 //!     step: Step,
 //! }
-//! 
+//!
 //! #[derive(FuncState, Serialize, Deserialize)]
 //! pub struct FnState {
 //!     pub something: isize,
 //! }
-//! 
+//!
 //! objective!(
 //!     pub fn example() -> (OutExample, FnState) {
 //!         let _a = [! a | Int(0,100, Uniform) | !];
@@ -255,11 +255,11 @@ pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
 pub use domain::{
-    Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
-    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Domain,
-    FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Mixed, MixedTypeDom,
-    Multi, MultiCodomain, Nat, NoDomain, Onto, Real, Single, SingleCodomain, Unit,
-    Accumulator, BestComputed, ParetoComputed, Linked, OntoDom,
+    Accumulator, BestComputed, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
+    Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
+    Criteria, Domain, FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed,
+    MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoComputed, Real, Single,
+    SingleCodomain, Unit,
 };
 
 pub mod sampler;
@@ -273,12 +273,12 @@ pub use variable::var::Var;
 pub mod solution;
 pub use solution::{
     BaseSol, Batch, Computed, Fidelity, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo,
-    HasStep, HasUncomputed, HasY, Id, IntoComputed, OutBatch, ParSId, SId, SolInfo, Solution,
-    SolutionShape, shape::RawObj, Pair, Lone, Uncomputed,
+    HasStep, HasUncomputed, HasY, Id, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
+    Solution, SolutionShape, Uncomputed, shape::RawObj,
 };
 
 pub mod searchspace;
-pub use searchspace::{Searchspace, Sp, SpPar, OptionCompShape, CompShape};
+pub use searchspace::{CompShape, OptionCompShape, Searchspace, Sp, SpPar};
 
 pub mod errors;
 
@@ -296,7 +296,7 @@ pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
-pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded, CompAcc};
+pub use experiment::{CompAcc, MonoExperiment, Runable, ThrExperiment, mono, threaded};
 #[cfg(feature = "mpi")]
 pub use experiment::{
     DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, mpi::utils::MPIProcess,
@@ -304,7 +304,7 @@ pub use experiment::{
 };
 
 pub mod recorder;
-pub use recorder::{CSVRecorder, CSVWritable, Recorder, SeqRecorder, BatchRecorder, NoSaver};
+pub use recorder::{BatchRecorder, CSVRecorder, CSVWritable, NoSaver, Recorder, SeqRecorder};
 #[cfg(feature = "mpi")]
 pub use recorder::{DistBatchRecorder, DistSeqRecorder};
 

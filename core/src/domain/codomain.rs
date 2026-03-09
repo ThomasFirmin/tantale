@@ -10,15 +10,15 @@
 //! closures named [`Criteria`], a type alias for `fn(&Out)->f64`.
 //!
 //! #Comparing elements from a [`Codomain`]
-//! 
+//!
 //! We consider two cases:
 //! - [`Single`] objective: the comparison is straightforward, since each element is a single `f64` value. The higher the better.
-//!   When a [`Cost`] is added, the cost is used as a tiebreaker: among elements with the same `y` value, 
-//!   the one with lower cost is better. When black-box [`Constrained`] is added, 
+//!   When a [`Cost`] is added, the cost is used as a tiebreaker: among elements with the same `y` value,
+//!   the one with lower cost is better. When black-box [`Constrained`] is added,
 //!   the constraint violation is used as a priority: any element with strictly lower total constraint violation
-//!   is better than the other, regardless of `y` and `cost`. 
+//!   is better than the other, regardless of `y` and `cost`.
 //!   Among elements with the same total violation, the previous comparison applies.
-//! 
+//!
 //! # Example
 //!
 //! The following examples uses a specific `struct` as an [`Outcome`] of an hypothetical function.
@@ -102,7 +102,10 @@
 
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
-use crate::{EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome, recorder::csv::CSVWritable};
+use crate::{
+    EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome,
+    recorder::csv::CSVWritable,
+};
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
@@ -120,45 +123,45 @@ pub type TypeAcc<Cod, C, SolId, SInfo, Out> = <Cod as Codomain<Out>>::Acc<C, Sol
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
-pub trait Codomain<Out: Outcome>: Debug + Sized{
-    
+pub trait Codomain<Out: Outcome>: Debug + Sized {
     /// The type of elements extracted from the [`Outcome`] by this [`Codomain`].
     type TypeCodom: Debug + Serialize + for<'a> Deserialize<'a>;
-    
+
     /// The accumulator type used to track the best solution seen so far.
-    type Acc<C, SolId, SInfo>: Accumulator<C,SolId,SInfo,Self,Out>
+    type Acc<C, SolId, SInfo>: Accumulator<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
-    /// Extracts an element of type [`TypeCodom`](Codomain::TypeCodom) from the given [`Outcome`] 
+    /// Extracts an element of type [`TypeCodom`](Codomain::TypeCodom) from the given [`Outcome`]
     /// using the criteria defined in this [`Codomain`].
     fn get_elem(&self, o: &Out) -> Self::TypeCodom;
 
     /// Creates a new, empty [`Accumulator`] for this [`Codomain`].
-    fn new_accumulator<C,SolId,SInfo>() -> Self::Acc<C, SolId, SInfo>
+    fn new_accumulator<C, SolId, SInfo>() -> Self::Acc<C, SolId, SInfo>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
-        SInfo: SolInfo
+        SInfo: SolInfo,
     {
         Default::default()
     }
 }
 
-/// Defines how to accumulate elements of a [`Codomain`] across evaluations, 
-/// e.g. to keep track of the best solution seen so far for a [`Single`] objective, 
+/// Defines how to accumulate elements of a [`Codomain`] across evaluations,
+/// e.g. to keep track of the best solution seen so far for a [`Single`] objective,
 /// or the Pareto front for a [`Multi`] objective.
-pub trait Accumulator<C, SolId, SInfo, Cod, Out>: Debug + Default + Serialize + for<'a> Deserialize<'a>
+pub trait Accumulator<C, SolId, SInfo, Cod, Out>:
+    Debug + Default + Serialize + for<'a> Deserialize<'a>
 where
-    C :SolutionShape<SolId,SInfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
     SolId: Id,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
 {
-   fn accumulate(&mut self, computed: &C);
+    fn accumulate(&mut self, computed: &C);
 }
 
 /// Defines a mono-objective [`Codomain`], i.e. $f(x)=y$
@@ -173,7 +176,7 @@ where
 }
 
 /// Defines a multi-objective [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$
-pub trait Multi<Out: Outcome>: Codomain<Out> 
+pub trait Multi<Out: Outcome>: Codomain<Out>
 where
     Self::TypeCodom: Dominate,
 {
@@ -229,13 +232,10 @@ pub trait Dominate {
 /// Since Tantale maximizes, [`update`](BestComputed::update) keeps the element with the highest
 /// [`Ord`] value. The inner [`best`](BestComputed::best) is [`None`] until the first update.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "C: Serialize",
-    deserialize = "C: for<'a> Deserialize<'a>",
-))]
-pub struct BestComputed<C, SolId, Sinfo, Cod, Out> 
+#[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
+pub struct BestComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Single<Out>,
@@ -252,7 +252,7 @@ where
 
 impl<C, SolId, Sinfo, Cod, Out> BestComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Single<Out>,
@@ -261,7 +261,13 @@ where
 {
     /// Creates an empty [`BestComputed`].
     pub fn new() -> Self {
-        BestComputed { best: None, _sid: PhantomData, _sinfo: PhantomData, _cod: PhantomData, _out: PhantomData }
+        BestComputed {
+            best: None,
+            _sid: PhantomData,
+            _sinfo: PhantomData,
+            _cod: PhantomData,
+            _out: PhantomData,
+        }
     }
 
     /// Returns a reference to the best element, or [`None`].
@@ -272,7 +278,7 @@ where
 
 impl<C, SolId, Sinfo, Cod, Out> Default for BestComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Single<Out>,
@@ -284,9 +290,10 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out> for BestComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
+    for BestComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Single<Out>,
@@ -296,7 +303,9 @@ where
     fn accumulate(&mut self, computed: &C) {
         match &self.best {
             None => self.best = Some(computed._clone_shape()),
-            Some(current) if computed.y() > current.y() => self.best = Some(computed._clone_shape()),
+            Some(current) if computed.y() > current.y() => {
+                self.best = Some(computed._clone_shape())
+            }
             _ => {}
         }
     }
@@ -308,19 +317,15 @@ where
 /// dominated solutions are discarded, and any existing front member that the new element
 /// dominates is removed before the new element is added.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "C: Serialize",
-    deserialize = "C: for<'a> Deserialize<'a>",
-))]
+#[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
 pub struct ParetoComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Multi<Out>,
     Cod::TypeCodom: Dominate,
-    Out: Outcome, 
-
+    Out: Outcome,
 {
     /// The current Pareto front (non-dominated set).
     pub front: Vec<C>,
@@ -332,16 +337,22 @@ where
 
 impl<C, SolId, Sinfo, Cod, Out> ParetoComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Multi<Out>,
     Cod::TypeCodom: Dominate,
-    Out: Outcome, 
+    Out: Outcome,
 {
     /// Creates an empty [`ParetoComputed`].
     pub fn new() -> Self {
-        ParetoComputed { front: Vec::new(), _sid: PhantomData, _sinfo: PhantomData, _cod: PhantomData, _out: PhantomData }
+        ParetoComputed {
+            front: Vec::new(),
+            _sid: PhantomData,
+            _sinfo: PhantomData,
+            _cod: PhantomData,
+            _out: PhantomData,
+        }
     }
 
     /// Returns a slice of the current Pareto front.
@@ -352,21 +363,22 @@ where
 
 impl<C, SolId, Sinfo, Cod, Out> Default for ParetoComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Multi<Out>,
     Cod::TypeCodom: Dominate,
-    Out: Outcome, 
+    Out: Outcome,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out> for ParetoComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
+    for ParetoComputed<C, SolId, Sinfo, Cod, Out>
 where
-    C :SolutionShape<SolId,Sinfo> + HasY<Cod,Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
     Sinfo: SolInfo,
     Cod: Multi<Out>,
@@ -434,9 +446,10 @@ impl PartialOrd for ElemSingleCodomain {
 
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
-    type Acc<C, SolId, SInfo> = BestComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = BestComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -511,9 +524,10 @@ impl PartialOrd for ElemCostCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
     type TypeCodom = ElemCostCodomain;
-    type Acc<C, SolId, SInfo> = BestComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = BestComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -606,9 +620,10 @@ impl PartialOrd for ElemConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
-    type Acc<C, SolId, SInfo> = BestComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = BestComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -712,9 +727,10 @@ impl PartialOrd for ElemCostConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
-    type Acc<C, SolId, SInfo> = BestComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = BestComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -786,17 +802,26 @@ impl PartialEq for ElemMultiCodomain {
 
 impl Dominate for ElemMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let at_least_as_good = self.value.iter().zip(other.value.iter()).all(|(a, b)| a >= b);
-        let strictly_better = self.value.iter().zip(other.value.iter()).any(|(a, b)| a > b);
+        let at_least_as_good = self
+            .value
+            .iter()
+            .zip(other.value.iter())
+            .all(|(a, b)| a >= b);
+        let strictly_better = self
+            .value
+            .iter()
+            .zip(other.value.iter())
+            .any(|(a, b)| a > b);
         at_least_as_good && strictly_better
     }
 }
 
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
-    type Acc<C, SolId, SInfo> = ParetoComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = ParetoComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -865,17 +890,26 @@ impl PartialEq for ElemCostMultiCodomain {
 
 impl Dominate for ElemCostMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let at_least_as_good = self.value.iter().zip(other.value.iter()).all(|(a, b)| a >= b);
-        let strictly_better = self.value.iter().zip(other.value.iter()).any(|(a, b)| a > b);
+        let at_least_as_good = self
+            .value
+            .iter()
+            .zip(other.value.iter())
+            .all(|(a, b)| a >= b);
+        let strictly_better = self
+            .value
+            .iter()
+            .zip(other.value.iter())
+            .any(|(a, b)| a > b);
         at_least_as_good && strictly_better
     }
 }
 
 impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
     type TypeCodom = ElemCostMultiCodomain;
-    type Acc<C, SolId, SInfo> = ParetoComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = ParetoComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -962,10 +996,16 @@ impl Dominate for ElemConstMultiCodomain {
             Ordering::Greater => false,
             Ordering::Less => true,
             Ordering::Equal => {
-                let at_least_as_good =
-                    self.value.iter().zip(other.value.iter()).all(|(a, b)| a >= b);
-                let strictly_better =
-                    self.value.iter().zip(other.value.iter()).any(|(a, b)| a > b);
+                let at_least_as_good = self
+                    .value
+                    .iter()
+                    .zip(other.value.iter())
+                    .all(|(a, b)| a >= b);
+                let strictly_better = self
+                    .value
+                    .iter()
+                    .zip(other.value.iter())
+                    .any(|(a, b)| a > b);
                 at_least_as_good && strictly_better
             }
         }
@@ -974,9 +1014,10 @@ impl Dominate for ElemConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
     type TypeCodom = ElemConstMultiCodomain;
-    type Acc<C, SolId, SInfo> = ParetoComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = ParetoComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -1071,10 +1112,16 @@ impl Dominate for ElemCostConstMultiCodomain {
             Ordering::Greater => false,
             Ordering::Less => true,
             Ordering::Equal => {
-                let at_least_as_good =
-                    self.value.iter().zip(other.value.iter()).all(|(a, b)| a >= b);
-                let strictly_better =
-                    self.value.iter().zip(other.value.iter()).any(|(a, b)| a > b);
+                let at_least_as_good = self
+                    .value
+                    .iter()
+                    .zip(other.value.iter())
+                    .all(|(a, b)| a >= b);
+                let strictly_better = self
+                    .value
+                    .iter()
+                    .zip(other.value.iter())
+                    .any(|(a, b)| a > b);
                 at_least_as_good && strictly_better
             }
         }
@@ -1083,9 +1130,10 @@ impl Dominate for ElemCostConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
     type TypeCodom = ElemCostConstMultiCodomain;
-    type Acc<C, SolId, SInfo> = ParetoComputed<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>
+        = ParetoComputed<C, SolId, SInfo, Self, Out>
     where
-        C :SolutionShape<SolId,SInfo> + HasY<Self,Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
         SInfo: SolInfo;
 

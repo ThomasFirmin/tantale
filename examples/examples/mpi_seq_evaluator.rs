@@ -2,14 +2,17 @@ use mpi::traits::Communicator;
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale_algos::RandomSearch;
 use tantale_core::{
-    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
+    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
+    domain::{NoDomain, TypeDom},
+    experiment::{
         DistEvaluate, OutShapeEvaluate,
         mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
         },
         sequential::seqevaluator::DistSeqEvaluator,
-    }, solution::{HasId, Lone, SolutionShape}
+    },
+    solution::{HasId, Lone, SolutionShape},
 };
 
 use std::sync::Arc;

@@ -16,7 +16,7 @@ impl Stop for Evaluated {
         self.0 >= self.1
     }
 
-    /// Update the number of calls with a new [`ExpStep`], incrementing the counter if the step 
+    /// Update the number of calls with a new [`ExpStep`], incrementing the counter if the step
     /// is a fully [`Evaluated`](crate::objective::Step::Evaluated) evaluation. Other steps do not update the counter.
     ///
     /// # Example
@@ -29,7 +29,9 @@ impl Stop for Evaluated {
     /// calls.update(ExpStep::Distribution(Step::Error));
     /// assert_eq!(calls.calls(), 1);
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Step::Evaluated) = step { self.0 += 1 }
+        if let ExpStep::Distribution(Step::Evaluated) = step {
+            self.0 += 1
+        }
     }
 }
 

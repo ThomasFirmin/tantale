@@ -1,6 +1,6 @@
-use tantale::core::{Step, Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-use tantale::macros::{Outcome, objective,FuncState};
 use serde::{Deserialize, Serialize};
+use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
+use tantale::macros::{FuncState, Outcome, objective};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutExample {
@@ -16,7 +16,7 @@ pub struct FidOutExample {
     pub step: Step,
 }
 
-#[derive(FuncState,Serialize, Deserialize)]
+#[derive(FuncState, Serialize, Deserialize)]
 pub struct FnState {
     pub state: isize,
 }
@@ -59,6 +59,4 @@ objective!(
     }
 );
 
-fn main() {
-    
-}
+fn main() {}

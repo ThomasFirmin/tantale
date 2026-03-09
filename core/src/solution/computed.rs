@@ -239,7 +239,7 @@ where
     fn get_x(&self) -> &Self::Raw {
         self.sol.get_x()
     }
-    
+
     fn clone_x(&self) -> Self::Raw {
         self.sol.clone_x()
     }

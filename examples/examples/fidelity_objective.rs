@@ -1,7 +1,6 @@
-
-use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-use tantale::macros::{objective, Outcome, CSVWritable, FuncState};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
+use tantale::macros::{CSVWritable, FuncState, Outcome, objective};
 
 #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 struct OutExample {
@@ -23,7 +22,7 @@ objective!(
         let _d = [! d | Bool(Bernoulli(0.5)) | !];
         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
         // ... more variables and computation ...
-        
+
         // Manage the internal state
         let mut state = if let Some(s) = [! STATE !] {
             s
@@ -32,7 +31,7 @@ objective!(
         };
         state.something += 1;
         let evalstep = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
-        
+
         (
             OutExample{
                 obj: e,
@@ -44,6 +43,4 @@ objective!(
     }
 );
 
-fn main() {
-    
-}
+fn main() {}

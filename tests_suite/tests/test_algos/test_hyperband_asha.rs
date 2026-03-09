@@ -1,5 +1,8 @@
 use tantale_core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, stop::Calls
+    CSVRecorder, FolderConfig, MessagePack, SaverConfig,
+    experiment::{Runable, mono, threaded},
+    load,
+    stop::Calls,
 };
 
 use tantale_algos::{Asha, Hyperband, asha};
@@ -73,10 +76,10 @@ fn test_fid_seq_run() {
         let last = budgets.last_mut().unwrap();
         *last = 5.;
     }
-    
+
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let asha = Asha::new(1.,5.,1.61); // log(max/min)
+    let asha = Asha::new(1., 5., 1.61); // log(max/min)
     let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
@@ -98,19 +101,49 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        Hyperband<Asha<_>, _, _, _>,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budget_min, *budgets.first().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_min, budgets.first().unwrap());
-    assert_eq!(expoptimizer.0.budget_max, *budgets.last().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_max, budgets.last().unwrap());
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *budgets.first().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_min,
+        budgets.first().unwrap()
+    );
+    assert_eq!(
+        expoptimizer.0.budget_max,
+        *budgets.last().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_max,
+        budgets.last().unwrap()
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-    assert_eq!(expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling, "Scaling factor is not equal to inner scaling factor");
-    assert_eq!(expoptimizer.0.budget_min, *expoptimizer.0.inner.0.budgets.first().unwrap(), "Budget min is not equal to inner budget min");
-    let current_max = 5. * 1.61_f64.powi(- (expoptimizer.0.current_s as i32));
-    assert_eq!(current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(), "Current max budget is not equal to inner budget max");
+    assert_eq!(
+        expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling,
+        "Scaling factor is not equal to inner scaling factor"
+    );
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *expoptimizer.0.inner.0.budgets.first().unwrap(),
+        "Budget min is not equal to inner budget min"
+    );
+    let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
+    assert_eq!(
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        "Current max budget is not equal to inner budget max"
+    );
     exp.run();
 
     let sp = sp_evaluator_sh::get_searchspace();
@@ -121,18 +154,48 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        mono,
+        Hyperband<Asha<_>, _, _, _>,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_hyperband_asha_run");
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budget_min, *budgets.first().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_min, budgets.first().unwrap());
-    assert_eq!(expoptimizer.0.budget_max, *budgets.last().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_max, budgets.last().unwrap());
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *budgets.first().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_min,
+        budgets.first().unwrap()
+    );
+    assert_eq!(
+        expoptimizer.0.budget_max,
+        *budgets.last().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_max,
+        budgets.last().unwrap()
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-    assert_eq!(expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling, "Scaling factor is not equal to inner scaling factor");
-    assert_eq!(expoptimizer.0.budget_min, *expoptimizer.0.inner.0.budgets.first().unwrap(), "Budget min is not equal to inner budget min");
-    let current_max = 5. * 1.61_f64.powi(- (expoptimizer.0.current_s as i32));
-    assert_eq!(current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(), "Current max budget is not equal to inner budget max");
+    assert_eq!(
+        expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling,
+        "Scaling factor is not equal to inner scaling factor"
+    );
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *expoptimizer.0.inner.0.budgets.first().unwrap(),
+        "Budget min is not equal to inner budget min"
+    );
+    let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
+    assert_eq!(
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        "Current max budget is not equal to inner budget max"
+    );
 
     drop(Cleaner {
         path: String::from("tmp_test_hyperband_asha_run"),
@@ -182,20 +245,54 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        Hyperband<Asha<_>, _, _, _>,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 50 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 50 and {}", max_call);
+    assert!(
+        expstop.calls() >= 50 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 50 and {}",
+        max_call
+    );
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(expoptimizer.0.budget_min, *budgets.first().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_min, budgets.first().unwrap());
-    assert_eq!(expoptimizer.0.budget_max, *budgets.last().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_max, budgets.last().unwrap());
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *budgets.first().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_min,
+        budgets.first().unwrap()
+    );
+    assert_eq!(
+        expoptimizer.0.budget_max,
+        *budgets.last().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_max,
+        budgets.last().unwrap()
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-    assert_eq!(expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling, "Scaling factor is not equal to inner scaling factor");
-    assert_eq!(expoptimizer.0.budget_min, *expoptimizer.0.inner.0.budgets.first().unwrap(), "Budget min is not equal to inner budget min");
-    let current_max = 5. * 1.61_f64.powi(- (expoptimizer.0.current_s as i32));
-    assert_eq!(current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(), "Current max budget is not equal to inner budget max");
+    assert_eq!(
+        expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling,
+        "Scaling factor is not equal to inner scaling factor"
+    );
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *expoptimizer.0.inner.0.budgets.first().unwrap(),
+        "Budget min is not equal to inner budget min"
+    );
+    let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
+    assert_eq!(
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        "Current max budget is not equal to inner budget max"
+    );
 
     exp.run();
 
@@ -207,19 +304,53 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, Hyperband<Asha<_>,_,_,_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        Hyperband<Asha<_>, _, _, _>,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_hyperband_asha_parrun");
     let expstop = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
-    assert!(expstop.calls() >= 100 && expstop.calls() <= max_call, "Number of calls is wrong, it should be between 100 and {}", max_call);
+    assert!(
+        expstop.calls() >= 100 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 100 and {}",
+        max_call
+    );
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.budget_min, *budgets.first().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_min, budgets.first().unwrap());
-    assert_eq!(expoptimizer.0.budget_max, *budgets.last().unwrap(), "Budgets are wrong, {:?} != {:?}", expoptimizer.0.budget_max, budgets.last().unwrap());
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *budgets.first().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_min,
+        budgets.first().unwrap()
+    );
+    assert_eq!(
+        expoptimizer.0.budget_max,
+        *budgets.last().unwrap(),
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budget_max,
+        budgets.last().unwrap()
+    );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-    assert_eq!(expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling, "Scaling factor is not equal to inner scaling factor");
-    assert_eq!(expoptimizer.0.budget_min, *expoptimizer.0.inner.0.budgets.first().unwrap(), "Budget min is not equal to inner budget min");
-    let current_max = 5. * 1.61_f64.powi(- (expoptimizer.0.current_s as i32));
-    assert_eq!(current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(), "Current max budget is not equal to inner budget max");
+    assert_eq!(
+        expoptimizer.0.scaling, expoptimizer.0.inner.0.scaling,
+        "Scaling factor is not equal to inner scaling factor"
+    );
+    assert_eq!(
+        expoptimizer.0.budget_min,
+        *expoptimizer.0.inner.0.budgets.first().unwrap(),
+        "Budget min is not equal to inner budget min"
+    );
+    let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
+    assert_eq!(
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        "Current max budget is not equal to inner budget max"
+    );
 
     drop(Cleaner {
         path: String::from("tmp_test_hyperband_asha_parrun"),

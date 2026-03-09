@@ -4,13 +4,16 @@ use tantale::core::{
 };
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, domain::{NoDomain, TypeDom}, experiment::{
+    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
+    domain::{NoDomain, TypeDom},
+    experiment::{
         DistEvaluate, OutBatchEvaluate,
         mpi::{
             utils::{MPIProcess, SendRec, XMessage},
             worker::{BaseWorker, Worker},
         },
-    }, solution::{Batch, HasId, Lone, SolutionShape}
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -126,22 +129,23 @@ fn main() {
         let batch: BBatch = Batch::new(pair, info.clone());
         let mut eval = BatchEvaluator::new(batch);
 
-        let (bcomp, braw) = <BatchEvaluator<
-            SId,
-            EmptyInfo,
-            RSInfo,
-            Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
-        > as DistEvaluate<
-            BaseSol<SId, Mixed, EmptyInfo>,
-            SId,
-            BatchRandomSearch,
-            Sp<Mixed, NoDomain>,
-            OutEvaluator,
-            Calls,
-            Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-            _,
-            OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
+        let (bcomp, braw) =
+            <BatchEvaluator<
+                SId,
+                EmptyInfo,
+                RSInfo,
+                Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            > as DistEvaluate<
+                BaseSol<SId, Mixed, EmptyInfo>,
+                SId,
+                BatchRandomSearch,
+                Sp<Mixed, NoDomain>,
+                OutEvaluator,
+                Calls,
+                Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+                _,
+                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
+            >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();
         let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();

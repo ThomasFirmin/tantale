@@ -10,7 +10,6 @@ use tantale::core::{
     stop::{Calls, Stop},
 };
 use tantale_algos::random_search;
-use tantale_core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 use tantale_core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale_core::objective::FuncWrapper;
 use tantale_core::objective::Step;
@@ -21,6 +20,7 @@ use tantale_core::solution::shape::{SolObj, SolOpt};
 use tantale_core::solution::{
     HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
 };
+use tantale_core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 
 use std::{path::Path, sync::Arc};
 

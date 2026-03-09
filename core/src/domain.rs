@@ -238,11 +238,11 @@ pub mod mixed;
 pub use mixed::{Mixed, MixedTypeDom};
 
 pub mod onto;
-pub use onto::{Linked, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Onto, OntoDom};
+pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Onto, OntoDom};
 
 pub mod codomain;
 pub use codomain::{
-    Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost, CostCodomain,
-    CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, FidCriteria,
-    Multi, MultiCodomain, Single, SingleCodomain, Accumulator, BestComputed, ParetoComputed,
+    Accumulator, BestComputed, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
+    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
+    FidCriteria, Multi, MultiCodomain, ParetoComputed, Single, SingleCodomain,
 };

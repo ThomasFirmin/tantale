@@ -2,7 +2,7 @@
 //!
 //! This module defines the recording layer for optimization experiments.
 //! A [`Recorder`] saves the different [`Solutions`](crate::Solution), [`Outcomes`](crate::objective::Outcome),
-//! metadata from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo), 
+//! metadata from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo),
 //! and [`Codomain`](crate::Codomain) elements.
 //!
 //! ## Overview
@@ -36,7 +36,12 @@
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed}
+    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer,
+    domain::onto::LinkOpt,
+    objective::Outcome,
+    optimizer::opt::CompBatch,
+    searchspace::{CompShape, Searchspace},
+    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
 };
 
 #[cfg(feature = "mpi")]
@@ -53,7 +58,7 @@ pub use nosaver::NoSaver;
 /// A [`Recorder`] is invoked by the experiment runner to persist evaluation results. It receives
 /// computed solutions and outcomes as they are produced by the optimization loop. Implementations
 /// can store results in files (e.g., CSV), databases, or other storage backends.
-/// 
+///
 /// This is a base trait that all recorders must implement. The actual recording functionality
 /// is provided by specialized traits like [`SeqRecorder`] and [`BatchRecorder`].
 ///
@@ -63,7 +68,7 @@ pub use nosaver::NoSaver;
 /// - [`BatchRecorder`] - Batch experiment recorder trait  
 /// - [`CSVRecorder`] - File-based CSV recorder implementation
 /// - [`NoSaver`] - No-op recorder for experiments without persistence
-pub trait Recorder { }
+pub trait Recorder {}
 
 /// Recorder trait for sequential optimization experiments.
 ///
@@ -159,7 +164,7 @@ where
         SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
-/// Initialize recorder storage for a new batched experiment.
+    /// Initialize recorder storage for a new batched experiment.
     ///
     /// This method should create any required files, headers, or database tables.
     /// It is called once before the optimization loop starts.
@@ -186,8 +191,7 @@ where
     /// * `outputed` - The output [`Batch`](crate::Batch) with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    fn save
-    (
+    fn save(
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
@@ -195,7 +199,6 @@ where
         cod: &Op::Cod,
     );
 }
-
 
 #[cfg(feature = "mpi")]
 /// Distributed recorder trait for MPI-based sequential experiments.
@@ -268,8 +271,6 @@ where
     );
 }
 
-
-
 #[cfg(feature = "mpi")]
 /// Distributed recorder trait for MPI-based batch experiments.
 ///
@@ -332,8 +333,7 @@ where
     /// * `outputed` - The output batch with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    fn save_dist
-    (
+    fn save_dist(
         &self,
         computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,

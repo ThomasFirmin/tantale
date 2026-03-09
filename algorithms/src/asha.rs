@@ -66,7 +66,10 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
+    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
+    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer,
+    SingleCodomain, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc,
+    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -129,7 +132,7 @@ impl<SShape> OptState for AshaState<SShape> where
 pub struct AshaInfo(f64);
 impl SolInfo for AshaInfo {}
 
-impl CSVWritable<(),()> for AshaInfo{
+impl CSVWritable<(), ()> for AshaInfo {
     fn header(_elem: &()) -> Vec<String> {
         vec!["budget_max".to_string()]
     }
@@ -483,11 +486,7 @@ where
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_) = comp.step() {
-                let idx = self
-                    .0
-                    .budgets
-                    .iter()
-                    .position(|&b| b == comp.fidelity().0);
+                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
                     self.0.rung[i + 1].push(comp);
                 }
@@ -500,7 +499,12 @@ where
                 k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
             }
             if k == 0 {
-                self.with_rng(|rng| scp.sample_pair(rng, AshaInfo(self.0.budgets[self.0.budgets.len()-1]).into()))
+                self.with_rng(|rng| {
+                    scp.sample_pair(
+                        rng,
+                        AshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
+                    )
+                })
             } else {
                 self.0.rung[i].select_nth_unstable(k);
                 self.0.current_budget = self.0.budgets[i];
@@ -508,7 +512,12 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.with_rng(|rng| scp.sample_pair(rng, AshaInfo(self.0.budgets[self.0.budgets.len()-1]).into()))
+            self.with_rng(|rng| {
+                scp.sample_pair(
+                    rng,
+                    AshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
+                )
+            })
         };
         p.set_fidelity(self.0.current_budget);
         p

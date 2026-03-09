@@ -1,7 +1,12 @@
 use crate::{
-    Accumulator, Codomain, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome, RUN_ID, SOL_ID, SolInfo, SolutionShape, checkpointer::{
+    Accumulator, Codomain, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome,
+    RUN_ID, SOL_ID, SolInfo, SolutionShape,
+    checkpointer::{
         CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
-    }, experiment::Evaluate, optimizer::OptState, stop::Stop
+    },
+    experiment::Evaluate,
+    optimizer::OptState,
+    stop::Stop,
 };
 
 use core::panic;
@@ -344,28 +349,28 @@ impl MonoCheckpointer for MessagePack {
             )))
         }
     }
-    
+
     fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome
+        Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
-    
+
     fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome 
+        Out: Outcome,
     {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -635,25 +640,25 @@ impl ThrCheckpointer for MessagePack {
 
     fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome
+        Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
-    
+
     fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome 
+        Out: Outcome,
     {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
@@ -925,25 +930,28 @@ impl DistCheckpointer for MessagePack {
 
     fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc, _rank: Rank)
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome
+        Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();   
+        rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
-    
-    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, _rank: Rank) -> Result<Acc, CheckpointError>
+
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(
+        &self,
+        _rank: Rank,
+    ) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C,SolId,SInfo,Cod,Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod,Out>,
+        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
         SolId: Id,
         SInfo: SolInfo,
         Cod: Codomain<Out>,
-        Out: Outcome 
+        Out: Outcome,
     {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {

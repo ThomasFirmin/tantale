@@ -1,7 +1,7 @@
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
+    use tantale::macros::{CSVWritable, Outcome, objective};
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
@@ -30,14 +30,13 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-
+use searchspace::{OutExample, get_function, get_searchspace};
+use tantale::algos::{BatchRandomSearch, random_search};
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, SingleCodomain,
-    experiment::{Runable, threaded}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    CSVRecorder, FolderConfig, HasY, MessagePack, SingleCodomain, Solution, SolutionShape,
+    experiment::{Runable, threaded},
+    stop::Calls,
 };
-use tantale::algos::{random_search, BatchRandomSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
 
 use std::sync::Arc;
 
@@ -58,7 +57,7 @@ fn main() {
     let _clean = Cleaner {
         path: String::from("run_batch"),
     };
-    
+
     let sp = get_searchspace();
     let obj = get_function();
     let opt = BatchRandomSearch::new(7);
@@ -72,5 +71,9 @@ fn main() {
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
-    println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+    println!(
+        "Best solution found: f({:?}) ={}",
+        best.get_x(),
+        best.y().value
+    );
 }

@@ -1,9 +1,14 @@
 use tantale_algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale_core::{
-    BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain, Sp, domain::NoDomain, experiment::{
+    BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain,
+    Sp,
+    domain::NoDomain,
+    experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
         ThrEvaluate, sequential::seqevaluator::SeqEvaluator,
-    }, solution::{Batch, HasId, Lone, SolutionShape}, stop::Calls
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
+    stop::Calls,
 };
 
 use super::init_func::sp_evaluator;
@@ -108,7 +113,11 @@ fn test_batchevaluator() {
 
     let best = (&bcomp).into_iter().max().unwrap();
     let best_acc = acc.get().unwrap();
-    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+    assert_eq!(
+        best.id(),
+        best_acc.id(),
+        "Best solution in batch do not have the same ID as best accumulator."
+    );
 
     (&bcomp).into_iter().for_each(|pair| {
         let id = pair.id();
@@ -179,7 +188,13 @@ fn test_thrbatchevaluator() {
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-    >>::evaluate(&mut eval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
+    >>::evaluate(
+        &mut eval,
+        obj.clone(),
+        cod.clone(),
+        stop.clone(),
+        acc.clone(),
+    );
 
     let mut hcobj = HashMap::new();
     let mut hsobj: HashMap<SId, Arc<[tantale_core::MixedTypeDom]>> = HashMap::new();
@@ -232,7 +247,11 @@ fn test_thrbatchevaluator() {
     let binding = acc.lock().unwrap();
     let best = (&bcomp).into_iter().max().unwrap();
     let best_acc = binding.get().unwrap();
-    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+    assert_eq!(
+        best.id(),
+        best_acc.id(),
+        "Best solution in batch do not have the same ID as best accumulator."
+    );
 
     (&bcomp).into_iter().for_each(|pair| {
         let id = pair.id();
@@ -304,7 +323,11 @@ fn test_seqevaluator() {
 
     let best = &comp;
     let best_acc = acc.get().unwrap();
-    assert_eq!(best.id(), best_acc.id(), "Best solution in batch do not have the same ID as best accumulator.");
+    assert_eq!(
+        best.id(),
+        best_acc.id(),
+        "Best solution in batch do not have the same ID as best accumulator."
+    );
 
     assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
     assert!(

@@ -1,23 +1,37 @@
 use crate::{
-    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
-        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment, basics::IdxMapPool
-    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
+    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer,
+    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{
+        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate,
+        MonoExperiment, OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment,
+        basics::IdxMapPool,
+    },
+    objective::{Objective, Outcome, outcome::FuncState},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::{CompShape, Searchspace},
+    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj},
+    stop::{ExpStep, Stop},
 };
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+    DistBatchRecorder,
+    checkpointer::{DistCheckpointer, WorkerCheckpointer},
+    experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    }, solution::shape::{SolObj, SolOpt}
+    },
+    solution::shape::{SolObj, SolOpt},
 };
 
 use std::{
-    fmt::Debug, sync::{Arc, Mutex}
+    fmt::Debug,
+    sync::{Arc, Mutex},
 };
 
 //--------------------//
@@ -59,7 +73,14 @@ where
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     St: Stop,
-    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
+    Rec: BatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        >,
     Check: MonoCheckpointer,
     Out: Outcome,
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
@@ -176,7 +197,11 @@ where
                 _,
                 OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
-                &mut eval, &self.objective, &self.codomain, &mut self.stop, &mut self.accumulator
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+                &mut self.accumulator,
             );
 
             // Saver part
@@ -185,7 +210,9 @@ where
             }
 
             // Optimizer part
-            batch = self.optimizer.step(computed, &self.searchspace, &self.accumulator);
+            batch = self
+                .optimizer
+                .step(computed, &self.searchspace, &self.accumulator);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
 
@@ -254,11 +281,27 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &crate::domain::codomain::TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &crate::domain::codomain::TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut crate::domain::codomain::TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut crate::domain::codomain::TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
 }
@@ -309,7 +352,14 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
-    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>>,
+    Rec: BatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+        >,
     Check: MonoCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
@@ -448,7 +498,11 @@ where
                 _,
                 OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
-                &mut eval, &self.objective, &self.codomain, &mut self.stop, &mut self.accumulator
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+                &mut self.accumulator,
             );
 
             // Saver part
@@ -457,7 +511,9 @@ where
             }
 
             // Optimizer part
-            batch = self.optimizer.step(computed, &self.searchspace, &self.accumulator);
+            batch = self
+                .optimizer
+                .step(computed, &self.searchspace, &self.accumulator);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
 
@@ -528,11 +584,27 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &crate::domain::codomain::TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &crate::domain::codomain::TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut crate::domain::codomain::TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut crate::domain::codomain::TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
 }
@@ -582,9 +654,17 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo> + Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
-    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
+    Rec: BatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        >,
     Check: ThrCheckpointer,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>: Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+        Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -703,17 +783,18 @@ where
             }
 
             // Evaluation part
-            (computed, outputed) =
-                ThrEvaluate::<
-                    _,
-                    SId,
-                    Op,
-                    Scp,
-                    Out,
-                    St,
-                    _,
-                    OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
-                >::evaluate(&mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone());
+            (computed, outputed) = ThrEvaluate::<
+                _,
+                SId,
+                Op,
+                Scp,
+                Out,
+                St,
+                _,
+                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+            >::evaluate(
+                &mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone()
+            );
 
             // Saver part
             if let Some(r) = &self.recorder {
@@ -797,14 +878,24 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
-
 }
 
 impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
@@ -857,10 +948,18 @@ where
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
-    Rec: BatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>>,
+    Rec: BatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+        >,
     Check: ThrCheckpointer,
     Check::FnStateCheck: Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>: Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+        Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -988,17 +1087,18 @@ where
                 stlock.update(ExpStep::Iteration);
             }
             // Evaluation part
-            (computed, outputed) =
-                ThrEvaluate::<
-                    _,
-                    SId,
-                    Op,
-                    Scp,
-                    Out,
-                    St,
-                    _,
-                    OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
-                >::evaluate(&mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone());
+            (computed, outputed) = ThrEvaluate::<
+                _,
+                SId,
+                Op,
+                Scp,
+                Out,
+                St,
+                _,
+                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+            >::evaluate(
+                &mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone()
+            );
 
             // Saver part
             if let Some(r) = &self.recorder {
@@ -1011,7 +1111,7 @@ where
                 batch = self.optimizer.step(computed, &scp, &acclock);
             }
             eval.update(batch);
-                
+
             // Stop and checkpointing part
             {
                 let mut stlock = st.lock().unwrap();
@@ -1084,11 +1184,22 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
 }
@@ -1138,7 +1249,14 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
-    Rec: DistBatchRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,>,
+    Rec: DistBatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+        >,
     Check: DistCheckpointer,
     Out: Outcome,
 {
@@ -1341,7 +1459,9 @@ where
             }
 
             // Optimizer part
-            batch = self.optimizer.step(computed, &self.searchspace, &self.accumulator);
+            batch = self
+                .optimizer
+                .step(computed, &self.searchspace, &self.accumulator);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
 
@@ -1416,11 +1536,22 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
 }
@@ -1469,7 +1600,14 @@ where
     CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
     St: Stop,
-    Rec: DistBatchRecorder<PSol, SId, Out, Scp, Op, Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,>,
+    Rec: DistBatchRecorder<
+            PSol,
+            SId,
+            Out,
+            Scp,
+            Op,
+            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+        >,
     Check: DistCheckpointer,
     Out: FidOutcome,
     FnState: FuncState,
@@ -1686,7 +1824,9 @@ where
             }
 
             // Optimizer part
-            batch = self.optimizer.step(computed, &self.searchspace, &self.accumulator);
+            batch = self
+                .optimizer
+                .step(computed, &self.searchspace, &self.accumulator);
             eval.update(batch);
             self.stop.update(ExpStep::Optimization);
 
@@ -1764,11 +1904,22 @@ where
         self.checkpointer.as_mut()
     }
 
-    fn get_accumalator(&self) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    {
         &self.accumulator
     }
 
-    fn get_mut_accumalator(&mut self) -> &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out> {
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        SId,
+        Op::SInfo,
+        Out,
+    > {
         &mut self.accumulator
     }
 }

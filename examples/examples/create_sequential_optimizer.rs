@@ -1,8 +1,8 @@
-use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
-use tantale::macros::OptState;
-use std::{cmp::Ord, cell::RefCell};
-use serde::{Serialize,Deserialize};
 use rand::{SeedableRng, rngs::StdRng};
+use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, cmp::Ord};
+use tantale::core::{EmptyInfo, HasFidelity, HasStep, SId, SolutionShape};
+use tantale::macros::OptState;
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
@@ -81,7 +81,7 @@ where
     }
 }
 
-use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
+use tantale::core::{FidelitySol, IntoComputed, LinkOpt, Optimizer, Searchspace};
 
 impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
@@ -90,7 +90,7 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
@@ -109,7 +109,9 @@ where
     }
 }
 
-use tantale_core::{CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped};
+use tantale_core::{
+    CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped,
+};
 
 impl<Out, Scp, FnState>
     SequentialOptimizer<
@@ -125,22 +127,40 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity +Ord,
+        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<
+            Scp,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<
+            Scp,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
-        if let Some(comp) = x
-        {
+        if let Some(comp) = x {
             // If this solution is partially computed, then store it within the next rung.
             if let Step::Partially(_) = comp.step() {
                 // The idx of the budget cannot be stored within the solution
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
+                let idx = self
+                    .0
+                    .budgets
+                    .iter()
+                    .position(|&b| b == comp.fidelity().0)
+                    .unwrap();
                 self.0.rung[idx + 1].push(comp); // Store it within the next rung
             }
 
@@ -161,19 +181,19 @@ where
                 // Select the top k (modify in place rung[i]), last elements are the top k
                 self.0.rung[i].select_nth_unstable(k);
                 // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
-                let (mut p,_): (Scp::SolShape, _) = IntoComputed::extract(self.0.rung[i].pop().unwrap()); 
+                let (mut p, _): (Scp::SolShape, _) =
+                    IntoComputed::extract(self.0.rung[i].pop().unwrap());
                 p.set_fidelity(self.0.budgets[i]); // Modify previous fidelity with new budget
                 p
             }
-        } else {// If input is None (no computed, e.g. initialization of ASHA)
+        } else {
+            // If input is None (no computed, e.g. initialization of ASHA)
             // Randomly sample a new candidate with minimum budget
             let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
             p.set_fidelity(self.0.budgets[0]);
             p
         }
-    }   
+    }
 }
 
-fn main(){
-
-}
+fn main() {}

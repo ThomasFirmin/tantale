@@ -10,12 +10,18 @@
 //! - [`Recorder`](crate::Recorder) - Base trait for all recorders
 
 use crate::{
-    BatchOptimizer, BatchRecorder, CompBatch, FuncWrapper, RawObj, SeqRecorder, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed}
+    BatchOptimizer, BatchRecorder, CompBatch, FuncWrapper, RawObj, SeqRecorder,
+    SequentialOptimizer,
+    domain::onto::LinkOpt,
+    objective::Outcome,
+    recorder::Recorder,
+    searchspace::{CompShape, Searchspace},
+    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "mpi")]
-use crate::{experiment::mpi::utils::MPIProcess,DistBatchRecorder, DistSeqRecorder};
+use crate::{DistBatchRecorder, DistSeqRecorder, experiment::mpi::utils::MPIProcess};
 
 /// No-op recorder that performs no operations.
 ///
@@ -67,12 +73,10 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
-    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Prepare for loading - no-op.
-    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Save a single solution - no-op.
     fn save(
@@ -102,16 +106,13 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
-    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Prepare for loading - no-op.
-    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Save a batch of solutions - no-op.
-    fn save
-    (
+    fn save(
         &self,
         _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp, PSol, <Op>::Cod, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,
@@ -121,12 +122,12 @@ where
     }
 }
 
-
 /// Implementation of [`DistSeqRecorder`](crate::DistSeqRecorder) for distributed sequential optimization (MPI).
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 #[cfg(feature = "mpi")]
-impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap> for NoSaver
+impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
+    for NoSaver
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
@@ -138,12 +139,10 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
-    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Prepare distributed recorder for loading - no-op.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Save a single solution in distributed context - no-op.
     fn save_dist(
@@ -160,7 +159,8 @@ where
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 #[cfg(feature = "mpi")]
-impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap> for NoSaver
+impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
+    for NoSaver
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
@@ -174,16 +174,13 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
-    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Prepare distributed recorder for loading - no-op.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {
-    }
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
 
     /// Save a batch of solutions in distributed context - no-op.
-    fn save_dist
-    (
+    fn save_dist(
         &self,
         _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp, PSol, <Op>::Cod, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,

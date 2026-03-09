@@ -78,7 +78,6 @@ where
     /// Creates a clone of this shape with the same solutions, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
     fn _clone_shape(&self) -> Self;
-
 }
 
 /// A pair made of an objective [`Solution`] and its optimizer twin.

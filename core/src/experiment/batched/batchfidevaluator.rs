@@ -150,7 +150,13 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -323,7 +329,8 @@ where
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + Debug + Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>: Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
+        Send + Sync,
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
@@ -355,7 +362,17 @@ where
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
+        acc: Arc<
+            Mutex<
+                TypeAcc<
+                    Op::Cod,
+                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    SolId,
+                    Op::SInfo,
+                    Out,
+                >,
+            >,
+        >,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -388,7 +405,7 @@ where
                             }
                         };
 
-                        let computed  = pair.into_computed(y.into());
+                        let computed = pair.into_computed(y.into());
                         let out = (sid, out);
                         acc.lock().unwrap().accumulate(&computed);
 
@@ -651,7 +668,13 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,

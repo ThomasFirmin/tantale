@@ -1,7 +1,7 @@
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
+    use tantale::macros::{CSVWritable, Outcome, objective};
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
@@ -40,18 +40,15 @@ impl Drop for Cleaner {
     }
 }
 
-
+use searchspace::{OutExample, get_function, get_searchspace};
+use tantale::algos::{BatchRandomSearch, random_search};
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
-    experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    CSVRecorder, DistSaverConfig, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
+    experiment::{distributed, mpi::utils::MPIProcess},
+    stop::Calls,
 };
-use tantale::algos::{random_search, BatchRandomSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
 
-
-fn main(){
-        
+fn main() {
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
         eprintln!("Skipping MPI test (not under mpirun)");
         return;
@@ -79,8 +76,13 @@ fn main(){
 
     let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
     let accumulator = exp.run();
-    if let Some(acc) = accumulator{ // <==== Because workers return None !
+    if let Some(acc) = accumulator {
+        // <==== Because workers return None !
         let best = acc.get().unwrap().get_sobj();
-        println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+        println!(
+            "Best solution found: f({:?}) ={}",
+            best.get_x(),
+            best.y().value
+        );
     }
 }

@@ -1,5 +1,11 @@
 use crate::{
-    FidOutcome, HasFidelity, HasStep, domain::{Codomain, Domain, onto::LinkOpt}, experiment::CompAcc, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj}
+    FidOutcome, HasFidelity, HasStep,
+    domain::{Codomain, Domain, onto::LinkOpt},
+    experiment::CompAcc,
+    objective::{FuncWrapper, Outcome},
+    recorder::csv::CSVWritable,
+    searchspace::{CompShape, OptionCompShape, Searchspace},
+    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};

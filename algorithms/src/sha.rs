@@ -62,7 +62,10 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj, SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, recorder::CSVWritable
+    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
+    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
+    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc,
+    optimizer::opt::BudgetPruner, recorder::CSVWritable,
 };
 
 use rand::prelude::ThreadRng;
@@ -98,7 +101,7 @@ pub struct ShaState {
     pub batch: usize,
     /// Minimum budget (lowest fidelity level). Represents the starting resource allocation for candidates.
     pub budget_min: f64,
-    /// Maximum budget (highest fidelity level). The upper bound for resource allocation. 
+    /// Maximum budget (highest fidelity level). The upper bound for resource allocation.
     /// Once reached, the process restarts with `budget_min`.
     pub budget_max: f64,
     /// Current budget level. This value increases by `scaling` at each stage until it reaches `budget_max`.
@@ -329,7 +332,7 @@ where
         );
         self.0.current_budget = budget;
     }
-    
+
     /// Retrieves the current budget level used by this optimizer for pruning candidates.
     fn get_current_budget(&self) -> f64 {
         self.0.current_budget
@@ -380,7 +383,7 @@ where
     FnState: FuncState,
 {
     type Info = ShaInfo;
-    
+
     /// Generates the initial [`Batch`] of candidates at minimum [`Fidelity`](tantale_core::Fidelity).
     ///
     /// Creates `batch` random candidates from the search space, each set to evaluate
@@ -440,7 +443,14 @@ where
             Out,
         >,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<
+            Scp,
+            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()

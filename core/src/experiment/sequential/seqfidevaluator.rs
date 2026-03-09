@@ -1,7 +1,14 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{
-        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj
-    }, stop::ExpStep
+    Accumulator, Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop,
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
+    objective::{Step, outcome::FuncState},
+    optimizer::opt::{OpSInfType, SequentialOptimizer},
+    searchspace::CompShape,
+    solution::{
+        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj,
+    },
+    stop::ExpStep,
 };
 #[cfg(feature = "mpi")]
 use crate::{
@@ -145,7 +152,13 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
@@ -300,7 +313,17 @@ where
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
+        acc: Arc<
+            Mutex<
+                TypeAcc<
+                    Op::Cod,
+                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    SolId,
+                    Op::SInfo,
+                    Out,
+                >,
+            >,
+        >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
@@ -661,7 +684,13 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();

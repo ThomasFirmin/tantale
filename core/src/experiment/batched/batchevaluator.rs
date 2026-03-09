@@ -1,7 +1,14 @@
 use crate::{
-    Accumulator, Id, OptInfo, Outcome, Searchspace, SolInfo, Solution, domain::{Codomain, codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
-        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj
-    }, stop::{ExpStep, Stop}
+    Accumulator, Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
+    domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
+    objective::{Objective, Step},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::CompShape,
+    solution::{
+        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
+    },
+    stop::{ExpStep, Stop},
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -102,7 +109,13 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -188,7 +201,13 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> (
         Batch<
             SolId,
@@ -310,7 +329,8 @@ where
     Scp::SolShape: Send + Sync,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         Debug + SolutionShape<SolId, Op::SInfo> + Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>: Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
+        Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
 {
@@ -334,7 +354,17 @@ where
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
+        acc: Arc<
+            Mutex<
+                TypeAcc<
+                    Op::Cod,
+                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    SolId,
+                    Op::SInfo,
+                    Out,
+                >,
+            >,
+        >,
     ) -> (
         Batch<
             SolId,

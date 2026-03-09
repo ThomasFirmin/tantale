@@ -256,7 +256,15 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, SId, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
+    Accumulator, SId, Searchspace,
+    checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    objective::{FuncWrapper, Outcome},
+    optimizer::Optimizer,
+    recorder::Recorder,
+    searchspace::CompShape,
+    solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
+    stop::Stop,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -828,7 +836,8 @@ macro_rules! load {
 }
 
 /// Type alias for an [`Accumulator`](crate::Accumulator) made of [`CompShape`](crate::searchspace::CompShape).
-pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> = TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
+pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
+    TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
 
 /// The core trait defining the optimization loop interface.
 ///
@@ -980,7 +989,7 @@ where
     /// Executes the full pipeline, generation, evaluation, accumulation, recording,
     /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
-    /// 
+    ///
     /// It return an [`Accumulator`](crate::Accumulator) containing the best solutions found during the run.
     fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
@@ -1050,7 +1059,7 @@ where
     fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
-    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>){
+    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
 }
@@ -1090,11 +1099,14 @@ where
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
-     #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity)]
     pub fn run(self) -> Option<CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>> {
         match self {
             MasterWorker::Master(exp) => Some(exp.run()),
-            MasterWorker::Worker(worker) => {worker.run(); None},
+            MasterWorker::Worker(worker) => {
+                worker.run();
+                None
+            }
         }
     }
 }
@@ -1150,12 +1162,11 @@ where
 
     /// Returns a mutable reference to the [`Accumulator`](crate::Accumulator).
     fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
-    
+
     /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
-    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>){
+    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
-
 }
 
 //------------------------//
@@ -1296,10 +1307,17 @@ where
     ///
     /// The evaluated solution(s) in a format specific to the evaluator implementation.
     /// This could be a single solution or a batch depending on the concrete type.
-    fn evaluate(&mut self, ob: &Fn, cod: &Op::Cod, stop: &mut St, acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) -> OutType;
+    fn evaluate(
+        &mut self,
+        ob: &Fn,
+        cod: &Op::Cod,
+        stop: &mut St,
+        acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+    ) -> OutType;
 }
 
-type ArcMutexCompAcc<Scp, PSol, SolId, SInfo, Cod, Out> = Arc<Mutex<CompAcc<Scp, PSol, SolId, SInfo, Cod, Out>>>;
+type ArcMutexCompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
+    Arc<Mutex<CompAcc<Scp, PSol, SolId, SInfo, Cod, Out>>>;
 
 /// Multi-threaded evaluation strategy.
 ///
@@ -1370,7 +1388,13 @@ where
     /// # Returns
     ///
     /// The evaluated solutions after parallel evaluation completes.
-    fn evaluate(&mut self, ob: Arc<Fn>, cod: Arc<Op::Cod>, stop: Arc<Mutex<St>>, acc: ArcMutexCompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) -> OutType;
+    fn evaluate(
+        &mut self,
+        ob: Arc<Fn>,
+        cod: Arc<Op::Cod>,
+        stop: Arc<Mutex<St>>,
+        acc: ArcMutexCompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+    ) -> OutType;
 }
 
 #[cfg(feature = "mpi")]

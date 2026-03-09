@@ -4,10 +4,15 @@ use rmp_serde;
 use tantale::core::stop::Calls;
 use tantale_algos::{BatchRandomSearch, RSInfo};
 use tantale_core::{
-    BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed, MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer}, domain::NoDomain, experiment::{
+    BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed,
+    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer},
+    domain::NoDomain,
+    experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
         ThrBatchEvaluator, ThrEvaluate, basics::IdxMapPool,
-    }, solution::{Batch, HasId, Lone, SolutionShape}
+    },
+    solution::{Batch, HasId, Lone, SolutionShape},
 };
 
 use super::init_func::{FidOutEvaluator, FnState, OutEvaluator, sp_evaluator, sp_evaluator_fid};
@@ -59,8 +64,7 @@ fn test_serde_batchevaluator() {
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
-    let mut acc =  SingleCodomain::new_accumulator();
-
+    let mut acc = SingleCodomain::new_accumulator();
 
     let mut rng = rand::rng();
     let sobj: Vec<BaseSol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
@@ -183,7 +187,13 @@ fn test_serde_thrbatchevaluator() {
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
-    >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
+    >>::evaluate(
+        &mut neval,
+        obj.clone(),
+        cod.clone(),
+        stop.clone(),
+        acc.clone(),
+    );
 
     let pairs = bcomp
         .into_iter()
@@ -432,7 +442,13 @@ fn test_serde_thrfidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut neval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
+    >>::evaluate(
+        &mut neval,
+        obj.clone(),
+        cod.clone(),
+        stop.clone(),
+        acc.clone(),
+    );
 
     assert!(
         braw.into_iter()
@@ -491,7 +507,13 @@ fn test_serde_thrfidbatchevaluator() {
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
-    >>::evaluate(&mut nneval, obj.clone(), cod.clone(), stop.clone(), acc.clone());
+    >>::evaluate(
+        &mut nneval,
+        obj.clone(),
+        cod.clone(),
+        stop.clone(),
+        acc.clone(),
+    );
 
     assert!(
         braw.into_iter()

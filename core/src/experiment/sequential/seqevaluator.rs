@@ -4,7 +4,14 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate}, objective::Step, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{HasId, IntoComputed, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
+    Accumulator, Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop,
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
+    objective::Step,
+    optimizer::opt::{OpSInfType, SequentialOptimizer},
+    searchspace::CompShape,
+    solution::{HasId, IntoComputed, SolutionShape, Uncomputed, shape::RawObj},
+    stop::ExpStep,
 };
 
 use serde::{Deserialize, Serialize};
@@ -98,7 +105,13 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out> {
         let pair = self
             .pair
@@ -223,7 +236,17 @@ where
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: Arc<Mutex<TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>>>,
+        acc: Arc<
+            Mutex<
+                TypeAcc<
+                    Op::Cod,
+                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    SolId,
+                    Op::SInfo,
+                    Out,
+                >,
+            >,
+        >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         let pair = self
             .pair
@@ -424,7 +447,13 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>,
+        acc: &mut TypeAcc<
+            Op::Cod,
+            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            SolId,
+            Op::SInfo,
+            Out,
+        >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
         while sendrec.idle.has_idle() && !self.shapes.is_empty() && !stop.stop() {
