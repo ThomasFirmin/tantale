@@ -5,6 +5,10 @@ edition = "2024"
 license = "CECILL-C"
 readme = "README.md"
 rust-version = "1.91.1"
+repository = "https://github.com/ThomasFirmin/tantale"
+description = "Tantale is a Rust library for Automated Machine Learning (AutoML) focusing on Hyperparameter Optimization and Neural Architecture Search. It provides a modular and extensible framework for defining search spaces, objectives, and optimization algorithms, with support for distributed computing and parallel execution."
+categories = ["machine-learning", "optimization", "neural-networks", "automl"]
+keywords = ["automl", "hyperparameter optimization", "neural architecture search", "rust", "distributed computing", "parallel execution"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
@@ -17,11 +21,11 @@ maintenance = { status = "actively-developed" }
 members = ["macros", "core", "algorithms", "tests_suite", "examples"]
 
 [workspace.dependencies]
-tantale_core = { path = "core" }
-tantale_macros = { path = "macros" }
-tantale_algos = { path = "algorithms" }
-tantale_tests = { path = "tests_suite" }
-tantale_examples = { path = "examples" }
+tantale_core = { path = "core", version = "0.1.0" }
+tantale_macros = { path = "macros", version = "0.1.0" }
+tantale_algos = { path = "algorithms", version = "0.1.0" }
+tantale_tests = { path = "tests_suite", version = "0.1.0" }
+tantale_examples = { path = "examples", version = "0.1.0" }
 
 [dependencies]
 tantale_core.workspace = true
