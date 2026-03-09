@@ -18,7 +18,7 @@ maintenance = { status = "actively-developed" }
 
 
 [workspace]
-members = ["macros", "core", "algorithms", "tests_suite", "examples"]
+members = ["macros", "core", "algorithms", "tests_suite"]
 
 [workspace.dependencies]
 tantale_core = { path = "core", version = "0.1.0" }
