@@ -61,7 +61,7 @@
 //!
 //! # References
 //!
-//! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
+//! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use std::cell::RefCell;
 
