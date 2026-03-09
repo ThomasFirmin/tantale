@@ -63,8 +63,8 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 ### 1 — Define the objective function
 
 The `objective!` macro extracts the search space from the function body and produces:
-- `example::get_searchspace()` — the typed [`Searchspace`](tantale::core::Searchspace).
-- `example::get_function()` — the user function wrapped in an [`Objective`](tantale::core::Objective) or [`Stepped`](tantale::core::Stepped).
+- `example::get_searchspace()` — the typed `Searchspace`.
+- `example::get_function()` — the user function wrapped in an `Objective` or `Stepped`.
 
 It must be called inside a dedicated module or file.
 
@@ -134,26 +134,26 @@ An experiment is composed of up to 7 components:
 
 | Component | Trait | Role |
 |---|---|---|
-| Search space | [`Searchspace`](tantale::core::Searchspace) | Defines the input domain |
-| Codomain | [`Codomain`](tantale::core::Codomain) | Extracts metrics (objective, constraints, cost) from an `Outcome` |
-| Function | [`FuncWrapper`](tantale::core::FuncWrapper) | The function to optimize (`Objective` or `Stepped`) |
-| Optimizer | [`Optimizer`](tantale::core::Optimizer) | Generates candidate solutions (`BatchOptimizer` or `SequentialOptimizer`) |
-| Stop | [`Stop`](tantale::core::Stop) | Defines when to terminate (`Calls`, `Evaluated`, …) |
-| Recorder *(optional)* | [`Recorder`](tantale::core::Recorder) | Logs solutions to disk (CSV, …) |
-| Checkpointer *(optional)* | [`Checkpointer`](tantale::core::Checkpointer) | Saves and restores experiment state (MessagePack) |
+| Search space | `Searchspace` | Defines the input domain |
+| Codomain | `Codomain` | Extracts metrics (objective, constraints, cost) from an `Outcome` |
+| Function | `FuncWrapper` | The function to optimize (`Objective` or `Stepped`) |
+| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SequentialOptimizer`) |
+| Stop | `Stop` | Defines when to terminate (`Calls`, `Evaluated`, …) |
+| Recorder *(optional)* | `Recorder` | Logs solutions to disk (CSV, …) |
+| Checkpointer *(optional)* | `Checkpointer` | Saves and restores experiment state (MessagePack) |
 
 ### Execution contexts
 
 | Function | Experiment | Parallelism |
 |---|---|---|
-| [`mono`](tantale::core::mono) | [`MonoExperiment`](tantale::core::MonoExperiment) | Single-threaded |
-| [`threaded`](tantale::core::threaded) | [`ThrExperiment`](tantale::core::ThrExperiment) | Multi-threaded (one machine) |
-| [`distributed`](tantale::core::distributed) | [`MPIExperiment`](tantale::core::MPIExperiment) | MPI-distributed (multiple machines) |
+| `mono` | `MonoExperiment` | Single-threaded |
+| `threaded` | `ThrExperiment` | Multi-threaded (one machine) |
+| `distributed` | `MPIExperiment` | MPI-distributed (multiple machines) |
 
 ### Parallelization philosophy
 
-- **Synchronous** ([`BatchOptimizer`](tantale::core::BatchOptimizer)): a full batch is evaluated in parallel before the next optimization step.
-- **Asynchronous** ([`SequentialOptimizer`](tantale::core::SequentialOptimizer)): new solutions are generated on demand as soon as a thread/process becomes free.
+- **Synchronous** (`BatchOptimizer`): a full batch is evaluated in parallel before the next optimization step.
+- **Asynchronous** (`SequentialOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
 
 ---
 
