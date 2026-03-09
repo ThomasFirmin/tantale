@@ -798,13 +798,12 @@ where
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<$Op, $St>($space, $objective, $saver)/// 3. **Update** -
+        $crate::experiment::mono_load::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load::<$Op, $St>($space, $objective, $saver)
-    };
-    (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::distributed_load::<$Op, $St>($proc, $space, $objective, $saver)
+        $crate::experiment::threaded_load::<$Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver,
+        )
     };
 }
 
