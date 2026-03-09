@@ -244,5 +244,5 @@ pub mod codomain;
 pub use codomain::{
     Accumulator, BestComputed, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
-    FidCriteria, Multi, MultiCodomain, ParetoComputed, Single, SingleCodomain,
+    FidCriteria, Multi, MultiCodomain, ParetoComputed, Single, SingleCodomain, Dominate,
 };

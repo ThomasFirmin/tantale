@@ -259,7 +259,7 @@ pub use domain::{
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
     Criteria, Domain, FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed,
     MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoComputed, Real, Single,
-    SingleCodomain, Unit,
+    SingleCodomain, Unit, Dominate
 };
 
 pub mod sampler;
@@ -312,3 +312,5 @@ pub mod checkpointer;
 #[cfg(feature = "mpi")]
 pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
+
+
