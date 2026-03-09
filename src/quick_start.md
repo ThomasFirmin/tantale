@@ -44,21 +44,22 @@ See [`Onto`](core::Onto) for more details on the mapping between optimizer and o
 
 ```rust
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome};
+    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+    use tantale::macros::{objective, Outcome, CSVWritable};
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
-    struct OutExample {
-        obj: f64,
-        info: f64,
+    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+    pub struct OutExample {
+        pub obj: f64,
+        pub info: f64,
     }
 
     objective!(
         pub fn example() -> OutExample {
-            let a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
-            let b = [! b | Nat(0,100, Uniform) | !];
-            let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-            let d = [! d | Bool(Bernoulli(0.5)) | !];
+            let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
 
             // ... more variables and computation ...
@@ -106,23 +107,26 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 
 ```rust
 # mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-#     use tantale::macros::{objective, Outcome};
-#
-#     #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
-#     struct OutExample {
-#         obj: f64,
-#         info: f64,
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::macros::{objective, Outcome, CSVWritable};
+#     use serde::{Deserialize, Serialize};
+# 
+#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+#     pub struct OutExample {
+#         pub obj: f64,
+#         pub info: f64,
 #     }
-#
+# 
 #     objective!(
 #         pub fn example() -> OutExample {
-#             let a = [! a | Int(0,100, Uniform) | !]; 
-#             let b = [! b | Nat(0,100, Uniform) | !];
-#             let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-#             let d = [! d | Bool(Bernoulli(0.5)) | !];
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _b = [! b | Nat(0,100, Uniform) | !];
+#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 #             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+# 
 #             // ... more variables and computation ...
+# 
 #             OutExample{
 #                 obj: e,
 #                 info: [! f | Unit(Uniform) | !],
@@ -133,22 +137,226 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 #     // let sp = example::get_searchspace();
 #     // let obj = example::get_function();
 # }
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
-    experiment::{Runable, mono}, stop::Calls,
-};
-use tantale::algos::BatchRandomSearch;
+# 
+# struct Cleaner {
+#     path: String,
+# }
+# 
+# impl Drop for Cleaner {
+#     fn drop(&mut self) {
+#         let _ = std::fs::remove_dir_all(&self.path);
+#     }
+# }
 
-let sp = searchspace::get_searchspace();
-let obj = searchspace::get_function();
+use tantale::core::{
+    CSVRecorder, FolderConfig, MessagePack,
+    experiment::{Runable, mono}, stop::Calls,
+    HasY, Solution, SolutionShape,
+};
+use tantale::algos::{random_search, BatchRandomSearch};
+use searchspace::{get_searchspace, get_function, OutExample};
+
+use std::sync::Arc;
+
+# drop(Cleaner {
+#     path: String::from("run_batch"),
+# });
+# let _clean = Cleaner {
+#     path: String::from("run_batch"),
+# };
+
+let sp = get_searchspace();
+let obj = get_function();
 let opt = BatchRandomSearch::new(7);
-let cod: SingleCodomain<_> = BatchRandomSearch::codomain(|o: OutExample| o.obj);
+let cod= random_search::codomain(|o: &OutExample| o.obj);
 
 let stop = Calls::new(50);
-let config = FolderConfig::new("run_batch").init();
+let config = Arc::new(FolderConfig::new("run_batch"));
 let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 let check = MessagePack::new(config);
 
 let exp = mono((sp, cod), obj, opt, stop, (rec, check));
-exp.run(); // Consumes exp and runs the optimization loop
+let accumulator = exp.run();
+let best = accumulator.get().unwrap().get_sobj();
+println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+```
+
+
+### Multi-threaded example
+
+```rust
+# mod searchspace {
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::macros::{objective, Outcome, CSVWritable};
+#     use serde::{Deserialize, Serialize};
+# 
+#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+#     pub struct OutExample {
+#         pub obj: f64,
+#         pub info: f64,
+#     }
+# 
+#     objective!(
+#         pub fn example() -> OutExample {
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _b = [! b | Nat(0,100, Uniform) | !];
+#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
+#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+# 
+#             // ... more variables and computation ...
+# 
+#             OutExample{
+#                 obj: e,
+#                 info: [! f | Unit(Uniform) | !],
+#             }
+#         }
+#     );
+#     // The macro expands to helpers like:
+#     // let sp = example::get_searchspace();
+#     // let obj = example::get_function();
+# }
+# 
+# struct Cleaner {
+#     path: String,
+# }
+# 
+# impl Drop for Cleaner {
+#     fn drop(&mut self) {
+#         let _ = std::fs::remove_dir_all(&self.path);
+#     }
+# }
+# 
+# use tantale::core::{
+#     CSVRecorder, FolderConfig, MessagePack,
+#     experiment::{Runable, threaded}, stop::Calls,
+#     HasY, Solution, SolutionShape,
+# };
+# use tantale::algos::{random_search, BatchRandomSearch};
+# use searchspace::{get_searchspace, get_function, OutExample};
+# 
+# use std::sync::Arc;
+# 
+# drop(Cleaner {
+#     path: String::from("run_batch_thr"),
+# });
+# let _clean = Cleaner {
+#     path: String::from("run_batch_thr"),
+# };
+# 
+# let sp = get_searchspace();
+# let obj = get_function();
+# let opt = BatchRandomSearch::new(7);
+# let cod= random_search::codomain(|o: &OutExample| o.obj);
+# 
+# let stop = Calls::new(50);
+# let config = Arc::new(FolderConfig::new("run_batch_thr"));
+# let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+# let check = MessagePack::new(config);
+#
+let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+let accumulator = exp.run();
+let best = accumulator.get().unwrap().get_sobj();
+println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+```
+
+
+### MPI-distributed example
+
+To run the MPI distributed example, you'll need first to install a distribution of [MPI](https://www.open-mpi.org/), make sure [rust mpi](https://docs.rs/mpi/latest/mpi/) works. The installation might be tricky, you might face issues with FFI and [libffi](https://github.com/libffi-rs/libffi-rs).
+
+Then you can add `tantale` with the feature `mpi` to your project:
+```console
+foo@bar:~$ cargo add tantale --feature mpi
+```
+
+```rust
+# mod searchspace {
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::macros::{objective, Outcome, CSVWritable};
+#     use serde::{Deserialize, Serialize};
+# 
+#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+#     pub struct OutExample {
+#         pub obj: f64,
+#         pub info: f64,
+#     }
+# 
+#     objective!(
+#         pub fn example() -> OutExample {
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _b = [! b | Nat(0,100, Uniform) | !];
+#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
+#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
+#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+# 
+#             // ... more variables and computation ...
+# 
+#             OutExample{
+#                 obj: e,
+#                 info: [! f | Unit(Uniform) | !],
+#             }
+#         }
+#     );
+#     // The macro expands to helpers like:
+#     // let sp = example::get_searchspace();
+#     // let obj = example::get_function();
+# }
+# 
+# struct Cleaner {
+#     path: String,
+# }
+# 
+# impl Drop for Cleaner {
+#     fn drop(&mut self) {
+#         let _ = std::fs::remove_dir_all(&self.path);
+#     }
+# }
+# 
+use tantale::core::{
+    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
+    experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
+    HasY, Solution, SolutionShape,
+};
+use tantale::algos::{random_search, BatchRandomSearch};
+use searchspace::{get_searchspace, get_function, OutExample};
+
+if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
+    eprintln!("Skipping MPI test (not under mpirun)");
+    return;
+}
+
+let proc = MPIProcess::new();
+# 
+# if proc.rank == 0 {
+#     drop(Cleaner {
+#         path: String::from("run_batch_mpi"),
+#     });
+#     let _clean = Cleaner {
+#         path: String::from("run_batch_mpi"),
+#     };
+# }
+
+let sp = get_searchspace();
+let obj = get_function();
+let opt = BatchRandomSearch::new(7);
+let cod = random_search::codomain(|o: &OutExample| o.obj);
+let stop = Calls::new(50);
+let config = FolderConfig::new("run_batch_mpi").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
+let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+let check = MessagePack::new(config);
+
+let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
+let accumulator = exp.run();
+if let Some(acc) = accumulator{ // <==== Because workers return None !
+    let best = acc.get().unwrap().get_sobj();
+    println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+}
+```
+
+Then you have to run the binaries obtained with `cargo build` with `mpirun` or `mpiexec`.
+The following example uses 4 distributed processes:
+
+```console
+foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
 ```

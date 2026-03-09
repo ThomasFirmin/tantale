@@ -22,19 +22,3 @@ bincode = {version = "2.0.1", features=["serde"]}
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
-
-[[example]]
-name="mpi_seq_run"
-path="mpi_seq_run.rs"
-
-[[example]]
-name="mpi_seq_evaluator"
-path="mpi_seq_evaluator.rs"
-
-[[example]]
-name="mpi_par_run"
-path="mpi_par_run.rs"
-
-[[example]]
-name="mpi_par_evaluator"
-path="mpi_par_evaluator.rs"

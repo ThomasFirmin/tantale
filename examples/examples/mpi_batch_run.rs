@@ -1,5 +1,4 @@
-use tantale::algos::BatchRandomSearch;
-use tantale_algos::random_search;
+use tantale::algos::{random_search, BatchRandomSearch};
 use tantale_core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective,
     experiment::{self, distributed, mpi::utils::MPIProcess},

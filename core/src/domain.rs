@@ -238,7 +238,7 @@ pub mod mixed;
 pub use mixed::{Mixed, MixedTypeDom};
 
 pub mod onto;
-pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Onto};
+pub use onto::{Linked, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Onto, OntoDom};
 
 pub mod codomain;
 pub use codomain::{

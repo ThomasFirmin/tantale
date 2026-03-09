@@ -110,19 +110,19 @@
 //! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
 //! use tantale::macros::{objective, Outcome, CSVWritable, FuncState};
 //! use serde::{Serialize, Deserialize};
-//!
+//! 
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
 //!     obj: f64,
 //!     info: f64,
 //!     step: Step,
 //! }
-//!
+//! 
 //! #[derive(FuncState, Serialize, Deserialize)]
 //! pub struct FnState {
 //!     pub something: isize,
 //! }
-//!
+//! 
 //! objective!(
 //!     pub fn example() -> (OutExample, FnState) {
 //!         let _a = [! a | Int(0,100, Uniform) | !];
@@ -133,14 +133,19 @@
 //!         // ... more variables and computation ...
 //!         
 //!         // Manage the internal state
+//!         let mut state = if let Some(s) = [! STATE !] {
+//!             s
+//!         } else {
+//!             FnState { something: 0 }
+//!         };
 //!         state.something += 1;
-//!         let evalstate = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
+//!         let evalstep = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
 //!         
 //!         (
 //!             OutExample{
 //!                 obj: e,
 //!                 info: [! f | Real(10.0,20.0, Uniform) | !],
-//!                 step: evalstate,
+//!                 step: evalstep,
 //!             },
 //!             state
 //!         )
@@ -254,7 +259,7 @@ pub use domain::{
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Domain,
     FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Mixed, MixedTypeDom,
     Multi, MultiCodomain, Nat, NoDomain, Onto, Real, Single, SingleCodomain, Unit,
-    Accumulator, BestComputed, ParetoComputed,
+    Accumulator, BestComputed, ParetoComputed, Linked, OntoDom,
 };
 
 pub mod sampler;
@@ -273,7 +278,7 @@ pub use solution::{
 };
 
 pub mod searchspace;
-pub use searchspace::{Searchspace, Sp, SpPar};
+pub use searchspace::{Searchspace, Sp, SpPar, OptionCompShape, CompShape};
 
 pub mod errors;
 
@@ -291,12 +296,12 @@ pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
+pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded, CompAcc};
 #[cfg(feature = "mpi")]
 pub use experiment::{
     DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, mpi::utils::MPIProcess,
     mpi::worker::Worker,
 };
-pub use experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded};
 
 pub mod recorder;
 pub use recorder::{CSVRecorder, CSVWritable, Recorder, SeqRecorder, BatchRecorder, NoSaver};

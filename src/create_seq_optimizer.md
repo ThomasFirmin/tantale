@@ -37,6 +37,7 @@ We consider the [Asynchronous Successive Halving](https://arxiv.org/abs/1502.079
 The optimizer uses a thread-local [`StdRng`] for random sampling. The RNG is not part of the optimizer state, as it cannot be serialized or deserialized. The [`StdRng`] is defined at the module level as follows:
 ```rust
 use rand::{SeedableRng, rngs::StdRng};
+use std::cell::RefCell;
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
@@ -70,23 +71,28 @@ A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` a
 Then, the [`OptState`](crate::core::OptState) is given by:
 
 ```rust
-use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
+use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
 use tantale::macros::OptState;
 use std::cmp::Ord;
 use serde::{Serialize,Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(OptState, Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SShape: Serialize",
     deserialize = "SShape: for<'a> Deserialize<'a>",
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
+    // A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
+    // Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
-    pub rungs: Vec<Vec<SShape>>,
+    /// A vector of vectors representing the rungs of the Successive Halving process.
+    pub rung: Vec<Vec<SShape>>,
+    // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+    pub current_budget: f64,
 }
 ```
 
@@ -122,31 +128,36 @@ Finally, two methods have to be written:
 ASHA only requires its [`OptState`], i.e. [`AshaState`].
 
 Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` method
-to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer.
+to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer. ASHA must be generic over all
+[`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape), i.e. solutions that can be ordered, so to select the Top k.
 
 ``` rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
-# use std::cmp::Ord;
+# use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
 # use rand::{SeedableRng, rngs::StdRng};
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
 # }
-#
-# #[derive(Serialize, Deserialize)]
+# #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
 #     serialize = "SShape: Serialize",
 #     deserialize = "SShape: for<'a> Deserialize<'a>",
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
+#     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
+#     // Scaling factor ($\eta$) by which the budget is multiplied at each stage.
 #     pub scaling: f64,
-#     pub rungs: Vec<Vec<SShape>>,
+#     /// A vector of vectors representing the rungs of the Successive Halving process.
+#     pub rung: Vec<Vec<SShape>>,
+#     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+#     pub current_budget: f64,
 # }
 
 use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
@@ -162,15 +173,21 @@ where
     out.into()
 }
 
-pub struct Asha(pub AshaState);
+pub struct Asha<SShape>(pub AshaState<SShape>)
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
 
-impl AshaState {
+impl<SShape> Asha<SShape>
+where
+    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+{
     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
-        
-        // Create all different budgets
+        assert!(
+            budget_max > budget_min,
+            "Maximum budget must be > minimum budget"
+        );
         let mut budgets: Vec<f64> = (0..)
             .map(|i| budget_min * scaling.powi(i))
             .take_while(|&b| b <= budget_max)
@@ -180,16 +197,21 @@ impl AshaState {
             let last = budgets.last_mut().unwrap();
             *last = budget_max;
         }
-        
+
         let length = budgets.len();
-        Asha(
-            AshaState {
-                budgets,
-                scaling,
-                // Create i rungs, even if rung 0 will not be used, it simplifies computations
-                rung: (0..length).map(|_| Vec::new()).collect(),
-            },
-        )
+        let current_budget = budgets[0];
+        Asha(AshaState {
+            budgets,
+            scaling,
+            rung: (0..length).map(|_| Vec::new()).collect(),
+            current_budget,
+        })
+    }
+    pub fn with_rng<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut StdRng) -> T,
+    {
+        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
     }
 }
 ```
@@ -205,28 +227,32 @@ the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer
 Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolShape`](crate::core::SolShape) must follows the same bound described within `AshaState`.
 
 ```rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
-# use std::cmp::Ord;
+# use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
 # use rand::{SeedableRng, rngs::StdRng};
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
 # }
-#
-# #[derive(Serialize, Deserialize)]
+# #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
 #     serialize = "SShape: Serialize",
 #     deserialize = "SShape: for<'a> Deserialize<'a>",
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
+#     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
+#     // Scaling factor ($\eta$) by which the budget is multiplied at each stage.
 #     pub scaling: f64,
-#     pub rungs: Vec<Vec<SShape>>,
+#     /// A vector of vectors representing the rungs of the Successive Halving process.
+#     pub rung: Vec<Vec<SShape>>,
+#     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+#     pub current_budget: f64,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
@@ -242,15 +268,21 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #     out.into()
 # }
 # 
-# pub struct Asha(pub AshaState);
+# pub struct Asha<SShape>(pub AshaState<SShape>)
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
 # 
-# impl AshaState {
+# impl<SShape> Asha<SShape>
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+# {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
-#         
-#         // Create all different budgets
+#         assert!(
+#             budget_max > budget_min,
+#             "Maximum budget must be > minimum budget"
+#         );
 #         let mut budgets: Vec<f64> = (0..)
 #             .map(|i| budget_min * scaling.powi(i))
 #             .take_while(|&b| b <= budget_max)
@@ -260,20 +292,25 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #             let last = budgets.last_mut().unwrap();
 #             *last = budget_max;
 #         }
-#         
+# 
 #         let length = budgets.len();
-#         Asha(
-#             AshaState {
-#                 budgets,
-#                 scaling,
-#                 // Create i rungs, even if rung 0 will not be used, it simplifies computations
-#                 rung: (0..length).map(|_| Vec::new()).collect(),
-#             },
-#         )
+#         let current_budget = budgets[0];
+#         Asha(AshaState {
+#             budgets,
+#             scaling,
+#             rung: (0..length).map(|_| Vec::new()).collect(),
+#             current_budget,
+#         })
+#     }
+#     pub fn with_rng<F, T>(&self, f: F) -> T
+#     where
+#         F: FnOnce(&mut StdRng) -> T,
+#     {
+#         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
 
-use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
+use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
 
 impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
@@ -291,9 +328,9 @@ where
     fn get_state(&self) -> &Self::State {
         &self.0
     }
-    
+
     fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+        &mut self.0
     }
 
     fn from_state(state: Self::State) -> Self {
@@ -312,28 +349,32 @@ We have to define one functions:
   [`Computed`](crate::core::Computed).
 
 ```rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity, HasY};
+# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
-# use std::cmp::Ord;
+# use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
 # use rand::{SeedableRng, rngs::StdRng};
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
 # }
-#
-# #[derive(Serialize, Deserialize)]
+# #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
 #     serialize = "SShape: Serialize",
 #     deserialize = "SShape: for<'a> Deserialize<'a>",
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + HasY + Ord,
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
+#     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
+#     // Scaling factor ($\eta$) by which the budget is multiplied at each stage.
 #     pub scaling: f64,
-#     pub rungs: Vec<Vec<SShape>>,
+#     /// A vector of vectors representing the rungs of the Successive Halving process.
+#     pub rung: Vec<Vec<SShape>>,
+#     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+#     pub current_budget: f64,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
@@ -349,15 +390,21 @@ We have to define one functions:
 #     out.into()
 # }
 # 
-# pub struct Asha(pub AshaState);
+# pub struct Asha<SShape>(pub AshaState<SShape>)
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
 # 
-# impl AshaState {
+# impl<SShape> Asha<SShape>
+# where
+#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+# {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
 #         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min,"Maximum budget must be > minimum budget");
-#         
-#         // Create all different budgets
+#         assert!(
+#             budget_max > budget_min,
+#             "Maximum budget must be > minimum budget"
+#         );
 #         let mut budgets: Vec<f64> = (0..)
 #             .map(|i| budget_min * scaling.powi(i))
 #             .take_while(|&b| b <= budget_max)
@@ -367,18 +414,25 @@ We have to define one functions:
 #             let last = budgets.last_mut().unwrap();
 #             *last = budget_max;
 #         }
-#         
+# 
 #         let length = budgets.len();
-#         Asha(
-#             AshaState {
-#                 budgets,
-#                 scaling,
-#                 // Create i rungs, even if rung 0 will not be used, it simplifies computations
-#                 rung: (0..length).map(|_| Vec::new()).collect(),
-#             },
-#         )
+#         let current_budget = budgets[0];
+#         Asha(AshaState {
+#             budgets,
+#             scaling,
+#             rung: (0..length).map(|_| Vec::new()).collect(),
+#             current_budget,
+#         })
+#     }
+#     pub fn with_rng<F, T>(&self, f: F) -> T
+#     where
+#         F: FnOnce(&mut StdRng) -> T,
+#     {
+#         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
+# 
+# use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
 # 
 # impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
 #     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
@@ -393,8 +447,12 @@ We have to define one functions:
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo; // No metadata
 # 
-#     fn get_state(&mut self) -> &Self::State {
+#     fn get_state(&self) -> &Self::State {
 #         &self.0
+#     }
+# 
+#     fn get_mut_state(&mut self) -> &Self::State {
+#         &mut self.0
 #     }
 # 
 #     fn from_state(state: Self::State) -> Self {
@@ -402,8 +460,7 @@ We have to define one functions:
 #     }
 # }
 
-use tantale_core::{SequentialOptimizer, Codomain, OptionCompShape, FuncState, HasFidelity, HasStep, IntoComputed, RawObj, Step, Stepped};
-
+use tantale_core::{CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped};
 
 impl<Out, Scp, FnState>
     SequentialOptimizer<
@@ -426,6 +483,7 @@ where
         &mut self,
         x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
+        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
         if let Some(comp) = x
@@ -466,5 +524,4 @@ where
         }
     }   
 }
-
 ```

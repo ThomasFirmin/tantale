@@ -148,7 +148,7 @@
 //! ```rust,ignore
 //!
 //! // This is automatically generated and wrapped with the objective! procedural macro.
-//! fn my_objective(x: &MySolution) -> MyOutcome {
+//! fn my_objective(x: Solution) -> MyOutcome {
 //!     // Compute and return result
 //! }
 //! let obj = Objective::new(my_objective);
@@ -165,7 +165,7 @@
 //!
 //! ```rust,ignore
 //! // This is automatically generated and wrapped with the objective! procedural macro.
-//! fn training_step(x: &Solution, state: TrainingState) -> (TrainingOutcome, TrainingState) {
+//! fn training_step(x: Solution, state: TrainingState) -> (TrainingOutcome, TrainingState) {
 //!     // Perform one training epoch
 //! }
 //! let stepped_obj = Stepped::new(training_step);

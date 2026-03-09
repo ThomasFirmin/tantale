@@ -66,10 +66,11 @@ But, only if usage conditions, described within the corresponding documentation,
 use tantale::macros::{OptInfo, CSVWritable};
 use serde::{Serialize,Deserialize};
 
-#[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
+#[derive(OptInfo, CSVWritable, Default, Debug, Serialize, Deserialize)]
 pub struct ShaInfo{
     pub iteration: usize,
 }
+
 ```
 
 or with [`CSVWritable`](crate::core::CSVWritable) implemented by hand:
@@ -79,7 +80,7 @@ use tantale::macros::{OptInfo};
 use tantale::core::CSVWritable;
 use serde::{Serialize,Deserialize};
 
-#[derive(OptInfo, Serialize, Deserialize)]
+#[derive(OptInfo, Debug, Default, Serialize, Deserialize)]
 pub struct ShaInfo{
     pub iteration: usize,
 }
@@ -115,7 +116,7 @@ If some meta-data **would have been necessary**, which is not the case for SH, t
 use tantale::macros::{SolInfo, CSVWritable};
 use serde::{Serialize, Deserialize};
 
-#[derive(SolInfo, CSVWritable, Serialize, Deserialize)]
+#[derive(SolInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
 pub struct MockSolInfo{
     pub expected_score: f64
 }
@@ -153,7 +154,7 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 
 ``` rust
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
+# use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptState,Serialize,Deserialize)]
 # pub struct ShaState{
@@ -165,15 +166,13 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 #     pub iteration:usize, // i
 # }
 # use tantale::macros::{OptInfo, CSVWritable};
-# use serde::{Serialize,Deserialize};
 # 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
+# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
 # pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 
 use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-use serde::{Serialize,Deserialize};
 use rand::prelude::ThreadRng;
 
 pub struct Sha(pub ShaState, ThreadRng);
@@ -223,7 +222,7 @@ the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer,
 
 ```rust
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
+# use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptState,Serialize,Deserialize)]
 # pub struct ShaState{
@@ -235,15 +234,13 @@ the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer,
 #     pub iteration:usize, // i
 # }
 # use tantale::macros::{OptInfo, CSVWritable};
-# use serde::{Serialize,Deserialize};
 # 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
+# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
 # pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# use serde::{Serialize,Deserialize};
 # use rand::prelude::ThreadRng;
 # 
 # pub struct Sha(pub ShaState, ThreadRng);
@@ -315,11 +312,10 @@ SHA generates a [`Batch`](crate::core::Batch) of [`FidelitySol`](crate::core::Fi
 SHA is then a [`BatchOptimizer`](crate::core::BatchOptimizer).
 We have to define two functions:
 - `first_step`: Able to generate a [`Batch`](crate::core::Batch) ex-nihilo, without a previous [`Computed`](crate::core::Computed) [`Batch`](crate::core::Batch). It is used to initialize the algorithm (line 8.). 
-- `step`: the usual iteration of the algorithm after initialization (line 9. to ).
-
+- `step`: the usual iteration of the algorithm after initialization (line 9. to ). It takes a [`Searchspace`](crate::core::Searchspace), a [`Batch`](crate::core::Batch) of computed, and an [`Accumulator`](crate::core::Accumulator) containing a clone of best [`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape) so far.
 ```rust
 # use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize}
+# use serde::{Serialize,Deserialize};
 # 
 # #[derive(OptState,Serialize,Deserialize)]
 # pub struct ShaState{
@@ -331,15 +327,13 @@ We have to define two functions:
 #     pub iteration:usize, // i
 # }
 # use tantale::macros::{OptInfo, CSVWritable};
-# use serde::{Serialize,Deserialize};
-# 
-# #[derive(OptInfo, CSVWritable, Serialize, Deserialize)]
+#
+# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
 # pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 # 
 # use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# use serde::{Serialize,Deserialize};
 # use rand::prelude::ThreadRng;
 # 
 # pub struct Sha(pub ShaState, ThreadRng);
@@ -389,7 +383,7 @@ We have to define two functions:
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo;
 #     
-#     fn get_state(&mut self) -> &Self::State {
+#     fn get_state(&self) -> &Self::State {
 #         &self.0
 #     }
 #     
@@ -402,7 +396,7 @@ We have to define two functions:
 #     }
 # }
 
-use tantale_core::{Batch, BatchOptimizer, Codomain, CompBatch, FuncState, HasFidelity, HasStep, IntoComputed, RawObj, Step, Stepped};
+use tantale::core::{Batch, BatchOptimizer, CompBatch, FuncState, HasFidelity, HasStep, IntoComputed, RawObj, Step, Stepped, SolutionShape, CompAcc};
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
@@ -424,7 +418,7 @@ where
     type Info = ShaInfo;
 
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = ShaInfo::new(self.0.iteration);
+        let info = ShaInfo{iteration: self.0.iteration};
         let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity
             |mut pair| 
             {
@@ -442,6 +436,7 @@ where
             &mut self,
             x: CompBatch<SId, Self::SInfo, Self::Info, Scp, FidelitySol<SId,Scp::Opt,EmptyInfo>, Self::Cod, Out>,
             scp: &Scp,
+            _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
         ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
             
             let (pairs,_) = x.extract(); // Extract component of CompBatch
@@ -485,12 +480,12 @@ where
                     self.0.budget = self.0.budget_min; // Reset budget
                     <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
                 } else {
-                    Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
+                    Batch::new(new_pairs, ShaInfo{iteration: self.0.iteration}.into())
                 }
             }
     }
 
-    fn set_batch_size(&mut self, batch_size : usise){
+    fn set_batch_size(&mut self, batch_size : usize){
         self.0.batch = batch_size
     }
 
@@ -498,4 +493,5 @@ where
         self.0.batch
     }
 }
+
 ```
