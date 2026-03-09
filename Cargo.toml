@@ -2,7 +2,7 @@
 name = "tantale"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
+license = "CECILL-C"
 readme = "README.md"
 rust-version = "1.91.1"
 

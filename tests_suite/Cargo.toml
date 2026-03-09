@@ -2,6 +2,9 @@
 name = "tantale_tests"
 version = "0.1.0"
 edition = "2024"
+license = "CECILL-C"
+readme = "README.md"
+rust-version = "1.91.1"
 
 [dependencies]
 tantale = { path = "../"}

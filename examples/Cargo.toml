@@ -1,9 +1,11 @@
 [package]
 name = "tantale_examples"
-version = "0.0.0"
+version = "0.1.0"
 publish = false
 edition = "2024"
-license = "MIT"
+license = "CECILL-C"
+readme = "README.md"
+rust-version = "1.91.1"
 
 [dependencies]
 tantale = { path = "..", features=["mpi"]}
