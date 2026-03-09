@@ -1,8 +1,8 @@
 use mpi::traits::Communicator;
 use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::{
-    EmptyInfo, Searchspace, SingleCodomain, stop::Calls,
-    Codomain, FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
+    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp,
+    Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -14,6 +14,7 @@ use tantale::core::{
         },
     },
     solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
+    stop::Calls,
 };
 
 use std::{collections::HashMap, sync::Arc};

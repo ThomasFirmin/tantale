@@ -2,13 +2,6 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;
-use tantale::core::{
-    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
-    optimizer::opt::BatchOptimizer,
-    recorder::csv::{CSVRecorder, CSVWritable},
-    solution::{Batch, HasInfo, OutBatch},
-    stop::{Calls, Stop},
-};
 use tantale::algos::random_search;
 use tantale::core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale::core::objective::FuncWrapper;
@@ -21,6 +14,13 @@ use tantale::core::solution::{
     HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
 };
 use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
+use tantale::core::{
+    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
+    optimizer::opt::BatchOptimizer,
+    recorder::csv::{CSVRecorder, CSVWritable},
+    solution::{Batch, HasInfo, OutBatch},
+    stop::{Calls, Stop},
+};
 
 use std::{path::Path, sync::Arc};
 

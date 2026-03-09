@@ -1,7 +1,4 @@
 use mpi::traits::Communicator;
-use tantale::core::{
-    EmptyInfo, Searchspace, SingleCodomain, experiment::BatchEvaluator, stop::Calls,
-};
 use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
@@ -14,6 +11,9 @@ use tantale::core::{
         },
     },
     solution::{Batch, HasId, Lone, SolutionShape},
+};
+use tantale::core::{
+    EmptyInfo, Searchspace, SingleCodomain, experiment::BatchEvaluator, stop::Calls,
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -49,9 +49,9 @@ mod init_func {
 
     pub mod sp_evaluator {
         use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
+        use tantale::core::sampler::{Bernoulli, Uniform};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
-        use tantale::core::sampler::{Bernoulli, Uniform};
 
         objective!(
             pub fn example() -> OutEvaluator {

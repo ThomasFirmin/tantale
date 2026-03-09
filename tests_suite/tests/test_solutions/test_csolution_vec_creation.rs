@@ -1,7 +1,7 @@
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{BaseSol, Computed, ParSId, Solution};
 use tantale::core::domain::TypeDom;
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::{HasId, HasSolInfo, HasY, Uncomputed};
+use tantale::core::{BaseSol, Computed, ParSId, Solution};
 use tantale::core::{Codomain, FidelitySol, SingleCodomain};
 
 use num::cast::AsPrimitive;

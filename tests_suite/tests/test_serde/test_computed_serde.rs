@@ -6,12 +6,12 @@ use super::init_sp::{
 use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
+use tantale::core::Mixed;
 use tantale::core::{
     BaseSol, Computed, EmptyInfo, SId, Solution,
     searchspace::Searchspace,
     solution::{HasId, HasY},
 };
-use tantale::core::Mixed;
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($cod : ident | $func : ident ,)+] | $comp : expr ),*) => {

@@ -1,5 +1,4 @@
 use mpi::traits::Communicator;
-use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 use tantale::algos::RandomSearch;
 use tantale::core::{
     Codomain, FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
@@ -16,6 +15,7 @@ use tantale::core::{
     objective::Step,
     solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape},
 };
+use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 
 use std::sync::Arc;
 

@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use rmp_serde;
-use tantale::core::stop::Calls;
 use tantale::algos::{BatchRandomSearch, RSInfo};
+use tantale::core::stop::Calls;
 use tantale::core::{
     BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed,
     MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,

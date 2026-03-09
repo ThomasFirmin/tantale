@@ -14,7 +14,7 @@ keywords.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-tantale_core = { workspace = true }
+tantale_core = { workspace = true , features = ["mpi"] }
 num = "0.4.3"
 rand = "0.9.0"
 rayon = {version = "1.10.0"}

@@ -1,4 +1,4 @@
-use tantale::algos::{random_search,RandomSearch};
+use tantale::algos::{RandomSearch, random_search};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective,
     experiment::{self, distributed, mpi::utils::MPIProcess},
@@ -47,7 +47,7 @@ mod init_func {
 
     pub mod sp_evaluator {
         use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
-        use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
+        use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
         use tantale::macros::objective;
 
         objective!(

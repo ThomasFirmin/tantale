@@ -4,8 +4,8 @@ use tantale::macros::Outcome;
 
 #[test]
 fn mixed_derive() {
-    use tantale::core::CostConstMultiCodomain;
     use tantale::core::Codomain;
+    use tantale::core::CostConstMultiCodomain;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {

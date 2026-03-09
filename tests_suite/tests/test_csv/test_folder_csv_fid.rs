@@ -1,10 +1,4 @@
 use tantale::algos::BatchRandomSearch;
-use tantale::core::{
-    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
-    recorder::csv::{CSVRecorder, CSVWritable},
-    solution::{Batch, OutBatch},
-    stop::{Calls, Stop},
-};
 use tantale::algos::random_search;
 use tantale::core::domain::NoDomain;
 use tantale::core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
@@ -19,6 +13,12 @@ use tantale::core::solution::{
     SolutionShape, Uncomputed,
 };
 use tantale::core::{BatchRecorder, Computed, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
+use tantale::core::{
+    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
+    recorder::csv::{CSVRecorder, CSVWritable},
+    solution::{Batch, OutBatch},
+    stop::{Calls, Stop},
+};
 
 use crate::init_func::FnState;
 
