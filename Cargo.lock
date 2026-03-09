@@ -826,24 +826,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tantale_tests"
-version = "0.1.0"
-dependencies = [
- "csv",
- "num",
- "num_cpus",
- "paste",
- "rand",
- "rayon",
- "rmp-serde",
- "serde",
- "tantale",
- "tantale_algos",
- "tantale_core",
- "tantale_macros",
-]
-
-[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
