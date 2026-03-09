@@ -21,3 +21,6 @@ pub use asha::Asha;
 
 pub mod hyperband;
 pub use hyperband::Hyperband;
+
+pub mod moasha;
+pub use moasha::MoAsha;

@@ -225,6 +225,9 @@ pub trait Cost<Out: Outcome>: Codomain<Out> {
 pub trait Dominate {
     /// Returns `true` if `self` Pareto-dominates `other`.
     fn dominates(&self, other: &Self) -> bool;
+
+    /// Returns the value of the objective at the specified index.
+    fn get_objective_by_index(&self, idx: usize) -> f64;
 }
 
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
@@ -814,6 +817,10 @@ impl Dominate for ElemMultiCodomain {
             .any(|(a, b)| a > b);
         at_least_as_good && strictly_better
     }
+    
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.value[idx]
+    }
 }
 
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
@@ -901,6 +908,10 @@ impl Dominate for ElemCostMultiCodomain {
             .zip(other.value.iter())
             .any(|(a, b)| a > b);
         at_least_as_good && strictly_better
+    }
+    
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.value[idx]
     }
 }
 
@@ -1009,6 +1020,10 @@ impl Dominate for ElemConstMultiCodomain {
                 at_least_as_good && strictly_better
             }
         }
+    }
+    
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.value[idx]
     }
 }
 
@@ -1126,6 +1141,11 @@ impl Dominate for ElemCostConstMultiCodomain {
             }
         }
     }
+    
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.value[idx]
+    }
+    
 }
 
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
