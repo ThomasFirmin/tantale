@@ -80,10 +80,7 @@
 //!
 
 use crate::{
-    EvalStep, OptInfo, Outcome,
-    domain::{Codomain, Domain},
-    objective::Step,
-    solution::shape::CompPair,
+    Dominate, EvalStep, Multi, OptInfo, Outcome, domain::{Codomain, Domain}, objective::Step, solution::shape::CompPair
 };
 
 use serde::{Deserialize, Serialize};
@@ -551,6 +548,26 @@ where
     }
 }
 
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Dominate for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Multi<Out>,
+    Cod::TypeCodom: Dominate,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn dominates(&self, other: &Self) -> bool {
+        self.y().dominates(&other.y())
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.y().get_objective_by_index(idx)
+    }
+}
+
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialEq
     for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
 where
@@ -624,6 +641,28 @@ where
     }
 }
 
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Dominate for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Multi<Out>,
+    Cod::TypeCodom: Dominate,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+    fn dominates(&self, other: &Self) -> bool {
+        self.y().dominates(&other.y())
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.y().get_objective_by_index(idx)
+    }
+}
+
 impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialEq
     for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
 where
@@ -684,6 +723,26 @@ where
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.y().cmp(&other.y())
+    }
+}
+
+impl<SolObj, SolId, Obj, SInfo, Cod, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Multi<Out>,
+    Cod::TypeCodom: Dominate,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+    fn dominates(&self, other: &Self) -> bool {
+        self.y().dominates(&other.y())
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.y().get_objective_by_index(idx)
     }
 }
 
