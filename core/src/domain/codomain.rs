@@ -427,6 +427,12 @@ pub struct ElemSingleCodomain {
     pub value: f64,
 }
 
+impl ElemSingleCodomain {
+    pub fn new(value: f64) -> Self {
+        Self { value }
+    }
+}
+
 impl PartialEq for ElemSingleCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
@@ -500,6 +506,12 @@ impl<Out: Outcome> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodo
 pub struct ElemCostCodomain {
     pub value: f64,
     pub cost: f64,
+}
+
+impl ElemCostCodomain {
+    pub fn new(value: f64, cost: f64) -> Self {
+        Self { value, cost }
+    }
 }
 
 impl PartialEq for ElemCostCodomain {
@@ -593,6 +605,15 @@ impl<Out: Outcome> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstC
 pub struct ElemConstCodomain {
     pub value: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl ElemConstCodomain {
+    pub fn new<B: Into<Box<[f64]>>>(value: f64, constraints: B) -> Self {
+        Self {
+            value,
+            constraints: constraints.into(),
+        }
+    }
 }
 
 impl PartialEq for ElemConstCodomain {
@@ -697,6 +718,16 @@ pub struct ElemCostConstCodomain {
     pub constraints: Box<[f64]>,
 }
 
+impl ElemCostConstCodomain {
+    pub fn new<B: Into<Box<[f64]>>>(value: f64, cost: f64, constraints: B) -> Self {
+        Self {
+            value,
+            cost,
+            constraints: constraints.into(),
+        }
+    }
+}
+
 impl PartialEq for ElemCostConstCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
@@ -797,6 +828,14 @@ pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
 }
 
+impl ElemMultiCodomain {
+    pub fn new<B: Into<Box<[f64]>>>(value: B) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
 impl PartialEq for ElemMultiCodomain {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
@@ -887,6 +926,15 @@ impl<Out: Outcome> CSVWritable<CostMultiCodomain<Out>, ElemCostMultiCodomain>
 pub struct ElemCostMultiCodomain {
     pub value: Box<[f64]>,
     pub cost: f64,
+}
+
+impl ElemCostMultiCodomain {
+    pub fn new<B: Into<Box<[f64]>>>(value: B, cost: f64) -> Self {
+        Self {
+            value: value.into(),
+            cost,
+        }
+    }
 }
 
 impl PartialEq for ElemCostMultiCodomain {
@@ -991,6 +1039,15 @@ impl<Out: Outcome> CSVWritable<ConstMultiCodomain<Out>, ElemConstMultiCodomain>
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
     pub constraints: Box<[f64]>,
+}
+
+impl ElemConstMultiCodomain {
+    pub fn new<B1: Into<Box<[f64]>>, B2: Into<Box<[f64]>>>(value: B1, constraints: B2) -> Self {
+        Self {
+            value: value.into(),
+            constraints: constraints.into(),
+        }
+    }
 }
 
 impl PartialEq for ElemConstMultiCodomain {
@@ -1109,6 +1166,20 @@ pub struct ElemCostConstMultiCodomain {
     pub value: Box<[f64]>,
     pub cost: f64,
     pub constraints: Box<[f64]>,
+}
+
+impl ElemCostConstMultiCodomain {
+    pub fn new<B1: Into<Box<[f64]>>, B2: Into<Box<[f64]>>>(
+        value: B1,
+        cost: f64,
+        constraints: B2,
+    ) -> Self {
+        Self {
+            value: value.into(),
+            cost,
+            constraints: constraints.into(),
+        }
+    }
 }
 
 impl PartialEq for ElemCostConstMultiCodomain {
