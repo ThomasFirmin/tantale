@@ -228,6 +228,9 @@ pub trait Dominate {
 
     /// Returns the value of the objective at the specified index.
     fn get_objective_by_index(&self, idx: usize) -> f64;
+
+    /// Returns the number of objectives in this [`Codomain`].
+    fn get_max_objectives(&self) -> usize;
 }
 
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
@@ -844,21 +847,24 @@ impl PartialEq for ElemMultiCodomain {
 
 impl Dominate for ElemMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let at_least_as_good = self
-            .value
-            .iter()
-            .zip(other.value.iter())
-            .all(|(a, b)| a >= b);
-        let strictly_better = self
-            .value
-            .iter()
-            .zip(other.value.iter())
-            .any(|(a, b)| a > b);
-        at_least_as_good && strictly_better
+        let mut strictly_better = false;
+
+        for (a, b) in self.value.iter().zip(other.value.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
     }
     
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
+    }
+    
+    fn get_max_objectives(&self) -> usize {
+        self.value.len()
     }
 }
 
@@ -945,21 +951,24 @@ impl PartialEq for ElemCostMultiCodomain {
 
 impl Dominate for ElemCostMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let at_least_as_good = self
-            .value
-            .iter()
-            .zip(other.value.iter())
-            .all(|(a, b)| a >= b);
-        let strictly_better = self
-            .value
-            .iter()
-            .zip(other.value.iter())
-            .any(|(a, b)| a > b);
-        at_least_as_good && strictly_better
+        let mut strictly_better = false;
+
+        for (a, b) in self.value.iter().zip(other.value.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
     }
     
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
+    }
+    
+    fn get_max_objectives(&self) -> usize {
+        self.value.len()
     }
 }
 
@@ -1064,23 +1073,25 @@ impl Dominate for ElemConstMultiCodomain {
             Ordering::Greater => false,
             Ordering::Less => true,
             Ordering::Equal => {
-                let at_least_as_good = self
-                    .value
-                    .iter()
-                    .zip(other.value.iter())
-                    .all(|(a, b)| a >= b);
-                let strictly_better = self
-                    .value
-                    .iter()
-                    .zip(other.value.iter())
-                    .any(|(a, b)| a > b);
-                at_least_as_good && strictly_better
+                let mut strictly_better = false;
+                for (a, b) in self.value.iter().zip(other.value.iter()) {
+                    if a < b {
+                        return false; // Not at least as good
+                    } else if a > b {
+                        strictly_better = true; // Found a strictly better objective
+                    }
+                }
+                strictly_better
             }
         }
     }
     
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
+    }
+    
+    fn get_max_objectives(&self) -> usize {
+        self.value.len()
     }
 }
 
@@ -1198,23 +1209,25 @@ impl Dominate for ElemCostConstMultiCodomain {
             Ordering::Greater => false,
             Ordering::Less => true,
             Ordering::Equal => {
-                let at_least_as_good = self
-                    .value
-                    .iter()
-                    .zip(other.value.iter())
-                    .all(|(a, b)| a >= b);
-                let strictly_better = self
-                    .value
-                    .iter()
-                    .zip(other.value.iter())
-                    .any(|(a, b)| a > b);
-                at_least_as_good && strictly_better
+                let mut strictly_better = false;
+                for (a, b) in self.value.iter().zip(other.value.iter()) {
+                    if a < b {
+                        return false; // Not at least as good
+                    } else if a > b {
+                        strictly_better = true; // Found a strictly better objective
+                    }
+                }
+                strictly_better
             }
         }
     }
     
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.value.len()
     }
     
 }

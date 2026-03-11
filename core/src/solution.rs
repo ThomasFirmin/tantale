@@ -566,6 +566,10 @@ where
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.y().get_objective_by_index(idx)
     }
+    
+    fn get_max_objectives(&self) -> usize {
+        self.y().get_max_objectives()
+    }
 }
 
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialEq
@@ -661,6 +665,10 @@ where
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.y().get_objective_by_index(idx)
     }
+    
+    fn get_max_objectives(&self) -> usize {
+        self.y().get_max_objectives()
+    }
 }
 
 impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialEq
@@ -743,6 +751,10 @@ where
 
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.y().get_objective_by_index(idx)
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.y().get_max_objectives()
     }
 }
 
