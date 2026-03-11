@@ -24,3 +24,6 @@ pub use hyperband::Hyperband;
 
 pub mod moasha;
 pub use moasha::MoAsha;
+
+pub mod utils;
+pub use utils::mo;
