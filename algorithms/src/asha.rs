@@ -170,35 +170,27 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///  | Add to |   | Start from highest  |
 ///  | rung   |-->| budget rung         |
 ///  +--------+   +---------------------+
-///                      |
-///                      v
-///               +----------------+
-///               | Rung has top-k |  No
-///               | candidates?    | ----+
-///               +----------------+     |
-///                      | Yes           |
-///                      v               v
-///               +-------------+   +----------+
-///               | Promote     |   | Move to  |
-///               | top config  |   | next     |
-///               | to next     |   | rung     |
-///               | fidelity    |   +----------+
-///               +-------------+        |
-///                      |               |
-///                      +<--------------+
-///                      |
-///                      v
-///                +----------+
-///               / At lowest  \
-///              /    rung?     \
-///              \              /  Yes
-///               \            / ------> Sample random config
-///                \    No    /              at b_min
-///                 +-------+                  |
-///                     |                      |
-///                     +<---------------------+
-///                     v
-///           Return solution to worker
+///                    |
+///                    v
+///         +----------------+
+///         | Rung has top-k |  Yes
+///  +----->| candidates?    | - ------+
+///  |      +----------------+         |
+///  |             | No                |
+///  |             v                   v
+///  |        +----------+      +-------------+
+///  |        | Move to  |      | Promote     |
+///  |        | next     |      | top config  |
+///  |        | rung     |      | to next     |
+///  |        +----------+      | fidelity    |
+///  |             |            +-------------+
+///  |             v              |
+///  |       +----------+         +-->Return config
+///  |      /            \        |   
+///  |  No /  At lowest   \ Yes +--------------+
+///  +-----\    rung?     / --->|    Sample    |
+///         \            /      |random config | 
+///          +----------+       +--------------+  
 /// ```
 ///
 /// # Type Parameters
