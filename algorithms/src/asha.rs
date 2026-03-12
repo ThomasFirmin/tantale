@@ -174,7 +174,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///                    v
 ///         +----------------+
 ///         | Rung has top-k |  Yes
-///  +----->| candidates?    | - ------+
+///  +----->| candidates?    | --------+
 ///  |      +----------------+         |
 ///  |             | No                |
 ///  |             v                   v
