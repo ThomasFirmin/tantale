@@ -186,7 +186,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///  |             |            +-------------+
 ///  |             v              |
 ///  |       +----------+         +-->Return config
-///  |      /            \        |   
+///  |      /            \        |    to worker
 ///  |  No /  At lowest   \ Yes +--------------+
 ///  +-----\    rung?     / --->|    Sample    |
 ///         \            /      |random config | 
