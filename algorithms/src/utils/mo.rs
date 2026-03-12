@@ -65,7 +65,10 @@ pub trait NonDominatedSorting<T>
 where
     T: Dominate
 {
+    /// Sorts the input objects into non-dominated fronts using a binary search approach.
     fn non_dominated_sort(&mut self) -> Vec<Vec<&T>>;
+    /// Returns the indices of the input objects sorted according to their non-dominated fronts.
+    fn non_dominated_argsort(&self) -> Vec<Vec<usize>>;
 }
 
 impl<T:Dominate> NonDominatedSorting<T> for [T]
@@ -95,6 +98,36 @@ impl<T:Dominate> NonDominatedSorting<T> for [T]
                 fronts.push(vec![item]);
             } else {
                 fronts[idx_front - 1].push(item);
+            }
+        }
+        fronts
+    }
+    fn non_dominated_argsort(&self) -> Vec<Vec<usize>>
+    {
+        let mut indices: Vec<usize> = (0..self.len()).collect();
+        indices.sort_by(|&a, &b|
+            {
+                let length: usize = self[a].get_max_objectives();
+                let mut i = 0;
+                let mut ord = self[a].get_objective_by_index(0).total_cmp(&self[b].get_objective_by_index(0)).reverse();
+                while let Ordering::Equal = ord {
+                    i += 1;
+                    if i < length {
+                        ord = self[a].get_objective_by_index(i).total_cmp(&self[b].get_objective_by_index(i)).reverse();
+                    } else {
+                        break
+                    }
+                }
+                ord
+            }
+        );
+        let mut fronts = vec![vec![indices[0]]];
+        for idx in indices[1..].iter() {
+            let idx_front = arg_front_binary_search(&self[*idx], self, &fronts);
+            if idx_front > fronts.len() {
+                fronts.push(vec![*idx]);
+            } else {
+                fronts[idx_front - 1].push(*idx);
             }
         }
         fronts
@@ -168,6 +201,37 @@ pub fn front_binary_search<T: Dominate>(target: &T, fronts: &[Vec<&T>]) -> usize
     }
 }
 
+/// Similar to [`front_binary_search`] but works on the indices of the input objects instead of the objects themselves.
+pub fn arg_front_binary_search<T: Dominate>(target: &T, values: &[T], fronts: &[Vec<usize>]) -> usize {
+
+    let n_fronts = fronts.len();
+    let mut k_min = 0;
+    let mut k_max = n_fronts;
+    let mut k = k_max.div_ceil(2);
+
+    loop {
+        let current_front = &fronts[k-1];
+        let one_dominates = current_front.iter().any(|x| values[*x].dominates(target));
+
+        if one_dominates {
+            k_min = k;
+            if k_max == k_min + 1 && k_max < n_fronts {
+                return k_max;
+            } else if k_min == n_fronts {
+                return n_fronts + 1;
+            } else {
+                k = (k_min + k_max).div_ceil(2);
+            }
+        }
+        else if k == k_min + 1 {
+            return k;
+        } else {
+            k_max = k;
+            k = (k_min + k_max).div_ceil(2);
+        }
+    }
+}
+
 /// Defines a trait for candidate selection in multi-objective optimization algorithms.
 /// This trait can be implemented by any struct that provides a method for selecting candidates implementing [`Dominate`].
 /// 
@@ -176,6 +240,7 @@ pub fn front_binary_search<T: Dominate>(target: &T, fronts: &[Vec<&T>]) -> usize
 pub trait CandidateSelector: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>
 {
     fn select_candidates<'a, T:Dominate>(&self, values: &'a mut [T],size: usize) -> Vec<&'a T>;
+    fn arg_select_candidates<'a, T:Dominate>(&self, values: &'a [T],size: usize) -> Vec<usize>;
 }
 
 /// Implements the NSGA-II crowding distance selection operator, described in [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).
@@ -293,6 +358,37 @@ impl CandidateSelector for NSGA2Selector
                     front_with_distances.select_nth_unstable_by(remaining, |a,b| a.1.total_cmp(&b.1).reverse());
                     // Unzip the selected candidates and their distances
                     let (front,_) = front_with_distances.into_iter().unzip::<&T, f64, Vec<&T>, Vec<f64>>();
+                    // Take the top `remaining` candidates from the current front and add them to the final list of candidates
+                    candidates.extend(front.into_iter().take(remaining));
+                    break;
+                }
+            }
+            candidates
+        }
+    }
+
+    fn arg_select_candidates<T:Dominate>(&self, values: &[T],size: usize) -> Vec<usize> {
+        if values.len() == size {
+            (0..values.len()).collect()
+        } else if values.len() < size {
+            panic!("The number of values must be greater than or equal to the number of candidates to select.");
+        } else {
+            let fronts = values.non_dominated_argsort();
+            let mut candidates = Vec::new();
+            for front in fronts {
+                if candidates.len() + front.len() <= size {
+                    candidates.extend(front);
+                } else {
+                    let remaining = size - candidates.len(); // Number of candidates remaining to select
+                    // Compute crowding distances for the current front
+                    let sorted = front.iter().map(|&idx| &values[idx]).collect::<Vec<_>>();
+                    let dist = crowding_distance(&sorted);
+                    // Associated front elements and distances
+                    let mut front_with_distances: Vec<_> = front.into_iter().zip(dist.into_iter()).collect();
+                    // Get remaining best candidates based on crowding distance | no need to sort
+                    front_with_distances.select_nth_unstable_by(remaining, |a,b| a.1.total_cmp(&b.1).reverse());
+                    // Unzip the selected candidates and their distances
+                    let (front,_) = front_with_distances.into_iter().unzip::<usize, f64, Vec<usize>, Vec<f64>>();
                     // Take the top `remaining` candidates from the current front and add them to the final list of candidates
                     candidates.extend(front.into_iter().take(remaining));
                     break;
