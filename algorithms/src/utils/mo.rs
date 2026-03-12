@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use tantale_core::Dominate;
 use std::cmp::Ordering;
 
@@ -172,7 +173,7 @@ pub fn front_binary_search<T: Dominate>(target: &T, fronts: &[Vec<&T>]) -> usize
 /// 
 /// # See also
 /// - [`NSGA2Selector`]: An implementation of the NSGA-II crowding distance selection operator.
-pub trait CandidateSelector
+pub trait CandidateSelector: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>
 {
     fn select_candidates<'a, T:Dominate>(&self, values: &'a mut [T],size: usize) -> Vec<&'a T>;
 }
@@ -238,6 +239,7 @@ pub fn crowding_distance<T: Dominate>(values: &[&T]) -> Vec<f64>
 
 /// Implements the NSGA-II selection operator, which selects candidates based on their non-dominated sorting and crowding distance.
 /// From the paper [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NSGA2Selector;
 
 /// The NSGA-II selection operator selects candidates based on their non-dominated sorting and crowding distance.
