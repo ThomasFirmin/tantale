@@ -52,7 +52,7 @@ use crate::domain::{
     bounded::{BoundedBounds, RangeDomain},
 };
 
-use rand::prelude::{IteratorRandom, Rng};
+use rand::{prelude::{IteratorRandom, Rng}};
 
 /// Core trait for sampling strategies that generate random values from a domain.
 ///
@@ -235,13 +235,13 @@ impl From<Bernoulli> for BoolDistribution {
 /// This is the default sampler for bounded and categorical domains.
 ///
 /// ```
-/// use tantale::core::{Sampler, Uniform, Real};
+/// use tantale::core::{Sampler, Uniform, Real, Domain};
 ///
 /// let domain = Real::new(0.0, 1.0, Uniform);
 /// let mut rng = rand::rng();
 ///
 /// // Sample uniformly from [0.0, 1.0]
-/// let value = Uniform.sample(&domain, &mut rng);
+/// let value = domain.sample(&mut rng);
 /// assert!(value >= 0.0 && value <= 1.0);
 /// ```
 ///
@@ -287,15 +287,14 @@ impl Sampler<Cat> for Uniform {
 ///
 /// The single field `f64` value is the probability parameter $p$.
 ///
-/// ```ignore
-/// use tantale::core::{Sampler, Bernoulli, Bool};
-/// use rand::thread_rng;
+/// ```
+/// use tantale::core::{Sampler, Bernoulli, Bool, Domain};
 ///
-/// let domain = Bool(Bernoulli(0.7));
-/// let mut rng = thread_rng();
+/// let domain = Bool::new(Bernoulli(0.7));
+/// let mut rng = rand::rng();
 ///
 /// // Sample from Bernoulli(0.7)
-/// let value = bernoulli.sample(&domain, &mut rng);
+/// let value = domain.sample(&mut rng);
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct Bernoulli(pub f64);
