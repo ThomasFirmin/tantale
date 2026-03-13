@@ -235,11 +235,11 @@ pub trait Dominate {
 
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
 ///
-/// Since Tantale maximizes, [`update`](BestComputed::update) keeps the element with the highest
-/// [`Ord`] value. The inner [`best`](BestComputed::best) is [`None`] until the first update.
+/// Since Tantale maximizes, [`update`](Accumulator::accumulate) keeps the element with the highest
+/// [`Ord`] value. The inner [`best`](BestAccumulator::best) is [`None`] until the first update.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
-pub struct BestComputed<C, SolId, Sinfo, Cod, Out>
+pub struct BestAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -256,7 +256,7 @@ where
     _out: PhantomData<Out>,
 }
 
-impl<C, SolId, Sinfo, Cod, Out> BestComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> BestAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -265,9 +265,9 @@ where
     Cod::TypeCodom: Ord,
     Out: Outcome,
 {
-    /// Creates an empty [`BestComputed`].
+    /// Creates an empty [`BestAccumulator`].
     pub fn new() -> Self {
-        BestComputed {
+        BestAccumulator {
             best: None,
             _sid: PhantomData,
             _sinfo: PhantomData,
@@ -282,7 +282,7 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Default for BestComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> Default for BestAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -297,7 +297,7 @@ where
 }
 
 impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
-    for BestComputed<C, SolId, Sinfo, Cod, Out>
+    for BestAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -319,12 +319,12 @@ where
 
 /// Accumulates the Pareto front of computed [`SolutionShape`] for [`Multi`]-objective [`Codomain`].
 ///
-/// [`update`](ParetoComputed::update) maintains the set of non-dominated solutions:
+/// [`update`](Accumulator::accumulate) maintains the set of non-dominated solutions:
 /// dominated solutions are discarded, and any existing front member that the new element
 /// dominates is removed before the new element is added.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
-pub struct ParetoComputed<C, SolId, Sinfo, Cod, Out>
+pub struct ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -341,7 +341,7 @@ where
     _out: PhantomData<Out>,
 }
 
-impl<C, SolId, Sinfo, Cod, Out> ParetoComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -350,9 +350,9 @@ where
     Cod::TypeCodom: Dominate,
     Out: Outcome,
 {
-    /// Creates an empty [`ParetoComputed`].
+    /// Creates an empty [`ParetoAccumulator`].
     pub fn new() -> Self {
-        ParetoComputed {
+        ParetoAccumulator {
             front: Vec::new(),
             _sid: PhantomData,
             _sinfo: PhantomData,
@@ -367,7 +367,7 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Default for ParetoComputed<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Cod, Out> Default for ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -382,7 +382,7 @@ where
 }
 
 impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
-    for ParetoComputed<C, SolId, Sinfo, Cod, Out>
+    for ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
 where
     C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
     SolId: Id,
@@ -459,7 +459,7 @@ impl PartialOrd for ElemSingleCodomain {
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
     type Acc<C, SolId, SInfo>
-        = BestComputed<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -543,7 +543,7 @@ impl PartialOrd for ElemCostCodomain {
 impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
     type TypeCodom = ElemCostCodomain;
     type Acc<C, SolId, SInfo>
-        = BestComputed<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -648,7 +648,7 @@ impl PartialOrd for ElemConstCodomain {
 impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
     type Acc<C, SolId, SInfo>
-        = BestComputed<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -765,7 +765,7 @@ impl PartialOrd for ElemCostConstCodomain {
 impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
     type Acc<C, SolId, SInfo>
-        = BestComputed<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -871,7 +871,7 @@ impl Dominate for ElemMultiCodomain {
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoComputed<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -975,7 +975,7 @@ impl Dominate for ElemCostMultiCodomain {
 impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
     type TypeCodom = ElemCostMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoComputed<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -1098,7 +1098,7 @@ impl Dominate for ElemConstMultiCodomain {
 impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
     type TypeCodom = ElemConstMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoComputed<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,
@@ -1235,7 +1235,7 @@ impl Dominate for ElemCostConstMultiCodomain {
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
     type TypeCodom = ElemCostConstMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoComputed<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
     where
         C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
         SolId: Id,

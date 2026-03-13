@@ -242,7 +242,7 @@ pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Onto, OntoDom};
 
 pub mod codomain;
 pub use codomain::{
-    Accumulator, BestComputed, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
+    Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
-    FidCriteria, Multi, MultiCodomain, ParetoComputed, Single, SingleCodomain, Dominate,
+    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, Dominate,
 };
