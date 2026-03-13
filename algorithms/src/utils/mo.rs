@@ -240,7 +240,7 @@ pub fn arg_front_binary_search<T: Dominate>(target: &T, values: &[T], fronts: &[
 pub trait CandidateSelector: std::fmt::Debug + Serialize + for<'a> Deserialize<'a>
 {
     fn select_candidates<'a, T:Dominate>(&self, values: &'a mut [T],size: usize) -> Vec<&'a T>;
-    fn arg_select_candidates<'a, T:Dominate>(&self, values: &'a [T],size: usize) -> Vec<usize>;
+    fn arg_select_candidates<T:Dominate>(&self, values: &[T],size: usize) -> Vec<usize>;
 }
 
 /// Implements the NSGA-II crowding distance selection operator, described in [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).

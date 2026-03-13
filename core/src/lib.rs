@@ -255,10 +255,10 @@ pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
 pub use domain::{
-    Accumulator, BestComputed, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
+    Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
     Criteria, Domain, FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed,
-    MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoComputed, Real, Single,
+    MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single,
     SingleCodomain, Unit, Dominate
 };
 
