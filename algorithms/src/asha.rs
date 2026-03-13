@@ -1,10 +1,12 @@
-//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for multi-fidelity hyperparameter optimization.
+//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for 
+//! multi-fidelity hyperparameter optimization.
 //!
 //! # Overview
 //!
-//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s to evaluate,
-//! without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving strategy of eliminating poor performers at increasing fidelity levels.
+//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s 
+//! to evaluate, without waiting for the completion of evaluations from other workers.
+//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive 
+//! halving strategy of eliminating poor performers at increasing fidelity levels.
 //!
 //! # Pseudo-code
 //!
@@ -56,8 +58,8 @@
 //!
 //! # Note
 //!
-//! In our case, Successive Halving does not stop when the final rung is evaluated. If so, then it generates a new initial batch and starts a new run.
-//! This allows compatibility with the [`Stop`](tantale_core::Stop) criterion, which can be used to stop the optimization after a certain number of iteration, evaluations, time...
+//! Solutions are not discarded by default. 
+//! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
 //!
 //! # References
 //!
