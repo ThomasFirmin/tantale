@@ -102,31 +102,14 @@ impl Domain for Mixed {
 
     /// Checks if a given point is in the [`Mixed`] domain, according to each sub-domain `is_in` method.
     fn is_in(&self, item: &Self::TypeDom) -> bool {
-        match self {
-            Self::Real(d) => match item {
-                Self::TypeDom::Real(i) => d.is_in(i),
-                _ => false,
-            },
-            Self::Nat(d) => match item {
-                Self::TypeDom::Nat(i) => d.is_in(i),
-                _ => false,
-            },
-            Self::Int(d) => match item {
-                Self::TypeDom::Int(i) => d.is_in(i),
-                _ => false,
-            },
-            Self::Unit(d) => match item {
-                Self::TypeDom::Unit(i) => d.is_in(i),
-                _ => false,
-            },
-            Self::Bool(d) => match item {
-                Self::TypeDom::Bool(i) => d.is_in(i),
-                _ => false,
-            },
-            Self::Cat(d) => match item {
-                Self::TypeDom::Cat(i) => d.is_in(i),
-                _ => false,
-            },
+        match (self, item) {
+            (Self::Real(e), MixedTypeDom::Real(i)) => e.is_in(i),
+            (Self::Nat(e), MixedTypeDom::Nat(i)) => e.is_in(i),
+            (Self::Int(e), MixedTypeDom::Int(i)) => e.is_in(i),
+            (Self::Bool(e), MixedTypeDom::Bool(i)) => e.is_in(i),
+            (Self::Cat(e), MixedTypeDom::Cat(i)) => e.is_in(i),
+            (Self::Unit(e), MixedTypeDom::Unit(i)) => e.is_in(i),
+            _ => false, // Type mismatch
         }
     }
 }
@@ -149,31 +132,14 @@ impl Onto<Real> for Mixed {
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Real`] domain.
     fn onto(&self, item: &Self::Item, target: &Real) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(d) => match item {
-                MixedTypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Bool(d) => match item {
-                MixedTypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Cat(d) => match item {
-                MixedTypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+            (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
+            (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
 }
@@ -197,31 +163,14 @@ impl Onto<Nat> for Mixed {
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Nat`] domain.
     fn onto(&self, item: &Self::Item, target: &Nat) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(d) => match item {
-                MixedTypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Bool(d) => match item {
-                MixedTypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Cat(d) => match item {
-                MixedTypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+            (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
+            (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
 }
@@ -245,31 +194,14 @@ impl Onto<Int> for Mixed {
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Int`] domain.
     fn onto(&self, item: &Self::Item, target: &Int) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(d) => match item {
-                MixedTypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Bool(d) => match item {
-                MixedTypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Cat(d) => match item {
-                MixedTypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+            (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
+            (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
 }
@@ -293,30 +225,16 @@ impl Onto<Unit> for Mixed {
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(_d) => unreachable!(
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Unit(_), MixedTypeDom::Unit(_)) => unreachable!(
                 "Converting a value from Unit onto Unit is not implemented, and it should not occur."
             ),
-            Self::Bool(d) => match item {
-                MixedTypeDom::Bool(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Cat(d) => match item {
-                MixedTypeDom::Cat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
+            (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
+            (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
 }
@@ -340,32 +258,18 @@ impl Onto<Bool> for Mixed {
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     fn onto(&self, item: &Self::Item, target: &Bool) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(d) => match item {
-                MixedTypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Bool(_d) => unreachable!(
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+            (Self::Bool(_), MixedTypeDom::Bool(_)) => unreachable!(
                 "Converting a value from Bool onto Bool is not implemented, and it should not occur."
             ),
-            Self::Cat(d) => match item {
-                MixedTypeDom::Cat(_i) => unreachable!(
-                    "Converting a value from Cat onto Bool is not implemented, and it should not occur."
-                ),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
+            (Self::Cat(_), MixedTypeDom::Cat(_)) => unreachable!(
+                "Converting a value from Cat onto Bool is not implemented, and it should not occur."
+            ),
+            _ => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
 }
@@ -441,31 +345,14 @@ impl Onto<Mixed> for Mixed {
         if self == target {
             Ok(item.clone())
         } else {
-            match self {
-                Self::Real(d) => match item {
-                    MixedTypeDom::Real(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
-                Self::Nat(d) => match item {
-                    MixedTypeDom::Nat(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
-                Self::Int(d) => match item {
-                    MixedTypeDom::Int(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
-                Self::Unit(d) => match item {
-                    MixedTypeDom::Unit(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
-                Self::Bool(d) => match item {
-                    MixedTypeDom::Bool(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
-                Self::Cat(d) => match item {
-                    MixedTypeDom::Cat(i) => d.onto(i, target),
-                    _ => Err(OntoError(format!("{} input not in {}", item, d))),
-                },
+            match (self, item) {
+                (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+                (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+                (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+                (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+                (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
+                (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+                _ => Err(OntoError(format!("{} input not in {}", item, self))),
             }
         }
     }
