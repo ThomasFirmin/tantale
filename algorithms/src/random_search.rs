@@ -29,7 +29,7 @@ thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
 }
 
-/// Creates a codomain for Successive Halving optimization.
+/// Creates a codomain for Random Search optimization.
 ///
 /// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
 /// [`Criteria`](tantale_core::Criteria).
@@ -96,13 +96,14 @@ impl OptState for SeqRSState {}
 ///  | Check    |     +----------------+
 ///  | status   |                      |
 ///  +----------+                      |
-///       |                            v
-///       v                  +-------------------+  
+///       |                            |
+///       v                            v
+///    +---------+           +-------------------+
 ///   / Partially \          | Sample new random |  
 ///  /   stepped?  \  No --> | solution from     |
 ///  \             /         | searchspace       |
-///   \   Yes    /           +-------------------+  
-///     +-----+                        |      
+///   \   Yes     /           +-------------------+  
+///    +---------+                     |      
 ///        |                           |
 ///        v                           v
 ///  Return same solution      Return the solution
