@@ -6,6 +6,7 @@ use tantale::core::{
 };
 
 use super::init_sp::*;
+use super::init_sp_grid::*;
 
 macro_rules! get_test {
     ($($name : ident),+) => {
@@ -170,5 +171,11 @@ get_test!(
     sp_sm_multiplemsamp_leftright_holes,
     sp_repeats,
     sp_repeats_inc,
-    sp_one_missing_to_single
+    sp_one_missing_to_single,
+    sp_m_mixed_grid,
+    sp_only_real_grid,
+    sp_only_int_grid,
+    sp_only_nat_grid,
+    sp_only_bool_grid,
+    sp_only_cat_grid
 );

@@ -259,12 +259,12 @@ pub use domain::{
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
     Criteria, Domain, FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed,
     MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single,
-    SingleCodomain, Unit, Dominate
+    SingleCodomain, Unit, Dominate, Grid, GridDom, GridInt, GridNat, GridReal
 };
 
 pub mod sampler;
 pub use sampler::{
-    Bernoulli, BoolDistribution, BoundedDistribution, CatDistribution, Sampler, Uniform,
+    Bernoulli, BoolDistribution, BoundedDistribution, Sampler, Uniform, GridDomDistribution,
 };
 
 pub mod variable;

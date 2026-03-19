@@ -112,6 +112,38 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// * `[! MPI_SIZE !]` - Get the total number of MPI processes
 /// * `[! STATE !]` - Access the current evaluation state in multi-fidelity optimization
 ///
+/// ## Alternative mode
+/// 
+/// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
+/// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
+/// 
+/// 
+/// ```ignore
+/// use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
+/// use tantale::macros::{objective, Outcome};
+///
+/// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
+/// struct OutExample {
+///     obj: f64,
+///     info: f64,
+/// }
+///
+/// objective!(
+///     pub fn example() -> OutExample {
+///         let _a = [! a | Grid<Int([-2, -1, 0, 1, 2], Uniform)> | !];
+///         let _b = [! b | Grid<Nat([0, 1, 2, 3, 4], Uniform)> | !];
+///         let _c = [! c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !];
+///         let _d = [! d | Grid<Bool(Bernoulli(0.5))> | !];
+///         let e = [! e | Grid<Real([1000.0, 2000.0, 3000.0, 4000.0], Uniform)> | !];
+///         // ... more variables and computation ...
+///         OutExample{
+///             obj: e,
+///             info: [! f | Grid<Real([10.0, 20.0], Uniform)> | !],
+///         }
+///     }
+/// );
+/// ```
+/// 
 /// ## Generated Output
 ///
 /// The macro generates three public items:
@@ -294,6 +326,25 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// // ObjType = Real (not Mixed)
 /// ```
 ///
+/// ## Alternative mode
+/// 
+/// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
+/// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
+/// 
+/// ### Example
+/// 
+/// ```ignore
+/// use tantale::core::domain::{Bool, Cat, Int, Nat};
+///     use tantale::core::sampler::{Bernoulli, Uniform};
+///     use tantale::macros::hpo;
+/// hpo!(
+///         a | Grid<Int([-2_i64,-1,0,1,2], Uniform)>              | ;
+///         b | Grid<Nat([1_u64,2,3], Uniform)>                    | ;
+///         c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform) >   | ;
+///         d | Grid<Bool(Bernoulli(0.5))>                         | ;
+///     );
+/// ``` 
+/// 
 /// ## Variable Replication
 ///
 /// Create multiple similar variables using `{count}` syntax:

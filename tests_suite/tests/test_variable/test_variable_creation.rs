@@ -68,18 +68,27 @@ get_variable!(real ; Real -> nat ; Nat);
 get_variable!(real ; Real -> int ; Int);
 get_variable!(real ; Real -> bool ; Bool);
 get_variable!(real ; Real -> cat ; Cat);
+get_variable!(real ; Real -> gridreal ; GridReal);
+get_variable!(real ; Real -> gridint ; GridInt);
+get_variable!(real ; Real -> gridnat ; GridNat);
 
 get_variable!(nat ; Nat -> real ; Real);
 get_variable!(nat ; Nat -> nat ; Nat);
 get_variable!(nat ; Nat -> int ; Int);
 get_variable!(nat ; Nat -> bool ; Bool);
 get_variable!(nat ; Nat -> cat ; Cat);
+get_variable!(nat ; Nat -> gridreal ; GridReal);
+get_variable!(nat ; Nat -> gridint ; GridInt);
+get_variable!(nat ; Nat -> gridnat ; GridNat);
 
 get_variable!(int ; Int -> real ; Real);
 get_variable!(int ; Int -> nat ; Nat);
 get_variable!(int ; Int -> int ; Int);
 get_variable!(int ; Int -> bool ; Bool);
 get_variable!(int ; Int -> cat ; Cat);
+get_variable!(int ; Int -> gridreal ; GridReal);
+get_variable!(int ; Int -> gridint ; GridInt);
+get_variable!(int ; Int -> gridnat ; GridNat);
 
 get_variable!(bool ; Bool -> real ; Real);
 get_variable!(bool ; Bool -> nat ; Nat);
@@ -88,6 +97,18 @@ get_variable!(bool ; Bool -> int ; Int);
 get_variable!(cat ; Cat -> real ; Real);
 get_variable!(cat ; Cat -> nat ; Nat);
 get_variable!(cat ; Cat -> int ; Int);
+
+get_variable!(gridreal ; GridReal -> real ; Real);
+get_variable!(gridreal ; GridReal -> nat ; Nat);
+get_variable!(gridreal ; GridReal -> int ; Int);
+
+get_variable!(gridint ; GridInt -> real ; Real);
+get_variable!(gridint ; GridInt -> nat ; Nat);
+get_variable!(gridint ; GridInt -> int ; Int);
+
+get_variable!(gridnat ; GridNat -> real ; Real);
+get_variable!(gridnat ; GridNat -> nat ; Nat);
+get_variable!(gridnat ; GridNat -> int ; Int);
 
 // SINGLE OBJECTIVE DOMAIN IS DEFINED
 
@@ -110,3 +131,6 @@ get_variable_single_dom!(nat ; Nat);
 get_variable_single_dom!(int ; Int);
 get_variable_single_dom!(bool ; Bool);
 get_variable_single_dom!(cat ; Cat);
+get_variable_single_dom!(gridreal ; GridReal);
+get_variable_single_dom!(gridint ; GridInt);
+get_variable_single_dom!(gridnat ; GridNat);

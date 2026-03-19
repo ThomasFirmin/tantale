@@ -427,7 +427,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let mut variables: Vec<LineStream> = Vec::new();
     let is_mixed = extract_var(&content.clone().into(), &mut variables, false).unwrap();
 
-    let (ident_mixed_obj, ident_mixed_opt, ident_mixedt_obj, push_statements, tobj_vec, repeats) =
+    let (ident_mixed_obj, ident_mixed_opt, ident_mixedt_obj, push_statements, tobj_vec, repeats, is_grid) =
         parse_sp(variables).unwrap();
 
     fn_item
@@ -487,7 +487,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut sp_tokens = get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements).unwrap();
+    let mut sp_tokens = get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, is_grid).unwrap();
 
     sp_tokens.extend([fn_tokens, wraper_tokens.into()]);
     sp_tokens

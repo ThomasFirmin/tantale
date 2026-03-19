@@ -1,6 +1,6 @@
 mod check_bounds {
     use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::{Bool, Cat, Domain, GridInt, GridNat, GridReal, Int, Nat, Real, Unit};
     #[test]
     fn create_real() {
         let real_1 = Real::new(0.0, 10.0, Uniform);
@@ -105,7 +105,8 @@ mod check_bounds {
             String::from("sigmoid"),
         ];
         let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
-        assert_eq!(&cat_1.values, &check, "Issue with content of Cat.");
+        let values = cat_1.values.to_vec();
+        assert_eq!(&values, &check, "Issue with content of Cat.");
 
         assert!(
             cat_1.is_in(&String::from("relu")),
@@ -149,6 +150,110 @@ mod check_bounds {
         assert!(
             !unit.is_in(&11.0),
             "Issue with is_in with value > upper bound of Unit."
+        );
+    }
+    #[test]
+    fn create_gridreal() {
+        let check = vec![
+            -2.0,
+            -1.0,
+            0.0,
+            1.0,
+            2.0,
+        ];
+        let greal_1 = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform);
+        let values = greal_1.values.to_vec();
+        assert_eq!(&values, &check, "Issue with content of GridReal.");
+
+        assert!(
+            greal_1.is_in(&-2.0),
+            "Issue with is_in for the first element of GridReal."
+        );
+        assert!(
+            greal_1.is_in(&-1.0),
+            "Issue with is_in for the second element of GridReal."
+        );
+        assert!(
+            greal_1.is_in(&0.0),
+            "Issue with is_in for the third element of GridReal."
+        );
+        assert!(
+            greal_1.is_in(&1.0),
+            "Issue with is_in for the fourth element of GridReal."
+        );
+        assert!(
+            greal_1.is_in(&2.0),
+            "Issue with is_in for the fifth element of GridReal."
+        );
+        assert!(
+            !greal_1.is_in(&3.0),
+            "Issue with is_in with value not in values of GridReal."
+        );
+    }
+    #[test]
+    fn create_gridint() {
+        let check = vec![
+            -2,
+            -1,
+            0,
+            1,
+            2,
+        ];
+        let greal_1 = GridInt::new([-2_i64, -1, 0, 1, 2], Uniform);
+        let values = greal_1.values.to_vec();
+        assert_eq!(&values, &check, "Issue with content of GridInt.");
+
+        assert!(
+            greal_1.is_in(&-2),
+            "Issue with is_in for the first element of GridInt."
+        );
+        assert!(
+            greal_1.is_in(&-1),
+            "Issue with is_in for the second element of GridInt."
+        );
+        assert!(
+            greal_1.is_in(&0),
+            "Issue with is_in for the third element of GridInt."
+        );
+        assert!(
+            greal_1.is_in(&1),
+            "Issue with is_in for the fourth element of GridInt."
+        );
+        assert!(
+            greal_1.is_in(&2),
+            "Issue with is_in for the fifth element of GridInt."
+        );
+        assert!(
+            !greal_1.is_in(&3),
+            "Issue with is_in with value not in values of GridInt."
+        );
+    }
+    #[test]
+    fn create_gridnat() {
+        let check = vec![
+            0,
+            1,
+            2,
+        ];
+        let greal_1 = GridNat::new([0_u64, 1, 2], Uniform);
+        let values = greal_1.values.to_vec();
+        assert_eq!(&values, &check, "Issue with content of GridNat.");
+
+        assert!(
+            greal_1.is_in(&0),
+            "Issue with is_in for the first element of GridNat."
+        );
+        assert!(
+            greal_1.is_in(&1),
+            "Issue with is_in for the second element of GridNat."
+        );
+        assert!(
+            greal_1.is_in(&2),
+            "Issue with is_in for the third element of GridNat."
+        );
+        assert!(
+            !greal_1.is_in(&3),
+            "Issue with is_in with value not in values of GridNat."
         );
     }
 }
@@ -232,7 +337,7 @@ mod check_width {
 
 mod check_default_sampler {
     use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::core::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+    use tantale::core::{Bool, Cat, Domain, GridInt, GridNat, GridReal, Int, Nat, Real, Unit};
     #[test]
     fn sampler_real() {
         let mut rng = rand::rng();
@@ -287,11 +392,39 @@ mod check_default_sampler {
             "Error while sampling with the default sampler of Unit"
         );
     }
+
+    #[test]
+    fn sampler_gridreal() {
+        let mut rng = rand::rng();
+        let gridreal_1 = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform);
+        assert!(
+            gridreal_1.is_in(&gridreal_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of GridReal"
+        );
+    }
+    #[test]
+    fn sampler_gridnat() {
+        let mut rng = rand::rng();
+        let gridnat_1 = GridNat::new([0_u64, 1, 2, 3, 4], Uniform);
+        assert!(
+            gridnat_1.is_in(&gridnat_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of GridNat"
+        );
+    }
+    #[test]
+    fn sampler_gridint() {
+        let mut rng = rand::rng();
+        let gridint_1 = GridInt::new([-2, -1, 0, 1, 2], Uniform);
+        assert!(
+            gridint_1.is_in(&gridint_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of GridInt"
+        );
+    }
 }
 
-mod check_default_sampler_base {
+mod check_default_sampler_mixed {
     use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::core::{Bool, Cat, Domain, Int, Mixed, Nat, Real, Unit};
+    use tantale::core::{Bool, Cat, Domain, GridInt, GridNat, GridReal, Int, Mixed, Nat, Real, Unit};
 
     #[test]
     fn sampler_real() {
@@ -308,7 +441,7 @@ mod check_default_sampler_base {
         let nat_1 = Mixed::Nat(Nat::new(0, 10, Uniform));
         assert!(
             nat_1.is_in(&nat_1.sample(&mut rng)),
-            "Error while sampling with the default sampler of Real"
+            "Error while sampling with the default sampler of Nat"
         );
     }
     #[test]
@@ -326,7 +459,7 @@ mod check_default_sampler_base {
         let bool_1 = Mixed::Bool(Bool::new(Bernoulli(0.5)));
         assert!(
             bool_1.is_in(&bool_1.sample(&mut rng)),
-            "Error while sampling with the default sampler of Real"
+            "Error while sampling with the default sampler of Bool"
         );
     }
     #[test]
@@ -335,7 +468,7 @@ mod check_default_sampler_base {
         let cat_1 = Mixed::Cat(Cat::new(["relu", "tanh", "sigmoid"], Uniform));
         assert!(
             cat_1.is_in(&cat_1.sample(&mut rng)),
-            "Error while sampling with the default sampler of Real"
+            "Error while sampling with the default sampler of Cat"
         );
     }
     #[test]
@@ -345,6 +478,33 @@ mod check_default_sampler_base {
         assert!(
             unit_1.is_in(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
+        );
+    }
+    #[test]
+    fn sampler_gridreal() {
+        let mut rng = rand::rng();
+        let gridreal_1 = Mixed::GridReal(GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform));
+        assert!(
+            gridreal_1.is_in(&gridreal_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of Mixed::GridReal"
+        );
+    }
+    #[test]
+    fn sampler_gridnat() {
+        let mut rng = rand::rng();
+        let gridnat_1 = Mixed::GridNat(GridNat::new([0_u64, 1, 2, 3, 4], Uniform));
+        assert!(
+            gridnat_1.is_in(&gridnat_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of Mixed::GridNat"
+        );
+    }
+    #[test]
+    fn sampler_gridint() {
+        let mut rng = rand::rng();
+        let gridint_1 = Mixed::GridInt(GridInt::new([-2, -1, 0, 1, 2], Uniform));
+        assert!(
+            gridint_1.is_in(&gridint_1.sample(&mut rng)),
+            "Error while sampling with the default sampler of Mixed::GridInt"
         );
     }
 }

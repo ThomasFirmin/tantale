@@ -9,20 +9,20 @@
 //! Different domains support different sampling strategies:
 //! - Bounded numeric domains: [`Uniform`] sampling
 //! - Boolean domains: [`Bernoulli`] sampling
-//! - Categorical domains: [`Uniform`] random choice
+//! - Grid-like domains: [`Uniform`] random choice
 //!
 //! ## Distribution Enums
 //!
 //! For flexibility, Tantale provides enum wrappers for domain-specific samplers:
 //! - [`BoundedDistribution`] - Samplers for [`Bounded`] numeric domains
+//! - [`GridDomDistribution`] - Samplers for [`GridDom`] numeric domains
 //! - [`BoolDistribution`] - Samplers for [`Bool`] domains
-//! - [`CatDistribution`] - Samplers for [`Cat`] categorical domains
 //!
 //! These enums allow runtime selection of sampling strategies when needed.
 //!
 //! ## Some built-in samplers
 //!
-//! ### [`Uniform`]provides a runtime-selectable wrapper
+//! ### [`Uniform`] provides a runtime-selectable wrapper
 //! - **For numeric domains**: Samples uniformly over `[lower, upper]`
 //! - **For categorical domains**: Random choice among features with equal probability
 //!
@@ -47,12 +47,12 @@
 //! - [`Bool`] - Boolean domain
 //! - [`Cat`] - Categorical domain
 
-use crate::domain::{
-    Bool, Bounded, Cat, Domain, TypeDom,
-    bounded::{BoundedBounds, RangeDomain},
-};
+use crate::{GridDom, domain::{
+    Bool, Bounded, Domain, TypeDom,
+    bounded::{BoundedBounds, RangeDomain}, grid::GridBounds,
+}};
 
-use rand::{prelude::{IteratorRandom, Rng}};
+use rand::prelude::{IteratorRandom, Rng};
 
 /// Core trait for sampling strategies that generate random values from a domain.
 ///
@@ -165,34 +165,30 @@ impl Sampler<Bool> for BoolDistribution {
     }
 }
 
-/// Enumeration of available sampling distributions for categorical domains.
-///
-/// [`CatDistribution`] provides a wrapper around different sampling
-/// strategies applicable to [`Cat`] categorical domains.
-///
+/// Enumeration of available sampling distributions for [`GridDom`](crate::domain::grid::GridDom).
+/// 
+/// [`GridDomDistribution`] provides a wrapper around different sampling strategies applicable to [`GridDom`](crate::GridDom) domains.
+/// 
 /// # Variants
-///
-/// - [`Uniform`](CatDistribution::Uniform) - Uniform random selection among categories
+/// - [`Uniform`](GridDomDistribution::Uniform) - Uniform random selection among grid values
 /// - Can be extended in future works...
-///
+/// 
 /// # Conversion
-///
 /// Individual samplers can be converted into this enum via [`From`]/[`Into`]:
-///
 /// ```
-/// use tantale::core::{CatDistribution,Uniform};
-///
-/// let dist: CatDistribution = Uniform.into();
+/// use tantale::core::{GridDomDistribution,Uniform};
+/// 
+/// let dist: GridDomDistribution = Uniform.into();
 /// ```
 #[derive(Clone, Copy, Debug)]
-pub enum CatDistribution {
+pub enum GridDomDistribution {
     Uniform(Uniform),
 }
 
-impl Sampler<Cat> for CatDistribution {
-    fn sample<R: Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
+impl<T: BoundedBounds> Sampler<GridDom<T>> for GridDomDistribution {
+    fn sample<R: Rng>(&self, dom: &GridDom<T>, rng: &mut R) -> TypeDom<GridDom<T>> {
         match self {
-            CatDistribution::Uniform(u) => u.sample(dom, rng),
+            GridDomDistribution::Uniform(u) => u.sample(dom, rng),
         }
     }
 }
@@ -203,9 +199,9 @@ impl From<Uniform> for BoundedDistribution {
     }
 }
 
-impl From<Uniform> for CatDistribution {
+impl From<Uniform> for GridDomDistribution {
     fn from(val: Uniform) -> Self {
-        CatDistribution::Uniform(val)
+        GridDomDistribution::Uniform(val)
     }
 }
 
@@ -261,11 +257,11 @@ where
     }
 }
 
-/// Uniform sampler implementation for categorical domains.
+/// Uniform sampler implementation for grid like domains.
 ///
-/// Selects a random category from the domain's values with equal probability.
-impl Sampler<Cat> for Uniform {
-    fn sample<R: Rng>(&self, dom: &Cat, rng: &mut R) -> TypeDom<Cat> {
+/// Selects a random element from the domain's values with equal probability.
+impl<T:GridBounds> Sampler<GridDom<T>> for Uniform {
+    fn sample<R: Rng>(&self, dom: &GridDom<T>, rng: &mut R) -> TypeDom<GridDom<T>> {
         dom.values.iter().choose(rng).unwrap().clone()
     }
 }
