@@ -1,14 +1,7 @@
 use crate::{
-    domain::{
-        Domain, PreDomain, TypeDom,
-        bool::Bool,
-        bounded::{Int, Nat, Real},
-        cat::Cat,
-        onto::{Onto, OntoDom},
-        unit::Unit,
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
+    Cat, GridDom, GridInt, GridNat, GridReal, domain::{
+        Domain, PreDomain, TypeDom, bool::Bool, bounded::{Int, Nat, Real}, grid::GridBounds, onto::{Onto, OntoDom}, unit::Unit
+    }, errors::OntoError, recorder::csv::CSVWritable
 };
 
 use rand::Rng;
@@ -19,7 +12,7 @@ use std::fmt::{Debug, Display};
 // Grouped domains
 
 /// A mixed [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
-/// and [`Unit`].
+/// and [`Unit`]. And 4, discretized, grid versions of the basic domains: [`GridReal`], [`GridNat`], and [`GridInt`].
 /// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
 #[derive(Clone, PartialEq)]
 pub enum Mixed {
@@ -29,6 +22,9 @@ pub enum Mixed {
     Bool(Bool),
     Cat(Cat),
     Unit(Unit),
+    GridReal(GridReal),
+    GridNat(GridNat),
+    GridInt(GridInt),
 }
 
 impl Display for Mixed {
@@ -40,6 +36,9 @@ impl Display for Mixed {
             Self::Unit(d) => std::fmt::Display::fmt(&d, f),
             Self::Bool(d) => std::fmt::Display::fmt(&d, f),
             Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridReal(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridNat(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridInt(d) => std::fmt::Display::fmt(&d, f),
         }
     }
 }
@@ -52,6 +51,9 @@ impl Debug for Mixed {
             Self::Unit(d) => std::fmt::Debug::fmt(&d, f),
             Self::Bool(d) => std::fmt::Debug::fmt(&d, f),
             Self::Cat(d) => std::fmt::Debug::fmt(&d, f),
+            Self::GridReal(d) => std::fmt::Debug::fmt(&d, f),
+            Self::GridNat(d) => std::fmt::Debug::fmt(&d, f),
+            Self::GridInt(d) => std::fmt::Debug::fmt(&d, f),
         }
     }
 }
@@ -65,6 +67,9 @@ pub enum MixedTypeDom {
     Bool(TypeDom<Bool>),
     Cat(TypeDom<Cat>),
     Unit(TypeDom<Unit>),
+    GridReal(TypeDom<GridReal>),
+    GridNat(TypeDom<GridNat>),
+    GridInt(TypeDom<GridInt>),
 }
 impl Display for MixedTypeDom {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -75,6 +80,9 @@ impl Display for MixedTypeDom {
             Self::Unit(d) => std::fmt::Display::fmt(&d, f),
             Self::Bool(d) => std::fmt::Display::fmt(&d, f),
             Self::Cat(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridReal(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridNat(d) => std::fmt::Display::fmt(&d, f),
+            Self::GridInt(d) => std::fmt::Display::fmt(&d, f),
         }
     }
 }
@@ -97,6 +105,9 @@ impl Domain for Mixed {
             Self::Bool(e) => MixedTypeDom::Bool(e.sample(rng)),
             Self::Cat(e) => MixedTypeDom::Cat(e.sample(rng)),
             Self::Unit(e) => MixedTypeDom::Unit(e.sample(rng)),
+            Self::GridReal(e) => MixedTypeDom::Real(e.sample(rng)),
+            Self::GridNat(e) => MixedTypeDom::Nat(e.sample(rng)),
+            Self::GridInt(e) => MixedTypeDom::Int(e.sample(rng)),
         }
     }
 
@@ -109,6 +120,9 @@ impl Domain for Mixed {
             (Self::Bool(e), MixedTypeDom::Bool(i)) => e.is_in(i),
             (Self::Cat(e), MixedTypeDom::Cat(i)) => e.is_in(i),
             (Self::Unit(e), MixedTypeDom::Unit(i)) => e.is_in(i),
+            (Self::GridReal(e), MixedTypeDom::Real(i)) => e.is_in(i),
+            (Self::GridNat(e), MixedTypeDom::Nat(i)) => e.is_in(i),
+            (Self::GridInt(e), MixedTypeDom::Int(i)) => e.is_in(i),
             _ => false, // Type mismatch
         }
     }
@@ -139,7 +153,10 @@ impl Onto<Real> for Mixed {
             (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
             (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
             (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("{} input not in {}", item, self))),
+            (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
+            (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
+            (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Real is not implemented, and it should not occur.", item, self))),
         }
     }
 }
@@ -170,7 +187,10 @@ impl Onto<Nat> for Mixed {
             (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
             (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
             (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("{} input not in {}", item, self))),
+            (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
+            (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
+            (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Nat is not implemented, and it should not occur.", item, self))),
         }
     }
 }
@@ -201,7 +221,10 @@ impl Onto<Int> for Mixed {
             (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
             (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
             (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("{} input not in {}", item, self))),
+            (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
+            (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
+            (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
         }
     }
 }
@@ -229,12 +252,12 @@ impl Onto<Unit> for Mixed {
             (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
             (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
             (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
-            (Self::Unit(_), MixedTypeDom::Unit(_)) => unreachable!(
-                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
-            ),
             (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
             (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("{} input not in {}", item, self))),
+            (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
+            (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
+            (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Unit is not implemented, and it should not occur.", item, self))),
         }
     }
 }
@@ -263,66 +286,44 @@ impl Onto<Bool> for Mixed {
             (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
             (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
             (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
-            (Self::Bool(_), MixedTypeDom::Bool(_)) => unreachable!(
-                "Converting a value from Bool onto Bool is not implemented, and it should not occur."
-            ),
-            (Self::Cat(_), MixedTypeDom::Cat(_)) => unreachable!(
-                "Converting a value from Cat onto Bool is not implemented, and it should not occur."
-            ),
-            _ => Err(OntoError(format!("{} input not in {}", item, self))),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
         }
     }
 }
 impl OntoDom<Bool> for Mixed {}
 
-impl Onto<Cat> for Mixed {
-    type TargetItem = TypeDom<Cat>;
+impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
+    type TargetItem = TypeDom<GridDom<Out>>;
     type Item = TypeDom<Mixed>;
-    /// [`Onto`] function between a [`Mixed`] and a [`Cat`] [`Domain`].
+    /// [`Onto`] function between a [`Mixed`] and a [`GridDom`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`GridDom`] and [`Unit`].
     ///
     /// # Parameters
     ///
     /// * `item` - A borrowed point from the [`Mixed`].
-    /// * `target` - A borrowed targetted [`Cat`].
+    /// * `target` - A borrowed targetted [`GridDom`].
     ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
-    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
-    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
-        match self {
-            Self::Real(d) => match item {
-                MixedTypeDom::Real(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Nat(d) => match item {
-                MixedTypeDom::Nat(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Int(d) => match item {
-                MixedTypeDom::Int(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Unit(d) => match item {
-                MixedTypeDom::Unit(i) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Bool(d) => match item {
-                MixedTypeDom::Bool(_i) => unreachable!(
-                    "Converting a value from Bool onto Cat is not implemented, and it should not occur."
-                ),
-                _ => Err(OntoError(format!("{} input not in {}", item, d))),
-            },
-            Self::Cat(_d) => unreachable!(
-                "Converting a value from Cat onto Cat is not implemented, and it should not occur."
-            ),
+    ///     * if [`Onto::TargetItem`] is not into the [`GridDom`] domain.
+    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+        match (self, item) {
+            (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
+            (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
+            (Self::GridReal(d), MixedTypeDom::Real(i)) => d.onto(i, target),
+            (Self::GridNat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
+            (Self::GridInt(d), MixedTypeDom::Int(i)) => d.onto(i, target),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
         }
     }
 }
-impl OntoDom<Cat> for Mixed {}
+impl<Out:GridBounds> OntoDom<GridDom<Out>> for Mixed {}
 
 impl Onto<Mixed> for Mixed {
     type TargetItem = TypeDom<Mixed>;
@@ -346,13 +347,16 @@ impl Onto<Mixed> for Mixed {
             Ok(item.clone())
         } else {
             match (self, item) {
-                (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
-                (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
-                (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
-                (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
-                (Self::Bool(d), MixedTypeDom::Bool(i)) => d.onto(i, target),
-                (Self::Cat(d), MixedTypeDom::Cat(i)) => d.onto(i, target),
-                _ => Err(OntoError(format!("{} input not in {}", item, self))),
+                (Self::Real(d), MixedTypeDom::Real(item)) => d.onto(item, target),
+                (Self::Nat(d), MixedTypeDom::Nat(item)) => d.onto(item, target),
+                (Self::Int(d), MixedTypeDom::Int(item)) => d.onto(item, target),
+                (Self::Unit(d), MixedTypeDom::Unit(item)) => d.onto(item, target),
+                (Self::Bool(d), MixedTypeDom::Bool(item)) => d.onto(item, target),
+                (Self::Cat(d), MixedTypeDom::Cat(item)) => d.onto(item, target),
+                (Self::GridReal(d), MixedTypeDom::GridReal(item)) => d.onto(item, target),
+                (Self::GridNat(d), MixedTypeDom::GridNat(item)) => d.onto(item, target),
+                (Self::GridInt(d), MixedTypeDom::GridInt(item)) => d.onto(item, target),
+                _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.", item, self))),
             }
         }
     }
@@ -386,6 +390,24 @@ impl From<Cat> for Mixed {
     }
 }
 
+impl From<GridReal> for Mixed {
+    fn from(value: GridReal) -> Self {
+        Mixed::GridReal(value)
+    }
+}
+
+impl From<GridNat> for Mixed {
+    fn from(value: GridNat) -> Self {
+        Mixed::GridNat(value)
+    }
+}
+
+impl From<GridInt> for Mixed {
+    fn from(value: GridInt) -> Self {
+        Mixed::GridInt(value)
+    }
+}
+
 impl From<Unit> for Mixed {
     fn from(value: Unit) -> Self {
         Mixed::Unit(value)
@@ -405,6 +427,9 @@ impl CSVWritable<(), MixedTypeDom> for Mixed {
             MixedTypeDom::Bool(s) => Vec::from([s.to_string()]),
             MixedTypeDom::Cat(s) => Vec::from([s.to_string()]),
             MixedTypeDom::Unit(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::GridReal(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::GridNat(s) => Vec::from([s.to_string()]),
+            MixedTypeDom::GridInt(s) => Vec::from([s.to_string()]),
         }
     }
 }

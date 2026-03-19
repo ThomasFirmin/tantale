@@ -1,15 +1,7 @@
 use crate::{
-    domain::{
-        Domain, PreDomain, TypeDom,
-        bool::Bool,
-        bounded::{Bounded, BoundedBounds, RangeDomain},
-        cat::Cat,
-        mixed::{Mixed, MixedTypeDom},
-        onto::{Onto, OntoDom},
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, Sampler},
+    GridDom, domain::{
+        Domain, PreDomain, TypeDom, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, grid::GridBounds, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
 };
 
 use num::cast::AsPrimitive;
@@ -178,14 +170,14 @@ where
 }
 impl OntoDom<Bool> for Unit {}
 
-impl Onto<Cat> for Unit {
+impl<Out:GridBounds> Onto<GridDom<Out>> for Unit {
     type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<Cat>;
-    /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Cat`][`Domain`].
+    type TargetItem = Out;
+    /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`GridDom`][`Domain`].
     ///
-    /// Considering $\ell_{en}$ the length of `values` of the [`Cat`] [`Domain`].
+    /// Considering $\ell_{en}$ the length of `values` of the [`GridDom`] [`Domain`].
     /// The variable $x$ is the item to be mapped.
-    /// The mapping is given by mapping item to an index of `values` in [`Cat`]:
+    /// The mapping is given by mapping item to an index of `values` in [`GridDom`]:
     ///
     /// $$ i = \\left\\lfloor x \times \ell_{en} \\right\\rfloor $$
     /// $$ \\texttt{index} = \\begin{cases}
@@ -196,14 +188,14 @@ impl Onto<Cat> for Unit {
     /// # Parameters
     ///
     /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
-    /// * `target` - A borrowed targetted [`Cat`].
+    /// * `target` - A borrowed targetted [`GridDom`].
     ///
     /// # Errors
     ///
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
-    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
-    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
+    ///     * if [`Onto::TargetItem`] is not into the [`GridDom`] domain.
+    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
             let c: f64 = target.values.len().as_();
@@ -225,7 +217,7 @@ impl Onto<Cat> for Unit {
         }
     }
 }
-impl OntoDom<Cat> for Unit {}
+impl<Out:GridBounds> OntoDom<GridDom<Out>> for Unit {}
 
 impl Onto<Mixed> for Unit {
     type Item = TypeDom<Unit>;
@@ -246,30 +238,16 @@ impl Onto<Mixed> for Unit {
     ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
-        match target {
-            Mixed::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Real(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Nat(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Int(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Unit(_d) => unreachable!(
-                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
-            ),
-            Mixed::Bool(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Bool(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Cat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Cat(i)),
-                Err(e) => Err(e),
-            },
+        match target{
+            Mixed::Real(target) => self.onto(item, target).map(MixedTypeDom::Real),
+            Mixed::Nat(target) => self.onto(item, target).map(MixedTypeDom::Nat),
+            Mixed::Int(target) => self.onto(item, target).map(MixedTypeDom::Int),
+            Mixed::Bool(target) => self.onto(item, target).map(MixedTypeDom::Bool),
+            Mixed::Cat(target) => self.onto(item, target).map(MixedTypeDom::Cat),
+            Mixed::GridReal(target) => self.onto(item, target).map(MixedTypeDom::GridReal),
+            Mixed::GridNat(target) => self.onto(item, target).map(MixedTypeDom::GridNat),
+            Mixed::GridInt(target) => self.onto(item, target).map(MixedTypeDom::GridInt),
+            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.", item, self))),
         }
     }
 }

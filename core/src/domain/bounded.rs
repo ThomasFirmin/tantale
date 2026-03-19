@@ -28,17 +28,9 @@
 //! ```
 
 use crate::{
-    domain::{
-        Domain, PreDomain, TypeDom,
-        bool::Bool,
-        cat::Cat,
-        mixed::{Mixed, MixedTypeDom},
-        onto::{Onto, OntoDom},
-        unit::Unit,
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, Sampler},
+    GridDomDistribution, domain::{
+        Domain, PreDomain, TypeDom, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};
@@ -135,6 +127,15 @@ impl<T: BoundedBounds> Bounded<T> {
         } else {
             panic!("Boundaries error, {} is not < {}.", lower, upper);
         }
+    }
+
+    /// Fabric for a [`Bounded`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
+    /// Generates a [`GridDom`] containing discretized `values` of type `T`.
+    /// 
+    /// # Parameters
+    /// * `values` - A list of values that will be used as bounds of the [`Bounded`] domain.
+    pub fn grid<I: IntoIterator<Item = Item>, Item: Into<T>, S: Sampler<GridDom<T>> + Into<GridDomDistribution>>(values:I, sampler: S) -> GridDom<T> {
+        GridDom::new(values, sampler)
     }
 }
 
@@ -276,60 +277,6 @@ where
 {
 }
 
-impl<In> Onto<Cat> for Bounded<In>
-where
-    In: BoundedBounds,
-    f64: AsPrimitive<In>,
-{
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Cat>;
-    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Cat`][`Domain`].
-    ///
-    /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
-    /// the input [`Bounded`] [`Domain`] and $\ell_{en}$ the length of `values` of the [`Cat`] [`Domain`].
-    /// The variable $x$ is the item to be mapped.
-    /// The mapping is given by mapping item to an index of `values` in [`Cat`]:
-    ///
-    /// $$ i = \\left\\lfloor \frac{x-l_{in}}{u_{in}-l_{in}} \times \ell_{en} \\right\\rfloor $$
-    /// $$ \\texttt{index} = \\begin{cases}
-    ///    i & \\text{if } i < \ell_{en} \\\\
-    ///    i -1 & \\text{if } i = \ell_{en}
-    /// \\end{cases} $$
-    ///
-    /// # Parameters
-    ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
-    /// * `target` - A borrowed targetted [`Cat`].
-    ///
-    /// # Errors
-    ///
-    /// * Returns a [`OntoError`]
-    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
-    ///     * if [`Onto::TargetItem`] is not into the [`Cat`] domain.
-    fn onto(&self, item: &Self::Item, target: &Cat) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
-            let a: f64 = (*item - *self.bounds.start()).as_();
-            let b: f64 = self.width.as_();
-            let c: f64 = target.values.len().as_();
-            let idx = (a / b * c) as usize;
-            let idx = if idx == target.values.len() {
-                idx - 1
-            } else {
-                idx
-            };
-            Ok(target.values[idx].clone())
-        } else {
-            Err(OntoError(format!("{} input not in {}", item, self)))
-        }
-    }
-}
-impl<In> OntoDom<Cat> for Bounded<In>
-where
-    In: BoundedBounds,
-    f64: AsPrimitive<In>,
-{
-}
-
 impl<In> Onto<Unit> for Bounded<In>
 where
     In: BoundedBounds,
@@ -378,6 +325,61 @@ where
 {
 }
 
+impl<In, Out> Onto<GridDom<Out>> for Bounded<In>
+where
+    In: BoundedBounds,
+    Out: GridBounds,
+    f64: AsPrimitive<In>,
+{
+    type Item = TypeDom<Bounded<In>>;
+    type TargetItem = TypeDom<GridDom<Out>>;
+    /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bounded`][`Domain`].
+    ///
+    /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
+    /// the input [`Bounded`] [`Domain`] and $\ell_{en}$ the length of `values` of the [`Bounded`] [`Domain`].
+    /// The variable $x$ is the item to be mapped.
+    /// The mapping is given by mapping item to an index of `values` in [`Bounded`]:
+    ///
+    /// $$ i = \\left\\lfloor \frac{x-l_{in}}{u_{in}-l_{in}} \times \ell_{en} \\right\\rfloor $$
+    /// $$ \\texttt{index} = \\begin{cases}
+    ///    i & \\text{if } i < \ell_{en} \\\\
+    ///    i -1 & \\text{if } i = \ell_{en}
+    /// \\end{cases} $$
+    ///
+    /// # Parameters
+    ///
+    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `target` - A borrowed targetted [`Bounded`].
+    ///
+    /// # Errors
+    ///
+    /// * Returns a [`OntoError`]
+    ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
+    ///     * if [`Onto::TargetItem`] is not into the [`Bounded`] domain.
+    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+        if self.is_in(item) {
+            let a: f64 = (*item - *self.bounds.start()).as_();
+            let b: f64 = self.width.as_();
+            let c: f64 = target.values.len().as_();
+            let idx = (a / b * c) as usize;
+            let idx = if idx == target.values.len() {
+                idx - 1
+            } else {
+                idx
+            };
+            Ok(target.values[idx].clone())
+        } else {
+            Err(OntoError(format!("{} input not in {}", item, self)))
+        }
+    }
+}
+impl<In, Out> OntoDom<GridDom<Out>> for Bounded<In>
+where
+    In: BoundedBounds,
+    Out: GridBounds,
+    f64: AsPrimitive<In>
+{}
+
 impl<In> Onto<Mixed> for Bounded<In>
 where
     In: BoundedBounds,
@@ -399,30 +401,15 @@ where
     ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
         match target {
-            Mixed::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Real(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Nat(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Int(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Unit(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Bool(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Bool(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Cat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Cat(i)),
-                Err(e) => Err(e),
-            },
+            Mixed::Real(d) => self.onto(item, d).map(MixedTypeDom::Real),
+            Mixed::Nat(d) => self.onto(item, d).map(MixedTypeDom::Nat),
+            Mixed::Int(d) => self.onto(item, d).map(MixedTypeDom::Int),
+            Mixed::Bool(d) => self.onto(item, d).map(MixedTypeDom::Bool),
+            Mixed::Unit(d) => self.onto(item, d).map(MixedTypeDom::Unit),
+            Mixed::GridReal(d) => self.onto(item, d).map(MixedTypeDom::GridReal),
+            Mixed::GridNat(d) => self.onto(item, d).map(MixedTypeDom::GridNat),
+            Mixed::GridInt(d) => self.onto(item, d).map(MixedTypeDom::GridInt),
+            Mixed::Cat(d) => self.onto(item, d).map(MixedTypeDom::Cat),
         }
     }
 }

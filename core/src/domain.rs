@@ -25,12 +25,20 @@
 //! This module exposes several commonly used domain types:
 //! - [`Real`], [`Int`], [`Nat`] and [`Bounded`] for numeric ranges
 //! - [`Bool`] for binary values
-//! - [`Cat`] for categorical variables
 //! - [`Unit`] and [`NoDomain`] for degenerate or placeholder domains
+//! - [`Mixed`] for heterogeneous domains
+//! - [`Grid`] for Cartesian products of discrete values made of [`GridDom`]s
+//! - [`GridDom`] for defining discrete sets of values
+//!   - [`GridReal`] for discrete real values
+//!   - [`GridInt`] for discrete integer values
+//!   - [`GridNat`] for discrete natural values
+//!   - [`Cat`] for discrete categorical values
+//! 
+//! 
 //!
 //! Some specific traits such as:
-//! - [`Mixed`] for heterogeneous collections of sub-domains
 //! - [`Onto`] for mapping an element from one domain to another domain
+//! - [`OntoDom`] for defining [`Domain`]s that are mapped to another domain
 //!
 //! The [`codomain`](crate::domain::codomain) submodule provides codomain abstractions such as
 //! [`SingleCodomain`] and [`MultiCodomain`] used for objective outputs.
@@ -231,8 +239,8 @@ pub use unit::Unit;
 pub mod bool;
 pub use bool::Bool;
 
-pub mod cat;
-pub use cat::Cat;
+pub mod grid;
+pub use grid::{Grid, GridDom, GridInt, GridNat, GridReal, Cat};
 
 pub mod mixed;
 pub use mixed::{Mixed, MixedTypeDom};

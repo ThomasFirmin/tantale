@@ -35,6 +35,10 @@ impl Bool {
     pub fn new<S: Sampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
         Bool(sampler.into())
     }
+    // Fabric for a [`Bool`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
+    pub fn grid<S: Sampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
+        Bool(sampler.into())
+    }
 }
 
 impl PartialEq for Bool {
@@ -178,29 +182,12 @@ impl Onto<Mixed> for Bool {
     ///     * if [`Onto::Item`] to be mapped is not into [`Bool`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
-        match target {
-            Mixed::Real(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Real(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Nat(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Nat(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Int(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Int(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Unit(d) => match self.onto(item, d) {
-                Ok(i) => Ok(MixedTypeDom::Unit(i)),
-                Err(e) => Err(e),
-            },
-            Mixed::Bool(_d) => unreachable!(
-                "Converting a value from Bool onto Bool is not implemented, and it should not occur."
-            ),
-            Mixed::Cat(_d) => unreachable!(
-                "Converting a value from Unit onto Unit is not implemented, and it should not occur."
-            ),
+        match target{
+            Mixed::Real(d) => self.onto(item,d).map(MixedTypeDom::Real),
+            Mixed::Nat(d) => self.onto(item,d).map(MixedTypeDom::Nat),
+            Mixed::Int(d) => self.onto(item,d).map(MixedTypeDom::Int),
+            Mixed::Unit(d) => self.onto(item,d).map(MixedTypeDom::Unit),
+            _ => Err(OntoError(format!("Cannot map Bool to {:?} domain", target))),
         }
     }
 }
