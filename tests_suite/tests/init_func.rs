@@ -575,6 +575,33 @@ pub mod sp_evaluator {
     );
 }
 
+
+pub mod sp_grid_evaluator {
+    use super::{Neuron, OutEvaluator};
+    use tantale::core::{
+        Cat, Int, Real,
+        sampler::Uniform,
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Grid<Int([-2_i64, -1, 0 ,1, 2] , Uniform)> | !];
+
+            let _layer = Neuron{
+                number: [! h | Grid<Int([0_i64, 1, 2, 3, 4] , Uniform)> | !],
+                activation: [! i | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !],
+            };
+
+            OutEvaluator{
+                obj: [! j | Grid<Real([1000.0, 2000.0, 3000.0, 4000.0], Uniform)> | !]
+            }
+        }
+    );
+}
+
 //---------------//
 //--- STEPPED ---//
 //---------------//
@@ -624,6 +651,46 @@ pub mod sp_evaluator_fid {
         }
     );
 }
+
+
+pub mod sp_grid_evaluator_fid {
+    use super::{FidOutEvaluator, FnState, Neuron};
+    use tantale::core::{
+        Cat, Int, Real,
+        objective::Step,
+        sampler::Uniform,
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (FidOutEvaluator, FnState) {
+            let _a = [! a | Grid<Int([-2_i64, -1, 0 ,1, 2] , Uniform)> | !];
+
+            let _layer = Neuron{
+                number: [! h | Grid<Int([0_i64, 1, 2, 3, 4] , Uniform)> | !],
+                activation: [! i | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !],
+            };
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if state.state == 5 {Step::Evaluated} else{Step::Partially(state.state)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Grid<Real([1000.0, 2000.0, 3000.0, 4000.0], Uniform)> | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
+}
+
 
 pub mod sp_ms_nosamp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
@@ -992,6 +1059,14 @@ pub mod sp_sm_samp_noright_fid {
     );
 }
 
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+pub struct MoFidOutEvaluator {
+    pub obj1: f64,
+    pub obj2: f64,
+    info:f64,
+    pub fid: Step,
+}
+
 pub mod sp_evaluator_sh {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
@@ -1032,6 +1107,85 @@ pub mod sp_evaluator_sh {
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
+}
+
+
+
+
+
+
+pub mod sp_evaluator_mo {
+    use super::{MoFidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Real,
+        objective::Step,
+        sampler::{Bernoulli, Uniform},
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    pub fn random_codom()-> tantale::core::domain::codomain::ElemMultiCodomain{
+        let idx: usize = rand::random_range(0..15) % 15;
+        match idx{
+            0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0,5.0]),
+            1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,4.5]),
+            2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,4.0]),
+            3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0,3.0]),
+            4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0,1.0]),
+            5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5,4.0]),
+            6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,3.5]),
+            7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,3.0]),
+            8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0,2.0]),
+            9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0,0.0]),
+            10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0,3.5]),
+            11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0,3.0]),
+            12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,2.0]),
+            13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5,1.0]),
+            14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,0.0]),
+            _ => unreachable!("Index out of bounds for random codomain generation"),
+        }
+    }
+
+    objective!(
+        pub fn example() -> (MoFidOutEvaluator, FnState) {
+
+            let fid = [! FIDELITY !];
+
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if fid == 5. {Step::Evaluated} else{Step::Partially(fid as isize)};
+            let obj = random_codom();
+            (
+                MoFidOutEvaluator{
+                    obj1: obj.value[0],
+                    obj2: obj.value[1],
+                    info: [!j | Real(0.0,2000.0, Uniform) | !],
                     fid: evalstate,
                 },
                 state
