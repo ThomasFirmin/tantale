@@ -56,7 +56,7 @@ mod searchspace {
 
     objective!(
         pub fn example() -> OutExample {
-            let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+            let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
             let _b = [! b | Nat(0,100, Uniform) | !];
             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let _d = [! d | Bool(Bernoulli(0.5)) | !];
@@ -65,7 +65,7 @@ mod searchspace {
             // ... more variables and computation ...
 
             OutExample{
-                obj: e,
+                obj: e, // In practice put your accuracy, MSE... here
                 info: [! f | Unit(Uniform) | !],
             }
         }
