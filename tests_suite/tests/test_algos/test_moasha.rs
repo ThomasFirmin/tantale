@@ -1,127 +1,230 @@
-use tantale::{algos::{mo::{CandidateSelector, NSGA2Selector}, utils::mo::{NonDominatedSorting, crowding_distance}}, core::HasId};
+use tantale::{algos::mo::NSGA2Selector, core::{
+    CSVRecorder, FolderConfig, MessagePack, SaverConfig,
+    experiment::{Runable, mono, threaded},
+    load,
+    stop::Calls,
+}};
 
-mod front {
-    use rand::seq::SliceRandom;
-    use serde::{Deserialize, Serialize};
-    use tantale::core::domain::codomain::ElemMultiCodomain;
-    use tantale::core::{BaseSol, Computed, EmptyInfo, MultiCodomain, Real, SId, Uncomputed};
-    use tantale::macros::Outcome;
+use tantale::algos::{MoAsha, moasha};
 
-    use std::sync::Arc;
+use super::init_func::sp_evaluator_mo;
+use crate::init_func::MoFidOutEvaluator;
 
-    #[allow(dead_code)]
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
-    pub struct OutExample {
-        pub obj1: f64,
-        pub obj2: f64,
-    }
+use std::path::Path;
 
-    #[allow(clippy::type_complexity)]
-    pub fn generate_solutions() -> Vec<Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo>> {
-        let info = Arc::new(EmptyInfo);
-        
-        // Front 1
-        let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(1), [0.5], info.clone());
-        let y1 = ElemMultiCodomain::new(vec![0.0,5.0]);
-        let comp1: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol1, y1.into());
+struct Cleaner {
+    path: String,
+}
 
-        let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(2), [0.5], info.clone());
-        let y2 = ElemMultiCodomain::new(vec![2.0,4.5]);
-        let comp2: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol2, y2.into());
-
-        let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(3), [0.5], info.clone());
-        let y3 = ElemMultiCodomain::new(vec![3.0,4.0]);
-        let comp3: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol3, y3.into());
-
-        let sol4: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(4), [0.5], info.clone());
-        let y4 = ElemMultiCodomain::new(vec![4.0,3.0]);
-        let comp4: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol4, y4.into());
-
-        let sol5: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(5), [0.5], info.clone());
-        let y5 = ElemMultiCodomain::new(vec![5.0,1.0]);
-        let comp5: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol5, y5.into());
-
-        // Front 2
-        let sol6: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(6), [0.5], info.clone());
-        let y6 = ElemMultiCodomain::new(vec![0.5,4.0]);
-        let comp6: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol6, y6.into());
-
-        let sol7: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(7), [0.5], info.clone());
-        let y7 = ElemMultiCodomain::new(vec![2.0,3.5]);
-        let comp7: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol7, y7.into());
-
-        let sol8: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(8), [0.5], info.clone());
-        let y8 = ElemMultiCodomain::new(vec![3.0,3.0]);
-        let comp8: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol8, y8.into());
-
-        let sol9: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(9), [0.5], info.clone());
-        let y9 = ElemMultiCodomain::new(vec![4.0,2.0]);
-        let comp9: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol9, y9.into());
-
-        let sol10: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(10), [0.5], info.clone());
-        let y10 = ElemMultiCodomain::new(vec![5.0,0.0]);
-        let comp10: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol10, y10.into());
-
-        // Front 3
-        let sol11: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(11), [0.5], info.clone());
-        let y11 = ElemMultiCodomain::new(vec![0.0,3.5]);
-        let comp11: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol11, y11.into());
-
-        let sol12: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(12), [0.5], info.clone());
-        let y12 = ElemMultiCodomain::new(vec![1.0,3.0]);
-        let comp12: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol12, y12.into());
-
-        let sol13: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(13), [0.5], info.clone());
-        let y13 = ElemMultiCodomain::new(vec![2.0,2.0]);
-        let comp13: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol13, y13.into());
-
-        let sol14: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(14), [0.5], info.clone());
-        let y14 = ElemMultiCodomain::new(vec![2.5,1.0]);
-        let comp14: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol14, y14.into());
-
-        let sol15: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::new(15), [0.5], info.clone());
-        let y15 = ElemMultiCodomain::new(vec![3.0,0.0]);
-        let comp15: Computed<BaseSol<SId, Real, EmptyInfo>, SId, Real, MultiCodomain<OutExample>, OutExample, EmptyInfo> = Computed::new(sol15, y15.into());
-
-        let mut v = vec![comp1, comp2, comp3, comp4, comp5, comp6, comp7, comp8, comp9, comp10, comp11, comp12, comp13, comp14, comp15];
-        v.shuffle(&mut rand::rng());
-        v
+impl Drop for Cleaner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 
-#[test]
-fn test_non_dominated_sorting() {
-    let mut solutions = front::generate_solutions();
-    let fronts = solutions.non_dominated_sort();
-    
-    let ids_f1 = fronts[0].iter().map(|s| s.id().id).collect::<Vec<_>>();
-    let ids_f2 = fronts[1].iter().map(|s| s.id().id).collect::<Vec<_>>();
-    let ids_f3 = fronts[2].iter().map(|s| s.id().id).collect::<Vec<_>>();
-    assert_eq!(ids_f1, vec![5, 4, 3, 2, 1]);
-    assert_eq!(ids_f2, vec![10, 9, 8, 7, 6]);
-    assert_eq!(ids_f3, vec![15, 14, 13, 12, 11]);
+pub fn run_reader(path: &str) {
+    let true_path = Path::new(path);
+    let eval_path = true_path.join(Path::new("recorder"));
+    let path_obj = eval_path.join("obj.csv");
+    let path_opt = eval_path.join("opt.csv");
+    let path_out = eval_path.join("out.csv");
+    let path_cod = eval_path.join("cod.csv");
+    let path_info = eval_path.join("info.csv");
+
+    // Check `Obj`, `Opt`, `Codom`
+    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
+    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
+    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
+    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
+    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
+
+    let linesobj = rdr_obj.records();
+    let linesopt = rdr_opt.records();
+    let linescod = rdr_cod.records();
+    let linesinfo = rdr_info.records();
+    let linesout = rdr_out.records();
+
+    let count_obj = linesobj.count();
+    let count_opt = linesopt.count();
+    let count_cod = linescod.count();
+    let count_info = linesinfo.count();
+    let count_out = linesout.count();
+
+    assert!(
+        [count_opt, count_cod, count_info, count_out]
+            .iter()
+            .all(|c| c == &count_obj),
+        "Not all counts are equal. Some solutions are missing within at least one save file"
+    );
 }
 
 #[test]
-fn test_crowding_distance() {
-    let mut solutions = front::generate_solutions();
-    let fronts = solutions.non_dominated_sort();
+fn test_fid_seq_run() {
+    drop(Cleaner {
+        path: String::from("tmp_test_moasha_run"),
+    });
+    let _cleaner = Cleaner {
+        path: String::from("tmp_test_moasha_run"),
+    };
 
-    let dist = crowding_distance(&fronts[0]);
-    let ziped = fronts[0].iter().zip(dist.iter()).map(|(s, d)| (s.id().id, *d)).collect::<Vec<_>>();
-    assert_eq!(ziped, vec![(5, f64::INFINITY), (4, 1.15), (3, 0.775), (2, 0.85), (1, f64::INFINITY)], "Crowdeing distances are wrong.");
+    let mut budgets: Vec<f64> = (0..)
+        .map(|i| 1.61_f64.powi(i))
+        .take_while(|&b| b <= 5.)
+        .collect();
+    if *budgets.last().unwrap() != 5. {
+        let last = budgets.last_mut().unwrap();
+        *last = 5.;
+    }
 
-    let dist = crowding_distance(&fronts[1]);
-    let ziped = fronts[1].iter().zip(dist.iter()).map(|(s, d)| (s.id().id, *d)).collect::<Vec<_>>();
-    println!("Crowding distances for front 1: {:?}", ziped);
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let opt = MoAsha::new(NSGA2Selector,1., 5., 1.61); // log(max/min)
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let stop = Calls::new(50);
+    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_moasha_run");
+
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(mono, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+
+    let expstop = exp.get_mut_stop();
+    assert_eq!(expstop.0, 50, "Number of calls is wrong");
+    expstop.1 = 100;
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
+    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+    exp.run();
+
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let exp = load!(mono, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+    run_reader("tmp_test_moasha_run");
+    let expstop = exp.get_stop();
+    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
+    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+
+    drop(Cleaner {
+        path: String::from("tmp_test_moasha_run"),
+    });
 }
 
 #[test]
-fn test_nsga2_selection() {
-    let mut solutions = front::generate_solutions();
-    let selector = NSGA2Selector;
-    let selected = selector.select_candidates(&mut solutions, 9);
-    let ids = selected.iter().map(|s| s.id().id).collect::<Vec<_>>();
-    assert_eq!(ids, vec![5, 4, 3, 2, 1, 10, 9, 8, 7], "NSGA2 selection is wrong.");
+fn test_fid_seq_parrun() {
+    drop(Cleaner {
+        path: String::from("tmp_test_moasha_parrun"),
+    });
+    let _cleaner = Cleaner {
+        path: String::from("tmp_test_moasha_parrun"),
+    };
+
+    let mut budgets: Vec<f64> = (0..)
+        .map(|i| 1.61_f64.powi(i))
+        .take_while(|&b| b <= 5.)
+        .collect();
+    if *budgets.last().unwrap() != 5. {
+        let last = budgets.last_mut().unwrap();
+        *last = 5.;
+    }
+
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let opt = MoAsha::new(NSGA2Selector,1., 5., 1.61);
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let stop = Calls::new(50);
+    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_moasha_parrun");
+
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(threaded, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+
+    let expstop: &mut Calls = exp.get_mut_stop();
+    let max_call = expstop.calls() + num_cpus::get();
+    assert!(
+        expstop.calls() >= 50 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 50 and {}",
+        max_call
+    );
+    expstop.1 = 100;
+    let expoptimizer = exp.get_mut_optimizer();
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
+    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+
+    exp.run();
+
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+
+    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let exp = load!(threaded, MoAsha<NSGA2Selector, _>, Calls, (sp, cod), obj, (rec, check));
+    run_reader("tmp_test_moasha_parrun");
+    let expstop: &Calls = exp.get_stop();
+    let max_call = expstop.calls() + num_cpus::get();
+    assert!(
+        expstop.calls() >= 100 && expstop.calls() <= max_call,
+        "Number of calls is wrong, it should be between 100 and {}",
+        max_call
+    );
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(
+        expoptimizer.0.budgets, budgets,
+        "Budgets are wrong, {:?} != {:?}",
+        expoptimizer.0.budgets, budgets
+    );
+    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+
+    drop(Cleaner {
+        path: String::from("tmp_test_moasha_parrun"),
+    });
 }
-    
