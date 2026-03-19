@@ -75,6 +75,7 @@ pub struct DomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
     pub is_nodomain: bool,
+    pub is_grid: bool,
 }
 
 /// A domain specification that may be empty (for optional optimizer domain).
@@ -88,17 +89,31 @@ pub enum DomainStream {
 
 impl Parse for DomainStream {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(Token![=>]) || input.peek(Token![;]) || input.is_empty() {
+        if input.peek(Token![;]) || input.is_empty() {
             return Ok(DomainStream::None);
         }
-        let ty = input.parse::<Ident>()?;
+        let first_ty = input.parse::<Ident>()?;
+        let ty;
+        let is_grid;
+        if first_ty == "Grid" {
+            is_grid = true;
+            input.parse::<Token![<]>()?;
+            ty = input.parse::<Ident>()?;
+        } else {
+            is_grid = false;
+            ty = first_ty;
+        }
         let content;
         syn::parenthesized!(content in input);
         let args = content.parse_terminated(Expr::parse, Token![,])?;
+        if is_grid {
+            input.parse::<Token![>]>()?;
+        }
         Ok(DomainStream::DomainToken(DomainToken {
             args,
             ty,
             is_nodomain: false,
+            is_grid,
         }))
     }
 }
@@ -111,6 +126,7 @@ pub struct FullDomainToken {
     pub args: Punctuated<Expr, syn::token::Comma>,
     pub ty: Ident,
     pub is_nodomain: bool,
+    pub is_grid: bool,
 }
 
 /// A complete parsed variable definition line from the `hpo!` macro.
@@ -152,6 +168,7 @@ impl Parse for LineStream {
                 args: Punctuated::new(),
                 ty: Ident::new("NoDomain", second_bar.span()),
                 is_nodomain: true,
+                is_grid: false,
             },
         };
 
@@ -159,11 +176,13 @@ impl Parse for LineStream {
             args: obj_domain.args,
             ty: obj_domain.ty,
             is_nodomain: obj_domain.is_nodomain,
+            is_grid: obj_domain.is_grid,
         };
         let opt_tokens = FullDomainToken {
             args: opt_domain.args,
             ty: opt_domain.ty,
             is_nodomain: opt_domain.is_nodomain,
+            is_grid: false,
         };
 
         Ok(LineStream {
@@ -185,6 +204,7 @@ struct VarInfo {
     ty_opt: Ident,
     args_opt: Punctuated<Expr, syn::token::Comma>,
     is_nodomain: bool,
+    _is_grid: bool,
 }
 
 /// Processed variable information ready for code generation.
@@ -205,6 +225,7 @@ type ParsedSpOut = (
     std::vec::Vec<proc_macro2::TokenStream>, // Push to Var Vec,
     Vec<proc_macro2::Ident>,                 // Vec of Obj types,
     Vec<usize>,                              // Vec of repeats for each var,
+    bool,                                    // Is a grid domain
 );
 
 /// Parses all variable definitions and generates searchspace components.
@@ -230,6 +251,8 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     let mut tobj_unique = HashSet::new();
     let mut topt_unique = HashSet::new();
     let mut num_nodomain = 0;
+    let is_grid = vartokens[0].obj_part.is_grid;
+
     for line in vartokens {
         // Parse linestream
         if name_unique.contains(&line.name_part.id) {
@@ -243,6 +266,14 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         // Extract Obj domain information
         let obj_args = line.obj_part.args;
         let obj_ty = line.obj_part.ty;
+        let obj_is_grid = line.obj_part.is_grid;
+        
+        if obj_is_grid ^ is_grid{ // XOR to ensure all domains are either Grid or not
+            return Err(syn::Error::new(
+                line.name_part.id.span(),
+                "Cannot mix Grid and usual domains.",
+            ));
+        }
 
         // Extract Opt domain information
         // If None then copy Obj
@@ -250,6 +281,12 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let opt_ty = line.opt_part.ty;
         // Determine if there is at least 1 NoDomain
         let is_nodomain = line.opt_part.is_nodomain;
+        if obj_is_grid && !is_nodomain {
+            return Err(syn::Error::new(
+                line.name_part.id.span(),
+                "Grid domains on Obj side cannot be mixed with other domain on Opt side.",
+            ));
+        }
         // Push everything into HashmMaps
         tobj_unique.insert(obj_ty.clone());
         if is_nodomain {
@@ -267,6 +304,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
             ty_opt: opt_ty,
             args_opt: opt_args,
             is_nodomain,
+            _is_grid: obj_is_grid,
         };
         tobj_vec.push(obj_ty);
         varinfo.push(varinfostruct);
@@ -289,12 +327,22 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
 
     if tobj_unique.len() > 1 {
         is_mixedobj = true;
-        ident_mixed_obj_str = String::from("Mixed");
-        ident_mixedt_obj_str = String::from("MixedTypeDom");
+        if is_grid {
+            ident_mixed_obj_str = String::from("Grid");
+            ident_mixedt_obj_str = String::from("MixedTypeDom");
+        } else {
+            ident_mixed_obj_str = String::from("Mixed");
+            ident_mixedt_obj_str = String::from("MixedTypeDom");
+        }
     } else {
         let unique_type = tobj_unique.iter().next().unwrap().to_string();
-        ident_mixed_obj_str = unique_type.clone();
-        ident_mixedt_obj_str = unique_type.clone();
+        if is_grid {
+            ident_mixed_obj_str = String::from("Grid");
+            ident_mixedt_obj_str = String::from("MixedTypeDom");
+        } else{
+            ident_mixed_obj_str = unique_type.clone();
+            ident_mixedt_obj_str = unique_type.clone();
+        }
     }
 
     // Determine if Opt is Mixed or not
@@ -330,9 +378,12 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let is_nodomain = vinf.is_nodomain;
 
         // OBJ PART
-        if is_mixedobj {
+        if is_grid{
+            wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::grid(#args_obj))};
+        }
+        else if is_mixedobj {
             wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::new(#args_obj))};
-        } else {
+        } else{
             wrapped_domobj = quote! {#ty_obj::new(#args_obj)};
         }
 
@@ -404,6 +455,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         push_statements,
         tobj_vec,
         var_reps,
+        is_grid,
     ))
 }
 
@@ -442,24 +494,46 @@ pub fn get_sp_tokens(
     ident_mixed_obj: proc_macro2::Ident,
     ident_mixed_opt: proc_macro2::Ident,
     push_statements: Vec<proc_macro2::TokenStream>,
+    is_grid:bool,
 ) -> syn::Result<TokenStream> {
-    Ok(quote! {
+    if is_grid{
+        Ok(quote! {
 
-        use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
+            use tantale::core::domain::{Grid,MixedTypeDom,Domain,NoDomain,onto::Onto};
 
-        pub type ObjType = #ident_mixed_obj;
-        pub type OptType = #ident_mixed_opt;
+            pub type ObjType = #ident_mixed_obj;
+            pub type OptType = #ident_mixed_opt;
 
-        pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
-        {
-            #(#push_statements)*
+            pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
+            {
+                #(#push_statements)*
 
-            tantale::core::searchspace::Sp{
-                var : variables.into(),
+                tantale::core::searchspace::Sp{
+                    var : variables.into(),
+                }
             }
         }
+        .into())
     }
-    .into())
+    else{
+        Ok(quote! {
+
+            use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
+
+            pub type ObjType = #ident_mixed_obj;
+            pub type OptType = #ident_mixed_opt;
+
+            pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
+            {
+                #(#push_statements)*
+
+                tantale::core::searchspace::Sp{
+                    var : variables.into(),
+                }
+            }
+        }
+        .into())
+    }
 }
 
 /// Entry point for the `hpo!` procedural macro.
@@ -485,7 +559,7 @@ pub fn hpo(input: TokenStream) -> TokenStream {
 
     let lines: Vec<LineStream> = lines.into_iter().collect();
 
-    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _) = parse_sp(lines).unwrap();
+    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _,is_grid) = parse_sp(lines).unwrap();
 
-    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements).unwrap()
+    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, is_grid).unwrap()
 }
