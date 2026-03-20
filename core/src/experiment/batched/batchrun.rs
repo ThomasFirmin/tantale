@@ -3,9 +3,7 @@ use crate::{
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
-        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate,
-        MonoExperiment, OutBatchEvaluate, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment,
-        basics::IdxMapPool,
+        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment, basics::{IdxMapPool, LoadPool, Pool}
     },
     objective::{Objective, Outcome, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
@@ -88,12 +86,13 @@ where
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
-    fn new(
+    fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        _pool_mode: PoolMode,
     ) -> Self {
         let (recorder, checkpointer) = saver;
         let (searchspace, codomain) = space;
@@ -122,16 +121,18 @@ where
             checkpointer,
             accumulator,
             evaluator: None,
+            pool_mode: PoolMode::InMemory,
         }
     }
 
     /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
-    fn load(
+    fn load_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
+        _pool_mode: PoolMode,
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
@@ -159,6 +160,7 @@ where
             checkpointer: Some(checkpointer),
             accumulator,
             evaluator: Some(evaluator),
+            pool_mode: PoolMode::InMemory,
         }
     }
 
@@ -334,7 +336,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
             Op::Info,
             Scp::SolShape,
             FnState,
-            IdxMapPool<SId, FnState, Check::FnStateCheck>,
+            Pool<Check::FnStateCheck,FnState,SId>,
         >,
     >
 where
@@ -366,12 +368,13 @@ where
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
-    fn new(
+    fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
     ) -> Self {
         let (recorder, checkpointer) = saver;
         let (searchspace, codomain) = space;
@@ -400,6 +403,7 @@ where
             checkpointer,
             accumulator,
             evaluator: None,
+            pool_mode,
         }
     }
 
@@ -407,10 +411,11 @@ where
     /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
-    fn load(
+    fn load_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
@@ -425,10 +430,20 @@ where
             _,
             _,
             _,
-            IdxMapPool<SId, FnState, Check::FnStateCheck>,
+            Pool<Check::FnStateCheck, FnState, SId>,
         > = checkpointer.load_evaluate().unwrap();
-        let fn_states = fn_check.load_all_func_state();
-        evaluator.pool = IdxMapPool::from_iter(fn_states);
+
+        match pool_mode {
+            PoolMode::InMemory => {
+                let fn_states = fn_check.load_all_func_state();
+                let mut pool = IdxMapPool::from_iter(fn_states);
+                pool.check = Some(fn_check);
+                evaluator.pool = Pool::IdxMap(pool);
+            }
+            PoolMode::Persistent => {
+                evaluator.pool = Pool::Load(LoadPool::new(fn_check));
+            }
+        }
 
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
@@ -451,6 +466,7 @@ where
             checkpointer: Some(checkpointer),
             accumulator,
             evaluator: Some(evaluator),
+            pool_mode,
         }
     }
 
@@ -469,10 +485,16 @@ where
                     .checkpointer
                     .as_ref()
                     .map(|c| c.new_func_state_checkpointer());
-                FidBatchEvaluator::new(
-                    self.optimizer.first_step(&self.searchspace),
-                    IdxMapPool::new(fn_check),
-                )
+                let batch = self.optimizer.first_step(&self.searchspace);
+                match self.pool_mode {
+                    PoolMode::InMemory => {
+                        let pool = IdxMapPool::new(fn_check);
+                        FidBatchEvaluator::new(batch, Pool::IdxMap(pool))
+                    }
+                    PoolMode::Persistent => {
+                        FidBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check.unwrap())))
+                    }
+                }
             }
         };
 
@@ -669,12 +691,13 @@ where
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     /// It also uses an internal [`ThrBatchEvaluator`] to evaluate a batch of [`Uncomputed`] in parallel.
-    fn new(
+    fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        _pool_mode: PoolMode,
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, checkpointer) = saver;
@@ -703,16 +726,18 @@ where
             checkpointer,
             accumulator,
             evaluator: None,
+            pool_mode: PoolMode::InMemory,
         }
     }
 
     /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
-    fn load(
+    fn load_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
+        _pool_mode: PoolMode,
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
@@ -745,6 +770,7 @@ where
             checkpointer: Some(checkpointer),
             accumulator,
             evaluator: Some(evaluator),
+            pool_mode: PoolMode::InMemory,
         }
     }
 
@@ -926,7 +952,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
             Op::Info,
             Scp::SolShape,
             FnState,
-            IdxMapPool<SId, FnState, Check::FnStateCheck>,
+            Pool<Check::FnStateCheck, FnState, SId>,
         >,
     >
 where
@@ -965,12 +991,13 @@ where
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     /// It also uses an internal [`FidThrBatchEvaluator`] to evaluate a batch of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`]
     /// in parallel.
-    fn new(
+    fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
     ) -> Self {
         let (recorder, checkpointer) = saver;
         let (searchspace, codomain) = space;
@@ -999,6 +1026,7 @@ where
             checkpointer,
             accumulator,
             evaluator: None,
+            pool_mode,
         }
     }
 
@@ -1006,10 +1034,11 @@ where
     /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
-    fn load(
+    fn load_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
     ) -> Self {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
@@ -1019,8 +1048,18 @@ where
         let opt_state = checkpointer.load_optimizer_thr().unwrap();
         let stop = checkpointer.load_stop_thr().unwrap();
         let mut evaluator: FidThrBatchEvaluator<_,_,_,_,_,_> = checkpointer.load_all_evaluate_thr().unwrap().pop().expect("Only one evaluator state should be within the checkpoint for batched ThrExperiment");
-        let states = fn_check.load_all_func_state();
-        evaluator.pool = Arc::new(Mutex::new(IdxMapPool::from_iter(states)));
+        let pool = match pool_mode {
+            PoolMode::InMemory => {
+                let fn_states = fn_check.load_all_func_state();
+                let mut pool = IdxMapPool::from_iter(fn_states);
+                pool.check = Some(fn_check);
+                Arc::new(Mutex::new(Pool::IdxMap(pool)))
+            },
+            PoolMode::Persistent => {
+                Arc::new(Mutex::new(Pool::Load(LoadPool::new(fn_check))))
+            },
+        };
+        evaluator.pool = pool;
 
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
@@ -1043,6 +1082,7 @@ where
             checkpointer: Some(checkpointer),
             accumulator,
             evaluator: Some(evaluator),
+            pool_mode,
         }
     }
     /// Run the [`ThrExperiment`], performing optimization, using a [`BatchOptimizer`], until the [`Stop`] condition is met.
@@ -1065,10 +1105,16 @@ where
                     .checkpointer
                     .as_ref()
                     .map(|c| c.new_func_state_checkpointer());
-                FidThrBatchEvaluator::new(
-                    self.optimizer.first_step(&scp),
-                    IdxMapPool::new(fn_check),
-                )
+                let batch = self.optimizer.first_step(&scp);
+                match self.pool_mode {
+                    PoolMode::InMemory => {
+                        let pool = IdxMapPool::new(fn_check);
+                        FidThrBatchEvaluator::new(batch, Pool::IdxMap(pool))
+                    }
+                    PoolMode::Persistent => {
+                        FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check.unwrap())))
+                    }
+                }
             }
         };
 
@@ -1271,13 +1317,14 @@ where
     /// It also uses an internal [`BatchEvaluator`] to evaluate a batch of [`Uncomputed`] in parallel across the distributed processes.
     /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
     /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
-    fn new(
+    fn new_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        _pool_mode: PoolMode,
     ) -> MasterWorker<
         'a,
         Self,
@@ -1320,6 +1367,7 @@ where
                 checkpointer,
                 accumulator,
                 evaluator: None,
+                pool_mode: PoolMode::InMemory,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -1335,11 +1383,12 @@ where
     /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
     ///
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
-    fn load(
+    fn load_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
+        _pool_mode: PoolMode,
     ) -> MasterWorker<
         'a,
         Self,
@@ -1381,6 +1430,7 @@ where
                 checkpointer: Some(checkpointer),
                 accumulator,
                 evaluator: Some(evaluator),
+                pool_mode: PoolMode::InMemory,
             })
         } else {
             <Check as DistCheckpointer>::no_check_init(proc);
@@ -1615,7 +1665,7 @@ where
     /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
     /// Here a [`FidWorker`] is used with an inner [`Stepped`] and [`MPIProcess`].
     /// It handles internal [`FuncState`] management for fidelity-based evaluations.
-    type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check>;
+    type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check, Pool<Check::FnStateCheck, FnState, SId>>;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
     /// [`Codomain`](crate::Codomain), [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional
@@ -1625,13 +1675,14 @@ where
     /// in parallel across the distributed processes.
     /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
     /// Other processes will use a [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer) version of the [`DistCheckpointer`].
-    fn new(
+    fn new_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
     ) -> MasterWorker<
         'a,
         Self,
@@ -1674,17 +1725,34 @@ where
                 checkpointer,
                 accumulator,
                 evaluator: None,
+                pool_mode,
             })
         } else {
-            let check = match checkpointer {
+            let (check, fncheck) = match checkpointer {
                 Some(c) => {
                     let mut wc = c.get_check_worker(proc);
                     wc.init(proc);
-                    Some(wc)
+                    let fncheck = wc.new_func_state_checkpointer();
+                    (Some(wc), Some(fncheck))
                 }
-                None => None,
+                None => (None, None),
             };
-            MasterWorker::Worker(FidWorker::new(objective, check, proc))
+            let worker= match (pool_mode, fncheck) {
+                (PoolMode::InMemory, Some(fc)) => {
+                    let pool = IdxMapPool::new(Some(fc));
+                    FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
+                },
+                (PoolMode::Persistent, Some(fc)) => {
+                    let pool = LoadPool::new(fc);
+                    FidWorker::new(proc, objective, Pool::Load(pool), check)
+                },
+                (PoolMode::InMemory, None) => {
+                    let pool = IdxMapPool::new(None);
+                    FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
+                },
+                (PoolMode::Persistent, None) => panic!("Persistent pool mode requires a function state checkpointer."),
+            };
+            MasterWorker::Worker(worker)
         }
     }
 
@@ -1699,11 +1767,12 @@ where
     ///
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment, within the
     /// corresponding [`FidWorker`]s.
-    fn load(
+    fn load_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
     ) -> MasterWorker<
         'a,
         Self,
@@ -1744,14 +1813,28 @@ where
                 checkpointer: Some(checkpointer),
                 accumulator,
                 evaluator: Some(evaluator),
+                pool_mode,
             })
         } else {
             let mut check = checkpointer.get_check_worker(proc);
             check.before_load(proc);
-            let state = check.load(proc.rank).unwrap();
-            let mut w = FidWorker::new(objective, Some(check), proc);
-            w.state = state;
-            MasterWorker::Worker(w)
+            // There is no state for FidWorker struct, pool is saved appart
+            let fnstatecheck = check.new_func_state_checkpointer();
+
+            let pool = match pool_mode {
+                PoolMode::InMemory => {
+                    let fn_states = fnstatecheck.load_all_func_state();
+                    let mut pool = IdxMapPool::from_iter(fn_states);
+                    pool.check = Some(fnstatecheck);
+                    Pool::IdxMap(pool)
+                }
+                PoolMode::Persistent => {
+                    Pool::Load(LoadPool::new(fnstatecheck))
+                }
+            };
+            check.after_load(proc);
+            let worker = FidWorker::new(proc, objective, pool, Some(check));
+            MasterWorker::Worker(worker)
         }
     }
 

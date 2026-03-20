@@ -296,10 +296,10 @@ pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
-pub use experiment::{CompAcc, MonoExperiment, Runable, ThrExperiment, mono, threaded};
+pub use experiment::{CompAcc, MonoExperiment, Runable, ThrExperiment, mono, threaded, mono_with_pool, threaded_with_pool, PoolMode, Pool};
 #[cfg(feature = "mpi")]
 pub use experiment::{
-    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, mpi::utils::MPIProcess,
+    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, distributed_with_pool, mpi::utils::MPIProcess,
     mpi::worker::Worker,
 };
 

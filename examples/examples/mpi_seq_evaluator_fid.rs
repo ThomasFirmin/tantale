@@ -1,5 +1,7 @@
 use mpi::traits::Communicator;
 use tantale::algos::RandomSearch;
+use tantale::core::checkpointer::NoFuncStateCheck;
+use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::{
     Codomain, FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
     checkpointer::NoCheck,
@@ -118,7 +120,7 @@ fn main() {
     let proc = MPIProcess::new();
 
     if proc.rank != 0 {
-        let wkr = FidWorker::new(sp_evaluator::get_function(), None, &proc);
+        let wkr = FidWorker::new(&proc, sp_evaluator::get_function(), Pool::IdxMap(IdxMapPool::new(None)), None);
         <FidWorker<
             '_,
             SId,
@@ -126,6 +128,7 @@ fn main() {
             FidOutEvaluator,
             FnState,
             NoCheck,
+            Pool<NoFuncStateCheck,FnState, SId>
         > as Worker<SId>>::run(wkr);
     } else {
         // Define send/rec utilitaries and parameters

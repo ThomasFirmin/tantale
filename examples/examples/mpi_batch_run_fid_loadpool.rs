@@ -1,7 +1,8 @@
 use tantale::algos::{BatchRandomSearch, random_search};
+use tantale::core::experiment::{PoolMode, distributed_with_pool};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
-    experiment::{self, distributed, mpi::utils::MPIProcess},
+    experiment::{self, mpi::utils::MPIProcess},
     load,
     stop::Calls,
 };
@@ -227,39 +228,38 @@ fn main() {
     let proc = MPIProcess::new();
 
     if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_batch_run_fid".into()));
-        let _clean = Cleaner("tmp_test_mpi_batch_run_fid".into());
+        drop(Cleaner("tmp_test_mpi_batch_run_fid_loadpool".into()));
+        let _clean = Cleaner("tmp_test_mpi_batch_run_fid_loadpool".into());
     }
-
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
     let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
     exp.run();
 
     if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run_fid", 50);
+        run_reader("tmp_test_mpi_batch_run_fid_loadpool", 50);
     }
-
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(
         distributed,
+        PoolMode::Persistent,
         &proc,
         BatchRandomSearch,
         Calls,
@@ -267,6 +267,7 @@ fn main() {
         obj,
         (rec, check)
     );
+
     if proc.rank == 0 {
         match exp {
             experiment::MasterWorker::Master(mut e) => {
@@ -288,12 +289,13 @@ fn main() {
     let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let obj = Stepped::new(func);
 
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(
         distributed,
+        PoolMode::Persistent,
         &proc,
         BatchRandomSearch,
         Calls,
@@ -302,7 +304,7 @@ fn main() {
         (rec, check)
     );
     if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run_fid", 100);
+        run_reader("tmp_test_mpi_batch_run_fid_loadpool", 100);
         match exp {
             experiment::MasterWorker::Master(e) => {
                 assert!(e.stop.0 >= 100, "Number of calls is wrong");

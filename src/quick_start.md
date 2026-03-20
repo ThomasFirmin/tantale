@@ -360,3 +360,25 @@ The following example uses 4 distributed processes:
 ```console
 foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
 ```
+
+### Managing in-memory function states for multi-fidelity optimization
+
+For multi-fidelity optimization, [`Stepped`](core::Stepped) functions are used. Such a mode implies managing [`FuncState`](core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](core::Pool) of [`FuncState`](core::FuncState) is dedicated to retrieve and remove these states. 
+In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](core::FuncState)s from volatile or persitent memory using [`PoolMode`](core::PoolMode). To do so alternative experiment constructor and loader functions are available:
+```rust,ignore
+let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+// When the `mpi` feature flag is used
+let exp = distributed_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+```
+Moreover, the `load!` macro also has alternative mode:
+```rust,ignore
+load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
+load!(threaded, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
+// When the `mpi` feature flag is used
+load!(distributed, PoolMode::Persistent, mpi_proc, OptimizerType, StopType, space, objective, saver)  // MPI feature only
+```
+
+#### Note
+
+By default [`PoolMode::InMemory`](core::PoolMode::InMemory) is used to keep [`FuncState`](core::FuncState) within the volotile memory.
