@@ -62,4 +62,4 @@ tmp_*/
 
 # Rust
 /target
-.lock
+*.lock

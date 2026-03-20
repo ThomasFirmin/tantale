@@ -109,6 +109,7 @@ where
     /// let msg = MyMsg { data: 42 };
     /// let bytes = msg.to_bytes(standard());
     /// let decoded_msg = MyMsg::from_bytes(bytes, standard());
+    /// let msg = MyMsg { data: 42 };
     /// assert_eq!(msg.data, decoded_msg.data);
     /// ```
     fn from_bytes(raw: Vec<u8>, config: Configuration) -> Self {
