@@ -120,7 +120,12 @@ fn main() {
     let proc = MPIProcess::new();
 
     if proc.rank != 0 {
-        let wkr = FidWorker::new(&proc, sp_evaluator::get_function(), Pool::IdxMap(IdxMapPool::new(None)), None);
+        let wkr = FidWorker::new(
+            &proc,
+            sp_evaluator::get_function(),
+            Pool::IdxMap(IdxMapPool::new(None)),
+            None,
+        );
         <FidWorker<
             '_,
             SId,
@@ -128,7 +133,7 @@ fn main() {
             FidOutEvaluator,
             FnState,
             NoCheck,
-            Pool<NoFuncStateCheck,FnState, SId>
+            Pool<NoFuncStateCheck, FnState, SId>,
         > as Worker<SId>>::run(wkr);
     } else {
         // Define send/rec utilitaries and parameters

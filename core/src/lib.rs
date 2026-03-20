@@ -1,5 +1,3 @@
-//! # Core
-//!
 //! Tantale core contains the foundational abstractions and building blocks used
 //! throughout the library. It defines the modeling layer (domains, variables,
 //! search spaces, solutions), the optimization layer (objectives, optimizers,
@@ -257,14 +255,14 @@ pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Criteria, Domain, FidCriteria, Int, LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed,
-    MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single,
-    SingleCodomain, Unit, Dominate, Grid, GridDom, GridInt, GridNat, GridReal
+    Criteria, Domain, Dominate, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int,
+    LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
+    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, Unit,
 };
 
 pub mod sampler;
 pub use sampler::{
-    Bernoulli, BoolDistribution, BoundedDistribution, Sampler, Uniform, GridDomDistribution,
+    Bernoulli, BoolDistribution, BoundedDistribution, GridDomDistribution, Sampler, Uniform,
 };
 
 pub mod variable;
@@ -296,11 +294,14 @@ pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
-pub use experiment::{CompAcc, MonoExperiment, Runable, ThrExperiment, mono, threaded, mono_with_pool, threaded_with_pool, PoolMode, Pool};
+pub use experiment::{
+    CompAcc, MonoExperiment, Pool, PoolMode, Runable, ThrExperiment, mono, mono_with_pool,
+    threaded, threaded_with_pool,
+};
 #[cfg(feature = "mpi")]
 pub use experiment::{
-    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, distributed_with_pool, mpi::utils::MPIProcess,
-    mpi::worker::Worker,
+    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, distributed_with_pool,
+    mpi::utils::MPIProcess, mpi::worker::Worker,
 };
 
 pub mod recorder;
@@ -312,5 +313,3 @@ pub mod checkpointer;
 #[cfg(feature = "mpi")]
 pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
-
-

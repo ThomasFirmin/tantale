@@ -43,8 +43,6 @@ pub fn get_domain_gridint() -> GridInt {
     GridInt::new([-50_i64, -25, 0, 25, 50], Uniform)
 }
 
-
-
 pub fn get_domain_real_2() -> Real {
     Real::new(80.0, 100.0, Uniform)
 }
@@ -81,8 +79,6 @@ pub fn get_domain_gridint_2() -> GridInt {
     GridInt::new([-500_i64, -250, 250, 500, 750], Uniform)
 }
 
-
-
 pub fn get_domain_base_real(domain: Real, input: f64) -> (Mixed, MixedTypeDom) {
     (Mixed::Real(domain), MixedTypeDom::Real(input))
 }
@@ -118,8 +114,6 @@ pub fn get_domain_base_gridnat(domain: GridNat, input: u64) -> (Mixed, MixedType
 pub fn get_domain_base_gridint(domain: GridInt, input: i64) -> (Mixed, MixedTypeDom) {
     (Mixed::GridInt(domain), MixedTypeDom::GridInt(input))
 }
-
-
 
 pub fn get_domain_grid_cat(domain: Cat, input: String) -> (Grid, MixedTypeDom) {
     (Grid::Cat(domain), MixedTypeDom::Cat(input))

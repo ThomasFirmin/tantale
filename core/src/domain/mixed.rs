@@ -1,7 +1,15 @@
 use crate::{
-    Cat, GridDom, GridInt, GridNat, GridReal, domain::{
-        Domain, PreDomain, TypeDom, bool::Bool, bounded::{Int, Nat, Real}, grid::GridBounds, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable
+    Cat, GridDom, GridInt, GridNat, GridReal,
+    domain::{
+        Domain, PreDomain, TypeDom,
+        bool::Bool,
+        bounded::{Int, Nat, Real},
+        grid::GridBounds,
+        onto::{Onto, OntoDom},
+        unit::Unit,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
 };
 
 use rand::Rng;
@@ -156,7 +164,10 @@ impl Onto<Real> for Mixed {
             (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
             (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
             (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Real is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Real is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
@@ -190,7 +201,10 @@ impl Onto<Nat> for Mixed {
             (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
             (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
             (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Nat is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Nat is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
@@ -224,7 +238,10 @@ impl Onto<Int> for Mixed {
             (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
             (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
             (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
@@ -257,7 +274,10 @@ impl Onto<Unit> for Mixed {
             (Self::GridReal(d), MixedTypeDom::GridReal(i)) => d.onto(i, target),
             (Self::GridNat(d), MixedTypeDom::GridNat(i)) => d.onto(i, target),
             (Self::GridInt(d), MixedTypeDom::GridInt(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Unit is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Unit is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
@@ -286,7 +306,10 @@ impl Onto<Bool> for Mixed {
             (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
             (Self::Int(d), MixedTypeDom::Int(i)) => d.onto(i, target),
             (Self::Unit(d), MixedTypeDom::Unit(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
@@ -309,7 +332,11 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Mixed`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`GridDom`] domain.
-    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &GridDom<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         match (self, item) {
             (Self::Real(d), MixedTypeDom::Real(i)) => d.onto(i, target),
             (Self::Nat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
@@ -319,11 +346,14 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
             (Self::GridReal(d), MixedTypeDom::Real(i)) => d.onto(i, target),
             (Self::GridNat(d), MixedTypeDom::Nat(i)) => d.onto(i, target),
             (Self::GridInt(d), MixedTypeDom::Int(i)) => d.onto(i, target),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Int is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }
-impl<Out:GridBounds> OntoDom<GridDom<Out>> for Mixed {}
+impl<Out: GridBounds> OntoDom<GridDom<Out>> for Mixed {}
 
 impl Onto<Mixed> for Mixed {
     type TargetItem = TypeDom<Mixed>;
@@ -356,7 +386,10 @@ impl Onto<Mixed> for Mixed {
                 (Self::GridReal(d), MixedTypeDom::GridReal(item)) => d.onto(item, target),
                 (Self::GridNat(d), MixedTypeDom::GridNat(item)) => d.onto(item, target),
                 (Self::GridInt(d), MixedTypeDom::GridInt(item)) => d.onto(item, target),
-                _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.", item, self))),
+                _ => Err(OntoError(format!(
+                    "Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.",
+                    item, self
+                ))),
             }
         }
     }

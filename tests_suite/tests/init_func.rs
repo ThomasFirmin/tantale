@@ -575,13 +575,9 @@ pub mod sp_evaluator {
     );
 }
 
-
 pub mod sp_grid_evaluator {
     use super::{Neuron, OutEvaluator};
-    use tantale::core::{
-        Cat, Int, Real,
-        sampler::Uniform,
-    };
+    use tantale::core::{Cat, Int, Real, sampler::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -652,14 +648,9 @@ pub mod sp_evaluator_fid {
     );
 }
 
-
 pub mod sp_grid_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron};
-    use tantale::core::{
-        Cat, Int, Real,
-        objective::Step,
-        sampler::Uniform,
-    };
+    use tantale::core::{Cat, Int, Real, objective::Step, sampler::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -690,7 +681,6 @@ pub mod sp_grid_evaluator_fid {
         }
     );
 }
-
 
 pub mod sp_ms_nosamp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
@@ -1063,7 +1053,7 @@ pub mod sp_sm_samp_noright_fid {
 pub struct MoFidOutEvaluator {
     pub obj1: f64,
     pub obj2: f64,
-    info:f64,
+    info: f64,
     pub fid: Step,
 }
 
@@ -1116,13 +1106,8 @@ pub mod sp_evaluator_sh {
     );
 }
 
-
-
-
-
-
 pub mod sp_evaluator_mo {
-    use super::{MoFidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
+    use super::{FnState, MoFidOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
@@ -1132,24 +1117,24 @@ pub mod sp_evaluator_mo {
 
     pub const SP_SIZE: usize = 14;
 
-    pub fn random_codom()-> tantale::core::domain::codomain::ElemMultiCodomain{
+    pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
-        match idx{
-            0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0,5.0]),
-            1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,4.5]),
-            2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,4.0]),
-            3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0,3.0]),
-            4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0,1.0]),
-            5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5,4.0]),
-            6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,3.5]),
-            7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,3.0]),
-            8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0,2.0]),
-            9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0,0.0]),
-            10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0,3.5]),
-            11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0,3.0]),
-            12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0,2.0]),
-            13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5,1.0]),
-            14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0,0.0]),
+        match idx {
+            0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 5.0]),
+            1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 4.5]),
+            2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 4.0]),
+            3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 3.0]),
+            4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 1.0]),
+            5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5, 4.0]),
+            6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 3.5]),
+            7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 3.0]),
+            8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 2.0]),
+            9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 0.0]),
+            10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 3.5]),
+            11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0, 3.0]),
+            12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 2.0]),
+            13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5, 1.0]),
+            14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 0.0]),
             _ => unreachable!("Index out of bounds for random codomain generation"),
         }
     }

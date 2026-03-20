@@ -1,11 +1,11 @@
-//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for 
+//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for
 //! multi-fidelity hyperparameter optimization.
 //!
 //! # Overview
 //!
-//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s 
+//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
 //! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive 
+//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive
 //! halving strategy of eliminating poor performers at increasing fidelity levels.
 //!
 //! # Pseudo-code
@@ -58,7 +58,7 @@
 //!
 //! # Note
 //!
-//! Solutions are not discarded by default. 
+//! Solutions are not discarded by default.
 //! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
 //!
 //! # References
@@ -191,7 +191,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///  |      /            \        |    to worker
 ///  |  No /  At lowest   \ Yes +--------------+
 ///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random config | 
+///         \            /      |random config |
 ///          +----------+       +--------------+  
 /// ```
 ///

@@ -858,11 +858,11 @@ impl Dominate for ElemMultiCodomain {
         }
         strictly_better
     }
-    
+
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
-    
+
     fn get_max_objectives(&self) -> usize {
         self.value.len()
     }
@@ -962,11 +962,11 @@ impl Dominate for ElemCostMultiCodomain {
         }
         strictly_better
     }
-    
+
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
-    
+
     fn get_max_objectives(&self) -> usize {
         self.value.len()
     }
@@ -1085,11 +1085,11 @@ impl Dominate for ElemConstMultiCodomain {
             }
         }
     }
-    
+
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
-    
+
     fn get_max_objectives(&self) -> usize {
         self.value.len()
     }
@@ -1221,7 +1221,7 @@ impl Dominate for ElemCostConstMultiCodomain {
             }
         }
     }
-    
+
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
@@ -1229,7 +1229,6 @@ impl Dominate for ElemCostConstMultiCodomain {
     fn get_max_objectives(&self) -> usize {
         self.value.len()
     }
-    
 }
 
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {

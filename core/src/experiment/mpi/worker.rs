@@ -1,9 +1,10 @@
 use crate::{
     FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{basics::FuncStatePool, mpi::utils::{
-        DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg,
-    }},
+    experiment::{
+        basics::FuncStatePool,
+        mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg},
+    },
     objective::{Step, outcome::FuncState},
 };
 
@@ -51,19 +52,32 @@ impl WorkerState for NoWState {}
     serialize = "SolId: Serialize",
     deserialize = "SolId: for<'a> Deserialize<'a>"
 ))]
-pub struct FidWState<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>>{
+pub struct FidWState<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> {
     #[serde(skip)]
     pub pool: FuncPool,
-    _id : PhantomData<SolId>,
+    _id: PhantomData<SolId>,
     _fnstate: PhantomData<FnState>,
 }
-impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> WorkerState for FidWState<SolId, FnState, FuncPool> {}
-impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> FidWState<SolId, FnState, FuncPool> {
+impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> WorkerState
+    for FidWState<SolId, FnState, FuncPool>
+{
+}
+impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>>
+    FidWState<SolId, FnState, FuncPool>
+{
     pub fn new_empty() -> Self {
-        FidWState { pool: FuncPool::default(), _id: PhantomData, _fnstate: PhantomData }
+        FidWState {
+            pool: FuncPool::default(),
+            _id: PhantomData,
+            _fnstate: PhantomData,
+        }
     }
     pub fn new(pool: FuncPool) -> Self {
-        FidWState { pool, _id: PhantomData, _fnstate: PhantomData }
+        FidWState {
+            pool,
+            _id: PhantomData,
+            _fnstate: PhantomData,
+        }
     }
 }
 
@@ -154,7 +168,8 @@ where
     pub check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
 }
 
-impl<'a, SolId, Raw, Out, FnState, Check, FnPool> FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
+impl<'a, SolId, Raw, Out, FnState, Check, FnPool>
+    FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
@@ -170,8 +185,13 @@ where
         pool: FnPool,
         check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
     ) -> Self {
-        let state =FidWState::new(pool);
-        FidWorker { proc, objective, state, check }
+        let state = FidWState::new(pool);
+        FidWorker {
+            proc,
+            objective,
+            state,
+            check,
+        }
     }
 }
 
@@ -228,7 +248,8 @@ where
                     Step::Partially(_) => {
                         let state = self.state.pool.retrieve(&id);
                         let (out, state) = self.objective.compute(x, fid, state);
-                        if out.get_step().0 > 0 { // if > 0 => Partially
+                        if out.get_step().0 > 0 {
+                            // if > 0 => Partially
                             self.state.pool.insert(id, state);
                         } else {
                             self.state.pool.remove(&id);

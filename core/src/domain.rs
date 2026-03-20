@@ -33,8 +33,8 @@
 //!   - [`GridInt`] for discrete integer values
 //!   - [`GridNat`] for discrete natural values
 //!   - [`Cat`] for discrete categorical values
-//! 
-//! 
+//!
+//!
 //!
 //! Some specific traits such as:
 //! - [`Onto`] for mapping an element from one domain to another domain
@@ -240,7 +240,7 @@ pub mod bool;
 pub use bool::Bool;
 
 pub mod grid;
-pub use grid::{Grid, GridDom, GridInt, GridNat, GridReal, Cat};
+pub use grid::{Cat, Grid, GridDom, GridInt, GridNat, GridReal};
 
 pub mod mixed;
 pub use mixed::{Mixed, MixedTypeDom};
@@ -251,6 +251,6 @@ pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Onto, OntoDom};
 pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
-    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
-    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, Dominate,
+    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Dominate,
+    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain,
 };

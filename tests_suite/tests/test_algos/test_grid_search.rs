@@ -1,6 +1,12 @@
-use tantale::{algos::grid_search::GSState, core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain, experiment::{Runable, ThrExperiment, mono, threaded}, load, stop::Calls
-}};
+use tantale::{
+    algos::grid_search::GSState,
+    core::{
+        CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain,
+        experiment::{Runable, ThrExperiment, mono, threaded},
+        load,
+        stop::Calls,
+    },
+};
 
 use tantale::algos::{GridSearch, grid_search};
 

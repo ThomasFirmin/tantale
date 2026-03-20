@@ -80,7 +80,10 @@
 //!
 
 use crate::{
-    Dominate, EvalStep, Multi, OptInfo, Outcome, domain::{Codomain, Domain}, objective::Step, solution::shape::CompPair
+    Dominate, EvalStep, Multi, OptInfo, Outcome,
+    domain::{Codomain, Domain},
+    objective::Step,
+    solution::shape::CompPair,
 };
 
 use serde::{Deserialize, Serialize};
@@ -566,7 +569,7 @@ where
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.y().get_objective_by_index(idx)
     }
-    
+
     fn get_max_objectives(&self) -> usize {
         self.y().get_max_objectives()
     }
@@ -645,7 +648,8 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Dominate for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Dominate
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
 where
     Self: HasY<Cod, Out>,
     Cod: Multi<Out>,
@@ -665,7 +669,7 @@ where
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.y().get_objective_by_index(idx)
     }
-    
+
     fn get_max_objectives(&self) -> usize {
         self.y().get_max_objectives()
     }

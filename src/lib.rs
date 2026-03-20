@@ -35,7 +35,7 @@
 //! - [`sha`](crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization.
 //! - [`asha`](crate::algos::asha) - A simple sequential implementation of the ASHA algorithm for multi-fidelity optimization.
 //! - [`moasha`](crate::algos::moasha) - The multi-objective version of the ASHA algorithm.
-//! - [`hyperband`](crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization. 
+//! - [`hyperband`](crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization.
 //!   It can be combined combined with the SHA or ASHA algorithms.
 //! - More algorithms and extensions of the core library are coming soon.
 //!

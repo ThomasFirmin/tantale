@@ -32,14 +32,18 @@ pub struct MPFnStateCheckpointer {
 impl FuncStateCheckpointer for MPFnStateCheckpointer {
     fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState) {
         let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .path
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         let mut file = File::create(path_ste).unwrap();
         rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
     }
 
     fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<FnState> {
         let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .path
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             let rdr = File::open(&path_ste).unwrap();
             let (id_loaded, func_state): (SolId, FnState) =
@@ -56,7 +60,9 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
 
     fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
         let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self
+            .path
+            .join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             std::fs::remove_file(path_ste).unwrap();
             Ok(true)
@@ -983,7 +989,9 @@ impl WCheckMessagePack {
                 "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
             )
         }
-        let path_check = config.path_work.join(format!("worker_rank{}.mp", proc.rank));
+        let path_check = config
+            .path_work
+            .join(format!("worker_rank{}.mp", proc.rank));
         WCheckMessagePack(path_check)
     }
 }
@@ -1051,11 +1059,9 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
             )))
         }
     }
-    
+
     fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
         let path = self.0.parent().unwrap().to_path_buf();
-        MPFnStateCheckpointer{
-            path,
-        }
+        MPFnStateCheckpointer { path }
     }
 }

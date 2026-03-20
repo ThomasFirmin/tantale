@@ -182,11 +182,11 @@ impl Onto<Mixed> for Bool {
     ///     * if [`Onto::Item`] to be mapped is not into [`Bool`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
-        match target{
-            Mixed::Real(d) => self.onto(item,d).map(MixedTypeDom::Real),
-            Mixed::Nat(d) => self.onto(item,d).map(MixedTypeDom::Nat),
-            Mixed::Int(d) => self.onto(item,d).map(MixedTypeDom::Int),
-            Mixed::Unit(d) => self.onto(item,d).map(MixedTypeDom::Unit),
+        match target {
+            Mixed::Real(d) => self.onto(item, d).map(MixedTypeDom::Real),
+            Mixed::Nat(d) => self.onto(item, d).map(MixedTypeDom::Nat),
+            Mixed::Int(d) => self.onto(item, d).map(MixedTypeDom::Int),
+            Mixed::Unit(d) => self.onto(item, d).map(MixedTypeDom::Unit),
             _ => Err(OntoError(format!("Cannot map Bool to {:?} domain", target))),
         }
     }

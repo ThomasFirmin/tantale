@@ -267,8 +267,9 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let obj_args = line.obj_part.args;
         let obj_ty = line.obj_part.ty;
         let obj_is_grid = line.obj_part.is_grid;
-        
-        if obj_is_grid ^ is_grid{ // XOR to ensure all domains are either Grid or not
+
+        if obj_is_grid ^ is_grid {
+            // XOR to ensure all domains are either Grid or not
             return Err(syn::Error::new(
                 line.name_part.id.span(),
                 "Cannot mix Grid and usual domains.",
@@ -339,7 +340,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         if is_grid {
             ident_mixed_obj_str = String::from("Grid");
             ident_mixedt_obj_str = String::from("MixedTypeDom");
-        } else{
+        } else {
             ident_mixed_obj_str = unique_type.clone();
             ident_mixedt_obj_str = unique_type.clone();
         }
@@ -378,12 +379,11 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let is_nodomain = vinf.is_nodomain;
 
         // OBJ PART
-        if is_grid{
+        if is_grid {
             wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::grid(#args_obj))};
-        }
-        else if is_mixedobj {
+        } else if is_mixedobj {
             wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::new(#args_obj))};
-        } else{
+        } else {
             wrapped_domobj = quote! {#ty_obj::new(#args_obj)};
         }
 
@@ -494,9 +494,9 @@ pub fn get_sp_tokens(
     ident_mixed_obj: proc_macro2::Ident,
     ident_mixed_opt: proc_macro2::Ident,
     push_statements: Vec<proc_macro2::TokenStream>,
-    is_grid:bool,
+    is_grid: bool,
 ) -> syn::Result<TokenStream> {
-    if is_grid{
+    if is_grid {
         Ok(quote! {
 
             use tantale::core::domain::{Grid,MixedTypeDom,Domain,NoDomain,onto::Onto};
@@ -514,8 +514,7 @@ pub fn get_sp_tokens(
             }
         }
         .into())
-    }
-    else{
+    } else {
         Ok(quote! {
 
             use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
@@ -559,7 +558,8 @@ pub fn hpo(input: TokenStream) -> TokenStream {
 
     let lines: Vec<LineStream> = lines.into_iter().collect();
 
-    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _,is_grid) = parse_sp(lines).unwrap();
+    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _, is_grid) =
+        parse_sp(lines).unwrap();
 
     get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, is_grid).unwrap()
 }

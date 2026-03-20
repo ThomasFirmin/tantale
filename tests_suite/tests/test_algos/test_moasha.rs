@@ -1,9 +1,12 @@
-use tantale::{algos::mo::NSGA2Selector, core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig,
-    experiment::{Runable, mono, threaded},
-    load,
-    stop::Calls,
-}};
+use tantale::{
+    algos::mo::NSGA2Selector,
+    core::{
+        CSVRecorder, FolderConfig, MessagePack, SaverConfig,
+        experiment::{Runable, mono, threaded},
+        load,
+        stop::Calls,
+    },
+};
 
 use tantale::algos::{MoAsha, moasha};
 
@@ -78,8 +81,14 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let opt = MoAsha::new(NSGA2Selector,1., 5., 1.61); // log(max/min)
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61); // log(max/min)
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_run").init();
@@ -93,7 +102,13 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let config = FolderConfig::new("tmp_test_moasha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -115,7 +130,13 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let config = FolderConfig::new("tmp_test_moasha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -158,8 +179,14 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let opt = MoAsha::new(NSGA2Selector,1., 5., 1.61);
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61);
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
@@ -173,7 +200,13 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -201,7 +234,13 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain([|o: &MoFidOutEvaluator| o.obj1,|o: &MoFidOutEvaluator| o.obj2].into());
+    let cod = moasha::codomain(
+        [
+            |o: &MoFidOutEvaluator| o.obj1,
+            |o: &MoFidOutEvaluator| o.obj2,
+        ]
+        .into(),
+    );
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

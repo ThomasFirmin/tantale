@@ -2,30 +2,33 @@
 //!
 //! # Overview
 //!
-//! The objective of MO-ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s 
+//! The objective of MO-ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
 //! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving 
+//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving
 //! strategy of eliminating poor performers at increasing fidelity levels.
-//! 
+//!
 //! [`Computed`](tantale_core::Computed) solutions implements the [`Dominate`](tantale_core::Dominate) trait,
-//! allowing [non-dominating sorting](crate::mo::NonDominatedSorting). 
+//! allowing [non-dominating sorting](crate::mo::NonDominatedSorting).
 //!
 //! # Note
 //!
-//! Solutions are not discarded by default. 
+//! Solutions are not discarded by default.
 //! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-//! 
+//!
 //! # References
 //!
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2018)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, MultiCodomain, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
+    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
+    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, SId, Searchspace,
+    SequentialOptimizer, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc,
+    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
 };
 
-use std::cell::RefCell;
 use rand::{SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 
 use crate::mo::CandidateSelector;
 
@@ -67,7 +70,7 @@ where
     SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
-    /// The candidate selection strategy used for promoting candidates between rungs. 
+    /// The candidate selection strategy used for promoting candidates between rungs.
     /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
     pub selector: Selector,
     /// A vector of budget levels corresponding to the halving rounds.
@@ -79,7 +82,8 @@ where
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
 }
-impl<SShape, Selector> OptState for MoAshaState<Selector, SShape> where
+impl<SShape, Selector> OptState for MoAshaState<Selector, SShape>
+where
     SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
@@ -148,7 +152,7 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 ///  |      /            \        |    to worker
 ///  |  No /  At lowest   \ Yes +--------------+
 ///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random config | 
+///         \            /      |random config |
 ///          +----------+       +--------------+  
 /// ```
 ///
@@ -179,12 +183,12 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 /// ```rust,ignore
 /// self.with_rng(|rng| scp.sample_pair(rng, MoAshaInfo::default().into()))
 /// ```
-pub struct MoAsha<Selector, SShape>(pub MoAshaState<Selector,SShape>)
+pub struct MoAsha<Selector, SShape>(pub MoAshaState<Selector, SShape>)
 where
     SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector;
 
-impl<SShape, Selector> MoAsha<Selector,SShape>
+impl<SShape, Selector> MoAsha<Selector, SShape>
 where
     SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
@@ -206,7 +210,7 @@ where
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(selector:Selector, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(selector: Selector, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -236,10 +240,12 @@ where
 
     /// Selects candidates for promotion based on the index of the rung and budget levels.
     /// This method is called during the optimization step to determine which candidates should be promoted to the next fidelity level.
-    /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state, 
+    /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state,
     /// which can be customized to implement different selection criteria (e.g., [`NSGA2Selector`](crate::utils::mo::NSGA2Selector)).
-    pub fn select(&mut self, index: usize, n:usize) -> Vec<usize> {
-        self.0.selector.arg_select_candidates(&self.0.rung[index], n)
+    pub fn select(&mut self, index: usize, n: usize) -> Vec<usize> {
+        self.0
+            .selector
+            .arg_select_candidates(&self.0.rung[index], n)
     }
 
     pub fn with_rng<F, T>(&self, f: F) -> T
@@ -263,7 +269,8 @@ where
         SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
-    type State = MoAshaState<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>;
+    type State =
+        MoAshaState<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>;
     type Cod = MultiCodomain<Out>;
     type SInfo = MoAshaInfo;
 
@@ -286,15 +293,16 @@ where
     }
 }
 
-impl<Out, Scp, Selector> BudgetPruner<FidelitySol<SId, Scp::Opt, MoAshaInfo>, SId, Scp::Opt, Out, Scp>
-    for MoAsha<Selector,<Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
+impl<Out, Scp, Selector>
+    BudgetPruner<FidelitySol<SId, Scp::Opt, MoAshaInfo>, SId, Scp::Opt, Out, Scp>
+    for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, MoAshaInfo>, SId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
         SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
-    Selector:CandidateSelector,
+    Selector: CandidateSelector,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -448,7 +456,14 @@ where
             Out,
         >,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, MoAshaInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<
+            Scp,
+            FidelitySol<SId, Scp::Opt, MoAshaInfo>,
+            SId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_) = comp.step() {

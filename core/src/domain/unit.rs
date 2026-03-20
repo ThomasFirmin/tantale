@@ -1,7 +1,16 @@
 use crate::{
-    GridDom, domain::{
-        Domain, PreDomain, TypeDom, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, grid::GridBounds, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
+    GridDom,
+    domain::{
+        Domain, PreDomain, TypeDom,
+        bool::Bool,
+        bounded::{Bounded, BoundedBounds, RangeDomain},
+        grid::GridBounds,
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
+    sampler::{BoundedDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;
@@ -170,7 +179,7 @@ where
 }
 impl OntoDom<Bool> for Unit {}
 
-impl<Out:GridBounds> Onto<GridDom<Out>> for Unit {
+impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
     type Item = TypeDom<Unit>;
     type TargetItem = Out;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`GridDom`][`Domain`].
@@ -195,7 +204,11 @@ impl<Out:GridBounds> Onto<GridDom<Out>> for Unit {
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`GridDom`] domain.
-    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &GridDom<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = item.as_();
             let c: f64 = target.values.len().as_();
@@ -217,7 +230,7 @@ impl<Out:GridBounds> Onto<GridDom<Out>> for Unit {
         }
     }
 }
-impl<Out:GridBounds> OntoDom<GridDom<Out>> for Unit {}
+impl<Out: GridBounds> OntoDom<GridDom<Out>> for Unit {}
 
 impl Onto<Mixed> for Unit {
     type Item = TypeDom<Unit>;
@@ -238,7 +251,7 @@ impl Onto<Mixed> for Unit {
     ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Mixed`] domain.
     fn onto(&self, item: &Self::Item, target: &Mixed) -> Result<Self::TargetItem, OntoError> {
-        match target{
+        match target {
             Mixed::Real(target) => self.onto(item, target).map(MixedTypeDom::Real),
             Mixed::Nat(target) => self.onto(item, target).map(MixedTypeDom::Nat),
             Mixed::Int(target) => self.onto(item, target).map(MixedTypeDom::Int),
@@ -247,7 +260,10 @@ impl Onto<Mixed> for Unit {
             Mixed::GridReal(target) => self.onto(item, target).map(MixedTypeDom::GridReal),
             Mixed::GridNat(target) => self.onto(item, target).map(MixedTypeDom::GridNat),
             Mixed::GridInt(target) => self.onto(item, target).map(MixedTypeDom::GridInt),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
 }

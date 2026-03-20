@@ -62,7 +62,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<NoFuncStateCheck, FnState, SId>
+        Pool<NoFuncStateCheck, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -163,7 +163,7 @@ fn test_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<NoFuncStateCheck, FnState, SId>
+        Pool<NoFuncStateCheck, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -286,7 +286,7 @@ fn test_fidthrbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<NoFuncStateCheck, FnState, SId>
+        Pool<NoFuncStateCheck, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -708,71 +708,6 @@ fn test_seqfidevaluator() {
     assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 struct Cleaner {
     path: String,
 }
@@ -817,9 +752,11 @@ fn test_fidbatchevaluator_loadpool() {
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
     let batch: BBatch = Batch::new(pair, info.clone());
-    let path  =Path::new("tmp_test_fidbatchevaluator_load_pool").to_path_buf();
+    let path = Path::new("tmp_test_fidbatchevaluator_load_pool").to_path_buf();
     let _ = create_dir_all(path);
-    let fncheck = MPFnStateCheckpointer{ path:  Path::new("tmp_test_fidbatchevaluator_load_pool").to_path_buf()};
+    let fncheck = MPFnStateCheckpointer {
+        path: Path::new("tmp_test_fidbatchevaluator_load_pool").to_path_buf(),
+    };
     let mut eval = FidBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fncheck)));
 
     let (bcomp, braw) = <FidBatchEvaluator<
@@ -828,7 +765,7 @@ fn test_fidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -929,7 +866,7 @@ fn test_fidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -1019,7 +956,6 @@ fn test_fidbatchevaluator_loadpool() {
 
 #[test]
 fn test_fidthrbatchevaluator_loadpool() {
-
     drop(Cleaner {
         path: String::from("test_fidthrbatchevaluator_loadpool"),
     });
@@ -1052,9 +988,11 @@ fn test_fidthrbatchevaluator_loadpool() {
         .map(|s| (s.id(), s.get_sopt().x.clone()))
         .collect();
     let batch: BBatch = Batch::new(pair, info.clone());
-    let path  =Path::new("test_fidthrbatchevaluator_loadpool").to_path_buf();
+    let path = Path::new("test_fidthrbatchevaluator_loadpool").to_path_buf();
     let _ = create_dir_all(path);
-    let fncheck = MPFnStateCheckpointer{ path:  Path::new("test_fidthrbatchevaluator_loadpool").to_path_buf()};
+    let fncheck = MPFnStateCheckpointer {
+        path: Path::new("test_fidthrbatchevaluator_loadpool").to_path_buf(),
+    };
     let mut eval = FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fncheck)));
 
     let (bcomp, braw) = <FidThrBatchEvaluator<
@@ -1063,7 +1001,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -1287,7 +1225,6 @@ fn test_fidthrbatchevaluator_loadpool() {
 
 #[test]
 fn test_seqfidevaluator_loadpool() {
-
     drop(Cleaner {
         path: String::from("test_seqfidevaluator_loadpool"),
     });
@@ -1311,9 +1248,11 @@ fn test_seqfidevaluator_loadpool() {
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
-    let path  =Path::new("test_seqfidevaluator_loadpool").to_path_buf();
+    let path = Path::new("test_seqfidevaluator_loadpool").to_path_buf();
     let _ = create_dir_all(path);
-    let fncheck = MPFnStateCheckpointer{ path:  Path::new("test_seqfidevaluator_loadpool").to_path_buf()};
+    let fncheck = MPFnStateCheckpointer {
+        path: Path::new("test_seqfidevaluator_loadpool").to_path_buf(),
+    };
     let mut eval = FidSeqEvaluator::new(Some(pair), Pool::Load(LoadPool::new(fncheck)));
 
     let out = <FidSeqEvaluator<

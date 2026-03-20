@@ -231,7 +231,6 @@ fn main() {
         let _clean = Cleaner("tmp_test_mpi_batch_run_fid".into());
     }
 
-
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
@@ -247,7 +246,6 @@ fn main() {
     if proc.rank == 0 {
         run_reader("tmp_test_mpi_batch_run_fid", 50);
     }
-
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;

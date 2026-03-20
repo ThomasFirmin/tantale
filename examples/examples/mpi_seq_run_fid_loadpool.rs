@@ -243,7 +243,15 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = distributed_with_pool(
+        &proc,
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     exp.run();
 
     if proc.rank == 0 {

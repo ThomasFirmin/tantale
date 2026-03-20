@@ -154,13 +154,7 @@ mod check_bounds {
     }
     #[test]
     fn create_gridreal() {
-        let check = vec![
-            -2.0,
-            -1.0,
-            0.0,
-            1.0,
-            2.0,
-        ];
+        let check = vec![-2.0, -1.0, 0.0, 1.0, 2.0];
         let greal_1 = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform);
         let values = greal_1.values.to_vec();
         assert_eq!(&values, &check, "Issue with content of GridReal.");
@@ -192,13 +186,7 @@ mod check_bounds {
     }
     #[test]
     fn create_gridint() {
-        let check = vec![
-            -2,
-            -1,
-            0,
-            1,
-            2,
-        ];
+        let check = vec![-2, -1, 0, 1, 2];
         let greal_1 = GridInt::new([-2_i64, -1, 0, 1, 2], Uniform);
         let values = greal_1.values.to_vec();
         assert_eq!(&values, &check, "Issue with content of GridInt.");
@@ -230,11 +218,7 @@ mod check_bounds {
     }
     #[test]
     fn create_gridnat() {
-        let check = vec![
-            0,
-            1,
-            2,
-        ];
+        let check = vec![0, 1, 2];
         let greal_1 = GridNat::new([0_u64, 1, 2], Uniform);
         let values = greal_1.values.to_vec();
         assert_eq!(&values, &check, "Issue with content of GridNat.");
@@ -424,7 +408,9 @@ mod check_default_sampler {
 
 mod check_default_sampler_mixed {
     use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::core::{Bool, Cat, Domain, GridInt, GridNat, GridReal, Int, Mixed, Nat, Real, Unit};
+    use tantale::core::{
+        Bool, Cat, Domain, GridInt, GridNat, GridReal, Int, Mixed, Nat, Real, Unit,
+    };
 
     #[test]
     fn sampler_real() {

@@ -11,10 +11,12 @@ use crate::{
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
-        CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment, basics::{FuncStatePool, IdxMapPool, LoadPool, Pool}, sequential::{
+        CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment,
+        basics::{FuncStatePool, IdxMapPool, LoadPool, Pool},
+        sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
-        }
+        },
     },
     objective::{Objective, Outcome, Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
@@ -310,7 +312,7 @@ where
     }
 }
 
-impl<PSol, Scp, Op, St, Rec, Check, Out, FnState, >
+impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     Runable<
         PSol,
         SId,
@@ -425,7 +427,7 @@ where
         let opt_state = checkpointer.load_optimizer().unwrap();
         let stop = checkpointer.load_stop().unwrap();
         let mut evaluator: FidSeqEvaluator<_, _, _, _, _> = checkpointer.load_evaluate().unwrap();
-        
+
         match pool_mode {
             PoolMode::InMemory => {
                 let fn_states = fnstatecheck.load_all_func_state();
@@ -481,7 +483,10 @@ where
                     .checkpointer
                     .as_ref()
                     .map(|c| c.new_func_state_checkpointer());
-                let sol = self.optimizer.step(None, &self.searchspace, &self.accumulator).into();
+                let sol = self
+                    .optimizer
+                    .step(None, &self.searchspace, &self.accumulator)
+                    .into();
                 match self.pool_mode {
                     PoolMode::InMemory => {
                         let pool = IdxMapPool::new(fn_check);
@@ -1070,13 +1075,11 @@ where
                 let mut pool = IdxMapPool::from_iter(fn_states);
                 pool.check = Some(fnstatecheck);
                 Pool::IdxMap(pool)
-            },
-            PoolMode::Persistent => {
-                Pool::Load(LoadPool::new(fnstatecheck))
-            },
+            }
+            PoolMode::Persistent => Pool::Load(LoadPool::new(fnstatecheck)),
         };
 
-        let evaluator = (evaluators,pool).into();
+        let evaluator = (evaluators, pool).into();
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
@@ -1126,11 +1129,15 @@ where
                 match self.pool_mode {
                     PoolMode::InMemory => {
                         let pool = IdxMapPool::new(fn_check);
-                        Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(VecDeque::new(), Pool::IdxMap(pool))))
+                        Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(
+                            VecDeque::new(),
+                            Pool::IdxMap(pool),
+                        )))
                     }
-                    PoolMode::Persistent => {
-                        Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(VecDeque::new(), Pool::Load(LoadPool::new(fn_check.unwrap())))))
-                    }
+                    PoolMode::Persistent => Arc::new(Mutex::new(PoolFidThrSeqEvaluator::new(
+                        VecDeque::new(),
+                        Pool::Load(LoadPool::new(fn_check.unwrap())),
+                    ))),
                 }
             }
         };
@@ -1762,7 +1769,15 @@ where
     /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
     /// Here a [`FidWorker`] is used with an inner [`Stepped`] and [`MPIProcess`].
     /// It stores a [`FuncState`] to resume previous [`Step::Partially`] evaluations.
-    type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check, Pool<Check::FnStateCheck, FnState, SId>>;
+    type WType = FidWorker<
+        'a,
+        SId,
+        RawObj<Scp::SolShape, SId, Op::SInfo>,
+        Out,
+        FnState,
+        Check,
+        Pool<Check::FnStateCheck, FnState, SId>,
+    >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
     /// [`Codomain`](crate::Codomain), [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
@@ -1833,20 +1848,22 @@ where
                 }
                 None => (None, None),
             };
-            let worker= match (pool_mode, fncheck) {
+            let worker = match (pool_mode, fncheck) {
                 (PoolMode::InMemory, Some(fc)) => {
                     let pool = IdxMapPool::new(Some(fc));
                     FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
-                },
+                }
                 (PoolMode::Persistent, Some(fc)) => {
                     let pool = LoadPool::new(fc);
                     FidWorker::new(proc, objective, Pool::Load(pool), check)
-                },
+                }
                 (PoolMode::InMemory, None) => {
                     let pool = IdxMapPool::new(None);
                     FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
-                },
-                (PoolMode::Persistent, None) => panic!("Persistent pool mode requires a function state checkpointer."),
+                }
+                (PoolMode::Persistent, None) => {
+                    panic!("Persistent pool mode requires a function state checkpointer.")
+                }
             };
             MasterWorker::Worker(worker)
         }
@@ -1922,9 +1939,7 @@ where
                     pool.check = Some(fnstatecheck);
                     Pool::IdxMap(pool)
                 }
-                PoolMode::Persistent => {
-                    Pool::Load(LoadPool::new(fnstatecheck))
-                }
+                PoolMode::Persistent => Pool::Load(LoadPool::new(fnstatecheck)),
             };
             let worker = FidWorker::new(proc, objective, pool, Some(check));
             MasterWorker::Worker(worker)

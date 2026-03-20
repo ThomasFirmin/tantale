@@ -254,14 +254,8 @@ fn test_serde_fidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidBatchEvaluator<
-        _,
-        _,
-        _,
-        _,
-        FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
-    > = FidBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
+    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+        FidBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -290,7 +284,7 @@ fn test_serde_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -342,7 +336,7 @@ fn test_serde_fidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -391,14 +385,8 @@ fn test_serde_thrfidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidThrBatchEvaluator<
-        _,
-        _,
-        _,
-        _,
-        FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
-    > = FidThrBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
+    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+        FidThrBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -433,7 +421,7 @@ fn test_serde_thrfidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -498,7 +486,7 @@ fn test_serde_thrfidbatchevaluator() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -554,14 +542,8 @@ fn test_serde_fidbatchevaluator_loadpool() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidBatchEvaluator<
-        _,
-        _,
-        _,
-        _,
-        FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
-    > = FidBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
+    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+        FidBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -588,7 +570,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -640,7 +622,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as MonoEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -689,14 +671,8 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidThrBatchEvaluator<
-        _,
-        _,
-        _,
-        _,
-        FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
-    > = FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
+    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+        FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
     let mut neval: FThrBEvaluator = rmp_serde::decode::from_slice(&eval_ser).unwrap();
@@ -729,7 +705,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,
@@ -794,7 +770,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         RSInfo,
         Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>
+        Pool<MPFnStateCheckpointer, FnState, SId>,
     > as ThrEvaluate<
         FidelitySol<SId, Mixed, EmptyInfo>,
         SId,

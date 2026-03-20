@@ -218,10 +218,20 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
-    assert!(expstop.0 >= 50 && expstop.0 <= 57, "Number of calls is wrong");
+    assert!(
+        expstop.0 >= 50 && expstop.0 <= 57,
+        "Number of calls is wrong"
+    );
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
     assert_eq!(expoptimizer.0.iteration, 41, "Number of iteration is wrong");
@@ -237,15 +247,22 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader_eps("tmp_test_fidbatchparrun", 500, 35);
     let expstop = exp.get_stop();
-    assert!(expstop.0 >= 100 && expstop.0 <= 107, "Number of calls is wrong");
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 76,
-        "Number of iteration is wrong"
+    assert!(
+        expstop.0 >= 100 && expstop.0 <= 107,
+        "Number of calls is wrong"
     );
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(expoptimizer.0.iteration, 76, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 }
 
@@ -364,44 +381,6 @@ fn test_fid_thr_seq_run() {
     );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #[test]
 fn test_fid_batch_run_loadpool() {
     drop(Cleaner {
@@ -421,7 +400,14 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = mono_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     exp.run();
 
     run_reader_eps("tmp_test_fidbatchrun_loadpool", 264, 20);
@@ -434,7 +420,15 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, PoolMode::Persistent, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        PoolMode::Persistent,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -456,7 +450,15 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, PoolMode::Persistent, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        mono,
+        PoolMode::Persistent,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader_eps("tmp_test_fidbatchrun_loadpool", 524, 20);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
@@ -491,7 +493,14 @@ fn test_fid_batch_parrun_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = threaded_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     exp.run();
 
     run_reader_eps("tmp_test_fidbatchparrun_loadpool", 250, 35);
@@ -504,10 +513,21 @@ fn test_fid_batch_parrun_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, PoolMode::Persistent, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        PoolMode::Persistent,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
-    assert!(expstop.0 >= 50 && expstop.0 <= 57, "Number of calls is wrong");
+    assert!(
+        expstop.0 >= 50 && expstop.0 <= 57,
+        "Number of calls is wrong"
+    );
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
     assert_eq!(expoptimizer.0.iteration, 41, "Number of iteration is wrong");
@@ -523,15 +543,23 @@ fn test_fid_batch_parrun_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, PoolMode::Persistent, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        PoolMode::Persistent,
+        BatchRandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader_eps("tmp_test_fidbatchparrun_loadpool", 500, 35);
     let expstop = exp.get_stop();
-    assert!(expstop.0 >= 100 && expstop.0 <= 107, "Number of calls is wrong");
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 76,
-        "Number of iteration is wrong"
+    assert!(
+        expstop.0 >= 100 && expstop.0 <= 107,
+        "Number of calls is wrong"
     );
+    let expoptimizer = exp.get_optimizer();
+    assert_eq!(expoptimizer.0.iteration, 76, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 }
 
@@ -554,7 +582,14 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = mono_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     exp.run();
     run_reader("tmp_test_fidseqrun_loadpool", 250);
 
@@ -566,7 +601,15 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, PoolMode::Persistent, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        PoolMode::Persistent,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -582,7 +625,15 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, PoolMode::Persistent, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        mono,
+        PoolMode::Persistent,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_fidseqrun_loadpool", 500);
     let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
@@ -606,7 +657,14 @@ fn test_fid_thr_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = threaded_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     exp.run();
     run_reader_eps("tmp_test_fidthrseqrun_loadpool", 250, 249);
 
@@ -618,7 +676,15 @@ fn test_fid_thr_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, PoolMode::Persistent, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        PoolMode::Persistent,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Calls = exp.get_mut_stop();
     let max_calls = 50 + num_cpus::get();
@@ -639,7 +705,15 @@ fn test_fid_thr_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, PoolMode::Persistent, RandomSearch, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        PoolMode::Persistent,
+        RandomSearch,
+        Calls,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     run_reader_eps("tmp_test_fidthrseqrun_loadpool", 500, 249);
     let expstop: &Calls = exp.get_stop();
     let max_calls = 100 + 2 * num_cpus::get();

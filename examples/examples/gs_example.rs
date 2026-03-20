@@ -1,7 +1,7 @@
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
+    use tantale::macros::{CSVWritable, Outcome, objective};
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
@@ -38,13 +38,13 @@ impl Drop for Cleaner {
     }
 }
 
+use searchspace::{OutExample, get_function, get_searchspace};
+use tantale::algos::{GridSearch, grid_search};
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
+    experiment::{Runable, mono},
+    stop::Calls,
 };
-use tantale::algos::{grid_search, GridSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
 
 use std::sync::Arc;
 
@@ -59,7 +59,7 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     let opt = GridSearch::new(&sp);
-    let cod= grid_search::codomain(|o: &OutExample| o.obj);
+    let cod = grid_search::codomain(|o: &OutExample| o.obj);
 
     let stop = Calls::new(50);
     let config = Arc::new(FolderConfig::new("gs_example"));
@@ -69,5 +69,9 @@ fn main() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
-    println!("Best solution found: f({:?}) = {}",best.get_x(), best.y().value);
+    println!(
+        "Best solution found: f({:?}) = {}",
+        best.get_x(),
+        best.y().value
+    );
 }

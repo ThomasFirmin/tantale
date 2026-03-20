@@ -28,9 +28,18 @@
 //! ```
 
 use crate::{
-    GridDomDistribution, domain::{
-        Domain, PreDomain, TypeDom, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoundedDistribution, Sampler}
+    GridDomDistribution,
+    domain::{
+        Domain, PreDomain, TypeDom,
+        bool::Bool,
+        grid::{GridBounds, GridDom},
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+        unit::Unit,
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
+    sampler::{BoundedDistribution, Sampler},
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};
@@ -131,10 +140,17 @@ impl<T: BoundedBounds> Bounded<T> {
 
     /// Fabric for a [`Bounded`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
     /// Generates a [`GridDom`] containing discretized `values` of type `T`.
-    /// 
+    ///
     /// # Parameters
     /// * `values` - A list of values that will be used as bounds of the [`Bounded`] domain.
-    pub fn grid<I: IntoIterator<Item = Item>, Item: Into<T>, S: Sampler<GridDom<T>> + Into<GridDomDistribution>>(values:I, sampler: S) -> GridDom<T> {
+    pub fn grid<
+        I: IntoIterator<Item = Item>,
+        Item: Into<T>,
+        S: Sampler<GridDom<T>> + Into<GridDomDistribution>,
+    >(
+        values: I,
+        sampler: S,
+    ) -> GridDom<T> {
         GridDom::new(values, sampler)
     }
 }
@@ -356,7 +372,11 @@ where
     /// * Returns a [`OntoError`]
     ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Bounded`] domain.
-    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &GridDom<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         if self.is_in(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
             let b: f64 = self.width.as_();
@@ -377,8 +397,9 @@ impl<In, Out> OntoDom<GridDom<Out>> for Bounded<In>
 where
     In: BoundedBounds,
     Out: GridBounds,
-    f64: AsPrimitive<In>
-{}
+    f64: AsPrimitive<In>,
+{
+}
 
 impl<In> Onto<Mixed> for Bounded<In>
 where

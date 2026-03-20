@@ -3,7 +3,10 @@ use crate::{
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
-        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment, basics::{IdxMapPool, LoadPool, Pool}
+        BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate,
+        MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate,
+        ThrExperiment,
+        basics::{IdxMapPool, LoadPool, Pool},
     },
     objective::{Objective, Outcome, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
@@ -336,7 +339,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
             Op::Info,
             Scp::SolShape,
             FnState,
-            Pool<Check::FnStateCheck,FnState,SId>,
+            Pool<Check::FnStateCheck, FnState, SId>,
         >,
     >
 where
@@ -1054,10 +1057,8 @@ where
                 let mut pool = IdxMapPool::from_iter(fn_states);
                 pool.check = Some(fn_check);
                 Arc::new(Mutex::new(Pool::IdxMap(pool)))
-            },
-            PoolMode::Persistent => {
-                Arc::new(Mutex::new(Pool::Load(LoadPool::new(fn_check))))
-            },
+            }
+            PoolMode::Persistent => Arc::new(Mutex::new(Pool::Load(LoadPool::new(fn_check)))),
         };
         evaluator.pool = pool;
 
@@ -1111,9 +1112,10 @@ where
                         let pool = IdxMapPool::new(fn_check);
                         FidThrBatchEvaluator::new(batch, Pool::IdxMap(pool))
                     }
-                    PoolMode::Persistent => {
-                        FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check.unwrap())))
-                    }
+                    PoolMode::Persistent => FidThrBatchEvaluator::new(
+                        batch,
+                        Pool::Load(LoadPool::new(fn_check.unwrap())),
+                    ),
                 }
             }
         };
@@ -1665,7 +1667,15 @@ where
     /// Describes the [`Worker`](crate::Worker) type used in the distributed experiment.
     /// Here a [`FidWorker`] is used with an inner [`Stepped`] and [`MPIProcess`].
     /// It handles internal [`FuncState`] management for fidelity-based evaluations.
-    type WType = FidWorker<'a, SId, RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState, Check, Pool<Check::FnStateCheck, FnState, SId>>;
+    type WType = FidWorker<
+        'a,
+        SId,
+        RawObj<Scp::SolShape, SId, Op::SInfo>,
+        Out,
+        FnState,
+        Check,
+        Pool<Check::FnStateCheck, FnState, SId>,
+    >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
     /// [`Codomain`](crate::Codomain), [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional
@@ -1737,20 +1747,22 @@ where
                 }
                 None => (None, None),
             };
-            let worker= match (pool_mode, fncheck) {
+            let worker = match (pool_mode, fncheck) {
                 (PoolMode::InMemory, Some(fc)) => {
                     let pool = IdxMapPool::new(Some(fc));
                     FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
-                },
+                }
                 (PoolMode::Persistent, Some(fc)) => {
                     let pool = LoadPool::new(fc);
                     FidWorker::new(proc, objective, Pool::Load(pool), check)
-                },
+                }
                 (PoolMode::InMemory, None) => {
                     let pool = IdxMapPool::new(None);
                     FidWorker::new(proc, objective, Pool::IdxMap(pool), check)
-                },
-                (PoolMode::Persistent, None) => panic!("Persistent pool mode requires a function state checkpointer."),
+                }
+                (PoolMode::Persistent, None) => {
+                    panic!("Persistent pool mode requires a function state checkpointer.")
+                }
             };
             MasterWorker::Worker(worker)
         }
@@ -1828,9 +1840,7 @@ where
                     pool.check = Some(fnstatecheck);
                     Pool::IdxMap(pool)
                 }
-                PoolMode::Persistent => {
-                    Pool::Load(LoadPool::new(fnstatecheck))
-                }
+                PoolMode::Persistent => Pool::Load(LoadPool::new(fnstatecheck)),
             };
             check.after_load(proc);
             let worker = FidWorker::new(proc, objective, pool, Some(check));

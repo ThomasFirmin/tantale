@@ -1,29 +1,20 @@
-
-use crate::{Bool, Bounded, CSVWritable, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom, Sampler, Unit, domain::{PreDomain, TypeDom, bounded::BoundedBounds}, errors::OntoError};
-use std::fmt::{Display, Debug};
-use serde::{Serialize, Deserialize};
+use crate::{
+    Bool, Bounded, CSVWritable, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
+    Sampler, Unit,
+    domain::{PreDomain, TypeDom, bounded::BoundedBounds},
+    errors::OntoError,
+};
 use num::cast::AsPrimitive;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
 
 /// A shortcut for the bounds of the generic type `<T>` in [`GridDom`]`<T>`
 pub trait GridBounds:
-    PartialEq
-    + Clone
-    + Display
-    + Debug
-    + Default
-    + Serialize
-    + for<'a> Deserialize<'a>
+    PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
 {
 }
-impl<T> GridBounds for T 
-where
-T: PartialEq
-    + Clone
-    + Display
-    + Debug
-    + Default
-    + Serialize
-    + for<'a> Deserialize<'a>
+impl<T> GridBounds for T where
+    T: PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
 {
 }
 
@@ -32,7 +23,7 @@ T: PartialEq
 /// rather than a continuous range. This is particularly useful for optimization problems where the search space
 /// is inherently discrete or when a user wants to restrict the search to specific values.
 /// For example Grid Search is a common technique in hyperparameter optimization where a finite set of hyperparameter values are evaluated.
-/// 
+///
 /// # Examples
 /// ```
 /// use tantale::core::{Domain, GridDom, Uniform};
@@ -44,34 +35,38 @@ T: PartialEq
 /// assert_eq!(values, vec![0.1, 0.5, 0.9])
 /// ```
 #[derive(Debug, Clone)]
-pub struct GridDom<T:GridBounds>
-
-{
+pub struct GridDom<T: GridBounds> {
     pub values: Box<[T]>,
     pub sampler: GridDomDistribution,
 }
 
-
-impl<T:GridBounds> GridDom<T> {
+impl<T: GridBounds> GridDom<T> {
     /// Fabric for a [`GridDom`] [`Domain`].
-    /// 
+    ///
     /// # Parameters
     /// * `values` - An iterable of values that can be converted into `T` that defines the discrete set of values for the [`GridDom`] domain.
-    /// * `sampler` - A sampling strategy that defines how values are sampled from the `values` list. It is converted into 
+    /// * `sampler` - A sampling strategy that defines how values are sampled from the `values` list. It is converted into
     ///   a [`GridDomDistribution`] that is used internally by the `sample` method of the [`GridDom`] domain.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use tantale::core::{Domain, GridDom, Uniform};
     /// let grid = GridDom::<f64>::new([0.1, 0.5, 0.9], Uniform);
-    /// 
+    ///
     /// let mut rng = rand::rng();
     /// let sample = grid.sample(&mut rng);
     /// assert!(grid.is_in(&sample));
     /// let values = grid.values.to_vec();
     /// assert_eq!(values, vec![0.1, 0.5, 0.9])
     /// ```
-    pub fn new<I: IntoIterator<Item = Item>, Item: Into<T>, S: Sampler<Self> + Into<GridDomDistribution>>(values: I, sampler: S) -> Self {
+    pub fn new<
+        I: IntoIterator<Item = Item>,
+        Item: Into<T>,
+        S: Sampler<Self> + Into<GridDomDistribution>,
+    >(
+        values: I,
+        sampler: S,
+    ) -> Self {
         Self {
             values: values.into_iter().map(Into::into).collect(),
             sampler: sampler.into(),
@@ -79,21 +74,26 @@ impl<T:GridBounds> GridDom<T> {
     }
 
     /// Similar to [`GridDom::new`]. Used by the `hpo!` macro to create a [`GridDom`] from a list of values and a sampler.
-    pub fn grid<I: IntoIterator<Item = Item>, Item: Into<T>, S: Sampler<GridDom<T>> + Into<GridDomDistribution>>(values:I, sampler: S) -> GridDom<T> {
+    pub fn grid<
+        I: IntoIterator<Item = Item>,
+        Item: Into<T>,
+        S: Sampler<GridDom<T>> + Into<GridDomDistribution>,
+    >(
+        values: I,
+        sampler: S,
+    ) -> GridDom<T> {
         GridDom::new(values, sampler)
     }
 }
 
-impl<T: GridBounds> PartialEq for GridDom<T> 
-{
+impl<T: GridBounds> PartialEq for GridDom<T> {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
     }
 }
 
-impl<T:GridBounds> PreDomain for GridDom<T> {}
-impl<T:GridBounds> Domain for GridDom<T> 
-{
+impl<T: GridBounds> PreDomain for GridDom<T> {}
+impl<T: GridBounds> Domain for GridDom<T> {
     type TypeDom = T;
 
     fn sample<R: rand::Rng>(&self, rng: &mut R) -> Self::TypeDom {
@@ -106,7 +106,7 @@ impl<T:GridBounds> Domain for GridDom<T>
     }
 }
 
-impl<T:GridBounds> Display for GridDom<T> {
+impl<T: GridBounds> Display for GridDom<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Grid({:?})", self.values)
     }
@@ -116,7 +116,9 @@ impl From<Mixed> for GridReal {
     fn from(value: Mixed) -> Self {
         match value {
             Mixed::GridReal(d) => d,
-            _ => unreachable!("From<Mixed> for GridReal should only be called with Mixed::GridReal variant"),
+            _ => unreachable!(
+                "From<Mixed> for GridReal should only be called with Mixed::GridReal variant"
+            ),
         }
     }
 }
@@ -124,7 +126,9 @@ impl From<Mixed> for GridInt {
     fn from(value: Mixed) -> Self {
         match value {
             Mixed::GridInt(d) => d,
-            _ => unreachable!("From<Mixed> for GridInt should only be called with Mixed::GridInt variant"),
+            _ => unreachable!(
+                "From<Mixed> for GridInt should only be called with Mixed::GridInt variant"
+            ),
         }
     }
 }
@@ -132,7 +136,9 @@ impl From<Mixed> for GridNat {
     fn from(value: Mixed) -> Self {
         match value {
             Mixed::GridNat(d) => d,
-            _ => unreachable!("From<Mixed> for GridNat should only be called with Mixed::GridNat variant"),
+            _ => unreachable!(
+                "From<Mixed> for GridNat should only be called with Mixed::GridNat variant"
+            ),
         }
     }
 }
@@ -196,12 +202,13 @@ where
         }
     }
 }
-impl<In,Out> OntoDom<Bounded<Out>> for GridDom<In>
+impl<In, Out> OntoDom<Bounded<Out>> for GridDom<In>
 where
     In: GridBounds,
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
-{}
+{
+}
 
 impl<In: GridBounds> Onto<Unit> for GridDom<In> {
     type Item = In;
@@ -272,18 +279,19 @@ impl<In: GridBounds> Onto<Mixed> for GridDom<In> {
             Mixed::Int(dom) => self.onto(item, dom).map(MixedTypeDom::Int),
             Mixed::Nat(dom) => self.onto(item, dom).map(MixedTypeDom::Nat),
             Mixed::Unit(dom) => self.onto(item, dom).map(MixedTypeDom::Unit),
-            _ => Err(OntoError(format!("Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.", item, self))),
+            _ => Err(OntoError(format!(
+                "Converting the value {:?} from {:?} onto Mixed is not implemented, and it should not occur.",
+                item, self
+            ))),
         }
     }
-
 }
 
 /// [`Onto`] function between a [`GridDom`]`<Out>` and another [`GridDom`]`<In>` [`Domain`].
-/// 
+///
 /// Considering $i$ the index of the item within `values` of the source [`GridDom`] and $\ell_{en}$ the length of `values` of the source [`GridDom`] [`Domain`].
 /// The index of the input `item` is mapped to the same index of the `target` [`GridDom`]`<Out>` [`Domain`] if the two [`GridDom`] have the same length, otherwise an error is returned.
-impl<In: GridBounds, Out: GridBounds> Onto<GridDom<Out>> for GridDom<In> 
-{
+impl<In: GridBounds, Out: GridBounds> Onto<GridDom<Out>> for GridDom<In> {
     type Item = In;
     type TargetItem = Out;
     /// [`Onto`] function between a source [`GridDom`]`<In>` and a target [`GridDom`]`<Out>` [`Domain`].
@@ -301,16 +309,22 @@ impl<In: GridBounds, Out: GridBounds> Onto<GridDom<Out>> for GridDom<In>
     /// * Returns a [`OntoError`]
     ///     * if input `item` to be mapped is not into [`Self`] domain.
     ///     * if the source and `target` [`GridDom`] have different lengths.
-    fn onto(&self, item: &Self::Item, target: &GridDom<Out>) -> Result<Self::TargetItem, OntoError> {
+    fn onto(
+        &self,
+        item: &Self::Item,
+        target: &GridDom<Out>,
+    ) -> Result<Self::TargetItem, OntoError> {
         if self.values.len() != target.values.len() {
-            return Err(OntoError(format!("Cannot map between GridDoms of different lengths: {} and {}", self.values.len(), target.values.len())));
+            return Err(OntoError(format!(
+                "Cannot map between GridDoms of different lengths: {} and {}",
+                self.values.len(),
+                target.values.len()
+            )));
         }
-        
+
         let idx = self.values.iter().position(|n| n == item);
         match idx {
-            Some(i) => {
-                Ok(target.values[i].clone())
-            }
+            Some(i) => Ok(target.values[i].clone()),
             None => Err(OntoError(format!("{} input not in {}", item, self))),
         }
     }
@@ -327,7 +341,6 @@ impl<T: GridBounds> CSVWritable<(), T> for GridDom<T> {
     }
 }
 
-
 pub type GridReal = GridDom<f64>;
 pub type GridInt = GridDom<i64>;
 pub type GridNat = GridDom<u64>;
@@ -339,7 +352,7 @@ pub type Cat = GridDom<String>;
 /// such as Grid Search.
 /// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
 #[derive(Clone, PartialEq)]
-pub enum Grid{
+pub enum Grid {
     Real(GridReal),
     Int(GridInt),
     Nat(GridNat),
@@ -347,8 +360,7 @@ pub enum Grid{
     Bool(Bool),
 }
 
-impl Grid{
-
+impl Grid {
     /// Get the value at the given index in the values, if it exists.
     pub fn get(&self, idx: usize) -> Option<MixedTypeDom> {
         match self {
@@ -356,13 +368,15 @@ impl Grid{
             Grid::Int(dom) => dom.values.get(idx).map(|v| MixedTypeDom::Int(*v)),
             Grid::Nat(dom) => dom.values.get(idx).map(|v| MixedTypeDom::Nat(*v)),
             Grid::Cat(dom) => dom.values.get(idx).map(|v| MixedTypeDom::Cat(v.clone())),
-            Grid::Bool(_) => if idx == 0 {
-                Some(MixedTypeDom::Bool(false))
-            } else if idx == 1 {
-                Some(MixedTypeDom::Bool(true))
-            } else {
-                None
-            },
+            Grid::Bool(_) => {
+                if idx == 0 {
+                    Some(MixedTypeDom::Bool(false))
+                } else if idx == 1 {
+                    Some(MixedTypeDom::Bool(true))
+                } else {
+                    None
+                }
+            }
         }
     }
 

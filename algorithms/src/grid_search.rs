@@ -1,17 +1,20 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp, Stepped, Uncomputed, domain::{
-        codomain::SingleCodomain,
-        onto::LinkOpt,
-    }, experiment::CompAcc, objective::{
+    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp,
+    Stepped, Uncomputed,
+    domain::{codomain::SingleCodomain, onto::LinkOpt},
+    experiment::CompAcc,
+    objective::{
         Step,
         outcome::{FuncState, Outcome},
-    }, optimizer::{
+    },
+    optimizer::{
         EmptyInfo, OptState,
         opt::{Optimizer, SequentialOptimizer},
-    }, searchspace::{OptionCompShape, Searchspace}, solution::{
-        HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol,
-        shape::RawObj,
-    }
+    },
+    searchspace::{OptionCompShape, Searchspace},
+    solution::{
+        HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
+    },
 };
 
 use serde::{Deserialize, Serialize};
@@ -42,7 +45,7 @@ where
 
 /// State for the Sequential Grid Search optimizer.
 /// Sequential Grid Search requires to save the index of the current solution in the grid.
-/// 
+///
 /// # Attributes
 /// * `Vec<usize>` - A vector of usize representing the current indices in the grid for each variable.
 /// * `usize` - An additional usize to track the number of times the grid was fully evaluated.
@@ -55,11 +58,11 @@ impl OptState for GSState {}
 /// from a [`Searchspace`] made of [`Grid`] at each iteration.
 ///
 /// Points are generated sequentially on demand, accord to a Cartesian product of the [`Grid`](tantale_core::Grid) of each variable.
-/// 
-/// # Note 
-/// 
+///
+/// # Note
+///
 /// The algorithm is only a [`SequentialOptimizer`] due to the exponential growth of the number of solutions in the grid.
-/// 
+///
 /// # Workflow
 ///
 /// ```text
@@ -102,14 +105,13 @@ pub struct GridSearch(pub GSState);
 
 impl GridSearch {
     /// Creates a new instance of the Sequential [`GridSearch`] optimizer with an initial state.
-    pub fn new(searchspace: &Sp<Grid,NoDomain>) -> Self {
+    pub fn new(searchspace: &Sp<Grid, NoDomain>) -> Self {
         let size = searchspace.var.len();
         GridSearch(GSState(vec![0; size], 0))
     }
 }
 
-impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for GridSearch
+impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for GridSearch
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
@@ -130,7 +132,6 @@ where
         Self(state)
     }
 }
-
 
 impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for GridSearch
@@ -162,12 +163,20 @@ impl<Out>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Objective<RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>, Out>,
+        Objective<
+            RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
+            Out,
+        >,
     > for GridSearch
 where
     Out: Outcome,
-    Sp<Grid, NoDomain>: Searchspace<BaseSol<SId, LinkOpt<Sp<Grid,NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
-    <<Sp<Grid, NoDomain> as Searchspace<BaseSol<SId, LinkOpt<Sp<Grid,NoDomain>>, EmptyInfo>, SId, EmptyInfo>>::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
+    Sp<Grid, NoDomain>:
+        Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
+    <<Sp<Grid, NoDomain> as Searchspace<
+        BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn step(
         &mut self,
@@ -189,14 +198,16 @@ where
             Out,
         >,
     ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
-
-        let x: Vec<MixedTypeDom> = self.0.0.iter().enumerate().map(
-            |(i, &idx)|
-            {
+        let x: Vec<MixedTypeDom> = self
+            .0
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
                 let var = &scp.var[i];
                 var.domain_obj.get(idx).unwrap()
-            }
-        ).collect();
+            })
+            .collect();
 
         for i in (0..self.0.0.len()).rev() {
             let var = &scp.var[i];
@@ -221,14 +232,28 @@ impl<Out, FnState>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Stepped<RawObj<Lone<FidelitySol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>, Out, FnState>,
+        Stepped<
+            RawObj<Lone<FidelitySol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
+            Out,
+            FnState,
+        >,
     > for GridSearch
 where
     Out: FidOutcome,
     FnState: FuncState,
-    Sp<Grid, NoDomain>: Searchspace<FidelitySol<SId, LinkOpt<Sp<Grid,NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
-    <<Sp<Grid, NoDomain> as Searchspace<FidelitySol<SId, LinkOpt<Sp<Grid,NoDomain>>, EmptyInfo>, SId, EmptyInfo>>::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
-    <Sp<Grid, NoDomain> as Searchspace<FidelitySol<SId, LinkOpt<Sp<Grid,NoDomain>>, EmptyInfo>, SId, EmptyInfo>>::SolShape: HasStep + HasFidelity,
+    Sp<Grid, NoDomain>:
+        Searchspace<FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
+    <<Sp<Grid, NoDomain> as Searchspace<
+        FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
+        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
+    <Sp<Grid, NoDomain> as Searchspace<
+        FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        SId,
+        EmptyInfo,
+    >>::SolShape: HasStep + HasFidelity,
 {
     fn step(
         &mut self,
@@ -250,18 +275,22 @@ where
             Out,
         >,
     ) -> Lone<FidelitySol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
-
-        if let Some(comp_x) = x && let Step::Partially(_) = comp_x.step() {
-                return IntoComputed::extract(comp_x).0
+        if let Some(comp_x) = x
+            && let Step::Partially(_) = comp_x.step()
+        {
+            return IntoComputed::extract(comp_x).0;
         }
 
-        let x: Vec<MixedTypeDom> = self.0.0.iter().enumerate().map(
-            |(i, &idx)|
-            {
+        let x: Vec<MixedTypeDom> = self
+            .0
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
                 let var = &scp.var[i];
                 var.domain_obj.get(idx).unwrap()
-            }
-        ).collect();
+            })
+            .collect();
 
         for i in (0..self.0.0.len()).rev() {
             let var = &scp.var[i];

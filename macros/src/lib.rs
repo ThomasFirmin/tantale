@@ -113,11 +113,11 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// * `[! STATE !]` - Access the current evaluation state in multi-fidelity optimization
 ///
 /// ## Alternative mode
-/// 
+///
 /// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
 /// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
-/// 
-/// 
+///
+///
 /// ```ignore
 /// use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
 /// use tantale::macros::{objective, Outcome};
@@ -143,7 +143,7 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     }
 /// );
 /// ```
-/// 
+///
 /// ## Generated Output
 ///
 /// The macro generates three public items:
@@ -327,12 +327,12 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// ```
 ///
 /// ## Alternative mode
-/// 
+///
 /// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
 /// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
-/// 
+///
 /// ### Example
-/// 
+///
 /// ```ignore
 /// use tantale::core::domain::{Bool, Cat, Int, Nat};
 ///     use tantale::core::sampler::{Bernoulli, Uniform};
@@ -343,8 +343,8 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///         c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform) >   | ;
 ///         d | Grid<Bool(Bernoulli(0.5))>                         | ;
 ///     );
-/// ``` 
-/// 
+/// ```
+///
 /// ## Variable Replication
 ///
 /// Create multiple similar variables using `{count}` syntax:

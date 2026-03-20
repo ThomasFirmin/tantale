@@ -11,7 +11,11 @@ use crate::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, experiment::{PoolMode, mpi::utils::MPIProcess}, solution::HasY};
+use crate::{
+    checkpointer::DistCheckpointer,
+    experiment::{PoolMode, mpi::utils::MPIProcess},
+    solution::HasY,
+};
 
 use indexmap::IndexMap;
 
@@ -178,7 +182,8 @@ where
     pub check: Option<FnStCheck>,
 }
 
-impl<FnStCheck, SolId, FnState> IdxMapPool<FnStCheck, FnState, SolId>where
+impl<FnStCheck, SolId, FnState> IdxMapPool<FnStCheck, FnState, SolId>
+where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,
     FnState: FuncState,
@@ -199,7 +204,10 @@ where
     FnStCheck: FuncStateCheckpointer,
 {
     fn default() -> Self {
-        Self { pool: Default::default(), check: Default::default() }
+        Self {
+            pool: Default::default(),
+            check: Default::default(),
+        }
     }
 }
 
@@ -253,7 +261,7 @@ where
     SolId: Id,
     FnStCheck: FuncStateCheckpointer,
 {
-    pub current: Option<(SolId,FnState)>,
+    pub current: Option<(SolId, FnState)>,
     pub check: FnStCheck,
 }
 
@@ -275,37 +283,47 @@ where
     FnStCheck: FuncStateCheckpointer,
 {
     pub fn new(check: FnStCheck) -> Self {
-        Self { check, current: None }
+        Self {
+            check,
+            current: None,
+        }
     }
 }
 
-impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for LoadPool<FnStCheck, FnState, SolId>
+impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId>
+    for LoadPool<FnStCheck, FnState, SolId>
 where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,
     FnState: FuncState,
 {
+    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
+    /// This implementation saves the state using the checkpointer and keeps track of the current state in memory for quick retrieval.
     fn insert(&mut self, id: SolId, state: FnState) {
-        println!("LOADPOOL: insert !! ");
         self.check.save_func_state(&id, &state);
         self.current = Some((id, state));
     }
 
+    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// This implementation removes the state from the checkpointer and clears the current state if it matches the given [`Id`].
     fn remove(&mut self, id: &SolId) -> bool {
-        println!("LOADPOOL: remove !! ");
-        if let Some((current_id, _)) = &self.current && current_id == id {
-                self.current = None;
-            }
+        if let Some((current_id, _)) = &self.current
+            && current_id == id
+        {
+            self.current = None;
+        }
         self.check.remove_func_state(id).is_ok()
     }
 
+    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// This implementation first checks if the current state in memory matches the given [`Id`] and
+    /// returns it if so; otherwise, it attempts to load the state from the checkpointer.
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
-        println!("LOADPOOL: retrieve ");
-        if let Some((current_id, _)) = &self.current && current_id == id
+        if let Some((current_id, _)) = &self.current
+            && current_id == id
         {
             Some(self.current.take().unwrap().1)
-        } 
-        else {
+        } else {
             self.check.load_func_state(id)
         }
     }
@@ -366,7 +384,7 @@ where
     /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
     /// The behavior of this method depends on the underlying pool implementation:
     /// - For [`IdxMapPool`], it will retrieve the state from the in-memory map.
-    /// - For [`LoadPool`], it will first check if the current state in memory matches the given [`Id`] and return it if so; 
+    /// - For [`LoadPool`], it will first check if the current state in memory matches the given [`Id`] and return it if so;
     ///   otherwise, it will attempt to load the state from the checkpointer.
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
         match self {
