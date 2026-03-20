@@ -4,7 +4,7 @@ use std::fmt::{Display, Debug};
 use serde::{Serialize, Deserialize};
 use num::cast::AsPrimitive;
 
-/// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
+/// A shortcut for the bounds of the generic type `<T>` in [`GridDom`]`<T>`
 pub trait GridBounds:
     PartialEq
     + Clone
