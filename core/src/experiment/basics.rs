@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, solution::HasY};
+use crate::{checkpointer::DistCheckpointer, experiment::{PoolMode, mpi::utils::MPIProcess}, solution::HasY};
 
 use indexmap::IndexMap;
 
@@ -65,6 +65,7 @@ where
     pub checkpointer: Option<Check>,
     pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
+    pub(crate) pool_mode: PoolMode,
 }
 
 //---------------------//
@@ -103,6 +104,7 @@ where
     pub checkpointer: Option<Check>,
     pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
+    pub(crate) pool_mode: PoolMode,
 }
 
 //-------------------//
@@ -119,7 +121,6 @@ where
 ///
 /// # See also
 /// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess)
-/// - [`DistRecorder`](crate::recorder::DistRecorder)
 /// - [`DistCheckpointer`](crate::checkpointer::DistCheckpointer)
 pub struct MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
@@ -146,13 +147,13 @@ where
     pub checkpointer: Option<Check>,
     pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
+    pub pool_mode: PoolMode,
 }
 
 /// Trait defining the interface for a pool of [`FuncState`]s associated with solution identifiers.
 /// This abstraction allows for different implementations of function state management, such as in-memory pools or checkpointer-backed storage.
-pub trait FuncStatePool<FnState, SolId>
+pub trait FuncStatePool<FnState, SolId>: Default
 where
-    Self: Default,
     SolId: Id,
     FnState: FuncState,
 {
@@ -167,7 +168,7 @@ where
 /// An implementation of [`FuncStatePool`] that uses an in-memory [`IndexMap`] to store function states.
 /// This pool is suitable for scenarios where memory is sufficient to hold all function states.
 /// It also optionally integrates a function state checkpointer for persistence, but does not rely on it for retrieval.
-pub struct IdxMapPool<SolId, FnState, FnStCheck>
+pub struct IdxMapPool<FnStCheck, FnState, SolId>
 where
     SolId: Id,
     FnState: FuncState,
@@ -177,8 +178,7 @@ where
     pub check: Option<FnStCheck>,
 }
 
-impl<FnStCheck, SolId, FnState> IdxMapPool<SolId, FnState, FnStCheck>
-where
+impl<FnStCheck, SolId, FnState> IdxMapPool<FnStCheck, FnState, SolId>where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,
     FnState: FuncState,
@@ -192,8 +192,19 @@ where
     }
 }
 
+impl<SolId, FnState, FnStCheck> Default for IdxMapPool<FnStCheck, FnState, SolId>
+where
+    SolId: Id,
+    FnState: FuncState,
+    FnStCheck: FuncStateCheckpointer,
+{
+    fn default() -> Self {
+        Self { pool: Default::default(), check: Default::default() }
+    }
+}
+
 impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterator<(SolId, FnState)>
-    for IdxMapPool<SolId, FnState, FnStCheck>
+    for IdxMapPool<FnStCheck, FnState, SolId>
 {
     fn from_iter<T: IntoIterator<Item = (SolId, FnState)>>(iter: T) -> Self {
         let pool = iter
@@ -204,19 +215,8 @@ impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterat
     }
 }
 
-impl<FnStCheck, SolId, FnState> Default for IdxMapPool<SolId, FnState, FnStCheck>
-where
-    FnStCheck: FuncStateCheckpointer,
-    SolId: Id,
-    FnState: FuncState,
-{
-    fn default() -> Self {
-        Self::new(None)
-    }
-}
-
 impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId>
-    for IdxMapPool<SolId, FnState, FnStCheck>
+    for IdxMapPool<FnStCheck, FnState, SolId>
 where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,
@@ -247,46 +247,131 @@ where
     }
 }
 
-pub struct LoadPool<FnStCheck>
+pub struct LoadPool<FnStCheck, FnState, SolId>
 where
+    FnState: FuncState,
+    SolId: Id,
     FnStCheck: FuncStateCheckpointer,
 {
+    pub current: Option<(SolId,FnState)>,
     pub check: FnStCheck,
 }
 
-impl<FnStCheck> LoadPool<FnStCheck>
+impl<SolId, FnState, FnStCheck> Default for LoadPool<FnStCheck, FnState, SolId>
 where
-    FnStCheck: FuncStateCheckpointer,
-{
-    pub fn new(check: FnStCheck) -> Self {
-        Self { check }
-    }
-}
-
-impl<FnStCheck> Default for LoadPool<FnStCheck>
-where
+    SolId: Id,
+    FnState: FuncState,
     FnStCheck: FuncStateCheckpointer,
 {
     fn default() -> Self {
-        panic!("LoadPool cannot be default constructed without a checkpointer")
+        panic!("LoadPool cannot be created with default.")
     }
 }
 
-impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for LoadPool<FnStCheck>
+impl<FnStCheck, FnState, SolId> LoadPool<FnStCheck, FnState, SolId>
+where
+    FnState: FuncState,
+    SolId: Id,
+    FnStCheck: FuncStateCheckpointer,
+{
+    pub fn new(check: FnStCheck) -> Self {
+        Self { check, current: None }
+    }
+}
+
+impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId> for LoadPool<FnStCheck, FnState, SolId>
 where
     FnStCheck: FuncStateCheckpointer,
     SolId: Id,
     FnState: FuncState,
 {
     fn insert(&mut self, id: SolId, state: FnState) {
+        println!("LOADPOOL: insert !! ");
         self.check.save_func_state(&id, &state);
+        self.current = Some((id, state));
     }
 
     fn remove(&mut self, id: &SolId) -> bool {
+        println!("LOADPOOL: remove !! ");
+        if let Some((current_id, _)) = &self.current && current_id == id {
+                self.current = None;
+            }
         self.check.remove_func_state(id).is_ok()
     }
 
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
-        self.check.load_func_state(id)
+        println!("LOADPOOL: retrieve ");
+        if let Some((current_id, _)) = &self.current && current_id == id
+        {
+            Some(self.current.take().unwrap().1)
+        } 
+        else {
+            self.check.load_func_state(id)
+        }
+    }
+}
+
+/// An enum that abstracts over different implementations of a function state pool.
+/// It can either be an in-memory [`IdxMapPool`] or a checkpointer-backed [`LoadPool`].
+/// This allows the experiment to switch between different pool strategies based on the [`PoolMode`] without changing the underlying logic of function state management.
+pub enum Pool<FnStCheck, FnState, SolId>
+where
+    FnState: FuncState,
+    SolId: Id,
+    FnStCheck: FuncStateCheckpointer,
+{
+    IdxMap(IdxMapPool<FnStCheck, FnState, SolId>),
+    Load(LoadPool<FnStCheck, FnState, SolId>),
+}
+
+impl<FnStCheck, FnState, SolId> Default for Pool<FnStCheck, FnState, SolId>
+where
+    FnState: FuncState,
+    SolId: Id,
+    FnStCheck: FuncStateCheckpointer,
+{
+    fn default() -> Self {
+        Pool::IdxMap(IdxMapPool::default())
+    }
+}
+
+impl<FnStCheck, FnState, SolId> FuncStatePool<FnState, SolId> for Pool<FnStCheck, FnState, SolId>
+where
+    FnState: FuncState,
+    SolId: Id,
+    FnStCheck: FuncStateCheckpointer,
+{
+    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
+    /// The behavior of this method depends on the underlying pool implementation:
+    /// - For [`IdxMapPool`], it will save the state in the in-memory map and optionally persist it using the checkpointer.
+    /// - For [`LoadPool`], it will save the state using the checkpointer and keep track of the current state in memory for quick retrieval
+    fn insert(&mut self, id: SolId, state: FnState) {
+        match self {
+            Pool::IdxMap(p) => p.insert(id, state),
+            Pool::Load(p) => p.insert(id, state),
+        }
+    }
+
+    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// The behavior of this method depends on the underlying pool implementation:
+    /// - For [`IdxMapPool`], it will remove the state from the in-memory map and optionally remove it from the checkpointer.
+    /// - For [`LoadPool`], it will remove the state from the checkpointer and clear the current state if it matches the given [`Id`].
+    fn remove(&mut self, id: &SolId) -> bool {
+        match self {
+            Pool::IdxMap(p) => p.remove(id),
+            Pool::Load(p) => p.remove(id),
+        }
+    }
+
+    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// The behavior of this method depends on the underlying pool implementation:
+    /// - For [`IdxMapPool`], it will retrieve the state from the in-memory map.
+    /// - For [`LoadPool`], it will first check if the current state in memory matches the given [`Id`] and return it if so; 
+    ///   otherwise, it will attempt to load the state from the checkpointer.
+    fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
+        match self {
+            Pool::IdxMap(p) => p.retrieve(id),
+            Pool::Load(p) => p.retrieve(id),
+        }
     }
 }
