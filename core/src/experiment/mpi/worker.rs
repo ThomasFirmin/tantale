@@ -1,16 +1,16 @@
 use crate::{
     FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::utils::{
+    experiment::{basics::FuncStatePool, mpi::utils::{
         DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg,
-    },
+    }},
     objective::{Step, outcome::FuncState},
 };
 
 use core::panic;
 use mpi::traits::{Communicator, Source};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::marker::PhantomData;
 
 //--------//
 // WORKER //
@@ -51,11 +51,19 @@ impl WorkerState for NoWState {}
     serialize = "SolId: Serialize",
     deserialize = "SolId: for<'a> Deserialize<'a>"
 ))]
-pub struct FidWState<SolId: Id, FnState: FuncState>(HashMap<SolId, FnState>);
-impl<SolId: Id, FnState: FuncState> WorkerState for FidWState<SolId, FnState> {}
-impl<SolId: Id, FnState: FuncState> FidWState<SolId, FnState> {
+pub struct FidWState<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>>{
+    #[serde(skip)]
+    pub pool: FuncPool,
+    _id : PhantomData<SolId>,
+    _fnstate: PhantomData<FnState>,
+}
+impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> WorkerState for FidWState<SolId, FnState, FuncPool> {}
+impl<SolId: Id, FnState: FuncState, FuncPool: FuncStatePool<FnState, SolId>> FidWState<SolId, FnState, FuncPool> {
     pub fn new_empty() -> Self {
-        FidWState(HashMap::<SolId, FnState>::new())
+        FidWState { pool: FuncPool::default(), _id: PhantomData, _fnstate: PhantomData }
+    }
+    pub fn new(pool: FuncPool) -> Self {
+        FidWState { pool, _id: PhantomData, _fnstate: PhantomData }
     }
 }
 
@@ -131,54 +139,54 @@ where
 /// It maintains an internal state mapping solution [`Id`]s to their corresponding [`FuncState`](crate::objective::outcome::FuncState`).
 /// This allows the worker to handle computations that may require multiple [`Step`]s.
 /// The worker can also optionally utilize a [`WorkerCheckpointer`] to save its state during the computation process.
-pub struct FidWorker<'a, SolId, Raw, Out, FnState, Check>
+pub struct FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
+    FnPool: FuncStatePool<FnState, SolId>,
 {
     pub proc: &'a MPIProcess,
     pub objective: Stepped<Raw, Out, FnState>,
-    pub state: FidWState<SolId, FnState>,
-    pub check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
+    pub state: FidWState<SolId, FnState, FnPool>,
+    pub check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
 }
 
-impl<'a, SolId, Raw, Out, FnState, Check> FidWorker<'a, SolId, Raw, Out, FnState, Check>
+impl<'a, SolId, Raw, Out, FnState, Check, FnPool> FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
+    FnPool: FuncStatePool<FnState, SolId>,
 {
     /// Creates a new [`FidWorker`] with the given parameters.
     pub fn new(
-        objective: Stepped<Raw, Out, FnState>,
-        check: Option<Check::WCheck<FidWState<SolId, FnState>>>,
         proc: &'a MPIProcess,
+        objective: Stepped<Raw, Out, FnState>,
+        pool: FnPool,
+        check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
     ) -> Self {
-        FidWorker {
-            proc,
-            objective,
-            state: FidWState::new_empty(),
-            check,
-        }
+        let state =FidWState::new(pool);
+        FidWorker { proc, objective, state, check }
     }
 }
 
-impl<'a, SolId, Raw, Out, FnState, Check> Worker<SolId>
-    for FidWorker<'a, SolId, Raw, Out, FnState, Check>
+impl<'a, SolId, Raw, Out, FnState, Check, FnPool> Worker<SolId>
+    for FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
+    FnPool: FuncStatePool<FnState, SolId>,
 {
     /// The internal state type for the fidelity worker.
-    type WState = FidWState<SolId, FnState>;
+    type WState = FidWState<SolId, FnState, FnPool>;
     /// Runs the main loop of the fidelity worker.
     /// It waits for messages from the master process (rank 0),
     /// computes the corresponding outputs with the given [`Stepped`] [`Objective`],
@@ -210,17 +218,20 @@ where
                     Step::Pending => {
                         let (out, state) = self.objective.compute(x, fid, None);
                         if out.get_step().0 > 0 {
-                            self.state.0.insert(id, state);
+                            self.state.pool.insert(id, state);
+                        } else {
+                            self.state.pool.remove(&id);
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
                     }
                     Step::Partially(_) => {
-                        let state = self.state.0.remove(&id);
+                        let state = self.state.pool.retrieve(&id);
                         let (out, state) = self.objective.compute(x, fid, state);
-                        if out.get_step().0 > 0 {
-                            // if > 0, Partially
-                            self.state.0.insert(id, state);
+                        if out.get_step().0 > 0 { // if > 0 => Partially
+                            self.state.pool.insert(id, state);
+                        } else {
+                            self.state.pool.remove(&id);
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
@@ -239,7 +250,7 @@ where
             // Discard
             else if tag == 104 {
                 let msg = DiscardFXMessage::from_bytes(raw, config);
-                self.state.0.remove(&msg.0);
+                self.state.pool.remove(&msg.0);
             }
             // Checkpoint
             else if tag == 7 {
