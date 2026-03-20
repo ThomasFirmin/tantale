@@ -134,7 +134,7 @@ impl<T:Dominate> NonDominatedSorting<T> for [T]
     }
 }
 
-/// Implements the binary search used for non-dominated sorting, described in [Zhang et al. (2021)](http://www.soft-computing.de/ENS.pdf).
+/// Implements the binary search used for non-dominated sorting, described in [Zhang et al. (2014)](http://www.soft-computing.de/ENS.pdf).
 ///
 /// # Parameters
 /// - `target`: The [`Dominate`] object to be sorted.
