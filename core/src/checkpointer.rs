@@ -89,7 +89,9 @@ pub trait Checkpointer
 where
     Self: Sized,
 {
+    /// Associated type for function state checkpointer, used to manage per-function state.
     type FnStateCheck: FuncStateCheckpointer;
+    /// Creates a new function state checkpointer for managing per-function state.
     fn new_func_state_checkpointer(&self) -> Self::FnStateCheck;
 }
 
@@ -406,6 +408,10 @@ pub trait WorkerCheckpointer<WState>
 where
     WState: WorkerState,
 {
+    type FnStateCheck: FuncStateCheckpointer;
+    /// Creates a new function state checkpointer for managing per-function state.
+    fn new_func_state_checkpointer(&self) -> Self::FnStateCheck;
+
     /// Initializes checkpoint storage for a worker process in a new distributed experiment.
     ///
     /// This methodaster prepares the checkpoiasternt infrastructure for a specific worasterker rank.
@@ -548,7 +554,7 @@ where
     ///
     /// This associated type allows different worker state types to have their own
     /// specialized checkpointer implementations.
-    type WCheck<WState: WorkerState>: WorkerCheckpointer<WState>;
+    type WCheck<WState: WorkerState>: WorkerCheckpointer<WState, FnStateCheck = Self::FnStateCheck>;
 
     /// Equivalent to [`init`](MonoCheckpointer::init) for distributed optimization experiments.
     fn init_dist(&mut self, proc: &MPIProcess);
@@ -846,11 +852,15 @@ pub struct NoWCheck;
 
 #[cfg(feature = "mpi")]
 impl<S: WorkerState> WorkerCheckpointer<S> for NoWCheck {
+    type FnStateCheck = NoFuncStateCheck;
     fn init(&mut self, _proc: &MPIProcess) {}
     fn before_load(&mut self, _proc: &MPIProcess) {}
     fn after_load(&mut self, _proc: &MPIProcess) {}
     fn save_state(&self, _state: &S, _rank: Rank) {}
     fn load(&self, _rank: Rank) -> Result<S, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
+    }
+    fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
+        NoFuncStateCheck
     }
 }

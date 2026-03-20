@@ -26,26 +26,20 @@ use crate::{
 use mpi::{Rank, traits::CommunicatorCollectives};
 
 pub struct MPFnStateCheckpointer {
-    config: Arc<FolderConfig>,
+    pub path: PathBuf,
 }
 
 impl FuncStateCheckpointer for MPFnStateCheckpointer {
     fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState) {
         let id_str = id.to_string();
-        let path_ste = self
-            .config
-            .path_check
-            .join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
         let mut file = File::create(path_ste).unwrap();
         rmp_serde::encode::write(&mut file, &(id, func_state)).unwrap();
     }
 
     fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<FnState> {
         let id_str = id.to_string();
-        let path_ste = self
-            .config
-            .path_check
-            .join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             let rdr = File::open(&path_ste).unwrap();
             let (id_loaded, func_state): (SolId, FnState) =
@@ -62,10 +56,7 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
 
     fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
         let id_str = id.to_string();
-        let path_ste = self
-            .config
-            .path_check
-            .join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self.path.join(Path::new(&format!("state_func_{}.mp", id_str)));
         if path_ste.exists() {
             std::fs::remove_file(path_ste).unwrap();
             Ok(true)
@@ -78,8 +69,8 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
 
     fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)> {
         let mut vec_func_state = Vec::new();
-        if self.config.path_check.try_exists().unwrap() {
-            for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
+        if self.path.try_exists().unwrap() {
+            for entry in std::fs::read_dir(&self.path).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
                 if path.is_file()
@@ -125,7 +116,7 @@ impl Checkpointer for MessagePack {
 
     fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
         MPFnStateCheckpointer {
-            config: self.config.clone(),
+            path: self.config.path_check.clone(),
         }
     }
 }
@@ -232,7 +223,7 @@ impl MonoCheckpointer for MessagePack {
             i += 1;
         }
         rename(&self.config.path_check, &new_path).unwrap();
-        create_dir_all(&self.config.path_check).unwrap();
+        self.init();
     }
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
@@ -499,7 +490,7 @@ impl ThrCheckpointer for MessagePack {
             i += 1;
         }
         rename(&self.config.path_check, &new_path).unwrap();
-        create_dir_all(&self.config.path_check).unwrap();
+        self.init_thr();
     }
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
@@ -795,6 +786,7 @@ impl DistCheckpointer for MessagePack {
         }
         rename(&self.config.path_check, &new_path).unwrap();
         proc.world.barrier();
+        self.init_dist(proc);
     }
 
     /// A no-operation function to synchronize all processes after initialization, if no [`WorkerCheckpointer`] is used.
@@ -991,16 +983,14 @@ impl WCheckMessagePack {
                 "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
             )
         }
-        WCheckMessagePack(
-            config
-                .path_work
-                .join(format!("worker_rank{}.mp", proc.rank)),
-        )
+        let path_check = config.path_work.join(format!("worker_rank{}.mp", proc.rank));
+        WCheckMessagePack(path_check)
     }
 }
 
 #[cfg(feature = "mpi")]
 impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
+    type FnStateCheck = MPFnStateCheckpointer;
     /// Checks if folders and files already exists, if so [`panic!`] for [WorkerCheckpointer].
     ///
     /// # Note
@@ -1039,7 +1029,8 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     }
 
     fn after_load(&mut self, proc: &MPIProcess) {
-        proc.world.barrier();
+        proc.world.barrier(); // First barrier for all workers to finish checking their checkpoint file
+        proc.world.barrier(); // Second barrier for all workers to be ready to load their checkpoint file
     }
 
     /// Saves a checkpoint from the given [`WorkerState`], according to a [`FolderConfig`].
@@ -1058,6 +1049,13 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
             Err(CheckpointError(String::from(
                 "The given path does not have any checkpoint folder",
             )))
+        }
+    }
+    
+    fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
+        let path = self.0.parent().unwrap().to_path_buf();
+        MPFnStateCheckpointer{
+            path,
         }
     }
 }
