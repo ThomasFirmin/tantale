@@ -256,15 +256,7 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, SId, Searchspace,
-    checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
-    domain::{codomain::TypeAcc, onto::LinkOpt},
-    objective::{FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    searchspace::CompShape,
-    solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
-    stop::Stop,
+    Accumulator, SId, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -283,7 +275,7 @@ use ::mpi::Rank;
 
 // BASICS
 pub mod basics;
-pub use basics::{MonoExperiment, ThrExperiment};
+pub use basics::{MonoExperiment, ThrExperiment, Pool};
 // BATCHED
 pub mod batched;
 pub use batched::batchevaluator::{BatchEvaluator, ThrBatchEvaluator};
@@ -342,7 +334,8 @@ pub use basics::MPIExperiment;
 /// ```
 ///
 /// # See Also
-///
+/// 
+/// * [`mono_with_pool`] - For single-threaded execution with function state management.
 /// * [`threaded`] - For multi-threaded execution
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`MonoExperiment`] - The underlying experiment type
@@ -369,6 +362,34 @@ where
 {
     <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
         space, objective, optimizer, stop, saver,
+    )
+}
+
+/// Similar to [`mono`] but allows specifying a [`PoolMode`] for function state management.
+pub fn mono_with_pool<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+    pool_mode: PoolMode,
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder,
+    Check: MonoCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new_with_pool(
+        space, objective, optimizer, stop, saver, pool_mode,
     )
 }
 
@@ -408,6 +429,7 @@ where
 ///
 /// # See Also
 ///
+/// * [`threaded_with_pool`] - For multi-threaded execution with function state management.
 /// * [`mono`] - For single-threaded execution
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`ThrExperiment`] - The underlying experiment type
@@ -437,9 +459,76 @@ where
     )
 }
 
+/// Similar to [`threaded`] but allows specifying a [`PoolMode`] for function state management.
+pub fn threaded_with_pool<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+    pool_mode: PoolMode,
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder,
+    Check: ThrCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new_with_pool(
+        space, objective, optimizer, stop, saver, pool_mode,
+    )
+}
+
 #[cfg(feature = "mpi")]
 #[allow(clippy::type_complexity)]
-/// Returns a [`MPIExperiment`].
+/// Creates an MPI-distributed experiment ([`MPIExperiment`]).
+///
+/// This function creates experiments that execute across multiple processes using MPI, enabling
+/// parallel evaluation of solutions in a distributed environment. 
+/// Requires the `mpi` feature and an initialized MPI environment. 
+/// Each process will run an instance of the experiment, with one process acting as the master coordinating the optimization 
+/// and others as workers evaluating solutions.
+///
+/// # Parameters
+///
+/// * `proc` - A reference to an initialized [`MPIProcess`] containing rank, communicator, etc.
+/// * `space` - A tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `objective` - The objective function wrapped in [`Objective`](crate::objective::Objective) or [`Stepped`](crate::objective::Stepped)
+/// * `optimizer` - An optimizer implementing [`Optimizer`]
+/// * `stop` - A stopping criterion implementing [`Stop`]
+/// * `saver` - A tuple of (optional [`Recorder`], optional [`ThrCheckpointer`])
+///
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use tantale::core::{experiment::threaded, Objective, stop::Calls};
+/// use tantale::algos::{random_search, BatchRandomSearch};
+///
+/// let sp = my_searchspace();
+/// let cod = random_search::codomain(|out| out.value);
+/// let obj = Objective::new(my_function);
+/// let opt = BatchRandomSearch::new(10);  // Batch size 10
+/// let stop = Calls::new(100);
+///
+/// let experiment = distributed(&proc, (sp, cod), obj, opt, stop, (None, None)); // No recording or checkpointing
+/// experiment.run();  // Evaluates batches in parallel
+/// ```
+///
+/// # See Also
+///
+/// * [`distributed_with_pool`] - For MPI-based distributed execution with function state management.
+/// * [`mono`] - For single-threaded execution
+/// * [`threaded`] - For multi-threaded execution
+/// * [`MPIExperiment`] - The underlying experiment type
 pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (Scp, Op::Cod),
@@ -477,6 +566,50 @@ where
     <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::new(
         proc,
         space, objective, optimizer, stop, saver
+    )
+}
+
+#[cfg(feature = "mpi")]
+#[allow(clippy::type_complexity)]
+/// Similar to [`distributed`] but allows specifying a [`PoolMode`] for function state management.
+pub fn distributed_with_pool<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+    proc: &'a MPIProcess,
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    optimizer: Op,
+    stop: St,
+    saver: (Option<Rec>, Option<Check>),
+    pool_mode: PoolMode,
+) -> MasterWorker<
+    'a,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    PSol,
+    SId,
+    Scp,
+    Op,
+    St,
+    Rec,
+    Check,
+    Out,
+    Fn,
+>
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    St: Stop,
+    Rec: Recorder,
+    Check: DistCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::new_with_pool(
+        proc,
+        space, objective, optimizer, stop, saver, pool_mode
     )
 }
 
@@ -560,6 +693,32 @@ where
     )
 }
 
+/// Similar to [`mono_load`] but allows specifying a [`PoolMode`] for function state management.
+pub fn mono_load_with_pool<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+    pool_mode: PoolMode,
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    Rec: Recorder,
+    Check: MonoCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load_with_pool(
+        space, objective, saver, pool_mode
+    )
+}
+
 /// Loads a multi-threaded experiment from a checkpoint.
 ///
 /// Restores a [`ThrExperiment`] from saved state. The checkpoint must have been created
@@ -635,9 +794,91 @@ where
     )
 }
 
+/// Similar to [`threaded_load`] but allows specifying a [`PoolMode`] for function state management.
+pub fn threaded_load_with_pool<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    space: (Scp, Op::Cod),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+    pool_mode: PoolMode,
+) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<
+        Scp,
+        PSol,
+        SId,
+        Op::SInfo,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        Out,
+    >: SolutionShape<SId, Op::SInfo>,
+    Rec: Recorder,
+    Check: ThrCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load_with_pool(
+        space, objective, saver, pool_mode
+    )
+}
+
 #[cfg(feature = "mpi")]
 #[allow(clippy::type_complexity)]
-/// Load a [`MPIExperiment`] from a saver (dist-recorder optional, dist-checkpointer required).
+/// Loads an MPI-distributed experiment from a checkpoint.
+/// 
+/// Restores a [`MPIExperiment`] from saved state. The checkpoint must have been created
+/// with a distributed checkpointer ([`DistCheckpointer`]) and requires the `mpi`
+/// feature and an initialized MPI environment. Each process will load its own instance of the experiment,
+/// with one process acting as the master coordinating the optimization and others as workers evaluating solutions.
+///
+/// # Parameters
+///
+/// * `proc` - A reference to an initialized [`MPIProcess`] containing rank, communicator, etc.
+/// * `space` - Tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `objective` - The objective function wrapper
+/// * `saver` - Tuple of (optional [`Recorder`], **required** [`DistCheckpointer`])
+///
+/// # Type Parameters
+///
+/// - `Op` - The optimizer type
+/// - `St` - The stopping criterion type
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use tantale::core::{experiment::distributed_load, MessagePack, FolderConfig};
+/// use tantale::core::mpi::utils::MPIProcess;
+/// use tantale::algos::BatchRandomSearch;
+/// use tantale::core::stop::Calls;
+///
+/// let config = FolderConfig::new("my_experiment").init();
+/// let checkpointer = MessagePack::new(config).unwrap();
+/// let proc = MPIProcess::new();
+/// 
+/// let mut exp = distributed_load::<BatchRandomSearch, Calls, _, _, _, _, _, _, _>(
+///     &proc,
+///     (searchspace, codomain),
+///     objective,
+///     (None, checkpointer)
+/// );
+///
+/// exp.run();
+/// ```
+///
+/// # Note
+///
+/// Prefer using the [`load!`] macro for cleaner syntax.
+///
+/// # See Also
+///
+/// * [`distributed`] - For creating new multi-threaded experiments
+/// * [`mono_load`] - For loading single-threaded experiments
+/// * [`load!`] - Macro for simpler loading syntax
 pub fn distributed_load<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (
@@ -688,6 +929,61 @@ where
     )
 }
 
+#[cfg(feature = "mpi")]
+#[allow(clippy::type_complexity)]
+/// Similar to [`distributed_load`] but allows specifying a [`PoolMode`] for function state management.
+pub fn distributed_load_with_pool<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+    proc: &'a MPIProcess,
+    space: (
+        Scp,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+    ),
+    objective: Fn,
+    saver: (Option<Rec>, Check),
+    pool_mode: PoolMode,
+) -> MasterWorker<
+    'a,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    PSol,
+    SId,
+    Scp,
+    Op,
+    St,
+    Rec,
+    Check,
+    Out,
+    Fn,
+>
+where
+    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    St: Stop,
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    CompShape<
+        Scp,
+        PSol,
+        SId,
+        Op::SInfo,
+        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        Out,
+    >: SolutionShape<SId, Op::SInfo>,
+    Rec: Recorder,
+    Check: DistCheckpointer,
+    Out: Outcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Eval: Evaluate,
+{
+    <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::load_with_pool(
+        proc,
+        space,
+        objective,
+        saver,
+        pool_mode
+    )
+}
+
 /// Macro for loading experiments from checkpoints with simplified syntax.
 ///
 /// This macro provides a convenient interface for calling the `*_load` functions
@@ -712,6 +1008,13 @@ where
 /// * `objective` - The objective function wrapper
 /// * `saver` - Tuple of (optional recorder, required checkpointer)
 ///
+/// # Alternative with PoolMode
+/// 
+/// You can also specify a [`PoolMode`] for function state management by using the following syntax:
+/// ```text
+/// load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
+/// ```
+/// 
 /// # Examples
 ///
 /// ## Basic Loading
@@ -805,6 +1108,25 @@ macro_rules! load {
             $space, $objective, $saver,
         )
     };
+    (mono, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::mono_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver, $pool_mode)
+    };
+    (threaded, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::threaded_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver, $pool_mode
+        )
+    };
+}
+
+/// Pool modes for the [`FuncStatePool`](crate::experiment::basics::FuncStatePool) when retrieving [`FuncState`](crate::FuncState).
+/// This prevent overflowing RAM whith large [`FuncState`](crate::FuncState) by allowing to retrieve the state from memory if it is still there, 
+/// or to load it from disk if it has been evicted.
+/// It is only used for multi-fidelity optimization where the state of the objective function has to be tracked.
+pub enum PoolMode {
+    /// Retrieve the state saved in memory (if any) without loading from disk.
+    InMemory,
+    /// Load the state from disk using the checkpointer.
+    Persistent,
 }
 
 /// Macro for loading experiments from checkpoints with simplified syntax (MPI-enabled version).
@@ -830,6 +1152,19 @@ macro_rules! load {
     (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::distributed_load::<$Op, $St, _, _, _, _, _, _, _>(
             $proc, $space, $objective, $saver,
+        )
+    };
+    (mono, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::mono_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver, $pool_mode)
+    };
+    (threaded, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::threaded_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver, $pool_mode
+        )
+    };
+    (distributed, $pool_mode:expr, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+        $crate::experiment::distributed_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+            $proc, $space, $objective, $saver, $pool_mode
         )
     };
 }
@@ -869,10 +1204,10 @@ pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
 /// The [`Accumulator`](crate::Accumulator) tracks the most relevant solutions evaluated so far.
 ///
 /// - **Single-objective** codomains (implementing [`Single`](crate::Single)) use
-///   [`BestComputed`](crate::BestComputed): the single solution with the highest
+///   [`BestAccumulator`](crate::BestAccumulator): the single solution with the highest
 ///   [`TypeCodom`](crate::Codomain::TypeCodom) value (via [`Ord`]) is retained.
 /// - **Multi-objective** codomains (implementing [`Multi`](crate::Multi)) use
-///   [`ParetoComputed`](crate::ParetoComputed): the current Pareto front is maintained
+///   [`ParetoAccumulator`](crate::ParetoAccumulator): the current Pareto front is maintained
 ///   using the [`Dominate`](crate::domain::codomain::Dominate) relation.
 ///
 /// # Design Philosophy
@@ -953,10 +1288,11 @@ pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
 /// - [`Optimizer`] - Trait for optimization algorithms
 /// - [`Stop`] - Trait for stopping criteria
 /// - [`crate::domain::codomain::Accumulator`] - Trait for accumulating best solutions across iterations
-/// - [`crate::domain::codomain::BestComputed`] - Accumulator for single-objective codomains
-/// - [`crate::domain::codomain::ParetoComputed`] - Accumulator for multi-objective codomains
+/// - [`crate::domain::codomain::BestAccumulator`] - Accumulator for single-objective codomains
+/// - [`crate::domain::codomain::ParetoAccumulator`] - Accumulator for multi-objective codomains
 pub trait Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
+    Self: Sized,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -968,19 +1304,37 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
 {
-    /// Creates a new experiment from its components.
+    /// Creates a new default experiment from its components.
     ///
     /// Constructs an experiment ready to run from scratch. The optimizer's internal
     /// state is initialized fresh, and the accumulator starts empty.
     ///
     /// Prefer the [`mono`], [`threaded`] or [`distributed`] functions which
     /// infer the concrete experiment type automatically.
+    /// 
+    /// ## PoolMode
+    /// 
+    /// By default, the function state pool is set to [`PoolMode::InMemory`],
+    /// which means that function states will be kept in memory if possible.
+    /// If you want to specify a different pool mode, use the [`new_with_pool`](Runable::new_with_pool) method.
     fn new(
         space: (Scp, Op::Cod),
         objective: Fn,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+    ) -> Self{
+        Self::new_with_pool(space, objective, optimizer, stop, saver, PoolMode::InMemory)
+    }
+
+    /// Similar to [`new`], but allows specifying the [`PoolMode`] for function state management.
+    fn new_with_pool(
+        space: (Scp, Op::Cod),
+        objective: Fn,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
     ) -> Self;
 
     /// Runs the optimization loop to completion.
@@ -999,7 +1353,17 @@ where
     /// supplied explicitly because they are not serialized.
     ///
     /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the [`load!`] macro.
-    fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self;
+    fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self{
+        Self::load_with_pool(space, objective, saver, PoolMode::InMemory)
+    }
+
+    /// Restores an experiment from a checkpoint with specified [`PoolMode`].
+    fn load_with_pool(
+        space: (Scp, Op::Cod),
+        objective: Fn,
+        saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
+    ) -> Self;
 
     /// Returns a reference to the [`Stop`] criterion.
     fn get_stop(&self) -> &St;
@@ -1127,6 +1491,13 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     type WType: Worker<SolId>;
+    /// Creates a new distributed experiment from its components.
+    /// 
+    /// ## PoolMode
+    /// 
+    /// By default, the function state pool is set to [`PoolMode::InMemory`],
+    /// which means that function states will be kept in memory if possible.
+    /// If you want to specify a different pool mode, use the [`new_with_pool`](MPIRunable::new_with_pool) method.
     fn new(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1134,6 +1505,18 @@ where
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
+    ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>{
+        Self::new_with_pool(proc, space, objective, optimizer, stop, saver, PoolMode::InMemory)
+    }
+    /// Creates a new distributed experiment from its components with specified [`PoolMode`].
+    fn new_with_pool(
+        proc: &'a MPIProcess,
+        space: (Scp, Op::Cod),
+        objective: Fn,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
     fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
     fn load(
@@ -1141,6 +1524,15 @@ where
         space: (Scp, Op::Cod),
         objective: Fn,
         saver: (Option<Rec>, Check),
+    ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>{
+        Self::load_with_pool(proc, space, objective, saver, PoolMode::InMemory)
+    }
+    fn load_with_pool(
+        proc: &'a MPIProcess,
+        space: (Scp, Op::Cod),
+        objective: Fn,
+        saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
     fn get_stop(&self) -> &St;
     fn get_searchspace(&self) -> &Scp;
