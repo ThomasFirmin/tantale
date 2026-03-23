@@ -17,18 +17,24 @@ The usage of a `Cat` domain remains the same.
 
 Added new domains (see below), to the `Mixed` enum domain.
 
-### DistCheckpointer and WorkerCheckpointer
+### Checkpointer
 
+- `load_func_state` now returns `Option<(SolId, FnState)>` instead of `Option<FnState>`.
 - Added `FuncStateCheckpointer` to `WorkerCheckpointer`
 - `DistCheckpointer` must have the same `FuncStateCheckpointer` as it's worker. 
 - Added `new_func_state_checkpointer` function to `WorkerCheckpointer` to create a `FuncStateCheckpointer` from the worker side.
 - Update `DistCheckpointer` and `WorkerCheckpointer` of `MessagePack` checkpointer.
 
+### Funcstate
+
+- Removed the `FuncState` macro as the `FuncState` trait now has `save` and `load` methods for user-customed saving and loading method via a path to a folder.
+- Added `save` and `load` methods to the `FuncState` trait allowing the user to define custom `save` and `load` methods to checkpoint the state of a  `Stepped` function.
+
 ## New features
 
 ### Multi-objective Asha
 
-Added the `MoAsha` algorithm, th multi-objective version of the `Asha` algorithm, from [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
+Added the `MoAsha` algorithm, the multi-objective version of the `Asha` algorithm, from [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 This is a multi-fidelity, `SequentialOptimizer` (asynchronous), and multi-objective optimization algorithm.
 
 ### GridSearch
@@ -129,6 +135,11 @@ objective!(
     );
 ```
 
+## Fixes
+
+- Solved an issue with `load!` when the feature `mpi` is not active.
+- BatchRandom search for stepped functions now always returns a batch of the right size, even if some solutions are missing within the input batch (e.g. due to Step::Error).
+
 ## Documentation
 
 - Added extra quick example with mock functions for `RandomSearch`, `GridSearch` and `MoAsha`.
@@ -136,6 +147,7 @@ objective!(
 - Corrected `Bernouilli` sampler doc example mistake.
 - Rewrote `Asha` the Note part.
 - Corrected wrong `Asha` diagram.
+- Added Hyperband to the list of algorithms
 
 ## Tests
 

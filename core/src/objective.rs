@@ -28,11 +28,11 @@
 //!
 //! [`EvalStep`] is the internal representation wrapping an `isize` for efficient serialization
 //! and communication (especially in distributed/MPI contexts). The mapping is:
-//! - `EvalStep(0)` ↔ [`Step::Pending`]
-//! - `EvalStep(n > 0)` ↔ [`Step::Partially(n)`](Step::Partially)
-//! - `EvalStep(-1)` ↔ [`Step::Evaluated`]
-//! - `EvalStep(-9)` ↔ [`Step::Discard`]
-//! - `EvalStep(-10)` ↔ [`Step::Error`]
+//! - `EvalStep(0)` <-> [`Step::Pending`]
+//! - `EvalStep(n > 0)` <-> [`Step::Partially(n)`](Step::Partially)
+//! - `EvalStep(-1)` <-> [`Step::Evaluated`]
+//! - `EvalStep(-9)` <-> [`Step::Discard`]
+//! - `EvalStep(-10)` <-> [`Step::Error`]
 //!
 //! Conversion between these types is automatic via the [`From`] trait.
 //!
@@ -160,11 +160,11 @@ impl CSVWritable<(), ()> for Step {
 /// # Encoding Scheme
 ///
 /// The integer value maps to [`Step`] variants as follows:
-/// - `0` → [`Step::Pending`] - Unevaluated solution
-/// - `n > 0` → [`Step::Partially(n)`](Step::Partially) - Partially evaluated to step `n`
-/// - `-1` → [`Step::Evaluated`] - Fully evaluated
-/// - `-9` → [`Step::Discard`] - Evaluation discarded
-/// - `-10` → [`Step::Error`] - Evaluation error
+/// - `0` -> [`Step::Pending`] - Unevaluated solution
+/// - `n > 0` -> [`Step::Partially(n)`](Step::Partially) - Partially evaluated to step `n`
+/// - `-1` -> [`Step::Evaluated`] - Fully evaluated
+/// - `-9` -> [`Step::Discard`] - Evaluation discarded
+/// - `-10` -> [`Step::Error`] - Evaluation error
 ///
 /// # Why Not an Enum?
 ///
