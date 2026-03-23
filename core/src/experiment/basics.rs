@@ -319,12 +319,12 @@ where
     /// This implementation first checks if the current state in memory matches the given [`Id`] and
     /// returns it if so; otherwise, it attempts to load the state from the checkpointer.
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
-        if let Some((current_id, _)) = &self.current
-            && current_id == id
-        {
+        if let Some((current_id, _)) = &self.current && current_id == id {
             Some(self.current.take().unwrap().1)
+        } else if let Some((_id,fnstate)) = self.check.load_func_state(id){
+                Some(fnstate)
         } else {
-            self.check.load_func_state(id)
+            None
         }
     }
 }
