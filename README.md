@@ -174,15 +174,6 @@ An experiment is composed of up to 7 components:
 
 ---
 
-## Roadmap
-
-- [ ] Multi-objective optimization (NSGA-II)
-- [ ] Neural Architecture Search (NAS)
-- [ ] Bayesian Optimization (Gaussian Process, TPE)
-- [ ] Additional recording backends
-- [ ] Additional checkpointing backends
-- [ ] Hybrid optimizer (variable batch sizes, on-demand batch generation)
-
 ---
 
 ## License
