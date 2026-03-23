@@ -19,7 +19,7 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 | Sub-crate | Re-exported as | Role |
 |---|---|---|
 | `tantale_core` | `tantale::core` | Core abstractions: domains, search spaces, solutions, objectives, optimizers, experiments |
-| `tantale_macros` | `tantale::macros` | Procedural macros: `objective!`, `hpo!`, `Outcome`, `FuncState`, … |
+| `tantale_macros` | `tantale::macros` | Procedural macros: `objective!`, `hpo!`, `Outcome`... |
 | `tantale_algos` | `tantale::algos` | Concrete algorithms: Random Search, SHA, ASHA, Hyperband |
 
 ---
