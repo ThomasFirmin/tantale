@@ -87,7 +87,7 @@
 
 use crate::objective::EvalStep;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, path::PathBuf};
 
 /// Trait implemented by objective outputs.
 ///
@@ -134,6 +134,16 @@ where
 /// on the next call and can hold any serializable data needed to resume evaluation.
 pub trait FuncState
 where
-    Self: Sized + Serialize + for<'de> Deserialize<'de>,
+    Self: Sized,
 {
+    /// Saves the function state within a folder for checkpointing.
+    /// # Parameters
+    /// - `path`: Folder path where the checkpoint is stored.
+    ///   The user can decide how to serialize the state (e.g., using rmp_serde, bincode, etc.).
+    fn save(&self, path: PathBuf) -> std::io::Result<()>;
+    /// Loads the function state from a folder for checkpointing.
+    /// # Parameters
+    /// - `path`: Folder path where the checkpoint is stored.
+    ///   The user can decide how to deserialize the state (e.g., using rmp_serde, bincode, etc.).
+    fn load(path: PathBuf) -> std::io::Result<Self>;
 }

@@ -1,13 +1,11 @@
 //! This crate contains the procedural macros for Tantale, including:
 //! - `Outcome` derive macro to wrap the outcome of the user-defined function with `Outcome` (see core documentation).
-//! - `FuncState` derive macro to wrap the function's state of the user-defined function with `FuncState` (see core documentation).
 //! - `objective!` macro for defining objectives and searchspaces together
 //! - `hpo!` macro for concise searchspace definitions
 
 extern crate proc_macro;
 
 mod csvwritable;
-mod funcstate;
 mod hpo;
 mod objective;
 mod optinfo;
@@ -32,7 +30,7 @@ mod solinfo;
 /// use tantale::macros::Outcome;
 /// use serde::{Serialize, Deserialize};
 ///
-/// #[derive(Outcome, Serialize, Deserialize)]
+/// #[derive(Outcome, Debug, Serialize, Deserialize)]
 /// pub struct ModelResult {
 ///     pub train_loss: f64,
 ///     pub val_loss: f64,
@@ -48,17 +46,17 @@ mod solinfo;
 /// For multi-fidelity optimization, a field of type `Step` tracks evaluation progress:
 ///
 /// ```
-/// use tantale::macros::{Outcome, FuncState};
+/// use tantale::macros::{Outcome};
 /// use tantale::core::Step;
 /// use serde::{Serialize, Deserialize};
 ///
-/// #[derive(Outcome, Serialize, Deserialize)]
+/// #[derive(Outcome, Debug, Serialize, Deserialize)]
 /// pub struct ProgressiveResult {
 ///     pub loss: f64,
 ///     pub epoch: Step,  // Tracks evaluation stage
 /// }
 ///
-/// // The macro generates:
+/// // The macro Outcome generates:
 /// // impl FidOutcome for ProgressiveResult {
 /// //     fn get_step(&self) -> EvalStep { self.epoch.into() }
 /// // }
@@ -158,7 +156,7 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// ## Multi-Fidelity Support
 ///
 /// ```rust,ignore
-/// use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
+/// use tantale::core::{FuncState, Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
 /// use tantale::macros::{objective, Outcome};
 ///
 /// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
@@ -168,11 +166,19 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     step: Step,
 /// }
 ///
-/// #[derive(FuncState, Serialize, Deserialize)]
+/// #[derive(Serialize, Deserialize)]
 /// pub struct FnState {
 ///     pub something: isize,
 /// }
-///
+/// impl FuncState for FnState {
+///     fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+///     // Implement saving logic here (e.g., serialize to file)
+///     }
+///     fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+///     // Implement loading logic here (e.g., deserialize from file)
+///     }
+/// }
+/// 
 /// objective!(
 ///     pub fn example() -> (OutExample, FnState) {
 ///         let _a = [! a | Int(0,100, Uniform) | !];
@@ -399,42 +405,6 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hpo::hpo(input)
-}
-
-/// The `FuncState` derive macro implements the `FuncState` trait marker for types
-/// representing internal state in multi-fidelity stepped objective functions.
-///
-/// ## Purpose
-///
-/// When using `Stepped` objectives for multi-fidelity optimization,
-/// functions are evaluated incrementally across multiple `Step` at
-/// different [`Fidelity`](crate::solution::partial::Fidelity) levels. The `FuncState` trait enables:
-/// 1. Preserving computation state between evaluation steps
-/// 2. Avoiding redundant computation when resuming evaluations
-/// 3. Enabling checkpointing of partially evaluated solutions
-///
-/// ## Requirements
-///
-/// The struct must:
-/// - Derive or implement `Serialize` and `Deserialize` from `serde`
-/// - Contain only serializable fields
-///
-/// ## Example
-///
-/// ```ignore
-/// use tantale::macros::FuncState;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(FuncState, Serialize, Deserialize)]
-/// pub struct TrainingState {
-///     pub model_weights: Vec<f64>,
-/// }
-/// ```
-/// The trait itself is a marker trait with serialization constraints, ensuring
-/// the state can be checkpointed and passed between evaluation steps.
-#[proc_macro_derive(FuncState)]
-pub fn funcstate(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    funcstate::proc_fnstate(input)
 }
 
 /// The `OptInfo` derive macro implements the `OptInfo` trait for types

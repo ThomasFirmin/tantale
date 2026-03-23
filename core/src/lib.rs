@@ -103,12 +103,17 @@
 //! [`Stepped`] functions is similar to [`Objective`] except that the user-defined function
 //! can be evaluated by [`Step`](crate::objective::Step). Hence, the function must maintain an internal state that is updated at each step.
 //! To trigger the wrapping within a [`Stepped`] objective, the user must defined an [`Outcome`] containing a [`Step`](crate::objective::Step).
+//! 
+//! First, the user defines the function state by implementing the [`FuncState`] trait, 
+//! which requires implementing the `save` and `load` methods for checkpointing. 
+//! Then, the user defines an outcome struct that contains a field of type `Step`. 
+//! Finally, the user can use the `objective!` macro to define the function, and manage the internal state and evaluation step within the function body.
 //!
 //! ```rust
-//! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-//! use tantale::macros::{objective, Outcome, CSVWritable, FuncState};
+//! use tantale::core::{FuncState, Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
+//! use tantale::macros::{objective, Outcome, CSVWritable};
 //! use serde::{Serialize, Deserialize};
-//!
+//! 
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
 //!     obj: f64,
@@ -116,11 +121,28 @@
 //!     step: Step,
 //! }
 //!
-//! #[derive(FuncState, Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize)]
 //! pub struct FnState {
 //!     pub something: isize,
 //! }
-//!
+//! 
+//! // The user must implement the saving and loading logic of the function state, 
+//! // to enable checkpointing of the internal state of the function.
+//! // The input is a folder path where the checkpoint is stored, and the user can decide how to serialize the state (e.g., using rmp_serde or bincode).
+//! impl FuncState for FnState {
+//!    fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+//!        let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
+//!        rmp_serde::encode::write(&mut file, &self).unwrap();
+//!        Ok(())
+//!    }
+//!    fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+//!        let file_path = path.join("fn_state.mp");
+//!        let file = std::fs::File::open(file_path)?;
+//!        let state = rmp_serde::decode::from_read(file).unwrap();
+//!        Ok(state)
+//!    }
+//! }
+//! 
 //! objective!(
 //!     pub fn example() -> (OutExample, FnState) {
 //!         let _a = [! a | Int(0,100, Uniform) | !];

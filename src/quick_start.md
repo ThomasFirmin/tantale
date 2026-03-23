@@ -381,4 +381,4 @@ load!(distributed, PoolMode::Persistent, mpi_proc, OptimizerType, StopType, spac
 
 #### Note
 
-By default [`PoolMode::InMemory`](core::PoolMode::InMemory) is used to keep [`FuncState`](core::FuncState) within the volotile memory.
+By default [`PoolMode::InMemory`](core::PoolMode::InMemory) is used to keep [`FuncState`](core::FuncState) within the volatile memory.

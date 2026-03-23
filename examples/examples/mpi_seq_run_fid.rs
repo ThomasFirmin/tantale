@@ -26,7 +26,19 @@ mod init_func {
     pub struct FnState {
         pub state: isize,
     }
-    impl FuncState for FnState {}
+    impl FuncState for FnState {
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+            let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
+            rmp_serde::encode::write(&mut file, &self).unwrap();
+            Ok(())
+        }
+        fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+            let file_path = path.join("fn_state.mp");
+            let file = std::fs::File::open(file_path)?;
+            let state = rmp_serde::decode::from_read(file).unwrap();
+            Ok(state)
+        }
+    }
 
     #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {

@@ -1,18 +1,10 @@
 use crate::{
-    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer,
-    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
-    domain::{codomain::TypeAcc, onto::LinkOpt},
-    experiment::{
+    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
         BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate,
         MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate,
         ThrExperiment,
         basics::{IdxMapPool, LoadPool, Pool},
-    },
-    objective::{Objective, Outcome, outcome::FuncState},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    searchspace::{CompShape, Searchspace},
-    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj},
-    stop::{ExpStep, Stop},
+    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
 };
 
 #[cfg(feature = "mpi")]
@@ -1061,7 +1053,6 @@ where
             PoolMode::Persistent => Arc::new(Mutex::new(Pool::Load(LoadPool::new(fn_check)))),
         };
         evaluator.pool = pool;
-
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
@@ -1119,7 +1110,6 @@ where
                 }
             }
         };
-
         let mut batch;
         let mut computed;
         let mut outputed;

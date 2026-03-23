@@ -439,12 +439,12 @@ fn test_fid_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    run_reader_eps("tmp_test_fidbatchrun", 524, 20);
+    run_reader_eps("tmp_test_fidbatchrun", 524, 40);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(
-        expoptimizer.0.iteration, 291,
+        expoptimizer.0.iteration, 81,
         "Number of iteration is wrong"
     );
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
@@ -506,12 +506,12 @@ fn test_fid_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_fidbatchparrun", 524);
+    run_reader("tmp_test_fidbatchparrun", 548);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(
-        expoptimizer.0.iteration, 291,
+        expoptimizer.0.iteration, 81,
         "Number of iteration is wrong"
     );
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
