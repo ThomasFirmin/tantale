@@ -62,4 +62,6 @@ tmp_*/
 
 # Rust
 /target
+Cargo.lock/
 *.lock
+Cargo.lock
