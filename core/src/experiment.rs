@@ -1426,7 +1426,7 @@ where
 
     /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
-    
+
     /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
     fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 

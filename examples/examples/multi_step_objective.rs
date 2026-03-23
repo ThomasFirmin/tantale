@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::{FuncState, Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
+use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
 use tantale::macros::{Outcome, objective};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ pub struct FnState {
 }
 
 impl FuncState for FnState {
-    fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+    fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
         rmp_serde::encode::write(&mut file, &self).unwrap();
         Ok(())

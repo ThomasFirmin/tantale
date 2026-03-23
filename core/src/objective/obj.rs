@@ -81,7 +81,7 @@
 //! #[derive(Serialize, Deserialize)]
 //! pub struct FnState {
 //!     pub state: isize,
-//! } 
+//! }
 //!
 //! impl FuncState for FnState {
 //!     fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{

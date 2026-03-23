@@ -26,7 +26,7 @@ mod init_func {
         pub state: isize,
     }
     impl FuncState for FnState {
-        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
             rmp_serde::encode::write(&mut file, &self).unwrap();
             Ok(())

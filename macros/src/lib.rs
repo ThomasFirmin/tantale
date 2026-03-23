@@ -178,7 +178,7 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     // Implement loading logic here (e.g., deserialize from file)
 ///     }
 /// }
-/// 
+///
 /// objective!(
 ///     pub fn example() -> (OutExample, FnState) {
 ///         let _a = [! a | Int(0,100, Uniform) | !];

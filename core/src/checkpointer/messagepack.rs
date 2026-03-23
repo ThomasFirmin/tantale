@@ -12,7 +12,9 @@ use crate::{
 use core::panic;
 use rmp_serde;
 use std::{
-    fs::{File, create_dir_all, remove_dir_all, rename}, path::{Path, PathBuf}, sync::{Arc, atomic::Ordering}
+    fs::{File, create_dir_all, remove_dir_all, rename},
+    path::{Path, PathBuf},
+    sync::{Arc, atomic::Ordering},
 };
 
 #[cfg(feature = "mpi")]
@@ -27,32 +29,37 @@ pub struct MPFnStateCheckpointer {
     pub path: PathBuf,
 }
 
-fn load_from_path<SolId: Id, FnState: FuncState>(path: PathBuf) -> Result<(SolId, FnState), CheckpointError> {
+fn load_from_path<SolId: Id, FnState: FuncState>(
+    path: PathBuf,
+) -> Result<(SolId, FnState), CheckpointError> {
     let path_id = &path.join(Path::new(&"id.mp"));
-    if path_id.exists(){
+    if path_id.exists() {
         let rdr = File::open(path_id).unwrap();
         let id_loaded: SolId = rmp_serde::decode::from_read(rdr).unwrap();
         Ok((id_loaded, FnState::load(path).unwrap()))
     } else {
-        Err(CheckpointError("Cannot find the state checkpoint.".to_string()))
+        Err(CheckpointError(
+            "Cannot find the state checkpoint.".to_string(),
+        ))
     }
 }
 
 impl FuncStateCheckpointer for MPFnStateCheckpointer {
-
-    /// Saves a [`FuncState`] to a folder named `state_func_{id}` 
-    /// with `id` the string representation of the given `id`. 
-    /// Inside this folder, a file named `id.mp` is created, 
+    /// Saves a [`FuncState`] to a folder named `state_func_{id}`
+    /// with `id` the string representation of the given `id`.
+    /// Inside this folder, a file named `id.mp` is created,
     /// containing the `id`.
     /// If a folder with the same name already exists, it is renamed to a backup name, by appending "_backup" to the original folder name.
     /// After saving the new [`FuncState`], if a backup folder exists, it is removed.
-    /// The backup is used to prevent loss of data in case of failure during the saving process, 
+    /// The backup is used to prevent loss of data in case of failure during the saving process,
     /// which could leave the checkpoint folder in an inconsistent state.
     fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState) {
         let id_str = id.to_string();
         let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
         let path_id = &path_ste.join(Path::new(&"id.mp"));
-        let backup = self.path.join(Path::new(&format!("backup_state_func_{}", id_str)));
+        let backup = self
+            .path
+            .join(Path::new(&format!("backup_state_func_{}", id_str)));
 
         if path_ste.exists() {
             rename(&path_ste, &backup).unwrap();
@@ -67,16 +74,21 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
     }
 
     /// Loads a [`FuncState`] from a folder named `state_func_{id}`
-    /// with the given `id`. 
+    /// with the given `id`.
     /// The function checks the consistency of the loaded `id` with the given `id`, by reading the `id.mp` file inside the folder.
-    /// If the folder `state_func_{id}` does not exist, 
-    /// it looks for a backup folder named `backup_state_func_{id}`. 
+    /// If the folder `state_func_{id}` does not exist,
+    /// it looks for a backup folder named `backup_state_func_{id}`.
     /// If it exists, it loads the [`FuncState`] from this backup folder,
     /// and checks the consistency of the loaded `id` with the given `id`.
-    fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<(SolId, FnState)> {
+    fn load_func_state<FnState: FuncState, SolId: Id>(
+        &self,
+        id: &SolId,
+    ) -> Option<(SolId, FnState)> {
         let id_str = id.to_string();
         let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
-        let backup = self.path.join(Path::new(&format!("backup_state_func_{}", id_str)));
+        let backup = self
+            .path
+            .join(Path::new(&format!("backup_state_func_{}", id_str)));
         if path_ste.exists() {
             load_from_path(path_ste).ok()
         } else if backup.exists() {
@@ -114,9 +126,10 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
                         .to_str()
                         .unwrap()
                         .starts_with("state_func_")
-                    && let Some((id, func_state)) = load_from_path(path).ok() {
-                        vec_func_state.push((id, func_state));
-                    }
+                    && let Some((id, func_state)) = load_from_path(path).ok()
+                {
+                    vec_func_state.push((id, func_state));
+                }
             }
         }
         vec_func_state

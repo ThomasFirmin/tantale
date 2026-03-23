@@ -101,7 +101,10 @@ pub trait FuncStateCheckpointer {
     /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
     fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState);
     /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn load_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId) -> Option<(SolId, FnState)>;
+    fn load_func_state<FnState: FuncState, SolId: Id>(
+        &self,
+        id: &SolId,
+    ) -> Option<(SolId, FnState)>;
     /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
     fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
     /// Load all the [`FuncState`] returning a vector of function states for each function ID.
@@ -625,7 +628,10 @@ impl FuncStateCheckpointer for NoFuncStateCheck {
         panic!("NoCheck should not be called to save function state.")
     }
 
-    fn load_func_state<FnState: FuncState, SolId: Id>(&self, _id: &SolId) -> Option<(SolId, FnState)> {
+    fn load_func_state<FnState: FuncState, SolId: Id>(
+        &self,
+        _id: &SolId,
+    ) -> Option<(SolId, FnState)> {
         panic!("NoCheck should not be called to load function state.")
     }
 

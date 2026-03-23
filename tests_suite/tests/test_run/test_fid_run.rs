@@ -94,23 +94,43 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
     linesobj.for_each(|l| println!("{:?}", l));
     assert!(
         (count_obj >= size) && (count_obj < size + epsilon),
-        "Some solutions are missing in obj {} >= {}, {} < {}.", count_obj ,size , count_obj , size + epsilon
+        "Some solutions are missing in obj {} >= {}, {} < {}.",
+        count_obj,
+        size,
+        count_obj,
+        size + epsilon
     );
     assert!(
         (count_opt >= size) && (count_opt < size + epsilon),
-        "Some solutions are missing in opt {} >= {}, {} < {}.", count_opt ,size , count_opt , size + epsilon
+        "Some solutions are missing in opt {} >= {}, {} < {}.",
+        count_opt,
+        size,
+        count_opt,
+        size + epsilon
     );
     assert!(
         (count_cod >= size) && (count_cod < size + epsilon),
-        "Some solutions are missing in cod {} >= {}, {} < {}.", count_cod ,size , count_cod , size + epsilon
+        "Some solutions are missing in cod {} >= {}, {} < {}.",
+        count_cod,
+        size,
+        count_cod,
+        size + epsilon
     );
     assert!(
         (count_info >= size) && (count_info < size + epsilon),
-        "Some solutions are missing in info {} >= {}, {} < {}.", count_info ,size , count_info , size + epsilon
+        "Some solutions are missing in info {} >= {}, {} < {}.",
+        count_info,
+        size,
+        count_info,
+        size + epsilon
     );
     assert!(
         (count_out >= size) && (count_out < size + epsilon),
-        "Some solutions are missing in out {} >= {}, {} < {}.", count_out ,size , count_out , size + epsilon
+        "Some solutions are missing in out {} >= {}, {} < {}.",
+        count_out,
+        size,
+        count_out,
+        size + epsilon
     );
     assert!(
         [count_opt, count_cod, count_info, count_out]
@@ -179,10 +199,7 @@ fn test_fid_batch_run() {
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 81,
-        "Number of iteration is wrong"
-    );
+    assert_eq!(expoptimizer.0.iteration, 81, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 }
 
@@ -463,10 +480,7 @@ fn test_fid_batch_run_loadpool() {
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 81,
-        "Number of iteration is wrong"
-    );
+    assert_eq!(expoptimizer.0.iteration, 81, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
     drop(Cleaner {

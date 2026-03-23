@@ -14,7 +14,7 @@
 //! - [Hyperband](hyperband) :
 //!  * [`Hyperband`] : the original [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
 //! - [MO-ASHA](moasha) :
-//!  * [`MoAsha`] : the multi-objective version of ASHA, based on the [MO-ASHA](https://arxiv.org/pdf/2106.12639) algorithm for multi-fidelity 
+//!  * [`MoAsha`] : the multi-objective version of ASHA, based on the [MO-ASHA](https://arxiv.org/pdf/2106.12639) algorithm for multi-fidelity
 //!    and multi-objective hyperparameter optimization.
 //!
 

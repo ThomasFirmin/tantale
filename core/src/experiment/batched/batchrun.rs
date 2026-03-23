@@ -1,10 +1,18 @@
 use crate::{
-    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
+    BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer,
+    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{
         BatchEvaluator, CompAcc, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate,
         MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate,
         ThrExperiment,
         basics::{IdxMapPool, LoadPool, Pool},
-    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::{CompShape, Searchspace}, solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj}, stop::{ExpStep, Stop}
+    },
+    objective::{Objective, Outcome, outcome::FuncState},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::{CompShape, Searchspace},
+    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj},
+    stop::{ExpStep, Stop},
 };
 
 #[cfg(feature = "mpi")]
