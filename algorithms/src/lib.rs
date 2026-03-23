@@ -11,6 +11,12 @@
 //!   * [`Sha`] : the original [Successive Halving](https://arxiv.org/pdf/1502.07943) algorithm for multi-fidelity hyperparameter optimization.
 //! - [Asynchronous Successive Halving](asha) :
 //!   * [`Asha`] : the asynchronous version of [Successive Halving](https://arxiv.org/pdf/1810.05934) algorithm for multi-fidelity hyperparameter optimization.
+//! - [Hyperband](hyperband) :
+//!  * [`Hyperband`] : the original [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
+//! - [MO-ASHA](moasha) :
+//!  * [`MoAsha`] : the multi-objective version of ASHA, based on the [MO-ASHA](https://arxiv.org/pdf/2106.12639) algorithm for multi-fidelity 
+//!    and multi-objective hyperparameter optimization.
+//!
 
 pub mod random_search;
 pub use random_search::{BatchRSState, BatchRandomSearch, RSInfo, RandomSearch};
