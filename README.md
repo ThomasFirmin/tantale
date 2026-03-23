@@ -36,10 +36,10 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 
 ```toml
 [dependencies]
-tantale = "0.1"
+tantale = "0.1.1"
 
 # With MPI support:
-tantale = { version = "0.1", features = ["mpi"] }
+tantale = { version = "0.1.1", features = ["mpi"] }
 ```
 
 Minimum supported Rust version: **1.91.1** (2024 edition).
@@ -48,13 +48,15 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 
 ## Algorithms
 
-| Algorithm | Module | Type | Multi-fidelity | Description |
+| Algorithm | Module | Type | Multi-fidelity | Multi-objective | Description |
 |---|---|---|---|---|
-| Random Search | `tantale::algos::random_search` | Sequential | No | Uniform random sampling over the search space |
-| Batch Random Search | `tantale::algos::random_search` | Batched | No | Parallel random sampling in fixed-size batches |
-| SHA | `tantale::algos::sha` | Batched | Yes | [Successive Halving](https://arxiv.org/abs/1502.07943) — bracket-based multi-fidelity pruning |
-| ASHA | `tantale::algos::asha` | Sequential | Yes | [Asynchronous SHA](https://arxiv.org/abs/1810.05934) — on-demand asynchronous pruning |
-| Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes | [Hyperband](https://arxiv.org/abs/1603.06212) — ensemble of SHA/ASHA brackets |
+| Random Search | `tantale::algos::random_search` | Sequential | No |  No | Sequential Random sampling |
+| BatchRandomSearch | `tantale::algos::random_search` | Batched | No |  No | Random sampling in fixed-size batches |
+| GridSearch | `tantale::algos::grid_search` | Sequential | No |  No | Deterministic sequential sampling of a grid of solutions|
+| SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
+| ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
+| Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
+| MO-Asha | `tantale::algos::moasha` | Sequential | Yes | No | [MO-Asha](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
 
 ---
 
@@ -166,7 +168,6 @@ An experiment is composed of up to 7 components:
 | `objective!` | Declarative | Defines a search space and wraps a function into `Objective` / `Stepped` |
 | `hpo!` | Declarative | Concise search space definition (without a function body) |
 | `Outcome` | Derive | Implements the `Outcome` trait for a result struct |
-| `FuncState` | Derive | Implements `FuncState` for a multi-step function's internal state |
 | `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
 | `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
 | `OptInfo` | Derive | Attaches metadata to solutions produced by an optimizer |

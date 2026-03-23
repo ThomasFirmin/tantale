@@ -50,14 +50,17 @@ tantale_core
 
 | Crate | Role |
 |---|---|
-| `serde` | Serialization / deserialization for all core types (required for checkpointing) |
+| `num` | Traits for numeric types |
 | `rand` | RNG traits used by domains and samplers to generate valid values |
 | `rayon` | Parallel evaluation in synchronous batched optimization and `SpPar` utilities |
-| `rmp-serde` | MessagePack serialization used by `MessagePack` for compact checkpointing |
 | `csv` | CSV-backed `CSVRecorder` |
+| `serde` | Serialization / deserialization for all core types (required for checkpointing) |
+| `rmp-serde` | MessagePack serialization used by `MessagePack` for compact checkpointing |
+| `mpi` *(features = mpi)*| Message parsing interface, for distributed computing |
 | `bincode` *(optional)* | Binary serialization for MPI message passing |
 | `bitvec` *(optional)* | Bit-level storage used by MPI idle-worker tracking |
 | `num_cpus` | Detects available CPU cores to size thread pools in multi-threaded execution |
+| `indexmap` | Used for managing pools of funcstate, in order to implement FIFO pruning of old states | 
 
 ---
 
@@ -67,16 +70,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tantale_core = { version = "0.1" }
+tantale_core = { version = "0.1.1" }
 # or, for MPI-distributed execution:
-tantale_core = { version = "0.1", features = ["mpi"] }
+tantale_core = { version = "0.1.1", features = ["mpi"] }
 ```
 
 Prefer the top-level `tantale` crate:
 
 ```toml
 [dependencies]
-tantale = { version = "0.1" }
+tantale = { version = "0.1.1" }
 ```
 
 ---
