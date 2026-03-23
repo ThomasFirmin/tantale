@@ -553,7 +553,7 @@ where
             Out,
         >,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let pairs: Vec<_> = x
+        let mut pairs: Vec<_> = x
             .into_iter()
             .map(|p| match p.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
@@ -567,6 +567,11 @@ where
             iteration: self.0.iteration,
         }
         .into();
+        if pairs.len() != self.0.batch {
+            let remaining = self.0.batch - pairs.len();
+            let mut new_pairs = scp.vec_sample_pair(&mut self.1, remaining, self.0._emptyinfo.clone());
+            pairs.append(&mut new_pairs);
+        }
         Batch::new(pairs, info)
     }
 
