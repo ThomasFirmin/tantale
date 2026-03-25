@@ -56,7 +56,7 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 | SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
 | ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
 | Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
-| MO-Asha | `tantale::algos::moasha` | Sequential | Yes | No | [MO-Asha](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
+| MO-Asha | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-Asha](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
 
 ---
 
