@@ -1,6 +1,6 @@
 # Grid search on a mock function
 
-In this tutorial we quickly implement a [`GridSearch`](algos::RandomSearch) for a mock function.
+In this tutorial we quickly implement a [`GridSearch`](algos::GridSearch) for a mock function.
 See [Quick Start](crate::QuickStart) for in-depth explanation.
 
 ## Defining the searchspace

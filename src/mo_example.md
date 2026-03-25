@@ -1,6 +1,6 @@
-# Grid search on a mock function
+# Multi-fidelity, multi-objective optimization with MO-ASHA
 
-In this tutorial we quickly implement a [`GridSearch`](algos::RandomSearch) for a mock function.
+In this tutorial we quickly implement [`MoAsha`](algos::MoAsha) for a mock function.
 See [Quick Start](crate::QuickStart) for in-depth explanation.
 
 In this example solutions will be associated to a random codomain from the following fronts via a function `random_codom`, which is omitted here for brevity.

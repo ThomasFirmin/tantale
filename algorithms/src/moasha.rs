@@ -56,7 +56,7 @@ where
     out.into()
 }
 
-/// Internal state of the [`Asha`] optimizer.
+/// Internal state of the [`MoAsha`] optimizer.
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
