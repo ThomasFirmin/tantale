@@ -563,7 +563,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     priority_discard: &mut PriorityList<Scp::SolShape>,
     priority_resume: &mut PriorityList<Scp::SolShape>,
     stop: &mut St,
-) -> bool
+) -> (bool,bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: Id,
@@ -590,8 +590,9 @@ where
     FnState: FuncState,
 {
     if stop.stop() {
-        true
+        (true, false)
     } else if let Some(pair) = priority_discard.pop(available) {
+        let id = pair.id();
         sendrec.discard_order(available, pair.id());
         where_is_id.remove(&pair.id());
         stop.update(ExpStep::Distribution(Step::Discard));
@@ -605,16 +606,19 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
+        let id = pair.id();
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
-        false
+        (false, true)
     } else if let Some(pair) = new_pairs.pop() {
+        let id = pair.id();
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
-        false
+        (false, true)
     } else {
         sendrec.idle.set_idle(available);
-        sendrec.idle.all_idle()
+        let all_idle = sendrec.idle.all_idle();
+        (all_idle, false)
     }
 }
 
@@ -694,9 +698,10 @@ where
     ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
-        while sendrec.idle.has_idle() && !stop_loop {
-            let available = sendrec.idle.first_idle().unwrap() as Rank;
-            stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
+        let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();
+        while let Some(a) = iter_idle.next() && !stop_loop {
+            let available = a as Rank;
+            (stop_loop, _) = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
                 &mut self.where_is_id,
@@ -705,6 +710,9 @@ where
                 &mut self.priority_resume,
                 stop,
             );
+            // If not successful in sending a solution
+            // It means the optimizer has returned a partially located
+            // within another worker that is currently busy.
         }
 
         // Recv / sendv loop
