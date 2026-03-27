@@ -592,7 +592,6 @@ where
     if stop.stop() {
         (true, false)
     } else if let Some(pair) = priority_discard.pop(available) {
-        let id = pair.id();
         sendrec.discard_order(available, pair.id());
         where_is_id.remove(&pair.id());
         stop.update(ExpStep::Distribution(Step::Discard));
@@ -606,12 +605,10 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
-        let id = pair.id();
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         (false, true)
     } else if let Some(pair) = new_pairs.pop() {
-        let id = pair.id();
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         (false, true)
