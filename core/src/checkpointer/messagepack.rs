@@ -100,11 +100,9 @@ impl FuncStateCheckpointer for MPFnStateCheckpointer {
 
     fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
         let id_str = id.to_string();
-        let path_ste = self
-            .path
-            .join(Path::new(&format!("state_func_{}.mp", id_str)));
+        let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
         if path_ste.exists() {
-            std::fs::remove_file(path_ste).unwrap();
+            std::fs::remove_dir_all(path_ste).unwrap();
             Ok(true)
         } else {
             Err(CheckpointError(String::from(
