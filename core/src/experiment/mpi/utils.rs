@@ -220,6 +220,7 @@ impl<SolId: Id, Out: Outcome> Msg for OMessage<SolId, Out> {}
 
 /// A structure allowing to know which [`Worker`](crate::Worker) is idle, and if there is at least one idle worker.
 /// It uses a [`BitVec`] of [`size`](MPIProcess::size) to store the idle status of each worker [`Rank`].
+#[derive(Debug, Clone)]
 pub struct IdleWorker {
     pub idle: BitVec,
 }
