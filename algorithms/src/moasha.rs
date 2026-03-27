@@ -480,6 +480,7 @@ where
                 k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
             }
             if k == 0 {
+                self.0.current_budget = self.0.budgets[0];
                 self.with_rng(|rng| {
                     scp.sample_pair(
                         rng,
