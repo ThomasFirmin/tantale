@@ -137,10 +137,6 @@ where
                 send_msg(self.proc, OMessage(id, out), 0, 0, config);
             }
         }
-        eprintln!(
-            "INFO : Process of rank {} exiting worker loop.",
-            self.proc.world.rank()
-        );
     }
 }
 
@@ -287,9 +283,5 @@ where
                 );
             }
         }
-        eprintln!(
-            "INFO : Process of rank {} exiting worker loop.",
-            self.proc.world.rank(),
-        );
     }
 }
