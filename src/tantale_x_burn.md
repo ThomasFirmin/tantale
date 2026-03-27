@@ -635,7 +635,7 @@ fn main() {
     // Define the codomain, i.e. what to optimize
     let cod = moasha::codomain(
         [
-            |o: &Output| o.test_accuracy, // <---- Maximize accuracy
+            |o: &Output| o.test_accuracy as f64, // <---- Maximize accuracy
             |o: &Output| -o.parameters,  // <----- Minimize parameters
         ].into()
     );
@@ -674,7 +674,7 @@ Compile your project:
 foo@bar:~/my_burn_hpo$ cargo build --release
 ```
 
-Within a node, run the binaries with `mpiexec` or `mpirun`:
+Within a node, run the binaries using `mpiexec` or `mpirun` with 13 processes:
 ```console
 foo@bar:~$ mpiexec -n 13 --hostfile hostfile --rankfile rankfile ./my_burn_hpo/target/release/burn_hpo
 ```

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## Release 0.1.1
 
 ### Breaking Changes
 
@@ -19,7 +19,7 @@
 - Added `save` and `load` methods to the `FuncState` trait so users can define custom checkpoint method for `Stepped` functions.
 
 ### Added
-persistence
+
 #### Algorithms
 
 - Added `MoAsha`, the multi-objective variant of `Asha` from [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639). It is a multi-fidelity, asynchronous `SequentialOptimizer`.
@@ -78,3 +78,20 @@ persistence
 ### Refactoring
 
 - Refactored nested `match` expressions in `Mixed` into tuple matches on `(self, item)`.
+
+
+## Hotfix 0.1.11
+
+### Documentation
+
+- Added a comprehensive example of a MPI-distributed, asynchronous, multi-fidelity and multi-objective HPO with a Burn network trained on MNIST.
+
+### Fixed
+
+- `MoAsha`: When generating a random sample at the first front when k=0. The sample was associated to the budget of the previously sampled solution.
+- `MessagePack`: The `remove_func_state` was removing a `.md` file instead of the folder containing the function state.
+- `seqfidevaluator`: If recursive_send was unable to send something to all idle, then it will wait for an incomming message containing a computed that might help unstuck other processes. It was previously stuck within an infinite loop.
+
+### Added
+
+- The `objective!` macro now handles generics from the user-defined objective function
