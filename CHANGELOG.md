@@ -1,166 +1,80 @@
 # Changelog
 
-| Version            | 0.1.1 |
-|:------------------:|:-------:|
+## 0.1.1
 
-What:
-- [x] New features       
-- [x] Breaking changes   
-- [x] Fixes
+### Breaking Changes
 
-Where:
-- [x] Core           
-- [x] Macros             
-- [x] Algorithms         
+#### Core
 
+- Renamed `BestComputed` to `BestAccumulator` and `ParetoComputed` to `ParetoAccumulator`.
+- Replaced `Cat` with the type alias `pub type Cat = GridDom<String>`. Existing usage remains unchanged.
+- Extended `Mixed` with the new domain variants listed below.
+- Updated checkpointing APIs:
+    - `load_func_state` now returns `Option<(SolId, FnState)>` instead of `Option<FnState>`.
+    - `WorkerCheckpointer` now includes `FuncStateCheckpointer`.
+    - `DistCheckpointer` must use the same `FuncStateCheckpointer` as its worker counterpart.
+    - Added `WorkerCheckpointer::new_func_state_checkpointer`.
+    - Updated the `MessagePack` `DistCheckpointer` and `WorkerCheckpointer` implementations.
+- Removed the `FuncState` macro.
+- Added `save` and `load` methods to the `FuncState` trait so users can define custom checkpoint method for `Stepped` functions.
 
-## Breaking change
+### Added
+persistence
+#### Algorithms
 
-### Accumulator (core)
+- Added `MoAsha`, the multi-objective variant of `Asha` from [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639). It is a multi-fidelity, asynchronous `SequentialOptimizer`.
+- Added `GridSearch`, a `SequentialAlgorithm` that iterates over the Cartesian product of `GridDom<T>` values on demand. `BatchOptimizer` is intentionally not implemented because the grid grows combinatorially.
+- Added the `NonDominatedSorting` trait for `[T]` where `T: Dominate`, with:
+    - `non_dominated_sort(&mut self) -> Vec<Vec<&T>>`
+    - `non_dominated_argsort(&self) -> Vec<Vec<usize>>`
+- Added `front_binary_search` and `arg_front_binary_search` from [Zhang et al. (2014)](http://www.soft-computing.de/ENS.pdf) for efficient front insertion in non-dominated sorting.
+- Added `crowding_distance<T: Dominate>(values: &[&T]) -> Vec<f64>` from [Deb et al. (2002)](https://sci2s.ugr.es/sites/default/files/files/Teaching/) to compute distances within a non-dominated front.
+- Added the `CandidateSelector` trait with:
+    - `select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Vec<&'a T>`
+    - `arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Vec<usize>`
+- Added `NSGA2Selector`, a `CandidateSelector` based on NSGA-II from [Deb et al. (2002)](https://sci2s.ugr.es/sites/default/files/files/Teaching/OtherPostGraduateCourses/Metaheuristicas/Deb_NSGAII.pdf).
 
-Renamed `BestComputed` and `ParetoComputed` with explicit names; `BestAccumulator` and `ParetoAccumulator`.
+#### Core
 
-### Removed `Cat` (core)
+- Added `Pool` to manage function states in multi-fidelity optimization with `IdxMapPool` or `LoadPool`.
+- Added `PoolMode` with `InMemory` and `Persistent` modes.
+- Added experiment builders: `mono_with_pool`, `threaded_with_pool`, `distributed_with_pool`, `mono_load_with_pool`, `threaded_load_with_pool`, and `distributed_load_with_pool`.
+- Updated `load!` to support `PoolMode`.
+- Workers now use a `Pool` for function states instead of an internal `HashMap`.
+- Added `GridDom<T>`, a discretized domain type for values satisfying `GridBounds`.
+- Added type aliases: `GridReal`, `GridInt`, `GridNat`, and `Cat`.
+- Added `Grid`, the enum used by the `Grid` mode in `hpo!` and `objective!`, and by `GridSearch`.
+- Added `GridReal`, `GridInt`, and `GridNat` to `Mixed`.
+- Implemented `Onto` conversions between existing domains and `GridDom<T>`.
+- Added `grid` constructors on `Bounded<T>`.
+- Added `Dominate::get_max_objectives`.
+- Implemented `Dominate` for `Computed`, `CompPair`, and `CompLone`.
+- Added constructor functions for all `ElemCodomain...` types.
 
-The `Cat` domain has been replaced by a type alias of a `GridDom<String>`; `pub type Cat = GridDom<String>`.
-The usage of a `Cat` domain remains the same.
+#### Macros
 
-### Mixed (core)
+- Extended `hpo!` to support the `Grid` mode for grid-only search spaces.
+- Extended `objective!` to support the same `Grid` mode.
 
-Added new domains (see below), to the `Mixed` enum domain.
+### Fixed
 
-### Checkpointer (core)
+- Fixed `load!` when the `mpi` feature is disabled.
+- Fixed `BatchRandom` for stepped functions so it always returns a batch of the requested size, even when some input solutions are missing, for example after `Step::Error`.
 
-- `load_func_state` now returns `Option<(SolId, FnState)>` instead of `Option<FnState>`.
-- Added `FuncStateCheckpointer` to `WorkerCheckpointer`
-- `DistCheckpointer` must have the same `FuncStateCheckpointer` as it's worker. 
-- Added `new_func_state_checkpointer` function to `WorkerCheckpointer` to create a `FuncStateCheckpointer` from the worker side.
-- Update `DistCheckpointer` and `WorkerCheckpointer` of `MessagePack` checkpointer.
+### Documentation
 
-### Funcstate (core)
+- Added quick examples with mock functions for `RandomSearch`, `GridSearch`, and `MoAsha`.
+- Corrected the `RandomSearch` diagram and codomain documentation.
+- Corrected the `Bernouilli` sampler example.
+- Rewrote the note section for `Asha`.
+- Corrected the `Asha` diagram.
+- Added `Hyperband` to the algorithm list.
 
-- Removed the `FuncState` macro as the `FuncState` trait now has `save` and `load` methods for user-customed saving and loading method via a path to a folder.
-- Added `save` and `load` methods to the `FuncState` trait allowing the user to define custom `save` and `load` methods to checkpoint the state of a  `Stepped` function.
+### Tests
 
-## New features
+- Added tests for all new features.
+- Added tests for `BestAccumulator` and `ParetoAccumulator`.
 
-### Multi-objective Asha (algorithms)
+### Refactoring
 
-Added the `MoAsha` algorithm, the multi-objective version of the `Asha` algorithm, from [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
-This is a multi-fidelity, `SequentialOptimizer` (asynchronous), and multi-objective optimization algorithm.
-
-### GridSearch (algorithms)
-
-Added the usual `GridSearch` algorithm. This is a `SequentialAlgorithm`, where solutions are iteratively selected, on-demand, from the `Grid`, made of the Cartesian product of inner `GridDom<T>`. `BatchOptimizer` is not implemented, due to the exponential growth of the batch size, due to combinatorial explosion of the grid.
-
-### Non-dominated sorting Trait (algorithms)
-
-Added the `NonDominatedSorting` trait,  and implemented it for `[T]`, where `T` has the `Dominate` trait.
-The trait has two methods:
-- `non_dominated_sort(&mut self) -> Vec<Vec<&T>>`: Modifying the order of the given `[T]` , and returning the fronts made of references to `T`
-- `non_dominated_argsort(&self) -> Vec<Vec<usize>>`: Equivalent to the previous one. But instead uses the indices of the given `[T]` without modifying it.
-  It returns the fronts containing indices of elements within the givent `[T]`.
-
-### Non dominating binary search (algorithms)
-
-Added efficient `front_binary_search` and `arg_front_binary_search` from [Zhang et al. (2014)](http://www.soft-computing.de/ENS.pdf).
-These functions are used in `NonDominatedSorting` to find the front index in which a `Dominate` belongs to.
-
-### Crowding distance (algorithms)
-
-Added the `crowding_distance<T: Dominate>(values: &[&T]) -> Vec<f64>` function from [Deb et al. (2002)](https://sci2s.ugr.es/sites/default/files/files/Teaching/).
-It computes the distances between solutions within a frond given by `NonDominatedSorting`
-
-### Candidate selector (algorithms)
-
-Added the `CandidateSelector` trait used to select some candidates among a slice of `[T]`, with `T` an `Dominate`.
-The trait has two methods:
-- `select_candidates<'a, T:Dominate>(&self, values: &'a mut [T],size: usize) -> Vec<&'a T>`: Select candidate solutions by their references.
-- `arg_select_candidates<T:Dominate>(&self, values: &[T],size: usize) -> Vec<usize>`: Select candidate solutions by their index iwthin the initial slice.
-
-### NSGA-II selector (algorithms)
-
-Added the `NSGA2Selector` `CandidateSelector` selector, based on the NSGA-II algorithm from [Deb et al. (2002)](https://sci2s.ugr.es/sites/default/files/files/Teaching/OtherPostGraduateCourses/Metaheuristicas/Deb_NSGAII.pdf).
-
-### PoolMode (core)
-
-- Added `Pool` enum to choose between `IdxMapPool` (keep in memory) and `LoadPool` (load from checkpoint) to manage function states in multi-fidelity optimization.
-- Added `PoolMode` an `enum` of singleton `PoolMode::InMemory` and `PoolMode::Persistent`, allowing to decided wether to keep function states in volatile memory, or save and retrieve them from dist memory.
-- Added extra experiment builder, `mono_with_pool`, `threaded_with_pool`, `distributed_with_pool`,  `mono_load_with_pool`, `threaded_load_with_pool`, `distributed_load_with_pool`. 
-- Modified the `load!` macro to handle PoolMode by adding extra syntaxes.
-- `Worker`s now use a `Pool` of function states instead of having internal `HashMap` of function states for multi-fidelity optimization
-
-### Domains (core)
-
-Added new `Domain` types:
-- `GridDom<T>`: A domain with a discretized slice of values of type `T`. With `T` following the `GridBounds` constraint.
-  `T` must be: `PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>`
-- New type aliases
- - `GridReal`: A `GridDom<f64>`
- - `GridInt`: A `GridDom<i64>`
- - `GridNat`: A `GridDom<u64>`
- - `Cat`: A `GridDom<String>`
-- `Grid`: An enum of `GridReal`, `GridInt`, `GridNat`, `Cat` used within the `Grid` alternative mode of `hpo!` and `objective!`. And mostly used for `GridSearch`.
-- Added `GridReal`, `GridInt`, and `GridNat` to the enum `Mixed`, so one can describe mixes of interval domains and discretized values.
-- Implemented `Onto` traits between old domains and `GridDom<T>`.
-- Added `grid` functions to `Bounded<T>`, to create `GridDom<T>` with `Bounded` types. Used by the `Grid` alternative mode of `hpo!` and `objective!`.
-
-### Dominate (core)
-
-- Added the method `get_max_objectives` to `Dominate` trait, returning the number of optimized objectives.
-- Implemented `Dominate` to `Computed`, `CompPair` and `CompLone`, allowing easy easy non dominating sorting of slices made of these types.
-
-### Codomain (core)
-
-- Added constructor functions to all `ElemCodomain...`.
-
-### `hpo!` and `objective!` (macros)
-Modified the `hpo!` macro to handle the `Grid` alternative mode, describing an objective side grid only searchspace:
-```rust
-    hpo!(
-        a | Grid<Int([-2_i64,-1,0,1,2], Uniform)>                  | ;
-        b | Grid<Nat([1_u64,2,3], Uniform)>                        | ;
-        c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform) >   | ;
-        d | Grid<Bool(Bernoulli(0.5))>                         | ;
-    );
-```
-By modifying `hpo!`, the `objective!` macro now also handles the `Grid` mode:
-```rust
-objective!(
-        pub fn example() -> OutExample {
-            let _a = [! a | Grid<Int([-2_i64, -1, 0 ,1, 2] , Uniform)> | !];
-            let _b = [! b | Grid<Nat([0_u64, 1, 2, 3, 4] , Uniform)> | !];
-            let _c = [! c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !];
-            let _d = [! d | Grid<Bool(Bernoulli(0.5))> | !];
-            let e = [! e | Grid<Real([6000.0, 2000.0, 3000.0, 4000.0, 5000.0], Uniform)> | !];
-
-            // ... more variables and computation ...
-
-            OutExample{
-                obj: e, // In practice put your accuracy, mse, rmse... here
-            }
-        }
-    );
-```
-
-## Fixes
-
-- Solved an issue with `load!` when the feature `mpi` is not active.
-- BatchRandom search for stepped functions now always returns a batch of the right size, even if some solutions are missing within the input batch (e.g. due to Step::Error).
-
-## Documentation
-
-- Added extra quick example with mock functions for `RandomSearch`, `GridSearch` and `MoAsha`.
-- Corrected `RandomSearch` diagram and `codomain` documentation mistakes.
-- Corrected `Bernouilli` sampler doc example mistake.
-- Rewrote `Asha` the Note part.
-- Corrected wrong `Asha` diagram.
-- Added Hyperband to the list of algorithms
-
-## Tests
-
-Added tests for all new features, and for `BestAccumulator` and `ParetoAccumulator`.
-
-## Refactor
-
-Refactored nested `match`es in `Mixed` to `tuple` `match`es `(self, item)`
+- Refactored nested `match` expressions in `Mixed` into tuple matches on `(self, item)`.
