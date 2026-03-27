@@ -11,6 +11,7 @@
 //! * [Random Search example](RSExample)
 //! * [Grid Search example](GSExample)
 //! * [Multi-fidelity, Multi-objective optimization with MO-ASHA](MOExample)
+//! * [Tantale $\times$ Burn](TantaleBurnExample)
 //!
 //! ## Advanced guides
 //! * [Create your batched optimizer](CreateBatchOptimizer)
@@ -82,6 +83,9 @@ pub struct RSExample;
 pub struct GSExample;
 #[doc = include_str!("mo_example.md")]
 pub struct MOExample;
+
+#[doc = include_str!("tantale_x_burn.md")]
+pub struct TantaleBurnExample;
 
 #[doc(inline)]
 pub use macros::Outcome;
