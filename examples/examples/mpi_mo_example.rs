@@ -1,7 +1,7 @@
 mod searchspace {
-    use tantale::core::{FuncState, Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
+    use tantale::macros::{CSVWritable, Outcome, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
@@ -31,7 +31,7 @@ mod searchspace {
     }
 
     impl FuncState for FnState {
-        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
             rmp_serde::encode::write(&mut file, &self).unwrap();
             Ok(())
@@ -50,12 +50,14 @@ mod searchspace {
         pub obj2: f64, // Second objective
         info: f64,     // Extra info
         pub fid: Step, // Evaluation step
+        pub rank: i32,
     }
 
     objective!(
         pub fn example() -> (MoFidOutEvaluator, FnState) {
 
             let fid = [! FIDELITY !];
+            let rank = [! MPI_RANK !];
 
             let _a = [! a | Int(0,100, Uniform) | !];
             let _b = [! b | Nat(0,100, Uniform) | !];
@@ -78,6 +80,7 @@ mod searchspace {
                     obj2: obj.value[1],
                     info: [!j | Real(0.0,2000.0, Uniform) | !],
                     fid: evalstate,
+                    rank: rank,
                 },
                 state
             )
@@ -101,22 +104,26 @@ impl Drop for Cleaner {
 
 use searchspace::{MoFidOutEvaluator, get_function, get_searchspace};
 use tantale::algos::{MoAsha, moasha};
+use tantale::core::{DistSaverConfig, MPIProcess, PoolMode, distributed_with_pool};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
-        CSVRecorder, FolderConfig, HasY, MessagePack, SaverConfig, Solution, SolutionShape,
-        experiment::{Runable, threaded},
+        CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
         stop::Calls,
     },
 };
 
 fn main() {
-    drop(Cleaner {
-        path: String::from("moasha_example"),
-    });
-    let _clean = Cleaner {
-        path: String::from("moasha_example"),
-    };
+    let proc = MPIProcess::new();
+
+    if proc.rank == 0 {
+        drop(Cleaner {
+            path: String::from("moasha_example"),
+        });
+        let _clean = Cleaner {
+            path: String::from("moasha_example"),
+        };
+    }
 
     let sp = get_searchspace();
     let obj = get_function();
@@ -131,19 +138,20 @@ fn main() {
     );
 
     let stop = Calls::new(25);
-    let config = FolderConfig::new("moasha_example").init();
+    let config = FolderConfig::new("moasha_example").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
     let acc = exp.run();
-    let pareto = acc.get();
-
-    for dominant in pareto {
-        println!(
-            "Dominant: f({:?}) ={:?}",
-            dominant.get_sobj().get_x(),
-            dominant.y().value
-        );
+    if let Some(a) = acc{
+        let pareto = a.get();
+        for dominant in pareto {
+            println!(
+                "Dominant: f({:?}) ={:?}",
+                dominant.get_sobj().get_x(),
+                dominant.y().value
+            );
+        }
     }
 }
