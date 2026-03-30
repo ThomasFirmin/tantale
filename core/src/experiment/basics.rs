@@ -2,7 +2,7 @@ use crate::{
     FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::onto::LinkOpt,
-    experiment::{CompAcc, Evaluate},
+    experiment::{CompAcc, Evaluate, PoolMode},
     objective::FuncWrapper,
     optimizer::opt::OpSInfType,
     recorder::Recorder,
@@ -13,7 +13,7 @@ use crate::{
 #[cfg(feature = "mpi")]
 use crate::{
     checkpointer::DistCheckpointer,
-    experiment::{PoolMode, mpi::utils::MPIProcess},
+    experiment::mpi::utils::MPIProcess,
     solution::HasY,
 };
 
