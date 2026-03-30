@@ -23,7 +23,7 @@ Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, 
 
 We consider a computing grid made of 6 nodes, with 2 NVIDIA GPUs and 2 CPUs each, each worker process
 is assigned to a single GPU. The master process (`rank = 0`) is only assigned to a CPU, and runs the opitmization algorithm involving cheap computations.
-The 6 nodes shares the same persistent (disk) storage.
+The 6 nodes share the same persistent (disk) storage.
 
 #### Hostfile
 
