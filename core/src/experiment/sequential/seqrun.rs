@@ -1,11 +1,3 @@
-#[cfg(feature = "mpi")]
-use std::{
-    collections::VecDeque,
-    ops::Deref,
-    sync::{Arc, Mutex},
-    thread,
-};
-
 use crate::{
     Accumulator, Codomain, FidOutcome, SId, SeqRecorder, Solution, Stepped,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
@@ -25,6 +17,13 @@ use crate::{
         HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj,
     },
     stop::{ExpStep, Stop},
+};
+
+use std::{
+    collections::VecDeque,
+    ops::Deref,
+    sync::{Arc, Mutex},
+    thread,
 };
 
 #[cfg(feature = "mpi")]
