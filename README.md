@@ -34,12 +34,8 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 
 ## Installation
 
-```toml
-[dependencies]
-tantale = "0.1.1"
-
-# With MPI support:
-tantale = { version = "0.1.1", features = ["mpi"] }
+```console
+foo@bar:~$ cargo add tantale
 ```
 
 Minimum supported Rust version: **1.91.1** (2024 edition).
