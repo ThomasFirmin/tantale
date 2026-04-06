@@ -23,7 +23,12 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let eident = input.ident;
     let egenerics = input.generics;
-    let ewhere = &egenerics.where_clause;
+    if !egenerics.params.is_empty() {
+        panic!(
+            "{:?}",
+            syn::Error::new(egenerics.span(), "Outcome cannot have generics. Please remove any generic parameters from the struct definition.")
+        );
+    }
 
     let mut evalstate_stmt = quote! {};
     let mut has_eval_stmt = false;
@@ -49,7 +54,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 );
             } else {
                 evalstate_stmt = quote! {
-                    impl #egenerics tantale::core::FidOutcome for #eident #egenerics #ewhere {
+                    impl tantale::core::FidOutcome for #eident {
                         fn get_step(&self)->tantale::core::EvalStep{
                             self.#fident.into()
                         }
@@ -61,7 +66,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     });
 
     quote! {
-        impl #egenerics tantale::core::Outcome for #eident #egenerics #ewhere {}
+        impl tantale::core::Outcome for #eident {}
         #evalstate_stmt
     }
     .into()
