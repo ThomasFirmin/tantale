@@ -7,20 +7,9 @@ use tantale::core::{
 
 use tantale::algos::{Hyperband, Sha, sha};
 
-use super::init_func::sp_evaluator_sh;
-use crate::init_func::FidOutEvaluator;
-
+use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str) {
     let true_path = Path::new(path);
@@ -60,12 +49,7 @@ pub fn run_reader(path: &str) {
 
 #[test]
 fn test_fid_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_hyperband_sha_run"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_hyperband_sha_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_hyperband_sha_run");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -192,20 +176,11 @@ fn test_fid_seq_run() {
         current_max, expoptimizer.0.inner.0.budget_max,
         "Current max budget is not equal to inner budget max"
     );
-
-    drop(Cleaner {
-        path: String::from("tmp_test_hyperband_sha_run"),
-    });
 }
 
 #[test]
 fn test_fid_seq_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_hyperband_sha_parrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_hyperband_sha_parrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_hyperband_sha_parrun");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -343,8 +318,4 @@ fn test_fid_seq_parrun() {
         current_max, expoptimizer.0.inner.0.budget_max,
         "Current max budget is not equal to inner budget max"
     );
-
-    drop(Cleaner {
-        path: String::from("tmp_test_hyperband_sha_parrun"),
-    });
 }

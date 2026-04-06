@@ -10,6 +10,10 @@ pub mod sp_m_mixed_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Int([-2_i64,-1,0,1,2], Uniform)>                  | ;
@@ -25,6 +29,10 @@ pub mod sp_only_real_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Real([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform)> | ;
@@ -40,6 +48,10 @@ pub mod sp_only_int_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Int([-50, -25, 0, 25, 50],Uniform)> | ;
@@ -54,6 +66,10 @@ pub mod sp_only_nat_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Nat([0_u64, 10, 20, 30], Uniform)> | ;
@@ -69,6 +85,10 @@ pub mod sp_only_bool_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Bool(Bernoulli(0.5))> | ;
@@ -84,6 +104,10 @@ pub mod sp_only_cat_grid {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | ;

@@ -4,26 +4,14 @@ use tantale::core::{
     load,
     stop::Calls,
 };
-
 use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
 
-use super::init_func::sp_evaluator;
-use crate::init_func::OutEvaluator;
-
+use crate::init_func::{sp_evaluator, OutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -122,12 +110,7 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 
 #[test]
 fn test_batch_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_batchrun");
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
@@ -180,20 +163,11 @@ fn test_batch_run() {
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
     run_reader("tmp_test_batchrun", 100);
-
-    drop(Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    });
 }
 
 #[test]
 fn test_batch_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_parbatchrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_parbatchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_parbatchrun");
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -266,12 +240,7 @@ fn test_batch_parrun() {
 
 #[test]
 fn test_seqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_seqrun");
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -316,19 +285,11 @@ fn test_seqrun() {
 
     let _exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_seqrun", 100);
-    drop(Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    });
 }
 
 #[test]
 fn test_thrseqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_thr_seq_run");
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
@@ -375,7 +336,4 @@ fn test_thrseqrun() {
     let expstop: &Calls = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
-    drop(Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    });
 }

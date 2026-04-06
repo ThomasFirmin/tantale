@@ -129,6 +129,6 @@ get_test!(
     sp_sm_onemsamp_offset_leftright_holes;["a","b","c","d"],
     sp_sm_multiplemsamp_leftright_holes;["a","b","c","d"],
     sp_one_missing_to_single;["a","b","c","d"],
-    sp_repeats;["a_0","a_1","a_2","b","c","d"],
-    sp_repeats_inc;["a_0","a_1","a_2","b","c","d"]
+    sp_repeats;["a0","a1","a2","b","c","d"],
+    sp_repeats_inc;["a0","a1","a2","b","c","d"]
 );

@@ -6,12 +6,16 @@ pub mod sp_ms_nosamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
-
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
+    
     hpo!(
-        a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
+        a | Int(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
+        b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)                 ;
+        d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)                 ;
     );
 }
 
@@ -21,6 +25,10 @@ pub mod sp_ms_onemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
@@ -36,6 +44,10 @@ pub mod sp_ms_onemsamp_offset {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -51,6 +63,10 @@ pub mod sp_ms_multiplemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -66,6 +82,10 @@ pub mod sp_ms_allmsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
@@ -81,6 +101,10 @@ pub mod sp_ms_onemsamp_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
@@ -96,6 +120,10 @@ pub mod sp_ms_onemsamp_offset_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -111,6 +139,10 @@ pub mod sp_ms_multiplemsamp_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -126,6 +158,10 @@ pub mod sp_ms_allmsamp_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
@@ -141,6 +177,10 @@ pub mod sp_ms_onemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
@@ -156,6 +196,10 @@ pub mod sp_ms_onemsamp_offset_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
@@ -171,6 +215,10 @@ pub mod sp_ms_multiplemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
@@ -186,6 +234,10 @@ pub mod sp_ms_allmsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform)    ;
@@ -207,6 +259,10 @@ pub mod sp_sm_nosamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
@@ -222,6 +278,10 @@ pub mod sp_sm_onemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
@@ -237,6 +297,10 @@ pub mod sp_sm_onemsamp_offset {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
@@ -252,6 +316,10 @@ pub mod sp_sm_multiplemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
@@ -267,6 +335,10 @@ pub mod sp_sm_allmsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
@@ -282,6 +354,10 @@ pub mod sp_sm_onemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)       ;
@@ -297,6 +373,10 @@ pub mod sp_sm_onemsamp_offset_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
@@ -312,6 +392,10 @@ pub mod sp_sm_multiplemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)       ;
@@ -327,6 +411,10 @@ pub mod sp_sm_allmsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
@@ -342,6 +430,10 @@ pub mod sp_sm_onemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)         ;
@@ -357,6 +449,10 @@ pub mod sp_sm_onemsamp_offset_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                        ;
@@ -372,6 +468,10 @@ pub mod sp_sm_multiplemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)                       ;
@@ -387,6 +487,10 @@ pub mod sp_sm_allmsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
@@ -408,6 +512,10 @@ pub mod sp_m_equal_nosamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)       | ;
@@ -423,6 +531,10 @@ pub mod sp_m_equal_onemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)       |  ;
@@ -438,6 +550,10 @@ pub mod sp_m_equal_onemsamp_offset {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)       |                         ;
@@ -453,6 +569,10 @@ pub mod sp_m_equal_multiplemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)       |                         ;
@@ -468,6 +588,10 @@ pub mod sp_m_equal_allmsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)       |           ;
@@ -483,6 +607,10 @@ pub mod sp_m_equal_onemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)        | ;
@@ -498,6 +626,10 @@ pub mod sp_m_equal_onemsamp_offset_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                      | ;
@@ -513,6 +645,10 @@ pub mod sp_m_equal_multiplemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                      | ;
@@ -528,6 +664,10 @@ pub mod sp_m_equal_allmsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)         | ;
@@ -543,6 +683,10 @@ pub mod sp_m_equal_onemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)        |   ;
@@ -558,6 +702,10 @@ pub mod sp_m_equal_onemsamp_offset_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                      |                 ;
@@ -573,6 +721,10 @@ pub mod sp_m_equal_multiplemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                      |                 ;
@@ -588,6 +740,10 @@ pub mod sp_m_equal_allmsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)         |   ;
@@ -609,6 +765,10 @@ pub mod sp_s_equal_nosamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | ;
@@ -624,6 +784,10 @@ pub mod sp_s_equal_onemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |;
@@ -639,6 +803,10 @@ pub mod sp_s_equal_onemsamp_offset {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |                         ;
@@ -654,6 +822,10 @@ pub mod sp_s_equal_multiplemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |                         ;
@@ -669,6 +841,10 @@ pub mod sp_s_equal_allmsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |         ;
@@ -684,6 +860,10 @@ pub mod sp_s_equal_onemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)  | ;
@@ -699,6 +879,10 @@ pub mod sp_s_equal_onemsamp_offset_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | ;
@@ -714,6 +898,10 @@ pub mod sp_s_equal_multiplemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | ;
@@ -729,6 +917,10 @@ pub mod sp_s_equal_allmsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)  | ;
@@ -744,6 +936,10 @@ pub mod sp_s_equal_onemsamp_left_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)  | ;
@@ -759,6 +955,10 @@ pub mod sp_s_equal_onemsamp_offset_left_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  |                 ;
@@ -774,6 +974,10 @@ pub mod sp_s_equal_multiplemsamp_left_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  |                 ;
@@ -789,6 +993,10 @@ pub mod sp_s_equal_allmsamp_left_right {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)  | ;
@@ -810,6 +1018,10 @@ pub mod sp_ss_nosamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform);
@@ -825,6 +1037,10 @@ pub mod sp_ss_onemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform) ;
@@ -840,6 +1056,10 @@ pub mod sp_ss_onemsamp_offset {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                 ;
@@ -855,6 +1075,10 @@ pub mod sp_ss_multiplemsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                         ;
@@ -870,6 +1094,10 @@ pub mod sp_ss_allmsamp {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)          ;
@@ -885,6 +1113,10 @@ pub mod sp_ss_onemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
@@ -900,6 +1132,10 @@ pub mod sp_ss_onemsamp_offset_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
@@ -915,6 +1151,10 @@ pub mod sp_ss_multiplemsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
@@ -930,6 +1170,10 @@ pub mod sp_ss_allmsamp_left {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
@@ -945,6 +1189,10 @@ pub mod sp_ss_onemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
@@ -960,6 +1208,10 @@ pub mod sp_ss_onemsamp_offset_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
@@ -975,6 +1227,10 @@ pub mod sp_ss_multiplemsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
@@ -990,6 +1246,10 @@ pub mod sp_ss_allmsamp_leftright {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
@@ -1005,6 +1265,10 @@ pub mod sp_ms_nosamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
@@ -1020,6 +1284,10 @@ pub mod sp_ms_onemsamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                 |                               ;
@@ -1035,6 +1303,10 @@ pub mod sp_ms_onemsamp_offset_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -1050,6 +1322,10 @@ pub mod sp_ms_multiplemsamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
@@ -1065,6 +1341,10 @@ pub mod sp_ms_allmsamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                 |                               ;
@@ -1080,6 +1360,10 @@ pub mod sp_ms_onemsamp_right_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
@@ -1095,6 +1379,10 @@ pub mod sp_ms_onemsamp_offset_right_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               |                               ;
@@ -1110,6 +1398,10 @@ pub mod sp_ms_multiplemsamp_right_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                               |                               ;
@@ -1125,6 +1417,10 @@ pub mod sp_ms_allmsamp_right_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
@@ -1140,6 +1436,10 @@ pub mod sp_ms_onemsamp_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
@@ -1155,6 +1455,10 @@ pub mod sp_ms_onemsamp_offset_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                              |                               ;
@@ -1170,6 +1474,10 @@ pub mod sp_ms_multiplemsamp_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(0,100, Uniform)                            | Real(0.0,1.0, Uniform)                 ;
@@ -1191,6 +1499,10 @@ pub mod sp_sm_nosamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |                           ;
@@ -1206,6 +1518,10 @@ pub mod sp_sm_onemsamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
@@ -1221,6 +1537,10 @@ pub mod sp_sm_onemsamp_offset_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
@@ -1236,6 +1556,10 @@ pub mod sp_sm_multiplemsamp_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |                                          ;
@@ -1251,6 +1575,10 @@ pub mod sp_sm_onemsamp_left_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) |                  ;
@@ -1266,6 +1594,10 @@ pub mod sp_sm_onemsamp_offset_left_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
@@ -1281,6 +1613,10 @@ pub mod sp_sm_multiplemsamp_left_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)       ;
@@ -1296,6 +1632,10 @@ pub mod sp_sm_allmsamp_left_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
@@ -1311,6 +1651,10 @@ pub mod sp_sm_onemsamp_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
@@ -1326,6 +1670,10 @@ pub mod sp_sm_onemsamp_offset_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                 |                                   ;
@@ -1341,6 +1689,10 @@ pub mod sp_sm_multiplemsamp_leftright_holes {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                  |                                  ;
@@ -1351,14 +1703,19 @@ pub mod sp_sm_multiplemsamp_leftright_holes {
 }
 
 pub mod sp_repeats {
+
     use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 6;
+    pub const A_INDEX: (usize, usize) = (0, 3);
+    pub const B_INDEX: usize = 3;
+    pub const C_INDEX: usize = 4;
+    pub const D_INDEX: usize = 5;
 
     hpo!(
-        a_{3} | Real(0.0,1.0, Uniform)                  |                                  ;
+        a{3} | Real(0.0,1.0, Uniform)                  |                                  ;
         b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
         c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
@@ -1366,14 +1723,19 @@ pub mod sp_repeats {
 }
 
 pub mod sp_repeats_inc {
+
     use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 6;
+    pub const A_INDEX: (usize, usize) = (0, 3);
+    pub const B_INDEX: usize = 3;
+    pub const C_INDEX: usize = 4;
+    pub const D_INDEX: usize = 5;
 
     hpo!(
-        a_{3} | Real(0.0,1.0, Uniform)                  |                                  ;
+        a{3} | Real(0.0,1.0, Uniform)                  |                                  ;
         b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
         c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
         d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
@@ -1386,6 +1748,10 @@ pub mod sp_one_missing_to_single {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform)                   |                               ;
@@ -1405,6 +1771,10 @@ pub mod sp_only_real {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Real(0.0,1.0, Uniform) | ;
@@ -1420,6 +1790,10 @@ pub mod sp_only_int {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Int(-100,100,Uniform) | ;
@@ -1434,6 +1808,10 @@ pub mod sp_only_nat {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Nat(0,100, Uniform) | ;
@@ -1449,6 +1827,10 @@ pub mod sp_only_unit {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Unit(Uniform) | ;
@@ -1463,6 +1845,10 @@ pub mod sp_only_bool {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Bool(Bernoulli(0.5)) | ;
@@ -1478,6 +1864,10 @@ pub mod sp_only_cat {
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
 
     hpo!(
         a | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;

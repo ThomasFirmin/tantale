@@ -4,26 +4,14 @@ use tantale::core::{
     load,
     stop::Calls,
 };
-
 use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
 
-use super::init_func::sp_evaluator_fid;
-use crate::init_func::FidOutEvaluator;
-
+use crate::init_func::{sp_evaluator_fid, FidOutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -142,12 +130,7 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 
 #[test]
 fn test_fid_batch_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -205,12 +188,7 @@ fn test_fid_batch_run() {
 
 #[test]
 fn test_fid_batch_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchparrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchparrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchparrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -285,12 +263,7 @@ fn test_fid_batch_parrun() {
 
 #[test]
 fn test_fid_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidseqrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -338,12 +311,7 @@ fn test_fid_seq_run() {
 
 #[test]
 fn test_fid_thr_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidthrseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidthrseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidthrseqrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -400,12 +368,7 @@ fn test_fid_thr_seq_run() {
 
 #[test]
 fn test_fid_batch_run_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchrun_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchrun_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchrun_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -482,20 +445,11 @@ fn test_fid_batch_run_loadpool() {
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 81, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchrun_loadpool"),
-    });
 }
 
 #[test]
 fn test_fid_batch_parrun_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchparrun_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchparrun_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchparrun_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -579,12 +533,7 @@ fn test_fid_batch_parrun_loadpool() {
 
 #[test]
 fn test_fid_seq_run_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidseqrun_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidseqrun_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidseqrun_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -655,12 +604,7 @@ fn test_fid_seq_run_loadpool() {
 
 #[test]
 fn test_fid_thr_seq_run_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidthrseqrun_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidthrseqrun_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidthrseqrun_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();

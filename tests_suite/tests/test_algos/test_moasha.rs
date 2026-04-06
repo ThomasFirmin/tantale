@@ -7,23 +7,11 @@ use tantale::{
         stop::Calls,
     },
 };
-
 use tantale::algos::{MoAsha, moasha};
 
-use super::init_func::sp_evaluator_mo;
-use crate::init_func::MoFidOutEvaluator;
-
+use crate::init_func::{sp_evaluator_mo, MoFidOutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str) {
     let true_path = Path::new(path);
@@ -63,12 +51,7 @@ pub fn run_reader(path: &str) {
 
 #[test]
 fn test_fid_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_moasha_run"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_moasha_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_moasha_run");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -153,20 +136,11 @@ fn test_fid_seq_run() {
         expoptimizer.0.budgets, budgets
     );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_moasha_run"),
-    });
 }
 
 #[test]
 fn test_fid_seq_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_moasha_parrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_moasha_parrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_moasha_parrun");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -262,8 +236,4 @@ fn test_fid_seq_parrun() {
         expoptimizer.0.budgets, budgets
     );
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_moasha_parrun"),
-    });
 }

@@ -7,25 +7,11 @@ use tantale::{
         stop::Calls,
     },
 };
-
 use tantale::algos::{GridSearch, grid_search};
-
-use crate::init_func::{OutEvaluator, sp_grid_evaluator};
-
-use super::init_func::sp_grid_evaluator_fid;
-use crate::init_func::FidOutEvaluator;
-
 use std::path::Path;
 
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
+use crate::init_func::{OutEvaluator, sp_grid_evaluator,sp_grid_evaluator_fid,FidOutEvaluator};
+use crate::cleaner::Cleaner;
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -124,12 +110,7 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 
 #[test]
 fn test_seqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_seqrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_gs_seqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_gs_seqrun");
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
@@ -177,19 +158,11 @@ fn test_seqrun() {
     assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
     run_reader("tmp_test_gs_seqrun", 300);
     exp.run();
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_seqrun"),
-    });
 }
 
 #[test]
 fn test_thrseqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_thr_seq_run"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_gs_thr_seq_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_gs_thr_seq_run");
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
@@ -240,19 +213,11 @@ fn test_thrseqrun() {
     let expstop: &Calls = exp.get_stop();
     let calls = expstop.calls();
     assert!((300..=305).contains(&calls), "Number of calls is wrong");
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_thr_seq_run"),
-    });
 }
 
 #[test]
 fn test_fid_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_fidseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_gs_fidseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_gs_fidseqrun");
 
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
@@ -300,20 +265,11 @@ fn test_fid_seq_run() {
     run_reader("tmp_test_gs_fidseqrun", 1500);
     let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 300, "Number of calls is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_fidseqrun"),
-    });
 }
 
 #[test]
 fn test_fid_thr_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_fidthrseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_gs_fidthrseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_gs_fidthrseqrun");
 
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
@@ -370,8 +326,4 @@ fn test_fid_thr_seq_run() {
         "Number of calls is wrong, it should be between 300 and {}",
         max_call
     );
-
-    drop(Cleaner {
-        path: String::from("tmp_test_gs_fidthrseqrun"),
-    });
 }

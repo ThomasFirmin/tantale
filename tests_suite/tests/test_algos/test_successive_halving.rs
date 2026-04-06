@@ -4,23 +4,11 @@ use tantale::core::{
     load,
     stop::Calls,
 };
-
 use tantale::algos::{Sha, sha};
 
-use super::init_func::sp_evaluator_sh;
-use crate::init_func::FidOutEvaluator;
-
+use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -119,12 +107,8 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 
 #[test]
 fn test_fid_batch_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_sh_run"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_sh_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_sh_run");
+
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -175,20 +159,11 @@ fn test_fid_batch_run() {
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_sh_run"),
-    });
 }
 
 #[test]
 fn test_fid_batch_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_sh_parrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_sh_parrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_sh_parrun");
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -239,8 +214,4 @@ fn test_fid_batch_parrun() {
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 40, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_sh_parrun"),
-    });
 }

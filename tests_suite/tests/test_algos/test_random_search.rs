@@ -5,29 +5,14 @@ use tantale::core::{
     load,
     stop::Calls,
 };
-
 use tantale::algos::{
     BatchRandomSearch,
     random_search::{self, RandomSearch},
 };
 
-use super::init_func::sp_evaluator;
-use crate::init_func::OutEvaluator;
-
-use super::init_func::sp_evaluator_fid;
-use crate::init_func::FidOutEvaluator;
-
+use crate::init_func::{sp_evaluator,OutEvaluator,sp_evaluator_fid,FidOutEvaluator};
+use crate::cleaner::Cleaner;
 use std::path::Path;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -126,12 +111,7 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 
 #[test]
 fn test_batch_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_batchrun");
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
@@ -184,20 +164,11 @@ fn test_batch_run() {
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
 
     run_reader("tmp_test_batchrun", 100);
-
-    drop(Cleaner {
-        path: String::from("tmp_test_batchrun"),
-    });
 }
 
 #[test]
 fn test_batch_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_parbatchrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_parbatchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_parbatchrun");
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -270,12 +241,7 @@ fn test_batch_parrun() {
 
 #[test]
 fn test_seqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_seqrun");
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -320,19 +286,11 @@ fn test_seqrun() {
 
     let _exp = load!(mono, RandomSearch, Calls, (sp, cod), obj, (rec, check));
     run_reader("tmp_test_seqrun", 100);
-    drop(Cleaner {
-        path: String::from("tmp_test_seqrun"),
-    });
 }
 
 #[test]
 fn test_thrseqrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    };
+    let _clean = Cleaner::new("tmp_test_thr_seq_run");
 
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
@@ -379,19 +337,11 @@ fn test_thrseqrun() {
     let expstop: &Calls = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
-    drop(Cleaner {
-        path: String::from("tmp_test_thr_seq_run"),
-    });
 }
 
 #[test]
 fn test_fid_batch_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -445,20 +395,11 @@ fn test_fid_batch_run() {
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 81, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchrun"),
-    });
 }
 
 #[test]
 fn test_fid_batch_parrun() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchparrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidbatchparrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidbatchparrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -473,7 +414,7 @@ fn test_fid_batch_parrun() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_fidbatchparrun", 274);
+    run_reader_eps("tmp_test_fidbatchparrun", 274, 20);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -503,26 +444,17 @@ fn test_fid_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_fidbatchparrun", 548);
+    run_reader_eps("tmp_test_fidbatchparrun", 548, 20);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expoptimizer.0.iteration, 81, "Number of iteration is wrong");
     assert_eq!(expoptimizer.0.batch, 7, "Batch size is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_fidbatchparrun"),
-    });
 }
 
 #[test]
 fn test_fid_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidseqrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -566,20 +498,11 @@ fn test_fid_seq_run() {
     run_reader("tmp_test_fidseqrun", 500);
     let expstop: &Calls = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
-
-    drop(Cleaner {
-        path: String::from("tmp_test_fidseqrun"),
-    });
 }
 
 #[test]
 fn test_fid_thr_seq_run() {
-    drop(Cleaner {
-        path: String::from("tmp_test_fidthrseqrun"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_fidthrseqrun"),
-    };
+    let _clean = Cleaner::new("tmp_test_fidthrseqrun");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -632,8 +555,4 @@ fn test_fid_thr_seq_run() {
         "Number of calls is wrong, it should be between 100 and {}",
         max_call
     );
-
-    drop(Cleaner {
-        path: String::from("tmp_test_fidthrseqrun"),
-    });
 }

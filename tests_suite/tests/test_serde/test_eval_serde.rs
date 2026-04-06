@@ -17,6 +17,7 @@ use tantale::core::{
 };
 
 use super::init_func::{FidOutEvaluator, FnState, OutEvaluator, sp_evaluator, sp_evaluator_fid};
+use crate::cleaner::Cleaner;
 
 type BEvaluator = BatchEvaluator<
     SId,
@@ -46,15 +47,6 @@ type FThrBEvaluator = FidThrBatchEvaluator<
     FnState,
     Pool<MPFnStateCheckpointer, FnState, SId>,
 >;
-
-struct Cleaner {
-    path: String,
-}
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
 
 #[test]
 fn test_serde_batchevaluator() {
@@ -225,12 +217,7 @@ fn test_serde_thrbatchevaluator() {
 
 #[test]
 fn test_serde_fidbatchevaluator() {
-    drop(Cleaner {
-        path: String::from("tmp_test_serde_fidbatchevaluator"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_serde_fidbatchevaluator"),
-    };
+    let _clean = Cleaner::new("tmp_test_serde_fidbatchevaluator");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
@@ -357,12 +344,7 @@ fn test_serde_fidbatchevaluator() {
 
 #[test]
 fn test_serde_thrfidbatchevaluator() {
-    drop(Cleaner {
-        path: String::from("tmp_test_serde_fidthrbatchevaluator"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_serde_fidthrbatchevaluator"),
-    };
+    let _clean = Cleaner::new("tmp_test_serde_fidthrbatchevaluator");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
@@ -513,12 +495,7 @@ fn test_serde_thrfidbatchevaluator() {
 
 #[test]
 fn test_serde_fidbatchevaluator_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_serde_fidbatchevaluator_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_serde_fidbatchevaluator_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_serde_fidbatchevaluator_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
@@ -643,12 +620,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
 
 #[test]
 fn test_serde_thrfidbatchevaluator_loadpool() {
-    drop(Cleaner {
-        path: String::from("tmp_test_serde_fidthrbatchevaluator_loadpool"),
-    });
-    let _cleaner = Cleaner {
-        path: String::from("tmp_test_serde_fidthrbatchevaluator_loadpool"),
-    };
+    let _clean = Cleaner::new("tmp_test_serde_fidthrbatchevaluator_loadpool");
 
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;

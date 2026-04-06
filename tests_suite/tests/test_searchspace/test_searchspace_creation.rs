@@ -77,6 +77,15 @@ macro_rules! get_test {
                 assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj(&sp, &csobj));
                 assert!(&csobj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
             }
+
+            #[test]
+            fn [<$name _check_const>]() {
+                assert_eq!($name::indices::A, $name::A_INDEX);
+                assert_eq!($name::indices::B, $name::B_INDEX);
+                assert_eq!($name::indices::C, $name::C_INDEX);
+                assert_eq!($name::indices::D, $name::D_INDEX);
+            }
+
             }
         )+
     };

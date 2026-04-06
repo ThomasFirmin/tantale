@@ -8,6 +8,8 @@ pub mod init_func;
 pub mod init_outcome;
 #[path = "../init_sp.rs"]
 pub mod init_sp;
+#[path = "../cleaner.rs"]
+pub mod cleaner;
 
 pub mod test_computed_serde;
 pub mod test_eval_serde;
