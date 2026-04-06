@@ -309,6 +309,10 @@ where
     > {
         &mut self.accumulator
     }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+    }
 }
 
 impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
@@ -632,6 +636,10 @@ where
     > {
         &mut self.accumulator
     }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+    }
 }
 
 //---------------------//
@@ -924,6 +932,10 @@ where
         Out,
     > {
         &mut self.accumulator
+    }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
 
@@ -1247,6 +1259,10 @@ where
         Out,
     > {
         &mut self.accumulator
+    }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
 
@@ -1603,6 +1619,10 @@ where
         Out,
     > {
         &mut self.accumulator
+    }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
 
@@ -2012,5 +2032,9 @@ where
         Out,
     > {
         &mut self.accumulator
+    }
+    
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
