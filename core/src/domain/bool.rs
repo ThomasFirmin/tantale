@@ -1,14 +1,11 @@
 use crate::{
-    domain::{
+    Grid, domain::{
         Domain, PreDomain, TypeDom,
         bounded::{Bounded, BoundedBounds},
         mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoolDistribution, Sampler},
+    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoolDistribution, Sampler}
 };
 
 use num::cast::AsPrimitive;
@@ -213,6 +210,15 @@ impl From<Mixed> for Bool {
         match value {
             Mixed::Bool(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Bool."),
+        }
+    }
+}
+
+impl From<Grid> for Bool {
+    fn from(value: Grid) -> Self {
+        match value {
+            Grid::Bool(d) => d,
+            _ => unreachable!("Can only From<Grid> with Bool."),
         }
     }
 }
