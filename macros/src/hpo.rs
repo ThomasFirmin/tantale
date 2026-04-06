@@ -223,6 +223,7 @@ type ParsedSpOut = (
     proc_macro2::Ident,                      //Ident Opt,
     proc_macro2::Ident,                      //Ident Obj::TypeDom,
     std::vec::Vec<proc_macro2::TokenStream>, // Push to Var Vec,
+    std::vec::Vec<proc_macro2::TokenStream>, // Constants for indices,
     Vec<proc_macro2::Ident>,                 // Vec of Obj types,
     Vec<usize>,                              // Vec of repeats for each var,
     bool,                                    // Is a grid domain
@@ -414,6 +415,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         wrappedvarinfo.push(wrapvarinfo);
     }
 
+    let mut const_statements = Vec::new();
     let mut push_statements = Vec::new();
     push_statements.push(
         quote! {
@@ -422,8 +424,10 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
     );
     let mut var_reps: Vec<usize> = Vec::new();
 
+    let mut cum_repeats = 0;
     for wrapped in wrappedvarinfo {
         let name = wrapped.name.to_string();
+        let const_name = Ident::new(&name.to_uppercase(), Span::call_site());
         let repeats = wrapped.repeats;
         let domobj = wrapped.wrapped_domobj;
         let domopt = wrapped.wrapped_domopt;
@@ -432,20 +436,25 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let var_statement = quote! {
             tantale::core::variable::var::Var::<#ident_mixed_obj , #ident_mixed_opt >::new(#name ,#domobj.into() ,#domopt.into())
         };
-        push_statements.push(match repeats {
+
+        match repeats {
             None => {
                 var_reps.push(1);
-                quote! {variables.push({ #var_statement });
-                }
+                push_statements.push(quote! {variables.push({ #var_statement });});
+                const_statements.push(quote! {pub const #const_name: usize = #cum_repeats;});
+                cum_repeats += 1;
             }
             Some(r) => {
+                let prev_repeats = cum_repeats;
+                cum_repeats += r;
                 var_reps.push(r);
-                quote! {
-                        let mut replicates = { #var_statement }.replicate(#r);
-                        variables.append(&mut replicates);
-                }
+                push_statements.push(quote! {
+                    let mut replicates = { #var_statement }.replicate(#r);
+                    variables.append(&mut replicates);
+                });
+                const_statements.push(quote! {pub const #const_name: (usize, usize) = (#prev_repeats, #cum_repeats);});
             }
-        });
+        }
     }
 
     Ok((
@@ -453,6 +462,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         ident_mixed_opt,
         ident_mixedt_obj,
         push_statements,
+        const_statements,
         tobj_vec,
         var_reps,
         is_grid,
@@ -494,6 +504,7 @@ pub fn get_sp_tokens(
     ident_mixed_obj: proc_macro2::Ident,
     ident_mixed_opt: proc_macro2::Ident,
     push_statements: Vec<proc_macro2::TokenStream>,
+    const_statements: Vec<proc_macro2::TokenStream>,
     is_grid: bool,
 ) -> syn::Result<TokenStream> {
     if is_grid {
@@ -504,7 +515,9 @@ pub fn get_sp_tokens(
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
-            pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
+            pub mod indices { #(#const_statements)* }
+
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
             {
                 #(#push_statements)*
 
@@ -522,7 +535,9 @@ pub fn get_sp_tokens(
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
-            pub fn get_searchspace()-> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
+            pub mod indices { #(#const_statements)* }
+
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
             {
                 #(#push_statements)*
 
@@ -558,8 +573,8 @@ pub fn hpo(input: TokenStream) -> TokenStream {
 
     let lines: Vec<LineStream> = lines.into_iter().collect();
 
-    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, _, _, is_grid) =
+    let (ident_mixed_obj, ident_mixed_opt, _, push_statements, const_statements, _, _, is_grid) =
         parse_sp(lines).unwrap();
 
-    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, is_grid).unwrap()
+    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, const_statements, is_grid).unwrap()
 }
