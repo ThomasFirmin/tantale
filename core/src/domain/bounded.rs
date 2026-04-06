@@ -466,6 +466,15 @@ where
 /// ```
 pub type Real = Bounded<f64>;
 
+impl From<Mixed> for Real {
+    fn from(m: Mixed) -> Self {
+        match m {
+            Mixed::Real(d) => d,
+            _ => panic!("Cannot convert Mixed to Real, expected Mixed::Real variant."),
+        }
+    }
+}
+
 /// [`Bounded`] alias for a natural `u64` [`Domain`] bounded by a lower and upper bounds.
 ///
 /// # Attributes
@@ -490,6 +499,15 @@ pub type Real = Bounded<f64>;
 /// assert_eq!(dom.width, 10);
 /// ```
 pub type Nat = Bounded<u64>;
+
+impl From<Mixed> for Nat {
+    fn from(m: Mixed) -> Self {
+        match m {
+            Mixed::Nat(d) => d,
+            _ => panic!("Cannot convert Mixed to Nat, expected Mixed::Nat variant."),
+        }
+    }
+}
 
 /// [`Bounded`] alias for an integer `i64` [`Domain`] bounded by a lower and upper bounds.
 ///
@@ -516,6 +534,15 @@ pub type Nat = Bounded<u64>;
 /// assert_eq!(dom.width, 10);
 /// ```
 pub type Int = Bounded<i64>;
+
+impl From<Mixed> for Int {
+    fn from(m: Mixed) -> Self {
+        match m {
+            Mixed::Int(d) => d,
+            _ => panic!("Cannot convert Mixed to Int, expected Mixed::Int variant."),
+        }
+    }
+}
 
 impl<T> CSVWritable<(), <Bounded<T> as Domain>::TypeDom> for Bounded<T>
 where
