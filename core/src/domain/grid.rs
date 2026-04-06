@@ -112,45 +112,6 @@ impl<T: GridBounds> Display for GridDom<T> {
     }
 }
 
-impl From<Mixed> for GridReal {
-    fn from(value: Mixed) -> Self {
-        match value {
-            Mixed::GridReal(d) => d,
-            _ => unreachable!(
-                "From<Mixed> for GridReal should only be called with Mixed::GridReal variant"
-            ),
-        }
-    }
-}
-impl From<Mixed> for GridInt {
-    fn from(value: Mixed) -> Self {
-        match value {
-            Mixed::GridInt(d) => d,
-            _ => unreachable!(
-                "From<Mixed> for GridInt should only be called with Mixed::GridInt variant"
-            ),
-        }
-    }
-}
-impl From<Mixed> for GridNat {
-    fn from(value: Mixed) -> Self {
-        match value {
-            Mixed::GridNat(d) => d,
-            _ => unreachable!(
-                "From<Mixed> for GridNat should only be called with Mixed::GridNat variant"
-            ),
-        }
-    }
-}
-impl From<Mixed> for Cat {
-    fn from(value: Mixed) -> Self {
-        match value {
-            Mixed::Cat(d) => d,
-            _ => unreachable!("From<Mixed> for Cat should only be called with Mixed::Cat variant"),
-        }
-    }
-}
-
 impl<Out, In> Onto<Bounded<Out>> for GridDom<In>
 where
     In: GridBounds,
@@ -341,10 +302,124 @@ impl<T: GridBounds> CSVWritable<(), T> for GridDom<T> {
     }
 }
 
+
+/// [`GridDom`] alias for a list of `f64` elements.
+///
+/// # Attributes
+///
+/// * `values` - A list of `f64` values defining to sample from.
+///
+/// # Examples
+///
+/// ```
+/// use tantale::core::{GridReal,Domain,Uniform};
+/// let dom = GridReal::new([1.0, 2.0, 3.0],Uniform);
+///
+/// let mut rng = rand::rng();
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
+/// assert_eq!(dom.values.to_vec(), vec![1.0, 2.0, 3.0]);
+/// ```
 pub type GridReal = GridDom<f64>;
+
+impl From<Mixed> for GridReal {
+    fn from(value: Mixed) -> Self {
+        match value {
+            Mixed::GridReal(d) => d,
+            _ => unreachable!(
+                "From<Mixed> for GridReal should only be called with Mixed::GridReal variant"
+            ),
+        }
+    }
+}
+
+/// [`GridDom`] alias for a list of `i64` elements.
+///
+/// # Attributes
+///
+/// * `values` - A list of `i64` values defining to sample from.
+///
+/// # Examples
+///
+/// ```
+/// use tantale::core::{GridInt,Domain,Uniform};
+/// let dom = GridInt::new([-1, 0, 1],Uniform);
+///
+/// let mut rng = rand::rng();
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
+/// assert_eq!(dom.values.to_vec(), vec![-1, 0, 1]);
+/// ```
 pub type GridInt = GridDom<i64>;
+
+impl From<Mixed> for GridInt {
+    fn from(value: Mixed) -> Self {
+        match value {
+            Mixed::GridInt(d) => d,
+            _ => unreachable!(
+                "From<Mixed> for GridInt should only be called with Mixed::GridInt variant"
+            ),
+        }
+    }
+}
+
+/// [`GridDom`] alias for a list of `u64` elements.
+///
+/// # Attributes
+///
+/// * `values` - A list of `u64` values defining to sample from.
+///
+/// # Examples
+///
+/// ```
+/// use tantale::core::{GridNat,Domain,Uniform};
+/// let dom = GridNat::new([1u64, 2, 3],Uniform);
+///
+/// let mut rng = rand::rng();
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
+/// assert_eq!(dom.values.to_vec(), vec![1, 2, 3]);
+/// ```
 pub type GridNat = GridDom<u64>;
+
+impl From<Mixed> for GridNat {
+    fn from(value: Mixed) -> Self {
+        match value {
+            Mixed::GridNat(d) => d,
+            _ => unreachable!(
+                "From<Mixed> for GridNat should only be called with Mixed::GridNat variant"
+            ),
+        }
+    }
+}
+
+/// [`GridDom`] alias for a list of `String` elements.
+///
+/// # Attributes
+///
+/// * `values` - A list of `String` values defining to sample from.
+///
+/// # Examples
+///
+/// ```
+/// use tantale::core::{Cat,Domain,Uniform};
+/// let dom = Cat::new(["relu", "sigmoid", "tanh"],Uniform);
+///
+/// let mut rng = rand::rng();
+/// let sample = dom.sample(&mut rng);
+/// assert!(dom.is_in(&sample));
+/// assert_eq!(dom.values.to_vec(), vec!["relu", "sigmoid", "tanh"]);
+/// ```
 pub type Cat = GridDom<String>;
+
+impl From<Mixed> for Cat {
+    fn from(value: Mixed) -> Self {
+        match value {
+            Mixed::Cat(d) => d,
+            _ => unreachable!("From<Mixed> for Cat should only be called with Mixed::Cat variant"),
+        }
+    }
+}
 
 /// A type-erased discrete [`Domain`] grouping [`GridReal`], [`GridInt`], [`GridNat`], [`Cat`], and [`Bool`]
 /// into a single enum. Unlike [`Mixed`], which covers all basic domains, [`Grid`] is restricted to
