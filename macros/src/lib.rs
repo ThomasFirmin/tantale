@@ -12,6 +12,8 @@ mod optinfo;
 mod optstate;
 mod outcome;
 mod solinfo;
+#[cfg(feature="py")]
+mod pyhpo;
 
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
 /// functions. It derives traits that enable logging, serialization,
@@ -602,4 +604,12 @@ pub fn solinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(CSVWritable)]
 pub fn csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     csvwritable::proc_csvwritable(input)
+}
+
+
+#[cfg(feature="py")]
+/// Similar to [`hpo!`](crate::hpo), but generates a Python-compatible searchspace and exposes it via PyO3.
+#[proc_macro]
+pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    pyhpo::pyhpo(input)
 }
