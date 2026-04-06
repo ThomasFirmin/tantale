@@ -1185,6 +1185,9 @@ macro_rules! load {
 pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
     TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
 
+/// Type alias for the tuple of components passed to the optimization loop.
+pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = ((Scp, <Op as crate::Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod),Fn,Op,St,(Option<Rec>, Option<Check>));
+
 /// The core trait defining the optimization loop interface.
 ///
 /// [`Runable`] orchestrates the complete optimization pipeline by combining:
@@ -1349,6 +1352,12 @@ where
         pool_mode: PoolMode,
     ) -> Self;
 
+    /// Creates a new experiment from components of an existing one, but with a different [`PoolMode`].
+    fn with_pool(self, pool_mode: PoolMode) -> Self{
+        let (space, objective, optimizer, stop, saver) = self.extract();
+        Self::new_with_pool(space, objective, optimizer, stop, saver, pool_mode)
+    }
+
     /// Runs the optimization loop to completion.
     ///
     /// Executes the full pipeline, generation, evaluation, accumulation, recording,
@@ -1437,6 +1446,9 @@ where
     fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
+
+    /// Extracts the components of the experiment.
+    fn extract(self) -> ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check>;
 }
 
 #[cfg(feature = "mpi")]
@@ -1538,7 +1550,29 @@ where
         saver: (Option<Rec>, Option<Check>),
         pool_mode: PoolMode,
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
+
+    /// Creates a new experiment from components of an existing one, but with a different [`PoolMode`].
+    fn with_pool(self, proc: &'a MPIProcess, pool_mode: PoolMode) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>{
+        let (space, objective, optimizer, stop, saver) = self.extract();
+        Self::new_with_pool(proc, space, objective, optimizer, stop, saver, pool_mode)
+    }
+
+    /// Runs the optimization loop to completion.
+    ///
+    /// Executes the full pipeline, generation, evaluation, accumulation, recording,
+    /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
+    /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
+    ///
+    /// It return an [`Accumulator`](crate::Accumulator) containing the best solutions found during the run.
     fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+
+    /// Restores an experiment from a checkpoint.
+    ///
+    /// Reconstructs the full experiment state (optimizer, stop criterion, accumulator)
+    /// from the provided [`Checkpointer`]. The searchspace, codomain, and objective are
+    /// supplied explicitly because they are not serialized.
+    ///
+    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the [`load!`] macro.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1554,19 +1588,41 @@ where
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
+    /// Returns a reference to the [`Stop`] criterion.
     fn get_stop(&self) -> &St;
+    /// Returns a reference to the [`Searchspace`].
     fn get_searchspace(&self) -> &Scp;
+    /// Returns a reference to the [`Codomain`](crate::Codomain).
     fn get_codomain(&self) -> &Op::Cod;
+    /// Returns a reference to the objective function wrapper.
     fn get_objective(&self) -> &Fn;
+    /// Returns a reference to the [`Optimizer`].
     fn get_optimizer(&self) -> &Op;
+    /// Returns a reference to the [`Recorder`], if any.
     fn get_recorder(&self) -> Option<&Rec>;
+    /// Returns a reference to the [`Checkpointer`], if any.
     fn get_checkpointer(&self) -> Option<&Check>;
+    /// Returns a mutable reference to the [`Stop`] criterion.
+    ///
+    /// Useful for extending or adjusting the budget after loading from a checkpoint:
+    ///
+    /// ```rust,ignore
+    /// let mut exp = load!(mono, MyOpt, Calls, space, obj, (None, checkpointer));
+    /// exp.get_mut_stop().add(500); // run 500 more evaluations
+    /// exp.run();
+    /// ```
     fn get_mut_stop(&mut self) -> &mut St;
+    /// Returns a mutable reference to the [`Searchspace`].
     fn get_mut_searchspace(&mut self) -> &mut Scp;
+    /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
     fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+    /// Returns a mutable reference to the objective function wrapper.
     fn get_mut_objective(&mut self) -> &mut Fn;
+    /// Returns a mutable reference to the [`Optimizer`].
     fn get_mut_optimizer(&mut self) -> &mut Op;
+    /// Returns a mutable reference to the [`Recorder`], if any.
     fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
+    /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
     /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
     fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
@@ -1578,6 +1634,8 @@ where
     fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
+    /// Extracts the components of the experiment.
+    fn extract(self) -> ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check>;
 }
 
 //------------------------//
