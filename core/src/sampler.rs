@@ -189,7 +189,7 @@ pub enum GridDomDistribution {
     Uniform(Uniform),
 }
 
-impl<T: BoundedBounds> Sampler<GridDom<T>> for GridDomDistribution {
+impl<T: GridBounds> Sampler<GridDom<T>> for GridDomDistribution {
     fn sample<R: Rng>(&self, dom: &GridDom<T>, rng: &mut R) -> TypeDom<GridDom<T>> {
         match self {
             GridDomDistribution::Uniform(u) => u.sample(dom, rng),
