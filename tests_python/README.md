@@ -1,0 +1,1 @@
+This is the test folder for python bindings with the Tantale library.

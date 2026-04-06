@@ -1,5 +1,5 @@
 [package]
-name = "tantale_algos"
+name = "tantale_python"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,17 +12,13 @@ keywords.workspace = true
 
 [lib]
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tantale_core = { workspace = true , features = ["mpi"] }
-rand = "0.9.0"
-serde = {version="1.0.219", features=["derive"]}
-
-[features]
-mpi = ["tantale_core/mpi"]
-
-[dev-dependencies]
-tantale = { path = "..", package = "tantale" }
+tantale_core.workspace = true
+pyo3 = {version = "0.28.2", features = ["auto-initialize"]}
+serde = {version = "1.0.219"}
+num = "0.4.3"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]

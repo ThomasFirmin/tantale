@@ -1,9 +1,9 @@
 [workspace]
-members = ["macros", "core", "algorithms", "tests_suite", "examples"]
+members = ["macros", "core", "algorithms", "python","tests_suite", "tests_python", "examples"]
 
 [workspace.package]
 authors = ["Thomas Firmin"]
-version = "0.1.11"
+version = "0.1.12"
 edition = "2024"
 license = "CECILL-C"
 readme = "README.md"
@@ -14,10 +14,11 @@ description  = "Tantale is a Rust library for Automated Machine Learning (AutoML
 keywords     = ["automl", "hpo", "nas"]
 
 [workspace.dependencies]
-tantale        = {path = ".", version = "0.1.11"}
-tantale_core   = {path = "core", version = "0.1.11"}
-tantale_macros = {path = "macros", version = "0.1.11"}
-tantale_algos  = {path = "algorithms", version = "0.1.11"}
+tantale        = {path = ".", version = "0.1.12"}
+tantale_core   = {path = "core", version = "0.1.12"}
+tantale_macros = {path = "macros", version = "0.1.12"}
+tantale_algos  = {path = "algorithms", version = "0.1.12"}
+tantale_python  = {path = "python", version = "0.1.12"}
 
 [package]
 name                    = "tantale"
@@ -42,9 +43,11 @@ maintenance = { status = "actively-developed" }
 tantale_core.workspace   = true
 tantale_macros.workspace = true
 tantale_algos.workspace  = true
+tantale_python = {workspace = true, optional = true}
 
 [features]
 mpi = ["tantale_core/mpi", "tantale_algos/mpi"]
+py = ["tantale_python", "tantale_macros/py"]
 
 [dev-dependencies]
 num = "0.4.3"
