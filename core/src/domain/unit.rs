@@ -269,15 +269,6 @@ impl Onto<Mixed> for Unit {
 }
 impl OntoDom<Mixed> for Unit {}
 
-impl From<Mixed> for Unit {
-    fn from(value: Mixed) -> Self {
-        match value {
-            Mixed::Unit(d) => d,
-            _ => unreachable!("Can only From<BaseDom> with Unit."),
-        }
-    }
-}
-
 impl Onto<Unit> for Unit
 where
     f64: AsPrimitive<f64>,
@@ -303,6 +294,15 @@ where
     }
 }
 impl OntoDom<Unit> for Unit {}
+
+impl From<Mixed> for Unit {
+    fn from(value: Mixed) -> Self {
+        match value {
+            Mixed::Unit(d) => d,
+            _ => unreachable!("Can only From<BaseDom> with Unit."),
+        }
+    }
+}
 
 impl CSVWritable<(), f64> for Unit {
     fn header(_elem: &()) -> Vec<String> {
