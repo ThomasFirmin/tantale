@@ -118,7 +118,7 @@ impl FolderConfig {
     /// let config = config.init();
     /// ```
     pub fn new(path: &str) -> Self {
-        let path = PathBuf::from(path);
+        let path = std::path::absolute(PathBuf::from(path)).unwrap();
         let path_rec = path.join(Path::new("recorder"));
         let path_check = path.join(Path::new("checkpointer"));
         let path_work = path_check.join(Path::new("workers"));
