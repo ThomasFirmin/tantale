@@ -1,10 +1,8 @@
 use tantale::algos::mo::NSGA2Selector;
 use tantale::algos::{MoAsha, moasha};
-use tantale::core::experiment::mono_load_with_pool;
 use tantale::python::pyoutcome::PyFidOutcome;
-use tantale::python::{PyConfig, PyStepped, init_python, register_outcome};
-use tantale::python::pyo3::prelude::*;
-use tantale::core::{CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, mono, mono_with_pool};
+use tantale::python::init_python;
+use tantale::core::{CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, mono_with_pool};
 
 pub mod sp_ms_nosamp {
     use tantale::core::{
@@ -19,26 +17,30 @@ pub mod sp_ms_nosamp {
     pub const C_INDEX: usize = 2;
     pub const D_INDEX: usize = 3;
     
-    pyhpo!(
+    pyhpo!{
         a | Int(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
         c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)                 ;
         d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)                 ;
-    );
+    }
 }
 
 #[test]
 fn test_python_function() {
     use sp_ms_nosamp;
 
-    let config = PyConfig::new(
-        "/tests/test_searchspace/function.py", 
-        "objective", 
-        "MyOutcome",
+    let sp = sp_ms_nosamp::get_searchspace();
+    let obj = init_python!(
+        Stepped,
+        sp_ms_nosamp,
+        "/tests/test_searchspace/function.py",
+        "function",
+        "objective",
+        "/tests/test_searchspace/function.py",
+        "function",
+        "MyOutcome"
     );
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let obj = init_python!(Stepped, sp_ms_nosamp, config);
     let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61); // log(max/min)
     let cod = moasha::codomain(
         [
@@ -48,7 +50,7 @@ fn test_python_function() {
         .into(),
     );
 
-    let stop = Calls::new(50);
+    let stop = Calls::new(1000);
     let config = FolderConfig::new("tmp_test_python").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);

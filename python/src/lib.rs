@@ -9,7 +9,7 @@ thread_local! {
 }
 
 pub mod pyoutcome;
-pub use pyoutcome::{PyOutcome, PyStep};
+pub use pyoutcome::{PyOutcome, PyFidOutcome, PyStep};
 
 pub mod pyfunction;
 pub use pyfunction::{PyObjective, PyStepped};
@@ -17,6 +17,6 @@ pub use pyfunction::{PyObjective, PyStepped};
 pub mod pydomain;
 
 pub mod pyutils;
-pub use pyutils::{register_outcome, PyConfig};
+pub use pyutils::register_outcome;
 
 pub use pyo3;

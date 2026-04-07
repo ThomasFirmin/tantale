@@ -40,8 +40,9 @@ impl FuncState for PyFuncState {
                 .map_err(py_to_io)?;
             // Save the class so load() can reconstruct it.
             let cls = self.0.bind(py).get_type().into_any().unbind();
-            let cls_bytes = pickle_dumps(py, &cls).map_err(py_to_io)?;
-            std::fs::write(path.join("_tantale_cls.pkl"), cls_bytes)
+            let cls_bytes = pickle_dumps(py, &cls).map_err(py_to_io).unwrap();
+            let path_cls = path.join("_tantale_cls.pkl");
+            std::fs::write(path_cls, cls_bytes)
         })
     }
 
@@ -49,10 +50,10 @@ impl FuncState for PyFuncState {
         let cls_bytes = std::fs::read(path.join("_tantale_cls.pkl"))?;
         let path_str = path_to_str(&path)?;
         Python::attach(|py| -> std::io::Result<Self> {
-            let cls = pickle_loads(py, &cls_bytes).map_err(py_to_io)?;
+            let cls = pickle_loads(py, &cls_bytes).map_err(py_to_io).unwrap();
             let obj = cls
                 .call_method1(py, "load", (&path_str,))
-                .map_err(py_to_io)?;
+                .map_err(py_to_io).unwrap();
             Ok(PyFuncState(obj))
         })
     }
@@ -77,7 +78,7 @@ pub fn py_objective<E: ElementIntoPyObject>(x: Arc<[E]>) -> PyOutcome {
             let list = x.to_pyany(py).expect("failed to build Python input list");
             let result = callable
                 .call1(py, (list,))
-                .expect("Python objective raised an error");
+                .unwrap();
             PyOutcome(result)
         })
     })
