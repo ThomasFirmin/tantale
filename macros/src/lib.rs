@@ -606,8 +606,14 @@ pub fn csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     csvwritable::proc_csvwritable(input)
 }
 
+#[cfg(all(feature="py", not(feature="mpi")))]
+/// Similar to [`hpo!`](crate::hpo), but generates a Python-compatible searchspace and exposes it via PyO3.
+#[proc_macro]
+pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    pyhpo::pyhpo(input)
+}
 
-#[cfg(feature="py")]
+#[cfg(all(feature="py", feature="mpi"))]
 /// Similar to [`hpo!`](crate::hpo), but generates a Python-compatible searchspace and exposes it via PyO3.
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
