@@ -4,6 +4,8 @@ use tantale::python::pyoutcome::PyFidOutcome;
 use tantale::python::init_python;
 use tantale::core::{CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, mono_with_pool};
 
+use crate::cleaner::Cleaner;
+
 pub mod sp_ms_nosamp {
     use tantale::core::{
         domain::{Bool, Cat, Int, Nat, Real},
@@ -28,6 +30,8 @@ pub mod sp_ms_nosamp {
 #[test]
 fn test_python_function() {
     use sp_ms_nosamp;
+
+    let _clean= Cleaner::new("tmp_test_python");
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
