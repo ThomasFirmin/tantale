@@ -110,6 +110,12 @@ pub trait HasId<SolId: Id> {
     /// Returns the solution's unique identifier.
     fn id(&self) -> SolId;
 
+    /// Returns a reference to the solution's unique identifier.
+    fn ref_id(&self) -> &SolId;
+    
+    /// Returns a mutable reference to the solution's unique identifier.
+    fn mut_ref_id(&mut self) -> &mut SolId;
+
     /// Checks if another object is a twin (shares the same [`Id`]).
     ///
     /// Two solutions are twins if they represent the same point in different domains
@@ -123,7 +129,7 @@ pub trait HasId<SolId: Id> {
     ///
     /// `true` if both objects share the same [`Id`], `false` otherwise.
     fn is_twin<Twin: HasId<SolId>>(&self, solb: Twin) -> bool {
-        self.id() == solb.id()
+        self.ref_id() == solb.ref_id()
     }
 }
 
@@ -776,7 +782,7 @@ pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId, A, SInfo>>::Twin
 pub type SolRaw<S, SolId, Dom, Info> = <S as Solution<SolId, Dom, Info>>::Raw;
 
 pub mod id;
-pub use id::{Id, ParSId, SId};
+pub use id::{Id, StepId, ParSId, SId, StepSId};
 
 pub mod partial;
 pub use partial::{BaseSol, Fidelity, FidelitySol};

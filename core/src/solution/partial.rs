@@ -106,6 +106,14 @@ where
     fn id(&self) -> SolId {
         self.id
     }
+    
+    fn ref_id(&self) -> &SolId {
+        &self.id
+    }
+    
+    fn mut_ref_id(&mut self) -> &mut SolId {
+        &mut self.id
+    }
 }
 
 impl<SolId, Dom, Info> HasSolInfo<Info> for BaseSol<SolId, Dom, Info>
@@ -311,6 +319,14 @@ where
 {
     fn id(&self) -> SolId {
         self.id
+    }
+    
+    fn ref_id(&self) -> &SolId {
+        &self.id
+    }
+    
+    fn mut_ref_id(&mut self) -> &mut SolId {
+        &mut self.id    
     }
 }
 

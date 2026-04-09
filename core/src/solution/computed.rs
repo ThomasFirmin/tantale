@@ -109,6 +109,14 @@ where
     fn id(&self) -> SolId {
         self.sol.id()
     }
+    
+    fn ref_id(&self) -> &SolId {
+        self.sol.ref_id()
+    }
+    
+    fn mut_ref_id(&mut self) -> &mut SolId {
+        self.sol.mut_ref_id()
+    }
 }
 
 impl<PSol, SolId, Dom, Cod, Out, Info> HasSolInfo<Info>

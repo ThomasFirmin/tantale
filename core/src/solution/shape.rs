@@ -175,6 +175,14 @@ where
     fn id(&self) -> SolId {
         self.0.id()
     }
+    
+    fn ref_id(&self) -> &SolId {
+        self.0.ref_id()
+    }
+    
+    fn mut_ref_id(&mut self) -> &mut SolId {
+        self.0.mut_ref_id()
+    }
 }
 
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasSolInfo<SInfo>
@@ -451,6 +459,14 @@ where
 {
     fn id(&self) -> SolId {
         self.0.id()
+    }
+    
+    fn ref_id(&self) -> &SolId {
+        self.0.ref_id()
+    }
+    
+    fn mut_ref_id(&mut self) -> &mut SolId {
+        self.0.mut_ref_id()
     }
 }
 
