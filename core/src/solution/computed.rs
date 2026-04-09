@@ -51,13 +51,9 @@
 //! ```
 
 use crate::{
-    EvalStep, Fidelity,
-    domain::{Codomain, Domain},
-    objective::{Outcome, Step},
-    solution::{
-        HasFidelity, HasId, HasSolInfo, HasStep, HasUncomputed, HasY, Id, IntoComputed, SolInfo,
-        Solution, Uncomputed,
-    },
+    EvalStep, Fidelity, StepId, domain::{Codomain, Domain}, objective::{Outcome, Step}, solution::{
+        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Id, IntoComputed, SolInfo, Solution, Uncomputed
+    }
 };
 
 use serde::{Deserialize, Serialize};
@@ -116,6 +112,28 @@ where
     
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.sol.mut_ref_id()
+    }
+}
+
+impl<PSol, SolId, Dom, Cod, Out, Info> HasStepId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: Uncomputed<SolId, Dom, Info> + HasStepId<SolId> + HasStep,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: StepId,
+{
+    fn increment(&mut self) {
+        self.sol.increment()
+    }
+
+    fn id_step(&self) -> usize {
+        self.sol.id_step()
+    }
+
+    fn previous_id(&self) -> SolId {
+        self.sol.previous_id()
     }
 }
 

@@ -133,6 +133,22 @@ pub trait HasId<SolId: Id> {
     }
 }
 
+
+/// Trait for objects with a unique solution identifier.
+///
+/// [`HasStepId`] extends [`HasId`] to provide access to a solution's unique identifier that also tracks
+/// how many times that solution has been passed to the function to optimize.
+pub trait HasStepId<SolId: StepId>: HasId<SolId> {
+    /// Increments the step counter in the solution's identifier.
+    fn increment(&mut self);
+
+    /// Returns the current step count from the solution's identifier.
+    fn id_step(&self) -> usize;
+
+    /// Returns a new identifier representing the previous step id.
+    fn previous_id(&self) -> SolId;
+}
+
 /// Trait for objects carrying solution metadata.
 ///
 /// [`HasSolInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may

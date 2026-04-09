@@ -35,17 +35,11 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, OptInfo, RawObj,
-    SequentialOptimizer, SolInfo,
-    domain::{Codomain, TypeDom, onto::LinkOpt},
-    objective::{Outcome, Step},
-    recorder::{BatchRecorder, Recorder, SeqRecorder},
-    searchspace::{CompShape, Searchspace},
-    solution::{
+    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, OptInfo, RawObj, SequentialOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, onto::LinkOpt}, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
         Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,
         Solution, SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
-    },
+    }
 };
 
 use rayon::iter::IntoParallelIterator;
@@ -414,7 +408,7 @@ impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, Sol
 where
     Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
         + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
-    SolId: Id + CSVWritable<(), ()>,
+    SolId: StepId + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
     /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].

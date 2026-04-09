@@ -11,7 +11,7 @@ use crate::{
     objective::{Objective, Outcome, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::{CompShape, Searchspace},
-    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, id::StepSId, shape::RawObj},
+    solution::{HasFidelity, HasStep, HasStepId, HasY, SolutionShape, Uncomputed, id::StepSId, shape::RawObj},
     stop::{ExpStep, Stop},
 };
 
@@ -347,7 +347,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -357,9 +357,9 @@ where
             Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: BatchRecorder<
             PSol,
@@ -971,7 +971,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -983,7 +983,7 @@ where
     Op::Cod: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity + Send + Sync,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<StepSId, Op::SInfo> + Debug + Send + Sync,
     St: Stop + Send + Sync,
@@ -1664,11 +1664,11 @@ where
             Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
+    SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
+    SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: DistBatchRecorder<
             PSol,

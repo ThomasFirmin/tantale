@@ -2,6 +2,7 @@ use crate::Accumulator;
 use crate::domain::codomain::TypeAcc;
 use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
+use crate::solution::HasStepId;
 use crate::solution::id::StepId;
 use crate::{
     Codomain, OptInfo, Searchspace, SolInfo,
@@ -53,7 +54,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     FnState: FuncState,
     FnStPool: FuncStatePool<FnState, SolId>,
 {
@@ -69,7 +70,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     FnState: FuncState,
     FnStPool: FuncStatePool<FnState, SolId>,
 {
@@ -94,7 +95,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     FnState: FuncState,
     FnStPool: FuncStatePool<FnState, SolId>,
 {
@@ -127,9 +128,9 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -176,7 +177,7 @@ where
                     let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, None);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
-                    pair.mut_ref_id().increment();
+                    pair.increment();
                     let sid = pair.id();
                     let new_step = pair.step();
                     match new_step {
@@ -199,7 +200,7 @@ where
                     let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
-                    pair.mut_ref_id().increment();
+                    pair.increment();
                     let new_step = pair.step();
                     let sid = pair.id();
                     match new_step {
@@ -314,7 +315,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     SolId: StepId + Send + Sync,
     Op: BatchOptimizer<
             PSol,
@@ -331,7 +332,7 @@ where
     Op::Cod: Send + Sync,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity + Send + Sync,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId> + Send + Sync,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
         SolutionShape<SolId, Op::SInfo> + Debug + Send + Sync,
     TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
@@ -399,7 +400,7 @@ where
                         // No saved state
                         let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                         let y = cod.get_elem(&out);
-                        pair.mut_ref_id().increment();
+                        pair.increment();
                         pair.set_raw_step(out.get_step());
                         let sid = pair.id();
                         let step = pair.step();
@@ -455,7 +456,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
 {
     pub priority_discard: PriorityList<Shape>,
     pub priority_resume: PriorityList<Shape>,
@@ -469,7 +470,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
 {
     /// Create a new [`FidDistBatchEvaluator`] with the given `batch` of solutions to evaluate.
     pub fn new(batch: Batch<SolId, SInfo, Info, Shape>, size: usize) -> Self {
@@ -520,7 +521,7 @@ where
     SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
+    Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
 {
 }
 
@@ -549,7 +550,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     stop: &mut St,
 ) -> bool
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     SolId: StepId,
     Op: BatchOptimizer<
             PSol,
@@ -564,11 +565,11 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
+    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
+    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -631,11 +632,11 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
+    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
+    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -719,7 +720,7 @@ where
             };
             stop.update(ExpStep::Distribution(pair.step()));
 
-            pair.mut_ref_id().increment();
+            pair.increment();
             let out = (pair.id(), out);
             let computed = pair.into_computed(y.into());
 
@@ -743,7 +744,7 @@ where
             let y = cod.get_elem(&out);
             pair.set_raw_step(out.get_step());
             stop.update(ExpStep::Distribution(pair.step()));
-            pair.mut_ref_id().increment();
+            pair.increment();
             obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
         }

@@ -14,7 +14,7 @@ use crate::{
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::{CompShape, Searchspace},
     solution::{
-        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
+        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
     },
     stop::{ExpStep, Stop},
 };
@@ -346,7 +346,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,
@@ -356,9 +356,9 @@ where
             Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: SeqRecorder<
             PSol,
@@ -984,7 +984,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,
@@ -998,9 +998,9 @@ where
     Op::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
-    Scp::SolShape: HasStep + HasFidelity + Send + Sync + 'static,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + Send + Sync + 'static,
+        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
     St: Stop + Send + Sync + 'static,
     Out: FidOutcome + Send + Sync + 'static,
     Rec: SeqRecorder<
@@ -1761,7 +1761,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         FidDistSeqEvaluator<StepSId, Op::SInfo, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,
@@ -1771,11 +1771,11 @@ where
             Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
+    SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
+    SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
     CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: DistSeqRecorder<
             PSol,

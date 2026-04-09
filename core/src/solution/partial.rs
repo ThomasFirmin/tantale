@@ -18,10 +18,9 @@ use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{
-    HasFidelity, HasId, HasSolInfo, HasStep, Id, IntoComputed, SolInfo, Solution, SolutionShape,
-    Uncomputed,
+    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed
 };
-use crate::{Codomain, Computed, EvalStep, Outcome};
+use crate::{Codomain, Computed, EvalStep, Outcome, StepId};
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -300,7 +299,7 @@ where
 ))]
 pub struct FidelitySol<SolId, Dom, Info>
 where
-    SolId: Id,
+    SolId: StepId,
     Dom: Domain,
     Info: SolInfo,
 {
@@ -315,7 +314,7 @@ impl<SolId, Dom, Info> HasId<SolId> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     fn id(&self) -> SolId {
         self.id
@@ -330,11 +329,30 @@ where
     }
 }
 
+impl<SolId, Dom, Info> HasStepId<SolId> for FidelitySol<SolId, Dom, Info>
+where
+    Dom: Domain,
+    Info: SolInfo,
+    SolId: StepId,
+{
+    fn increment(&mut self) {
+        self.id.increment();
+    }
+
+    fn id_step(&self) -> usize {
+        self.id.id_step()
+    }
+
+    fn previous_id(&self) -> SolId {
+        self.id.previous_id()
+    }
+}
+
 impl<SolId, Dom, Info> HasSolInfo<Info> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
@@ -345,7 +363,7 @@ impl<SolId, Dom, Info> HasFidelity for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     fn fidelity(&self) -> Fidelity {
         self.fid
@@ -359,7 +377,7 @@ impl<SolId, Dom, Info> HasStep for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
@@ -406,7 +424,7 @@ impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidelitySol<SolId, Dom, In
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
@@ -455,7 +473,7 @@ impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidelitySol<SolId, Dom, 
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     type TwinUC<B: Domain> = FidelitySol<SolId, B, Info>;
 
@@ -514,7 +532,7 @@ impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
     Info: SolInfo,
-    SolId: Id,
+    SolId: StepId,
 {
     type Computed<Cod: Codomain<Out>, Out: Outcome> = Computed<Self, SolId, Dom, Cod, Out, Info>;
 

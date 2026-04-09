@@ -20,13 +20,10 @@
 //! ```
 
 use crate::{
-    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
-    domain::{
+    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution, StepId, domain::{
         Domain,
         onto::{LinkObj, LinkOpt, Linked},
-    },
-    objective::Step,
-    solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasY, IntoComputed, Uncomputed},
+    }, objective::Step, solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, IntoComputed, Uncomputed}
 };
 
 use serde::{Deserialize, Serialize};
@@ -182,6 +179,30 @@ where
     
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.0.mut_ref_id()
+    }
+}
+
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasStepId<SolId>
+    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+where
+    SolId: StepId,
+    Obj: Domain,
+    Opt: Domain,
+    SInfo: SolInfo,
+    SolObj: Solution<SolId, Obj, SInfo> + HasStepId<SolId> + HasStep,
+    SolOpt: Solution<SolId, Opt, SInfo> + HasStepId<SolId> + HasStep,
+{
+    fn increment(&mut self) {
+        self.0.increment();
+        self.1.increment();
+    }
+
+    fn id_step(&self) -> usize {
+        self.0.id_step()
+    }
+
+    fn previous_id(&self) -> SolId {
+        self.0.previous_id()
     }
 }
 
@@ -467,6 +488,26 @@ where
     
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.0.mut_ref_id()
+    }
+}
+
+impl<SolObj, SolId, Obj, SInfo> HasStepId<SolId> for Lone<SolObj, SolId, Obj, SInfo>
+where
+    SolId: StepId,
+    Obj: Domain,
+    SInfo: SolInfo,
+    SolObj: Solution<SolId, Obj, SInfo> + HasStepId<SolId> + HasStep,
+{
+    fn increment(&mut self) {
+        self.0.increment();
+    }
+
+    fn id_step(&self) -> usize {
+        self.0.id_step()
+    }
+
+    fn previous_id(&self) -> SolId {
+        self.0.previous_id()
     }
 }
 

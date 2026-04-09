@@ -6,7 +6,7 @@ use crate::{
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
     solution::{
-        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, id::StepId, shape::RawObj
+        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed, id::StepId, shape::RawObj
     },
     stop::ExpStep,
 };
@@ -115,7 +115,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStepId<SolId> + HasStep + HasFidelity,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -130,9 +130,9 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -172,7 +172,7 @@ where
                 let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
                 pair.set_raw_step(out.get_step());
-                pair.mut_ref_id().increment();
+                pair.increment();
                 
                 let id = pair.id();
                 let new_step = pair.step();
@@ -280,7 +280,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -295,9 +295,9 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -341,7 +341,7 @@ where
                 let y = cod.get_elem(&out);
                 
                 pair.set_raw_step(out.get_step());
-                pair.mut_ref_id().increment();
+                pair.increment();
                 let new_step = pair.step();
 
                 let id = pair.id();
@@ -640,7 +640,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStepId<SolId> + HasStep + HasFidelity,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -655,11 +655,11 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
+    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
+    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -723,7 +723,7 @@ where
         if !sendrec.waiting.is_empty() && !stop.stop() {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            pair.mut_ref_id().increment();
+            pair.increment();
             pair.set_raw_step(out.get_step());
             let id = pair.id();
 
