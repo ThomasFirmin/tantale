@@ -204,15 +204,16 @@ pub fn py_get_sp_tokens(
                     #const_statements
                 )*
             }
-            
+
             #[tantale::python::pyo3::pymodule(crate = "tantale::python::pyo3", name = "extra")]
             pub mod extra {
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
-                fn mpi_rank(x: usize) -> i32 {
+                pub fn mpi_rank() -> i32 {
                     tantale::core::MPI_RANK.get().cloned().unwrap()
                 }
+                
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
-                fn mpi_size(x: usize) -> i32 {
+                pub fn mpi_size() -> i32 {
                     tantale::core::MPI_SIZE.get().cloned().unwrap()
                 }
             }
@@ -256,11 +257,12 @@ pub fn py_get_sp_tokens(
             #[tantale::python::pyo3::pymodule(crate = "tantale::python::pyo3", name = "extra")]
             pub mod extra {
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
-                fn mpi_rank(x: usize) -> i32 {
+                pub fn mpi_rank() -> i32 {
                     tantale::core::MPI_RANK.get().cloned().unwrap()
                 }
+                
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
-                fn mpi_size(x: usize) -> i32 {
+                pub fn mpi_size() -> i32 {
                     tantale::core::MPI_SIZE.get().cloned().unwrap()
                 }
             }
