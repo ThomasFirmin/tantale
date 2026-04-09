@@ -293,7 +293,7 @@ pub use variable::var::Var;
 pub mod solution;
 pub use solution::{
     BaseSol, Batch, Computed, Fidelity, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo,
-    HasStep, HasUncomputed, HasY, Id, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
+    HasStep, HasUncomputed, HasY, Id, StepId, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, StepSId, SolInfo,
     Solution, SolutionShape, Uncomputed, shape::RawObj,
 };
 

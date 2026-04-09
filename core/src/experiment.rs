@@ -256,7 +256,7 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, SId, Searchspace,
+    Accumulator, Searchspace,
     checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     objective::{FuncWrapper, Outcome},
@@ -347,26 +347,27 @@ pub use basics::MPIExperiment;
 /// * [`threaded`] - For multi-threaded execution
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`MonoExperiment`] - The underlying experiment type
-pub fn mono<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn mono<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     optimizer: Op,
     stop: St,
     saver: (Option<Rec>, Option<Check>),
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
         space, objective, optimizer, stop, saver,
@@ -374,27 +375,28 @@ where
 }
 
 /// Similar to [`mono`] but allows specifying a [`PoolMode`] for function state management.
-pub fn mono_with_pool<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn mono_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     optimizer: Op,
     stop: St,
     saver: (Option<Rec>, Option<Check>),
     pool_mode: PoolMode,
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new_with_pool(
         space, objective, optimizer, stop, saver, pool_mode,
@@ -441,26 +443,27 @@ where
 /// * [`mono`] - For single-threaded execution
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`ThrExperiment`] - The underlying experiment type
-pub fn threaded<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn threaded<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     optimizer: Op,
     stop: St,
     saver: (Option<Rec>, Option<Check>),
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
         space, objective, optimizer, stop, saver,
@@ -468,27 +471,28 @@ where
 }
 
 /// Similar to [`threaded`] but allows specifying a [`PoolMode`] for function state management.
-pub fn threaded_with_pool<PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn threaded_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     optimizer: Op,
     stop: St,
     saver: (Option<Rec>, Option<Check>),
     pool_mode: PoolMode,
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new_with_pool(
         space, objective, optimizer, stop, saver, pool_mode,
@@ -537,7 +541,7 @@ where
 /// * [`mono`] - For single-threaded execution
 /// * [`threaded`] - For multi-threaded execution
 /// * [`MPIExperiment`] - The underlying experiment type
-pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn distributed<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (Scp, Op::Cod),
     objective: Fn,
@@ -546,9 +550,9 @@ pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     saver: (Option<Rec>, Option<Check>),
 ) -> MasterWorker<
     'a,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
     PSol,
-    SId,
+    SolId,
     Scp,
     Op,
     St,
@@ -558,18 +562,19 @@ pub fn distributed<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     Fn,
 >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::new(
         proc,
@@ -580,7 +585,7 @@ where
 #[cfg(feature = "mpi")]
 #[allow(clippy::type_complexity)]
 /// Similar to [`distributed`] but allows specifying a [`PoolMode`] for function state management.
-pub fn distributed_with_pool<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
+pub fn distributed_with_pool<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (Scp, Op::Cod),
     objective: Fn,
@@ -590,9 +595,9 @@ pub fn distributed_with_pool<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     pool_mode: PoolMode,
 ) -> MasterWorker<
     'a,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
     PSol,
-    SId,
+    SolId,
     Scp,
     Op,
     St,
@@ -602,18 +607,19 @@ pub fn distributed_with_pool<'a, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     Fn,
 >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::new_with_pool(
         proc,
@@ -677,23 +683,24 @@ where
 /// * [`mono`] - For creating new experiments
 /// * [`threaded_load`] - For loading multi-threaded experiments
 /// * [`load!`] - Macro for simpler loading syntax
-pub fn mono_load<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn mono_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     saver: (Option<Rec>, Check),
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    SolId: Id,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
 {
     <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load(
@@ -702,24 +709,25 @@ where
 }
 
 /// Similar to [`mono_load`] but allows specifying a [`PoolMode`] for function state management.
-pub fn mono_load_with_pool<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn mono_load_with_pool<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    SolId: Id,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MonoExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
+    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
 {
     <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load_with_pool(
@@ -771,30 +779,31 @@ where
 /// * [`threaded`] - For creating new multi-threaded experiments
 /// * [`mono_load`] - For loading single-threaded experiments
 /// * [`load!`] - Macro for simpler loading syntax
-pub fn threaded_load<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn threaded_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     saver: (Option<Rec>, Check),
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    SolId: Id,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<
         Scp,
         PSol,
-        SId,
+        SolId,
         Op::SInfo,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
         Out,
-    >: SolutionShape<SId, Op::SInfo>,
+    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
 {
     <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load(
@@ -803,31 +812,32 @@ where
 }
 
 /// Similar to [`threaded_load`] but allows specifying a [`PoolMode`] for function state management.
-pub fn threaded_load_with_pool<Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn threaded_load_with_pool<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
-) -> impl Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>
+) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    SolId: Id,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    ThrExperiment<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        Runable<PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<
         Scp,
         PSol,
-        SId,
+        SolId,
         Op::SInfo,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
         Out,
-    >: SolutionShape<SId, Op::SInfo>,
+    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
 {
     <ThrExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::load_with_pool(
@@ -887,19 +897,19 @@ where
 /// * [`distributed`] - For creating new multi-threaded experiments
 /// * [`mono_load`] - For loading single-threaded experiments
 /// * [`load!`] - Macro for simpler loading syntax
-pub fn distributed_load<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn distributed_load<'a, SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (
         Scp,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
     ),
     objective: Fn,
     saver: (Option<Rec>, Check),
 ) -> MasterWorker<
     'a,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
     PSol,
-    SId,
+    SolId,
     Scp,
     Op,
     St,
@@ -909,25 +919,26 @@ pub fn distributed_load<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     Fn,
 >
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<
         Scp,
         PSol,
-        SId,
+        SolId,
         Op::SInfo,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
         Out,
-    >: SolutionShape<SId, Op::SInfo>,
+    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::load(
         proc,
@@ -940,20 +951,20 @@ where
 #[cfg(feature = "mpi")]
 #[allow(clippy::type_complexity)]
 /// Similar to [`distributed_load`] but allows specifying a [`PoolMode`] for function state management.
-pub fn distributed_load_with_pool<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
+pub fn distributed_load_with_pool<'a, SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (
         Scp,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
     ),
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
 ) -> MasterWorker<
     'a,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>,
     PSol,
-    SId,
+    SolId,
     Scp,
     Op,
     St,
@@ -963,25 +974,26 @@ pub fn distributed_load_with_pool<'a, Op, St, PSol, Scp, Rec, Check, Out, Fn, Ev
     Fn,
 >
 where
-    Op: Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>,
+    Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    MPIExperiment<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
-        MPIRunable<'a, PSol, SId, Scp, Op, St, Rec, Check, Out, Fn>,
-    Scp: Searchspace<PSol, SId, Op::SInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
+        MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
+    Scp: Searchspace<PSol, SolId, Op::SInfo>,
     CompShape<
         Scp,
         PSol,
-        SId,
+        SolId,
         Op::SInfo,
-        <Op as Optimizer<PSol, SId, LinkOpt<Scp>, Out, Scp>>::Cod,
+        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
         Out,
-    >: SolutionShape<SId, Op::SInfo>,
+    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SId, Op::SInfo>>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
+    SolId: Id,
 {
     <MPIExperiment<'a, _, _, _, _, _, _, _, _, _, _> as MPIRunable<'a, _, _, _, _, _, _, _, _, _>>::load_with_pool(
         proc,
@@ -1109,20 +1121,20 @@ where
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
+        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver,
         )
     };
     (mono, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::mono_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
     };
     (threaded, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::threaded_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
     };
@@ -1152,30 +1164,30 @@ pub enum PoolMode {
 #[cfg(feature = "mpi")]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<$Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
+        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver,
         )
     };
     (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::distributed_load::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::distributed_load::<_, $Op, $St, _, _, _, _, _, _, _>(
             $proc, $space, $objective, $saver,
         )
     };
     (mono, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::mono_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
     };
     (threaded, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::threaded_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::threaded_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
     };
     (distributed, $pool_mode:expr, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::distributed_load_with_pool::<$Op, $St, _, _, _, _, _, _, _>(
+        $crate::experiment::distributed_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $proc, $space, $objective, $saver, $pool_mode,
         )
     };
@@ -1287,7 +1299,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = ((Scp, <O
 ///
 /// The trait is generic over all experiment components:
 /// - `PSol` - The uncomputed solution type (e.g. [`BasePartial`](crate::BasePartial))
-/// - `SolId` - Solution identifier type (e.g. [`SId`](crate::SId))
+/// - `SolId` - Solution identifier type (e.g. [`SolId`](crate::SolId))
 /// - `Scp` - Searchspace type (e.g. [`Sp`](crate::Sp))
 /// - `Op` - Optimizer type
 /// - `St` - Stopping criterion type (e.g. [`Calls`](crate::stop::Calls))
