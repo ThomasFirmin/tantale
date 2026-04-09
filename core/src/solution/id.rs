@@ -62,6 +62,13 @@ where
     fn generate() -> Self;
 }
 
+pub trait StepId: Id {
+    /// Increment the step counter by one.
+    fn increment(&mut self);
+    fn id_step(&self) -> usize;
+    fn previous_id(&self) -> Self;
+}
+
 #[cfg(feature = "mpi")]
 /// Distributed identifier embedding the MPI [`Rank`] where a [`Solution`](crate::Solution) is being created, and a process-local counter.
 ///
@@ -244,5 +251,88 @@ impl Eq for SId {}
 impl Hash for SId {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+
+/// Simple sequential identifier using a global counter,
+/// and a step counter for [`Stepped`](crate::core::Stepped).
+///
+/// This is the default [`Id`] for most-cases.
+///
+/// # Example
+/// ```
+/// use tantale::core::{Id, StepSId};
+///
+/// let a = StepSId::generate();
+/// let b = StepSId::generate();
+/// assert_ne!(a, b);
+/// ```
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct StepSId {
+    pub id: usize,
+    pub id_step: usize,
+}
+
+impl Display for StepSId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.id, self.id_step)
+    }
+}
+
+impl Id for StepSId {
+    /// Generate a new sequential identifier.
+    fn generate() -> Self {
+        let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
+        StepSId { id, id_step: 0 }
+    }
+}
+
+impl StepId for StepSId {
+    fn increment(&mut self) {
+        self.id_step += 1;
+    }
+
+    fn id_step(&self) -> usize {
+        self.id_step
+    }
+    
+    fn previous_id(&self) -> Self {
+        StepSId {
+            id: self.id,
+            id_step: self.id_step.saturating_sub(1),
+        }
+    }
+}
+
+impl StepSId {
+    /// Create a new sequential identifier from an explicit counter.
+    pub fn new(id: usize) -> StepSId {
+        StepSId { id, id_step: 0 }
+    }
+}
+impl CSVWritable<(), ()> for StepSId {
+    /// CSV header for sequential identifiers.
+    fn header(_elem: &()) -> Vec<String> {
+        Vec::from([String::from("id"), String::from("id_step")])
+    }
+
+    /// CSV row for sequential identifiers.
+    fn write(&self, _comp: &()) -> Vec<String> {
+        Vec::from([format!("{}", self.id), format!("{}", self.id_step)])
+    }
+}
+impl PartialEq for StepSId {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for StepSId {}
+
+impl Hash for StepSId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.id_step.hash(state);
     }
 }

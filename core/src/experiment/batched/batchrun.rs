@@ -11,7 +11,7 @@ use crate::{
     objective::{Objective, Outcome, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::{CompShape, Searchspace},
-    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, shape::RawObj},
+    solution::{HasFidelity, HasStep, HasY, SolutionShape, Uncomputed, id::StepSId, shape::RawObj},
     stop::{ExpStep, Stop},
 };
 
@@ -318,56 +318,56 @@ where
 impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     Runable<
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for MonoExperiment<
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         FidBatchEvaluator<
-            SId,
+            StepSId,
             Op::SInfo,
             Op::Info,
             Scp::SolShape,
             FnState,
-            Pool<Check::FnStateCheck, FnState, SId>,
+            Pool<Check::FnStateCheck, FnState, StepSId>,
         >,
     >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
     Op: BatchOptimizer<
             PSol,
-            SId,
+            StepSId,
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
-    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
+    Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + HasStep + HasFidelity,
+    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
     Rec: BatchRecorder<
             PSol,
-            SId,
+            StepSId,
             Out,
             Scp,
             Op,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Check: MonoCheckpointer,
     Out: FidOutcome,
@@ -377,7 +377,7 @@ where
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -420,7 +420,7 @@ where
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load_with_pool(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
@@ -437,7 +437,7 @@ where
             _,
             _,
             _,
-            Pool<Check::FnStateCheck, FnState, SId>,
+            Pool<Check::FnStateCheck, FnState, StepSId>,
         > = checkpointer.load_evaluate().unwrap();
 
         match pool_mode {
@@ -484,7 +484,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidBatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -519,13 +519,13 @@ where
             // Evaluation part
             (computed, outputed) = MonoEvaluate::<
                 _,
-                SId,
+                StepSId,
                 Op,
                 Scp,
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -567,7 +567,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -597,7 +597,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -617,8 +617,8 @@ where
         &self,
     ) -> &crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
-        SId,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
         Op::SInfo,
         Out,
     > {
@@ -629,15 +629,15 @@ where
         &mut self,
     ) -> &mut crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
-        SId,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
         Op::SInfo,
         Out,
     > {
         &mut self.accumulator
     }
     
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
         ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
@@ -942,64 +942,64 @@ where
 impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     Runable<
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for ThrExperiment<
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         FidThrBatchEvaluator<
-            SId,
+            StepSId,
             Op::SInfo,
             Op::Info,
             Scp::SolShape,
             FnState,
-            Pool<Check::FnStateCheck, FnState, SId>,
+            Pool<Check::FnStateCheck, FnState, StepSId>,
         >,
     >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo>,
     Op: BatchOptimizer<
             PSol,
-            SId,
+            StepSId,
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Op::Cod: Send + Sync,
     Op::SInfo: Send + Sync,
-    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
+    Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + Send + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + Debug + Send + Sync,
+    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<StepSId, Op::SInfo> + Debug + Send + Sync,
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
     Rec: BatchRecorder<
             PSol,
-            SId,
+            StepSId,
             Out,
             Scp,
             Op,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Check: ThrCheckpointer,
     Check::FnStateCheck: Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+    TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>:
         Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
@@ -1008,7 +1008,7 @@ where
     /// in parallel.
     fn new_with_pool(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -1051,7 +1051,7 @@ where
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load_with_pool(
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
@@ -1103,7 +1103,7 @@ where
     /// are saved using the inner [`Recorder`] when [`FidThrBatchEvaluator`] has finished evaluating all elements.
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidBatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let cod = Arc::new(self.codomain);
         let st = Arc::new(Mutex::new(self.stop));
@@ -1147,13 +1147,13 @@ where
             // Evaluation part
             (computed, outputed) = ThrEvaluate::<
                 _,
-                SId,
+                StepSId,
                 Op,
                 Scp,
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
                 &mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone()
             );
@@ -1196,7 +1196,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -1226,7 +1226,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -1244,7 +1244,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -1253,15 +1253,15 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
-        SId,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
         Op::SInfo,
         Out,
     > {
         &mut self.accumulator
     }
     
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
         ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }
@@ -1631,52 +1631,52 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
     MPIRunable<
         'a,
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for MPIExperiment<
         'a,
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
-        FidDistBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        FidDistBatchEvaluator<StepSId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo>,
     Op: BatchOptimizer<
             PSol,
-            SId,
+            StepSId,
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
-    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
+    Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity,
-    SolObj<Scp::SolShape, SId, Op::SInfo>: HasStep + HasFidelity,
-    SolOpt<Scp::SolShape, SId, Op::SInfo>: HasStep + HasFidelity,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
+    SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
+    SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity,
+    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
+        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity,
     St: Stop,
     Rec: DistBatchRecorder<
             PSol,
-            SId,
+            StepSId,
             Out,
             Scp,
             Op,
-            Stepped<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
         >,
     Check: DistCheckpointer,
     Out: FidOutcome,
@@ -1687,12 +1687,12 @@ where
     /// It handles internal [`FuncState`] management for fidelity-based evaluations.
     type WType = FidWorker<
         'a,
-        SId,
-        RawObj<Scp::SolShape, SId, Op::SInfo>,
+        StepSId,
+        RawObj<Scp::SolShape, StepSId, Op::SInfo>,
         Out,
         FnState,
         Check,
-        Pool<Check::FnStateCheck, FnState, SId>,
+        Pool<Check::FnStateCheck, FnState, StepSId>,
     >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
@@ -1706,7 +1706,7 @@ where
     fn new_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -1715,14 +1715,14 @@ where
         'a,
         Self,
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
         let (recorder, checkpointer) = saver;
         let (searchspace, codomain) = space;
@@ -1800,21 +1800,21 @@ where
     fn load_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
-        objective: Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> MasterWorker<
         'a,
         Self,
         PSol,
-        SId,
+        StepSId,
         Scp,
         Op,
         St,
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
         let (searchspace, codomain) = space;
         let (recorder, mut checkpointer) = saver;
@@ -1877,7 +1877,7 @@ where
     /// termination of all [`Worker`](crate::Worker)s.
     /// [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed), are saved using the inner [`DistRecorder`] when
     /// [`FidDistBatchEvaluator`] has finished evaluating all elements.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidDistBatchEvaluator::new(
@@ -1889,9 +1889,9 @@ where
         let config = bincode::config::standard(); // Bytes encoding config
         let mut sendrec = SendRec::<
             '_,
-            FXMessage<SId, RawObj<Scp::SolShape, SId, Op::SInfo>>,
+            FXMessage<StepSId, RawObj<Scp::SolShape, StepSId, Op::SInfo>>,
             Scp::SolShape,
-            SId,
+            StepSId,
             Op::SInfo,
             Op::Cod,
             Out,
@@ -1912,14 +1912,14 @@ where
             // Evaluation part
             (computed, outputed) = DistEvaluate::<
                 _,
-                SId,
+                StepSId,
                 Op,
                 Scp,
                 Out,
                 St,
                 _,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -1969,7 +1969,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -1999,7 +1999,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState> {
+    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -2017,7 +2017,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -2026,15 +2026,15 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
-        SId,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
         Op::SInfo,
         Out,
     > {
         &mut self.accumulator
     }
     
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, SId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
+    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
         ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
     }
 }

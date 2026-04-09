@@ -68,10 +68,7 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer,
-    SingleCodomain, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc,
-    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
+    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer, SingleCodomain, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -112,7 +109,7 @@ where
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
@@ -124,7 +121,7 @@ where
     pub current_budget: f64,
 }
 impl<SShape> OptState for AshaState<SShape> where
-    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord
+    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord
 {
 }
 
@@ -224,11 +221,11 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// ```
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
-    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord;
+    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord;
 
 impl<SShape> Asha<SShape>
 where
-    SShape: SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -288,14 +285,14 @@ where
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, AshaInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
@@ -320,14 +317,14 @@ where
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, AshaInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -418,19 +415,19 @@ where
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, AshaInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, AshaInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, AshaInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, AshaInfo>, Out, FnState>,
     > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, AshaInfo>, SId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, AshaInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
@@ -477,17 +474,17 @@ where
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidelitySol<SId, Scp::Opt, AshaInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, AshaInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, AshaInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<Scp, FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
-            if let Step::Partially(_) = comp.step() {
+            if let Step::Partially(_s) = comp.step() {
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
                     self.0.rung[i + 1].push(comp);

@@ -20,10 +20,7 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2018)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, SId, Searchspace,
-    SequentialOptimizer, SolInfo, SolutionShape, Step, Stepped, experiment::CompAcc,
-    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
+    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity, HasId, HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -67,7 +64,7 @@ where
 ))]
 pub struct MoAshaState<Selector, SShape>
 where
-    SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     /// The candidate selection strategy used for promoting candidates between rungs.
@@ -84,7 +81,7 @@ where
 }
 impl<SShape, Selector> OptState for MoAshaState<Selector, SShape>
 where
-    SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
 }
@@ -185,12 +182,12 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 /// ```
 pub struct MoAsha<Selector, SShape>(pub MoAshaState<Selector, SShape>)
 where
-    SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector;
 
 impl<SShape, Selector> MoAsha<Selector, SShape>
 where
-    SShape: SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
@@ -259,14 +256,14 @@ where
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp, Selector> Optimizer<FidelitySol<SId, Scp::Opt, MoAshaInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp, Selector> Optimizer<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, MoAshaInfo>, SId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
-        SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     type State =
@@ -294,14 +291,14 @@ where
 }
 
 impl<Out, Scp, Selector>
-    BudgetPruner<FidelitySol<SId, Scp::Opt, MoAshaInfo>, SId, Scp::Opt, Out, Scp>
+    BudgetPruner<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, MoAshaInfo>, SId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
-        SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -389,19 +386,19 @@ where
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState, Selector>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, MoAshaInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, MoAshaInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, MoAshaInfo>, Out, FnState>,
     > for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, MoAshaInfo>, SId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
-        SolutionShape<SId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     FnState: FuncState,
     Selector: CandidateSelector,
 {
@@ -449,8 +446,8 @@ where
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidelitySol<SId, Scp::Opt, MoAshaInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
@@ -458,17 +455,20 @@ where
         scp: &Scp,
         _acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, MoAshaInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
-            if let Step::Partially(_) = comp.step() {
+            if let Step::Partially(_s) = comp.step() {
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
+                    if i + 1 == 4{
+                        println!("STEP : {} {:?} {}", _s, comp.id(), comp.fidelity().0);
+                    }
                     self.0.rung[i + 1].push(comp);
                 }
             }

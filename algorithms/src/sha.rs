@@ -64,7 +64,7 @@
 use tantale_core::{
     Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
     FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    SId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc,
+    StepSId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc,
     optimizer::opt::BudgetPruner, recorder::CSVWritable,
 };
 
@@ -290,10 +290,10 @@ impl Sha {
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for Sha
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp> for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
     type Cod = SingleCodomain<Out>;
@@ -318,10 +318,10 @@ where
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for Sha
+impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp> for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -394,19 +394,19 @@ where
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState>
     BatchOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
@@ -423,7 +423,7 @@ where
     /// # Returns
     ///
     /// A [`Batch`](tantale_core::Batch) of sampled solutions with fidelity set to `budget_min`
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         self.0.current_budget = self.0.budgets[0];
         self.0.budget_idx = 0;
         let info = ShaInfo::new(self.0.iteration);
@@ -463,24 +463,24 @@ where
     fn step(
         &mut self,
         x: CompBatch<
-            SId,
+            StepSId,
             Self::SInfo,
             Self::Info,
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
             Self::Cod,
             Out,
         >,
         scp: &Scp,
         _acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()
             .filter_map(|comp| match comp.step() {

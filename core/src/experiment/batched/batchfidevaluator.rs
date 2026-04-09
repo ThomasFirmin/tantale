@@ -2,8 +2,9 @@ use crate::Accumulator;
 use crate::domain::codomain::TypeAcc;
 use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
+use crate::solution::id::StepId;
 use crate::{
-    Codomain, Id, OptInfo, Searchspace, SolInfo,
+    Codomain, OptInfo, Searchspace, SolInfo,
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
     objective::{FidOutcome, Step, Stepped, outcome::FuncState},
@@ -49,7 +50,7 @@ use crate::{
 ))]
 pub struct FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -65,7 +66,7 @@ where
 impl<SolId, SInfo, Info, Shape, FnState, FnStPool>
     FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -90,7 +91,7 @@ where
 impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
     for FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -112,7 +113,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     Op: BatchOptimizer<
             PSol,
             SolId,
@@ -167,7 +168,6 @@ where
 
         while !self.batch.is_empty() && !stop.stop() {
             let mut pair = self.batch.pop().unwrap();
-            let sid = pair.id();
             let step = pair.step();
             let fid = pair.fidelity();
             match step {
@@ -176,11 +176,13 @@ where
                     let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, None);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
+                    pair.mut_ref_id().increment();
+                    let sid = pair.id();
                     let new_step = pair.step();
                     match new_step {
                         Step::Partially(_) => self.pool.insert(sid, state),
                         _ => {
-                            self.pool.remove(&sid);
+                            self.pool.remove(&sid.previous_id());
                             stop.update(ExpStep::Distribution(new_step));
                         }
                     };
@@ -193,11 +195,13 @@ where
                 }
                 Step::Partially(_) => {
                     // get previous state and save next
-                    let state = self.pool.retrieve(&sid);
+                    let state = self.pool.retrieve(&pair.id());
                     let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                     let y = cod.get_elem(&out);
                     pair.set_raw_step(out.get_step());
+                    pair.mut_ref_id().increment();
                     let new_step = pair.step();
+                    let sid = pair.id();
                     match new_step {
                         Step::Evaluated | Step::Discard | Step::Error => {
                             stop.update(ExpStep::Distribution(new_step));
@@ -210,6 +214,7 @@ where
                     cbatch.add(pair.into_computed(y.into()));
                 }
                 _ => {
+                    let sid = pair.id();
                     stop.update(ExpStep::Distribution(step));
                     self.pool.remove(&sid);
                 }
@@ -235,7 +240,7 @@ where
 ))]
 pub struct FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -251,7 +256,7 @@ where
 impl<SolId, SInfo, Info, Shape, FnState, FnStPool>
     FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -288,7 +293,7 @@ where
 impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
     for FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -310,7 +315,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id + Send + Sync,
+    SolId: StepId + Send + Sync,
     Op: BatchOptimizer<
             PSol,
             SolId,
@@ -387,7 +392,6 @@ where
             if !stop.lock().unwrap().stop() {
                 let mut pair = self.batch.lock().unwrap().pop().unwrap();
                 let state = self.pool.lock().unwrap().retrieve(&pair.id());
-                let sid = pair.id();
                 let step = pair.step();
                 let fid = pair.fidelity();
                 match step {
@@ -395,12 +399,14 @@ where
                         // No saved state
                         let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                         let y = cod.get_elem(&out);
+                        pair.mut_ref_id().increment();
                         pair.set_raw_step(out.get_step());
+                        let sid = pair.id();
                         let step = pair.step();
                         match step {
                             Step::Partially(_) => self.pool.lock().unwrap().insert(sid, state),
                             _ => {
-                                self.pool.lock().unwrap().remove(&sid);
+                                self.pool.lock().unwrap().remove(&sid.previous_id());
                                 stop.lock().unwrap().update(ExpStep::Distribution(step));
                             }
                         };
@@ -413,6 +419,7 @@ where
                         obatch.lock().unwrap().add(out);
                     }
                     _ => {
+                        let sid = pair.id();
                         self.pool.lock().unwrap().remove(&sid);
                         stop.lock().unwrap().update(ExpStep::Distribution(step));
                     }
@@ -445,7 +452,7 @@ where
 ))]
 pub struct FidDistBatchEvaluator<SolId, SInfo, Info, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -459,7 +466,7 @@ where
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Info, Shape> FidDistBatchEvaluator<SolId, SInfo, Info, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -510,7 +517,7 @@ where
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Info, Shape> Evaluate for FidDistBatchEvaluator<SolId, SInfo, Info, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -543,7 +550,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
 ) -> bool
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    SolId: StepId,
     Op: BatchOptimizer<
             PSol,
             SolId,
@@ -610,7 +617,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    SolId: StepId,
     Op: BatchOptimizer<
             PSol,
             SolId,
@@ -712,6 +719,7 @@ where
             };
             stop.update(ExpStep::Distribution(pair.step()));
 
+            pair.mut_ref_id().increment();
             let out = (pair.id(), out);
             let computed = pair.into_computed(y.into());
 
@@ -735,6 +743,7 @@ where
             let y = cod.get_elem(&out);
             pair.set_raw_step(out.get_step());
             stop.update(ExpStep::Distribution(pair.step()));
+            pair.mut_ref_id().increment();
             obatch.add((pair.id(), out));
             cbatch.add(pair.into_computed(y.into()));
         }

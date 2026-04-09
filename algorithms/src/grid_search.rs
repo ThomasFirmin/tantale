@@ -1,20 +1,13 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp,
-    Stepped, Uncomputed,
-    domain::{codomain::SingleCodomain, onto::LinkOpt},
-    experiment::CompAcc,
-    objective::{
+    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp, StepSId, Stepped, Uncomputed, domain::{codomain::SingleCodomain, onto::LinkOpt}, experiment::CompAcc, objective::{
         Step,
         outcome::{FuncState, Outcome},
-    },
-    optimizer::{
+    }, optimizer::{
         EmptyInfo, OptState,
         opt::{Optimizer, SequentialOptimizer},
-    },
-    searchspace::{OptionCompShape, Searchspace},
-    solution::{
+    }, searchspace::{OptionCompShape, Searchspace}, solution::{
         HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
-    },
+    }
 };
 
 use serde::{Deserialize, Serialize};
@@ -133,11 +126,11 @@ where
     }
 }
 
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for GridSearch
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = GSState;
     type Cod = SingleCodomain<Out>;
@@ -227,13 +220,13 @@ where
 
 impl<Out, FnState>
     SequentialOptimizer<
-        FidelitySol<SId, Grid, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Grid, EmptyInfo>,
+        StepSId,
         Grid,
         Out,
         Sp<Grid, NoDomain>,
         Stepped<
-            RawObj<Lone<FidelitySol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
+            RawObj<Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>, StepSId, EmptyInfo>,
             Out,
             FnState,
         >,
@@ -242,16 +235,16 @@ where
     Out: FidOutcome,
     FnState: FuncState,
     Sp<Grid, NoDomain>:
-        Searchspace<FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
+        Searchspace<FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, StepSId, EmptyInfo>,
     <<Sp<Grid, NoDomain> as Searchspace<
-        FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
     <Sp<Grid, NoDomain> as Searchspace<
-        FidelitySol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::SolShape: HasStep + HasFidelity,
 {
@@ -259,8 +252,8 @@ where
         &mut self,
         x: OptionCompShape<
             Sp<Grid, NoDomain>,
-            FidelitySol<SId, Grid, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Grid, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
@@ -268,13 +261,13 @@ where
         scp: &Sp<Grid, NoDomain>,
         _acc: &CompAcc<
             Sp<Grid, NoDomain>,
-            FidelitySol<SId, Grid, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Grid, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
-    ) -> Lone<FidelitySol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
+    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
         if let Some(comp_x) = x
             && let Step::Partially(_) = comp_x.step()
         {
@@ -304,6 +297,6 @@ where
                 }
             }
         }
-        Lone::new(FidelitySol::new(SId::generate(), x, EmptyInfo.into()))
+        Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
     }
 }

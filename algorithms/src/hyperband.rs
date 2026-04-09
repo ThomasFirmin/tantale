@@ -88,7 +88,7 @@ use tantale_core::searchspace::CompShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
     Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed,
-    LinkOpt, OptState, Optimizer, RawObj, SId, Searchspace, SequentialOptimizer, SingleCodomain,
+    LinkOpt, OptState, Optimizer, RawObj, StepSId, Searchspace, SequentialOptimizer, SingleCodomain,
     SolutionShape, Stepped, searchspace::OptionCompShape,
 };
 
@@ -128,10 +128,10 @@ where
 /// - `SInfo` - The solution info type for the inner optimizer
 pub struct HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     /// Minimum budget across all brackets ($b_{\min}$)
@@ -153,10 +153,10 @@ where
 
 impl<Optim, Out, Scp, SInfo> OptState for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
 }
@@ -298,18 +298,18 @@ impl<Info: OptInfo> HyperbandInfo<Info> {
 /// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
 pub struct Hyperband<Optim, Out, Scp, SInfo>(pub HyperbandState<Optim, Out, Scp, SInfo>)
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo;
 
 impl<Optim, Out, Scp, SInfo> Hyperband<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     /// Creates a new [`Hyperband`] optimizer from an inner optimizer.
@@ -354,13 +354,13 @@ where
     }
 }
 
-impl<Optim, Out, Scp, SInfo> Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp>
+impl<Optim, Out, Scp, SInfo> Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Hyperband<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     type State = HyperbandState<Optim, Out, Scp, Optim::SInfo>;
@@ -385,28 +385,28 @@ where
 
 impl<Optim, Out, Scp, FnState, SInfo>
     BatchOptimizer<
-        FidelitySol<SId, Scp::Opt, SInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, SInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
     > for Hyperband<Optim, Out, Scp, SInfo>
 where
     Optim: BatchOptimizer<
-            FidelitySol<SId, Scp::Opt, SInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, SInfo>,
+            StepSId,
             Scp::Opt,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, SId, SInfo>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
             SInfo = SInfo,
-        > + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+        > + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -423,7 +423,7 @@ where
     /// # Returns
     ///
     /// A [`Batch`] with metadata indicating which bracket these candidates belong to
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
                 / (self.0.current_s + 1) as f64)
                 .ceil() as usize;
@@ -456,13 +456,13 @@ where
     fn step(
         &mut self,
         x: Batch<
-            SId,
+            StepSId,
             Self::SInfo,
             Self::Info,
             CompShape<
                 Scp,
-                FidelitySol<SId, Scp::Opt, Self::SInfo>,
-                SId,
+                FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
+                StepSId,
                 Self::SInfo,
                 Self::Cod,
                 Out,
@@ -471,13 +471,13 @@ where
         scp: &Scp,
         acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, Self::SInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             let (pairs, info) = x.extract();
             let extracted = Batch::new(pairs, info.inner_info.clone());
@@ -517,28 +517,28 @@ where
 
 impl<Optim, Out, Scp, FnState, SInfo>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, SInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, SInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, SInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
     > for Hyperband<Optim, Out, Scp, SInfo>
 where
     Optim: SequentialOptimizer<
-            FidelitySol<SId, Scp::Opt, SInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, SInfo>,
+            StepSId,
             Scp::Opt,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, SId, SInfo>, Out, FnState>,
+            Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
             SInfo = SInfo,
-        > + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+        > + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -568,8 +568,8 @@ where
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidelitySol<SId, Scp::Opt, SInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, SInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
@@ -577,8 +577,8 @@ where
         scp: &Scp,
         acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, Self::SInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
@@ -614,10 +614,10 @@ where
 
 struct HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     _optim: PhantomData<Optim>,
@@ -639,10 +639,10 @@ struct HBFieldVisitor;
 
 impl<Optim, Out, Scp, SInfo> Serialize for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -662,10 +662,10 @@ where
 
 impl<Optim, Out, Scp, SInfo> HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     fn new() -> Self {
@@ -721,10 +721,10 @@ impl<'de> Deserialize<'de> for HBField {
 
 impl<'de, Optim, Out, Scp, SInfo> Visitor<'de> for HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     type Value = HyperbandState<Optim, Out, Scp, SInfo>;
@@ -843,11 +843,11 @@ where
 
 impl<'de, Optim, Out, Scp, SInfo> Deserialize<'de> for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<SId, Scp::Opt, SInfo>, SId, Scp::Opt, Out, Scp, SInfo = SInfo>,
+    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>,
     Optim::State: Serialize + Deserialize<'de>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, SInfo>, SId, SInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

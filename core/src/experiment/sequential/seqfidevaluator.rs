@@ -1,12 +1,12 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, Id, Searchspace, SolInfo, Solution, Stepped, Stop,
+    Accumulator, Codomain, FidOutcome, Searchspace, SolInfo, Solution, Stepped, Stop,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
     solution::{
-        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, shape::RawObj,
+        HasFidelity, HasId, HasStep, IntoComputed, SolutionShape, Uncomputed, id::StepId, shape::RawObj
     },
     stop::ExpStep,
 };
@@ -41,7 +41,7 @@ use std::{
 ))]
 pub struct FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
@@ -57,7 +57,7 @@ where
 
 impl<SolId, SInfo, Shape, FnState, FnStPool> FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
@@ -95,7 +95,7 @@ where
 impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluate
     for FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     FnState: FuncState,
@@ -116,7 +116,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
             SolId,
@@ -164,20 +164,22 @@ where
         let mut pair =
             pair.expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
 
-        let id = pair.id();
         let step = pair.step();
-        let fid = pair.fidelity();
         match step {
             Step::Pending | Step::Partially(_) => {
                 // No saved state
+                let fid = pair.fidelity();
                 let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
                 pair.set_raw_step(out.get_step());
+                pair.mut_ref_id().increment();
+                
+                let id = pair.id();
                 let new_step = pair.step();
                 match new_step {
                     Step::Partially(_) => self.pool.insert(id, state),
                     _ => {
-                        self.pool.remove(&id);
+                        self.pool.remove(&id.previous_id());
                         stop.update(ExpStep::Distribution(new_step));
                     }
                 };
@@ -187,6 +189,7 @@ where
                 Some((computed, out))
             }
             _ => {
+                let id = pair.id();
                 stop.update(ExpStep::Distribution(step));
                 self.pool.remove(&id);
                 None
@@ -211,7 +214,7 @@ where
 pub struct FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
 {
@@ -225,7 +228,7 @@ where
 impl<Shape, SolId, SInfo, FnState> FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
 {
@@ -259,7 +262,7 @@ where
 impl<Shape, SolId, SInfo, FnState> Evaluate for FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
 {
@@ -278,7 +281,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
             SolId,
@@ -328,16 +331,20 @@ where
         let (pair, state) = self.take();
         let mut pair =
             pair.expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
-        let id = pair.id();
+
         let step = pair.step();
-        let fid = pair.fidelity();
         match step {
             Step::Pending | Step::Partially(_) => {
+                let fid = pair.fidelity();
                 // No saved state
                 let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
+                
                 pair.set_raw_step(out.get_step());
+                pair.mut_ref_id().increment();
                 let new_step = pair.step();
+
+                let id = pair.id();
                 match new_step {
                     Step::Evaluated | Step::Discard | Step::Error => {
                         stop.lock().unwrap().update(ExpStep::Distribution(new_step));
@@ -375,7 +382,7 @@ where
 pub struct PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
@@ -390,7 +397,7 @@ impl<Shape, SolId, SInfo, FnState, FnStatePool> Evaluate
     for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
@@ -401,7 +408,7 @@ impl<Shape, SolId, SInfo, FnState, FnStatePool>
     PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
@@ -439,7 +446,7 @@ impl<Shape, SolId, SInfo, FnState, FnStatePool>
     )> for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
@@ -482,7 +489,7 @@ where
 ))]
 pub struct FidDistSeqEvaluator<SolId, SInfo, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
@@ -496,7 +503,7 @@ where
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Shape> FidDistSeqEvaluator<SolId, SInfo, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
@@ -536,7 +543,7 @@ where
 #[cfg(feature = "mpi")]
 impl<SolId, SInfo, Shape> Evaluate for FidDistSeqEvaluator<SolId, SInfo, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
 {
@@ -566,7 +573,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
 ) -> (bool,bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
             SolId,
@@ -634,7 +641,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    SolId: Id,
+    SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
             SolId,
@@ -716,11 +723,13 @@ where
         if !sendrec.waiting.is_empty() && !stop.stop() {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            let id = pair.id();
+            pair.mut_ref_id().increment();
             pair.set_raw_step(out.get_step());
+            let id = pair.id();
+
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
-                    self.where_is_id.remove(&id);
+                    self.where_is_id.remove(&id.previous_id());
                 }
                 _ => {}
             };
@@ -734,6 +743,7 @@ where
                 &mut self.priority_resume,
                 stop,
             );
+            
             let computed = pair.into_computed(y.into());
             let out = (id, out);
             acc.accumulate(&computed);
