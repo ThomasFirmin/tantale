@@ -258,6 +258,10 @@ where
             .map(|i| budget_min * scaling.powi(i))
             .take_while(|&b| b <= budget_max)
             .collect();
+        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
+        if budgets.len() == 1 {
+            budgets.push(budget_max);
+        }
         //If final budget is not budget_max, modify final budget to be budget_max
         if *budgets.last().unwrap() != budget_max {
             let last = budgets.last_mut().unwrap();
@@ -333,6 +337,10 @@ where
             .map(|i| budget_min * self.0.scaling.powi(i))
             .take_while(|&b| b <= budget_max)
             .collect();
+        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
+        if self.0.budgets.len() == 1 {
+            self.0.budgets.push(budget_max);
+        }
         //If final budget is not budget_max, modify final budget to be budget_max
         if *self.0.budgets.last().unwrap() != budget_max {
             let last = self.0.budgets.last_mut().unwrap();
@@ -363,7 +371,7 @@ where
     /// Sets the current budget level used by the optimizer for pruning candidates.
     fn set_current_budget(&mut self, budget: f64) {
         assert!(
-            budget >= self.0.budgets[0] && budget <= self.0.budgets[self.0.budgets.len() - 1],
+            budget >= self.0.budgets[0] && budget <= *self.0.budgets.last().unwrap(),
             "Current budget must be within the range of defined budgets"
         );
         self.0.current_budget = budget;
@@ -493,6 +501,7 @@ where
                 k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
             }
             if k == 0 {
+                self.0.current_budget = self.0.budgets[0];
                 self.with_rng(|rng| {
                     scp.sample_pair(
                         rng,
