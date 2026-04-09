@@ -2,49 +2,13 @@ use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
-    stop::Calls,
+    stop::Evaluated,
 };
 use tantale::algos::{Asha, Hyperband, asha};
 
 use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
-use std::path::Path;
-
-pub fn run_reader(path: &str) {
-    let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let count_obj = linesobj.count();
-    let count_opt = linesopt.count();
-    let count_cod = linescod.count();
-    let count_info = linesinfo.count();
-    let count_out = linesout.count();
-
-    assert!(
-        [count_opt, count_cod, count_info, count_out]
-            .iter()
-            .all(|c| c == &count_obj),
-        "Not all counts are equal. Some solutions are missing within at least one save file"
-    );
-}
+use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
 fn test_fid_seq_run() {
@@ -66,7 +30,7 @@ fn test_fid_seq_run() {
     let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let stop = Calls::new(50);
+    let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
@@ -74,7 +38,15 @@ fn test_fid_seq_run() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_hyperband_asha_run");
+    // 1000 = 
+    // s = 3 : 2 for 1st r (b = 1) + 1 at bmax (1.19) |rung|//1.61 != 0 | [1, 1.19]
+    // s = 2 : 2 for 1st r (b = 1) + 1 at bmax (1.92) |rung|//1.61 != 0 | [1, 1.92]
+    // s = 1 : 3 for 1st r (b = 1) + 2 for 2nd r (1.61) + 1 at bmax (3.10) |rung|//1.61 != 0 | [1, 1.61, 3.10]
+    // s = 0 : 4 for 1st r (b = 1) + 3 for 2nd r (1.61) + 2 for 3nd r (2.59) + 1 at bmax (5) |rung|//1.61 != 0 | [1, 1.61, 2.59, 5]
+    // 2 + 2 + 3 + 4 + 1 + 1 + 2 + 3 + 1 + 2 + 1 = 22
+    // Total of 22 partial eval to get 1 full eval at bmax = 5
+    // So 22 * 50 = 1100 calls to get 50 full eval at bmax
+    run_reader("tmp_test_hyperband_asha_run", 1100);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -87,7 +59,7 @@ fn test_fid_seq_run() {
     let mut exp = load!(
         mono,
         Hyperband<Asha<_>, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
@@ -140,12 +112,13 @@ fn test_fid_seq_run() {
     let exp = load!(
         mono,
         Hyperband<Asha<_>, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_hyperband_asha_run");
+
+    run_reader("tmp_test_hyperband_asha_run", 2200);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
@@ -201,7 +174,7 @@ fn test_fid_seq_parrun() {
     let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let stop = Calls::new(50);
+    let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
@@ -209,7 +182,7 @@ fn test_fid_seq_parrun() {
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_hyperband_asha_parrun");
+    run_reader_eps("tmp_test_hyperband_asha_parrun", 1100, num_cpus::get() * 8 * 50);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -222,13 +195,13 @@ fn test_fid_seq_parrun() {
     let mut exp = load!(
         threaded,
         Hyperband<Asha<_>, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
 
-    let expstop: &mut Calls = exp.get_mut_stop();
+    let expstop: &mut Evaluated = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 50 && expstop.calls() <= max_call,
@@ -281,13 +254,13 @@ fn test_fid_seq_parrun() {
     let exp = load!(
         threaded,
         Hyperband<Asha<_>, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_hyperband_asha_parrun");
-    let expstop: &Calls = exp.get_stop();
+    run_reader_eps("tmp_test_hyperband_asha_parrun", 2200, num_cpus::get() * 8 * 50);
+    let expstop: &Evaluated = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 100 && expstop.calls() <= max_call,

@@ -1106,7 +1106,7 @@ pub mod sp_evaluator_sh {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if fid == 5. {Step::Evaluated} else{Step::Partially(fid as isize)};
+            let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | !],
@@ -1177,7 +1177,7 @@ pub mod sp_evaluator_mo {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let evalstate = if fid == 5. {Step::Evaluated} else{Step::Partially(fid as isize)};
+            let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
             let obj = random_codom();
             (
                 MoFidOutEvaluator{

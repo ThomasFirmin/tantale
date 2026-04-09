@@ -2,50 +2,14 @@ use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
-    stop::Calls,
+    stop::Evaluated,
 };
 
 use tantale::algos::{Hyperband, Sha, sha};
 
 use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
-use std::path::Path;
-
-pub fn run_reader(path: &str) {
-    let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let count_obj = linesobj.count();
-    let count_opt = linesopt.count();
-    let count_cod = linescod.count();
-    let count_info = linesinfo.count();
-    let count_out = linesout.count();
-
-    assert!(
-        [count_opt, count_cod, count_info, count_out]
-            .iter()
-            .all(|c| c == &count_obj),
-        "Not all counts are equal. Some solutions are missing within at least one save file"
-    );
-}
+use crate::run_checker::run_reader;
 
 #[test]
 fn test_fid_seq_run() {
@@ -67,7 +31,7 @@ fn test_fid_seq_run() {
     let opt = Hyperband::new(sha);
     let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let stop = Calls::new(50);
+    let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_sha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
@@ -75,7 +39,15 @@ fn test_fid_seq_run() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_hyperband_sha_run");
+    // 1450 = 4 brackets at
+    // n = 1*1.61^3 = 5 |-> 4 |-> 4 |-> 4 (batch sizes of bracket 1) | s = [3,2,1,0]
+    // bracket 1 : 5 |-> bracket 2 : 3 (5/1.61)
+    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61)
+    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61)
+    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61) |-> bracket 4 : 1 (1/1.61) (fully evaluated)
+    // 5+3+4+2+4+2+1+4+2+1+1 = 29 partial evaluations to get 1 full
+    // So 29 * 50 = 1450 evaluations to get 50 full evaluations
+    run_reader("tmp_test_hyperband_sha_run", 1450);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -88,7 +60,7 @@ fn test_fid_seq_run() {
     let mut exp = load!(
         mono,
         Hyperband<Sha, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
@@ -118,12 +90,12 @@ fn test_fid_seq_run() {
         "Scaling factor is not equal to inner scaling factor"
     );
     assert_eq!(
-        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budget_min,
+        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budgets[0],
         "Budget min is not equal to inner budget min"
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, expoptimizer.0.inner.0.budget_max,
+        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
     exp.run();
@@ -139,12 +111,12 @@ fn test_fid_seq_run() {
     let exp = load!(
         mono,
         Hyperband<Sha, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_hyperband_sha_run");
+    run_reader("tmp_test_hyperband_sha_run", 2900);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
@@ -168,12 +140,12 @@ fn test_fid_seq_run() {
         "Scaling factor is not equal to inner scaling factor"
     );
     assert_eq!(
-        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budget_min,
+        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budgets[0],
         "Budget min is not equal to inner budget min"
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, expoptimizer.0.inner.0.budget_max,
+        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 }
@@ -198,7 +170,7 @@ fn test_fid_seq_parrun() {
     let opt = Hyperband::new(sha);
     let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
-    let stop = Calls::new(50);
+    let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_sha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
@@ -206,7 +178,7 @@ fn test_fid_seq_parrun() {
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_hyperband_sha_parrun");
+    run_reader("tmp_test_hyperband_sha_parrun", 1450);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -219,13 +191,13 @@ fn test_fid_seq_parrun() {
     let mut exp = load!(
         threaded,
         Hyperband<Sha, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
 
-    let expstop: &mut Calls = exp.get_mut_stop();
+    let expstop: &mut Evaluated = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 50 && expstop.calls() <= max_call,
@@ -254,12 +226,12 @@ fn test_fid_seq_parrun() {
         "Scaling factor is not equal to inner scaling factor"
     );
     assert_eq!(
-        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budget_min,
+        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budgets[0],
         "Budget min is not equal to inner budget min"
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, expoptimizer.0.inner.0.budget_max,
+        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 
@@ -276,13 +248,13 @@ fn test_fid_seq_parrun() {
     let exp = load!(
         threaded,
         Hyperband<Sha, _, _, _>,
-        Calls,
+        Evaluated,
         (sp, cod),
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_hyperband_sha_parrun");
-    let expstop: &Calls = exp.get_stop();
+    run_reader("tmp_test_hyperband_sha_parrun", 2900);
+    let expstop: &Evaluated = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
         expstop.calls() >= 100 && expstop.calls() <= max_call,
@@ -310,12 +282,12 @@ fn test_fid_seq_parrun() {
         "Scaling factor is not equal to inner scaling factor"
     );
     assert_eq!(
-        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budget_min,
+        expoptimizer.0.budget_min, expoptimizer.0.inner.0.budgets[0],
         "Budget min is not equal to inner budget min"
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, expoptimizer.0.inner.0.budget_max,
+        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 }

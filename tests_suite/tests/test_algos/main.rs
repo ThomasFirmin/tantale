@@ -4,6 +4,9 @@ pub mod init_func;
 #[path = "../cleaner.rs"]
 pub mod cleaner;
 
+#[path ="../run_checker.rs"]
+pub mod run_checker;
+
 pub mod test_random_search;
 
 pub mod test_successive_halving;

@@ -11,43 +11,7 @@ use tantale::algos::{MoAsha, moasha};
 
 use crate::init_func::{sp_evaluator_mo, MoFidOutEvaluator};
 use crate::cleaner::Cleaner;
-use std::path::Path;
-
-pub fn run_reader(path: &str) {
-    let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let count_obj = linesobj.count();
-    let count_opt = linesopt.count();
-    let count_cod = linescod.count();
-    let count_info = linesinfo.count();
-    let count_out = linesout.count();
-
-    assert!(
-        [count_opt, count_cod, count_info, count_out]
-            .iter()
-            .all(|c| c == &count_obj),
-        "Not all counts are equal. Some solutions are missing within at least one save file"
-    );
-}
+use crate::run_checker::run_reader_eps;
 
 #[test]
 fn test_fid_seq_run() {
@@ -81,7 +45,8 @@ fn test_fid_seq_run() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_moasha_run");
+    // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
+    run_reader_eps("tmp_test_moasha_run", 200, 100); // 100 for randomness
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
@@ -126,7 +91,8 @@ fn test_fid_seq_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_moasha_run");
+    // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
+    run_reader_eps("tmp_test_moasha_run", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
@@ -170,7 +136,8 @@ fn test_fid_seq_parrun() {
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_moasha_parrun");
+    // 200 = 4 steps * 100 calls  + 6 evals for rungs filling
+    run_reader_eps("tmp_test_moasha_parrun", 200, 100);
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
@@ -221,7 +188,8 @@ fn test_fid_seq_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(threaded, MoAsha<NSGA2Selector, _>, Calls, (sp, cod), obj, (rec, check));
-    run_reader("tmp_test_moasha_parrun");
+    // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
+    run_reader_eps("tmp_test_moasha_parrun", 400, 100);
     let expstop: &Calls = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(
