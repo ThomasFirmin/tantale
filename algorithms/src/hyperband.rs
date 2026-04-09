@@ -18,14 +18,15 @@
 //! 4. &emsp; $\eta$ &emsp;&emsp; *Scaling factor (from inner optimizer)*
 //! 5. &emsp;
 //! 6. &emsp; $s_{\max} \gets \lfloor \log_\eta(b_{\max}/b_{\min}) \rfloor$ &emsp; *Maximum bracket index*
-//! 7. &emsp; $B^x \gets \eta^{s_{\max} - x} \times b_{\min}$ &emsp; *Budget for bracket $x$*
-//! 8. &emsp; $n^x \gets B^x / b_{\max}$ &emsp; *Number of initial configs in bracket $x$*
-//! 9. &emsp;
-//! 10. &emsp; **for** $s \in [s_{\max}, \ldots, 0]$ **do**
-//! 11. &emsp; &emsp; $\mathcal{O}.\text{set\_budgets}(b_{\min} \times \eta^{s_{\max} - s}, b_{\max})$
-//! 12. &emsp; &emsp; **Run the inner optimizer** $\mathcal{O}$ with initial batch size $n^s$ &emsp; *Execute bracket $s$*
-//! 13. &emsp;
-//! 14. &emsp; **return best configuration across all brackets**
+//! 7. &emsp;
+//! 8. &emsp; **for** $s \in [s_{\max}, \ldots, 0]$ **do**
+//! 9. &emsp;  &emsp; **set_max_budget**$(\mathcal{O}, b_{\max}\eta^{-s})$ &emsp; *Configure inner optimizer budgets*
+//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`BatchOptimizer`](tantale_core::BatchOptimizer) ------
+//! 11. &emsp; &emsp; **set_batch_size**$\left(\mathcal{O}, \left\lceil \frac{s_{\max}+1}{s+1} \eta^s \right\rceil\right)$ &emsp; *Configure inner optimizer batch size*
+//! 12. &emsp; &emsp; ------------------------------------------------------------
+//! 13. &emsp; &emsp; **Run** $\mathcal{O}$ until **current_budget**$(\mathcal{O}) \geq b_{\max}\eta^{-s}$ &emsp;
+//! 14. &emsp;
+//! 15. &emsp; **return best configuration across all brackets**
 //! ---
 //!
 //! # Type Parameters
@@ -262,15 +263,18 @@ impl<Info: OptInfo> HyperbandInfo<Info> {
 ///  | solutions from     |
 ///  | inner optimizer    |
 ///  +--------------------+
-///       |
-///       v
-///      / \
-///     /   \
-///    / All  \  No ---> Move to next bracket
-///    \ done? /          (loop back)
+///        |
+///        v
+///       / \
+///      /   \
+///     /     \   No
+///    /  All  \ ---> Move to next bracket
+///    \ done? /         (loop back)
 ///     \     /
-///      \ Yes
-///       v
+///      \   /
+///       \ /
+///        | Yes
+///        v
 ///  +--------------------+
 ///  | Return best across |
 ///  | all brackets       |
@@ -331,8 +335,10 @@ where
         let scaling = sampler.get_scaling();
 
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
-        let current_s = 0; // To start with if current_s = 0, to correctly initialize
-        sampler.set_current_budget(budget_max);
+        let current_s = s_max; // To start with if current_s = 0, to correctly initialize
+        
+        let r = budget_max * scaling.powi(-(s_max as i32));
+        sampler.set_budgets(budget_min, r);
 
         Hyperband(HyperbandState {
             budget_min,
@@ -418,6 +424,10 @@ where
     ///
     /// A [`Batch`] with metadata indicating which bracket these candidates belong to
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+        let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
+                / (self.0.current_s + 1) as f64)
+                .ceil() as usize;
+        self.0.inner.set_batch_size(n);
         let (pairs, info) = self.0.inner.first_step(scp).extract();
         let new_info = HyperbandInfo::new(self.0.current_s, info);
         Batch::new(pairs, new_info.into())
@@ -482,10 +492,6 @@ where
                 self.0.current_s -= 1;
             }
 
-            let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
-                / (self.0.current_s + 1) as f64)
-                .ceil() as usize;
-            self.0.inner.set_batch_size(n);
             let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
             self.0.inner.set_budgets(self.0.budget_min, r);
 
