@@ -6,7 +6,7 @@ use tantale_core::{EvalStep, FidOutcome, Outcome, Step, CSVWritable};
 use crate::{PY_OUTCOME_CLASS, pyutils::{pickle_dumps, pickle_loads}};
 
 /// Python-accessible wrapper for the [`Step`] evaluation state.
-#[pyclass(from_py_object)]
+#[pyclass(module = "pytantale", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyStep {
     pub inner: Step,
@@ -43,6 +43,24 @@ impl PyStep {
 
     pub fn __str__(&self) -> String {
         format!("{}", self.inner)
+    }
+
+    pub fn __reduce__<'py>(&self, py: Python<'py>) -> PyResult<pyo3::Bound<'py, pyo3::types::PyTuple>> {
+        use pyo3::types::PyTuple;
+        let cls = py.get_type::<PyStep>();
+        let method_name = match self.inner {
+            Step::Pending      => "pending",
+            Step::Partially(_) => "partially",
+            Step::Evaluated    => "evaluated",
+            Step::Discard      => "discarded",
+            Step::Error        => "error",
+        };
+        let method = cls.getattr(method_name)?;
+        let args: pyo3::Bound<'py, PyTuple> = match self.inner {
+            Step::Partially(v) => PyTuple::new(py, [v])?,
+            _                   => PyTuple::empty(py),
+        };
+        PyTuple::new(py, [method.into_any(), args.into_any()])
     }
 }
 
