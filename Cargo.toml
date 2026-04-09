@@ -46,7 +46,7 @@ tantale_algos.workspace  = true
 tantale_python = {workspace = true, optional = true}
 
 [features]
-mpi = ["tantale_core/mpi", "tantale_algos/mpi"]
+mpi = ["tantale_core/mpi", "tantale_algos/mpi", "tantale_macros/mpi"]
 py = ["tantale_python", "tantale_macros/py"]
 
 [dev-dependencies]
