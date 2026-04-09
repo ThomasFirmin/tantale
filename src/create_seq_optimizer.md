@@ -47,6 +47,9 @@ It is called with a private method `with_rng` that takes a closure, allowing the
 ```rust,ignore
 self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
 ```
+### StepSId
+
+Note that because the optimizer is a multi-fidelity one, the [`Id`](crate::core::Id) is a [`StepSId`](crate::core::Id), tracking how many times the current solution was passed to the objective functions.
 
 ## Defining the state
 
@@ -71,7 +74,7 @@ A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` a
 Then, the [`OptState`](crate::core::OptState) is given by:
 
 ```rust
-use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
+use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
 use tantale::macros::OptState;
 use std::cmp::Ord;
 use serde::{Serialize,Deserialize};
@@ -83,7 +86,7 @@ use serde::{Serialize,Deserialize};
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     // A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
@@ -132,7 +135,7 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 [`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape), i.e. solutions that can be ordered, so to select the Top k.
 
 ``` rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
+# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
@@ -148,7 +151,7 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -175,11 +178,11 @@ where
 
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
 
 impl<SShape> Asha<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -227,7 +230,7 @@ the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer
 Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolutionShape`](crate::core::SolutionShape) must follows the same bound described within `AshaState`.
 
 ```rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
+# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
@@ -243,7 +246,7 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -270,11 +273,11 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
 # 
 # impl<SShape> Asha<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -312,14 +315,14 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 
 use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
 
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
@@ -349,7 +352,7 @@ We have to define one functions:
   [`Computed`](crate::core::Computed).
 
 ```rust
-# use tantale::core::{SolutionShape, SId, EmptyInfo, HasStep, HasFidelity};
+# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
@@ -365,7 +368,7 @@ We have to define one functions:
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -392,11 +395,11 @@ We have to define one functions:
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
 # 
 # impl<SShape> Asha<SShape>
 # where
-#     SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -434,14 +437,14 @@ We have to define one functions:
 # 
 # use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
 # 
-# impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+# impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
 #     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 # where
 #     Out: FidOutcome,
-#     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+#     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 #     Scp::SolShape: HasStep + HasFidelity,
 #     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-#         SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity + Ord,
+#         SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity + Ord,
 # {
 #     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
 #     type Cod = SingleCodomain<Out>;
@@ -464,26 +467,26 @@ use tantale_core::{CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimi
 
 impl<Out, Scp, FnState>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId,EmptyInfo> + HasStep + HasFidelity +Ord,
+        SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity +Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
         if let Some(comp) = x

@@ -33,8 +33,7 @@ According to the previous pseudo-code Successive Halving requires:
 - $b_{\text{max}}$, the maximum budget: same argument as for $n$.
 - $b$, the current budget for a given iteration: this must specified within [`OptState`](crate::core::OptState). It is the trace of the current iteration.
 - $\eta$, the scaling: same argument as for $n$.
-- $L$, the batch of sampled [`Solution`](crate::core::Solution)s: checkpointing of batches is handled externally by
-an [`Evaluate`](crate::core::Evaluate) object.
+- $L$, the batch of sampled [`Solution`](crate::core::Solution)s: checkpointing of batches is handled externally by an [`Evaluate`](crate::core::Evaluate) object.
 
 We add an extra field `iteration`, to count the number of calls to the SHA `step` function, later described in the implementation of [`BatchOptimizer](crate::core::BatchOptimizer).
 
@@ -127,7 +126,7 @@ pub struct MockSolInfo{
 The next step is to define the [`Optimizer`](crate::core::Optimizer). This trait does not yet define the iteration itself, but the different types characterizing the optimizer.
 This include:
 * PSol: A generic defining what kind of solution the optimizer handles. For instance, [`BaseSol`](crate::core::BaseSol), or [`FidelitySol`](crate::core::FidelitySol).
-* SolId: A generic [`Id`](crate::core::Id) type, to make a solution [`Solution`](crate::core::Solution) unique.
+* SolId: A generic [`Id`](crate::core::Id) type, to make a solution [`Solution`](crate::core::Solution) unique. Note that because the optimizer is a multi-fidelity one, the [`Id`](crate::core::Id) is a [`StepSId`](crate::core::Id), tracking how many times the current solution was passed to the objective functions.
 * Opt: A generic [`Domain`](crate::core::Domain) to constrain or not an optimizer's search domain type (e.g. continus, natural...).
 * Out: Should always be generic, it corresponds to the user-defined [`Outcome`](crate::core::Outcome) of the function to optimize.
 * Scp: A generic over a [`Searchspace`](crate::core::Searchspace). It can be specified if the optimizer works for some kind of searchspaces.
@@ -136,7 +135,7 @@ Then, multiple associated types have to be defined:
 * [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
 * [`Cod`](crate::core::Optimizer::Cod): The [`Codomain`](crate::core::Codomain) the algorithm is optimizing (e.g. single or multi-objectives)
 * [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
-and for [`BatchOptimizer`](crate::core::BatchOptimizer):
+  and for [`BatchOptimizer`](crate::core::BatchOptimizer):
 * [`Info`](crate::core::OptInfo): Per-iteration meta-data
 
 Finally, two methods have to be written:
@@ -279,12 +278,12 @@ the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer,
 #     }
 # }
 
-use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
+use tantale::core::{EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt};
 
-impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for Sha
+impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
     type Cod = SingleCodomain<Out>;
@@ -372,12 +371,12 @@ We have to define two functions:
 #     }
 # }
 # 
-# use tantale::core::{EmptyInfo, FidelitySol, Optimizer, SId, Searchspace, LinkOpt};
+# use tantale::core::{EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt};
 # 
-# impl<Out,Scp> Optimizer<FidelitySol<SId,Scp::Opt,EmptyInfo>,SId,Scp::Opt,Out,Scp> for Sha
+# impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 # where
 #     Out: FidOutcome,
-#     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+#     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 # {
 #     type State = ShaState;
 #     type Cod = SingleCodomain<Out>;
@@ -400,24 +399,24 @@ use tantale::core::{Batch, BatchOptimizer, CompBatch, FuncState, HasFidelity, Ha
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
 
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let info = ShaInfo{iteration: self.0.iteration};
         let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity
             |mut pair| 
@@ -434,10 +433,10 @@ where
 
     fn step(
             &mut self,
-            x: CompBatch<SId, Self::SInfo, Self::Info, Scp, FidelitySol<SId,Scp::Opt,EmptyInfo>, Self::Cod, Out>,
+            x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp, FidelitySol<StepSId,Scp::Opt,EmptyInfo>, Self::Cod, Out>,
             scp: &Scp,
-            _acc: &CompAcc<Scp, FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
-        ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+            _acc: &CompAcc<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
+        ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
             
             let (pairs,_) = x.extract(); // Extract component of CompBatch
             // Keep only Partially computed solution
