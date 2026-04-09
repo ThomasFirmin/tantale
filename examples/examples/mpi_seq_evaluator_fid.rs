@@ -3,7 +3,7 @@ use tantale::algos::RandomSearch;
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::{
-    Codomain, FidelitySol, Mixed, MixedTypeDom, SId, Sp, Stepped,
+    Codomain, FidelitySol, Mixed, MixedTypeDom, StepSId, Sp, Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -140,17 +140,17 @@ fn main() {
         );
         <FidWorker<
             '_,
-            SId,
+            StepSId,
             Arc<[TypeDom<sp_evaluator::ObjType>]>,
             FidOutEvaluator,
             FnState,
             NoCheck,
-            Pool<NoFuncStateCheck, FnState, SId>,
-        > as Worker<SId>>::run(wkr);
+            Pool<NoFuncStateCheck, FnState, StepSId>,
+        > as Worker<StepSId>>::run(wkr);
     } else {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, FXMessage<SId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -162,27 +162,27 @@ fn main() {
 
         let mut rng = rand::rng();
         let pair = <Sp<Mixed, NoDomain> as Searchspace<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Mixed, EmptyInfo>,
+            StepSId,
             EmptyInfo,
         >>::vec_sample_pair(&sp, &mut rng, 4, sinfo.clone());
-        let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
+        let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
+        let sopt_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();
         let mut eval = FidDistSeqEvaluator::new(pair, proc.size as usize);
 
         let out = <FidDistSeqEvaluator<
-            SId,
+            StepSId,
             EmptyInfo,
-            Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Mixed, EmptyInfo>,
+            StepSId,
             RandomSearch,
             Sp<Mixed, NoDomain>,
             FidOutEvaluator,
@@ -191,10 +191,10 @@ fn main() {
             _,
             Option<
                 DistOutShapeEvaluate<
-                    SId,
+                    StepSId,
                     EmptyInfo,
                     Sp<Mixed, NoDomain>,
-                    FidelitySol<SId, Mixed, EmptyInfo>,
+                    FidelitySol<StepSId, Mixed, EmptyInfo>,
                     SingleCodomain<FidOutEvaluator>,
                     FidOutEvaluator,
                 >,
@@ -230,12 +230,12 @@ fn main() {
 
         while step != Step::Evaluated {
             let out = <FidDistSeqEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 RandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
@@ -244,10 +244,10 @@ fn main() {
                 _,
                 Option<
                     DistOutShapeEvaluate<
-                        SId,
+                        StepSId,
                         EmptyInfo,
                         Sp<Mixed, NoDomain>,
-                        FidelitySol<SId, Mixed, EmptyInfo>,
+                        FidelitySol<StepSId, Mixed, EmptyInfo>,
                         SingleCodomain<FidOutEvaluator>,
                         FidOutEvaluator,
                     >,

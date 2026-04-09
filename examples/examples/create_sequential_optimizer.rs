@@ -1,7 +1,7 @@
 use rand::{SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, cmp::Ord};
-use tantale::core::{EmptyInfo, HasFidelity, HasStep, SId, SolutionShape};
+use tantale::core::{EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 use tantale::macros::OptState;
 
 thread_local! {
@@ -14,7 +14,7 @@ thread_local! {
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     // A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
@@ -41,11 +41,11 @@ where
 
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord;
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
 
 impl<SShape> Asha<SShape>
 where
-    SShape: SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -83,14 +83,14 @@ where
 
 use tantale::core::{FidelitySol, IntoComputed, LinkOpt, Optimizer, Searchspace};
 
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
 {
     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
@@ -115,27 +115,27 @@ use tantale::core::{
 
 impl<Out, Scp, FnState>
     SequentialOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<SId, EmptyInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
         x: OptionCompShape<
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
@@ -143,8 +143,8 @@ where
         scp: &Scp,
         _acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,

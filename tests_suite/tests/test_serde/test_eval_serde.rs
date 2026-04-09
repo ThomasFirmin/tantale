@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rmp_serde;
 use tantale::algos::{BatchRandomSearch, RSInfo};
+use tantale::core::StepSId;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::stop::Calls;
 use tantale::core::{
@@ -32,20 +33,20 @@ type ThrBEvaluator = ThrBatchEvaluator<
     Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
 >;
 type FBEvaluator = FidBatchEvaluator<
-    SId,
+    StepSId,
     EmptyInfo,
     RSInfo,
-    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
     FnState,
-    Pool<MPFnStateCheckpointer, FnState, SId>,
+    Pool<MPFnStateCheckpointer, FnState, StepSId>,
 >;
 type FThrBEvaluator = FidThrBatchEvaluator<
-    SId,
+    StepSId,
     EmptyInfo,
     RSInfo,
-    Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+    Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
     FnState,
-    Pool<MPFnStateCheckpointer, FnState, SId>,
+    Pool<MPFnStateCheckpointer, FnState, StepSId>,
 >;
 
 #[test]
@@ -230,8 +231,8 @@ fn test_serde_fidbatchevaluator() {
 
     let mut rng = rand::rng();
     let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
@@ -241,7 +242,7 @@ fn test_serde_fidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, StepSId>> =
         FidBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
@@ -266,21 +267,21 @@ fn test_serde_fidbatchevaluator() {
     );
 
     let (bcomp, braw) = <FidBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as MonoEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -318,21 +319,21 @@ fn test_serde_fidbatchevaluator() {
     );
 
     let (_bcomp, braw) = <FidBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as MonoEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -356,8 +357,8 @@ fn test_serde_thrfidbatchevaluator() {
     let acc = Arc::new(Mutex::new(SingleCodomain::new_accumulator()));
     let mut rng = rand::rng();
     let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
@@ -367,7 +368,7 @@ fn test_serde_thrfidbatchevaluator() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, StepSId>> =
         FidThrBatchEvaluator::new(batch, Pool::IdxMap(IdxMapPool::new(Some(fn_check))));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
@@ -398,21 +399,21 @@ fn test_serde_thrfidbatchevaluator() {
     );
 
     let (bcomp, braw) = <FidThrBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as ThrEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(
         &mut neval,
         obj.clone(),
@@ -463,21 +464,21 @@ fn test_serde_thrfidbatchevaluator() {
     );
 
     let (_bcomp, braw) = <FidThrBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as ThrEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(
         &mut nneval,
         obj.clone(),
@@ -508,8 +509,8 @@ fn test_serde_fidbatchevaluator_loadpool() {
 
     let mut rng = rand::rng();
     let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
@@ -519,7 +520,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+    let eval: FidBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, StepSId>> =
         FidBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
@@ -542,21 +543,21 @@ fn test_serde_fidbatchevaluator_loadpool() {
     );
 
     let (bcomp, braw) = <FidBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as MonoEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -594,21 +595,21 @@ fn test_serde_fidbatchevaluator_loadpool() {
     );
 
     let (_bcomp, braw) = <FidBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as MonoEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -632,8 +633,8 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     let acc = Arc::new(Mutex::new(SingleCodomain::new_accumulator()));
     let mut rng = rand::rng();
     let sobj: Vec<FidelitySol<_, _, _>> = <Sp<Mixed, NoDomain> as Searchspace<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pairs = sp.vec_onto_obj(sobj);
@@ -643,7 +644,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     let mut checkpointer = MessagePack::new(config).unwrap();
     checkpointer.init();
     let fn_check = checkpointer.new_func_state_checkpointer();
-    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, SId>> =
+    let eval: FidThrBatchEvaluator<_, _, _, _, FnState, Pool<MPFnStateCheckpointer, FnState, StepSId>> =
         FidThrBatchEvaluator::new(batch, Pool::Load(LoadPool::new(fn_check)));
 
     let eval_ser = rmp_serde::encode::to_vec(&eval).unwrap();
@@ -672,21 +673,21 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     );
 
     let (bcomp, braw) = <FidThrBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as ThrEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(
         &mut neval,
         obj.clone(),
@@ -737,21 +738,21 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     );
 
     let (_bcomp, braw) = <FidThrBatchEvaluator<
-        SId,
+        StepSId,
         EmptyInfo,
         RSInfo,
-        Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         FnState,
-        Pool<MPFnStateCheckpointer, FnState, SId>,
+        Pool<MPFnStateCheckpointer, FnState, StepSId>,
     > as ThrEvaluate<
-        FidelitySol<SId, Mixed, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Mixed, EmptyInfo>,
+        StepSId,
         BatchRandomSearch,
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+        OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
     >>::evaluate(
         &mut nneval,
         obj.clone(),

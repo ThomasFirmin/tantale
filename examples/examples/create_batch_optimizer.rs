@@ -18,7 +18,7 @@ pub struct ShaInfo {
 }
 
 use rand::prelude::ThreadRng;
-use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
+use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain, StepSId};
 
 pub struct Sha(pub ShaState, ThreadRng);
 
@@ -62,12 +62,12 @@ impl Sha {
     }
 }
 
-use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Optimizer, SId, Searchspace};
+use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Optimizer, Searchspace};
 
-impl<Out, Scp> Optimizer<FidelitySol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for Sha
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp> for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
     type Cod = SingleCodomain<Out>;
@@ -92,24 +92,24 @@ use tantale::core::{
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
-        FidelitySol<SId, Scp::Opt, EmptyInfo>,
-        SId,
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, SId, EmptyInfo>, Out, FnState>,
+        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Sha
 where
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<SId, Self::SInfo> + HasStep + HasFidelity + Ord,
+        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
 
-    fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let info = ShaInfo {
             iteration: self.0.iteration,
         };
@@ -129,24 +129,24 @@ where
     fn step(
         &mut self,
         x: CompBatch<
-            SId,
+            StepSId,
             Self::SInfo,
             Self::Info,
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
             Self::Cod,
             Out,
         >,
         scp: &Scp,
         _acc: &CompAcc<
             Scp,
-            FidelitySol<SId, Scp::Opt, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            StepSId,
             Self::SInfo,
             Self::Cod,
             Out,
         >,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let (pairs, _) = x.extract(); // Extract component of CompBatch
         // Keep only Partially computed solution
         let mut pairs: Vec<_> = pairs

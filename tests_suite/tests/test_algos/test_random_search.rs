@@ -319,7 +319,9 @@ fn test_fid_batch_parrun() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader_eps("tmp_test_fidbatchparrun", 274, num_cpus::get() * 4);
+    // 56 = 7 batches * 8 iteration. 5 partials to get to evaluated
+    // -6 as the last batch stops when one last evaluation reach Evaluated
+    run_reader("tmp_test_fidbatchparrun", 56*5-6);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
@@ -349,7 +351,8 @@ fn test_fid_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = load!(mono, BatchRandomSearch, Evaluated, (sp, cod), obj, (rec, check));
-    run_reader_eps("tmp_test_fidbatchparrun", 548, num_cpus::get() * 4);
+    // times 2
+    run_reader("tmp_test_fidbatchparrun", 548);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();

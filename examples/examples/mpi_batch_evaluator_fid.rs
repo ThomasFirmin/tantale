@@ -3,7 +3,7 @@ use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::{
-    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, SId, Searchspace, SingleCodomain, Sp,
+    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, StepSId, Searchspace, SingleCodomain, Sp,
     Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
@@ -121,7 +121,7 @@ mod init_func {
 use init_func::{FidOutEvaluator, FnState, sp_evaluator};
 
 type BBatch =
-    Batch<SId, EmptyInfo, RSInfo, Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>>;
+    Batch<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>>;
 
 fn main() {
     eprintln!("INFO : Running test_seq_evaluator.");
@@ -142,17 +142,17 @@ fn main() {
         );
         <FidWorker<
             '_,
-            SId,
+            StepSId,
             Arc<[TypeDom<sp_evaluator::ObjType>]>,
             FidOutEvaluator,
             FnState,
             NoCheck,
-            Pool<NoFuncStateCheck, FnState, SId>,
-        > as Worker<SId>>::run(wkr);
+            Pool<NoFuncStateCheck, FnState, StepSId>,
+        > as Worker<StepSId>>::run(wkr);
     } else {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, FXMessage<SId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -165,16 +165,16 @@ fn main() {
 
         let mut rng = rand::rng();
         let sobj = <Sp<Mixed, NoDomain> as Searchspace<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Mixed, EmptyInfo>,
+            StepSId,
             EmptyInfo,
         >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
         let pair = sp.vec_onto_obj(sobj);
-        let sobj_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
+        let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sobj().x.clone()))
             .collect();
-        let sopt_bis: Vec<(SId, Arc<[tantale::core::MixedTypeDom]>)> = pair
+        let sopt_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
             .iter()
             .map(|s| (s.id(), s.get_sopt().x.clone()))
             .collect();
@@ -183,26 +183,26 @@ fn main() {
 
         let (bcomp, braw) =
             <FidDistBatchEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
                 RSInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 BatchRandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
                 Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+                OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();
-        let mut hsobj: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
+        let mut hsobj: HashMap<StepSId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
         let mut hcopt = HashMap::new();
-        let mut hsopt: HashMap<SId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
+        let mut hsopt: HashMap<StepSId, Arc<[tantale::core::MixedTypeDom]>> = HashMap::new();
 
         let compiter = (&bcomp).into_iter();
 
@@ -275,20 +275,20 @@ fn main() {
         eval.update(batch);
         let (bcomp, _) =
             <FidDistBatchEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
                 RSInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 BatchRandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
                 Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+                OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -298,20 +298,20 @@ fn main() {
         eval.update(batch);
         let (bcomp, _) =
             <FidDistBatchEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
                 RSInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 BatchRandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
                 Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+                OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -321,20 +321,20 @@ fn main() {
         eval.update(batch);
         let (bcomp, _) =
             <FidDistBatchEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
                 RSInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 BatchRandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
                 Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+                OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -344,20 +344,20 @@ fn main() {
         eval.update(batch);
         let (bcomp, _) =
             <FidDistBatchEvaluator<
-                SId,
+                StepSId,
                 EmptyInfo,
                 RSInfo,
-                Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
             > as DistEvaluate<
-                FidelitySol<SId, Mixed, EmptyInfo>,
-                SId,
+                FidelitySol<StepSId, Mixed, EmptyInfo>,
+                StepSId,
                 BatchRandomSearch,
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
                 Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+                OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         let pairs: Vec<_> = bcomp
             .into_iter()
@@ -366,20 +366,20 @@ fn main() {
         let batch = Batch::new(pairs, info.clone());
         eval.update(batch);
         let (_, _) = <FidDistBatchEvaluator<
-            SId,
+            StepSId,
             EmptyInfo,
             RSInfo,
-            Lone<FidelitySol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
         > as DistEvaluate<
-            FidelitySol<SId, Mixed, EmptyInfo>,
-            SId,
+            FidelitySol<StepSId, Mixed, EmptyInfo>,
+            StepSId,
             BatchRandomSearch,
             Sp<Mixed, NoDomain>,
             FidOutEvaluator,
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, FidelitySol<SId, _, _>, _, _>,
+            OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         assert!(
             stop.calls() >= 20,

@@ -1,7 +1,7 @@
 use tantale::core::Solution;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{
-    BaseSol, Codomain, Computed, FidelitySol, ParSId, SingleCodomain,
+    BaseSol, Codomain, Computed, ParSId, SingleCodomain,
     solution::{HasId, HasSolInfo, HasY, Uncomputed},
 };
 
@@ -68,4 +68,4 @@ macro_rules! get_default_sol {
 }
 
 get_default_sol!(mixed_size_3 ; BaseSol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
-get_default_sol!(fid_mixed_size_3 ; FidelitySol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+// get_default_sol!(fid_mixed_size_3 ; FidelitySol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());

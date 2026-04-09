@@ -1,7 +1,7 @@
 use paste::paste;
 
 use tantale::core::{
-    BaseSol, EmptyInfo, FidelitySol, HasStep, SId, Searchspace, Solution, Sp, Step,
+    BaseSol, EmptyInfo, FidelitySol, HasStep, SId, StepSId, Searchspace, Solution, Sp, Step,
     solution::shape::SolutionShape,
 };
 
@@ -61,20 +61,20 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<FidelitySol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_apply_obj(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj(&sp, &vec_sample_obj));
+                let vec_sample_obj: Vec<FidelitySol<StepSId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_obj(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_is_in_obj(&sp, &vec_sample_obj));
                 assert!(&vec_sample_obj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
-                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj);
+                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj);
                 let csopt: Vec<_> = vec_converted_opt.into_iter().map(|p| p.extract_sopt()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt(&sp, &csopt));
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_is_in_opt(&sp, &csopt));
                 assert!(&csopt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
 
-                let vec_sample_opt: Vec<FidelitySol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_apply_opt(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt(&sp, &vec_sample_opt));
+                let vec_sample_opt: Vec<FidelitySol<StepSId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_opt(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_is_in_opt(&sp, &vec_sample_opt));
                 assert!(&vec_sample_opt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
-                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt);
+                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt);
                 let csobj: Vec<_> = vec_converted_obj.into_iter().map(|p| p.extract_sobj()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj(&sp, &csobj));
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_is_in_obj(&sp, &csobj));
                 assert!(&csobj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
             }
 
