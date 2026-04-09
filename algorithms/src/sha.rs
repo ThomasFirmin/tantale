@@ -99,13 +99,12 @@ where
 pub struct ShaState {
     /// Initial batch size for each iteration. Determines how many candidates are evaluated at the lowest fidelity level.
     pub batch: usize,
-    /// Minimum budget (lowest fidelity level). Represents the starting resource allocation for candidates.
-    pub budget_min: f64,
-    /// Maximum budget (highest fidelity level). The upper bound for resource allocation.
-    /// Once reached, the process restarts with `budget_min`.
-    pub budget_max: f64,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<f64>,
     /// Current budget level. This value increases by `scaling` at each stage until it reaches `budget_max`.
     pub current_budget: f64,
+    /// Index of the current budget in the `budgets` vector.
+    pub budget_idx: usize,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
     pub scaling: f64,
     /// Current iteration count. Increments after each call to [`step()`](Sha::step).
@@ -258,14 +257,28 @@ impl Sha {
             "Batch size should be greater or equal than {i_max}"
         );
 
-        let rng = rand::rng();
+        let mut budgets: Vec<f64> = (0..)
+            .map(|i| budget_min * scaling.powi(i))
+            .take_while(|&b| b <= budget_max)
+            .collect();
+        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
+        if budgets.len() == 1 {
+            budgets.push(budget_max);
+        }
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *budgets.last().unwrap() != budget_max {
+            let last = budgets.last_mut().unwrap();
+            *last = budget_max;
+        }
 
+        let current_budget = budgets[0];
+        let rng = rand::rng();
         Sha(
             ShaState {
                 batch,
-                budget_min,
-                budget_max,
-                current_budget: budget_min,
+                budgets,
+                budget_idx: 0,
+                current_budget,
                 scaling,
                 iteration: 0,
             },
@@ -311,31 +324,32 @@ where
     Scp: Searchspace<FidelitySol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     /// Reinitializes the budget parameters for this optimizer.
-    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run.
-    /// Updates the `budget_min`, `budget_max`, and resets the current `budget` to `budget_min`.
+    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
+    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budget_min = budget_min;
-        self.0.budget_max = budget_max;
-        self.0.current_budget = budget_min;
+        self.0.budgets = (0..)
+            .map(|i| budget_min * self.0.scaling.powi(i))
+            .take_while(|&b| b <= budget_max)
+            .collect();
+        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
+        if self.0.budgets.len() == 1 {
+            self.0.budgets.push(budget_max);
+        }
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *self.0.budgets.last().unwrap() != budget_max {
+            let last = self.0.budgets.last_mut().unwrap();
+            *last = budget_max;
+        }
+        self.0.current_budget = self.0.budgets[0];
+        self.0.budget_idx = 0;
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
     fn get_budgets(&self) -> (f64, f64) {
-        (self.0.budget_min, self.0.budget_max)
-    }
-
-    /// Sets the current budget level used by the optimizer for pruning candidates.
-    fn set_current_budget(&mut self, budget: f64) {
-        assert!(
-            budget >= self.0.budget_min && budget <= self.0.budget_max,
-            "Current budget must be between budget_min and budget_max"
-        );
-        self.0.current_budget = budget;
-    }
-
-    /// Retrieves the current budget level used by this optimizer for pruning candidates.
-    fn get_current_budget(&self) -> f64 {
-        self.0.current_budget
+        (
+            *self.0.budgets.first().unwrap(),
+            *self.0.budgets.last().unwrap(),
+        )
     }
 
     /// Updates the scaling factor for this optimizer.
@@ -344,9 +358,22 @@ where
         self.0.scaling = scaling;
     }
 
-    /// Retrieves the current scaling factor of this optimizer.
+    /// Returns the current scaling factor for this optimizer.
     fn get_scaling(&self) -> f64 {
         self.0.scaling
+    }
+
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64) {
+        assert!(
+            budget >= self.0.budgets[0] && budget <= *self.0.budgets.last().unwrap(),
+            "Current budget must be within the range of defined budgets"
+        );
+        self.0.current_budget = budget;
+    }
+
+    fn get_current_budget(&self) -> f64 {
+        self.0.current_budget
     }
 
     /// Successive Halving does not maintain pending candidates across iterations,
@@ -397,6 +424,8 @@ where
     ///
     /// A [`Batch`](tantale_core::Batch) of sampled solutions with fidelity set to `budget_min`
     fn first_step(&mut self, scp: &Scp) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+        self.0.current_budget = self.0.budgets[0];
+        self.0.budget_idx = 0;
         let info = ShaInfo::new(self.0.iteration);
         let pairs: Vec<_> = scp.vec_apply_pair(
             |mut pair| {
@@ -459,18 +488,17 @@ where
                 _ => None,
             })
             .collect();
-
+        self.0.iteration += 1;
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
-            self.0.current_budget = self.0.budget_min;
             <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
         } else {
             // Compute number of candidates to keep
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
 
             // Increase fidelity for next evaluation round (capped at budget_max)
-            self.0.current_budget = (self.0.current_budget * self.0.scaling).min(self.0.budget_max);
-            self.0.iteration += 1;
+            self.0.budget_idx += 1;
+            self.0.current_budget = self.0.budgets[self.0.budget_idx];
 
             // Partition candidates by performance: worst k candidates go before index k
             pairs.select_nth_unstable(k);
@@ -492,7 +520,6 @@ where
 
             if new_pairs.is_empty() {
                 // Safety check: if no candidates remain, restart
-                self.0.current_budget = self.0.budget_min;
                 <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
                     self, scp,
                 )
