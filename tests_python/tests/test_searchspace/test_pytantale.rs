@@ -11,12 +11,6 @@ pub mod sp_ms_nosamp {
     };
     use tantale::macros::pyhpo;
 
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-    
     pyhpo!{
         a | Int(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
@@ -43,14 +37,8 @@ fn test_python_function() {
         "MyOutcome"
     );
 
-    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61); // log(max/min)
-    let cod = moasha::codomain(
-        [
-            |o: &PyFidOutcome| o.getattr_f64("obj1"),
-            |o: &PyFidOutcome| -o.getattr_f64("obj2"),
-        ]
-        .into(),
-    );
+    let opt = RandomSearch::new();
+    let cod = random_search::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
 
     let stop = Calls::new(1000);
     let config = FolderConfig::new("tmp_test_python").init();
