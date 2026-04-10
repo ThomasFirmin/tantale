@@ -1,4 +1,8 @@
-use std::{fmt::{self, Display}, path::PathBuf, sync::Arc};
+use std::{
+    fmt::{self, Display},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use pyo3::prelude::*;
 use tantale_core::{Fidelity, FuncState, Objective, Stepped};
@@ -7,7 +11,7 @@ use crate::{
     PY_OBJECTIVE_FUNC, PY_STEPPED_FUNC,
     pydomain::ElementIntoPyObject,
     pyoutcome::{PyFidOutcome, PyOutcome},
-    pyutils::{path_to_str, pickle_dumps, pickle_loads, py_to_io}
+    pyutils::{path_to_str, pickle_dumps, pickle_loads, py_to_io},
 };
 
 /// Rust bridge for a Python function state used in multi-fidelity objectives.
@@ -53,7 +57,8 @@ impl FuncState for PyFuncState {
             let cls = pickle_loads(py, &cls_bytes).map_err(py_to_io).unwrap();
             let obj = cls
                 .call_method1(py, "load", (&path_str,))
-                .map_err(py_to_io).unwrap();
+                .map_err(py_to_io)
+                .unwrap();
             Ok(PyFuncState(obj))
         })
     }
@@ -62,7 +67,12 @@ impl FuncState for PyFuncState {
 impl Display for PyFuncState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Python::attach(|py| {
-            let r = self.0.bind(py).repr().map(|r| r.to_string()).unwrap_or_default();
+            let r = self
+                .0
+                .bind(py)
+                .repr()
+                .map(|r| r.to_string())
+                .unwrap_or_default();
             write!(f, "PyFuncState({r})")
         })
     }
@@ -76,21 +86,19 @@ pub fn py_objective<E: ElementIntoPyObject>(x: Arc<[E]>) -> PyOutcome {
             .expect("no PyObjective active; call PyObjective::activate() first");
         Python::attach(|py| {
             let list = x.to_pyany(py).expect("failed to build Python input list");
-            let result = callable
-                .call1(py, (list,))
-                .unwrap();
+            let result = callable.call1(py, (list,)).unwrap();
             PyOutcome(result)
         })
     })
 }
 
-pub fn py_stepped<E:ElementIntoPyObject>(
+pub fn py_stepped<E: ElementIntoPyObject>(
     x: Arc<[E]>,
     fidelity: Fidelity,
     state: Option<PyFuncState>,
 ) -> (PyFidOutcome, PyFuncState) {
     Python::attach(|py| {
-        PY_STEPPED_FUNC.with(|cell|{
+        PY_STEPPED_FUNC.with(|cell| {
             let borrow = cell.borrow();
             let callable = borrow
                 .as_ref()
@@ -107,7 +115,6 @@ pub fn py_stepped<E:ElementIntoPyObject>(
         })
     })
 }
-
 
 /// Python wrapper for a single-shot objective function.
 ///
@@ -137,7 +144,7 @@ impl PyObjective {
     /// an [`Objective`]`<Arc<[`[`MixedTypeDom`]`]>, `[`PyOutcome`]`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
-    pub fn register<E:ElementIntoPyObject>(&self) -> Objective<Arc<[E]>, PyOutcome> {
+    pub fn register<E: ElementIntoPyObject>(&self) -> Objective<Arc<[E]>, PyOutcome> {
         Python::attach(|py| {
             PY_OBJECTIVE_FUNC.with(|cell| {
                 *cell.borrow_mut() = Some(self.0.clone_ref(py));

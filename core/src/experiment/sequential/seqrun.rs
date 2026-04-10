@@ -14,7 +14,9 @@ use crate::{
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::{CompShape, Searchspace},
     solution::{
-        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
+        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed,
+        id::{StepId, StepSId},
+        shape::RawObj,
     },
     stop::{ExpStep, Stop},
 };
@@ -309,9 +311,23 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }
 
@@ -353,7 +369,11 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
+            Stepped<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
@@ -366,7 +386,11 @@ where
             Out,
             Scp,
             Op,
-            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
+            Stepped<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
         >,
     Check: MonoCheckpointer,
     Out: FidOutcome,
@@ -611,8 +635,13 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
+        Op::SInfo,
+        Out,
+    > {
         &self.accumulator
     }
 
@@ -627,9 +656,23 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }
 
@@ -947,9 +990,23 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }
 
@@ -991,16 +1048,26 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
+            Stepped<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
         > + Send
         + Sync
         + 'static,
     Op::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
-    Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
+    Scp:
+        Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
+    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>: SolutionShape<StepSId, Op::SInfo>
+        + HasStep
+        + HasFidelity
+        + HasStepId<StepSId>
+        + Send
+        + Sync
+        + 'static,
     St: Stop + Send + Sync + 'static,
     Out: FidOutcome + Send + Sync + 'static,
     Rec: SeqRecorder<
@@ -1017,8 +1084,13 @@ where
     Check::FnStateCheck: Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
     RawObj<Scp::SolShape, StepSId, Op::SInfo>: 'static,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>:
-        Send + Sync + 'static,
+    TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
+        Op::SInfo,
+        Out,
+    >: Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
     /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
@@ -1191,7 +1263,7 @@ where
                     let mut pair = eval.pair.take().expect(
                         "The pair ThrSeqEvaluator should not be empty (None) during evaluate.",
                     );
-                    
+
                     let step = pair.step();
                     match step {
                         Step::Pending | Step::Partially(_) => {
@@ -1206,11 +1278,19 @@ where
 
                             match new_step {
                                 Step::Partially(_) => {
-                                    pool_evaluator.lock().unwrap().pool.remove(&id.previous_id());
+                                    pool_evaluator
+                                        .lock()
+                                        .unwrap()
+                                        .pool
+                                        .remove(&id.previous_id());
                                     pool_evaluator.lock().unwrap().pool.insert(id, state);
                                 }
                                 _ => {
-                                    pool_evaluator.lock().unwrap().pool.remove(&id.previous_id());
+                                    pool_evaluator
+                                        .lock()
+                                        .unwrap()
+                                        .pool
+                                        .remove(&id.previous_id());
                                 }
                             }
 
@@ -1330,8 +1410,13 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
+        Op::SInfo,
+        Out,
+    > {
         &self.accumulator
     }
 
@@ -1346,9 +1431,23 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }
 
@@ -1727,9 +1826,23 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }
 
@@ -1768,14 +1881,21 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>, Out, FnState>,
+            Stepped<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
     SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
     SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasY<Op::Cod, Out> + HasStep + HasFidelity + HasStepId<StepSId>,
+    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>: SolutionShape<StepSId, Op::SInfo>
+        + HasY<Op::Cod, Out>
+        + HasStep
+        + HasFidelity
+        + HasStepId<StepSId>,
     St: Stop,
     Rec: DistSeqRecorder<
             PSol,
@@ -2151,8 +2271,13 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>, StepSId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<
+        Op::Cod,
+        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        StepSId,
+        Op::SInfo,
+        Out,
+    > {
         &self.accumulator
     }
 
@@ -2167,8 +2292,22 @@ where
     > {
         &mut self.accumulator
     }
-    
-    fn extract(self) -> ((Scp, Op::Cod),Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,Op,St,(Option<Rec>, Option<Check>)) {
-        ((self.searchspace, self.codomain), self.objective, self.optimizer, self.stop, (self.recorder, self.checkpointer))
+
+    fn extract(
+        self,
+    ) -> (
+        (Scp, Op::Cod),
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        Op,
+        St,
+        (Option<Rec>, Option<Check>),
+    ) {
+        (
+            (self.searchspace, self.codomain),
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
     }
 }

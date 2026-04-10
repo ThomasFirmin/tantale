@@ -1,6 +1,5 @@
-use std::cell::RefCell;
 use pyo3::{Py, PyAny};
-
+use std::cell::RefCell;
 
 thread_local! {
     pub(crate) static PY_OBJECTIVE_FUNC: RefCell<Option<Py<PyAny>>> = const { RefCell::new(None) };
@@ -9,7 +8,7 @@ thread_local! {
 }
 
 pub mod pyoutcome;
-pub use pyoutcome::{PyOutcome, PyFidOutcome, PyStep};
+pub use pyoutcome::{PyFidOutcome, PyOutcome, PyStep};
 
 pub mod pyfunction;
 pub use pyfunction::{PyObjective, PyStepped};

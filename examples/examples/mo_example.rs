@@ -1,7 +1,7 @@
 mod searchspace {
-    use tantale::core::{FuncState, Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
+    use tantale::macros::{CSVWritable, Outcome, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
@@ -31,7 +31,7 @@ mod searchspace {
     }
 
     impl FuncState for FnState {
-        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
             rmp_serde::encode::write(&mut file, &self).unwrap();
             Ok(())

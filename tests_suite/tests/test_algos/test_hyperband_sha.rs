@@ -7,8 +7,8 @@ use tantale::core::{
 
 use tantale::algos::{Hyperband, Sha, sha};
 
-use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
 use crate::run_checker::run_reader;
 
 #[test]
@@ -95,7 +95,8 @@ fn test_fid_seq_run() {
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
     exp.run();
@@ -145,7 +146,8 @@ fn test_fid_seq_run() {
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 }
@@ -231,7 +233,8 @@ fn test_fid_seq_parrun() {
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 
@@ -287,7 +290,8 @@ fn test_fid_seq_parrun() {
     );
     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.0.current_s as i32));
     assert_eq!(
-        current_max, *expoptimizer.0.inner.0.budgets.last().unwrap(),
+        current_max,
+        *expoptimizer.0.inner.0.budgets.last().unwrap(),
         "Current max budget is not equal to inner budget max"
     );
 }

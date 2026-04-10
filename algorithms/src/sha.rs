@@ -64,7 +64,7 @@
 use tantale_core::{
     Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
     FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    StepSId, Searchspace, SingleCodomain, SolutionShape, Step, Stepped, experiment::CompAcc,
+    Searchspace, SingleCodomain, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
     optimizer::opt::BudgetPruner, recorder::CSVWritable,
 };
 
@@ -290,7 +290,8 @@ impl Sha {
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp> for Sha
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
@@ -318,7 +319,8 @@ where
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp> for Sha
+impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Sha
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,

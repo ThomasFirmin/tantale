@@ -112,7 +112,7 @@ pub trait HasId<SolId: Id> {
 
     /// Returns a reference to the solution's unique identifier.
     fn ref_id(&self) -> &SolId;
-    
+
     /// Returns a mutable reference to the solution's unique identifier.
     fn mut_ref_id(&mut self) -> &mut SolId;
 
@@ -132,7 +132,6 @@ pub trait HasId<SolId: Id> {
         self.ref_id() == solb.ref_id()
     }
 }
-
 
 /// Trait for objects with a unique solution identifier.
 ///
@@ -798,7 +797,7 @@ pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId, A, SInfo>>::Twin
 pub type SolRaw<S, SolId, Dom, Info> = <S as Solution<SolId, Dom, Info>>::Raw;
 
 pub mod id;
-pub use id::{Id, StepId, ParSId, SId, StepSId};
+pub use id::{Id, ParSId, SId, StepId, StepSId};
 
 pub mod partial;
 pub use partial::{BaseSol, Fidelity, FidelitySol};

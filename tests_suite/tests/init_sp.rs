@@ -10,7 +10,7 @@ pub mod sp_ms_nosamp {
     pub const B_INDEX: usize = 1;
     pub const C_INDEX: usize = 2;
     pub const D_INDEX: usize = 3;
-    
+
     hpo!(
         a | Int(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
         b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;

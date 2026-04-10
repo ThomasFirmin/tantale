@@ -1,16 +1,15 @@
 use std::{convert::Infallible, sync::Arc};
 
 use pyo3::{
-    prelude::*, 
-    types::{DerefToPyAny, PyBool as PyO3Bool, PyFloat, PyInt as PyO3Int, PyList, PyString}
+    prelude::*,
+    types::{DerefToPyAny, PyBool as PyO3Bool, PyFloat, PyInt as PyO3Int, PyList, PyString},
 };
 use serde::{Deserialize, Serialize};
 use tantale_core::MixedTypeDom;
 
-
 /// Bridges between [`TypeDom`] and Python objects.
-pub trait ElementIntoPyObject 
-where 
+pub trait ElementIntoPyObject
+where
     Self: Sized + std::fmt::Debug + Serialize + for<'de> Deserialize<'de>,
 {
     type Converted: DerefToPyAny;
@@ -70,7 +69,9 @@ impl ElementIntoPyObject for MixedTypeDom {
     type Converted = PyString;
     fn to_pyany<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Infallible> {
         match self {
-            MixedTypeDom::Real(f) | MixedTypeDom::Unit(f) | MixedTypeDom::GridReal(f) => f.to_pyany(py),
+            MixedTypeDom::Real(f) | MixedTypeDom::Unit(f) | MixedTypeDom::GridReal(f) => {
+                f.to_pyany(py)
+            }
             MixedTypeDom::Nat(i) | MixedTypeDom::GridNat(i) => i.to_pyany(py),
             MixedTypeDom::Int(i) | MixedTypeDom::GridInt(i) => i.to_pyany(py),
             MixedTypeDom::Bool(b) => b.to_pyany(py),
@@ -85,7 +86,8 @@ impl<E: ElementIntoPyObject> ElementIntoPyObject for Arc<[E]> {
     fn to_pyany<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Infallible> {
         let list = PyList::empty(py);
         for e in self.iter() {
-            list.append(e.to_pyany(py)?).expect("failed to append to Python list");
+            list.append(e.to_pyany(py)?)
+                .expect("failed to append to Python list");
         }
         Ok(list.into_any())
     }

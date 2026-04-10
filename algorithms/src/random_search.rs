@@ -1,17 +1,24 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Id, Objective, Solution, StepSId, Stepped, domain::{
+    BaseSol, Codomain, Criteria, FidOutcome, Id, Objective, Solution, StepSId, Stepped,
+    domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
-    }, experiment::CompAcc, objective::{
+    },
+    experiment::CompAcc,
+    objective::{
         Step,
         outcome::{FuncState, Outcome},
-    }, optimizer::{
+    },
+    optimizer::{
         EmptyInfo, OptInfo, OptState,
         opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
-    }, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{
+    },
+    recorder::csv::CSVWritable,
+    searchspace::{CompShape, OptionCompShape, Searchspace},
+    solution::{
         Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol,
         shape::RawObj,
-    }
+    },
 };
 
 use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
@@ -535,7 +542,14 @@ where
             StepSId,
             Self::SInfo,
             Self::Info,
-            CompShape<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
+            CompShape<
+                Scp,
+                FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+                StepSId,
+                Self::SInfo,
+                Self::Cod,
+                Out,
+            >,
         >,
         scp: &Scp,
         _acc: &CompAcc<

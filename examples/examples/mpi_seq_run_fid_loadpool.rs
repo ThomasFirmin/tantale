@@ -221,14 +221,36 @@ pub fn run_reader(path: &str, size: usize) {
 
     let linesobj = rdr_obj.records();
     linesobj.for_each(|l| println!("{:?}", l));
-    assert!(count_cod >= size * 5, "Some solutions are missing in cod; {} < {}", count_cod, size * 5);
-    assert!(count_opt >= size * 5, "Some solutions are missing in opt; {} < {}", count_opt, size * 5);
-    assert!(id_cod.len() >= size, "Some solutions are missing in cod; {} < {}", id_cod.len(), size);
+    assert!(
+        count_cod >= size * 5,
+        "Some solutions are missing in cod; {} < {}",
+        count_cod,
+        size * 5
+    );
+    assert!(
+        count_opt >= size * 5,
+        "Some solutions are missing in opt; {} < {}",
+        count_opt,
+        size * 5
+    );
+    assert!(
+        id_cod.len() >= size,
+        "Some solutions are missing in cod; {} < {}",
+        id_cod.len(),
+        size
+    );
     assert!(
         count_info >= size * 5,
-        "Some solutions are missing in info; {} < {}", count_info, size * 5
+        "Some solutions are missing in info; {} < {}",
+        count_info,
+        size * 5
     );
-    assert!(count_out >= size * 5, "Some solutions are missing in out; {} < {}", count_out, size * 5);
+    assert!(
+        count_out >= size * 5,
+        "Some solutions are missing in out; {} < {}",
+        count_out,
+        size * 5
+    );
 }
 
 fn main() {

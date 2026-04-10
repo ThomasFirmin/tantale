@@ -107,10 +107,7 @@ use tantale::algos::{MoAsha, moasha};
 use tantale::core::{DistSaverConfig, MPIProcess, PoolMode, distributed_with_pool};
 use tantale::{
     algos::mo::NSGA2Selector,
-    core::{
-        CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
-        stop::Calls,
-    },
+    core::{CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape, stop::Calls},
 };
 
 fn main() {
@@ -142,9 +139,17 @@ fn main() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let exp = distributed_with_pool(
+        &proc,
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    );
     let acc = exp.run();
-    if let Some(a) = acc{
+    if let Some(a) = acc {
         let pareto = a.get();
         for dominant in pareto {
             println!(

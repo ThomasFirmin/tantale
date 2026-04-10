@@ -496,8 +496,14 @@ pub fn obj(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut sp_tokens =
-        get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, const_statements, is_grid).unwrap();
+    let mut sp_tokens = get_sp_tokens(
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+        const_statements,
+        is_grid,
+    )
+    .unwrap();
 
     sp_tokens.extend([fn_tokens, wraper_tokens.into()]);
     sp_tokens

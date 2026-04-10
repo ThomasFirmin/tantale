@@ -1,11 +1,11 @@
 extern crate proc_macro;
 
+use crate::hpo::{LineStream, parse_sp};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Token, parse_macro_input, punctuated::Punctuated};
-use crate::hpo::{LineStream, parse_sp};
 
-#[cfg(all(feature="py", not(feature="mpi")))]
+#[cfg(all(feature = "py", not(feature = "mpi")))]
 /// Generates the complete Rust code for the searchspace.
 ///
 /// Creates the public API that users interact with:
@@ -125,7 +125,7 @@ pub fn py_get_sp_tokens(
     }
 }
 
-#[cfg(all(feature="py", not(feature="mpi")))]
+#[cfg(all(feature = "py", not(feature = "mpi")))]
 pub fn pyhpo(input: TokenStream) -> TokenStream {
     let lines = parse_macro_input!(
         input with Punctuated::<LineStream,Token![;]>::parse_terminated
@@ -136,11 +136,17 @@ pub fn pyhpo(input: TokenStream) -> TokenStream {
     let (ident_mixed_obj, ident_mixed_opt, _, push_statements, const_statements, _, _, is_grid) =
         parse_sp(lines).unwrap();
 
-    py_get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, const_statements, is_grid).unwrap()
+    py_get_sp_tokens(
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+        const_statements,
+        is_grid,
+    )
+    .unwrap()
 }
 
-
-#[cfg(all(feature="py",feature="mpi"))]
+#[cfg(all(feature = "py", feature = "mpi"))]
 /// Generates the complete Rust code for the searchspace.
 ///
 /// Creates the public API that users interact with:
@@ -280,7 +286,7 @@ pub fn py_get_sp_tokens(
     }
 }
 
-#[cfg(all(feature="py", feature="mpi"))]
+#[cfg(all(feature = "py", feature = "mpi"))]
 pub fn pyhpo(input: TokenStream) -> TokenStream {
     let lines = parse_macro_input!(
         input with Punctuated::<LineStream,Token![;]>::parse_terminated
@@ -291,5 +297,12 @@ pub fn pyhpo(input: TokenStream) -> TokenStream {
     let (ident_mixed_obj, ident_mixed_opt, _, push_statements, const_statements, _, _, is_grid) =
         parse_sp(lines).unwrap();
 
-    py_get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, const_statements, is_grid).unwrap()
+    py_get_sp_tokens(
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+        const_statements,
+        is_grid,
+    )
+    .unwrap()
 }

@@ -1,3 +1,4 @@
+use tantale::algos::{GridSearch, grid_search};
 use tantale::{
     algos::grid_search::GSState,
     core::{
@@ -7,11 +8,10 @@ use tantale::{
         stop::Evaluated,
     },
 };
-use tantale::algos::{GridSearch, grid_search};
 
-use crate::init_func::{OutEvaluator, sp_grid_evaluator,sp_grid_evaluator_fid,FidOutEvaluator};
-use crate::run_checker::{run_reader, run_reader_eps};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, OutEvaluator, sp_grid_evaluator, sp_grid_evaluator_fid};
+use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
 fn test_seqrun() {
@@ -92,7 +92,14 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, GridSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        GridSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
 
@@ -112,7 +119,14 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, GridSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        GridSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
     let expstop: &Evaluated = exp.get_stop();
@@ -197,7 +211,14 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, GridSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        GridSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
 
@@ -220,7 +241,14 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, GridSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        threaded,
+        GridSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
     run_reader_eps("tmp_test_gs_fidthrseqrun", 1500, 740);

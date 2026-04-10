@@ -3,8 +3,8 @@ use tantale::core::StepId;
 use tantale::core::checkpointer::messagepack::MPFnStateCheckpointer;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::{
-    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, StepSId, Searchspace, SingleCodomain, Sp,
-    Stepped,
+    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
+    StepSId, Stepped,
     checkpointer::NoFuncStateCheck,
     domain::NoDomain,
     experiment::{
@@ -25,8 +25,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type BBatch =
-    Batch<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>>;
+type BBatch = Batch<
+    StepSId,
+    EmptyInfo,
+    RSInfo,
+    Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+>;
 
 #[test]
 fn test_fidbatchevaluator() {
@@ -576,11 +580,13 @@ fn test_seqfidevaluator() {
         "Opt Id Computed and Partial do not point to the same solutions."
     );
     assert_eq!(
-        raw.0.previous_id(), sobj_bis.0,
+        raw.0.previous_id(),
+        sobj_bis.0,
         "Obj Id Raw and Partial do not point to the same solutions."
     );
     assert_eq!(
-        raw.0.previous_id(), sopt_bis.0,
+        raw.0.previous_id(),
+        sopt_bis.0,
         "Opt Id Raw and Partial do not point to the same solutions."
     );
     eval.update(IntoComputed::extract(comp).0);

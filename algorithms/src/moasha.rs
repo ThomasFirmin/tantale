@@ -20,7 +20,10 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2018)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity, HasId, HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
+    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
+    HasId, HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace,
+    SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
+    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -256,7 +259,8 @@ where
 /// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp, Selector> Optimizer<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
+impl<Out, Scp, Selector>
+    Optimizer<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
 where
     Out: FidOutcome,
@@ -466,7 +470,7 @@ where
             if let Step::Partially(_s) = comp.step() {
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
-                    if i + 1 == 4{
+                    if i + 1 == 4 {
                         println!("STEP : {} {:?} {}", _s, comp.id(), comp.fidelity().0);
                     }
                     self.0.rung[i + 1].push(comp);

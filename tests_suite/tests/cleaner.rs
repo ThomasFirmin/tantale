@@ -1,5 +1,4 @@
-
-pub struct Cleaner ( String );
+pub struct Cleaner(String);
 
 impl Cleaner {
     pub fn new(path: &str) -> Self {

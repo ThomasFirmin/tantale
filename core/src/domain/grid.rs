@@ -302,7 +302,6 @@ impl<T: GridBounds> CSVWritable<(), T> for GridDom<T> {
     }
 }
 
-
 /// [`GridDom`] alias for a list of `f64` elements.
 ///
 /// # Attributes

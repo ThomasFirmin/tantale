@@ -1,13 +1,20 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp, StepSId, Stepped, Uncomputed, domain::{codomain::SingleCodomain, onto::LinkOpt}, experiment::CompAcc, objective::{
+    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp,
+    StepSId, Stepped, Uncomputed,
+    domain::{codomain::SingleCodomain, onto::LinkOpt},
+    experiment::CompAcc,
+    objective::{
         Step,
         outcome::{FuncState, Outcome},
-    }, optimizer::{
+    },
+    optimizer::{
         EmptyInfo, OptState,
         opt::{Optimizer, SequentialOptimizer},
-    }, searchspace::{OptionCompShape, Searchspace}, solution::{
+    },
+    searchspace::{OptionCompShape, Searchspace},
+    solution::{
         HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
-    }
+    },
 };
 
 use serde::{Deserialize, Serialize};
@@ -226,7 +233,11 @@ impl<Out, FnState>
         Out,
         Sp<Grid, NoDomain>,
         Stepped<
-            RawObj<Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>, StepSId, EmptyInfo>,
+            RawObj<
+                Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
+                StepSId,
+                EmptyInfo,
+            >,
             Out,
             FnState,
         >,
@@ -234,8 +245,11 @@ impl<Out, FnState>
 where
     Out: FidOutcome,
     FnState: FuncState,
-    Sp<Grid, NoDomain>:
-        Searchspace<FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, StepSId, EmptyInfo>,
+    Sp<Grid, NoDomain>: Searchspace<
+            FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+            StepSId,
+            EmptyInfo,
+        >,
     <<Sp<Grid, NoDomain> as Searchspace<
         FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
         StepSId,

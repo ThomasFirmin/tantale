@@ -452,7 +452,9 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
                     let mut replicates = { #var_statement }.replicate(#r);
                     variables.append(&mut replicates);
                 });
-                const_statements.push(quote! {pub const #const_name: (usize, usize) = (#prev_repeats, #cum_repeats);});
+                const_statements.push(
+                    quote! {pub const #const_name: (usize, usize) = (#prev_repeats, #cum_repeats);},
+                );
             }
         }
     }
@@ -576,5 +578,12 @@ pub fn hpo(input: TokenStream) -> TokenStream {
     let (ident_mixed_obj, ident_mixed_opt, _, push_statements, const_statements, _, _, is_grid) =
         parse_sp(lines).unwrap();
 
-    get_sp_tokens(ident_mixed_obj, ident_mixed_opt, push_statements, const_statements, is_grid).unwrap()
+    get_sp_tokens(
+        ident_mixed_obj,
+        ident_mixed_opt,
+        push_statements,
+        const_statements,
+        is_grid,
+    )
+    .unwrap()
 }

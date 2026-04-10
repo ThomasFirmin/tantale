@@ -1,13 +1,13 @@
+use tantale::algos::{Asha, asha};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Evaluated,
 };
-use tantale::algos::{Asha, asha};
 
-use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]

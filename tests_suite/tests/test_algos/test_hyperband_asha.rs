@@ -1,13 +1,13 @@
+use tantale::algos::{Asha, Hyperband, asha};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Evaluated,
 };
-use tantale::algos::{Asha, Hyperband, asha};
 
-use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
@@ -38,7 +38,7 @@ fn test_fid_seq_run() {
     let exp = mono((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    // 1000 = 
+    // 1000 =
     // s = 3 : 2 for 1st r (b = 1) + 1 at bmax (1.19) |rung|//1.61 != 0 | [1, 1.19]
     // s = 2 : 2 for 1st r (b = 1) + 1 at bmax (1.92) |rung|//1.61 != 0 | [1, 1.92]
     // s = 1 : 3 for 1st r (b = 1) + 2 for 2nd r (1.61) + 1 at bmax (3.10) |rung|//1.61 != 0 | [1, 1.61, 3.10]
@@ -182,7 +182,11 @@ fn test_fid_seq_parrun() {
     let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader_eps("tmp_test_hyperband_asha_parrun", 1100, num_cpus::get() * 8 * 50);
+    run_reader_eps(
+        "tmp_test_hyperband_asha_parrun",
+        1100,
+        num_cpus::get() * 8 * 50,
+    );
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -259,7 +263,11 @@ fn test_fid_seq_parrun() {
         obj,
         (rec, check)
     );
-    run_reader_eps("tmp_test_hyperband_asha_parrun", 2200, num_cpus::get() * 8 * 50);
+    run_reader_eps(
+        "tmp_test_hyperband_asha_parrun",
+        2200,
+        num_cpus::get() * 8 * 50,
+    );
     let expstop: &Evaluated = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();
     assert!(

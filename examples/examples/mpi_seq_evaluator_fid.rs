@@ -3,7 +3,7 @@ use tantale::algos::RandomSearch;
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::{
-    Codomain, FidelitySol, Mixed, MixedTypeDom, StepSId, Sp, Stepped,
+    Codomain, FidelitySol, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{

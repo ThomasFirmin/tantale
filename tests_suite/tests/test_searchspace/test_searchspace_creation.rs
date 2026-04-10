@@ -1,7 +1,7 @@
 use paste::paste;
 
 use tantale::core::{
-    BaseSol, EmptyInfo, FidelitySol, HasStep, SId, StepSId, Searchspace, Solution, Sp, Step,
+    BaseSol, EmptyInfo, FidelitySol, HasStep, SId, Searchspace, Solution, Sp, Step, StepSId,
     solution::shape::SolutionShape,
 };
 

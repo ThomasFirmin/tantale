@@ -1121,7 +1121,9 @@ where
 #[cfg(not(feature = "mpi"))]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
+        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver,
+        )
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
@@ -1164,7 +1166,9 @@ pub enum PoolMode {
 #[cfg(feature = "mpi")]
 macro_rules! load {
     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>($space, $objective, $saver)
+        $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>(
+            $space, $objective, $saver,
+        )
     };
     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
@@ -1198,7 +1202,16 @@ pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
     TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
 
 /// Type alias for the tuple of components passed to the optimization loop.
-pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = ((Scp, <Op as crate::Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod),Fn,Op,St,(Option<Rec>, Option<Check>));
+pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
+    (
+        Scp,
+        <Op as crate::Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
+    ),
+    Fn,
+    Op,
+    St,
+    (Option<Rec>, Option<Check>),
+);
 
 /// The core trait defining the optimization loop interface.
 ///
@@ -1363,12 +1376,6 @@ where
         saver: (Option<Rec>, Option<Check>),
         pool_mode: PoolMode,
     ) -> Self;
-
-    /// Creates a new experiment from components of an existing one, but with a different [`PoolMode`].
-    fn with_pool(self, pool_mode: PoolMode) -> Self{
-        let (space, objective, optimizer, stop, saver) = self.extract();
-        Self::new_with_pool(space, objective, optimizer, stop, saver, pool_mode)
-    }
 
     /// Runs the optimization loop to completion.
     ///
@@ -1562,12 +1569,6 @@ where
         saver: (Option<Rec>, Option<Check>),
         pool_mode: PoolMode,
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>;
-
-    /// Creates a new experiment from components of an existing one, but with a different [`PoolMode`].
-    fn with_pool(self, proc: &'a MPIProcess, pool_mode: PoolMode) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>{
-        let (space, objective, optimizer, stop, saver) = self.extract();
-        Self::new_with_pool(proc, space, objective, optimizer, stop, saver, pool_mode)
-    }
 
     /// Runs the optimization loop to completion.
     ///

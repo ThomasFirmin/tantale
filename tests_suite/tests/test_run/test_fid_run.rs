@@ -1,16 +1,16 @@
+use tantale::algos::{
+    BatchRandomSearch,
+    random_search::{self, RandomSearch},
+};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{PoolMode, Runable, mono, mono_with_pool, threaded, threaded_with_pool},
     load,
     stop::Calls,
 };
-use tantale::algos::{
-    BatchRandomSearch,
-    random_search::{self, RandomSearch},
-};
 
-use crate::init_func::{sp_evaluator_fid, FidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, sp_evaluator_fid};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]

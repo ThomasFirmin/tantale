@@ -68,7 +68,10 @@
 use std::cell::RefCell;
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer, SingleCodomain, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc, optimizer::opt::BudgetPruner, searchspace::OptionCompShape
+    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
+    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer,
+    SingleCodomain, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
+    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
 };
 
 use rand::{SeedableRng, rngs::StdRng};
@@ -481,7 +484,14 @@ where
             Out,
         >,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<
+            Scp,
+            FidelitySol<StepSId, Scp::Opt, AshaInfo>,
+            StepSId,
+            Self::SInfo,
+            Self::Cod,
+            Out,
+        >,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {

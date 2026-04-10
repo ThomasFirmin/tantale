@@ -1,11 +1,15 @@
 use crate::{
-    Grid, domain::{
+    Grid,
+    domain::{
         Domain, PreDomain, TypeDom,
         bounded::{Bounded, BoundedBounds},
         mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
-    }, errors::OntoError, recorder::csv::CSVWritable, sampler::{BoolDistribution, Sampler}
+    },
+    errors::OntoError,
+    recorder::csv::CSVWritable,
+    sampler::{BoolDistribution, Sampler},
 };
 
 use num::cast::AsPrimitive;

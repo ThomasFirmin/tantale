@@ -254,7 +254,6 @@ impl Hash for SId {
     }
 }
 
-
 /// Simple sequential identifier using a global counter,
 /// and a step counter for [`Stepped`](crate::core::Stepped).
 ///
@@ -296,7 +295,7 @@ impl StepId for StepSId {
     fn id_step(&self) -> usize {
         self.id_step
     }
-    
+
     fn previous_id(&self) -> Self {
         StepSId {
             id: self.id,

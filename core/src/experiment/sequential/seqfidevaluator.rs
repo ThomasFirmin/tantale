@@ -6,7 +6,8 @@ use crate::{
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
     solution::{
-        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed, id::StepId, shape::RawObj
+        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed,
+        id::StepId, shape::RawObj,
     },
     stop::ExpStep,
 };
@@ -173,7 +174,7 @@ where
                 let y = cod.get_elem(&out);
                 pair.set_raw_step(out.get_step());
                 pair.increment();
-                
+
                 let id = pair.id();
                 let new_step = pair.step();
                 match new_step {
@@ -339,7 +340,7 @@ where
                 // No saved state
                 let (out, state) = ob.compute(pair.get_sobj().clone_x(), fid, state);
                 let y = cod.get_elem(&out);
-                
+
                 pair.set_raw_step(out.get_step());
                 pair.increment();
                 let new_step = pair.step();
@@ -570,7 +571,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     priority_discard: &mut PriorityList<Scp::SolShape>,
     priority_resume: &mut PriorityList<Scp::SolShape>,
     stop: &mut St,
-) -> (bool,bool)
+) -> (bool, bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: StepId,
@@ -703,7 +704,9 @@ where
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
         let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();
-        while let Some(a) = iter_idle.next() && !stop_loop {
+        while let Some(a) = iter_idle.next()
+            && !stop_loop
+        {
             let available = a as Rank;
             (stop_loop, _) = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
@@ -743,7 +746,7 @@ where
                 &mut self.priority_resume,
                 stop,
             );
-            
+
             let computed = pair.into_computed(y.into());
             let out = (id, out);
             acc.accumulate(&computed);

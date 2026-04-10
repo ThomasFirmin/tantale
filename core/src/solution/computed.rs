@@ -51,9 +51,13 @@
 //! ```
 
 use crate::{
-    EvalStep, Fidelity, StepId, domain::{Codomain, Domain}, objective::{Outcome, Step}, solution::{
-        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Id, IntoComputed, SolInfo, Solution, Uncomputed
-    }
+    EvalStep, Fidelity, StepId,
+    domain::{Codomain, Domain},
+    objective::{Outcome, Step},
+    solution::{
+        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Id, IntoComputed,
+        SolInfo, Solution, Uncomputed,
+    },
 };
 
 use serde::{Deserialize, Serialize};
@@ -105,17 +109,18 @@ where
     fn id(&self) -> SolId {
         self.sol.id()
     }
-    
+
     fn ref_id(&self) -> &SolId {
         self.sol.ref_id()
     }
-    
+
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.sol.mut_ref_id()
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasStepId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Cod, Out, Info> HasStepId<SolId>
+    for Computed<PSol, SolId, Dom, Cod, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasStepId<SolId> + HasStep,
     Dom: Domain,

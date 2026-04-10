@@ -20,10 +20,15 @@
 //! ```
 
 use crate::{
-    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution, StepId, domain::{
+    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution, StepId,
+    domain::{
         Domain,
         onto::{LinkObj, LinkOpt, Linked},
-    }, objective::Step, solution::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, IntoComputed, Uncomputed}
+    },
+    objective::Step,
+    solution::{
+        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, IntoComputed, Uncomputed,
+    },
 };
 
 use serde::{Deserialize, Serialize};
@@ -172,11 +177,11 @@ where
     fn id(&self) -> SolId {
         self.0.id()
     }
-    
+
     fn ref_id(&self) -> &SolId {
         self.0.ref_id()
     }
-    
+
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.0.mut_ref_id()
     }
@@ -481,11 +486,11 @@ where
     fn id(&self) -> SolId {
         self.0.id()
     }
-    
+
     fn ref_id(&self) -> &SolId {
         self.0.ref_id()
     }
-    
+
     fn mut_ref_id(&mut self) -> &mut SolId {
         self.0.mut_ref_id()
     }

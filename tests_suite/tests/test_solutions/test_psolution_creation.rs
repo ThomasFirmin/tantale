@@ -1,6 +1,6 @@
+use tantale::core::BaseSol;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::solution::{HasId, ParSId, Uncomputed};
-use tantale::core::{BaseSol};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

@@ -26,7 +26,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if !egenerics.params.is_empty() {
         panic!(
             "{:?}",
-            syn::Error::new(egenerics.span(), "Outcome cannot have generics. Please remove any generic parameters from the struct definition.")
+            syn::Error::new(
+                egenerics.span(),
+                "Outcome cannot have generics. Please remove any generic parameters from the struct definition."
+            )
         );
     }
 

@@ -1,19 +1,18 @@
+use tantale::algos::{Sha, sha};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Evaluated,
 };
-use tantale::algos::{Sha, sha};
 
-use crate::init_func::{sp_evaluator_sh, FidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
 use crate::run_checker::run_reader;
 
 #[test]
 fn test_fid_batch_run() {
     let _clean = Cleaner::new("tmp_test_sh_run");
-
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -44,7 +43,10 @@ fn test_fid_batch_run() {
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 200, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.0.iteration, 200,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     exp.run();
@@ -62,7 +64,10 @@ fn test_fid_batch_run() {
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 400, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.0.iteration, 400,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 }
 
@@ -99,7 +104,10 @@ fn test_fid_batch_parrun() {
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 200, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.0.iteration, 200,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 
     exp.run();
@@ -117,6 +125,9 @@ fn test_fid_batch_parrun() {
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
-    assert_eq!(expoptimizer.0.iteration, 400, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.0.iteration, 400,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
 }

@@ -1,6 +1,6 @@
+use tantale::core::BaseSol;
 use tantale::core::domain::TypeDom;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
-use tantale::core::{BaseSol};
 use tantale::core::{ParSId, solution::Uncomputed};
 
 use num::cast::AsPrimitive;

@@ -18,7 +18,8 @@ use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{
-    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed
+    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, Id, IntoComputed, SolInfo, Solution,
+    SolutionShape, Uncomputed,
 };
 use crate::{Codomain, Computed, EvalStep, Outcome, StepId};
 
@@ -105,11 +106,11 @@ where
     fn id(&self) -> SolId {
         self.id
     }
-    
+
     fn ref_id(&self) -> &SolId {
         &self.id
     }
-    
+
     fn mut_ref_id(&mut self) -> &mut SolId {
         &mut self.id
     }
@@ -319,13 +320,13 @@ where
     fn id(&self) -> SolId {
         self.id
     }
-    
+
     fn ref_id(&self) -> &SolId {
         &self.id
     }
-    
+
     fn mut_ref_id(&mut self) -> &mut SolId {
-        &mut self.id    
+        &mut self.id
     }
 }
 

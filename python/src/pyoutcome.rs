@@ -1,9 +1,12 @@
 use std::fmt::{self};
 
+use crate::{
+    PY_OUTCOME_CLASS,
+    pyutils::{pickle_dumps, pickle_loads},
+};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{EvalStep, FidOutcome, Outcome, Step, CSVWritable};  
-use crate::{PY_OUTCOME_CLASS, pyutils::{pickle_dumps, pickle_loads}};
+use tantale_core::{CSVWritable, EvalStep, FidOutcome, Outcome, Step};
 
 /// Python-accessible wrapper for the [`Step`] evaluation state.
 #[pyclass(module = "pytantale", from_py_object)]
@@ -17,18 +20,24 @@ impl PyStep {
     /// Creates a [`Step::Pending`] value.
     #[staticmethod]
     pub fn pending() -> Self {
-        Self { inner: Step::Pending }
+        Self {
+            inner: Step::Pending,
+        }
     }
     /// Creates a [`Step::Evaluated`] value.
     #[staticmethod]
     pub fn evaluated() -> Self {
-        Self { inner: Step::Evaluated }
+        Self {
+            inner: Step::Evaluated,
+        }
     }
     /// Creates a [`Step::Partially`]`(value)` value.
     #[staticmethod]
     pub fn partially(value: isize) -> Self {
         assert!(value > 0, "partial step value must be positive");
-        Self { inner: Step::Partially(value) }
+        Self {
+            inner: Step::Partially(value),
+        }
     }
     /// Creates a [`Step::Error`] value.
     #[staticmethod]
@@ -38,27 +47,32 @@ impl PyStep {
     /// Creates a [`Step::Discard`] value.
     #[staticmethod]
     pub fn discarded() -> Self {
-        Self { inner: Step::Discard }
+        Self {
+            inner: Step::Discard,
+        }
     }
 
     pub fn __str__(&self) -> String {
         format!("{}", self.inner)
     }
 
-    pub fn __reduce__<'py>(&self, py: Python<'py>) -> PyResult<pyo3::Bound<'py, pyo3::types::PyTuple>> {
+    pub fn __reduce__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<pyo3::Bound<'py, pyo3::types::PyTuple>> {
         use pyo3::types::PyTuple;
         let cls = py.get_type::<PyStep>();
         let method_name = match self.inner {
-            Step::Pending      => "pending",
+            Step::Pending => "pending",
             Step::Partially(_) => "partially",
-            Step::Evaluated    => "evaluated",
-            Step::Discard      => "discarded",
-            Step::Error        => "error",
+            Step::Evaluated => "evaluated",
+            Step::Discard => "discarded",
+            Step::Error => "error",
         };
         let method = cls.getattr(method_name)?;
         let args: pyo3::Bound<'py, PyTuple> = match self.inner {
             Step::Partially(v) => PyTuple::new(py, [v])?,
-            _                   => PyTuple::empty(py),
+            _ => PyTuple::empty(py),
         };
         PyTuple::new(py, [method.into_any(), args.into_any()])
     }
@@ -77,7 +91,12 @@ pub struct PyOutcome(pub Py<PyAny>);
 impl fmt::Debug for PyOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Python::attach(|py| {
-            let r = self.0.bind(py).repr().map(|r| r.to_string()).unwrap_or_default();
+            let r = self
+                .0
+                .bind(py)
+                .repr()
+                .map(|r| r.to_string())
+                .unwrap_or_default();
             write!(f, "PyOutcome({r})")
         })
     }
@@ -110,7 +129,8 @@ impl CSVWritable<(), ()> for PyOutcome {
                             .call_method0("csv_header")
                             .and_then(|v| v.extract::<Vec<String>>())
                             .ok()
-                    }).unwrap()
+                    })
+                    .unwrap()
             })
         })
     }
@@ -161,7 +181,12 @@ pub struct PyFidOutcome(pub Py<PyAny>);
 impl fmt::Debug for PyFidOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Python::attach(|py| {
-            let r = self.0.bind(py).repr().map(|r| r.to_string()).unwrap_or_default();
+            let r = self
+                .0
+                .bind(py)
+                .repr()
+                .map(|r| r.to_string())
+                .unwrap_or_default();
             write!(f, "PyFidOutcome({r})")
         })
     }
@@ -196,7 +221,8 @@ impl CSVWritable<(), ()> for PyFidOutcome {
                             .call_method0("csv_header")
                             .and_then(|v| v.extract::<Vec<String>>())
                             .ok()
-                    }).unwrap()
+                    })
+                    .unwrap()
             })
         })
     }

@@ -8,14 +8,12 @@ class State:
         import pickle, os
         with open(os.path.join(path, "state_counter.pkl"), "wb") as f:
             pickle.dump(self.counter, f)
-        print(f"Saved state with counter={self.counter}")
     @staticmethod
     def load(path : str):
         import pickle, os
         with open(os.path.join(path, "state_counter.pkl"), "rb") as f:
             counter = pickle.load(f)
         state = State(counter)
-        print(f"Loaded state with counter={state.counter}")
         return state
     
     def __str__(self):
@@ -50,8 +48,6 @@ def objective(x: list, fid: float, state : State | None) -> tuple[MyOutcome, Sta
     obj2 = c + d
     info = 42
     state.counter += 1
-    if fid == 5 :
-        print(f"Fidelity {fid} reached at counter {state.counter}, marking as evaluated")
     step = tnt.PyStep.evaluated() if fid == 5 else tnt.PyStep.partially(state.counter)
     
     return (MyOutcome(obj1, obj2, info, step), state)

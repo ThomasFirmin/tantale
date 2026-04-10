@@ -1,3 +1,4 @@
+use tantale::algos::{MoAsha, moasha};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
@@ -7,10 +8,9 @@ use tantale::{
         stop::Calls,
     },
 };
-use tantale::algos::{MoAsha, moasha};
 
-use crate::init_func::{sp_evaluator_mo, MoFidOutEvaluator};
 use crate::cleaner::Cleaner;
+use crate::init_func::{MoFidOutEvaluator, sp_evaluator_mo};
 use crate::run_checker::run_reader_eps;
 
 #[test]

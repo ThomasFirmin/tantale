@@ -35,7 +35,8 @@ fn load_from_path<SolId: Id, FnState: FuncState>(
     let path_id = &path.join(Path::new(&"id.mp"));
     if path_id.exists() {
         let rdr = File::open(path_id).map_err(|e| CheckpointError(e.to_string()))?;
-        let id_loaded: SolId = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?;
+        let id_loaded: SolId =
+            rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?;
         let fn_state = FnState::load(path).map_err(|e| CheckpointError(e.to_string()))?;
         Ok((id_loaded, fn_state))
     } else {
@@ -314,8 +315,12 @@ impl MonoCheckpointer for MessagePack {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_stop.is_file() {
-                let rdr = File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Stop` file state_stop.mp does not exists.",
@@ -333,8 +338,12 @@ impl MonoCheckpointer for MessagePack {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_optim.is_file() {
-                let rdr = File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Optimizer` file state_optim.mp does not exists.",
@@ -351,8 +360,12 @@ impl MonoCheckpointer for MessagePack {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_eval.is_file() {
-                let rdr = File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Evaluate` file state_eval.mp does not exists.",
@@ -370,8 +383,12 @@ impl MonoCheckpointer for MessagePack {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_config.is_file() {
-                let rdr = File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Config` file state_config.mp does not exists.",
@@ -410,7 +427,10 @@ impl MonoCheckpointer for MessagePack {
         if self.config.path_check.try_exists().unwrap() {
             if self.path_acc.is_file() {
                 let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Accumulator` file state_acc.mp does not exists.",
@@ -591,10 +611,19 @@ impl ThrCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
     fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_stop.is_file() {
-                let rdr = File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Stop` file state_stop.mp does not exists.",
@@ -610,10 +639,19 @@ impl ThrCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
     fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_optim.is_file() {
-                let rdr = File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Optimizer` file state_optim.mp does not exists.",
@@ -629,10 +667,19 @@ impl ThrCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_config.is_file() {
-                let rdr = File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Config` file state_config.mp does not exists.",
@@ -647,8 +694,15 @@ impl ThrCheckpointer for MessagePack {
 
     fn load_all_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
         let mut vec_eval = Vec::new();
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
-            for entry in std::fs::read_dir(&self.config.path_check).map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
+            for entry in std::fs::read_dir(&self.config.path_check)
+                .map_err(|e| CheckpointError(e.to_string()))?
+            {
                 let entry = entry.map_err(|e| CheckpointError(e.to_string()))?;
                 let path = entry.path();
                 if path.is_file()
@@ -660,7 +714,8 @@ impl ThrCheckpointer for MessagePack {
                         .starts_with("state_eval_")
                 {
                     let rdr = File::open(&path).map_err(|e| CheckpointError(e.to_string()))?;
-                    let eval: Eval = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?;
+                    let eval: Eval = rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?;
                     vec_eval.push(eval);
                 }
             }
@@ -695,10 +750,18 @@ impl ThrCheckpointer for MessagePack {
         Out: Outcome,
     {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_acc.is_file() {
                 let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Accumulator` file state_acc.mp does not exists.",
@@ -882,10 +945,19 @@ impl DistCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
     fn load_stop_dist<St: Stop>(&self, _rank: Rank) -> Result<St, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_stop.is_file() {
-                let rdr = File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Stop` file state_stop.mp does not exists.",
@@ -904,10 +976,19 @@ impl DistCheckpointer for MessagePack {
         _rank: Rank,
     ) -> Result<OState, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_optim.is_file() {
-                let rdr = File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Optimizer` file state_optim.mp does not exists.",
@@ -923,10 +1004,19 @@ impl DistCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
     fn load_evaluate_dist<Eval: Evaluate>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_eval.is_file() {
-                let rdr = File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Evaluate` file state_eval.mp does not exists.",
@@ -942,10 +1032,19 @@ impl DistCheckpointer for MessagePack {
     /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
     fn load_parameters_dist(&self, _rank: Rank) -> Result<GlobalParameters, CheckpointError> {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_config.is_file() {
-                let rdr = File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                let rdr =
+                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Config` file state_config.mp does not exists.",
@@ -989,10 +1088,18 @@ impl DistCheckpointer for MessagePack {
         Out: Outcome,
     {
         // Check if file exist
-        if self.config.path_check.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .config
+            .path_check
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             if self.path_acc.is_file() {
                 let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+                Ok(
+                    rmp_serde::decode::from_read(rdr)
+                        .map_err(|e| CheckpointError(e.to_string()))?,
+                )
             } else {
                 Err(CheckpointError(String::from(
                     "The `Accumulator` file state_acc.mp does not exists.",
@@ -1087,7 +1194,11 @@ impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
     /// Loads a checkpoint from an already saved [`WorkerState`], according to a [`FolderConfig`].
     fn load(&self, _rank: Rank) -> Result<WState, CheckpointError> {
         // Check if file exist
-        if self.0.try_exists().map_err(|e| CheckpointError(e.to_string()))? {
+        if self
+            .0
+            .try_exists()
+            .map_err(|e| CheckpointError(e.to_string()))?
+        {
             let rdr = File::open(&self.0).map_err(|e| CheckpointError(e.to_string()))?;
             Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
         } else {
