@@ -44,7 +44,7 @@ See [`Onto`](crate::core::Onto) for more details on the mapping between optimize
 
 ```rust
 mod searchspace {
-    use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
     use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
 
@@ -107,7 +107,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 
 ```rust
 # mod searchspace {
-#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -148,7 +148,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 #     }
 # }
 
-use tantale::crate::core::{
+use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
     HasY, Solution, SolutionShape,
@@ -186,7 +186,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 
 ```rust
 # mod searchspace {
-#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -227,7 +227,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 #     }
 # }
 # 
-# use tantale::crate::core::{
+# use tantale::core::{
 #     CSVRecorder, FolderConfig, MessagePack,
 #     experiment::{Runable, threaded}, stop::Calls,
 #     HasY, Solution, SolutionShape,
@@ -272,7 +272,7 @@ foo@bar:~$ cargo add tantale --features mpi
 
 ```rust,ignore
 # mod searchspace {
-#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -313,7 +313,7 @@ foo@bar:~$ cargo add tantale --features mpi
 #     }
 # }
 # 
-use tantale::crate::core::{
+use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
     experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
     HasY, Solution, SolutionShape,
