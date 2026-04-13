@@ -262,10 +262,11 @@ For example `dropout | Unit(Uniform) |` > `indices.DROPOUT`.
 Moreover, Tantale consider two types of function:
 * [`Objective`](crate::core::Objective): With function like `f(x : Arc<[SOLUTION TYPE]>) -> Outcome`, for single step evaluations
 * [`Stepped`](crate::core::Stepped): With function like `f(x : Arc<[SOLUTION TYPE]>, fidelity : f64, state: Option<State>) -> (Outcome, State)`, for multi-step evaluations.
+
 In our case we want to perform a multi-fidelity optimization with a solution evaluated by step, with a given budget.
 The hyperparameters are retrieved with `x[idx.HIDDEN_SIZE1]`.
 So the python function is defined as:
-```python
+```python,ignore
 def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, State]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     target_epoch = int(fid)
@@ -340,9 +341,9 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
 
     state.current_epoch = target_epoch
 
-    # If input fidelity and current epoch are greater or equal
+    # If input fidelity or current epoch are greater or equal
     # to MAX_EPOCHS, then consider the solution as Evaluated
-    if (fid >= MAX_EPOCHS) and (target_epoch >= MAX_EPOCHS):
+    if (fid >= MAX_EPOCHS) or (target_epoch >= MAX_EPOCHS):
         step = tnt.PyStep.evaluated()
     else: # Otherwise, it is partially evaluated
         step = tnt.PyStep.partially(target_epoch)
@@ -375,8 +376,7 @@ We want to optimize 8 hyperparameters:
 - The batch size
 - The learning rate
 
-```rust,ignore
-
+```rust,no_run
 use tantale::core::{domain::{Cat, Nat, Real, Unit},sampler::Uniform};
 use tantale::macros::pyhpo;
 
@@ -394,10 +394,15 @@ pyhpo!{
 
 ### Notes
 
-The macros creates:
+The macro creates:
 * The `pytantale` module exposed to Python
   * it contains [`PyStep`](crate::python::PyStep), the Python equivalent of [`Step`](crate::core::Step).
   * the `indices` Python exposed submodule, containing hyperparameters' uppercased named constants of their corresponding indices within the solution.
+    E.g.:
+    ```python,ignore
+    from pytantale import indices as idx
+    hidden_size1_index = idx.HIDDEN_SIZE1
+    ```
   * the `extra` Python exposed submodule, containing additionnal Python functions such has `mpi_rank()` or `mpi_size()`.
 * The searchspace as in the [`hpo!`](crate::macros::hpo) macro.
 
@@ -465,8 +470,8 @@ fn main() {
     // Define the codomain, i.e. what to optimize
     let cod = moasha::codomain(
         [
-            |o: &Output| o.test_accuracy as f64, // <---- Maximize accuracy
-            |o: &Output| -o.parameters,  // <----- Minimize parameters
+            |o: &PyFidOutcome| o.getattr_f64("test_accuracy"), // <---- Maximize accuracy
+            |o: &PyFidOutcome| -o.getattr_f64("parameters"), // <----- Minimize parameters
         ].into()
     );
     let stop = Calls::new(1000); // <---- Define a stopping criterion, i.e. 1000 calls to the user-defined `run` function
@@ -496,6 +501,10 @@ fn main() {
     }
 }
 ```
+
+# Notes
+
+Notice that the codomain extracts information from a [`PyFidOutcome`](crate::python::PyFidOutcome), using the [`.getattr_f64`](crate::python::PyFidOutcome::getattr_f64) method.
 
 # Compilation and execution
 

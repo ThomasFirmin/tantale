@@ -1,7 +1,7 @@
 # Random search on a mock function
 
-In this tutorial we quickly implement a [`RandomSearch`](algos::RandomSearch) for a mock function.
-See [Quick Start](crate::QuickStart) for in-depth explanation.
+In this tutorial we quickly implement a [`RandomSearch`](crate::algos::RandomSearch) for a mock function.
+See [Quick Start](crate::docs::QuickStart) for in-depth explanation.
 
 ## Defining the searchspace
 

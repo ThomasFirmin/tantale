@@ -2,49 +2,49 @@
 
 We consider a **maximization** problem defined by:
 $$ x^\star \in \arg\max_{x \in \mathcal{X}} f(x) \enspace,$$
-where $x^\star$ is the optimal [`Solution`](core::Solution), $\mathcal{X}$ is the [`Searchspace`](core::Searchspace), 
-and $f$ is the [`Objective`](core::Objective).
+where $x^\star$ is the optimal [`Solution`](crate::core::Solution), $\mathcal{X}$ is the [`Searchspace`](crate::core::Searchspace), 
+and $f$ is the [`Objective`](crate::core::Objective).
 
 The objective function $f$ can be written as:
 $$ f: \mathcal{X} \to \mathcal{O} \enspace,$$
-where $\mathcal{O}$ is the [`Outcome`](core::Outcome) such that $\mathcal{Y} \subseteq \mathcal{O}$. With $\mathcal{Y}$ the [`Codomain`](core::Codomain) of the optimization problem.
-We differentiate the [`Outcome`](core::Outcome) containing extra information/meta-data, and the [`Codomain`](core::Codomain) containing only the metrics to optimize, constraints, costs...
+where $\mathcal{O}$ is the [`Outcome`](crate::core::Outcome) such that $\mathcal{Y} \subseteq \mathcal{O}$. With $\mathcal{Y}$ the [`Codomain`](crate::core::Codomain) of the optimization problem.
+We differentiate the [`Outcome`](crate::core::Outcome) containing extra information/meta-data, and the [`Codomain`](crate::core::Codomain) containing only the metrics to optimize, constraints, costs...
 
-To reach this optimal solution $x^\star$, or at least a good solution, we need an [`Optimizer`](core::Optimizer) generating candidate solutions in the search space $\mathcal{X}$.
+To reach this optimal solution $x^\star$, or at least a good solution, we need an [`Optimizer`](crate::core::Optimizer) generating candidate solutions in the search space $\mathcal{X}$.
 
 ## Define the objective function within a separate module
 
-The [`objective!`] macro allows to define an objective function and its search space together.
+The [`objective!`](crate::macros::objective) macro allows to define an objective function and its search space together.
 The searchspace is defined by `[ name | ObjectiveDomain | OptimizerDomain ]`.
 
-See [`hpo!`] macro for more details on the syntax of the search space definition.
+See [`hpo!`](crate::macros::hpo) macro for more details on the syntax of the search space definition.
 
 Then, the macro automatically extract the search space from the function body and generate the necessary types and helper functions for optimization.
 It must be called within a separate module/file. Here for example, we define an objective function `example` in a module `searchspace`:
 
 The procedural macro generate the following items:
 - `example::get_searchspace()`: returns a `Searchspace` object containing all variables defined in the function body.
-- `example::get_function()`: returns the user-defined function wrapped in an [`Objective`](core::Objective) or [`Stepped`](core::Stepped) object.
-Here `example` is wrapped in an [`Objective`](core::Objective).
+- `example::get_function()`: returns the user-defined function wrapped in an [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped) object.
+Here `example` is wrapped in an [`Objective`](crate::core::Objective).
 - `example::ObjType`: the type of the solution used in the objective function.
-Here the [`Searchspace`](core::Searchspace) is made of 4 variables of different types 
-([`Real`](core::Real), [`Int`](core::Int), [`Cat`](core::Cat), [`Bool`](core::Bool) ,[`Unit`](core::Unit)).
-So the domain of the objective function is of mixed types, and `example::ObjType` is an alias for [`Mixed`](core::Mixed).
+Here the [`Searchspace`](crate::core::Searchspace) is made of 4 variables of different types 
+([`Real`](crate::core::Real), [`Int`](crate::core::Int), [`Cat`](crate::core::Cat), [`Bool`](crate::core::Bool) ,[`Unit`](crate::core::Unit)).
+So the domain of the objective function is of mixed types, and `example::ObjType` is an alias for [`Mixed`](crate::core::Mixed).
 - `example::OptType`: the type of the search space used for optimization.
-Here the right-hand side of the variable definitions are empty (replaced by a [`NoDomain`](core::NoDomain) under the hood).
+Here the right-hand side of the variable definitions are empty (replaced by a [`NoDomain`](crate::core::NoDomain) under the hood).
 This indicate that the optimizer will search over the domain of the objective function (left-hand side of the variable definitions).
-So the domain of the optimizer is the same as the domain of the objective function, and `example::OptType` is an alias for `example::ObjType` (which is [`Mixed`](core::Mixed)).
+So the domain of the optimizer is the same as the domain of the objective function, and `example::OptType` is an alias for `example::ObjType` (which is [`Mixed`](crate::core::Mixed)).
 
 ### Mapping between objective and optimizer domains
 
 The previous `Obj`-`Opt` dual definition allows to have the hand on the objective and optimizer domains without any hidden relaxation.
-See [`Onto`](core::Onto) for more details on the mapping between optimizer and objective domains.
+See [`Onto`](crate::core::Onto) for more details on the mapping between optimizer and objective domains.
 
 ### Example
 
 ```rust
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+    use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
     use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
 
@@ -79,35 +79,35 @@ mod searchspace {
 ## Define the optimization loop
 
 An optimization experiment is made of 7 components:
-- A [`FuncWrapper`](core::FuncWrapper): [`Objective`](core::Objective) or [`Stepped`](core::Stepped).
+- A [`FuncWrapper`](crate::core::FuncWrapper): [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped).
 It contains the function to optimize.
-- A [`Searchspace`](core::Searchspace): it contains the variables [`Var`](core::Var) and their domains.
-- A [`Codomain`](core::Codomain): it extracts the different metrics from an [`Outcome`](core::Outcome), which will be optimized.
-* A [`Codomain`](core::Codomain) defines [`Single`](core::Single)-objective, [`Constrained`](core::Constrained), [`Multi`](core::Multi)-objective, [`Cost`](core::Cost)-aware optimization problems.
-- An [`Optimizer`](core::Optimizer): defines a single step of the optimization process.
+- A [`Searchspace`](crate::core::Searchspace): it contains the variables [`Var`](crate::core::Var) and their domains.
+- A [`Codomain`](crate::core::Codomain): it extracts the different metrics from an [`Outcome`](crate::core::Outcome), which will be optimized.
+* A [`Codomain`](crate::core::Codomain) defines [`Single`](crate::core::Single)-objective, [`Constrained`](crate::core::Constrained), [`Multi`](crate::core::Multi)-objective, [`Cost`](crate::core::Cost)-aware optimization problems.
+- An [`Optimizer`](crate::core::Optimizer): defines a single step of the optimization process.
 We distinguish between 2 types of optimizers:
-* [`BatchOptimizer`](core::BatchOptimizer): generates a [`Batch`](core::Batch) of solutions at each optimization step.
-* [`SequentialOptimizer`](core::SequentialOptimizer): generates a single solution at each optimization step.
-- A [`Stop`](core::Stop): defines the stopping criterion of the optimization process.
-- Optional [`Recorder`](core::Recorder): defines how to log the optimization process.
-- Optional [`Checkpointer`](core::Checkpointer): defines how to checkpoint the optimization process.
+* [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
+* [`SequentialOptimizer`](crate::core::SequentialOptimizer): generates a single solution at each optimization step.
+- A [`Stop`](crate::core::Stop): defines the stopping criterion of the optimization process.
+- Optional [`Recorder`](crate::core::Recorder): defines how to log the optimization process.
+- Optional [`Checkpointer`](crate::core::Checkpointer): defines how to checkpoint the optimization process.
 
 These 7 components are then assembled together in an optimization loop using different execution strategies:
-- Mono-threaded - [`mono`](core::mono): for mono-threaded execution.
-- Multi-threaded - [`threaded`](core::threaded): for multi-threaded execution on a single machine. 
-- Distributed - [`distributed`](core::distributed): for MPI-distributed execution on multiple machines.
+- Mono-threaded - [`mono`](crate::core::mono): for mono-threaded execution.
+- Multi-threaded - [`threaded`](crate::core::threaded): for multi-threaded execution on a single machine. 
+- Distributed - [`distributed`](crate::core::distributed): for MPI-distributed execution on multiple machines.
 
 ### Parallelization 
-The parallelization philosophy is defined by the optimizer and by the user via [`mono`](core::mono), [`threaded`](core::threaded) or [`distributed`](core::distributed):
-* Synchronous: For [`BatchOptimizer`](core::BatchOptimizer) where [`Batch`](core::Batch)es of solutions are evaluated in parallel, but the optimization steps are executed sequentially.
-* Asynchronous: For [`SequentialOptimizer`](core::SequentialOptimizer) where the optimizer generates on-demand new solutions as soon as one thread is free.
-* Hybrid **(not yet implemented)**: For [`HybridOptimizer`](core::HybridOptimizer) where the optimizer can generate [`Batch`](core::Batch)es of solutions on demand and of variable sizes.
+The parallelization philosophy is defined by the optimizer and by the user via [`mono`](crate::core::mono), [`threaded`](crate::core::threaded) or [`distributed`](crate::core::distributed):
+* Synchronous: For [`BatchOptimizer`](crate::core::BatchOptimizer) where [`Batch`](crate::core::Batch)es of solutions are evaluated in parallel, but the optimization steps are executed sequentially.
+* Asynchronous: For [`SequentialOptimizer`](crate::core::SequentialOptimizer) where the optimizer generates on-demand new solutions as soon as one thread is free.
+<!-- * Hybrid **(not yet implemented)**: For [`HybridOptimizer`](crate::core::HybridOptimizer) where the optimizer can generate [`Batch`](crate::core::Batch)es of solutions on demand and of variable sizes. -->
 
 ### Example
 
 ```rust
 # mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -148,7 +148,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 #     }
 # }
 
-use tantale::core::{
+use tantale::crate::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
     HasY, Solution, SolutionShape,
@@ -186,7 +186,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 
 ```rust
 # mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -227,7 +227,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 #     }
 # }
 # 
-# use tantale::core::{
+# use tantale::crate::core::{
 #     CSVRecorder, FolderConfig, MessagePack,
 #     experiment::{Runable, threaded}, stop::Calls,
 #     HasY, Solution, SolutionShape,
@@ -270,9 +270,9 @@ Then you can add `tantale` with the feature `mpi` to your project:
 foo@bar:~$ cargo add tantale --features mpi
 ```
 
-```rust,ignore
+```rust,no_run
 # mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
+#     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
 # 
@@ -313,7 +313,7 @@ foo@bar:~$ cargo add tantale --features mpi
 #     }
 # }
 # 
-use tantale::core::{
+use tantale::crate::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
     experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
     HasY, Solution, SolutionShape,
@@ -363,16 +363,16 @@ foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
 
 ### Managing in-memory function states for multi-fidelity optimization
 
-For multi-fidelity optimization, [`Stepped`](core::Stepped) functions are used. Such a mode implies managing [`FuncState`](core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](core::Pool) of [`FuncState`](core::FuncState) is dedicated to retrieve and remove these states. 
-In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](core::FuncState)s from volatile or persitent memory using [`PoolMode`](core::PoolMode). To do so alternative experiment constructor and loader functions are available:
-```rust,ignore
+For multi-fidelity optimization, [`Stepped`](crate::core::Stepped) functions are used. Such a mode implies managing [`FuncState`](crate::core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](crate::core::Pool) of [`FuncState`](crate::core::FuncState) is dedicated to retrieve and remove these states. 
+In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](crate::core::FuncState)s from volatile or persitent memory using [`PoolMode`](crate::core::PoolMode). To do so alternative experiment constructor and loader functions are available:
+```rust,no_run
 let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 // When the `mpi` feature flag is used
 let exp = distributed_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 ```
 Moreover, the `load!` macro also has alternative mode:
-```rust,ignore
+```rust,no_run
 load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
 load!(threaded, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
 // When the `mpi` feature flag is used
@@ -381,4 +381,4 @@ load!(distributed, PoolMode::Persistent, mpi_proc, OptimizerType, StopType, spac
 
 #### Note
 
-By default [`PoolMode::InMemory`](core::PoolMode::InMemory) is used to keep [`FuncState`](core::FuncState) within the volatile memory.
+By default [`PoolMode::InMemory`](crate::core::PoolMode::InMemory) is used to keep [`FuncState`](crate::core::FuncState) within the volatile memory.

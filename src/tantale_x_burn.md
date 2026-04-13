@@ -85,7 +85,7 @@ foo@bar:~$ cargo add burn --features train vision fusion cuda
 
 First we define the dataset, as described within the [Burn book](https://burn.dev/books/burn/basic-workflow/data.html).
 
-```rust,ignore
+```rust,no_run
 #[derive(Clone, Default)]
 pub struct MnistBatcher{}
 
@@ -123,7 +123,7 @@ impl <B:Backend> Batcher<B, MnistItem, MnistBatch<B>> for MnistBatcher {
 We consider a simple 2 hidden layers feed-forward neural network.
 We want to optimize the activation function, via a [`Cat`](crate::core::Cat); this explain the use of `Activation`.
 From the [Burn book](https://burn.dev/books/burn/basic-workflow/model.html) we consider the following code:
-```rust,ignore
+```rust,no_run
 
 #[derive(Module, Debug)]
 pub struct MyModel<B: Backend>{
@@ -180,7 +180,7 @@ impl MyModelConfig{
 
 ### Forward path: `model.rs`
 
-```rust,ignore
+```rust,no_run
 impl<B: Backend> MyModel<B>{
     pub fn forward(&self, images: Tensor<B,3>) -> Tensor<B,2>{
 
@@ -234,7 +234,7 @@ impl<B: Backend> InferenceStep for MyModel<B> {
 
 We include the `corrects` function, counting the number of correct predictions.
 
-```rust,ignore
+```rust,no_run
 #[derive(Config, Debug)]
 pub struct TrainingConfig {
     pub model: MyModelConfig,
@@ -269,7 +269,7 @@ To resume the evaluation, we need to remember the previous step.
 ### Outcome
 
 First we define the [`Outcome`](crate::core::Outcome), describing the output of the function to optimize:
-```rust,ignore
+```rust,no_run
 #[derive(Outcome, CSVWritable, Serialize, Deserialize, Debug)]
 pub struct Output {
     pub train_accuracy: f32,
@@ -284,7 +284,7 @@ pub struct Output {
 
 #### Notes
 To use this with a [`threaded`](crate::core::threaded) experiment, the `Output` has to be `Send` and `Sync`:
-```rust,ignore
+```rust,no_run
 unsafe impl Send for Output {}
 unsafe impl Sync for Output {}
 ```
@@ -293,7 +293,7 @@ unsafe impl Sync for Output {}
 
 Secondly, we define the [`FuncState`](crate::core::FuncState) containing the current state of the evaluation (e.g. weights, biases, current epoch...):
 
-```rust,ignore
+```rust,no_run
 pub struct ModelState<B: Backend> {
     pub config: TrainingConfig,
     pub model: MyModel<B>,
@@ -302,7 +302,7 @@ pub struct ModelState<B: Backend> {
 
 Then, we can implement the [`FuncState`](crate::core::FuncState) trait to `ModelState`. 
 The methods `save` and `load` take a folder path as parameter, within this folder, we will save everything necessary to build the `ModelState` from a checkpoint:
-```rust,ignore
+```rust,no_run
 impl<B: Backend> FuncState for ModelState<B> {
     fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
         let recorder = CompactRecorder::new();
@@ -337,7 +337,7 @@ impl<B: Backend> FuncState for ModelState<B> {
 
 #### Notes
 To use this with a [`threaded`](crate::core::threaded) experiment, the `ModelState` has to be `Send` and `Sync`:
-```rust,ignore
+```rust,no_run
 unsafe impl<B: Backend> Send for ModelState<B> {}
 unsafe impl<B: Backend> Sync for ModelState<B> {}
 ```
@@ -371,8 +371,8 @@ To enable the [`Stepped`](crate::core::Stepped), the `Output` must contain a `St
 should be a tuple made of `(Outcome`, `FuncState)`, here `(Output, ModelState<Autodiff<B>>)`.
 
 The parameters are populated later by the macro with input objective side solution, fidelity, and function state.
-```rust,ignore
-pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) {
+```rust,no_run
+pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) { ... }
 ```
 
 #### Next step
@@ -380,7 +380,7 @@ pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) {
 The `next_step`, defines the maximum number of epoch allowed for the current evaluation step.
 For example, MO-ASHA orders to resume an already partially evaluated solution, from epoch 4 to epoch 8.
 
-```rust,ignore
+```rust,no_run
 let next_step = fidelity as usize;
 ```
 
@@ -388,7 +388,7 @@ let next_step = fidelity as usize;
 
 We destinguish 3 cases:
 - `state` contains a `ModelState`: We load the previous function state to the device a resume evaluation:
-```rust,ignore
+```rust,no_run
 Some(s) => (s.config, s.model.to_device(&device)),
 ```
 - `state` is `None`:
@@ -397,12 +397,12 @@ Some(s) => (s.config, s.model.to_device(&device)),
 
 In the latter case, we create a new `MyModel` conjointly with some parts of the searchspace (hyperparameter to optimize).
 These hyperparameter are defined within a specific syntax. For instance: `[! hidden1 | Nat(10,1000, Uniform) | !]`
-described the number neurons within the first hidden layer. It is a natural hyperparameter named `hidden1` within the range $[10;1000]$, and sampled
+described the number neurons within the first hidden layer. It is a natural hyperparameter named `hidden1` within the range $\[10;1000\]$, and sampled
 using a `Uniform` law. MO-ASHA is independent of the type of the domains. It only requires them to be samplable.
 Therefore, there is no need to define an optimizer part.
 For example, for an optimizer only working within a unit hypercube, `[! hidden1 | Nat(10,1000, Uniform) | Unit(Uniform) !]` defining a Nat to Unit and Unit to Nat mapping.
 
-```rust,ignore
+```rust,no_run
 None => {
             let config_model = MyModelConfig::new(
                 10, 
@@ -426,7 +426,7 @@ None => {
 #### Current state recovery
 
 We the retrieve the current epoch previously saved within the function state:
-```rust,ignore
+```rust,no_run
 let step = config.current_epoch;
 ```
 
@@ -446,7 +446,7 @@ In case of error we could also return [`Step::Error`](crate::core::Step::Error).
 
 Finally we create the `Output` defined earlier, and return the `ModelState` containing updated weights and bisases:
 
-```rust,ignore
+```rust,no_run
 config.current_epoch = next_step;
 let step = if next_step >= config.num_epochs {
     Step::Evaluated
@@ -469,13 +469,12 @@ let step = if next_step >= config.num_epochs {
         model: model.clone(),
     }
 )
-}
 ```
 
 
 #### Full objective! code
 
-```rust,ignore
+```rust,no_run
 objective!{
     pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) {
         let state = [! STATE !];
@@ -610,7 +609,7 @@ Now that the neural networks and searchspace are defined we can use these within
 This file contains the definition of the experiment itself:
 
 #[allow(clippy::needless_doctest_main)]
-```rust,ignore
+```rust,no_run
 // Where we jointly defined the function to optimize
 // and searchspace
 pub mod searchspace;

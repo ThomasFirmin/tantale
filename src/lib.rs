@@ -7,22 +7,23 @@
 //! Tantale is a library dedicated to AutoML containing utilitaries to build search spaces, objective functions, algorithms, and parallelization. It is a core library with very few algorithms.
 //!
 //! ## Tutorials
-//! * [Quick start](QuickStart)
-//! * [Random Search example](RSExample)
-//! * [Grid Search example](GSExample)
-//! * [Multi-fidelity, Multi-objective optimization with MO-ASHA](MOExample)
-//! * [Tantale $\times$ Burn](TantaleBurnExample)
+//! * [Quick start](crate::docs::QuickStart)
+//! * [Random Search example](crate::docs::RSExample)
+//! * [Grid Search example](crate::docs::GSExample)
+//! * [Multi-fidelity, Multi-objective optimization with MO-ASHA](crate::docs::MOExample)
+//! * [Tantale $\times$ Burn](crate::docs::TantaleBurnExample)
+//! * [PyTorch $\times$ Burn](crate::docs::TantalePyTorchExample)
 //!
 //! ## Advanced guides
-//! * [Create your batched optimizer](CreateBatchOptimizer)
-//! * [Create your sequential optimizer](CreateSequentialOptimizer)
-//! * [Create your domain](CreateDomain) (Coming soon)
-//! * [Create your search space](CreateSearchSpace) (Coming soon)
-//! * [Create your solution](CreateSolution) (Coming soon)
-//! * [Create your experiment](CreateExperiment) (Coming soon)
-//! * [Create your stop criterion](CreateStopCriterion) (Coming soon)
-//! * [Create your recorder](CreateRecorder) (Coming soon)
-//! * [Create your checkpointer](CreateCheckpointer) (Coming soon)
+//! * [Create your batched optimizer](crate::docs::CreateBatchOptimizer)
+//! * [Create your sequential optimizer](crate::docs::CreateSequentialOptimizer)
+//! * [Create your domain](crate::docs::CreateDomain) (Coming soon)
+//! * [Create your search space](crate::docs::CreateSearchSpace) (Coming soon)
+//! * [Create your solution](crate::docs::CreateSolution) (Coming soon)
+//! * [Create your experiment](crate::docs::CreateExperiment) (Coming soon)
+//! * [Create your stop criterion](crate::docs::CreateStopCriterion) (Coming soon)
+//! * [Create your recorder](crate::docs::CreateRecorder) (Coming soon)
+//! * [Create your checkpointer](crate::docs::CreateCheckpointer) (Coming soon)
 //!
 //! # Notes on future releases
 //!
@@ -56,8 +57,8 @@
 //! For now checkpointing is only possible using the MessagePack format, but the library is designed to be flexible and extensible enough to also handle other formats.
 //! **More checkpointing strategies are planned for a future release.**
 
-#[doc(hidden)]
-pub mod _docs {
+pub mod docs {
+    //! This module is used to include the documentation for the tutorials and advanced guides in the crate-level documentation.
     #[doc = include_str!("quick_start.md")]
     #[allow(non_snake_case)]
     pub mod QuickStart {}
@@ -66,7 +67,7 @@ pub mod _docs {
     pub mod CreateBatchOptimizer {}
     #[doc = include_str!("create_seq_optimizer.md")]
     #[allow(non_snake_case)]
-    pub mod create_sequential_optimizer {}
+    pub mod CreateSequentialOptimizer {}
     #[doc = include_str!("create_domain.md")]
     #[allow(non_snake_case)]
     pub mod CreateDomain {}
