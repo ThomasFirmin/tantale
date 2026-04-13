@@ -270,7 +270,7 @@ Then you can add `tantale` with the feature `mpi` to your project:
 foo@bar:~$ cargo add tantale --features mpi
 ```
 
-```rust,no_run
+```rust,ignore
 # mod searchspace {
 #     use tantale::crate::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
 #     use tantale::macros::{objective, Outcome, CSVWritable};
@@ -365,14 +365,14 @@ foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
 
 For multi-fidelity optimization, [`Stepped`](crate::core::Stepped) functions are used. Such a mode implies managing [`FuncState`](crate::core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](crate::core::Pool) of [`FuncState`](crate::core::FuncState) is dedicated to retrieve and remove these states. 
 In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](crate::core::FuncState)s from volatile or persitent memory using [`PoolMode`](crate::core::PoolMode). To do so alternative experiment constructor and loader functions are available:
-```rust,no_run
+```rust,ignore
 let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 // When the `mpi` feature flag is used
 let exp = distributed_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
 ```
 Moreover, the `load!` macro also has alternative mode:
-```rust,no_run
+```rust,ignore
 load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
 load!(threaded, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
 // When the `mpi` feature flag is used

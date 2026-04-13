@@ -44,7 +44,7 @@ thread_local! {
 }
 ```
 It is called with a private method `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
-```rust,no_run
+```rust,ignore
 self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
 ```
 ### StepSId
@@ -67,7 +67,7 @@ AshaState is generic over all [`SolutionShape`](crate::core::SolutionShape), i.e
 But, these are constrained by [`HasStep`](crate::core::HasStep) and [`HasFidelity`](crate::core::HasFidelity) because we are within the multi-fidelity optimization framework. To simplify things, it must also implements [`Ord`](std::cmp::Ord) (based on [`HasY`](crate::core::HasY) of [`Computed`](crate::core::Computed)) to simplify the Top k selection of the best [`Computed`](crate::core::Computed).
 
 A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` and `Deserializable`, which explains this:
-```rust,no_run
+```rust,ignore
 #[serde(bound(serialize = "SShape: Serialize", deserialize = "SShape: for<'a> Deserialize<'a>"))]
 ```
 

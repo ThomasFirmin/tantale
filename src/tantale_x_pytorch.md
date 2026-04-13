@@ -376,7 +376,7 @@ We want to optimize 8 hyperparameters:
 - The batch size
 - The learning rate
 
-```rust,no_run
+```rust,ignore
 use tantale::core::{domain::{Cat, Nat, Real, Unit},sampler::Uniform};
 use tantale::macros::pyhpo;
 
