@@ -135,6 +135,7 @@ pub struct RowInfo {
 #[derive(serde::Deserialize)]
 pub struct RowSol {
     pub id: usize,
+    pub id_step: usize,
     pub a: isize,
     pub b: isize,
     pub c: String,
@@ -259,7 +260,6 @@ fn main() {
     if proc.rank == 0 {
         run_reader("tmp_test_mpi_seq_run_fid", 50);
     }
-
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
@@ -292,7 +292,6 @@ fn main() {
     } else {
         exp.run();
     }
-
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);

@@ -1,5 +1,5 @@
-use mpi::traits::Communicator;
 use tantale::algos::RandomSearch;
+use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
@@ -171,6 +171,7 @@ fn main() {
             "Opt Id Raw and Partial do not point to the same solutions."
         );
 
-        proc.world.abort(42);
+        let size = proc.size;
+        stop_order(&proc, 1..size);
     }
 }

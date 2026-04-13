@@ -137,6 +137,7 @@ pub struct RowInfo {
 #[derive(serde::Deserialize)]
 pub struct RowSol {
     pub id: usize,
+    pub id_step: usize,
     pub a: isize,
     pub b: isize,
     pub c: String,

@@ -1,7 +1,8 @@
-use mpi::traits::Communicator;
 use tantale::algos::{BatchRandomSearch, RSInfo};
+use tantale::core::StepId;
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
+use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
     StepSId, Stepped,
@@ -252,8 +253,8 @@ fn main() {
             let id = pair.id();
             let cobj = hcobj.get(&id).unwrap();
             let copt = hcopt.get(&id).unwrap();
-            let sobj = hsobj.get(&id).unwrap();
-            let sopt = hsopt.get(&id).unwrap();
+            let sobj = hsobj.get(&id.previous_id()).unwrap();
+            let sopt = hsopt.get(&id.previous_id()).unwrap();
 
             assert!(
                 Arc::ptr_eq(&pair.get_sobj().sol.x, sobj),
@@ -394,6 +395,7 @@ fn main() {
             stop.calls() >= 20,
             "Number of calls is wrong after fully evaluated."
         );
-        proc.world.abort(42)
+        let size = proc.size;
+        stop_order(&proc, 1..size);
     }
 }

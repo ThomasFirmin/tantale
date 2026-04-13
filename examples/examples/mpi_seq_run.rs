@@ -143,15 +143,16 @@ fn main() {
         run_reader("tmp_test_mpi_seqrun", 50);
     }
 
+    
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
-
+    
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
-
+    
     let exp = load!(
         distributed,
         &proc,
@@ -161,7 +162,8 @@ fn main() {
         obj,
         (rec, check)
     );
-
+    
+    println!("INFO : Running test_seq_run with 100 calls {}.", proc.rank);
     if proc.rank == 0 {
         match exp {
             experiment::MasterWorker::Master(mut e) => {

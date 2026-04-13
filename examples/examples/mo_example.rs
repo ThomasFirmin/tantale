@@ -112,10 +112,10 @@ use tantale::{
 
 fn main() {
     drop(Cleaner {
-        path: String::from("moasha_example"),
+        path: String::from("tmp_moasha_example"),
     });
     let _clean = Cleaner {
-        path: String::from("moasha_example"),
+        path: String::from("tmp_moasha_example"),
     };
 
     let sp = get_searchspace();
@@ -131,7 +131,7 @@ fn main() {
     );
 
     let stop = Calls::new(25);
-    let config = FolderConfig::new("moasha_example").init();
+    let config = FolderConfig::new("tmp_moasha_example").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 

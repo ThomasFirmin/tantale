@@ -1,5 +1,5 @@
-use mpi::traits::Communicator;
 use tantale::algos::{BatchRandomSearch, RSInfo};
+use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
@@ -216,6 +216,7 @@ fn main() {
             );
         });
 
-        proc.world.abort(42);
+        let size = proc.size;
+        stop_order(&proc, 1..size);
     }
 }

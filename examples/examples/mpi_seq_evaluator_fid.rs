@@ -1,7 +1,7 @@
-use mpi::traits::Communicator;
 use tantale::algos::RandomSearch;
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
+use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     Codomain, FidelitySol, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
     checkpointer::NoCheck,
@@ -261,6 +261,7 @@ fn main() {
         }
 
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");
-        proc.world.abort(42)
+        let size = proc.size;
+        stop_order(&proc, 1..size);
     }
 }
