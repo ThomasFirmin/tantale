@@ -575,7 +575,7 @@ where
             iteration: self.0.iteration,
         }
         .into();
-        if pairs.len() != self.0.batch {
+        if pairs.len() <= self.0.batch {
             let remaining = self.0.batch - pairs.len();
             let mut new_pairs =
                 scp.vec_sample_pair(&mut self.1, remaining, self.0._emptyinfo.clone());
