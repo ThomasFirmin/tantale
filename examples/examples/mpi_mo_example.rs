@@ -115,10 +115,10 @@ fn main() {
 
     if proc.rank == 0 {
         drop(Cleaner {
-            path: String::from("moasha_example"),
+            path: String::from("tmp_test_mpi_moasha"),
         });
         let _clean = Cleaner {
-            path: String::from("moasha_example"),
+            path: String::from("tmp_test_mpi_moasha"),
         };
     }
 
@@ -135,7 +135,7 @@ fn main() {
     );
 
     let stop = Calls::new(25);
-    let config = FolderConfig::new("moasha_example").init(&proc);
+    let config = FolderConfig::new("tmp_test_mpi_moasha").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
@@ -158,5 +158,10 @@ fn main() {
                 dominant.y().value
             );
         }
+    }
+    if proc.rank == 0 {
+        drop(Cleaner {
+            path: String::from("tmp_test_mpi_moasha"),
+        });
     }
 }

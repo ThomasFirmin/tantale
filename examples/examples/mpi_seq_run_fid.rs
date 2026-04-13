@@ -319,4 +319,7 @@ fn main() {
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
         }
     }
+    if proc.rank == 0 {
+        drop(Cleaner("tmp_test_mpi_seq_run_fid".into()));
+    }
 }
