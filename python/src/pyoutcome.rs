@@ -189,7 +189,7 @@ impl PyOutcome {
     ///
     /// Mirrors direct field access on typed outcomes, enabling identical
     /// codomain closure syntax:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// |o: &PyOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
@@ -275,9 +275,9 @@ impl CSVWritable<(), ()> for PyFidOutcome {
 }
 
 impl PyFidOutcome {
-    /// Extracts a named attribute from the Python outcome as `f64`.
+    /// Extracts a named attribute from the Python outcome as a `f64`.
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// |o: &PyFidOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
