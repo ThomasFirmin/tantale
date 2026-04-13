@@ -1607,7 +1607,6 @@ where
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
             checkpointer.before_load_dist(proc);
-
             let (state, stop, evaluator) = checkpointer.load_dist(proc.rank).unwrap();
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
@@ -1619,7 +1618,6 @@ where
             };
             let accumulator = Op::Cod::new_accumulator();
             checkpointer.after_load_dist(proc);
-
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1634,7 +1632,7 @@ where
                 pool_mode: PoolMode::InMemory,
             })
         } else {
-            <Check as DistCheckpointer>::no_check_init(proc);
+            <Check as DistCheckpointer>::no_check_load(proc);
             MasterWorker::Worker(BaseWorker::new(objective, proc))
         }
     }
@@ -2054,7 +2052,6 @@ where
             };
             let accumulator = checkpointer.load_accumulator_dist(proc.rank).unwrap();
             checkpointer.after_load_dist(proc);
-
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -2195,7 +2192,7 @@ where
             }
         }
         // Flush all waiting solution within eval.
-        sendrec.waiting.drain().for_each(|(_, p)| eval.update(p));
+        sendrec.waiting.drain().for_each(|(_, p)| eval.reinject(p));
         if let Some(c) = &self.checkpointer {
             c.save_state_dist(
                 self.optimizer.get_state(),

@@ -569,6 +569,8 @@ where
     fn after_load_dist(&mut self, proc: &MPIProcess);
     /// Define an initialization for [`Workers`](crate::experiment::mpi::worker::Worker) that do not have a [`Checkpointer`].
     fn no_check_init(proc: &MPIProcess);
+    /// Define what to do for [`Workers`](crate::experiment::mpi::worker::Worker) that do not have a [`Checkpointer`] when loading a checkpoint.
+    fn no_check_load(proc: &MPIProcess);
     /// Equivalent to [`save_state`](MonoCheckpointer::save_state) for distributed optimization experiments, with rank context.
     fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
         &self,
@@ -851,6 +853,8 @@ impl DistCheckpointer for NoCheck {
     fn get_check_worker<WState: WorkerState>(&self, _proc: &MPIProcess) -> Self::WCheck<WState> {
         panic!("NoCheck should not be called to load an experiment.")
     }
+    
+    fn no_check_load(_proc: &MPIProcess) { }
 }
 
 #[cfg(feature = "mpi")]

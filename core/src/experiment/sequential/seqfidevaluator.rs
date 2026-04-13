@@ -529,11 +529,32 @@ where
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.id().previous_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id().previous_id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution."); 
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = *self.where_is_id.get(&pair.id().previous_id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id().previous_id()).expect("The pair should have a previous id in where_is_id when updating a Step::Discard solution.");
+                self.priority_discard.add(pair, rank);
+            }
+            _ => {}
+        }
+    }
+
+    /// Re-injects a [`SolutionShape`]s into the evaluator based on its current [`Step`].
+    /// - If the step is [`Step::Pending`], it adds the solution to the `new_pairs` list.
+    /// - If the step is [`Step::Partially`], it adds the solution to the `priority_resume` list,
+    ///   associating it with its current MPI [`Rank`] in `where_is_id`.
+    /// - If the step is [`Step::Discard`], it adds the solution to the `priority_discard` list,
+    ///   associating it with its current MPI [`Rank`] in `where_is_id`.
+    pub fn reinject(&mut self, pair: Shape) {
+        match pair.step() {
+            Step::Pending => self.new_pairs.push(pair),
+            Step::Partially(_) => {
+                let rank = *self.where_is_id.get(&pair.id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution."); 
+                self.priority_resume.add(pair, rank);
+            }
+            Step::Discard => {
+                let rank = *self.where_is_id.get(&pair.id()).expect("The pair should have a previous id in where_is_id when updating a Step::Discard solution.");
                 self.priority_discard.add(pair, rank);
             }
             _ => {}
@@ -727,13 +748,11 @@ where
         if !sendrec.waiting.is_empty() && !stop.stop() {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
-            pair.increment();
             pair.set_raw_step(out.get_step());
-            let id = pair.id();
 
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
-                    self.where_is_id.remove(&id.previous_id());
+                    self.where_is_id.remove(&pair.id());
                 }
                 _ => {}
             };
@@ -748,6 +767,8 @@ where
                 stop,
             );
 
+            pair.increment();
+            let id = pair.id();
             let computed = pair.into_computed(y.into());
             let out = (id, out);
             acc.accumulate(&computed);

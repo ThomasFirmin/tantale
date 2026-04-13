@@ -898,6 +898,14 @@ impl DistCheckpointer for MessagePack {
     /// A no-operation function to synchronize all processes after initialization, if no [`WorkerCheckpointer`] is used.
     fn no_check_init(proc: &MPIProcess) {
         proc.world.barrier();
+        
+    }
+
+    /// A no-operation function to synchronize all processes after loading, if no [`WorkerCheckpointer`] is used.
+    fn no_check_load(proc: &MPIProcess) {
+        proc.world.barrier();
+        proc.world.barrier();
+        proc.world.barrier();
     }
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],

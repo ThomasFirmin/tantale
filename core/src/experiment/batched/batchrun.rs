@@ -1534,7 +1534,7 @@ where
                 pool_mode: PoolMode::InMemory,
             })
         } else {
-            <Check as DistCheckpointer>::no_check_init(proc);
+            <Check as DistCheckpointer>::no_check_load(proc);
             MasterWorker::Worker(BaseWorker::new(objective, proc))
         }
     }
