@@ -1,11 +1,8 @@
 use crate::{
-    FidOutcome, Fidelity, Id, Objective, Outcome, Stepped,
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
+    FidOutcome, Fidelity, Id, Objective, Outcome, StepId, Stepped, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         basics::FuncStatePool,
         mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg},
-    },
-    objective::{Step, outcome::FuncState},
+    }, objective::{Step, outcome::FuncState}
 };
 
 use core::panic;
@@ -152,7 +149,7 @@ where
 pub struct FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
-    SolId: Id,
+    SolId: StepId,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
@@ -168,7 +165,7 @@ impl<'a, SolId, Raw, Out, FnState, Check, FnPool>
     FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
-    SolId: Id,
+    SolId: StepId,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
@@ -195,7 +192,7 @@ impl<'a, SolId, Raw, Out, FnState, Check, FnPool> Worker<SolId>
     for FidWorker<'a, SolId, Raw, Out, FnState, Check, FnPool>
 where
     Raw: Serialize + for<'de> Deserialize<'de>,
-    SolId: Id,
+    SolId: StepId,
     Out: FidOutcome,
     FnState: FuncState,
     Check: DistCheckpointer,
@@ -235,20 +232,18 @@ where
                         let (out, state) = self.objective.compute(x, fid, None);
                         if out.get_step().0 > 0 {
                             self.state.pool.insert(id, state);
-                        } else {
-                            self.state.pool.remove(&id);
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
                     }
                     Step::Partially(_) => {
-                        let state = self.state.pool.retrieve(&id);
+                        let prev_id = id.previous_id();
+                        let state = self.state.pool.retrieve(&prev_id);
                         let (out, state) = self.objective.compute(x, fid, state);
+                        self.state.pool.remove(&prev_id);
                         if out.get_step().0 > 0 {
                             // if > 0 => Partially
                             self.state.pool.insert(id, state);
-                        } else {
-                            self.state.pool.remove(&id);
                         }
                         // Send results
                         send_msg(self.proc, OMessage(id, out), 0, 0, config);
