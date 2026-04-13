@@ -609,8 +609,8 @@ objective!{
 Now that the neural networks and searchspace are defined we can use these within a `main.rs` file.
 This file contains the definition of the experiment itself:
 
-```rust, ignore
-
+#[allow(clippy::needless_doctest_main)]
+```rust,ignore
 // Where we jointly defined the function to optimize
 // and searchspace
 pub mod searchspace;
@@ -676,5 +676,5 @@ foo@bar:~/my_burn_hpo$ cargo build --release
 
 Within a node, run the binaries using `mpiexec` or `mpirun` with 13 processes:
 ```console
-foo@bar:~$ mpiexec -n 13 --hostfile hostfile --rankfile rankfile ./my_burn_hpo/target/release/burn_hpo
+foo@bar:~$ mpiexec -n 13 --hostfile hostfile --rankfile rankfile ./my_burn_hpo/target/release/my_burn_hpo
 ```

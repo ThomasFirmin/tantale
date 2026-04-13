@@ -46,9 +46,7 @@ pub fn py_get_sp_tokens(
 ) -> syn::Result<TokenStream> {
     if is_grid {
         Ok(quote! {
-
             use tantale::core::domain::{Grid,MixedTypeDom,Domain,NoDomain,onto::Onto};
-            
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
@@ -72,9 +70,7 @@ pub fn py_get_sp_tokens(
 
             #[tantale::python::pyo3::pymodule(crate = "tantale::python::pyo3", name = "extra")]
             pub mod extra { }
-            
-            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
-            {
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt> {
                 #(#push_statements)*
 
                 tantale::core::searchspace::Sp{
@@ -85,9 +81,7 @@ pub fn py_get_sp_tokens(
         .into())
     } else {
         Ok(quote! {
-
             use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
-
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
@@ -112,8 +106,7 @@ pub fn py_get_sp_tokens(
             #[tantale::python::pyo3::pymodule(crate = "tantale::python::pyo3", name = "extra")]
             pub mod extra { }
 
-            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
-            {
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt> {
                 #(#push_statements)*
 
                 tantale::core::searchspace::Sp{
@@ -187,9 +180,7 @@ pub fn py_get_sp_tokens(
 ) -> syn::Result<TokenStream> {
     if is_grid {
         Ok(quote! {
-
             use tantale::core::domain::{Grid,MixedTypeDom,Domain,NoDomain,onto::Onto};
-
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
@@ -217,15 +208,13 @@ pub fn py_get_sp_tokens(
                 pub fn mpi_rank() -> i32 {
                     tantale::core::MPI_RANK.get().cloned().unwrap()
                 }
-                
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
                 pub fn mpi_size() -> i32 {
                     tantale::core::MPI_SIZE.get().cloned().unwrap()
                 }
             }
 
-            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
-            {
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt> {
                 #(#push_statements)*
 
                 tantale::core::searchspace::Sp{
@@ -236,9 +225,7 @@ pub fn py_get_sp_tokens(
         .into())
     } else {
         Ok(quote! {
-
             use tantale::core::domain::{Mixed,MixedTypeDom,Domain,NoDomain,onto::Onto};
-
             pub type ObjType = #ident_mixed_obj;
             pub type OptType = #ident_mixed_opt;
 
@@ -266,15 +253,13 @@ pub fn py_get_sp_tokens(
                 pub fn mpi_rank() -> i32 {
                     tantale::core::MPI_RANK.get().cloned().unwrap()
                 }
-                
                 #[tantale::python::pyo3::prelude::pyfunction(crate = "tantale::python::pyo3")]
                 pub fn mpi_size() -> i32 {
                     tantale::core::MPI_SIZE.get().cloned().unwrap()
                 }
             }
 
-            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>
-            {
+            pub fn get_searchspace() -> tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt> {
                 #(#push_statements)*
 
                 tantale::core::searchspace::Sp{

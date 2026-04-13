@@ -1,3 +1,36 @@
+//! Python outcome wrappers.
+//!
+//! This module provides Rust types that bridge Python-returned outcome objects
+//! to the trait bounds required by Tantale's core optimizer loop:
+//!
+//! | Type | For |
+//! |------|-----|
+//! | [`PyStep`] | Exposes [`Step`] as a `#[pyclass]` to Python |
+//! | [`PyOutcome`] | Wraps any Python return value for a single-step [`Objective`](tantale_core::Objective) |
+//! | [`PyFidOutcome`] | Wraps any Python return value for a multi-fidelity [`Stepped`](tantale_core::Stepped) |
+//!
+//! ## Notes
+//!
+//! The Python outcome class passed to [`register_outcome`](crate::register_outcome)
+//! must implement:
+//!
+//! ```python
+//! class MyOutcome:
+//!     @staticmethod
+//!     def csv_header() -> list[str]: ...   # column names
+//!
+//!     def csv_write(self) -> list[str]: ... # row values
+//! ```
+//!
+//! For multi-fidelity outcomes ([`PyFidOutcome`]) the class must additionally
+//! expose a `step` attribute that holds a [`PyStep`] instance:
+//!
+//! ```python
+//! class MyFidOutcome:
+//!     step: PyStep
+//!     ...
+//! ```
+
 use std::fmt::{self};
 
 use crate::{
@@ -17,21 +50,24 @@ pub struct PyStep {
 
 #[pymethods]
 impl PyStep {
-    /// Creates a [`Step::Pending`] value.
+    /// Creates a [`Step::Pending`] value, indicating the evaluation has not started yet.
     #[staticmethod]
     pub fn pending() -> Self {
         Self {
             inner: Step::Pending,
         }
     }
-    /// Creates a [`Step::Evaluated`] value.
+    /// Creates a [`Step::Evaluated`] value, indicating the evaluation completed successfully.
     #[staticmethod]
     pub fn evaluated() -> Self {
         Self {
             inner: Step::Evaluated,
         }
     }
-    /// Creates a [`Step::Partially`]`(value)` value.
+    /// Creates a [`Step::Partially`]`(value)` value, indicating the evaluation has
+    /// been carried out up to step `value`.
+    ///
+    /// `value` must be strictly positive.
     #[staticmethod]
     pub fn partially(value: isize) -> Self {
         assert!(value > 0, "partial step value must be positive");
@@ -39,12 +75,12 @@ impl PyStep {
             inner: Step::Partially(value),
         }
     }
-    /// Creates a [`Step::Error`] value.
+    /// Creates a [`Step::Error`] value, indicating the evaluation raised an error.
     #[staticmethod]
     pub fn error() -> Self {
         Self { inner: Step::Error }
     }
-    /// Creates a [`Step::Discard`] value.
+    /// Creates a [`Step::Discard`] value, indicating the solution should be discarded.
     #[staticmethod]
     pub fn discarded() -> Self {
         Self {

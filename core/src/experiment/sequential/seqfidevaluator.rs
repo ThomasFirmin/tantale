@@ -529,11 +529,11 @@ where
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id().previous_id()).unwrap();
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = *self.where_is_id.get(&pair.id()).unwrap();
+                let rank = *self.where_is_id.get(&pair.id().previous_id()).unwrap();
                 self.priority_discard.add(pair, rank);
             }
             _ => {}
@@ -613,6 +613,7 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
+        where_is_id.remove(&pair.id().previous_id());
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
         (false, true)

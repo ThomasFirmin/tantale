@@ -62,10 +62,13 @@ where
     fn generate() -> Self;
 }
 
+/// Identifier for stepped solutions, embedding a step counter.
 pub trait StepId: Id {
     /// Increment the step counter by one.
     fn increment(&mut self);
+    /// Get the current step counter value.
     fn id_step(&self) -> usize;
+    /// Get the previous identifier with the step counter decremented by one.
     fn previous_id(&self) -> Self;
 }
 

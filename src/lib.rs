@@ -56,36 +56,54 @@
 //! For now checkpointing is only possible using the MessagePack format, but the library is designed to be flexible and extensible enough to also handle other formats.
 //! **More checkpointing strategies are planned for a future release.**
 
-#[doc = include_str!("quick_start.md")]
-pub struct QuickStart;
-#[doc = include_str!("create_batch_optimizer.md")]
-pub struct CreateBatchOptimizer;
-#[doc = include_str!("create_seq_optimizer.md")]
-pub struct CreateSequentialOptimizer;
-
-#[doc = include_str!("create_domain.md")]
-pub struct CreateDomain;
-#[doc = include_str!("create_searchspace.md")]
-pub struct CreateSearchSpace;
-#[doc = include_str!("create_solution.md")]
-pub struct CreateSolution;
-#[doc = include_str!("create_experiment.md")]
-pub struct CreateExperiment;
-#[doc = include_str!("create_stop_criterion.md")]
-pub struct CreateStopCriterion;
-#[doc = include_str!("create_recorder.md")]
-pub struct CreateRecorder;
-#[doc = include_str!("create_checkpointer.md")]
-pub struct CreateCheckpointer;
-#[doc = include_str!("rs_example.md")]
-pub struct RSExample;
-#[doc = include_str!("gs_example.md")]
-pub struct GSExample;
-#[doc = include_str!("mo_example.md")]
-pub struct MOExample;
-
-#[doc = include_str!("tantale_x_burn.md")]
-pub struct TantaleBurnExample;
+#[doc(hidden)]
+pub mod _docs {
+    #[doc = include_str!("quick_start.md")]
+    #[allow(non_snake_case)]
+    pub mod QuickStart {}
+    #[doc = include_str!("create_batch_optimizer.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateBatchOptimizer {}
+    #[doc = include_str!("create_seq_optimizer.md")]
+    #[allow(non_snake_case)]
+    pub mod create_sequential_optimizer {}
+    #[doc = include_str!("create_domain.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateDomain {}
+    #[doc = include_str!("create_searchspace.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateSearchSpace {}
+    #[doc = include_str!("create_solution.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateSolution {}
+    #[doc = include_str!("create_experiment.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateExperiment {}
+    #[doc = include_str!("create_stop_criterion.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateStopCriterion {}
+    #[doc = include_str!("create_recorder.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateRecorder {}
+    #[doc = include_str!("create_checkpointer.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateCheckpointer {}
+    #[doc = include_str!("rs_example.md")]
+    #[allow(non_snake_case)]
+    pub mod RSExample {}
+    #[doc = include_str!("gs_example.md")]
+    #[allow(non_snake_case)]
+    pub mod GSExample {}
+    #[doc = include_str!("mo_example.md")]
+    #[allow(non_snake_case)]
+    pub mod MOExample {}
+    #[doc = include_str!("tantale_x_burn.md")]
+    #[allow(non_snake_case)]
+    pub mod TantaleBurnExample {}
+    #[doc = include_str!("tantale_x_pytorch.md")]
+    #[allow(non_snake_case)]
+    pub mod TantalePyTorchExample {}
+}
 
 #[doc(inline)]
 pub use macros::Outcome;

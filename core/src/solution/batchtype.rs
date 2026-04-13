@@ -21,7 +21,7 @@
 //! ```
 
 use crate::{
-    OptInfo,
+    OptInfo, StepId,
     objective::{Outcome, Step},
     solution::{HasInfo, HasStep, Id, SolInfo, SolutionShape},
 };
@@ -231,7 +231,7 @@ where
 
 impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
 where
-    SolId: Id,
+    SolId: StepId,
     SInfo: SolInfo,
     Info: OptInfo,
     Shape: SolutionShape<SolId, SInfo> + HasStep,
@@ -284,6 +284,9 @@ where
     /// * [`Pending`](Step::Pending) solutions go to `new_batch`.
     /// * [`Partially`](Step::Partially) solutions go to `priority_resume`.
     /// * [`Discard`](Step::Discard) solutions go to `priority_discard`.
+    ///
+    /// The previous [`id_step`](StepId::id_step) of the solution is used to determine its rank in the priority lists,
+    /// so that it can be sent to the same worker as before.
     pub fn chunk_to_priority(
         self,
         where_is_id: &mut HashMap<SolId, Rank>,
@@ -294,11 +297,11 @@ where
         self.into_iter().for_each(|pair| match pair.step() {
             Step::Pending => new_batch.add(pair),
             Step::Partially(_) => {
-                let rank = where_is_id.remove(&pair.id()).unwrap();
+                let rank = *where_is_id.get(&pair.id().previous_id()).unwrap();
                 priority_resume.add(pair, rank);
             }
             Step::Discard => {
-                let rank = where_is_id.remove(&pair.id()).unwrap();
+                let rank = *where_is_id.get(&pair.id().previous_id()).unwrap();
                 priority_discard.add(pair, rank);
             }
             _ => {}

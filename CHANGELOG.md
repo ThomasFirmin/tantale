@@ -111,13 +111,13 @@
 - *(run/load)* The constructor functions `mono`, `threaded`, `distributed` and related functions are now generic over `Id`. Same for `load!` macro.
 - *(StepId)* Added the `StepId` trait describing an Id able to track how many times how function was partially evaluated by a stepped function.
 - *(StepSId)* Added the `StepSId` struct implementing `StepId`, and used within multi-fidelity related objects.
-- *(Bool)* Added From<Grid>.
-- *(Bounded)* Added From<Mixed> for Real, Nat, Int, Unit.
-- *(GridDom)* Added From<Mixed> for GridReal, GridNat, GridInt.
-- *(Unit)* Added From<Mixed>.
+- *(Bool)* Added `From<Grid>`.
+- *(Bounded)* Added `From<Mixed>` for `Real`, `Nat`, `Int`, `Unit`.
+- *(GridDom)* Added `From<Mixed>` for `GridReal`, `GridNat`, `GridInt`.
+- *(Unit)* Added `From<Mixed>`.
 - *(macros)* Added the `mpi` and `py` features to `macros` crate.
-- *(MessagePack)* All unwraps for function returning Results<_,CheckPointError> are replaced by a map_err to CheckpointError.
-- *(experiment)* Added type alias ExpComponent.
+- *(MessagePack)* All unwraps for function returning `Results<_,CheckPointError>` are replaced by a map_err to `CheckpointError`.
+- *(experiment)* Added type alias `ExpComponent`.
 
 ### 🐛 Bug Fixes
 
@@ -128,7 +128,6 @@
 - *(GridDomDistribution)* [*breaking*] Modified generic `T` bounds from `BoundedBounds` to `GridBounds`.
 - *(Outcome)* [*breaking*] The `Outcome` derive macro does not handle generics anymore. This simplifies Python integration.
 - *(FolderConfig)* [*breaking*] The given path is now transformed with `std::path::absolute` to get the absolute path even if it does not exists. Path existence is checked later.
-- *(pytantale)* [*breaking*] Remove `pyconfig` and put everything in init_python! macro.
 - *(StepId)* [*breaking*] Replaced `SId` by `StepSId` for all `Fidelity` based experiment. This allows linking by `id` and `id_step` recorded solutions.
 
 ### 🚜 Refactor
