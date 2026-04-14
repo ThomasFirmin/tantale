@@ -529,7 +529,7 @@ where
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.id().previous_id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution."); 
+                let rank = *self.where_is_id.get(&pair.id().previous_id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution.");
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
@@ -550,7 +550,7 @@ where
         match pair.step() {
             Step::Pending => self.new_pairs.push(pair),
             Step::Partially(_) => {
-                let rank = *self.where_is_id.get(&pair.id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution."); 
+                let rank = *self.where_is_id.get(&pair.id()).expect("The pair should have a previous id in where_is_id when updating a Step::Partially solution.");
                 self.priority_resume.add(pair, rank);
             }
             Step::Discard => {
@@ -621,8 +621,8 @@ where
     if stop.stop() {
         (true, false)
     } else if let Some(pair) = priority_discard.pop(available) {
-        sendrec.discard_order(available, pair.id());
-        where_is_id.remove(&pair.id());
+        sendrec.discard_order(available, pair.id().previous_id());
+        where_is_id.remove(&pair.id().previous_id());
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
