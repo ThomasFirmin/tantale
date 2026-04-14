@@ -853,8 +853,8 @@ impl DistCheckpointer for NoCheck {
     fn get_check_worker<WState: WorkerState>(&self, _proc: &MPIProcess) -> Self::WCheck<WState> {
         panic!("NoCheck should not be called to load an experiment.")
     }
-    
-    fn no_check_load(_proc: &MPIProcess) { }
+
+    fn no_check_load(_proc: &MPIProcess) {}
 }
 
 #[cfg(feature = "mpi")]

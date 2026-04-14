@@ -20,17 +20,14 @@ use crate::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistBatchRecorder,
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
+    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    },
-    solution::shape::{SolObj, SolOpt},
+    }, solution::shape::{SolObj, SolOpt}
 };
 
 use std::{
@@ -2018,7 +2015,6 @@ where
                 break 'main;
             };
             self.stop.update(ExpStep::Iteration); // New iteration
-
             // Evaluation part
             (computed, outputed) = DistEvaluate::<
                 _,
@@ -2038,7 +2034,6 @@ where
                 &mut self.stop,
                 &mut self.accumulator,
             );
-
             // Saver part
             if let Some(r) = &self.recorder {
                 r.save_dist(&computed, &outputed, &self.searchspace, &self.codomain);

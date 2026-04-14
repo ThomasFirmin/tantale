@@ -1,8 +1,11 @@
 use crate::{
-    FidOutcome, Fidelity, Id, Objective, Outcome, StepId, Stepped, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+    FidOutcome, Fidelity, Id, Objective, Outcome, StepId, Stepped,
+    checkpointer::{DistCheckpointer, WorkerCheckpointer},
+    experiment::{
         basics::FuncStatePool,
         mpi::utils::{DiscardFXMessage, FXMessage, MPIProcess, Msg, OMessage, XMessage, send_msg},
-    }, objective::{Step, outcome::FuncState}
+    },
+    objective::{Step, outcome::FuncState},
 };
 
 use core::panic;

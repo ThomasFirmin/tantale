@@ -898,7 +898,6 @@ impl DistCheckpointer for MessagePack {
     /// A no-operation function to synchronize all processes after initialization, if no [`WorkerCheckpointer`] is used.
     fn no_check_init(proc: &MPIProcess) {
         proc.world.barrier();
-        
     }
 
     /// A no-operation function to synchronize all processes after loading, if no [`WorkerCheckpointer`] is used.
