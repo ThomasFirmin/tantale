@@ -21,7 +21,7 @@
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasId, HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace,
+    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace,
     SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
     optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
 };
@@ -470,9 +470,6 @@ where
             if let Step::Partially(_s) = comp.step() {
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
-                    if i + 1 == 4 {
-                        println!("STEP : {} {:?} {}", _s, comp.id(), comp.fidelity().0);
-                    }
                     self.0.rung[i + 1].push(comp);
                 }
             }
