@@ -52,10 +52,10 @@ use std::sync::Arc;
 
 fn main() {
     drop(Cleaner {
-        path: String::from("rs_example"),
+        path: String::from("tmp_rs_example"),
     });
     let _clean = Cleaner {
-        path: String::from("rs_example"),
+        path: String::from("tmp_rs_example"),
     };
 
     let sp = get_searchspace();
@@ -64,7 +64,7 @@ fn main() {
     let cod = random_search::codomain(|o: &OutExample| o.obj);
 
     let stop = Calls::new(50);
-    let config = Arc::new(FolderConfig::new("rs_example"));
+    let config = Arc::new(FolderConfig::new("tmp_rs_example"));
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 

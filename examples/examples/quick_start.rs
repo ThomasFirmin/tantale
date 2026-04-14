@@ -52,10 +52,10 @@ impl Drop for Cleaner {
 
 fn main() {
     drop(Cleaner {
-        path: String::from("run_batch"),
+        path: String::from("tmp_run_batch"),
     });
     let _clean = Cleaner {
-        path: String::from("run_batch"),
+        path: String::from("tmp_run_batch"),
     };
 
     let sp = get_searchspace();
@@ -64,7 +64,7 @@ fn main() {
     let cod = random_search::codomain(|o: &OutExample| o.obj);
 
     let stop = Calls::new(50);
-    let config = Arc::new(FolderConfig::new("run_batch"));
+    let config = Arc::new(FolderConfig::new("tmp_run_batch"));
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 

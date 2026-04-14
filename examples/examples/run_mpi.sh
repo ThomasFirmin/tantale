@@ -5,6 +5,8 @@ BINARY_DIR="$(cd "$(dirname "$0")/../../target/debug/examples" && pwd)"
 NP=4
 
 examples=(
+    mpi_test
+    mpi_quick_start
     mpi_seq_run
     mpi_seq_run_fid
     mpi_seq_run_fid_loadpool

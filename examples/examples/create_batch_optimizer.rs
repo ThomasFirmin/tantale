@@ -213,5 +213,5 @@ where
 }
 
 fn main() {
-    let _sha = Sha::new(4, 1.0, 16.0, 2.0);
+    let _sha = Sha::new(32, 1.0, 16.0, 2.0);
 }
