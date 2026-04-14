@@ -199,6 +199,16 @@ where
     }
 }
 
+impl<Raw, Out> Clone for Objective<Raw, Out>
+where
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out: Outcome,
+{
+    fn clone(&self) -> Self {
+        Objective(self.0)
+    }
+}
+
 impl<Raw, Out> FuncWrapper<Raw> for Objective<Raw, Out>
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
@@ -221,6 +231,17 @@ where
     Raw: Serialize + for<'a> Deserialize<'a>,
     Out: FidOutcome,
     FnState: FuncState;
+
+impl<Raw, Out, FnState> Clone for Stepped<Raw, Out, FnState>
+where
+    Raw: Serialize + for<'a> Deserialize<'a>,
+    Out: FidOutcome,
+    FnState: FuncState,
+{
+    fn clone(&self) -> Self {
+        Stepped(self.0)
+    }
+}
 
 impl<Raw, Out, FnState> Stepped<Raw, Out, FnState>
 where
