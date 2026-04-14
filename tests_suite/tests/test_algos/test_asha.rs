@@ -85,7 +85,7 @@ fn test_fid_seq_run() {
 
 #[test]
 fn test_fid_seq_parrun() {
-    drop(Cleaner::new("tmp_test_asha_parrun"));
+    let _clean = Cleaner::new("tmp_test_asha_parrun");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))

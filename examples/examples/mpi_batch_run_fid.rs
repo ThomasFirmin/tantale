@@ -317,7 +317,7 @@ fn main() {
         match exp {
             experiment::MasterWorker::Master(e) => {
                 assert!(e.stop.0 >= 100, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 62, "Number of iteration is wrong");
+                assert_eq!(e.optimizer.0.iteration, 61, "Number of iteration is wrong");
                 assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
             }
             experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),

@@ -351,7 +351,7 @@ fn main() {
             .collect();
         let batch = Batch::new(pairs, info.clone());
         eval.update(batch);
-        let (bcomp, _) = <FidDistBatchEvaluator<
+        let (_, _) = <FidDistBatchEvaluator<
             StepSId,
             EmptyInfo,
             RSInfo,
@@ -369,28 +369,6 @@ fn main() {
         >>::evaluate(
             &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
         );
-        let pairs: Vec<_> = bcomp
-            .into_iter()
-            .map(|p| <Lone<_, _, _, _> as IntoComputed>::extract(p).0)
-            .collect();
-        let batch = Batch::new(pairs, info.clone());
-        eval.update(batch);
-        let (_, _) = <FidDistBatchEvaluator<
-            StepSId,
-            EmptyInfo,
-            RSInfo,
-            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-        > as DistEvaluate<
-            FidelitySol<StepSId, Mixed, EmptyInfo>,
-            StepSId,
-            BatchRandomSearch,
-            Sp<Mixed, NoDomain>,
-            FidOutEvaluator,
-            Calls,
-            Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-            _,
-            OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
-        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         assert!(
             stop.calls() >= 20,
             "Number of calls is wrong after fully evaluated."

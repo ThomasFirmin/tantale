@@ -23,6 +23,4 @@ def objective(x: list) -> MyOutcome:
     obj1 = a + b
     obj2 = c + d
     info = 42
-    
     return MyOutcome(obj1, obj2, info)
-

@@ -16,6 +16,10 @@ examples=(
     mpi_batch_evaluator
     mpi_batch_evaluator_fid
     mpi_mo_example
+    mpi_test_pytantale_objective_async
+    mpi_test_pytantale_objective_batch
+    mpi_test_pytantale_stepped_async
+    mpi_test_pytantale_stepped_batch
 )
 
 for example in "${examples[@]}"; do
