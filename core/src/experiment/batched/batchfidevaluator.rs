@@ -22,6 +22,8 @@ use crate::{
 use mpi::Rank;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "mpi")]
+use core::panic;
 use std::marker::PhantomData;
 use std::{
     fmt::Debug,
@@ -548,9 +550,9 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     priority_discard: &mut PriorityList<Scp::SolShape>,
     priority_resume: &mut PriorityList<Scp::SolShape>,
     stop: &mut St,
-) -> bool
+) -> (bool, bool)
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
     SolId: StepId,
     Op: BatchOptimizer<
             PSol,
@@ -565,20 +567,20 @@ where
             >,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
-    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
-    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
+    Scp::SolShape: HasStep + HasFidelity,
+    SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
+    SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
     CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
+        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
 {
     if stop.stop() {
-        true
+        (true, false)
     } else if let Some(pair) = priority_discard.pop(available) {
-        sendrec.discard_order(available, pair.id());
-        where_is_id.remove(&pair.id());
+        sendrec.discard_order(available, pair.id().previous_id());
+        where_is_id.remove(&pair.id().previous_id()).unwrap();
         stop.update(ExpStep::Distribution(Step::Discard));
         recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
             available,
@@ -590,17 +592,18 @@ where
             stop,
         )
     } else if let Some(pair) = priority_resume.pop(available) {
-        where_is_id.remove(&pair.id().previous_id());
+        where_is_id.remove(&pair.id().previous_id()).unwrap();
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
-        false
+        (false, true)
     } else if let Some(pair) = new_batch.pop() {
         where_is_id.insert(pair.id(), available);
         sendrec.send_to_rank(available, pair);
-        false
+        (false, true)
     } else {
         sendrec.idle.set_idle(available);
-        sendrec.idle.all_idle()
+        let all_idle = sendrec.idle.all_idle();
+        (all_idle, false)
     }
 }
 
@@ -694,9 +697,12 @@ where
 
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
-        while sendrec.idle.has_idle() && !stop_loop {
-            let available = sendrec.idle.first_idle().unwrap() as Rank;
-            stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
+        let mut successfull = false;
+        let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();
+        while let Some(a) = iter_idle.next() && !(stop_loop || successfull)
+        {
+            let available = a as Rank;
+            (stop_loop, successfull) = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
                 available,
                 sendrec,
                 &mut self.where_is_id,
@@ -705,14 +711,52 @@ where
                 &mut self.priority_resume,
                 stop,
             );
+            // If not successful in sending a solution
+            // It means the optimizer has returned a partially located
+            // within another worker that is currently busy.
         }
 
-        let mut stop_loop = stop.stop();
+        if !successfull {
+            panic!("No available solution to send to workers, but stop condition not met. This should not happen in synchronous batch MPI-distributed optimization.")
+        }
+
         // Recv / sendv loop
-        while !sendrec.waiting.is_empty() && !stop_loop {
+        while !sendrec.waiting.is_empty() && !stop.stop() {
             let (available, mut pair, out) = sendrec.rec_computed();
             let y = cod.get_elem(&out);
             pair.set_raw_step(out.get_step());
+
+            match pair.step() {
+                Step::Evaluated | Step::Discard | Step::Error => {
+                    self.where_is_id.remove(&pair.id());
+                }
+                _ => {}
+            };
+            stop.update(ExpStep::Distribution(pair.step()));
+            recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
+                available,
+                sendrec,
+                &mut self.where_is_id,
+                &mut self.new_batch,
+                &mut self.priority_discard,
+                &mut self.priority_resume,
+                stop,
+            );
+
+            pair.increment();
+            let id = pair.id();
+            let computed = pair.into_computed(y.into());
+            let out = (id, out);
+            acc.accumulate(&computed);
+            obatch.add(out);
+            cbatch.add(computed);
+        }
+        // Receive last solutions that might overflow
+        while !sendrec.waiting.is_empty() {
+            let (_, mut pair, out) = sendrec.rec_computed();
+            let y = cod.get_elem(&out);
+            pair.set_raw_step(out.get_step());
+
             match pair.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
                     self.where_is_id.remove(&pair.id());
@@ -722,32 +766,12 @@ where
             stop.update(ExpStep::Distribution(pair.step()));
 
             pair.increment();
-            let out = (pair.id(), out);
+            let id = pair.id();
             let computed = pair.into_computed(y.into());
-
+            let out = (id, out);
             acc.accumulate(&computed);
-
             obatch.add(out);
             cbatch.add(computed);
-            stop_loop = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
-                available,
-                sendrec,
-                &mut self.where_is_id,
-                &mut self.new_batch,
-                &mut self.priority_discard,
-                &mut self.priority_resume,
-                stop,
-            );
-        }
-        // Receive last solutions that might overflow
-        while !sendrec.waiting.is_empty() {
-            let (_, mut pair, out) = sendrec.rec_computed();
-            let y = cod.get_elem(&out);
-            pair.set_raw_step(out.get_step());
-            stop.update(ExpStep::Distribution(pair.step()));
-            pair.increment();
-            obatch.add((pair.id(), out));
-            cbatch.add(pair.into_computed(y.into()));
         }
         // For saving in case of early stopping before full evaluation of all elements
         (cbatch, obatch)
