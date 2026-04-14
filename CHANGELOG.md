@@ -118,6 +118,7 @@
 - *(macros)* Added the `mpi` and `py` features to `macros` crate.
 - *(MessagePack)* All unwraps for function returning `Results<_,CheckPointError>` are replaced by a map_err to `CheckpointError`.
 - *(experiment)* Added type alias `ExpComponent`.
+- *(Objective/Stepped)* `Objective` and `Stepped` now implement `Clone`
 
 ### 🐛 Bug Fixes
 
@@ -129,6 +130,10 @@
 - *(Outcome)* [*breaking*] The `Outcome` derive macro does not handle generics anymore. This simplifies Python integration.
 - *(FolderConfig)* [*breaking*] The given path is now transformed with `std::path::absolute` to get the absolute path even if it does not exists. Path existence is checked later.
 - *(StepId)* [*breaking*] Replaced `SId` by `StepSId` for all `Fidelity` based experiment. This allows linking by `id` and `id_step` recorded solutions.
+- *(mpi_run)* [**breaking**] Fixed an issue when loading an MPI-distributed experiment Objective. The master process was stuck due to an extra barrier. 
+- *(mpi_run)* [**breaking**] Fixed an issue during draining and reinjection of overflowing solutions when a MPI-distributed Stepped experiment was ending.
+- *(mpi_run)* Solved an issue when filling workers. If no solution could be sent to the first idle worker, then the filling phase was terminated. No solution was evaluated, even if it could have been sent to another idle worker.
+- *(mpi_run)* Solutions are now correctly discarded.
 
 ### 🚜 Refactor
 
@@ -136,6 +141,7 @@
 
 ### 📚 Documentation
 
+- *(pytantale)* Added a Pytorch $\times$ Tantale tutorial
 - *(GridDom)* Added documentation for GridReal, GridInt and GridNat.
 - *(tantalexburn)* Minor mistake.
 - *(lib)* Solved list issue.
@@ -146,3 +152,6 @@
 
 - *(reader)* Now all experiment output are verified using the same function, using theoretical number of expected outputs. Or + epsilon when randomnes.
 - *(fidelity)* Update all fidelity tests with StepSId.
+- *(mpi)* MPI tests examples now cleanly remove temporary folders
+- *(mpi)* Added a bash script to run mpi_*.rs tests sequentially
+- *(pytantale)* Added test for mono, threaded, and distributed, for Objective and Stepped cases with Python functions
