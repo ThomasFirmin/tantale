@@ -16,34 +16,32 @@
 //!
 //! Because Tantale can evaluates objectives using multi-threading,
 //! this crate stores the active callable and outcome class in
-//! *thread-local* [`RefCell`]s.  Call the appropriate `register` methods
+//! [`OnceLock`]s.  Call the appropriate `register` methods
 //! ([`PyObjective::register`](pyfunction::PyObjective::register),
 //! [`PyStepped::register`](pyfunction::PyStepped::register),
 //! [`register_outcome`]) before spawning worker threads so that each thread
 //! inherits its own copy.
 
 use pyo3::{Py, PyAny};
-use std::cell::RefCell;
+use std::sync::OnceLock;
 
-thread_local! {
-    /// The Python callable registered as the current single-step objective.
-    ///
-    /// Set by [`PyObjective::register`](crate::pyfunction::PyObjective::register).
-    /// Consumed inside [`py_objective`](crate::pyfunction::py_objective).
-    pub(crate) static PY_OBJECTIVE_FUNC: RefCell<Option<Py<PyAny>>> = const { RefCell::new(None) };
+/// The Python callable registered as the current single-step objective.
+///
+/// Set by [`PyObjective::register`](crate::pyfunction::PyObjective::register).
+/// Consumed inside [`py_objective`](crate::pyfunction::py_objective).
+pub(crate) static PY_OBJECTIVE_FUNC: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
-    /// The Python callable registered as the current multi-fidelity stepped objective.
-    ///
-    /// Set by [`PyStepped::register`](crate::pyfunction::PyStepped::register).
-    /// Consumed inside [`py_stepped`](crate::pyfunction::py_stepped).
-    pub(crate) static PY_STEPPED_FUNC: RefCell<Option<Py<PyAny>>> = const { RefCell::new(None) };
+/// The Python callable registered as the current multi-fidelity stepped objective.
+///
+/// Set by [`PyStepped::register`](crate::pyfunction::PyStepped::register).
+/// Consumed inside [`py_stepped`](crate::pyfunction::py_stepped).
+pub(crate) static PY_STEPPED_FUNC: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
-    /// The Python outcome *class* (not an instance) used to derive CSV headers.
-    ///
-    /// Set by [`register_outcome`].  Accessed inside [`PyOutcome`](crate::pyoutcome::PyOutcome) and
-    /// [`PyFidOutcome`](crate::pyoutcome::PyFidOutcome).
-    pub(crate) static PY_OUTCOME_CLASS: RefCell<Option<Py<PyAny>>> = const { RefCell::new(None) };
-}
+/// The Python outcome *class* (not an instance) used to derive CSV headers.
+///
+/// Set by [`register_outcome`].  Accessed inside [`PyOutcome`](crate::pyoutcome::PyOutcome) and
+/// [`PyFidOutcome`](crate::pyoutcome::PyFidOutcome).
+pub(crate) static PY_OUTCOME_CLASS: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
 pub mod pyoutcome;
 pub use pyoutcome::{PyFidOutcome, PyOutcome, PyStep};

@@ -113,16 +113,11 @@ impl Display for PyFuncState {
 /// # Panics
 /// Panics if no callable has been registered via [`PyObjective::register`].
 pub fn py_objective<E: ElementIntoPyObject>(x: Arc<[E]>) -> PyOutcome {
-    PY_OBJECTIVE_FUNC.with(|cell| {
-        let borrow = cell.borrow();
-        let callable = borrow
-            .as_ref()
-            .expect("no PyObjective active; call PyObjective::activate() first");
-        Python::attach(|py| {
-            let list = x.to_pyany(py).expect("failed to build Python input list");
-            let result = callable.call1(py, (list,)).unwrap();
-            PyOutcome(result)
-        })
+    let binding = PY_OBJECTIVE_FUNC.get().expect("The PyObjective was not initialized");
+    Python::attach(|py| {
+        let list = x.to_pyany(py).expect("failed to build Python input list");
+        let result = binding.call1(py, (list,)).unwrap();
+        PyOutcome(result)
     })
 }
 
@@ -141,22 +136,17 @@ pub fn py_stepped<E: ElementIntoPyObject>(
     fidelity: Fidelity,
     state: Option<PyFuncState>,
 ) -> (PyFidOutcome, PyFuncState) {
+    let binding = PY_STEPPED_FUNC.get().expect("The PyStepped was not initialized");
+    let py_state = state.map(|s| s.0);
     Python::attach(|py| {
-        PY_STEPPED_FUNC.with(|cell| {
-            let borrow = cell.borrow();
-            let callable = borrow
-                .as_ref()
-                .expect("no PyStepped active; call PyStepped::activate() first");
-            let list = x.to_pyany(py).expect("failed to build Python input list");
-            let py_state = state.map(|s| s.0);
-            let result = callable
-                .call1(py, (list, fidelity.0, py_state))
-                .expect("Python stepped objective raised an error");
-            let (out, new_state): (Py<PyAny>, Py<PyAny>) = result
-                .extract(py)
-                .expect("Python stepped objective must return a 2-tuple (outcome, state)");
-            (PyFidOutcome(out), PyFuncState(new_state))
-        })
+        let list = x.to_pyany(py).expect("failed to build Python input list");
+        let result = binding
+            .call1(py, (list, fidelity.0, py_state))
+            .expect("Python stepped objective raised an error");
+        let (out, new_state): (Py<PyAny>, Py<PyAny>) = result
+            .extract(py)
+            .expect("Python stepped objective must return a 2-tuple (outcome, state)");
+        (PyFidOutcome(out), PyFuncState(new_state))
     })
 }
 
@@ -190,9 +180,7 @@ impl PyObjective {
     /// Only one `PyObjective` may be active per thread at a time.
     pub fn register<E: ElementIntoPyObject>(&self) -> Objective<Arc<[E]>, PyOutcome> {
         Python::attach(|py| {
-            PY_OBJECTIVE_FUNC.with(|cell| {
-                *cell.borrow_mut() = Some(self.0.clone_ref(py));
-            });
+            PY_OBJECTIVE_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python objective function: a function has already been registered");
         });
         Objective::new(py_objective)
     }
@@ -234,9 +222,7 @@ impl PyStepped {
     /// Only one `PyStepped` may be active per thread at a time.
     pub fn register<E: ElementIntoPyObject>(&self) -> Stepped<Arc<[E]>, PyFidOutcome, PyFuncState> {
         Python::attach(|py| {
-            PY_STEPPED_FUNC.with(|cell| {
-                *cell.borrow_mut() = Some(self.0.clone_ref(py));
-            });
+            PY_STEPPED_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python stepped objective function: a function has already been registered");
         });
         Stepped::new(py_stepped)
     }

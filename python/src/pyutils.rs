@@ -72,7 +72,7 @@ pub(crate) fn pickle_loads(py: Python<'_>, bytes: &[u8]) -> PyResult<Py<PyAny>> 
 /// The class must expose a `@staticmethod csv_header() -> list[str]` and
 /// an instance method `csv_write(self) -> list[str]`.
 pub fn register_outcome(cls: Py<PyAny>) {
-    PY_OUTCOME_CLASS.with(|cell| *cell.borrow_mut() = Some(cls));
+    PY_OUTCOME_CLASS.set(cls).expect("Failed to register Python outcome class: a class has already been registered");
 }
 
 /// Wires a Python objective function into a Tantale experiment.

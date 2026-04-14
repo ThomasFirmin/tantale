@@ -156,18 +156,12 @@ impl<'de> Deserialize<'de> for PyOutcome {
 
 impl CSVWritable<(), ()> for PyOutcome {
     fn header(_elem: &()) -> Vec<String> {
-        PY_OUTCOME_CLASS.with(|cell| {
-            Python::attach(|py| {
-                cell.borrow()
-                    .as_ref()
-                    .and_then(|cls| {
-                        cls.bind(py)
-                            .call_method0("csv_header")
-                            .and_then(|v| v.extract::<Vec<String>>())
-                            .ok()
-                    })
-                    .unwrap()
-            })
+        let cls = PY_OUTCOME_CLASS.get().unwrap();
+        Python::attach(|py| {
+            cls.bind(py)
+            .call_method0("csv_header")
+            .and_then(|v| v.extract::<Vec<String>>())
+            .unwrap()
         })
     }
 
@@ -248,18 +242,12 @@ impl Outcome for PyFidOutcome {}
 
 impl CSVWritable<(), ()> for PyFidOutcome {
     fn header(_elem: &()) -> Vec<String> {
-        PY_OUTCOME_CLASS.with(|cell| {
-            Python::attach(|py| {
-                cell.borrow()
-                    .as_ref()
-                    .and_then(|cls| {
-                        cls.bind(py)
-                            .call_method0("csv_header")
-                            .and_then(|v| v.extract::<Vec<String>>())
-                            .ok()
-                    })
-                    .unwrap()
-            })
+        let cls = PY_OUTCOME_CLASS.get().unwrap();
+        Python::attach(|py| {
+            cls.bind(py)
+            .call_method0("csv_header")
+            .and_then(|v| v.extract::<Vec<String>>())
+            .unwrap()
         })
     }
 
