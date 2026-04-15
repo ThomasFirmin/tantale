@@ -101,57 +101,57 @@
 
 ### 🚀 Features
 
-- *(pytantale)* Added the `python` module. Allowing optimizing Python function, with Python Outcome (`PyOutcome`), and Python States (`PyState`).
-- *(pyhpo!)* Added the `pyhpo!` procedural macro. Similar to `hpo!`, but for python integration.
-- *(Runable)* Added the `extract` method to [`Runable`] trait to retrieve components of an experiment.
-- *(tantale)* Added the `py` feature, allowing to activate or not python function handling with [pyo3](https://pyo3.rs/v0.28.3/).
+- *(pytantale)* Added the `python` module. Allowing optimizing Python functions with Python `Outcome` (`PyOutcome`) and Python `FuncState` (`PyState`).
+- *(pyhpo!)* Added the `pyhpo!` procedural macro. Similar to `hpo!`, but for Python integration.
+- *(Runable)* Added the `extract` method to the [`Runable`] trait to retrieve components of an experiment.
+- *(tantale)* Added the `py` feature, allowing to activate or not Python function handling with [pyo3](https://pyo3.rs/v0.28.3/).
 - *(hpo!)* The macro now creates an `indices` submodule within the user-defined searchspace module. It contains internal index within searchspace as constants with UPPERCASE variable name.
-- *(HasId)*  The `HasId` trait now implements a `ref_id` and `mut_ref_id` methods allowing to borrow and mutably borrow an `Id`.
-- *(HasStepId)* [*breaking*] Added the `HasStepId` describing objects containing a `StepId`. Modified all multi-fidelity run and evaluator to further constrained solutions and shapes to implement `HasStepId`.
-- *(run/load)* The constructor functions `mono`, `threaded`, `distributed` and related functions are now generic over `Id`. Same for `load!` macro.
-- *(StepId)* Added the `StepId` trait describing an Id able to track how many times how function was partially evaluated by a stepped function.
-- *(StepSId)* Added the `StepSId` struct implementing `StepId`, and used within multi-fidelity related objects.
+- *(HasId)*  The `HasId` trait now implements `ref_id` and `mut_ref_id` methods, allowing to borrow and mutably borrow an `Id`.
+- *(HasStepId)* [*breaking*] Added the `HasStepId` describing objects containing a `StepId`. Modified all multi-fidelity runs and evaluators to further constrain solutions and shapes to implement `HasStepId`.
+- *(run/load)* The constructor functions `mono`, `threaded`, `distributed` and related functions are now generic over `Id`. Same for the `load!` macro.
+- *(StepId)* Added the `StepId` trait describing an `Id` able to track how many times a function was partially evaluated by a stepped function.
+- *(StepSId)* Added the `StepSId` struct implementing `StepId`, and used within multi-fidelity-related objects.
 - *(Bool)* Added `From<Grid>`.
 - *(Bounded)* Added `From<Mixed>` for `Real`, `Nat`, `Int`, `Unit`.
 - *(GridDom)* Added `From<Mixed>` for `GridReal`, `GridNat`, `GridInt`.
 - *(Unit)* Added `From<Mixed>`.
-- *(macros)* Added the `mpi` and `py` features to `macros` crate.
-- *(MessagePack)* All unwraps for function returning `Results<_,CheckPointError>` are replaced by a map_err to `CheckpointError`.
+- *(macros)* Added the `mpi` and `py` features to the `macros` crate.
+- *(MessagePack)* All unwraps for functions returning `Results<_,CheckPointError>` are replaced by a `map_err` to `CheckpointError`.
 - *(experiment)* Added type alias `ExpComponent`.
 - *(Objective/Stepped)* `Objective` and `Stepped` now implement `Clone`
 
 ### 🐛 Bug Fixes
 
-- *(asha)* At initialization if the only budget is the minimum one, then consider minimum and maximum budgets `[bmin,bmax]` .
-- *(asha)* Solved an issue when `k==0`, the current budget was not reseted to `bmin`.
-- *(hyperband)* Now `first_step` method initializes inner batch optimizer's batch size.
-- *(sha)* Now SHA builds a vec of all available budgets. Preventing the case were only minimum budget is computable, and replaced with `bmax`, instead of considering `[bmin, bmax]`.
+- *(asha)* At initialization, if the only budget is the minimum one, then consider minimum and maximum budgets `[bmin,bmax]` .
+- *(asha)* Solved an issue when `k==0`, the current budget, was not reset to `bmin`.
+- *(hyperband)* Now the `first_step` method initializes the inner batch optimizer's batch size.
+- *(sha)* Now SHA builds a vec of all available budgets. Preventing the case where only a minimum budget is computable and replaced with `bmax` instead of considering `[bmin, bmax]`.
 - *(GridDomDistribution)* [*breaking*] Modified generic `T` bounds from `BoundedBounds` to `GridBounds`.
 - *(Outcome)* [*breaking*] The `Outcome` derive macro does not handle generics anymore. This simplifies Python integration.
-- *(FolderConfig)* [*breaking*] The given path is now transformed with `std::path::absolute` to get the absolute path even if it does not exists. Path existence is checked later.
-- *(StepId)* [*breaking*] Replaced `SId` by `StepSId` for all `Fidelity` based experiment. This allows linking by `id` and `id_step` recorded solutions.
-- *(mpi_run)* [**breaking**] Fixed an issue when loading an MPI-distributed experiment Objective. The master process was stuck due to an extra barrier. 
-- *(mpi_run)* [**breaking**] Fixed an issue during draining and reinjection of overflowing solutions when a MPI-distributed Stepped experiment was ending.
+- *(FolderConfig)* [*breaking*] The given path is now transformed with `std::path::absolute` to get the absolute path even if it does not exist. Path existence is checked later.
+- *(StepId)* [*breaking*] Replaced `SId` by `StepSId` for all `Fidelity`-based experiments. This allows linking by `id` and `id_step` recorded solutions.
+- *(mpi_run)* [**breaking**] Resolved an issue when loading an MPI-distributed experiment `Objective`. The master process was stuck due to an extra barrier. 
+- *(mpi_run)* [**breaking**] Resolved an issue during draining and reinjection of overflowing solutions when an MPI-distributed `Stepped` experiment was ending.
 - *(mpi_run)* Solved an issue when filling workers. If no solution could be sent to the first idle worker, then the filling phase was terminated. No solution was evaluated, even if it could have been sent to another idle worker.
 - *(mpi_run)* Solutions are now correctly discarded.
 
 ### 🚜 Refactor
 
-- *(tests)* Added a cleaner module, containing the tmp folder Cleaner + python tests.
+- *(tests)* Added a cleaner module, containing the tmp folder cleaner + Python tests.
 
 ### 📚 Documentation
 
 - *(pytantale)* Added a Pytorch $\times$ Tantale tutorial
-- *(GridDom)* Added documentation for GridReal, GridInt and GridNat.
-- *(tantalexburn)* Minor mistake.
+- *(GridDom)* Added documentation for GridReal, GridInt, and GridNat.
+- *(tantalexburn)* Solved minor mistake.
 - *(lib)* Solved list issue.
 - *(tutorial)* Update multi-objective optimizer tutorials with StepSId.
 - *(hyperband)* Rewrote pseudo code.
 
 ### 🧪 Testing
 
-- *(reader)* Now all experiment output are verified using the same function, using theoretical number of expected outputs. Or + epsilon when randomnes.
+- *(reader)* Now all experiment outputs are verified using the same function, using the theoretical number of expected outputs. Or + epsilon when randomness.
 - *(fidelity)* Update all fidelity tests with StepSId.
-- *(mpi)* MPI tests examples now cleanly remove temporary folders
-- *(mpi)* Added a bash script to run mpi_*.rs tests sequentially
-- *(pytantale)* Added test for mono, threaded, and distributed, for Objective and Stepped cases with Python functions
+- *(mpi)* MPI test examples now cleanly remove temporary folders.
+- *(mpi)* Added a bash script to run `mpi_*.rs` tests sequentially.
+- *(pytantale)* Added test for mono, threaded, and distributed for `Objective` and `Stepped` cases with Python functions.

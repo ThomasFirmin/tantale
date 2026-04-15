@@ -21,6 +21,7 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 | `tantale_core` | `tantale::core` | Core abstractions: domains, search spaces, solutions, objectives, optimizers, experiments |
 | `tantale_macros` | `tantale::macros` | Procedural macros: `objective!`, `hpo!`, `Outcome`... |
 | `tantale_algos` | `tantale::algos` | Concrete algorithms: Random Search, SHA, ASHA, Hyperband |
+| `tantale_python` | `tantale::python` | Python bindings with [pyo3](https://pyo3.rs) |
 
 ---
 
@@ -29,6 +30,7 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 | Flag | Description |
 |---|---|
 | `mpi` | Enables MPI-based distributed execution across multiple machines. Requires a local MPI installation (e.g. OpenMPI). Propagates to `tantale_core` and `tantale_algos`. |
+| `py` | Enables Python bindings with [pyo3](https://pyo3.rs) allowing to optimize Python functions |
 
 ---
 
@@ -52,7 +54,7 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 | SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
 | ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
 | Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
-| MO-Asha | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-Asha](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
+| MO-ASHA | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-ASHA](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
 
 ---
 
@@ -96,7 +98,7 @@ mod searchspace {
 ```
 
 Each variable is declared with `[! name | ObjectiveDomain | OptimizerDomain !]`.
-Leaving the optimizer domain empty (`!]`) means the optimizer searches directly over the objective domain.
+Leaving the optimizer domain empty (`| !]`) means the optimizer searches directly over the objective domain.
 
 ### 2 — Assemble and run the experiment
 
@@ -163,6 +165,7 @@ An experiment is composed of up to 7 components:
 |---|---|---|
 | `objective!` | Declarative | Defines a search space and wraps a function into `Objective` / `Stepped` |
 | `hpo!` | Declarative | Concise search space definition (without a function body) |
+| `pyhpo!` | Declarative | Same as `hpo!` but for Python bindings (`py` feature) |
 | `Outcome` | Derive | Implements the `Outcome` trait for a result struct |
 | `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
 | `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
