@@ -31,13 +31,13 @@ thread_local! {
 
 /// Creates a codomain for Random Search optimization.
 ///
-/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
-/// [`Criteria`](tantale_core::Criteria).
+/// Constructs a [`SingleCodomain`] from a single-objective
+/// [`Criteria`].
 ///
 /// # Arguments
 ///
-/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
-///   optimization objective from the [`Outcome`](tantale_core::Outcome).
+/// * `extractor` - A [`Criteria`] defining how to extract the
+///   optimization objective from the [`Outcome`].
 pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
 where
     Cod: Codomain<Out> + From<SingleCodomain<Out>>,

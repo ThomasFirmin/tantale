@@ -15,8 +15,8 @@ fn is_evalstate_type(ty: &Type) -> bool {
 /// Entry point for the `Outcome` derive macro.
 ///
 /// This function processes a struct and derives implementations for:
-/// 1. [`Outcome`](crate::Outcome) - Marker trait for objective outputs
-/// 2. [`FidOutcome`](crate::FidOutcome) - Multi-fidelity tracking (if Step field exists)
+/// 1. `Outcome` - Marker trait for objective outputs
+/// 2. `FidOutcome` - Multi-fidelity tracking (if Step field exists)
 ///
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

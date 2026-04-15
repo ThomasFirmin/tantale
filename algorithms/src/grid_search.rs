@@ -21,13 +21,13 @@ use serde::{Deserialize, Serialize};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
-/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
-/// [`Criteria`](tantale_core::Criteria).
+/// Constructs a [`SingleCodomain`] from a single-objective
+/// [`Criteria`].
 ///
 /// # Arguments
 ///
-/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
-///   optimization objective from the [`Outcome`](tantale_core::Outcome).
+/// * `extractor` - A [`Criteria`] defining how to extract the
+///   optimization objective from the [`Outcome`].
 pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
 where
     Cod: Codomain<Out> + From<SingleCodomain<Out>>,
@@ -57,7 +57,7 @@ impl OptState for GSState {}
 /// This optimizer samples solutions on-demand according to a predefined grid
 /// from a [`Searchspace`] made of [`Grid`] at each iteration.
 ///
-/// Points are generated sequentially on demand, accord to a Cartesian product of the [`Grid`](tantale_core::Grid) of each variable.
+/// Points are generated sequentially on demand, accord to a Cartesian product of the [`Grid`] of each variable.
 ///
 /// # Note
 ///

@@ -23,7 +23,7 @@ mod solinfo;
 ///
 /// Objective functions in Tantale must return an `Outcome` - a structured type describing
 /// the evaluation result. The `Outcome` macro:
-/// 1. Implements the [`Outcome`](crate::Outcome) trait marker
+/// 1. Implements the `Outcome` trait marker
 /// 2. Optionally tracks multi-fidelity evaluation state via `Step` fields
 ///
 /// ## Quick Example
@@ -291,12 +291,12 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// | Domain | TypeDom | Use Case | Example |
 /// |--------|---------|----------|---------|
-/// | [`Real`] | `f64` | Continuous values | `Real(0.0, 100.0, Uniform)` |
-/// | [`Nat`] | `u32` | Natural numbers | `Nat(1, 20, Uniform)` |
-/// | [`Int`] | `i32` | Any integers | `Int(-10, 10, Uniform)` |
-/// | [`Bool`] | `bool` | Binary choices | `Bool(Bernoulli(0.5))` |
-/// | [`Cat`] | `&'static str` | Categorical | `Cat(["a", "b"], Uniform)` |
-/// | [`Unit`] | `f64` | Unit hypercube domain | `Unit(Uniform)` |
+/// | `Real` | `f64` | Continuous values | `Real(0.0, 100.0, Uniform)` |
+/// | `Nat` | `u32` | Natural numbers | `Nat(1, 20, Uniform)` |
+/// | `Int` | `i32` | Any integers | `Int(-10, 10, Uniform)` |
+/// | `Bool` | `bool` | Binary choices | `Bool(Bernoulli(0.5))` |
+/// | `Cat` | `&'static str` | Categorical | `Cat(["a", "b"], Uniform)` |
+/// | `Unit` | `f64` | Unit hypercube domain | `Unit(Uniform)` |
 ///
 /// ## Dual Domain Architecture
 ///
@@ -550,7 +550,7 @@ pub fn solinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// ## CSV Output Format
 ///
-/// The macro implements [`CSVWritable`](crate::recorder::CSVWritable) for automatic result logging:
+/// The macro implements `CSVWritable` for automatic result logging:
 ///
 /// ```ignore
 /// #[derive(CSVWritable)]
@@ -607,14 +607,14 @@ pub fn csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[cfg(all(feature = "py", not(feature = "mpi")))]
-/// Similar to [`hpo!`](crate::hpo), but generates a Python-compatible searchspace and exposes it via PyO3.
+/// Similar to [`hpo!`](crate::hpo!), but generates a Python-compatible searchspace and exposes it via PyO3.
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     pyhpo::pyhpo(input)
 }
 
 #[cfg(all(feature = "py", feature = "mpi"))]
-/// Similar to [`hpo!`](crate::hpo), but generates a Python-compatible searchspace and exposes it via PyO3.
+/// Similar to [`hpo!`](crate::hpo!), but generates a Python-compatible searchspace and exposes it via PyO3.
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     pyhpo::pyhpo(input)

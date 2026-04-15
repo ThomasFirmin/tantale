@@ -38,8 +38,8 @@
 //! # Type Parameters
 //!
 //! The algorithm is generic over:
-//! - Output types satisfying [`FidOutcome`](tantale_core::FidOutcome) for multi-fidelity support
-//! - [`Searchspace`](tantale_core::Searchspace) over randomly samplable [`Domain`](tantale_core::Domain) generating candidates with [`HasStep`] and [`HasFidelity`] traits
+//! - Output types satisfying [`FidOutcome`] for multi-fidelity support
+//! - [`Searchspace`] over randomly samplable [`Domain`](tantale_core::Domain) generating candidates with [`HasStep`] and [`HasFidelity`] traits
 //!
 //! # Example
 //!
@@ -73,12 +73,12 @@ use serde::{Deserialize, Serialize};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
-/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
-/// [`Criteria`](tantale_core::Criteria).
+/// Constructs a [`SingleCodomain`] from a single-objective
+/// [`Criteria`].
 ///
 /// # Arguments
 ///
-/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
+/// * `extractor` - A [`Criteria`] defining how to extract the
 ///   optimization objective from the [`Outcome`](tantale_core::Outcome).
 pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
 where
@@ -152,7 +152,7 @@ impl CSVWritable<(), ()> for ShaInfo {
 
 /// Successive Halving multi-fidelity optimizer.
 ///
-/// A [`BatchOptimizer`](tantale_core::BatchOptimizer) implementing the Successive Halving algorithm
+/// A [`BatchOptimizer`] implementing the Successive Halving algorithm
 /// for multi-fidelity evaluations.
 ///
 /// # Overview
@@ -211,9 +211,9 @@ impl CSVWritable<(), ()> for ShaInfo {
 /// # Type Parameters
 ///
 /// This optimizer is generic over:
-/// - **Output Type**: Must satisfy [`FidOutcome`](tantale_core::FidOutcome) to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`](tantale_core::HasFidelity) and [`HasStep`](tantale_core::HasStep)
-/// - **Function State**: Must implement [`FuncState`](tantale_core::FuncState) for managing
+/// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
+/// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+/// - **Function State**: Must implement [`FuncState`] for managing
 ///   evaluation state across fidelity levels
 ///
 /// # Internal State
@@ -287,7 +287,7 @@ impl Sha {
     }
 }
 
-/// Implementation of the [`Optimizer`](crate::Optimizer) trait for Successive Halving.
+/// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
@@ -390,7 +390,7 @@ where
     }
 }
 
-/// Implementation of the [`BatchOptimizer`](crate::BatchOptimizer) trait for Successive Halving.
+/// Implementation of the [`BatchOptimizer`] trait for Successive Halving.
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
@@ -424,7 +424,7 @@ where
     ///
     /// # Returns
     ///
-    /// A [`Batch`](tantale_core::Batch) of sampled solutions with fidelity set to `budget_min`
+    /// A [`Batch`] of sampled solutions with fidelity set to `budget_min`
     fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         self.0.current_budget = self.0.budgets[0];
         self.0.budget_idx = 0;
@@ -457,7 +457,7 @@ where
     ///
     /// # Returns
     ///
-    /// A new [`Batch`](tantale_core::Batch) containing both:
+    /// A new [`Batch`] containing both:
     /// - Surviving candidates marked for evaluation at higher fidelity
     /// - Solutions that have to be [`Discarded`](tantale_core::Step::Discard) due to poor performance
     ///   Or in case of all solution being [`Evaluated`](tantale_core::Step::Evaluated), [`Errored`](tantale_core::Step::Error), or [`Discarded`](tantale_core::Step::Discard):

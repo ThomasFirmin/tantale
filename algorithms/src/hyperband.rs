@@ -12,7 +12,7 @@
 //! **Hyperband**
 //! ---
 //! **Inputs**
-//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`BudgetPruner`](tantale_core::optimizer::opt::BudgetPruner) (e.g., SHA or ASHA)*
+//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`BudgetPruner`] (e.g., SHA or ASHA)*
 //! 2. &emsp; $b_{\min}$ &emsp;&emsp; *Minimum budget*
 //! 3. &emsp; $b_{\max}$ &emsp;&emsp; *Maximum budget*
 //! 4. &emsp; $\eta$ &emsp;&emsp; *Scaling factor (from inner optimizer)*
@@ -21,7 +21,7 @@
 //! 7. &emsp;
 //! 8. &emsp; **for** $s \in [s_{\max}, \ldots, 0]$ **do**
 //! 9. &emsp;  &emsp; **set_max_budget**$(\mathcal{O}, b_{\max}\eta^{-s})$ &emsp; *Configure inner optimizer budgets*
-//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`BatchOptimizer`](tantale_core::BatchOptimizer) ------
+//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`BatchOptimizer`] ------
 //! 11. &emsp; &emsp; **set_batch_size**$\left(\mathcal{O}, \left\lceil \frac{s_{\max}+1}{s+1} \eta^s \right\rceil\right)$ &emsp; *Configure inner optimizer batch size*
 //! 12. &emsp; &emsp; ------------------------------------------------------------
 //! 13. &emsp; &emsp; **Run** $\mathcal{O}$ until **current_budget**$(\mathcal{O}) \geq b_{\max}\eta^{-s}$ &emsp;
@@ -32,11 +32,11 @@
 //! # Type Parameters
 //!
 //! The algorithm is generic over:
-//! - **Inner Optimizer**: Must satisfy both [`Optimizer`](tantale_core::Optimizer) and [`BudgetPruner`](tantale_core::optimizer::opt::BudgetPruner)
+//! - **Inner Optimizer**: Must satisfy both [`Optimizer`] and [`BudgetPruner`]
 //!   traits. Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
-//! - **Output Type**: Must satisfy [`FidOutcome`](tantale_core::FidOutcome) for multi-fidelity support
-//! - **Searchspace**: Must generate [`SolutionShape`] with [`HasFidelity`](tantale_core::HasFidelity) and [`HasStep`](tantale_core::HasStep)
-//! - **Solution Info**: Must satisfy [`SolInfo`](tantale_core::SolInfo) constraint for the inner optimizer
+//! - **Output Type**: Must satisfy [`FidOutcome`] for multi-fidelity support
+//! - **Searchspace**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+//! - **Solution Info**: Must satisfy [`SolInfo`] constraint for the inner optimizer
 //!
 //! # Example
 //!
@@ -94,12 +94,12 @@ use tantale_core::{
 
 /// Creates a codomain for Successive Halving optimization.
 ///
-/// Constructs a [`SingleCodomain`](tantale_core::SingleCodomain) from a single-objective
-/// [`Criteria`](tantale_core::Criteria).
+/// Constructs a [`SingleCodomain`] from a single-objective
+/// [`Criteria`].
 ///
 /// # Arguments
 ///
-/// * `extractor` - A [`Criteria`](tantale_core::Criteria) defining how to extract the
+/// * `extractor` - A [`Criteria`] defining how to extract the
 ///   optimization objective from the [`Outcome`](tantale_core::Outcome).
 pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
 where
@@ -123,7 +123,7 @@ where
 /// - `Optim` - The inner optimizer (typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha)).
 ///   The behavior of Hyperband is determined by the inner optimizer's
 ///   type [`SequentialOptimizer`] or [`BatchOptimizer`].
-/// - `Out` - The outcome type satisfying [`FidOutcome`](tantale_core::FidOutcome)
+/// - `Out` - The outcome type satisfying [`FidOutcome`]
 /// - `Scp` - The searchspace
 /// - `SInfo` - The solution info type for the inner optimizer
 pub struct HyperbandState<Optim, Out, Scp, SInfo>
@@ -301,8 +301,8 @@ impl<Info: OptInfo> HyperbandInfo<Info> {
 ///
 /// # Type Parameters
 ///
-/// - `Optim` - The inner optimizer (must implement both [`Optimizer`] and [`BudgetPruner`](tantale_core::optimizer::opt::BudgetPruner))
-/// - `Out` - Output type satisfying [`FidOutcome`](tantale_core::FidOutcome)
+/// - `Optim` - The inner optimizer (must implement both [`Optimizer`] and [`BudgetPruner`])
+/// - `Out` - Output type satisfying [`FidOutcome`]
 /// - `Scp` - Searchspace type
 /// - `SInfo` - Solution info type for the inner optimizer
 ///
@@ -342,7 +342,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `sampler` - An inner optimizer implementing both [`Optimizer`] and [`BudgetPruner`](tantale_core::optimizer::opt::BudgetPruner).
+    /// * `sampler` - An inner optimizer implementing both [`Optimizer`] and [`BudgetPruner`].
     ///   Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
     ///
     /// # Example

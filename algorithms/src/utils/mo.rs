@@ -340,7 +340,7 @@ pub struct NSGA2Selector;
 /// 9. &emsp;&emsp; $i \gets i + 1$
 /// 10. &emsp; **if** $|C| < N$ **then**
 /// 11. &emsp;&emsp; $r \gets N - |C|$ &emsp;&emsp; *The number of remaining candidates to select*
-/// 12. &emsp;&emsp; $d \gets $[crowding_distance](crowding_distance)$(F_i)$ &emsp;&emsp; *Compute the crowding distance for the current front*
+/// 12. &emsp;&emsp; $d \gets $[crowding_distance]$(F_i)$ &emsp;&emsp; *Compute the crowding distance for the current front*
 /// 13. &emsp;&emsp; $C \gets C \cup \text{Top}_r(F_i, d)$ &emsp;&emsp; *Select the top $r$ candidates from the current front based on maximum crowding distance*
 /// 14. &emsp; **return** $C$
 /// ---

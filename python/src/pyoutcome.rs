@@ -121,7 +121,7 @@ impl PyStep {
 /// via Python's `pickle` module for serialization and `repr()` for debug output.
 ///
 /// Implements [`Outcome`], making it usable as the `Out` type parameter of
-/// [`Objective`]`<Arc<[`[`MixedTypeDom`]`]>, PyOutcome>`.
+/// [`Objective`](tantale_core::Objective)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, [`PyOutcome`](crate::PyOutcome)`]>`.
 pub struct PyOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyOutcome {
@@ -205,7 +205,7 @@ impl PyOutcome {
 /// that returns a [`PyStep`] instance.
 ///
 /// Implements [`Outcome`] and [`FidOutcome`], making it usable as the `Out` type
-/// parameter of [`Stepped`]`<Arc<[`[`MixedTypeDom`]`]>, PyFidOutcome, PyFuncState>`.
+/// parameter of [`Stepped`](tantale_core::Stepped)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
 pub struct PyFidOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyFidOutcome {
