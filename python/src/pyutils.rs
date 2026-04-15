@@ -137,7 +137,7 @@ pub fn register_outcome(cls: Py<PyAny>) {
 macro_rules! init_python {
     (Objective, $searchspace_module:path, $func_file:expr, $func_module:expr, $func_name:expr, $out_file:expr, $out_module:expr, $out_name:expr) => {{
         use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
-        use $searchspace_module::pytantale;
+        use $searchspace_module::{pytantale};
 
         tantale::python::pyo3::append_to_inittab!(pytantale);
         let objective = tantale::python::pyo3::Python::attach(|py| {
@@ -172,7 +172,7 @@ macro_rules! init_python {
     (Stepped, $searchspace_module:path, $func_file:expr, $func_module:expr, $func_name:expr, $out_file:expr, $out_module:expr, $out_name:expr) => {{
         use std::ffi::CStr;
         use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
-        use $searchspace_module::pytantale;
+        use $searchspace_module::{pytantale};
 
         tantale::python::pyo3::append_to_inittab!(pytantale);
 
