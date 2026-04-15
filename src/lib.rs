@@ -1,6 +1,6 @@
 //! # Tantale
 //!
-//! *This is the first version and release of the Tantale core library.
+//! *This is an early version of the Tantale library.
 //! It is a core library with very few algorithms, but it contains all the necessary building blocks to create your own optimizers, search spaces, and experiments.
 //! The library is designed to be flexible and extensible, allowing users to easily create their own custom components.*
 //!
