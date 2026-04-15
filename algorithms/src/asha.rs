@@ -153,7 +153,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// [`Asha`] manages the optimization process through on-demand generation of candidates :
 /// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
 /// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting the top performers and promoting them to the next level of fidelity, if the rung is has enough candidates.
+///   selecting the top performers and promoting them to the next level of fidelity, if the rung has enough candidates.
 /// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
 ///
 /// # Workflow
@@ -182,7 +182,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///  |             v                   v
 ///  |        +----------+      +-------------+
 ///  |        | Move to  |      | Promote     |
-///  |        | next     |      | top config  |
+///  |        | next     |      | top configs |
 ///  |        | rung     |      | to next     |
 ///  |        +----------+      | fidelity    |
 ///  |             |            +-------------+
@@ -191,7 +191,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///  |      /            \        |    to worker
 ///  |  No /  At lowest   \ Yes +--------------+
 ///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random config |
+///         \            /      |random configs|
 ///          +----------+       +--------------+  
 /// ```
 ///

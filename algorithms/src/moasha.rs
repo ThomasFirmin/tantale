@@ -17,7 +17,7 @@
 //!
 //! # References
 //!
-//! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2018)](https://arxiv.org/pdf/2106.12639).
+//! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
@@ -104,17 +104,17 @@ impl CSVWritable<(), ()> for MoAshaInfo {
         vec![self.0.to_string()]
     }
 }
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)multi-fidelity optimizer.
+/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
 ///
 /// A [`SequentialOptimizer`](tantale_core::SequentialOptimizer) implementing the
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
+/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639)  algorithm for multi-fidelity evaluations.
 ///
 /// # Overview
 ///
-/// [`Asha`] manages the optimization process through on-demand generation of candidates :
+/// [`MoAsha`] manages the optimization process through on-demand generation of candidates :
 /// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
 /// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting the top performers and promoting them to the next level of fidelity, if the rung is has enough candidates.
+///   selecting pareto-optimal candidates with a [`CandidateSelector`], if the rung has enough candidates.
 /// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
 ///
 /// # Workflow
@@ -135,24 +135,24 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 ///  +--------+   +---------------------+
 ///                    |
 ///                    v
-///         +----------------+
-///         | Rung has top-k |  Yes
-///  +----->| candidates?    | --------+
-///  |      +----------------+         |
-///  |             | No                |
-///  |             v                   v
-///  |        +----------+      +-------------+
-///  |        | Move to  |      | Promote     |
-///  |        | next     |      | top config  |
-///  |        | rung     |      | to next     |
-///  |        +----------+      | fidelity    |
-///  |             |            +-------------+
+///         +-------------+
+///         | Rung has k  |  Yes
+///  +----->| candidates? | --------+
+///  |      +-------------+         |
+///  |             | No             |
+///  |             v                v
+///  |        +----------+     +---------------+
+///  |        | Move to  |     | Select        |
+///  |        | next     |     | configs with  |
+///  |        | rung     |     | a candidate   |
+///  |        +----------+     | selector      |
+///  |             |           +---------------+
 ///  |             v              |
-///  |       +----------+         +-->Return config
+///  |       +----------+         +-->Return configs
 ///  |      /            \        |    to worker
 ///  |  No /  At lowest   \ Yes +--------------+
 ///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random config |
+///         \            /      |random configs|
 ///          +----------+       +--------------+  
 /// ```
 ///
@@ -193,10 +193,13 @@ where
     SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
-    /// Creates a new [`Asha`] optimizer with the specified parameters.
+    /// Creates a new [`MoAsha`] optimizer with the specified parameters.
     ///
     /// # Parameters
-    ///
+    /// 
+    /// * `selector` - The candidate selection strategy used for promoting candidates between rungs. 
+    ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based 
+    ///   on their performance and diversity.
     /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
     ///   fidelity level, typically 1 epoch or similar.
     /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
@@ -406,13 +409,13 @@ where
     FnState: FuncState,
     Selector: CandidateSelector,
 {
-    /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
+    /// Executes one iteration of [`MoAsha`].
     ///
     /// This method implements the core algorithm:
     ///
     /// - If a candidate is provided, it is added to the appropriate rung based on its fidelity.
     /// - The optimizer then checks the rungs starting from the highest budget level, selecting the
-    ///   top performers and promoting them to the next level of fidelity if the rung has enough candidates.
+    ///   top performers using a [`CandidateSelector`] and promoting them to the next level of fidelity if the rung has enough candidates.
     /// - If no candidates are available for promotion, it continues down the rungs until
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
@@ -429,13 +432,13 @@ where
     ///
     /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
     /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
-    /// So when using ASHA a total of:
+    /// So when using MO-ASHA a total of:
     /// - 16 states at rung 0 (budget level 0)
     /// - 4 states at rung 1 (budget level 1)
     /// - 1 state at rung 2 (budget level 2)
     ///   are stored in memory until the next generation step, where they will be promoted or discarded.
     ///
-    /// So memory management is crucial when using ASHA,
+    /// So memory management is crucial when using MO-ASHA,
     /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
     ///
     /// In MPI-distributed optimization:
