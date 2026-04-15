@@ -144,7 +144,7 @@
 //! ## Standard Objectives ([`Objective`](crate::objective::Objective))
 //!
 //! Single-shot evaluation: input → output
-//! See the [`objective!`] procedural macro for easy definition.
+//! See the `objective!` procedural macro for easy definition.
 //! ```rust,ignore
 //!
 //! // This is automatically generated and wrapped with the objective! procedural macro.
@@ -161,7 +161,7 @@
 //! - Useful for iterative algorithms (e.g., neural network training)
 //! - Enables multi-fidelity optimization strategies
 //!
-//! See the [`objective!`] procedural macro for easy definition.
+//! See the `objective!` procedural macro for easy definition.
 //!
 //! ```rust,ignore
 //! // This is automatically generated and wrapped with the objective! procedural macro.
@@ -676,13 +676,13 @@ where
 ///
 /// # Note
 ///
-/// Prefer using the [`load!`] macro for cleaner syntax and better type inference.
+/// Prefer using the `load!` macro for cleaner syntax and better type inference.
 ///
 /// # See Also
 ///
 /// * [`mono`] - For creating new experiments
 /// * [`threaded_load`] - For loading multi-threaded experiments
-/// * [`load!`] - Macro for simpler loading syntax
+/// * `load!` - Macro for simpler loading syntax
 pub fn mono_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
@@ -772,13 +772,13 @@ where
 ///
 /// # Note
 ///
-/// Prefer using the [`load!`] macro for cleaner syntax.
+/// Prefer using the `load!` macro for cleaner syntax.
 ///
 /// # See Also
 ///
 /// * [`threaded`] - For creating new multi-threaded experiments
 /// * [`mono_load`] - For loading single-threaded experiments
-/// * [`load!`] - Macro for simpler loading syntax
+/// * `load!` - Macro for simpler loading syntax
 pub fn threaded_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     space: (Scp, Op::Cod),
     objective: Fn,
@@ -890,13 +890,13 @@ where
 ///
 /// # Note
 ///
-/// Prefer using the [`load!`] macro for cleaner syntax.
+/// Prefer using the `load!` macro for cleaner syntax.
 ///
 /// # See Also
 ///
 /// * [`distributed`] - For creating new multi-threaded experiments
 /// * [`mono_load`] - For loading single-threaded experiments
-/// * [`load!`] - Macro for simpler loading syntax
+/// * `load!` - Macro for simpler loading syntax
 pub fn distributed_load<'a, SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
     space: (
@@ -1155,12 +1155,12 @@ pub enum PoolMode {
 
 /// Macro for loading experiments from checkpoints with simplified syntax (MPI-enabled version).
 ///
-/// This is the MPI-enabled version of the [`load!`] macro. It provides the same functionality
+/// This is the MPI-enabled version of the `load!` macro. It provides the same functionality
 /// as the non-MPI version but with additional support for distributed experiments.
 ///
 /// # See Also
 ///
-/// See the non-MPI [`load!`] macro documentation for detailed usage and examples.
+/// See the non-MPI `load!` macro documentation for detailed usage and examples.
 /// The only difference is that this version supports the `distributed` variant.
 #[macro_export]
 #[cfg(feature = "mpi")]
@@ -1197,7 +1197,7 @@ macro_rules! load {
     };
 }
 
-/// Type alias for an [`Accumulator`](crate::Accumulator) made of [`CompShape`](crate::searchspace::CompShape).
+/// Type alias for an [`Accumulator`] made of [`CompShape`].
 pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
     TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
 
@@ -1222,7 +1222,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 /// - [`Stop`] - Determines when to terminate
 /// - [`Recorder`] - Saves evaluated solutions
 /// - [`Checkpointer`] - Saves experiment state for recovery
-/// - [`Accumulator`](crate::Accumulator) - Tracks best solutions across the experiment
+/// - [`Accumulator`] - Tracks best solutions across the experiment
 ///
 /// # The Optimization Loop
 ///
@@ -1230,7 +1230,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 ///
 /// 1. **Initialization** - Set up optimizer state, load from checkpoint if resuming
 /// 2. **Generation** - Optimizer produces candidate solution(s) while updating its
-///    internal state based on results, informed by the [`Accumulator`](crate::Accumulator)
+///    internal state based on results, informed by the [`Accumulator`]
 /// 3. **Evaluation** - Objective function evaluates solution(s)
 /// 4. **Accumulation** - [`update_accumulator`](Runable::update_accumulator) update best solutions for each
 ///    newly evaluated solution into the running accumulator
@@ -1241,7 +1241,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 ///
 /// # Accumulator
 ///
-/// The [`Accumulator`](crate::Accumulator) tracks the most relevant solutions evaluated so far.
+/// The [`Accumulator`] tracks the most relevant solutions evaluated so far.
 ///
 /// - **Single-objective** codomains (implementing [`Single`](crate::Single)) use
 ///   [`BestAccumulator`](crate::BestAccumulator): the single solution with the highest
@@ -1311,8 +1311,8 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 /// # Type Parameters
 ///
 /// The trait is generic over all experiment components:
-/// - `PSol` - The uncomputed solution type (e.g. [`BasePartial`](crate::BasePartial))
-/// - `SolId` - Solution identifier type (e.g. [`SolId`](crate::SolId))
+/// - `PSol` - The uncomputed solution type (e.g. [`BaseSol`](crate::BaseSol))
+/// - `SolId` - Solution identifier type (e.g. [`SId`](crate::SId))
 /// - `Scp` - Searchspace type (e.g. [`Sp`](crate::Sp))
 /// - `Op` - Optimizer type
 /// - `St` - Stopping criterion type (e.g. [`Calls`](crate::stop::Calls))
@@ -1324,7 +1324,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 /// # See Also
 ///
 /// - [`mono`], [`threaded`], [`distributed`] - Helper functions to create experiments
-/// - [`load!`] - Macro for loading experiments from checkpoints
+/// - `load!` - Macro for loading experiments from checkpoints
 /// - [`Optimizer`] - Trait for optimization algorithms
 /// - [`Stop`] - Trait for stopping criteria
 /// - [`crate::domain::codomain::Accumulator`] - Trait for accumulating best solutions across iterations
@@ -1367,7 +1367,7 @@ where
         Self::new_with_pool(space, objective, optimizer, stop, saver, PoolMode::InMemory)
     }
 
-    /// Similar to [`new`], but allows specifying the [`PoolMode`] for function state management.
+    /// Similar to [`new`](Self::new), but allows specifying the [`PoolMode`] for function state management.
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Fn,
@@ -1383,7 +1383,7 @@ where
     /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
-    /// It return an [`Accumulator`](crate::Accumulator) containing the best solutions found during the run.
+    /// It return an [`Accumulator`] containing the best solutions found during the run.
     fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Restores an experiment from a checkpoint.
@@ -1392,7 +1392,7 @@ where
     /// from the provided [`Checkpointer`]. The searchspace, codomain, and objective are
     /// supplied explicitly because they are not serialized.
     ///
-    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the [`load!`] macro.
+    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the `load!` macro.
     fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self {
         Self::load_with_pool(space, objective, saver, PoolMode::InMemory)
     }
@@ -1455,13 +1455,13 @@ where
     /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
 
-    /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
+    /// Returns a read-only reference to the [`Accumulator`].
     fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
-    /// Returns a mutable reference to the [`Accumulator`](crate::Accumulator).
+    /// Returns a mutable reference to the [`Accumulator`].
     fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
-    /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
+    /// Integrates a newly evaluated solution into the [`Accumulator`].
     fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
@@ -1576,7 +1576,7 @@ where
     /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
-    /// It return an [`Accumulator`](crate::Accumulator) containing the best solutions found during the run.
+    /// It return an [`Accumulator`] containing the best solutions found during the run.
     fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Restores an experiment from a checkpoint.
@@ -1585,7 +1585,7 @@ where
     /// from the provided [`Checkpointer`]. The searchspace, codomain, and objective are
     /// supplied explicitly because they are not serialized.
     ///
-    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the [`load!`] macro.
+    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the `load!` macro.
     fn load(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -1637,13 +1637,13 @@ where
     fn get_mut_recorder(&mut self) -> Option<&mut Rec>;
     /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
-    /// Returns a read-only reference to the [`Accumulator`](crate::Accumulator).
+    /// Returns a read-only reference to the [`Accumulator`].
     fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
-    /// Returns a mutable reference to the [`Accumulator`](crate::Accumulator).
+    /// Returns a mutable reference to the [`Accumulator`].
     fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
 
-    /// Integrates a newly evaluated solution into the [`Accumulator`](crate::Accumulator).
+    /// Integrates a newly evaluated solution into the [`Accumulator`].
     fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
@@ -1823,7 +1823,7 @@ type ArcMutexCompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
 /// - [`ThrBatchEvaluator`] - Parallel batch evaluation
 /// - [`VecThrSeqEvaluator`] - Parallel sequential evaluation
 /// - [`FidThrBatchEvaluator`] - Parallel multi-fidelity batch evaluation
-/// - [`VecFidThrSeqEvaluator`] - Parallel multi-fidelity sequential
+/// - [`FidThrSeqEvaluator`] - Parallel multi-fidelity sequential
 ///
 /// # Type Parameters
 ///

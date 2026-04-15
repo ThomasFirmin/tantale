@@ -241,7 +241,7 @@ impl From<EvalStep> for Step {
 impl EvalStep {
     /// Creates an [`EvalStep`] representing a pending (unevaluated) solution.
     ///
-    /// Equivalent to `EvalStep(0)` and converts to [`Step::Pending`].
+    /// Equivalent to [`EvalStep(0)`](EvalStep) and converts to [`Step::Pending`].
     ///
     /// # Example
     ///
@@ -256,7 +256,7 @@ impl EvalStep {
     /// Creates an [`EvalStep`] representing a partially evaluated solution.
     ///
     /// The `value` parameter indicates the current evaluation step.
-    /// Equivalent to `EvalStep(value as isize)` and converts to [`Step::Partially(value)`].
+    /// Equivalent to [`EvalStep(value as isize)`](EvalStep) and converts to [`Step::Partially(value)`](Step::Partially).
     ///
     /// # Parameters
     ///

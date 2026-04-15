@@ -72,7 +72,7 @@ pub trait Recorder {}
 
 /// Recorder trait for sequential optimization experiments.
 ///
-/// [`SeqRecorder`] is used with [`SequentialOptimizer`](crate::SequentialOptimizer)s,
+/// [`SeqRecorder`] is used with [`SequentialOptimizer`]s,
 /// which generate and evaluate one solution at a time. Each call to [`save`](SeqRecorder::save)
 /// records a single evaluated solution and its associated outcome.
 ///
@@ -124,7 +124,7 @@ where
     /// # Parameters
     ///
     /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
-    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`](crate::objective::Outcome)
+    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`]
     /// * `scp` - [`Searchspace`] used to interpret the solution
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
     fn save(
@@ -138,7 +138,7 @@ where
 
 /// Recorder trait for batch optimization experiments.
 ///
-/// [`BatchRecorder`] is used with [`BatchOptimizer`](crate::BatchOptimizer)s,
+/// [`BatchRecorder`] is used with [`BatchOptimizer`]s,
 /// which generate and evaluate multiple solutions per iteration. Each call to [`save`](BatchRecorder::save)
 /// records a batch of evaluated solutions and their associated outcomes.
 ///
@@ -183,7 +183,7 @@ where
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
     fn after_load(&mut self, scp: &Scp, cod: &Op::Cod);
 
-    /// Save a batch of evaluated [`Solution`](crate::Solution)s and [`Outcome`](crate::objective::Outcome)s.
+    /// Save a batch of evaluated [`Solution`](crate::Solution)s and [`Outcome`]s.
     ///
     /// # Parameters
     ///
@@ -217,7 +217,7 @@ where
 ///
 /// - [`SeqRecorder`] - Single-process sequential recorder
 /// - [`DistBatchRecorder`] - Distributed batch recorder
-/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI process context
+/// - [`MPIProcess`] - MPI process context
 pub trait DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -235,7 +235,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `proc` - [`MPIProcess`] context for MPI coordination
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
     fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
@@ -246,7 +246,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `proc` - [`MPIProcess`] context for MPI coordination
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
     fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
@@ -259,7 +259,7 @@ where
     /// # Parameters
     ///
     /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
-    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`](crate::objective::Outcome)
+    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`]
     /// * `scp` - [`Searchspace`] used to interpret the solution
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
     fn save_dist(
@@ -288,7 +288,7 @@ where
 ///
 /// - [`BatchRecorder`] - Single-process batch recorder
 /// - [`DistSeqRecorder`] - Distributed sequential recorder
-/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI process context
+/// - [`MPIProcess`] - MPI process context
 pub trait DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -306,7 +306,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `proc` - [`MPIProcess`] context for MPI coordination
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
     fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);
@@ -317,7 +317,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `proc` - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) context for MPI coordination
+    /// * `proc` - [`MPIProcess`] context for MPI coordination
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
     fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp, cod: &Op::Cod);

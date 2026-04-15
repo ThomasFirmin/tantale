@@ -23,7 +23,7 @@ use std::marker::PhantomData;
 ///
 /// It has an associated [`WorkerState`] type, allowing to store internal state information
 /// during the evaluation process. Allowing per-[`Worker`] checkpointing
-/// via [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
+/// via [`WorkerCheckpointer`].
 pub trait Worker<SolId: Id> {
     type WState: WorkerState;
     fn run(self);
@@ -45,8 +45,7 @@ impl WorkerState for NoWState {}
 
 /// [`FidWState`] describes the [`WorkerState`] for [`Worker`] computing
 /// [`Stepped`] functions. The [`FidWState`] stores the current [`FuncState`]
-/// of the function within a [`HashMap`]. The keys of the map are the
-/// solution [`Id`]s, and the values are the corresponding [`FuncState`]s.
+/// within a [`FuncStatePool`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "SolId: Serialize",

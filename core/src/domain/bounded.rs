@@ -1,7 +1,7 @@
 //! A [`Bounded`]`<T>` domain defines any domain that can be expressed
 //! by lower and upper bounds. The main struct is [`Bounded`], defined
-//! by a [`RangeInclusive`](std::ops::RangeInclusive). The trait
-//! [`DomainBounded`] allows a more general definition.
+//! by a [`RangeInclusive`]. The trait
+//! [`Bounded`] allows a more general definition.
 //!
 //! There are 3 type alises :
 //! * [`Real`] for [`Bounded`]`<f64>`

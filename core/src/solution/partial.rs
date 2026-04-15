@@ -1,8 +1,8 @@
 //! Partial (uncomputed) solutions.
 //!
 //! A partial solution is created by a [`Searchspace`](crate::Searchspace) and contains a unique
-//! [`Id`](crate::Id) plus its raw representation (vector, permutation, matrix, ...), assembled
-//! from the underlying [`Domain`](crate::Domain) definitions. This raw solution is what gets
+//! [`Id`] plus its raw representation (vector, permutation, matrix, ...), assembled
+//! from the underlying [`Domain`] definitions. This raw solution is what gets
 //! evaluated by an [`Objective`](crate::Objective).
 //!
 //! # Examples
@@ -69,7 +69,7 @@ impl Fidelity {
 /// # Attributes
 /// * `id` : [`Id`] - The unique [`Id`] of the solution.
 /// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `info` : [`Arc`]`<Info>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`](crate::Solution).
+/// * `info` : [`Arc`]`<Info>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
 ///
 /// # Example
 /// ```

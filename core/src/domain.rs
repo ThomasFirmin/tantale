@@ -10,9 +10,9 @@
 //! - Provides a sampling method via [`Domain::sample`]
 //! - Validates membership via [`Domain::is_in`]
 //!
-//! Domains are used by [`Var`](crate::variable::var::Var) inside a [`Searchspace`](crate::searchspace::Searchspace)
-//! to describe the inputs expected by an [`Objective`](crate::objective::Objective) and explored by an
-//! [`Optimizer`](crate::optimizer::Optimizer). The resulting [`Solution`](crate::solution::Solution) contains
+//! Domains are used by [`Var`] inside a [`Searchspace`](crate::searchspace::Searchspace)
+//! to describe the inputs expected by an [`Objective`] and explored by an
+//! [`Optimizer`]. The resulting [`Solution`] contains
 //! values whose types are determined by the corresponding domain.
 //!
 //! ## Type Relationship
@@ -40,7 +40,7 @@
 //! - [`Onto`] for mapping an element from one domain to another domain
 //! - [`OntoDom`] for defining [`Domain`]s that are mapped to another domain
 //!
-//! The [`codomain`](crate::domain::codomain) submodule provides codomain abstractions such as
+//! The [`codomain`] submodule provides codomain abstractions such as
 //! [`SingleCodomain`] and [`MultiCodomain`] used for objective outputs.
 //!
 //! ## Notes
@@ -154,8 +154,8 @@ pub trait PreDomain: Debug {}
 /// # See Also
 ///
 /// - [`TypeDom`] - Type alias for extracting the value type from a domain
-/// - [`Var`](crate::variable::var::Var) - Variables that use domains
-/// - [`Searchspace`](crate::searchspace::Searchspace) - Collections of domains defining the optimization space
+/// - [`Var`] - Variables that use domains
+/// - [`Searchspace`](crate::Searchspace) - Collections of domains defining the optimization space
 pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     /// The type representing values from this domain.
     ///
@@ -165,14 +165,14 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     /// # Examples
     ///
     /// For built-in domains:
-    /// - [`Real::TypeDom`](crate::domain::Real)` = f64` - Real-valued domains use 64-bit floats
-    /// - [`Int::TypeDom`](crate::domain::Int)` = i64` - Integer domains use 64-bit signed integers
-    /// - [`Bool::TypeDom`](crate::domain::Bool)` = bool` - Boolean domains use the `bool` type
-    /// - [`Cat::TypeDom`](crate::domain::Cat)` = usize` - Categorical domains use indices
+    /// - [`Real::TypeDom`](Real)` = f64` - Real-valued domains use 64-bit floats
+    /// - [`Int::TypeDom`](Int)` = i64` - Integer domains use 64-bit signed integers
+    /// - [`Bool::TypeDom`](Bool)` = bool` - Boolean domains use the `bool` type
+    /// - [`Cat::TypeDom`](Cat)` = usize` - Categorical domains use indices
     ///
-    /// # Usage in [`Solutions`](crate::solution::Solution)
+    /// # Usage in [`Solutions`](crate::Solution)
     ///
-    /// The [`TypeDom`] determines the type of values stored in [`Solution`](crate::solution::Solution)
+    /// The [`TypeDom`] determines the type of values stored in [`Solution`]
     /// instances.
     type TypeDom: Sized
         + PartialEq
@@ -191,7 +191,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     ///
     /// # Parameters
     ///
-    /// * `rng` - A mutable reference to a random number generator implementing [`Rng`](rand::prelude::Rng)
+    /// * `rng` - A mutable reference to a random number generator implementing [`Rng`]
     ///
     /// # Returns
     ///

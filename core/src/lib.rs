@@ -41,16 +41,16 @@
 //! ## Dependencies and integration
 //!
 //! Tantale core relies on a few external crates:
-//! - `serde`: Most core types implement [`Serialize`](serde::Serialize) and
-//!   [`Deserialize`](serde::Deserialize) to support checkpointing.
+//! - `serde`: Most core types implement [`Serialize`] and
+//!   [`Deserialize`] to support checkpointing.
 //! - `rand`: Domains and samplers use RNG traits to generate valid values.
 //! - `mpi` (optional): Distributed experiments are enabled behind the `mpi`
 //!   feature flag and expose MPI-specific execution helpers.
-//! - `rayon`: Parallel evaluation and orchestration in multi-threaded runs. Used in synchrnous batched optimization, and [`SpPar`](crate::searchspace::SpPar) utilities.
-//! - `csv`: CSV-backed [`Recorder`], with [`CSVRecorder`](crate::recorder::CSVRecorder) as the main implementation.
-//! - `rmp-serde`: MessagePack serialization used by the default checkpointer. Used by [`MessagePack`](crate::checkpointer::MessagePack) for compact checkpointing of experiment state.
+//! - `rayon`: Parallel evaluation and orchestration in multi-threaded runs. Used in synchrnous batched optimization, and [`SpPar`] utilities.
+//! - `csv`: CSV-backed [`Recorder`], with [`CSVRecorder`] as the main implementation.
+//! - `rmp-serde`: MessagePack serialization used by the default checkpointer. Used by [`MessagePack`] for compact checkpointing of experiment state.
 //! - `bincode`: Compact binary serialization for checkpointing and transport.
-//!   Used by MPI-distributed optimization to create messages from [`Uncomputed`](crate::solution::Uncomputed) and [`Outcome`](crate::objective::Outcome).
+//!   Used by MPI-distributed optimization to create messages from [`Uncomputed`] and [`Outcome`].
 //! - `bitvec`: Efficient bit-level storage in domain and solution utilities.
 //!   Used by MPI-distributed optimization within [`IdleWorker`](crate::experiment::mpi::utils::IdleWorker) to track idle workers.
 //! - `num_cpus`: Detects available CPU cores to size thread pools. Used in multi-threaded execution contexts, for asynchrnous multi-threaded optimization, to determine pool size of threads.
@@ -103,8 +103,8 @@
 //! ### Define a searchspace with `objective!` for [`Stepped`] function
 //!
 //! [`Stepped`] functions is similar to [`Objective`] except that the user-defined function
-//! can be evaluated by [`Step`](crate::objective::Step). Hence, the function must maintain an internal state that is updated at each step.
-//! To trigger the wrapping within a [`Stepped`] objective, the user must defined an [`Outcome`] containing a [`Step`](crate::objective::Step).
+//! can be evaluated by [`Step`]. Hence, the function must maintain an internal state that is updated at each step.
+//! To trigger the wrapping within a [`Stepped`] objective, the user must defined an [`Outcome`] containing a [`Step`].
 //!
 //! First, the user defines the function state by implementing the [`FuncState`] trait,
 //! which requires implementing the `save` and `load` methods for checkpointing.

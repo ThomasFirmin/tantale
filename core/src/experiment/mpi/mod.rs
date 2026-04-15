@@ -1,5 +1,5 @@
 //! MPI-related modules for distributed experiments.
-//! Contains mostly utilities for [`MPIExperiment`](crate::experiment::mpi::MPIExperiment).
+//! Contains mostly utilities for [`MPIExperiment`](crate::MPIExperiment).
 //!
 
 #[cfg(feature = "mpi")]

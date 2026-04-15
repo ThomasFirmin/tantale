@@ -1,7 +1,7 @@
 //! A multi-threaded [`Searchspace`] implementation backed by a boxed slice of [`Var`]s, based on [`rayon`].
 //!
 //! The [`SpPar`] type provides a multi-threaded [`Searchspace`] built on [`rayon`]. It mirrors the
-//! sequential version in [`Sp`](crate::Sp) and can be converted to or from it.
+//! sequential version in [`Sp`] and can be converted to or from it.
 //!
 //! For end-to-end usage (including the [`hpo!`](../../../tantale/macros/macro.hpo.html) and [`objective!`](../../../tantale/macros/macro.objective.html)
 //! macros), see the module-level examples in [`crate::searchspace`].
@@ -17,7 +17,7 @@
 //! assert_eq!(sp.var.len(), 2);
 //! ```
 //!
-//! # Example: convert from [`Sp`](crate::Sp)
+//! # Example: convert from [`Sp`]
 //! ```
 //! use tantale::core::{Sp, SpPar, Var, Real, Unit, Uniform};
 //!

@@ -9,19 +9,19 @@
 //! The CSV recording system is built on several trait layers:
 //!
 //! - [`CSVWritable`] - Base trait for writing individual types to CSV columns
-//! - [`CSVLeftRight`] - For types with Obj/Opt components (used by [`Searchspace`](crate::Searchspace))
-//! - [`SolCSVWrite`] - Writing [`Solution`](crate::Solution) components (obj.csv, opt.csv)
-//! - [`CodCSVWrite`] - Writing [`Codomain`](crate::Codomain) values (cod.csv)
-//! - [`InfoCSVWrite`] - Writing [`SolInfo`](crate::SolInfo) and [`OptInfo`](crate::OptInfo) metadata (info.csv)
-//! - [`OutCSVWrite`] - Writing raw [`Outcome`](crate::objective::Outcome) values (out.csv)
+//! - [`CSVLeftRight`] - For types with Obj/Opt components (used by [`Searchspace`])
+//! - [`SolCSVWrite`] - Writing [`Solution`] components (obj.csv, opt.csv)
+//! - [`CodCSVWrite`] - Writing [`Codomain`] values (cod.csv)
+//! - [`InfoCSVWrite`] - Writing [`SolInfo`] and [`OptInfo`] metadata (info.csv)
+//! - [`OutCSVWrite`] - Writing raw [`Outcome`] values (out.csv)
 //! - [`ScpCSVWrite`] - Orchestrates writing all components of a computed solution
 //! - [`BatchCSVWrite`] - Writes batches of solutions in parallel
 //!
 //! ## File Layout
 //!
 //! By default, CSV files are created under the recorder folder (see
-//! [`FolderConfig`](crate::FolderConfig)). Each row is linked by the solution
-//! [`Id`](crate::solution::Id).
+//! [`FolderConfig`]). Each row is linked by the solution
+//! [`Id`].
 //!
 //! ```text
 //! recorder/
@@ -130,10 +130,10 @@ use crate::{
 ///
 /// # Examples
 ///
-/// A [`Codomain`](crate::Codomain) uses itself as `H` to generate headers based on its
-/// structure, and writes its associated [`TypeCodom`](crate::Codomain::TypeCodom) as `C`.
+/// A [`Codomain`] uses itself as `H` to generate headers based on its
+/// structure, and writes its associated [`TypeCodom`](Codomain::TypeCodom) as `C`.
 ///
-/// An [`Id`](crate::solution::Id) typically uses `()` for both `H` and `C`, as headers
+/// An [`Id`] typically uses `()` for both `H` and `C`, as headers
 /// and values are self-contained.
 pub trait CSVWritable<H, C> {
     /// Generate header column names.
@@ -153,7 +153,7 @@ pub trait CSVWritable<H, C> {
 
 /// CSV writer for types with separate Obj and Opt components.
 ///
-/// This trait is used by [`Searchspace`](crate::Searchspace) implementations to write
+/// This trait is used by [`Searchspace`] implementations to write
 /// objective-side and optimizer-side values separately to obj.csv and opt.csv.
 ///
 /// # Type Parameters
@@ -165,7 +165,7 @@ pub trait CSVWritable<H, C> {
 /// # Example
 ///
 /// A [`Var`](crate::Var) uses itself for header generation and writes
-/// [`TypeDom`](crate::domain::TypeDom) values for both Obj and Opt [`Domain`](crate::Domain)s.
+/// [`TypeDom`] values for both Obj and Opt [`Domain`](crate::Domain)s.
 pub trait CSVLeftRight<H, L, R> {
     /// Generate header columns (shared by both Obj and Opt).
     fn header(elem: &H) -> Vec<String>;
@@ -177,9 +177,9 @@ pub trait CSVLeftRight<H, L, R> {
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
-/// CSV writer for [`Solution`](crate::Solution) components (obj.csv and opt.csv).
+/// CSV writer for [`Solution`] components (obj.csv and opt.csv).
 ///
-/// This trait enables a [`Searchspace`](crate::Searchspace) to write solution components
+/// This trait enables a [`Searchspace`] to write solution components
 /// by decomposing them into objective-side (obj.csv) and optimizer-side (opt.csv) parts.
 /// The searchspace generates headers and serializes values for both parts.
 ///
@@ -213,10 +213,10 @@ where
     );
 }
 
-/// CSV writer for [`Codomain`](crate::Codomain) values (cod.csv).
+/// CSV writer for [`Codomain`] values (cod.csv).
 ///
-/// This trait enables a [`Codomain`](crate::Codomain) to serialize its
-/// [`TypeCodom`](crate::Codomain::TypeCodom) values. The codomain structure
+/// This trait enables a [`Codomain`] to serialize its
+/// [`TypeCodom`](Codomain::TypeCodom) values. The codomain structure
 /// defines the headers, while computed values are written as rows.
 ///
 /// # CSV File
@@ -241,8 +241,8 @@ where
 
 /// CSV writer for solution metadata (info.csv).
 ///
-/// This trait enables writing [`SolInfo`](crate::SolInfo) and optionally
-/// [`OptInfo`](crate::OptInfo) metadata associated with computed solutions.
+/// This trait enables writing [`SolInfo`] and optionally
+/// [`OptInfo`] metadata associated with computed solutions.
 ///
 /// # CSV File
 ///
@@ -271,7 +271,7 @@ where
     );
 }
 
-/// CSV writer for raw [`Outcome`](crate::objective::Outcome) values (out.csv).
+/// CSV writer for raw [`Outcome`] values (out.csv).
 ///
 /// This trait enables writing raw outcome values returned by the objective function.
 ///
@@ -288,7 +288,7 @@ pub trait OutCSVWrite<SolId: Id>: Outcome {
 /// Orchestrates writing all components of a computed solution to CSV files.
 ///
 /// This trait combines [`SolCSVWrite`], [`CodCSVWrite`], [`InfoCSVWrite`], and [`OutCSVWrite`]
-/// to write a complete [`CompShape`](crate::searchspace::CompShape) and its raw [`Outcome`](crate::objective::Outcome)
+/// to write a complete [`CompShape`] and its raw [`Outcome`]
 /// across all CSV files in a coordinated manner.
 pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Cod, Out>: Searchspace<PartOpt, SolId, SInfo>
 where
@@ -316,7 +316,7 @@ where
 
     /// Write a fully computed solution with optimizer info.
     ///
-    /// Used by batch optimizers that provide iteration/batch metadata via [`OptInfo`](crate::OptInfo).
+    /// Used by batch optimizers that provide iteration/batch metadata via [`OptInfo`].
     fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
         &self,
         pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
@@ -327,7 +327,7 @@ where
     );
 }
 
-/// Implementation for [`BasePartial`] [`Solution`]s, which writes the solution components within the CSV files.
+/// Implementation for [`BaseSol`] [`Solution`]s, which writes the solution components within the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
@@ -409,7 +409,7 @@ where
     }
 }
 
-/// Implementation for [`FidBasePartial`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
+/// Implementation for [`FidelitySol`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
@@ -737,7 +737,7 @@ where
     }
 }
 
-/// Writes a [`Batch`](crate::Batch) of computed solutions to CSV files in parallel.
+/// Writes a [`Batch`] of computed solutions to CSV files in parallel.
 ///
 /// This trait enables efficient parallel writing of multiple solutions using Rayon.
 /// Each solution in the batch is written to all configured CSV files simultaneously.
@@ -809,7 +809,7 @@ where
 ///
 /// # Configuration
 ///
-/// Create a recorder using [`CSVRecorder::new`] with a [`FolderConfig`](crate::FolderConfig)
+/// Create a recorder using [`CSVRecorder::new`] with a [`FolderConfig`]
 /// and boolean flags for each optional file:
 ///
 /// * `obj` - If `true`, saves objective-side inputs (obj.csv)
@@ -819,7 +819,7 @@ where
 ///
 /// # File Structure
 ///
-/// All CSV files are linked by the solution [`Id`](crate::solution::Id):
+/// All CSV files are linked by the solution [`Id`]:
 ///
 /// ```text
 /// <config.path>/
@@ -836,8 +836,8 @@ where
 /// # See Also
 ///
 /// - [`NoSaver`](crate::NoSaver) - No-op recorder for experiments without persistence
-/// - [`SeqRecorder`](crate::SeqRecorder) - Trait for sequential recorders
-/// - [`BatchRecorder`](crate::BatchRecorder) - Trait for batch recorders
+/// - [`SeqRecorder`] - Trait for sequential recorders
+/// - [`BatchRecorder`] - Trait for batch recorders
 pub struct CSVRecorder {
     pub config: Arc<FolderConfig>,
     pub obj: bool,
@@ -1267,7 +1267,7 @@ where
     }
 }
 
-/// Implementation of [`DistSeqRecorder`](DistSeqRecorder) for MPI-distributed sequential experiments.
+/// Implementation of [`DistSeqRecorder`] for MPI-distributed sequential experiments.
 ///
 /// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
 /// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
@@ -1283,7 +1283,7 @@ where
 ///   ...
 /// ```
 ///
-/// Each rank maintains independent CSV files linked by solution [`Id`](Id).
+/// Each rank maintains independent CSV files linked by solution [`Id`].
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
     for CSVRecorder
@@ -1463,7 +1463,7 @@ where
     }
 }
 
-/// Implementation of [`DistBatchRecorder`](DistBatchRecorder) for MPI-distributed batch experiments.
+/// Implementation of [`DistBatchRecorder`] for MPI-distributed batch experiments.
 ///
 /// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
 /// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
@@ -1479,7 +1479,7 @@ where
 ///   ...
 /// ```
 ///
-/// Each rank maintains independent CSV files linked by solution [`Id`](Id).
+/// Each rank maintains independent CSV files linked by solution [`Id`].
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
     for CSVRecorder

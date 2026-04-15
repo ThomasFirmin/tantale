@@ -1,12 +1,12 @@
-//! The [`Codomain`](crate::Codomain) describes which elements from the [`Outcome`]
+//! The [`Codomain`] describes which elements from the [`Outcome`]
 //! should be used within the [`Optimizer`](crate::Optimizer).
 //!
-//! For example, it can extract a [`Single`](crate::Single) ($y$) from the [`Outcome`] in order to minimize, $f(x)=y$.
+//! For example, it can extract a [`Single`] ($y$) from the [`Outcome`] in order to minimize, $f(x)=y$.
 //!
-//! Moreover, a [`Codomain`](crate::Codomain) can express more complex behaviors, like [`Constrained`](crate::Constrained),
-//! [`Multi`](crate::Multi)-objective, or [`Cost`](crate::Cost)-aware optimization.
+//! Moreover, a [`Codomain`] can express more complex behaviors, like [`Constrained`],
+//! [`Multi`]-objective, or [`Cost`]-aware optimization.
 //! The extracted elements from [`Outcome`] form the [`TypeCodom`](crate::Codomain::TypeCodom), a type
-//! associated to a [`Codomain`](crate::Codomain). These values are extracted from the [`Outcome`] by using
+//! associated to a [`Codomain`]. These values are extracted from the [`Outcome`] by using
 //! closures named [`Criteria`], a type alias for `fn(&Out)->f64`.
 //!
 //! #Comparing elements from a [`Codomain`]

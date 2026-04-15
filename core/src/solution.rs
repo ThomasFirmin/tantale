@@ -38,7 +38,7 @@
 //! Solutions progress through different states during optimization:
 //!
 //! - **[`Uncomputed`]**: Generated but not yet evaluated
-//! - **[`Computed`]**: Evaluated with an associated [`Codomain`](crate::Codomain) value
+//! - **[`Computed`]**: Evaluated with an associated [`Codomain`] value
 //!
 //! The [`IntoComputed`] trait enables conversion from uncomputed to computed states.
 //!
@@ -53,9 +53,9 @@
 //! ## Structured solutions
 //!
 //! Solutions can be arranged in different way:
-//! - [`Lone`](shape::Lone): Single-domain solution
-//! - [`Pair`](shape::Pair): Paired Obj/Opt solutions
-//! - [`Batch`](batchtype::Batch): Collections of [`SolutionShape`]
+//! - [`Lone`]: Single-domain solution
+//! - [`Pair`]: Paired Obj/Opt solutions
+//! - [`Batch`]: Collections of [`SolutionShape`]
 //!
 //! ## Creation and Usage
 //!
@@ -72,11 +72,11 @@
 //! ## See Also
 //!
 //! - [`Searchspace`](crate::Searchspace) - Creates and manages solutions
-//! - [`Domain`](crate::Domain) - Defines solution value types
-//! - [`Codomain`](crate::Codomain) - Defines evaluation result types
-//! - [`id`] - Solution identifier types
-//! - [`partial`] - Concrete solution implementations
-//! - [`computed`] - Evaluated solution wrappers
+//! - [`Domain`] - Defines solution value types
+//! - [`Codomain`] - Defines evaluation result types
+//! - [`Id`] - Solution identifier types
+//! - [`BaseSol`] - Concrete solution implementations
+//! - [`Computed`] - Evaluated solution wrappers
 //!
 
 use crate::{
@@ -283,8 +283,8 @@ pub trait HasFidelity {
 ///
 /// # Concrete Implementations
 ///
-/// - [`BasePartial`](partial::BasePartial) - Standard solution implementation
-/// - [`FidBasePartial`](partial::FidBasePartial) - With fidelity support
+/// - [`BaseSol`] - Standard solution implementation
+/// - [`FidelitySol`] - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
 pub trait Solution<SolId, Dom, SInfo>
 where

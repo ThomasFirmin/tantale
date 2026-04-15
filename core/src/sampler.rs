@@ -24,7 +24,7 @@
 //!
 //! ### [`Uniform`] provides a runtime-selectable wrapper
 //! - **For numeric domains**: Samples uniformly over `[lower, upper]`
-//! - **For categorical domains**: Random choice among features with equal probability
+//! - **For grid domains**: Random choice among possible values with equal probability
 //!
 //! ### [`Bernoulli`]
 //! - **For boolean domains**: Bernoulli distribution with configurable probability $p$
@@ -45,7 +45,7 @@
 //! - [`Domain`] - Core domain trait
 //! - [`Bounded`] - Numeric range domains
 //! - [`Bool`] - Boolean domain
-//! - [`Cat`] - Categorical domain
+//! - [`GridDom`] - Discretized values domain
 
 use crate::{
     GridDom,
@@ -169,9 +169,9 @@ impl Sampler<Bool> for BoolDistribution {
     }
 }
 
-/// Enumeration of available sampling distributions for [`GridDom`](crate::domain::grid::GridDom).
+/// Enumeration of available sampling distributions for [`GridDom`].
 ///
-/// [`GridDomDistribution`] provides a wrapper around different sampling strategies applicable to [`GridDom`](crate::GridDom) domains.
+/// [`GridDomDistribution`] provides a wrapper around different sampling strategies applicable to [`GridDom`] domains.
 ///
 /// # Variants
 /// - [`Uniform`](GridDomDistribution::Uniform) - Uniform random selection among grid values
@@ -220,7 +220,7 @@ impl From<Bernoulli> for BoolDistribution {
 /// [`Uniform`] samples values with equal probability across the entire domain:
 /// - For bounded numeric domains ([`Real`](crate::domain::Real), [`Int`](crate::domain::Int),
 ///   [`Nat`](crate::domain::Nat)): samples uniformly over $[\texttt{lower}, \texttt{upper}]$
-/// - For categorical domains ([`Cat`]): selects uniformly among features
+/// - For Grid domains ([`GridDom`]): selects uniformly among possible values
 ///
 /// # Mathematical Definition
 ///
@@ -249,7 +249,7 @@ impl From<Bernoulli> for BoolDistribution {
 ///
 /// - [`Bernoulli`] - Alternative sampler for boolean domains
 /// - [`BoundedDistribution`] - Enum wrapper for bounded domain samplers
-/// - [`CatDistribution`] - Enum wrapper for categorical domain samplers
+/// - [`GridDomDistribution`] - Enum wrapper for grid domain samplers
 #[derive(Clone, Copy, Debug)]
 pub struct Uniform;
 impl<D: RangeDomain> Sampler<D> for Uniform

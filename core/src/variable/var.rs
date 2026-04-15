@@ -83,7 +83,7 @@
 //! # Integration with Tantale
 //!
 //! While [`Var`] can be created manually, it's typically generated automatically by
-//! the [`objective!`](crate::objective!) and [`sp!`](crate::searchspace!) procedural macros,
+//! the `objective!` and `hpo!` procedural macros,
 //! which handle complex scenarios like [`Mixed`](crate::domain::Mixed) domains.
 
 use crate::{
@@ -256,7 +256,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Parameters
     ///
-    /// * `rng` - A random number generator implementing [`Rng`](rand::Rng)
+    /// * `rng` - A random number generator implementing [`Rng`]
     ///
     /// # Example
     ///
@@ -285,7 +285,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Parameters
     ///
-    /// * `rng` - A random number generator implementing [`Rng`](rand::Rng)
+    /// * `rng` - A random number generator implementing [`Rng`]
     ///
     /// # Example
     ///

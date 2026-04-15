@@ -148,7 +148,7 @@ where
     ///
     /// It returns a tuple containing:
     ///  - A [`Batch`] of [`Computed`](crate::Computed) solutions.
-    ///  - An [`OutBatch`] of outcomes containing the raw [`Outcome`].
+    ///  - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
@@ -443,7 +443,7 @@ where
 /// [`FidDistBatchEvaluator`] describes how to evaluate a batch of solutions from a [`Searchspace`] in a distributed (MPI) way.
 /// It holds a [`Batch`] of [`Uncomputed`] [SolutionShape] solutions to evaluate, with [`HasFidelity`] and [`HasStep`] traits.
 /// It implements the [`Evaluate`] and [`DistEvaluate`] traits.
-/// It keeps track of the location of each solution [`Id`] across different MPI ranks in a [`HashMap`],
+/// It keeps track of the location of each solution [`Id`](crate::Id) across different MPI ranks in a [`HashMap`],
 /// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
 /// [`Step::Discard`] are processed first, as it is fast to process.
 /// Then, [`Step::Partially`] are processed to continue their evaluation.
@@ -528,7 +528,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-/// Message type for fidelity-aware distributed evaluation, wrapping a solution [`Id`] and a [`Raw`](Solution::Raw) solution.
+/// Message type for fidelity-aware distributed evaluation, wrapping a solution [`Id`](crate::Id) and a [`Raw`](Solution::Raw) solution.
 pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolId, SInfo>>;
 
 #[cfg(feature = "mpi")]

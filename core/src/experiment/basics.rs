@@ -24,19 +24,19 @@ use indexmap::IndexMap;
 /// This is a container that gathers all the components required to
 /// execute an optimization loop in a single thread. It does **not** run the
 /// optimization by itself; execution is delegated to a [`Runable`](crate::experiment::Runable)
-/// implementation and an [`Evaluate`](crate::experiment::Evaluate) evaluator.
+/// implementation and an [`Evaluate`] evaluator.
 ///
 /// # Type parameters
-/// - `PSol`: The uncomputed solution type produced by the [`Searchspace`](crate::searchspace::Searchspace).
-/// - `SolId`: The identifier type for solutions, implementing [`Id`](crate::Id).
-/// - `Scp`: The [`Searchspace`](crate::searchspace::Searchspace) definition.
-/// - `Op`: The [`Optimizer`](crate::optimizer::Optimizer) implementation.
-/// - `St`: The stopping criterion implementing [`Stop`](crate::stop::Stop).
-/// - `Rec`: A [`Recorder`](crate::recorder::Recorder) implementation (optional).
+/// - `PSol`: The uncomputed solution type produced by the [`Searchspace`].
+/// - `SolId`: The identifier type for solutions, implementing [`Id`].
+/// - `Scp`: The [`Searchspace`] definition.
+/// - `Op`: The [`Optimizer`] implementation.
+/// - `St`: The stopping criterion implementing [`Stop`].
+/// - `Rec`: A [`Recorder`] implementation (optional).
 /// - `Check`: A [`Checkpointer`](crate::checkpointer::Checkpointer) implementation (optional).
-/// - `Out`: The [`Outcome`](crate::objective::Outcome) type describing raw outputs.
-/// - `Fn`: A wrapped objective implementing [`FuncWrapper`](crate::objective::FuncWrapper).
-/// - `Eval`: The evaluation strategy implementing [`Evaluate`](crate::experiment::Evaluate).
+/// - `Out`: The [`Outcome`] type describing raw outputs.
+/// - `Fn`: A wrapped objective implementing [`FuncWrapper`].
+/// - `Eval`: The evaluation strategy implementing [`Evaluate`].
 ///
 /// # Notes
 /// - `recorder` and `checkpointer` are optional.
@@ -120,8 +120,8 @@ where
 /// multiple distributed processes.
 ///
 /// # See also
-/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess)
-/// - [`DistCheckpointer`](crate::checkpointer::DistCheckpointer)
+/// - [`MPIProcess`]
+/// - [`DistCheckpointer`]
 pub struct MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,

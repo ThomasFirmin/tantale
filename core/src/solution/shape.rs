@@ -1,7 +1,7 @@
 //! Solution shapes linking twins.
 //!
 //! A [`SolutionShape`] links two solutions with potentially different underlying domains or
-//! types. The two solutions are [`twin`](crate::solution::Solution::twin)s and share the same [`Id`](crate::Id), letting users
+//! types. The two solutions are [`twin`](crate::solution::Solution::twin)s and share the same [`Id`], letting users
 //! manipulate a single object without separating objective- and optimizer-side representations.
 //!
 //! # Examples
@@ -53,7 +53,7 @@ pub type RawOpt<SolShape, SolId, SInfo> =
         SInfo,
     >>::Raw;
 
-/// Trait linking objective- and optimizer-side solutions with a shared [`Id`](crate::Id).
+/// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
 pub trait SolutionShape<SolId: Id, SInfo: SolInfo>:
     Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug + Sized
 where

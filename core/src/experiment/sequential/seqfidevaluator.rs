@@ -367,12 +367,12 @@ where
 }
 
 /// An intermediate representation for a collection of [`FidThrSeqEvaluator`]. Used to [`load!`](crate::load!)
-/// all [`FidThrSeqEvaluator`](crate::experiment::sequential::seqfidevaluator::FidThrSeqEvaluator) at once.
+/// all [`FidThrSeqEvaluator`] at once.
 /// Then it is decomposed into a `Vec<FidThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
 /// for single-threaded [`Evaluate`].
 ///
-/// It contains a vector of [`SolutionShape`](crate::solution::SolutionShape) paired with their
-/// corresponding [`FuncState`](crate::objective::outcome::FuncState).
+/// It contains a vector of [`SolutionShape`] paired with their
+/// corresponding [`FuncState`].
 ///
 /// Each entry represents an in-progress [`Step`]-based evaluation that can be resumed later.
 #[derive(Serialize, Deserialize)]
@@ -414,7 +414,7 @@ where
     FnState: FuncState,
     FnStatePool: FuncStatePool<FnState, SolId>,
 {
-    /// Creates a new [`HashFidThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
+    /// Creates a new [`PoolFidThrSeqEvaluator`] with the given vector of [`SolutionShape`]s.
     pub fn new(
         pairs: VecDeque<FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>>,
         pool: FnStatePool,
@@ -476,9 +476,9 @@ where
 /// This allows the evaluator to handle computations that may require multiple [`Step`]s
 /// and distribute them across multiple [`Worker`](crate::Worker)s.
 ///
-/// It keeps track of the location of each solution [`Id`] across different MPI [`Rank`]s in a [`HashMap`],
+/// It keeps track of the location of each solution [`Id`](crate::Id) across different MPI [`Rank`]s in a [`HashMap`],
 /// as well as two [`PriorityList`]s for managing solutions that need to be discarded or resumed.
-/// The role of `where_is_id` is to map each solution [`Id`] to the MPI [`Rank`] where an [`Uncomputed`]
+/// The role of `where_is_id` is to map each solution [`Id`](crate::Id) to the MPI [`Rank`] where an [`Uncomputed`]
 /// is currently being processed, and then remember where each [`FuncState`] is located.
 /// [`Step::Discard`] are managed first, as it is fast to process.
 /// Then, [`Step::Partially`] are managed to continue their evaluation.

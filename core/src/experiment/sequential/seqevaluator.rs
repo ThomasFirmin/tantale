@@ -22,7 +22,7 @@ use std::{
 };
 
 /// A simple sequential evaluator for sequential [`MonoExperiment`](crate::experiment::MonoExperiment).
-/// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
+/// It evaluates a single [`SolutionShape`]
 /// at a time, returning the computed solution along with its [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -149,7 +149,7 @@ where
 //----------------------//
 
 /// A simple multi-threaded evaluator for sequential [`ThrExperiment`](crate::experiment::ThrExperiment).
-/// It evaluates a single [`SolutionShape`](crate::solution::SolutionShape)
+/// It evaluates a single [`SolutionShape`]
 /// at a time, returning the computed solution along with its [`Outcome`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
@@ -224,11 +224,11 @@ where
 {
     /// Initializes the evaluator. Currently does nothing.
     fn init(&mut self) {}
-    /// Evaluates the current [`SolutionShape`] using the provided [`Stepped`] function.
-    /// It manages the internal [`FuncState`] to handle multi-[`Step`] evaluations.
+    /// Evaluates the current [`SolutionShape`] using the provided [`Stepped`](crate::Stepped) function.
+    /// It manages the internal [`FuncState`](crate::FuncState) to handle multi-[`Step`] evaluations.
     /// If the evaluation results in a final step ([`Step::Evaluated`], [`Step::Discard`], or [`Step::Error`]),
-    /// the current [`FuncState`] is cleared.
-    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`](Outcome)
+    /// the current [`FuncState`](crate::FuncState) is cleared.
+    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`]
     /// if the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`].
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(
@@ -267,11 +267,11 @@ where
 }
 
 /// An intermediate representation for a collection of [`ThrSeqEvaluator`]. Used to [`load!`](crate::load!)
-/// all [`ThrSeqEvaluator`](crate::experiment::sequential::seqevaluator::ThrSeqEvaluator) at once.
+/// all [`ThrSeqEvaluator`] at once.
 /// Then it is decomposed into a `Vec<ThrSeqEvaluator>` used in a [`ThrExperiment`](crate::experiment::ThrExperiment),
 /// for single-threaded [`Evaluate`].
 ///
-/// It contains a vector of [`SolutionShape`](crate::solution::SolutionShape).
+/// It contains a vector of [`SolutionShape`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SolId:Serialize",
@@ -338,7 +338,7 @@ where
 
 #[cfg(feature = "mpi")]
 /// A simple distributed evaluator for distributed [`MPIExperiment`](crate::experiment::MPIExperiment).
-/// It distributes multiple [`SolutionShape`](crate::solution::SolutionShape) in parallel,
+/// It distributes multiple [`SolutionShape`] in parallel,
 /// sending them to idle workers as they become available. But, returns only one at a time.
 /// So, while other solutions are being evaluated, the optimizer generates, on demand a new [`Uncomputed`]
 /// , for the newly idle worker.
@@ -423,7 +423,7 @@ where
     fn init(&mut self) {}
 
     /// Returns one [`SolutionShape`](crate::solution::SolutionShape`) at a time.
-    /// It fills idle [`Worker`](crate::worker::Worker)s with solutions to evaluate,
+    /// It fills idle [`Worker`](crate::Worker)s with solutions to evaluate,
     /// as long as there are idle workers and remaining solutions to evaluate.
     /// It then waits for a single [`Worker`](crate::Worker) to return a [`Outcome`].
     ///

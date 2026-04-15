@@ -141,7 +141,7 @@ impl Onto<Real> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Real`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -178,7 +178,7 @@ impl Onto<Nat> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Nat`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -215,7 +215,7 @@ impl Onto<Int> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Int`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -252,7 +252,7 @@ impl Onto<Unit> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Unit`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -288,7 +288,7 @@ impl Onto<Bool> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Bool`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -320,7 +320,7 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`GridDom`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`GridDom`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`GridDom`] and [`Unit`].
     ///
     /// # Parameters
     ///
@@ -360,7 +360,7 @@ impl Onto<Mixed> for Mixed {
     type Item = TypeDom<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and another [`Mixed`] [`Domain`].
     ///
-    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`], [`Bool`], [`Cat`] and [`Unit`].
+    /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
     ///
     /// # Parameters
     ///

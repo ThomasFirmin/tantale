@@ -1,7 +1,7 @@
 //! A basic [`Searchspace`] implementation backed by a boxed slice of [`Var`]s.
 //!
 //! The [`Sp`] type provides a basic, single-threaded [`Searchspace`] with explicit variable
-//! ownership. It mirrors the parallel version in [`SpPar`](crate::SpPar) and can be created
+//! ownership. It mirrors the parallel version in [`SpPar`] and can be created
 //! either directly or via conversion from [`SpPar`].
 //!
 //! For end-to-end usage (including the [`hpo!`](../../../tantale/macros/macro.hpo.html) and [`objective!`](../../../tantale/macros/macro.objective.html)
@@ -18,7 +18,7 @@
 //! assert_eq!(sp.var.len(), 2);
 //! ```
 //!
-//! # Example: convert to [`SpPar`](crate::SpPar)
+//! # Example: convert to [`SpPar`]
 //! ```
 //! use tantale::core::{Sp, SpPar, Var, Real, Unit, Uniform};
 //!

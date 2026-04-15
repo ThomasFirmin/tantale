@@ -1,28 +1,28 @@
 //! Defines the raw outputs of the user-defined function to optimize.
 //!
-//! An [`Outcome`](crate::objective::Outcome) is a user-defined struct describing the output of
+//! An [`Outcome`] is a user-defined struct describing the output of
 //! the objective function. This output may include optimized values, constraints,
 //! evaluation cost, fidelities, and additional metadata (e.g. timing, seeds, or
 //! debug information).
 //!
 //! # Notes
 //! ## Serialization and CSV recording
-//! An [`Outcome`](crate::objective::Outcome) must be serializable for checkpointing and
+//! An [`Outcome`] must be serializable for checkpointing and
 //! compatible with CSV recording. In practice, this means implementing
-//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize), and ensuring
+//! [`Serialize`] and [`Deserialize`], and ensuring
 //! fields can be written by the [`CSVWritable`](crate::recorder::csv::CSVWritable) layer.
 //! Supported CSV field types are:
 //! - Integers: [`isize`], [`i32`], [`i64`], [`usize`], [`u32`], [`u64`]
 //! - Floats: [`f32`], [`f64`]
 //! - Other: [`String`], [`bool`]
-//! - [`Vec`] when its elements implement [`Debug`](std::fmt::Debug)
+//! - [`Vec`] when its elements implement [`Debug`]
 //!
 //! Other fields remain valid for checkpointing as long as they are serializable,
 //! but they will not be written to CSV.
 //!
 //! ## Multi-fidelity outputs
-//! A [`FidOutcome`](crate::objective::FidOutcome) is an [`Outcome`](crate::objective::Outcome)
-//! that exposes an [`EvalStep`](crate::objective::EvalStep), describing the current evaluation
+//! A [`FidOutcome`] is an [`Outcome`]
+//! that exposes an [`EvalStep`], describing the current evaluation
 //! state. It is used in multi-[`Fidelity`](crate::solution::partial::Fidelity) optimization and
 //! [`Stepped`](crate::objective::Stepped) objectives. See [`Step`](crate::objective::Step) for the meaning of each state.
 //!
@@ -98,10 +98,10 @@ use std::{fmt::Debug, path::PathBuf};
 ///
 /// # Associated Derive Macro
 ///
-/// The [`Outcome`](crate::objective::Outcome) trait is automatically implemented by the
+/// The [`Outcome`] trait is automatically implemented by the
 /// `Outcome` derive macro.
-/// It implements [`Outcome`](crate::objective::Outcome) for any struct with named fields that also implements
-/// [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize), and [`Deserialize`](serde::Deserialize).
+/// It implements [`Outcome`] for any struct with named fields that also implements
+/// [`Debug`], [`Serialize`], and [`Deserialize`].
 /// It also implements [`CSVWritable`](crate::recorder::csv::CSVWritable)
 /// for the struct, writing all fields that are compatible with CSV recording
 /// (see module-level documentation for supported types).

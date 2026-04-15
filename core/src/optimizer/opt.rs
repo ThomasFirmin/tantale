@@ -88,7 +88,7 @@ where
     fn from_state(state: Self::State) -> Self;
 }
 
-/// A [`Batch`] of [`CompShape`](crate::searchspace::CompShape) solutions for a given [`Searchspace`] and [`Codomain`].
+/// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`].
 pub type CompBatch<SolId, SInfo, Info, Scp, PSol, Cod, Out> =
     Batch<SolId, SInfo, Info, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>>;
 
@@ -118,10 +118,10 @@ where
     ///
     /// The `acc` parameter provides a view of the best solutions
     /// accumulated since the start of the experiment:
-    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`BestComputed`](crate::domain::codomain::BestComputed) holding the single best solution seen so far.
-    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`ParetoComputed`](crate::domain::codomain::ParetoComputed) holding the current Pareto front.
+    /// - For single-objective [`Codomain`]s, `acc` is a
+    ///   [`BestAccumulator`](crate::domain::codomain::BestAccumulator) holding the single best solution seen so far.
+    /// - For multi-objective [`Codomain`]s, `acc` is a
+    ///   [`ParetoAccumulator`](crate::domain::codomain::ParetoAccumulator) holding the current Pareto front.
     ///
     /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
     /// updated after each batch evaluation. The [`Optimizer`] should use it read-only
@@ -162,10 +162,10 @@ where
     ///
     /// The `acc` parameter provides a read-only view of the best solutions
     /// accumulated since the start of the experiment:
-    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`BestComputed`](crate::BestComputed) holding the single best solution seen so far.
-    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`ParetoComputed`](crate::ParetoComputed) holding the current Pareto front.
+    /// - For single-objective [`Codomain`]s, `acc` is a
+    ///   [`BestAccumulator`](crate::BestAccumulator) holding the single best solution seen so far.
+    /// - For multi-objective [`Codomain`]s, `acc` is a
+    ///   [`ParetoAccumulator`](crate::ParetoAccumulator) holding the current Pareto front.
     ///
     /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
     /// updated after each solution evaluation. The [`Optimizer`] should use it

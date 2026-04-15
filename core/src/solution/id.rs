@@ -258,7 +258,7 @@ impl Hash for SId {
 }
 
 /// Simple sequential identifier using a global counter,
-/// and a step counter for [`Stepped`](crate::core::Stepped).
+/// and a step counter for [`Stepped`](crate::Stepped).
 ///
 /// This is the default [`Id`] for most-cases.
 ///

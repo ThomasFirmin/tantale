@@ -92,8 +92,8 @@ where
     Check: MonoCheckpointer,
     Out: Outcome,
 {
-    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -135,8 +135,8 @@ where
         }
     }
 
-    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
-    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: (Scp, Op::Cod),
@@ -177,7 +177,7 @@ where
     /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`Recorder`] when [`SeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`SeqRecorder`] when [`SeqEvaluator`] has finished evaluating an element.
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`SeqEvaluator`]. updates) step.
@@ -396,8 +396,8 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
-    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
@@ -437,8 +437,8 @@ where
         }
     }
 
-    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
-    /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Stepped`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: (Scp, Op::Cod),
@@ -498,7 +498,7 @@ where
     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`],
     /// per iteration, using the inner [`FidSeqEvaluator`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`Recorder`] when [`FidSeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`SeqRecorder`] when [`FidSeqEvaluator`] has finished evaluating an element.
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidSeqEvaluator`]. updates) step.
@@ -732,8 +732,8 @@ where
     TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
         Send + Sync + 'static,
 {
-    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -774,8 +774,8 @@ where
         }
     }
 
-    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
-    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`ThrCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: (Scp, Op::Cod),
@@ -822,7 +822,7 @@ where
     /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`ThrSeqEvaluator`],
     /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`Recorder`] when [`ThrSeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`SeqRecorder`] when [`ThrSeqEvaluator`] has finished evaluating an element.
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrSeqEvaluator`]. updates) step.
@@ -1092,8 +1092,8 @@ where
         Out,
     >: Send + Sync + 'static,
 {
-    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
-    /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
@@ -1133,8 +1133,8 @@ where
         }
     }
 
-    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
-    /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`ThrCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: (Scp, Op::Cod),
@@ -1192,7 +1192,7 @@ where
     /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidThrSeqEvaluator`],
     /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`Recorder`] when [`FidThrSeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`SeqRecorder`] when [`FidThrSeqEvaluator`] has finished evaluating an element.
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidThrSeqEvaluator`]. updates) step.
@@ -1512,11 +1512,11 @@ where
     type WType = BaseWorker<'a, RawObj<Scp::SolShape, SId, Op::SInfo>, Out>;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](Codomain), [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
-    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](MasterWorker) while
-    /// all other processes will be [`Worker`](Worker)s.
+    /// [`Codomain`], [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`DistSeqRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](MasterWorker) while
+    /// all other processes will be [`Worker`](crate::Worker)s.
     /// It also uses an internal [`DistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
-    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// The [`DistSeqRecorder`] and [`DistCheckpointer`] are only used by the main process.
     /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
     fn new_with_pool(
         proc: &'a MPIProcess,
@@ -1577,9 +1577,9 @@ where
     }
 
     /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](Codomain), [`Objective`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// [`Codomain`], [`Objective`], along with an optional [`DistSeqRecorder`] and non-optional [`DistCheckpointer`].
     /// The main process (rank 0) will be the [`Master`](MasterWorker) loaded via [`load_dist`](DistCheckpointer::load_dist)
-    /// while all other processes will be [`Worker`](Worker)s loaded here via [`no_check_init`](DistCheckpointer::no_check_init).
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via [`no_check_init`](DistCheckpointer::no_check_init).
     /// The loading process follows the logic described in the [`DistCheckpointer`]
     /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
     ///
@@ -1641,7 +1641,7 @@ where
     /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`DistSeqEvaluator`],
     /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
     /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`DistRecorder`] when [`DistSeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`DistSeqRecorder`] when [`DistSeqEvaluator`] has finished evaluating an element.
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`DistSeqEvaluator`]. updates) step.
@@ -1921,12 +1921,12 @@ where
     >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](Codomain), [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
-    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
+    /// [`Codomain`], [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`DistSeqRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
     /// all other processes will be [`Worker`](crate::Worker)s.
     /// It also uses an internal [`FidDistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
-    /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
-    /// Other processes will use a [`WorkerCheckpointer`](WorkerCheckpointer) associated to the [`DistCheckpointer`].
+    /// The [`DistSeqRecorder`] and [`DistCheckpointer`] are only used by the main process.
+    /// Other processes will use a [`WorkerCheckpointer`] associated to the [`DistCheckpointer`].
     fn new_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -2011,9 +2011,9 @@ where
     }
 
     /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](Codomain), [`Stepped`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// [`Codomain`], [`Stepped`], along with an optional [`DistSeqRecorder`] and non-optional [`DistCheckpointer`].
     /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
-    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their associated [`WorkerCheckpointer`](WorkerCheckpointer).
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their associated [`WorkerCheckpointer`].
     /// The loading process follows the logic described in the [`DistCheckpointer`]
     /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
     ///
@@ -2090,7 +2090,7 @@ where
     /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidDistSeqEvaluator`],
     /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
     /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
-    /// is saved using the inner [`DistRecorder`] when [`FidDistSeqEvaluator`] has finished evaluating an element.
+    /// is saved using the inner [`DistSeqRecorder`] when [`FidDistSeqEvaluator`] has finished evaluating an element.
     ///
     /// [`FuncState`]s are used to resume partially evaluated solutions.
     ///

@@ -1,13 +1,13 @@
 //! Objective wrappers for user-defined functions.
 //!
 //! An objective is a thin wrapper around the function the user wants to optimize.
-//! The raw function must return an [`Outcome`](crate::objective::Outcome), from which
+//! The raw function must return an [`Outcome`], from which
 //! a [`Codomain`](crate::domain::codomain::Codomain) is extracted.
 //!
 //! # Examples
 //! ## Single-shot objective
 //! Wrap the following code inside a module, to use effortlessly with Tantale.
-//! The [`objective!`](tantale::macros::objective) macro creates various functions
+//! The `objective!` macro creates various functions
 //! generating the searchspace, and the objective itself.
 //! ```
 //!  use serde::{Deserialize, Serialize};
@@ -56,7 +56,7 @@
 //!
 //! ## Multi-steps objective
 //! Wrap the following code inside a module, to use effortlessly with Tantale.
-//! The [`objective!`](tantale::macros::objective) macro creates various functions
+//! The `objective!` macro creates various functions
 //! generating the searchspace, and the objective itself.
 //! Pay attention to the returned [`FuncState`], and [`EvalStep`](crate::objective::EvalStep).
 //! ```
@@ -169,7 +169,7 @@ pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}
 ///
 /// # Type parameters
 /// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
-/// - `Out`: Output implementing [`Outcome`](crate::objective::Outcome).
+/// - `Out`: Output implementing [`Outcome`].
 pub struct Objective<Raw, Out>(pub OptimFn<Raw, Out>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
@@ -187,7 +187,7 @@ where
     ///
     /// # See also
     /// - [`Searchspace`](crate::searchspace::Searchspace)
-    /// - [`objective!`](tantale::macros::objective)
+    /// - `objective!`
     pub fn new(func: OptimFn<Raw, Out>) -> Self {
         Objective(func)
     }
@@ -224,8 +224,8 @@ where
 ///
 /// # Type parameters
 /// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
-/// - `Out`: Output implementing [`FidOutcome`](crate::FidOutcome).
-/// - `FnState`: Internal function state implementing [`FuncState`](crate::objective::outcome::FuncState).
+/// - `Out`: Output implementing [`FidOutcome`].
+/// - `FnState`: Internal function state implementing [`FuncState`].
 pub struct Stepped<Raw, Out, FnState>(pub SteppFn<Raw, Out, FnState>)
 where
     Raw: Serialize + for<'a> Deserialize<'a>,
@@ -256,7 +256,7 @@ where
     ///
     /// # See also
     /// - [`Searchspace`](crate::searchspace::Searchspace)
-    /// - [`objective!`](tantale::macros::objective)
+    /// - `objective!` procedural macro
     pub fn new(func: SteppFn<Raw, Out, FnState>) -> Self {
         Stepped(func)
     }

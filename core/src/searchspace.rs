@@ -177,7 +177,7 @@ pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
 /// ## Sampling
 /// - [`sample_obj`](Searchspace::sample_obj) - Generate random Obj domain solution
 /// - [`sample_opt`](Searchspace::sample_opt) - Generate random Opt domain solution
-/// - [`sample_pair`](Searchspace::sample_pair) - Generate paired Obj/Opt solution ([`SolutionShape`](crate::solution::SolutionShape))
+/// - [`sample_pair`](Searchspace::sample_pair) - Generate paired Obj/Opt solution ([`SolutionShape`])
 ///
 /// ## Mapping
 /// - [`onto_opt`](Searchspace::onto_opt) - Map Obj → Opt domain
@@ -275,10 +275,6 @@ where
     /// ```
     fn onto_opt(&self, inp: SolOpt::Twin<Self::Obj>) -> Self::SolShape;
     /// Maps a solution from the Opt domain to the Obj domain.
-    ///
-    /// This method transforms an optimizer solution into the objective function's representation
-    /// using the [`onto_obj_fn`](crate::Var::onto_obj_fn) mappings defined for each variable.
-    /// The resulting solution maintains the same [`Id`] as the input.
     ///
     /// # Parameters
     ///
@@ -534,9 +530,7 @@ where
     fn is_in_opt<S>(&self, inp: &S) -> bool
     where
         S: Solution<SolId, Self::Opt, SInfo, Raw = SolOpt::Raw> + Send + Sync;
-    /// Maps a [`Partial`] of type `Opt` onto an [`Partial`] of type `Obj`.
-    /// It uses the [`onto_obj_fn`](crate::Var::onto_obj_fn) from
-    /// the corresponding [`variables`](Searchspace::variables). To main
+    /// Maps a [`Solution`] of type `Opt` onto an [`Solution`] of type `Obj`.
     ///
     /// # Example
     ///

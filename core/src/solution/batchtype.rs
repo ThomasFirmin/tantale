@@ -1,9 +1,9 @@
 //! Batch containers for [`SolutionShape`]s and [`Outcome`]s.
 //!
-//! A [`Batch`] groups multiple [`SolutionShape`](crate::solution::SolutionShape)s, typically
-//! created by a [`BatchedOptimizer`](crate::BatchOptimizer). All solutions within a batch share the same [`OptInfo`](crate::OptInfo)
-//! metadata. An [`OutBatch`] groups raw [`Outcome`](crate::Outcome) values paired with the
-//! corresponding [`Id`](crate::Id).
+//! A [`Batch`] groups multiple [`SolutionShape`]s, typically
+//! created by a [`BatchedOptimizer`](crate::BatchOptimizer). All solutions within a batch share the same [`OptInfo`]
+//! metadata. An [`OutBatch`] groups raw [`Outcome`] values paired with the
+//! corresponding [`Id`].
 //!
 //! # Examples
 //! ```
@@ -39,7 +39,7 @@ use std::collections::HashMap;
 
 /// A [`Batch`] describes a collection of `Obj` and `Opt` [`SolutionShape`].
 ///
-/// All pairs in the batch share the same [`OptInfo`](crate::OptInfo).
+/// All pairs in the batch share the same [`OptInfo`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Shape: Serialize",
@@ -440,7 +440,7 @@ where
 
 /// A [`OutBatch`] describes a collection of solution [`Id`]s and raw [`Outcome`] values.
 ///
-/// All entries share the same [`OptInfo`](crate::OptInfo).
+/// All entries share the same [`OptInfo`].
 #[derive(Debug)]
 pub struct OutBatch<SolId, Info, Out>
 where

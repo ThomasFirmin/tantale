@@ -8,7 +8,7 @@
 //! $$ x^\star \in \arg\min_{x \in \mathcal{X}} f(x)\enspace, $$
 //! where:
 //! * $x^\star$ is the optimal [`Solution`](crate::Solution), or the best-solution
-//!   so-far found by the [`Optimizer`](crate::Optimizer)
+//!   so-far found by the [`Optimizer`]
 //! * $\mathcal{X}$ is the [`Searchspace`](crate::Searchspace)
 //! * $f$ is the user-define function wrapped in [`Objective`](crate::Objective) or [`Stepped`](crate::Stepped)
 //!

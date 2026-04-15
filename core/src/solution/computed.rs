@@ -1,6 +1,6 @@
 //! Computed (evaluated) solutions.
 //!
-//! A [`Computed`] solution pairs an [`Uncomputed`](crate::solution::Uncomputed) solution with the
+//! A [`Computed`] solution pairs an [`Uncomputed`] solution with the
 //! corresponding codomain value (a [`Codomain::TypeCodom`]) produced by evaluating the raw
 //! solution with an [`Objective`](crate::Objective). This is the evaluated form used by
 //! optimizers and recorders.
@@ -152,7 +152,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Return the [`SolInfo`](SolInfo) associated with the underlying solution.
+    /// Return the [`SolInfo`] associated with the underlying solution.
     fn sinfo(&self) -> Arc<Info> {
         self.sol.sinfo()
     }
@@ -296,7 +296,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Creates a new [`Computed`] from a [`Partial`] and a [`TypeCodom`](Codomain::TypeCodom).
+    /// Creates a new [`Computed`] from a [`BaseSol`](crate::solution::BaseSol) and a [`TypeCodom`](Codomain::TypeCodom).
     pub fn new(sol: PSol, y: Arc<Cod::TypeCodom>) -> Self {
         Computed {
             sol,
@@ -307,8 +307,8 @@ where
         }
     }
 
-    /// Creates a vec of [`Computed`] from an iterator of [`Arc`] [`Partial`]
-    /// and an iterator of [`Arc`] [`TypeCodom`](Codomain::TypeCodom).
+    /// Creates a vec of [`Computed`] from an iterator of [`BaseSol`](crate::solution::BaseSol)s,
+    /// and an iterator of [`Arc<`TypeCodom`>](Codomain::TypeCodom).
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where
         I: IntoIterator<Item = PSol>,

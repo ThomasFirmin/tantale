@@ -7,7 +7,7 @@
 //! # See Also
 //!
 //! - [`CSVRecorder`](crate::CSVRecorder) - For experiments that need result persistence
-//! - [`Recorder`](crate::Recorder) - Base trait for all recorders
+//! - [`Recorder`] - Base trait for all recorders
 
 use crate::{
     BatchOptimizer, BatchRecorder, CompBatch, FuncWrapper, RawObj, SeqRecorder,

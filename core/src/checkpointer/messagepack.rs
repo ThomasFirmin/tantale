@@ -205,7 +205,7 @@ impl MonoCheckpointer for MessagePack {
             create_dir_all(&self.config.path_check).unwrap();
         }
     }
-    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Ran after [`init`](MonoCheckpointer::init), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
     fn before_load(&mut self) {
         // Check if all folder and files exist
@@ -466,7 +466,7 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
-    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Ran after [`init_thr`](ThrCheckpointer::init_thr), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
     ///
     /// # Note
@@ -813,7 +813,7 @@ impl DistCheckpointer for MessagePack {
         proc.world.barrier();
     }
 
-    /// Ran after [`init`](Checkpointer::init), and after a [`load!`](crate::load).
+    /// Ran after [`init_dist`](DistCheckpointer::init_dist), and after a [`load!`](crate::load).
     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
     ///
     /// /// # Note
