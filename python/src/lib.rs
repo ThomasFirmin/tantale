@@ -47,7 +47,7 @@ pub mod pyoutcome;
 pub use pyoutcome::{PyFidOutcome, PyOutcome, PyStep};
 
 pub mod pyfunction;
-pub use pyfunction::{PyObjective, PyStepped, PyFuncState};
+pub use pyfunction::{PyFuncState, PyObjective, PyStepped};
 
 pub mod pydomain;
 

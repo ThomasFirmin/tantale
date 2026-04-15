@@ -159,9 +159,9 @@ impl CSVWritable<(), ()> for PyOutcome {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-            .call_method0("csv_header")
-            .and_then(|v| v.extract::<Vec<String>>())
-            .unwrap()
+                .call_method0("csv_header")
+                .and_then(|v| v.extract::<Vec<String>>())
+                .unwrap()
         })
     }
 
@@ -245,9 +245,9 @@ impl CSVWritable<(), ()> for PyFidOutcome {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-            .call_method0("csv_header")
-            .and_then(|v| v.extract::<Vec<String>>())
-            .unwrap()
+                .call_method0("csv_header")
+                .and_then(|v| v.extract::<Vec<String>>())
+                .unwrap()
         })
     }
 

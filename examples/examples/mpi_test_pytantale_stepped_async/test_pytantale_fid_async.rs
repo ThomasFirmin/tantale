@@ -1,6 +1,7 @@
 use tantale::algos::{MoAsha, mo::NSGA2Selector, moasha};
 use tantale::core::{
-    CSVRecorder, Calls, DistSaverConfig, FolderConfig, MPIProcess, MessagePack, PoolMode, distributed_with_pool, experiment, load
+    CSVRecorder, Calls, DistSaverConfig, FolderConfig, MPIProcess, MessagePack, PoolMode,
+    distributed_with_pool, experiment, load,
 };
 use tantale::python::{PyFidOutcome, init_python};
 
@@ -57,7 +58,16 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    distributed_with_pool(
+        &proc,
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
     if proc.rank == 0 {
@@ -77,7 +87,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj2, (rec, check));
+    let exp =
+        load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj2, (rec, check));
 
     if proc.rank == 0 {
         match exp {
@@ -106,7 +117,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj3, (rec, check));
+    let exp =
+        load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj3, (rec, check));
     if proc.rank == 0 {
         // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
         run_reader_eps("tmp_mpi_test_python_fid", 400, 100); // 100 for randomness

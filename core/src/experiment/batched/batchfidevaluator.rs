@@ -19,11 +19,11 @@ use crate::{
 };
 
 #[cfg(feature = "mpi")]
+use core::panic;
+#[cfg(feature = "mpi")]
 use mpi::Rank;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "mpi")]
-use core::panic;
 use std::marker::PhantomData;
 use std::{
     fmt::Debug,
@@ -699,25 +699,29 @@ where
         let mut stop_loop = stop.stop();
         let mut successfull = false;
         let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();
-        while let Some(a) = iter_idle.next() && !(stop_loop || successfull)
+        while let Some(a) = iter_idle.next()
+            && !(stop_loop || successfull)
         {
             let available = a as Rank;
-            (stop_loop, successfull) = recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
-                available,
-                sendrec,
-                &mut self.where_is_id,
-                &mut self.new_batch,
-                &mut self.priority_discard,
-                &mut self.priority_resume,
-                stop,
-            );
+            (stop_loop, successfull) =
+                recursive_send_a_pair::<PSol, SolId, Op, Scp, St, Out, FnState>(
+                    available,
+                    sendrec,
+                    &mut self.where_is_id,
+                    &mut self.new_batch,
+                    &mut self.priority_discard,
+                    &mut self.priority_resume,
+                    stop,
+                );
             // If not successful in sending a solution
             // It means the optimizer has returned a partially located
             // within another worker that is currently busy.
         }
 
         if !successfull {
-            panic!("No available solution to send to workers, but stop condition not met. This should not happen in synchronous batch MPI-distributed optimization.")
+            panic!(
+                "No available solution to send to workers, but stop condition not met. This should not happen in synchronous batch MPI-distributed optimization."
+            )
         }
 
         // Recv / sendv loop

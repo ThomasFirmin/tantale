@@ -1,6 +1,7 @@
 use tantale::algos::{MoAsha, mo::NSGA2Selector, moasha};
 use tantale::core::{
-    CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load, mono_with_pool
+    CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
+    mono_with_pool,
 };
 use tantale::python::{PyFidOutcome, init_python};
 
@@ -55,7 +56,15 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    mono_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid", 200, 100); // 100 for randomness

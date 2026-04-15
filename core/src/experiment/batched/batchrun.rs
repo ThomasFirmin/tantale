@@ -20,14 +20,17 @@ use crate::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+    DistBatchRecorder,
+    checkpointer::{DistCheckpointer, WorkerCheckpointer},
+    experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    }, solution::shape::{SolObj, SolOpt}
+    },
+    solution::shape::{SolObj, SolOpt},
 };
 
 use std::{

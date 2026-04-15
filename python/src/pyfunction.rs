@@ -113,7 +113,9 @@ impl Display for PyFuncState {
 /// # Panics
 /// Panics if no callable has been registered via [`PyObjective::register`].
 pub fn py_objective<E: ElementIntoPyObject>(x: Arc<[E]>) -> PyOutcome {
-    let binding = PY_OBJECTIVE_FUNC.get().expect("The PyObjective was not initialized");
+    let binding = PY_OBJECTIVE_FUNC
+        .get()
+        .expect("The PyObjective was not initialized");
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");
         let result = binding.call1(py, (list,)).unwrap();
@@ -136,7 +138,9 @@ pub fn py_stepped<E: ElementIntoPyObject>(
     fidelity: Fidelity,
     state: Option<PyFuncState>,
 ) -> (PyFidOutcome, PyFuncState) {
-    let binding = PY_STEPPED_FUNC.get().expect("The PyStepped was not initialized");
+    let binding = PY_STEPPED_FUNC
+        .get()
+        .expect("The PyStepped was not initialized");
     let py_state = state.map(|s| s.0);
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");

@@ -366,9 +366,7 @@ fn main() {
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
             OutBatchEvaluate<StepSId, _, _, Sp<Mixed, NoDomain>, FidelitySol<StepSId, _, _>, _, _>,
-        >>::evaluate(
-            &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
-        );
+        >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         assert!(
             stop.calls() >= 20,
             "Number of calls is wrong after fully evaluated."

@@ -14,4 +14,4 @@ impl Drop for Cleaner {
 }
 
 #[allow(dead_code)]
-fn main() { }
+fn main() {}

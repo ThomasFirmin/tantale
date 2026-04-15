@@ -1,6 +1,7 @@
 use tantale::algos::{Sha, sha};
 use tantale::core::{
-    CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load, mono_with_pool
+    CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
+    mono_with_pool,
 };
 use tantale::python::{PyFidOutcome, init_python};
 
@@ -48,7 +49,15 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    mono_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
     run_reader("tmp_test_python_sha", 1000);
 
     let sp = sp_ms_nosamp::get_searchspace();

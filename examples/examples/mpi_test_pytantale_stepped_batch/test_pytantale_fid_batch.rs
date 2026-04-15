@@ -1,6 +1,7 @@
 use tantale::algos::{Sha, sha};
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode, distributed_with_pool, experiment, load
+    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode,
+    distributed_with_pool, experiment, load,
 };
 use tantale::python::{PyFidOutcome, init_python};
 
@@ -50,21 +51,38 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    distributed_with_pool(
+        &proc,
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
     // 1 evaluated -> 20 partial evaluation * 50
     if proc.rank == 0 {
-            run_reader("tmp_mpi_test_python_sha", 1000);
+        run_reader("tmp_mpi_test_python_sha", 1000);
     }
-    
+
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
     let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
-    
+
     let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
-    
-    let exp = load!(distributed, &proc, Sha, Evaluated, (sp, cod), obj, (rec, check));
+
+    let exp = load!(
+        distributed,
+        &proc,
+        Sha,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     if proc.rank == 0 {
         match exp {
             experiment::MasterWorker::Master(mut e) => {
@@ -92,7 +110,15 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(distributed, &proc, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        Sha,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     if proc.rank == 0 {
         run_reader("tmp_mpi_test_python_sha", 2000);
         match exp {

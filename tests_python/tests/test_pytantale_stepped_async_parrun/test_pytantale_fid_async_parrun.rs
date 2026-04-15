@@ -1,6 +1,7 @@
 use tantale::algos::{MoAsha, mo::NSGA2Selector, moasha};
 use tantale::core::{
-    CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load, threaded_with_pool
+    CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
+    threaded_with_pool,
 };
 use tantale::python::{PyFidOutcome, init_python};
 
@@ -55,7 +56,15 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    threaded_with_pool(
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid_parrun", 200, 100); // 100 for randomness
@@ -76,7 +85,10 @@ fn test_python_function() {
     let mut exp = load!(threaded, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj2, (rec, check));
 
     let expstop = exp.get_mut_stop();
-    assert!(expstop.0 >= 50 && expstop.0 <= 50 + num_cpus::get(), "Number of calls is wrong");
+    assert!(
+        expstop.0 >= 50 && expstop.0 <= 50 + num_cpus::get(),
+        "Number of calls is wrong"
+    );
     expstop.1 = 100;
     exp.run();
 
@@ -97,5 +109,8 @@ fn test_python_function() {
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid_parrun", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
-    assert!(expstop.0 >= 100 && expstop.0 <= 100 + num_cpus::get(), "Number of calls is wrong");
+    assert!(
+        expstop.0 >= 100 && expstop.0 <= 100 + num_cpus::get(),
+        "Number of calls is wrong"
+    );
 }

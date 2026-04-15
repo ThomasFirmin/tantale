@@ -72,7 +72,9 @@ pub(crate) fn pickle_loads(py: Python<'_>, bytes: &[u8]) -> PyResult<Py<PyAny>> 
 /// The class must expose a `@staticmethod csv_header() -> list[str]` and
 /// an instance method `csv_write(self) -> list[str]`.
 pub fn register_outcome(cls: Py<PyAny>) {
-    PY_OUTCOME_CLASS.set(cls).expect("Failed to register Python outcome class: a class has already been registered");
+    PY_OUTCOME_CLASS
+        .set(cls)
+        .expect("Failed to register Python outcome class: a class has already been registered");
 }
 
 /// Wires a Python objective function into a Tantale experiment.
@@ -135,7 +137,7 @@ pub fn register_outcome(cls: Py<PyAny>) {
 macro_rules! init_python {
     (Objective, $searchspace_module:path, $func_file:expr, $func_module:expr, $func_name:expr, $out_file:expr, $out_module:expr, $out_name:expr) => {{
         use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
-        use $searchspace_module::{pytantale,};
+        use $searchspace_module::pytantale;
 
         tantale::python::pyo3::append_to_inittab!(pytantale);
         let objective = tantale::python::pyo3::Python::attach(|py| {
@@ -170,7 +172,7 @@ macro_rules! init_python {
     (Stepped, $searchspace_module:path, $func_file:expr, $func_module:expr, $func_name:expr, $out_file:expr, $out_module:expr, $out_name:expr) => {{
         use std::ffi::CStr;
         use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
-        use $searchspace_module::{pytantale,};
+        use $searchspace_module::pytantale;
 
         tantale::python::pyo3::append_to_inittab!(pytantale);
 

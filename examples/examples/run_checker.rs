@@ -2,7 +2,9 @@ use std::path::Path;
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder")).join(Path::new("recorder_rank0"));
+    let eval_path = true_path
+        .join(Path::new("recorder"))
+        .join(Path::new("recorder_rank0"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
@@ -45,7 +47,9 @@ pub fn run_reader(path: &str, size: usize) {
 
 pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
     let true_path = Path::new(path);
-    let eval_path = true_path.join(Path::new("recorder")).join(Path::new("recorder_rank0"));
+    let eval_path = true_path
+        .join(Path::new("recorder"))
+        .join(Path::new("recorder_rank0"));
     let path_obj = eval_path.join("obj.csv");
     let path_opt = eval_path.join("opt.csv");
     let path_out = eval_path.join("out.csv");
@@ -122,4 +126,4 @@ pub fn run_reader_eps(path: &str, size: usize, epsilon: usize) {
 }
 
 #[allow(dead_code)]
-fn main() { }
+fn main() {}

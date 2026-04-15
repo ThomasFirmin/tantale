@@ -1,6 +1,7 @@
 use tantale::algos::{RandomSearch, random_search};
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode, distributed_with_pool, experiment, load
+    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode,
+    distributed_with_pool, experiment, load,
 };
 use tantale::python::{PyOutcome, init_python};
 
@@ -50,13 +51,22 @@ pub fn test_python_function() {
     let config = FolderConfig::new("tmp_mpi_test_python_async_rs").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
-    
-    distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+
+    distributed_with_pool(
+        &proc,
+        (sp, cod),
+        obj,
+        opt,
+        stop,
+        (rec, check),
+        PoolMode::Persistent,
+    )
+    .run();
 
     if proc.rank == 0 {
         run_reader("tmp_mpi_test_python_async_rs", 50);
     }
-    
+
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
     let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
@@ -65,7 +75,15 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(distributed, &proc, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        RandomSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
 
     if proc.rank == 0 {
         match exp {
@@ -89,7 +107,15 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(distributed, &proc, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        RandomSearch,
+        Evaluated,
+        (sp, cod),
+        obj,
+        (rec, check)
+    );
     if proc.rank == 0 {
         run_reader("tmp_mpi_test_python_async_rs", 100);
         match exp {
