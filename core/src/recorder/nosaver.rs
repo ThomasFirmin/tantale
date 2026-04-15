@@ -58,7 +58,7 @@ impl NoSaver {
 
 impl Recorder for NoSaver {}
 
-/// Implementation of [`SeqRecorder`](crate::SeqRecorder) for sequential optimization.
+/// Implementation of [`SeqRecorder`] for sequential optimization.
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 impl<PSol, SolId, Out, Scp, Op, FnWrap> SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap> for NoSaver
@@ -89,7 +89,7 @@ where
     }
 }
 
-/// Implementation of [`BatchRecorder`](crate::BatchRecorder) for batch optimization.
+/// Implementation of [`BatchRecorder`] for batch optimization.
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 impl<PSol, SolId, Out, Scp, Op, FnWrap> BatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap> for NoSaver
@@ -122,7 +122,7 @@ where
     }
 }
 
-/// Implementation of [`DistSeqRecorder`](crate::DistSeqRecorder) for distributed sequential optimization (MPI).
+/// Implementation of [`DistSeqRecorder`] for distributed sequential optimization (MPI).
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 #[cfg(feature = "mpi")]
@@ -155,7 +155,7 @@ where
     }
 }
 
-/// Implementation of [`DistBatchRecorder`](crate::DistBatchRecorder) for distributed batch optimization (MPI).
+/// Implementation of [`DistBatchRecorder`] for distributed batch optimization (MPI).
 ///
 /// All methods are no-ops, performing no I/O or output operations.
 #[cfg(feature = "mpi")]

@@ -25,6 +25,12 @@
 //! * [Create your recorder](crate::docs::CreateRecorder) (Coming soon)
 //! * [Create your checkpointer](crate::docs::CreateCheckpointer) (Coming soon)
 //!
+//! # Features
+//! * `py`: Enable Python bindings and utilities. This is required to use the [`python`](crate::python) module, 
+//!   which provides utilities to interface Tantale with Python code, including the [`init_python!`](crate::python::init_python) macro 
+//!   for wiring Python objective functions into Tantale experiments.
+//! * `mpi`: Enable MPI-based distributed optimization. This is required to use the MPI-specific execution helpers [`distributed`](crate::core::distributed).
+//!
 //! # Notes on future releases
 //!
 //! * The library is in its early stages and is expected to evolve.

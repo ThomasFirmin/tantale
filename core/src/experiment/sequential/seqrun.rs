@@ -92,7 +92,7 @@ where
     Check: MonoCheckpointer,
     Out: Outcome,
 {
-    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
     /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
@@ -135,7 +135,7 @@ where
         }
     }
 
-    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
     /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
@@ -396,7 +396,7 @@ where
     Out: FidOutcome,
     FnState: FuncState,
 {
-    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
     /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
@@ -437,7 +437,7 @@ where
         }
     }
 
-    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
     /// and [`Stepped`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
@@ -732,7 +732,7 @@ where
     TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
         Send + Sync + 'static,
 {
-    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
     /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
@@ -774,7 +774,7 @@ where
         }
     }
 
-    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
     /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
@@ -1092,7 +1092,7 @@ where
         Out,
     >: Send + Sync + 'static,
 {
-    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`](Codomain),
     /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`Recorder`] and [`Checkpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
@@ -1133,7 +1133,7 @@ where
         }
     }
 
-    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](crate::Codomain),
+    /// Load a [`ThrExperiment`] from a saved state using a [`Searchspace`], [`Codomain`](Codomain),
     /// and [`Objective`], along with an optional [`Recorder`] and non-optional [`Checkpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
@@ -1512,9 +1512,9 @@ where
     type WType = BaseWorker<'a, RawObj<Scp::SolShape, SId, Op::SInfo>, Out>;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](crate::Codomain), [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
-    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
-    /// all other processes will be [`Worker`](crate::Worker)s.
+    /// [`Codomain`](Codomain), [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](MasterWorker) while
+    /// all other processes will be [`Worker`](Worker)s.
     /// It also uses an internal [`DistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
     /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
     /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
@@ -1577,9 +1577,9 @@ where
     }
 
     /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](crate::Codomain), [`Objective`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
-    /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
-    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via [`no_check_init`](crate::DistCheckpointer::no_check_init).
+    /// [`Codomain`](Codomain), [`Objective`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// The main process (rank 0) will be the [`Master`](MasterWorker) loaded via [`load_dist`](DistCheckpointer::load_dist)
+    /// while all other processes will be [`Worker`](Worker)s loaded here via [`no_check_init`](DistCheckpointer::no_check_init).
     /// The loading process follows the logic described in the [`DistCheckpointer`]
     /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
     ///
@@ -1921,12 +1921,12 @@ where
     >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](crate::Codomain), [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`Codomain`](Codomain), [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
     /// [`DistRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
     /// all other processes will be [`Worker`](crate::Worker)s.
     /// It also uses an internal [`FidDistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
     /// The [`DistRecorder`] and [`DistCheckpointer`] are only used by the main process.
-    /// Other processes will use a [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer) associated to the [`DistCheckpointer`].
+    /// Other processes will use a [`WorkerCheckpointer`](WorkerCheckpointer) associated to the [`DistCheckpointer`].
     fn new_with_pool(
         proc: &'a MPIProcess,
         space: (Scp, Op::Cod),
@@ -2011,9 +2011,9 @@ where
     }
 
     /// Load a distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`](crate::Codomain), [`Stepped`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
+    /// [`Codomain`](Codomain), [`Stepped`], along with an optional [`DistRecorder`] and non-optional [`DistCheckpointer`].
     /// The main process (rank 0) will be the [`Master`](crate::MasterWorker) loaded via [`load_dist`](crate::DistCheckpointer::load_dist)
-    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their associated [`WorkerCheckpointer`](crate::checkpointer::WorkerCheckpointer).
+    /// while all other processes will be [`Worker`](crate::Worker)s loaded here via their associated [`WorkerCheckpointer`](WorkerCheckpointer).
     /// The loading process follows the logic described in the [`DistCheckpointer`]
     /// concrete implementations (e.g. [`MessagePack`](crate::checkpointer::MessagePack)).
     ///

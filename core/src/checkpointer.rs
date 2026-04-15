@@ -33,6 +33,9 @@
 //! - **[`DistCheckpointer`]** - For MPI-based distributed optimization coordinated by a master rank.
 //! - **[`WorkerCheckpointer`]** - For individual MPI worker processes to checkpoint their local state.
 //!
+//! ### Function State Checkpointing
+//! - **[`FuncStateCheckpointer`]** - For managing the [`FuncState`] of individual function evaluation.
+//! 
 //! ## Usage
 //!
 //! ```ignore
@@ -50,8 +53,8 @@
 //!
 //! ## Implementation Notes
 //!
-//! - All checkpoint data must implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize).
-//! - Checkpointers are configuration-dependent via the [`SaverConfig`](crate::SaverConfig) trait.
+//! - All checkpoint data must implement [`Serialize`](Serialize) and [`Deserialize`](Deserialize).
+//! - Checkpointers are configuration-dependent via the [`SaverConfig`](SaverConfig) trait.
 //! - The [`MessagePack`] implementation is the primary concrete checkpointer for most use cases.
 //! - MPI-specific traits are only available with the `mpi` feature.
 //! - See [`experiment::Runable`](crate::experiment::Runable) for how checkpointers are integrated into optimization loops.
@@ -121,7 +124,7 @@ pub trait FuncStateCheckpointer {
 ///
 /// This trait abstracts checkpoint storage and retrieval, allowing different implementations to use
 /// different backends (files, databases, etc.). It requires all state components to be serializable
-/// via the [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) traits, typically
+/// via the [`Serialize`](Serialize) and [`Deserialize`](Deserialize) traits, typically
 /// handled through `serde` derive macros.
 ///
 /// # State Components Managed
@@ -407,7 +410,7 @@ pub trait ThrCheckpointer: Checkpointer {
 /// # See Also
 ///
 /// - [`DistCheckpointer`] - For controller-side distributed checkpointing
-/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI context information
+/// - [`MPIProcess`](MPIProcess) - MPI context information
 /// - [`WorkerState`] - Type trait for worker-local state
 pub trait WorkerCheckpointer<WState>
 where
@@ -550,7 +553,7 @@ where
 /// # See Also
 ///
 /// - [`WorkerCheckpointer`] - For worker-local state checkpointing
-/// - [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess) - MPI context
+/// - [`MPIProcess`](MPIProcess) - MPI context
 pub trait DistCheckpointer: Checkpointer
 where
     Self: Sized,

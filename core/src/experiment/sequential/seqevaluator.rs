@@ -228,7 +228,7 @@ where
     /// It manages the internal [`FuncState`] to handle multi-[`Step`] evaluations.
     /// If the evaluation results in a final step ([`Step::Evaluated`], [`Step::Discard`], or [`Step::Error`]),
     /// the current [`FuncState`] is cleared.
-    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`](crate::Outcome)
+    /// It returns an `Option` containing a single [`Computed`](crate::Computed) and [`Outcome`](Outcome)
     /// if the current step (after evaluation) is [`Step::Evaluated`] or [`Step::Partially`].
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(

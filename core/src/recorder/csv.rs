@@ -1267,7 +1267,7 @@ where
     }
 }
 
-/// Implementation of [`DistSeqRecorder`](crate::DistSeqRecorder) for MPI-distributed sequential experiments.
+/// Implementation of [`DistSeqRecorder`](DistSeqRecorder) for MPI-distributed sequential experiments.
 ///
 /// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
 /// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
@@ -1283,7 +1283,7 @@ where
 ///   ...
 /// ```
 ///
-/// Each rank maintains independent CSV files linked by solution [`Id`](crate::solution::Id).
+/// Each rank maintains independent CSV files linked by solution [`Id`](Id).
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
     for CSVRecorder
@@ -1463,7 +1463,7 @@ where
     }
 }
 
-/// Implementation of [`DistBatchRecorder`](crate::DistBatchRecorder) for MPI-distributed batch experiments.
+/// Implementation of [`DistBatchRecorder`](DistBatchRecorder) for MPI-distributed batch experiments.
 ///
 /// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
 /// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
@@ -1479,7 +1479,7 @@ where
 ///   ...
 /// ```
 ///
-/// Each rank maintains independent CSV files linked by solution [`Id`](crate::solution::Id).
+/// Each rank maintains independent CSV files linked by solution [`Id`](Id).
 #[cfg(feature = "mpi")]
 impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
     for CSVRecorder

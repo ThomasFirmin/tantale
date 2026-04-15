@@ -41,12 +41,12 @@
 //! ## Dependencies and integration
 //!
 //! Tantale core relies on a few external crates:
-//! - [`serde`]: Most core types implement [`Serialize`](serde::Serialize) and
+//! - `serde`: Most core types implement [`Serialize`](serde::Serialize) and
 //!   [`Deserialize`](serde::Deserialize) to support checkpointing.
-//! - [`rand`]: Domains and samplers use RNG traits to generate valid values.
+//! - `rand`: Domains and samplers use RNG traits to generate valid values.
 //! - `mpi` (optional): Distributed experiments are enabled behind the `mpi`
 //!   feature flag and expose MPI-specific execution helpers.
-//! - [`rayon`]: Parallel evaluation and orchestration in multi-threaded runs. Used in synchrnous batched optimization, and [`SpPar`](crate::searchspace::SpPar) utilities.
+//! - `rayon`: Parallel evaluation and orchestration in multi-threaded runs. Used in synchrnous batched optimization, and [`SpPar`](crate::searchspace::SpPar) utilities.
 //! - `csv`: CSV-backed [`Recorder`], with [`CSVRecorder`](crate::recorder::CSVRecorder) as the main implementation.
 //! - `rmp-serde`: MessagePack serialization used by the default checkpointer. Used by [`MessagePack`](crate::checkpointer::MessagePack) for compact checkpointing of experiment state.
 //! - `bincode`: Compact binary serialization for checkpointing and transport.
@@ -54,6 +54,8 @@
 //! - `bitvec`: Efficient bit-level storage in domain and solution utilities.
 //!   Used by MPI-distributed optimization within [`IdleWorker`](crate::experiment::mpi::utils::IdleWorker) to track idle workers.
 //! - `num_cpus`: Detects available CPU cores to size thread pools. Used in multi-threaded execution contexts, for asynchrnous multi-threaded optimization, to determine pool size of threads.
+//! - `indexmap`: Provides a hashmap preserving iteration order. It used to managa
+//!   function states, for FIFO discarding of old states to save memory.
 //!
 //! ## Examples
 //!

@@ -152,7 +152,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Return the [`SolInfo`](crate::SolInfo) associated with the underlying solution.
+    /// Return the [`SolInfo`](SolInfo) associated with the underlying solution.
     fn sinfo(&self) -> Arc<Info> {
         self.sol.sinfo()
     }
