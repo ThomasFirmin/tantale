@@ -36,12 +36,12 @@
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer,
+    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer, HasY,
     domain::onto::LinkOpt,
     objective::Outcome,
     optimizer::opt::CompBatch,
     searchspace::{CompShape, Searchspace},
-    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
+    solution::{Id, OutBatch, SolutionShape, Uncomputed},
 };
 
 #[cfg(feature = "mpi")]

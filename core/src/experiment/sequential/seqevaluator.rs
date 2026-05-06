@@ -4,13 +4,13 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop,
+    Accumulator, Codomain, Id, Objective, Outcome, Searchspace, SolInfo, Solution, Stop, HasId,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
     objective::Step,
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
-    solution::{HasId, IntoComputed, SolutionShape, Uncomputed, shape::RawObj},
+    solution::{IntoComputed, SolutionShape, Uncomputed, shape::RawObj},
     stop::ExpStep,
 };
 

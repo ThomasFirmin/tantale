@@ -1,5 +1,6 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, SId, SeqRecorder, Solution, Stepped,
+    HasFidelity, HasId, HasStep, HasStepId,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
@@ -14,7 +15,7 @@ use crate::{
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::{CompShape, Searchspace},
     solution::{
-        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed,
+        IntoComputed, SolutionShape, Uncomputed,
         id::{StepId, StepSId},
         shape::RawObj,
     },
@@ -30,7 +31,7 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistSeqRecorder,
+    DistSeqRecorder, HasY,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
@@ -40,10 +41,7 @@ use crate::{
         },
         sequential::{seqevaluator::DistSeqEvaluator, seqfidevaluator::FidDistSeqEvaluator},
     },
-    solution::{
-        HasY,
-        shape::{SolObj, SolOpt},
-    },
+    solution::shape::{SolObj, SolOpt},
 };
 
 //--------------------//

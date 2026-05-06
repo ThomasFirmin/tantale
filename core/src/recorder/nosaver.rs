@@ -11,12 +11,12 @@
 
 use crate::{
     BatchOptimizer, BatchRecorder, CompBatch, FuncWrapper, RawObj, SeqRecorder,
-    SequentialOptimizer,
+    SequentialOptimizer, HasY,
     domain::onto::LinkOpt,
     objective::Outcome,
     recorder::Recorder,
     searchspace::{CompShape, Searchspace},
-    solution::{HasY, Id, OutBatch, SolutionShape, Uncomputed},
+    solution::{Id, OutBatch, SolutionShape, Uncomputed},
 };
 use serde::{Deserialize, Serialize};
 

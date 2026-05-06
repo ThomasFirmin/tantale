@@ -1,12 +1,13 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, Searchspace, SolInfo, Solution, Stepped, Stop,
+    HasFidelity, HasId, HasStep, HasStepId,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SequentialOptimizer},
     searchspace::CompShape,
     solution::{
-        HasFidelity, HasId, HasStep, HasStepId, IntoComputed, SolutionShape, Uncomputed,
+         IntoComputed, SolutionShape, Uncomputed,
         id::StepId, shape::RawObj,
     },
     stop::ExpStep,

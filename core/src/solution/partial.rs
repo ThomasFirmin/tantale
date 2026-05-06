@@ -14,11 +14,12 @@
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
+use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
 use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{
-    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, Id, IntoComputed, SolInfo, Solution,
+    Id, IntoComputed, SolInfo, Solution,
     SolutionShape, Uncomputed,
 };
 use crate::{Codomain, Computed, EvalStep, Outcome, StepId};

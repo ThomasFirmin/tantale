@@ -18,16 +18,28 @@
 //! assert_eq!(dom.width, 255);
 //! ```
 
-use crate::{Domain, errors::OntoError};
+use crate::{Domain, domain::PreDomain, errors::OntoError};
 
+/// The [`Linked`] trait defines the relationship between objective and optimizer domains of an object.
+/// It specifies the types of the objective domain (`Obj`), optimizer domain (`Opt`).
+/// The `TrueOpt` type represents the actual optimizer domain, which may differ from `Opt` when using [`NoDomain`](crate::domain::NoDomain).
+/// So `TrueOpt` can `Opt` or `NoDomain`, depending on the context.
 pub trait Linked {
+    /// The type of the objective domain associated with `Self`.
     type Obj: Domain;
+    /// The type of the optimizer domain associated with `Self`.
     type Opt: Domain;
+    /// The type of the true optimizer domain, which may be `Opt` or `NoDomain`.
+    type TrueOpt: PreDomain;
 }
 
+/// The type of the `Obj` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkObj<T> = <T as Linked>::Obj;
+/// The type of the `Opt` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkOpt<T> = <T as Linked>::Opt;
+/// The [`TypeDom`](Domain::TypeDom) of the `Obj` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkTyObj<T> = <<T as Linked>::Obj as Domain>::TypeDom;
+/// The [`TypeDom`](Domain::TypeDom) of the `Opt` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkTyOpt<T> = <<T as Linked>::Opt as Domain>::TypeDom;
 
 /// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)

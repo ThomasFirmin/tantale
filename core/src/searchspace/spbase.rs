@@ -71,14 +71,10 @@ use crate::{
     domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    },
-    recorder::csv::{CSVLeftRight, CSVWritable},
-    searchspace::{Searchspace, SolInfo, SpPar},
-    solution::{
+    }, has_trait::HasVariables, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo, SpPar}, solution::{
         Id, IntoComputed, Lone, Pair, Solution, Uncomputed,
         shape::{RawObj, RawOpt},
-    },
-    variable::Var,
+    }, variable::Var
 };
 
 use rand::prelude::Rng;
@@ -90,16 +86,25 @@ pub struct Sp<Obj: Domain, Opt: PreDomain> {
     pub var: Box<[Var<Obj, Opt>]>,
 }
 
+impl<Obj: Domain, Opt: PreDomain> Sp<Obj, Opt> {
+    /// Get the number of variables in the searchspace.
+    pub fn size(&self) -> usize {
+        self.var.len()
+    }
+}
+
 /// Link objective and optimizer domains when both sides are present.
 impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Linked for Sp<Obj, Opt> {
     type Obj = Obj;
     type Opt = Opt;
+    type TrueOpt = Opt;
 }
 
 /// Link objective and optimizer domains (objective domains with itself) when using [`NoDomain`].
 impl<Obj: Domain> Linked for Sp<Obj, NoDomain> {
     type Obj = Obj;
     type Opt = Obj;
+    type TrueOpt = NoDomain;
 }
 
 /// Sequential [`Searchspace`] implementation for paired objective/optimizer domains.
@@ -341,6 +346,39 @@ where
                 f(s)
             })
             .collect()
+    }
+}
+
+impl<Obj,Opt> HasVariables for Sp<Obj, Opt>
+where
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+{
+    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
+    }
+
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_opt.as_ref())
+    }
+}
+
+impl <Obj:Domain> HasVariables for Sp<Obj, NoDomain>
+{
+    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
+    }
+
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
     }
 }
 

@@ -1,12 +1,13 @@
 use crate::{
     Accumulator, Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
+    HasId, HasInfo,
     domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
     objective::{Objective, Step},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{
-        Batch, HasId, HasInfo, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
+        Batch, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
     },
     stop::{ExpStep, Stop},
 };

@@ -134,21 +134,25 @@
 //! ```
 
 use crate::{
-    domain::onto::Linked,
-    solution::{
-        HasId, HasSolInfo, Id, IntoComputed, SolInfo, Solution, SolutionShape, shape::RawObj,
-    },
+    HasId, HasSolInfo, domain::onto::Linked, solution::{
+        Id, IntoComputed, SolInfo, Solution, SolutionShape, shape::RawObj,
+    }
 };
 
 use rand::prelude::Rng;
 use std::sync::Arc;
 
+/// Type alias for the computed solution shape of a searchspace.
 pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
     <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>;
 
+/// Type alias for an optional computed solution shape of a searchspace.
 pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
     <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>,
 >;
+
+/// Type alias for the raw solution shape of a searchspace.
+pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape;
 
 /// Core trait defining the searchspace for optimization problems.
 ///

@@ -20,15 +20,10 @@
 //! ```
 
 use crate::{
-    Codomain, Computed, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution, StepId,
-    domain::{
+    Codomain, Computed, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
         Domain,
         onto::{LinkObj, LinkOpt, Linked},
-    },
-    objective::Step,
-    solution::{
-        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, IntoComputed, Uncomputed,
-    },
+    }, objective::Step, solution::{IntoComputed, Uncomputed}
 };
 
 use serde::{Deserialize, Serialize};
@@ -162,6 +157,7 @@ where
 {
     type Obj = Obj;
     type Opt = Opt;
+    type TrueOpt = Opt;
 }
 
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasId<SolId>
@@ -474,6 +470,7 @@ where
 {
     type Obj = Obj;
     type Opt = Obj;
+    type TrueOpt = NoDomain;
 }
 
 impl<SolObj, SolId, Obj, SInfo> HasId<SolId> for Lone<SolObj, SolId, Obj, SInfo>

@@ -4,7 +4,7 @@ use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     Codomain, FidelitySol, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
-    checkpointer::NoCheck,
+    checkpointer::NoCheck,HasId, HasStep,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, DistOutShapeEvaluate,
@@ -15,7 +15,7 @@ use tantale::core::{
         sequential::seqfidevaluator::FidDistSeqEvaluator,
     },
     objective::Step,
-    solution::{HasId, HasStep, IntoComputed, Lone, SolutionShape},
+    solution::{IntoComputed, Lone, SolutionShape},
 };
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 

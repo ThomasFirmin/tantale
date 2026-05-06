@@ -1,5 +1,6 @@
 use crate::{
     BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer,
+    HasFidelity, HasStep, HasStepId, HasY,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
@@ -12,7 +13,7 @@ use crate::{
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::{CompShape, Searchspace},
     solution::{
-        HasFidelity, HasStep, HasStepId, HasY, SolutionShape, Uncomputed, id::StepSId,
+        SolutionShape, Uncomputed, id::StepSId,
         shape::RawObj,
     },
     stop::{ExpStep, Stop},

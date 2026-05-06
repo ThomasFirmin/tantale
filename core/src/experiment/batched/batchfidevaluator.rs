@@ -2,7 +2,7 @@ use crate::Accumulator;
 use crate::domain::codomain::TypeAcc;
 use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
-use crate::solution::HasStepId;
+use crate::{HasStepId, HasFidelity, HasId, HasInfo, HasStep};
 use crate::solution::id::StepId;
 use crate::{
     Codomain, OptInfo, Searchspace, SolInfo,
@@ -12,7 +12,7 @@ use crate::{
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{
-        Batch, HasFidelity, HasId, HasInfo, HasStep, IntoComputed, OutBatch, Solution,
+        Batch, IntoComputed, OutBatch, Solution,
         SolutionShape, Uncomputed, shape::RawObj,
     },
     stop::{ExpStep, Stop},

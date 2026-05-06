@@ -137,6 +137,7 @@ where
 impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Linked for Var<Obj, Opt> {
     type Obj = Obj;
     type Opt = Opt;
+    type TrueOpt = Opt;
 }
 
 /// Implementation of [`Linked`] for variables with a single domain.
@@ -146,6 +147,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Linked for Var<Obj, Opt> {
 impl<Obj: Domain> Linked for Var<Obj, NoDomain> {
     type Obj = Obj;
     type Opt = Obj;
+    type TrueOpt = NoDomain;
 }
 
 /// Methods for [`Var`] with distinct objective and optimizer domains.

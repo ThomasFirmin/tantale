@@ -21,9 +21,9 @@
 //! ```
 
 use crate::{
-    OptInfo, StepId,
+    OptInfo, StepId, HasInfo, HasStep,
     objective::{Outcome, Step},
-    solution::{HasInfo, HasStep, Id, SolInfo, SolutionShape},
+    solution::{Id, SolInfo, SolutionShape},
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;

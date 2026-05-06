@@ -1,7 +1,7 @@
 use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
-    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
+    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, HasId,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
@@ -10,7 +10,7 @@ use tantale::core::{
             worker::{BaseWorker, Worker},
         },
     },
-    solution::{Batch, HasId, Lone, SolutionShape},
+    solution::{Batch, Lone, SolutionShape},
 };
 use tantale::core::{
     EmptyInfo, Searchspace, SingleCodomain, experiment::BatchEvaluator, stop::Calls,

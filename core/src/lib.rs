@@ -294,8 +294,7 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Batch, Computed, Fidelity, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo,
-    HasStep, HasUncomputed, HasY, Id, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
+    BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
     Solution, SolutionShape, StepId, StepSId, Uncomputed, shape::RawObj,
 };
 
@@ -337,3 +336,6 @@ pub mod checkpointer;
 #[cfg(feature = "mpi")]
 pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
+
+pub mod has_trait;
+pub use has_trait::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, HasVariables};

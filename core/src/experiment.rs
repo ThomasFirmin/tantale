@@ -271,12 +271,13 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::{
+    HasY,
     checkpointer::DistCheckpointer,
     experiment::mpi::{
         utils::{MPIProcess, SendRec, XMsg},
         worker::Worker,
     },
-    solution::{HasY, shape::SolObj},
+    solution::shape::SolObj,
 };
 #[cfg(feature = "mpi")]
 use ::mpi::Rank;

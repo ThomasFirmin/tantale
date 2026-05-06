@@ -5,7 +5,7 @@ use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
-    StepSId, Stepped,
+    StepSId, Stepped, HasId,
     checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
@@ -16,7 +16,7 @@ use tantale::core::{
             worker::{FidWorker, Worker},
         },
     },
-    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
+    solution::{Batch, IntoComputed, Lone, SolutionShape},
     stop::Calls,
 };
 

@@ -67,18 +67,13 @@
 //! ```
 
 use crate::{
-    Sp,
-    domain::{
+    Sp, domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    },
-    recorder::csv::{CSVLeftRight, CSVWritable},
-    searchspace::{Searchspace, SolInfo},
-    solution::{Id, IntoComputed, Lone, Pair, Solution, Uncomputed},
-    variable::Var,
+    }, has_trait::HasVariables, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo}, solution::{Id, IntoComputed, Lone, Pair, Solution, Uncomputed}, variable::Var
 };
 
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 use std::sync::Arc;
 
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
@@ -90,16 +85,53 @@ pub struct SpPar<Obj: Domain, Opt: PreDomain> {
     pub var: Box<[Var<Obj, Opt>]>,
 }
 
+impl<Obj: Domain, Opt: PreDomain> SpPar<Obj, Opt> {
+    /// Get the number of variables in the searchspace.
+    pub fn size(&self) -> usize {
+        self.var.len()
+    }
+}
+
 /// Link objective and optimizer domains when both sides are present.
 impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Linked for SpPar<Obj, Opt> {
     type Obj = Obj;
     type Opt = Opt;
+    type TrueOpt = Opt;
 }
 
 /// Link objective and optimizer domains (objective domains with itself) when using [`NoDomain`].
 impl<Obj: Domain> Linked for SpPar<Obj, NoDomain> {
     type Obj = Obj;
     type Opt = Obj;
+    type TrueOpt = NoDomain;
+}
+
+impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> HasVariables for SpPar<Obj,Opt>{
+    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
+    }
+
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_opt.as_ref())
+    }
+}
+
+impl<Obj:Domain> HasVariables for SpPar<Obj, NoDomain>{
+    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
+    }
+
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
 }
 
 /// Parallel [`Searchspace`] implementation for paired objective/optimizer domains.
@@ -157,7 +189,7 @@ where
             .into_par_iter()
             .zip(variter)
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, (seed, var)| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -178,7 +210,7 @@ where
             .into_par_iter()
             .zip(variter)
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, (seed, var)| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -248,7 +280,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -270,7 +302,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -324,7 +356,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -355,7 +387,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -380,7 +412,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -411,7 +443,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -464,7 +496,7 @@ where
             .into_par_iter()
             .zip(variter)
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, (seed, var)| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -485,7 +517,7 @@ where
             .into_par_iter()
             .zip(variter)
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, (seed, var)| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -546,7 +578,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -572,7 +604,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -624,7 +656,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -655,7 +687,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -680,7 +712,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
@@ -711,7 +743,7 @@ where
         seeds
             .into_par_iter()
             .map_init(
-                StdRng::from_os_rng, // Each thread gets its own StdRng
+                rand::make_rng, // Each thread gets its own StdRng
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);

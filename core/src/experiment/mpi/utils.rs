@@ -1,6 +1,7 @@
 use crate::{
     Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
-    solution::{HasFidelity, HasStep, HasY, IntoComputed, SolutionShape},
+    HasFidelity, HasStep, HasY,
+    solution::{IntoComputed, SolutionShape},
 };
 
 use bincode::{config::Configuration, serde::Compat};

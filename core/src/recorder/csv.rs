@@ -36,13 +36,13 @@
 
 use crate::{
     BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, OptInfo, RawObj,
-    SequentialOptimizer, SolInfo, StepId,
+    SequentialOptimizer, SolInfo, StepId, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY,
     domain::{Codomain, TypeDom, onto::LinkOpt},
     objective::{Outcome, Step},
     recorder::{BatchRecorder, Recorder, SeqRecorder},
     searchspace::{CompShape, Searchspace},
     solution::{
-        Batch, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, Id, OutBatch,
+        Batch, Id, OutBatch,
         Solution, SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
     },

@@ -2,6 +2,7 @@ use tantale::algos::RandomSearch;
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
+    HasId, 
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutShapeEvaluate,
@@ -11,7 +12,7 @@ use tantale::core::{
         },
         sequential::seqevaluator::DistSeqEvaluator,
     },
-    solution::{HasId, Lone, SolutionShape},
+    solution::{Lone, SolutionShape},
 };
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 

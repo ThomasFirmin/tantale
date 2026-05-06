@@ -52,10 +52,11 @@
 
 use crate::{
     EvalStep, Fidelity, StepId,
+    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY,
     domain::{Codomain, Domain},
     objective::{Outcome, Step},
     solution::{
-        HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Id, IntoComputed,
+        Id, IntoComputed,
         SolInfo, Solution, Uncomputed,
     },
 };
