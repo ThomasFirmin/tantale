@@ -1,11 +1,11 @@
-use rand::{SeedableRng, rngs::StdRng};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, cmp::Ord};
 use tantale::core::{EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 use tantale::macros::OptState;
 
 thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 #[derive(OptState, Serialize, Deserialize)]
 #[serde(bound(

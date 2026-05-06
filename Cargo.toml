@@ -19,6 +19,9 @@ tantale_core   = {path = "core", version = "0.1.12"}
 tantale_macros = {path = "macros", version = "0.1.12"}
 tantale_algos  = {path = "algorithms", version = "0.1.12"}
 tantale_python  = {path = "python", version = "0.1.12"}
+num = "0.4.3"
+rand = "0.10.0"
+serde = {version="1.0.219", features=["derive","rc"]}
 
 [package]
 name                    = "tantale"

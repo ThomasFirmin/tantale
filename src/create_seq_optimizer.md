@@ -40,7 +40,7 @@ use rand::{SeedableRng, rngs::StdRng};
 use std::cell::RefCell;
 
 thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 ```
 It is called with a private method `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
@@ -139,10 +139,10 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
-# use rand::{SeedableRng, rngs::StdRng};
+# use rand::rngs::StdRng;
 # 
 # thread_local! {
-#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 # }
 # #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
@@ -234,10 +234,10 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
-# use rand::{SeedableRng, rngs::StdRng};
+# use rand::rngs::StdRng;
 # 
 # thread_local! {
-#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 # }
 # #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
@@ -356,10 +356,10 @@ We have to define one functions:
 # use tantale::macros::OptState;
 # use std::{cmp::Ord, cell::RefCell};
 # use serde::{Serialize,Deserialize};
-# use rand::{SeedableRng, rngs::StdRng};
+# use rand::rngs::StdRng;
 # 
 # thread_local! {
-#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+#     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 # }
 # #[derive(OptState, Serialize, Deserialize)]
 # #[serde(bound(
