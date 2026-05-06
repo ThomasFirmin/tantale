@@ -75,22 +75,22 @@
 //! # References
 //!
 //! Hyperband is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1603.06560).
-//! See also the work on Successive Halving by [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
+//! See also the work on Successive Halving by [Li et al. (2020)](https://arxiv.org/pdf/1810.05934).
 
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use tantale_core::experiment::CompAcc;
 use tantale_core::optimizer::opt::BudgetPruner;
-use tantale_core::searchspace::CompShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
     Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed,
-    LinkOpt, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer, SingleCodomain,
-    SolutionShape, StepSId, Stepped, searchspace::OptionCompShape,
+    LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer, SingleCodomain,
+    SolutionShape, StepSId,
 };
+
+use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -419,7 +419,7 @@ impl<Optim, Out, Scp, FnState, SInfo>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
     > for Hyperband<Optim, Out, Scp, SInfo>
 where
     Optim: BatchOptimizer<
@@ -428,7 +428,7 @@ where
             Scp::Opt,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
+            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
         > + BudgetPruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
@@ -491,28 +491,9 @@ where
     /// indicating the current bracket
     fn step(
         &mut self,
-        x: Batch<
-            StepSId,
-            Self::SInfo,
-            Self::Info,
-            CompShape<
-                Scp,
-                FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
-                StepSId,
-                Self::SInfo,
-                Self::Cod,
-                Out,
-            >,
-        >,
+        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
         scp: &Scp,
-        acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             let (pairs, info) = x.extract();
@@ -558,7 +539,7 @@ impl<Optim, Out, Scp, FnState, SInfo>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
     > for Hyperband<Optim, Out, Scp, SInfo>
 where
     Optim: SequentialOptimizer<
@@ -567,7 +548,7 @@ where
             Scp::Opt,
             Out,
             Scp,
-            Stepped<RawObj<Scp::SolShape, StepSId, SInfo>, Out, FnState>,
+            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
         > + BudgetPruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
@@ -609,23 +590,9 @@ where
     /// The next uncomputed [`Solution`](tantale_core::Solution) to evaluate at the current bracket's budget level
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, Self::SInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             self.0.inner.step(x, scp, acc)

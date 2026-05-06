@@ -1,8 +1,7 @@
 use tantale_core::{
     BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp,
-    StepSId, Stepped, Uncomputed,
+    StepSId, Stepped, Uncomputed, HasFidelity, HasStep,
     domain::{codomain::SingleCodomain, onto::LinkOpt},
-    experiment::CompAcc,
     objective::{
         Step,
         outcome::{FuncState, Outcome},
@@ -11,13 +10,15 @@ use tantale_core::{
         EmptyInfo, OptState,
         opt::{Optimizer, SequentialOptimizer},
     },
-    searchspace::{OptionCompShape, Searchspace},
+    searchspace::{Searchspace},
     solution::{
-        HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
+        IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
     },
 };
 
 use serde::{Deserialize, Serialize};
+
+use crate::utils::{BCompAcc, BCompShape, FCompAcc, FCompShape};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -180,23 +181,9 @@ where
 {
     fn step(
         &mut self,
-        _x: OptionCompShape<
-            Sp<Grid, NoDomain>,
-            BaseSol<SId, Grid, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _x: Option<BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>>,
         scp: &Sp<Grid, NoDomain>,
-        _acc: &CompAcc<
-            Sp<Grid, NoDomain>,
-            BaseSol<SId, Grid, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>,
     ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
         let x: Vec<MixedTypeDom> = self
             .0
@@ -264,23 +251,9 @@ where
 {
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Sp<Grid, NoDomain>,
-            FidelitySol<StepSId, Grid, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        x: Option<FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>>,
         scp: &Sp<Grid, NoDomain>,
-        _acc: &CompAcc<
-            Sp<Grid, NoDomain>,
-            FidelitySol<StepSId, Grid, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>,
     ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
         if let Some(comp_x) = x
             && let Step::Partially(_) = comp_x.step()

@@ -69,16 +69,18 @@ use std::cell::RefCell;
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    IntoComputed, LinkOpt, OptState, Optimizer, RawObj, Searchspace, SequentialOptimizer,
-    SingleCodomain, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
-    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
+    IntoComputed, LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer,
+    SingleCodomain, SolInfo, SolutionShape, Step, StepSId,
+    optimizer::opt::BudgetPruner,
 };
 
-use rand::{SeedableRng, rngs::StdRng};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 
+use crate::utils::{FCompAcc, FCompShape, SimpleStepped};
+
 thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
 /// Creates a codomain for Successive Halving optimization.
@@ -215,7 +217,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// The [`StdRng`] is defined at the module level as follows:
 /// ```rust,ignore
 /// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 /// }
 /// ```
 /// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
@@ -289,15 +291,15 @@ where
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
         SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
-    type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
+    type State = AshaState<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = AshaInfo;
 
@@ -321,12 +323,12 @@ where
 }
 
 impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
         SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -423,13 +425,13 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, AshaInfo>, Out, FnState>,
-    > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+        SimpleStepped<Scp::SolShape, AshaInfo, Out, FnState>,
+    > for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
         SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
@@ -475,23 +477,9 @@ where
     ///
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, AshaInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, AshaInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {

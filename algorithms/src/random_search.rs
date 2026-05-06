@@ -1,10 +1,10 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Id, Objective, Solution, StepSId, Stepped,
+    BaseSol, Codomain, Criteria, FidOutcome, Id, Solution, StepSId,
+     HasFidelity, HasStep,
     domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
     },
-    experiment::CompAcc,
     objective::{
         Step,
         outcome::{FuncState, Outcome},
@@ -14,19 +14,20 @@ use tantale_core::{
         opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
     },
     recorder::csv::CSVWritable,
-    searchspace::{CompShape, OptionCompShape, Searchspace},
+    searchspace::Searchspace,
     solution::{
-        Batch, HasFidelity, HasStep, IntoComputed, SId, SolutionShape, partial::FidelitySol,
-        shape::RawObj,
+        Batch, IntoComputed, SId, SolutionShape, partial::FidelitySol,
     },
 };
 
-use rand::{SeedableRng, prelude::ThreadRng, rngs::StdRng};
+use rand::{prelude::ThreadRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, sync::Arc};
 
+use crate::utils::{BCompAcc, BCompShape, BatchBCompShape, BatchFCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped};
+
 thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
 /// Creates a codomain for Random Search optimization.
@@ -125,7 +126,7 @@ impl OptState for SeqRSState {}
 /// The [`StdRng`] is defined at the module level as follows:
 /// ```rust,ignore
 /// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 /// }
 /// ```
 /// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
@@ -207,7 +208,7 @@ impl<Out, Scp>
         Scp::Opt,
         Out,
         Scp,
-        Objective<RawObj<Scp::SolShape, SId, EmptyInfo>, Out>,
+        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
     > for RandomSearch
 where
     Out: Outcome,
@@ -216,23 +217,9 @@ where
 {
     fn step(
         &mut self,
-        _x: OptionCompShape<
-            Scp,
-            BaseSol<SId, Scp::Opt, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _x: Option<BCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            BaseSol<SId, LinkOpt<Scp>, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &BCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
     }
@@ -245,7 +232,7 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
+        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
     > for RandomSearch
 where
     Out: FidOutcome,
@@ -257,23 +244,9 @@ where
 {
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         match x {
             Some(comp) => {
@@ -443,7 +416,7 @@ impl<Out, Scp>
         Scp::Opt,
         Out,
         Scp,
-        Objective<RawObj<Scp::SolShape, SId, EmptyInfo>, Out>,
+        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
     > for BatchRandomSearch
 where
     Out: Outcome,
@@ -458,21 +431,9 @@ where
 
     fn step(
         &mut self,
-        _x: Batch<
-            SId,
-            Self::SInfo,
-            Self::Info,
-            CompShape<Scp, BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Self::SInfo, Self::Cod, Out>,
-        >,
+        _x: BatchBCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            BaseSol<SId, LinkOpt<Scp>, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &BCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
@@ -520,7 +481,7 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
+        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
     > for BatchRandomSearch
 where
     Out: FidOutcome,
@@ -538,28 +499,9 @@ where
 
     fn step(
         &mut self,
-        x: Batch<
-            StepSId,
-            Self::SInfo,
-            Self::Info,
-            CompShape<
-                Scp,
-                FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-                StepSId,
-                Self::SInfo,
-                Self::Cod,
-                Out,
-            >,
-        >,
+        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()

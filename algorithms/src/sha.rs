@@ -62,14 +62,16 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, CompBatch, Criteria, EmptyInfo, FidOutcome, FidelitySol,
-    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer, RawObj,
-    Searchspace, SingleCodomain, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
+    Batch, BatchOptimizer, Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol,
+    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer,
+    Searchspace, SingleCodomain, SolutionShape, Step, StepSId, Stepped,
     optimizer::opt::BudgetPruner, recorder::CSVWritable,
 };
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
+
+use crate::utils::{BatchFCompShape, FCompAcc, SimpleStepped};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -401,7 +403,7 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
+        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
     > for Sha
 where
     Out: FidOutcome,
@@ -464,24 +466,9 @@ where
     /// - A fresh initial [`Batch`] from `first_step()`
     fn step(
         &mut self,
-        x: CompBatch<
-            StepSId,
-            Self::SInfo,
-            Self::Info,
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-            Self::Cod,
-            Out,
-        >,
+        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let mut pairs: Vec<_> = x
             .into_iter()

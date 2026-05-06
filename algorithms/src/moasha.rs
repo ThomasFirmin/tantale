@@ -21,19 +21,19 @@
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, RawObj, Searchspace,
-    SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId, Stepped, experiment::CompAcc,
-    optimizer::opt::BudgetPruner, searchspace::OptionCompShape,
+    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, Searchspace,
+    SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId,
+    optimizer::opt::BudgetPruner,
 };
 
-use rand::{SeedableRng, rngs::StdRng};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 
-use crate::mo::CandidateSelector;
+use crate::{mo::CandidateSelector, utils::{FCompAcc, FCompShape, SimpleStepped}};
 
 thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
 /// Creates a codomain for Successive Halving optimization.
@@ -176,7 +176,7 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 /// The [`StdRng`] is defined at the module level as follows:
 /// ```rust,ignore
 /// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(StdRng::from_os_rng());
+///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 /// }
 /// ```
 /// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
@@ -264,17 +264,17 @@ where
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Out, Scp, Selector>
     Optimizer<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
+    for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
         SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     type State =
-        MoAshaState<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>;
+        MoAshaState<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>;
     type Cod = MultiCodomain<Out>;
     type SInfo = MoAshaInfo;
 
@@ -299,12 +299,12 @@ where
 
 impl<Out, Scp, Selector>
     BudgetPruner<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
+    for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
         SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
@@ -398,13 +398,13 @@ impl<Out, Scp, FnState, Selector>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, MoAshaInfo>, Out, FnState>,
-    > for MoAsha<Selector, <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>>
+        SimpleStepped<Scp::SolShape, MoAshaInfo, Out, FnState>,
+    > for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<MultiCodomain<Out>, Out>:
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
         SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
     FnState: FuncState,
     Selector: CandidateSelector,
@@ -451,23 +451,9 @@ where
     ///
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
-            StepSId,
-            Self::SInfo,
-            Self::Cod,
-            Out,
-        >,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {
