@@ -3,7 +3,7 @@
 //!
 //! The following algorithms are implemented:
 //! - [Grid Search](grid_search) :
-//!  * [`GridSearch`] : the usual [Grid Search](https://en.wikipedia.org/wiki/Hyperparameter_optimization#Grid_search) algorithm.
+//!   * [`GridSearch`] : the usual [Grid Search](https://en.wikipedia.org/wiki/Hyperparameter_optimization#Grid_search) algorithm.
 //! - [Random Search](random_search) :
 //!   * [`RandomSearch`] : the usual sequential [Random Search](https://en.wikipedia.org/wiki/Random_search) algorithm. Generating points on demand.
 //!   * [`BatchRandomSearch`] : a batch version of random search. Generating points in batches.
@@ -16,6 +16,8 @@
 //! - [MO-ASHA](moasha) :
 //!   * [`MoAsha`] : the multi-objective version of ASHA, based on the [MO-ASHA](https://arxiv.org/pdf/2106.12639) algorithm for multi-fidelity
 //!     and multi-objective hyperparameter optimization.
+//! - [Tree-structured Parzen Estimator](bayesian::tpe) :
+//!   * [`tpe::Tpe`] : the original [Tree-structured Parzen Estimator](https://arxiv.org/pdf/2304.11127) algorithm for sequential model-based optimization.
 //!
 
 pub mod random_search;
@@ -38,3 +40,6 @@ pub use grid_search::GridSearch;
 
 pub mod utils;
 pub use utils::mo;
+
+#[cfg(feature = "bayes")]
+pub mod bayesian;

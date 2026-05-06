@@ -34,7 +34,9 @@ fn load_from_path<SolId: Id, FnState: FuncState>(
 ) -> Result<(SolId, FnState), CheckpointError> {
     let path_id = &path.join(Path::new(&"id.mp"));
     if path_id.exists() {
-        let rdr = File::open(path_id).map_err(|e| CheckpointError(e.to_string()))?;
+        let rdr = File::open(path_id).map_err(|e| CheckpointError(
+            format!("Failed to open the id file {path_id:?} in the checkpoint folder, error: {}", e)
+        ))?;
         let id_loaded: SolId =
             rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?;
         let fn_state = FnState::load(path).map_err(|e| CheckpointError(e.to_string()))?;

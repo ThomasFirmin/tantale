@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, solution::HasY};
+use crate::{checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, HasY};
 
 use indexmap::IndexMap;
 
