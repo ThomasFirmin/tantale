@@ -64,6 +64,7 @@ use crate::solution::Solution;
 #[cfg(doc)]
 use crate::variable::var::Var;
 
+use num::Num;
 use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
@@ -214,6 +215,25 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     ///
     /// * `point` - A reference to a value of type [`TypeDom`](Domain::TypeDom) to validate
     fn is_in(&self, point: &Self::TypeDom) -> bool;
+}
+
+pub trait NumericalDomain: Domain 
+where
+    Self::TypeDom: Num,
+{
+    /// Retrieves the bounds of the numerical domain.
+    fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom);
+
+    /// Retrieves references to the bounds of the numerical domain.
+    fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom);
+}
+
+pub trait CategoricalDomain: Domain 
+where
+    Self::TypeDom: PartialEq,
+{
+    /// Retrieves the size of the categorical domain, i.e., the number of distinct categories.
+    fn size(&self) -> usize;
 }
 
 /// Type alias for extracting the value type from a domain.

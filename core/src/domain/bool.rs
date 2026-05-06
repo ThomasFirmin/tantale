@@ -1,11 +1,7 @@
 use crate::{
     Grid,
     domain::{
-        Domain, PreDomain, TypeDom,
-        bounded::{Bounded, BoundedBounds},
-        mixed::{Mixed, MixedTypeDom},
-        onto::{Onto, OntoDom},
-        unit::Unit,
+        CategoricalDomain, Domain, PreDomain, TypeDom, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -77,6 +73,13 @@ impl Domain for Bool {
         true
     }
 }
+
+impl CategoricalDomain for Bool {
+    fn size(&self) -> usize {
+        2
+    }
+}
+
 impl fmt::Display for Bool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{T,F}}")

@@ -1,10 +1,11 @@
 use crate::{
     Bool, Bounded, CSVWritable, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
     Sampler, Unit,
-    domain::{PreDomain, TypeDom, bounded::BoundedBounds},
+    domain::{CategoricalDomain, PreDomain, TypeDom, bounded::BoundedBounds},
     errors::OntoError,
 };
 use num::cast::AsPrimitive;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
@@ -103,6 +104,12 @@ impl<T: GridBounds> Domain for GridDom<T> {
 
     fn is_in(&self, point: &Self::TypeDom) -> bool {
         self.values.contains(point)
+    }
+}
+
+impl<T:GridBounds> CategoricalDomain for GridDom<T> {
+    fn size(&self) -> usize {
+        self.values.len()
     }
 }
 
