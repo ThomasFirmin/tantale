@@ -12,7 +12,7 @@
 //! * [Grid Search example](crate::docs::GSExample)
 //! * [Multi-fidelity, Multi-objective optimization with MO-ASHA](crate::docs::MOExample)
 //! * [Tantale $\times$ Burn](crate::docs::TantaleBurnExample)
-//! * [PyTorch $\times$ Burn](crate::docs::TantalePyTorchExample)
+//! * [Tantale $\times$ PyTorch](crate::docs::TantalePyTorchExample)
 //!
 //! ## Advanced guides
 //! * [Create your batched optimizer](crate::docs::CreateBatchOptimizer)

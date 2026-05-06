@@ -18,6 +18,7 @@ In this example we:
 We consider the number of epochs a network is trained on as our budget.
 - The minimum budget of a single evaluation is **1 epoch**.
 - The maximum budget of a single evaluation is **20 epochs**.
+
 We use the [`MoAsha`](crate::algos::moasha) algorithm, with a **scaling factor** of 2.
 Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdots 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
 
@@ -102,7 +103,8 @@ foo@bar:~$ source torch_venv/bin/activate
 
 First we define the dataset.
 
-```python,ignore
+
+```custom,{class=language-python}
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -123,7 +125,8 @@ def get_dataloaders(batch_size: int):
 Notice that we can import a `pytantale` module without having installed any Python dependency.
 Tantale leverages [pyo3](https://pyo3.rs/) to call Python function, and exposes Rust objects to Python.
 
-```python,ignore
+
+```custom,{class=language-python}
 import os
 import pickle
 import torch
@@ -140,7 +143,7 @@ from pytantale import extra # <- Contain extra function like mpi_rank() or mpi_s
 We consider a simple 2 hidden layers feed-forward neural network.
 We want to optimize the activation function, via a [`Cat`](crate::core::Cat).
 We consider the following code:
-```python,ignore
+```custom,{class=language-python}
 import torch.nn as nn
 
 MAX_EPOCHS = 20
@@ -186,7 +189,8 @@ Moreover, because we are optimizing a `Stepped` function, the outcome is a [`Fid
 To track which MPI-worker has evaluated which solution, we add a `rank` field, filled with [`MPI_RANK`](crate::core::MPI_RANK), via the `mpi_rank()` function
 within `pytantale.extra` Python module.
 
-```python,ignore
+
+```custom,{class=language-python}
 class MyOutcome:
     def __init__(self, train_accuracy: float, train_loss: float, test_accuracy: float, test_loss: float, parameters: int, step: tnt.PyStep, rank: int):
         self.train_accuracy = train_accuracy
@@ -228,7 +232,8 @@ It must implements two method: `save` and `load` for checkpointing consideration
 Both function receives a folder path, in which you can save or load the current state of the evaluation of the function.
 Additionally to the model, we also save the current epoch, to better resume the evaluation.
 
-```python,ignore
+
+```custom,{class=language-python}
 class State:
     def __init__(self, model: nn.Module, current_epoch: int = 0):
         self.model = model
@@ -266,7 +271,8 @@ Moreover, Tantale consider two types of function:
 In our case we want to perform a multi-fidelity optimization with a solution evaluated by step, with a given budget.
 The hyperparameters are retrieved with `x[idx.HIDDEN_SIZE1]`.
 So the python function is defined as:
-```python,ignore
+
+```custom,{class=language-python}
 def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, State]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     target_epoch = int(fid)
@@ -398,11 +404,10 @@ The macro creates:
 * The `pytantale` module exposed to Python
   * it contains [`PyStep`](crate::python::PyStep), the Python equivalent of [`Step`](crate::core::Step).
   * the `indices` Python exposed submodule, containing hyperparameters' uppercased named constants of their corresponding indices within the solution.
-    E.g.:
-    ```python,ignore
-    from pytantale import indices as idx
-    hidden_size1_index = idx.HIDDEN_SIZE1
-    ```
+```custom,{class=language-python}
+from pytantale import indices as idx
+hidden_size1_index = idx.HIDDEN_SIZE1
+```
   * the `extra` Python exposed submodule, containing additionnal Python functions such has `mpi_rank()` or `mpi_size()`.
 * The searchspace as in the [`hpo!`](crate::macros::hpo) macro.
 
@@ -443,7 +448,7 @@ pub use searchspace::get_searchspace;
 
 use std::env;
 
-fn main() {
+// fn main() {
     
     let proc = MPIProcess::new();
     let rank = proc.rank;
@@ -499,7 +504,7 @@ fn main() {
             );
         }
     }
-}
+// }
 ```
 
 # Notes

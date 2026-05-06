@@ -83,7 +83,6 @@ mod searchspace {
 #         let _ = std::fs::remove_dir_all(&self.path);
 #     }
 # }
-
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
