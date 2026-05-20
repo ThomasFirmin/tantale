@@ -5,7 +5,7 @@ use crate::{
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
-    sampler::{BoolDistribution, Sampler},
+    sampler::{BoolDistribution, DomainSampler},
 };
 
 use num::cast::AsPrimitive;
@@ -29,11 +29,11 @@ use std::fmt;
 pub struct Bool(pub BoolDistribution);
 impl Bool {
     /// Fabric for a [`Bool`].
-    pub fn new<S: Sampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
+    pub fn new<S: DomainSampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
         Bool(sampler.into())
     }
     // Fabric for a [`Bool`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
-    pub fn grid<S: Sampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
+    pub fn grid<S: DomainSampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
         Bool(sampler.into())
     }
 }

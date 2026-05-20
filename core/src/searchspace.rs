@@ -134,21 +134,21 @@
 //! ```
 
 use crate::{
-    HasId, HasSolInfo, Uncomputed, domain::onto::Linked, has_trait::HasX, solution::{
-        Id, IntoComputed, SolInfo, SolutionShape, shape::{RawObj, RawOpt},
+    Uncomputed, domain::onto::Linked, has_trait::HasX, solution::{
+        Id, IntoComputedShape, SolInfo, SolutionShape, shape::{RawObj, RawOpt}
     }
 };
 
 use rand::prelude::Rng;
 use std::sync::Arc;
 
-/// Type alias for the computed solution shape of a searchspace.
-pub type CompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> =
-    <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>;
+/// Type alias for the computed solution shape of solution shape.
+pub type CompShape<SolShape, SolId, SInfo, Cod, Out> =
+    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Cod, Out>;
 
-/// Type alias for an optional computed solution shape of a searchspace.
-pub type OptionCompShape<Scp, SolOpt, SolId, SInfo, Cod, Out> = Option<
-    <<Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape as IntoComputed>::Computed<Cod, Out>,
+/// Type alias for an optional computed solution shape of solution shape.
+pub type OptionCompShape<SolShape, SolId, SInfo, Cod, Out> = Option<
+    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Cod, Out>
 >;
 
 /// Type alias for the raw solution shape of a searchspace.
@@ -224,7 +224,7 @@ where
     SolId: Id,
     SInfo: SolInfo,
 {
-    /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`] representations.
+    /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`](crate::Solution) representations.
     type SolShape: SolutionShape<
             SolId,
             SInfo,
@@ -232,9 +232,8 @@ where
             Opt = Self::Opt,
             SolObj = SolOpt::Twin<Self::Obj>,
             SolOpt = SolOpt,
-        > + HasId<SolId>
-        + HasSolInfo<SInfo>
-        + IntoComputed;
+        >
+        + IntoComputedShape<SolId, SInfo>;
 
     /// Create a new solution from a raw solution in the Obj domain.
     fn new_obj<T: Into<RawObj<Self::SolShape,SolId, SInfo>>>(&self, x: T, info: Arc<SInfo>) -> Self::SolShape {

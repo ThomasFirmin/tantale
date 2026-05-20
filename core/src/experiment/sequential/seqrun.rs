@@ -7,9 +7,7 @@ use crate::{
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
         },
     }, has_trait::HasX, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
-        IntoComputed, SolutionShape, Uncomputed,
-        id::{StepId, StepSId},
-        shape::RawObj,
+        IntoComputedShape, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
     }, stop::{ExpStep, Stop}
 };
 
@@ -22,7 +20,7 @@ use std::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistSeqRecorder, HasY,
+    DistSeqRecorder,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
@@ -76,7 +74,6 @@ where
             Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo>,
     St: Stop,
     Rec:
         SeqRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
@@ -172,7 +169,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`SeqEvaluator`]. updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => SeqEvaluator::new(self.optimizer.step(
@@ -200,7 +197,7 @@ where
                 Out,
                 St,
                 _,
-                OutShapeEvaluate<SId, Op::SInfo, Scp, PSol, Op::Cod, Out>,
+                OutShapeEvaluate<SId, Op::SInfo, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -286,7 +283,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -295,7 +292,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -370,8 +367,6 @@ where
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: SeqRecorder<
             PSol,
@@ -495,7 +490,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidSeqEvaluator`]. updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -536,7 +531,7 @@ where
                 Out,
                 St,
                 _,
-                Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
+                Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -630,7 +625,7 @@ where
         &self,
     ) -> &TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -642,7 +637,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -715,8 +710,6 @@ where
     Op::SInfo: Send + Sync + 'static,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>> + Send + Sync + 'static,
     Scp::SolShape: Send + Sync + 'static,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + Send + Sync + 'static,
     St: Stop + Send + Sync + 'static,
     Out: Outcome + Send + Sync + 'static,
     Rec: SeqRecorder<PSol, SId, Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>
@@ -724,7 +717,7 @@ where
         + Sync
         + 'static,
     Check: ThrCheckpointer + Send + Sync + 'static,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+    TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
         Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
@@ -821,7 +814,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrSeqEvaluator`]. updates) step.
-    fn run(self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -969,7 +962,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -978,7 +971,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -1058,8 +1051,7 @@ where
     Scp:
         Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>: SolutionShape<StepSId, Op::SInfo>
-        + HasStep
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>: HasStep
         + HasFidelity
         + HasStepId<StepSId>
         + Send
@@ -1083,7 +1075,7 @@ where
     RawObj<Scp::SolShape, StepSId, Op::SInfo>: 'static,
     TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1193,7 +1185,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidThrSeqEvaluator`]. updates) step.
-    fn run(self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -1409,7 +1401,7 @@ where
         &self,
     ) -> &TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1421,7 +1413,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1492,8 +1484,6 @@ where
             Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
     Rec: DistSeqRecorder<
             PSol,
@@ -1647,7 +1637,7 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -1807,7 +1797,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -1816,7 +1806,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -1890,11 +1880,6 @@ where
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
     SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
     SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>: SolutionShape<StepSId, Op::SInfo>
-        + HasY<Op::Cod, Out>
-        + HasStep
-        + HasFidelity
-        + HasStepId<StepSId>,
     St: Stop,
     Rec: DistSeqRecorder<
             PSol,
@@ -2100,7 +2085,7 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -2271,7 +2256,7 @@ where
         &self,
     ) -> &TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -2283,7 +2268,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,

@@ -316,15 +316,14 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
 {
-    type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
+    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo; // No metadata
 
@@ -435,18 +434,17 @@ We have to define one functions:
 #     }
 # }
 # 
-# use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
+# use tantale::core::{Optimizer, FidelitySol, Searchspace, LinkOpt};
 # 
 # impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-#     for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+#     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
 # where
 #     Out: FidOutcome,
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 #     Scp::SolShape: HasStep + HasFidelity,
-#     <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-#         SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity + Ord,
+#     CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
 # {
-#     type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
+#     type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
 #     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo; // No metadata
 # 
@@ -473,28 +471,31 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<StepSId,EmptyInfo> + HasStep + HasFidelity +Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<Scp::SolShape,StepSId,Self::SInfo,Self::Cod,Out>,
         scp: &Scp,
-        _acc: &CompAcc<Scp, FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Self::SInfo, Self::Cod, Out>,
+        _acc: &CompAcc<Scp::SolShape,StepSId,Self::SInfo,Self::Cod,Out>,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
-        if let Some(comp) = x
-        {
+        if let Some(comp) = x {
             // If this solution is partially computed, then store it within the next rung.
             if let Step::Partially(_) = comp.step() {
                 // The idx of the budget cannot be stored within the solution
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0).unwrap();
+                let idx = self
+                    .0
+                    .budgets
+                    .iter()
+                    .position(|&b| b == comp.fidelity().0)
+                    .unwrap();
                 self.0.rung[idx + 1].push(comp); // Store it within the next rung
             }
 
@@ -515,16 +516,18 @@ where
                 // Select the top k (modify in place rung[i]), last elements are the top k
                 self.0.rung[i].select_nth_unstable(k);
                 // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
-                let (mut p,_): (Scp::SolShape, _) = IntoComputed::extract(self.0.rung[i].pop().unwrap()); 
+                let (mut p, _): (Scp::SolShape, _) =
+                    IntoComputedShape::extract(self.0.rung[i].pop().unwrap());
                 p.set_fidelity(self.0.budgets[i]); // Modify previous fidelity with new budget
                 p
             }
-        } else {// If input is None (no computed, e.g. initialization of ASHA)
+        } else {
+            // If input is None (no computed, e.g. initialization of ASHA)
             // Randomly sample a new candidate with minimum budget
             let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
             p.set_fidelity(self.0.budgets[0]);
             p
         }
-    }   
+    }
 }
 ```

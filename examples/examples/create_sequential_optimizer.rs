@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, cmp::Ord};
-use tantale::core::{EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
+use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 use tantale::macros::OptState;
 
 thread_local! {
@@ -81,18 +81,17 @@ where
     }
 }
 
-use tantale::core::{FidelitySol, IntoComputed, LinkOpt, Optimizer, Searchspace};
+use tantale::core::{FidelitySol, IntoComputedShape, LinkOpt, Optimizer, Searchspace};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
 {
-    type State = AshaState<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>;
+    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
     type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo; // No metadata
 
@@ -121,20 +120,18 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Asha<<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>>
+    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
 where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>:
-        SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
         x: OptionCompShape<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            Scp::SolShape,
             StepSId,
             Self::SInfo,
             Self::Cod,
@@ -142,8 +139,7 @@ where
         >,
         scp: &Scp,
         _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            Scp::SolShape,
             StepSId,
             Self::SInfo,
             Self::Cod,
@@ -182,7 +178,7 @@ where
                 self.0.rung[i].select_nth_unstable(k);
                 // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
                 let (mut p, _): (Scp::SolShape, _) =
-                    IntoComputed::extract(self.0.rung[i].pop().unwrap());
+                    IntoComputedShape::extract(self.0.rung[i].pop().unwrap());
                 p.set_fidelity(self.0.budgets[i]); // Modify previous fidelity with new budget
                 p
             }

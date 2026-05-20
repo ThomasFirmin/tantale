@@ -1,9 +1,9 @@
 use crate::{
-    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::{CompAcc, Evaluate, PoolMode}, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
+    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::{CompAcc, Evaluate, PoolMode}, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, solution::{Uncomputed, shape::RawObj}
 };
 
 #[cfg(feature = "mpi")]
-use crate::{checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess, HasY};
+use crate::{checkpointer::DistCheckpointer, experiment::mpi::utils::MPIProcess};
 
 use indexmap::IndexMap;
 
@@ -42,7 +42,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
@@ -57,7 +56,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub(crate) pool_mode: PoolMode,
 }
@@ -83,7 +82,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: ThrCheckpointer,
@@ -98,7 +96,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub(crate) pool_mode: PoolMode,
 }
@@ -126,8 +124,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
@@ -143,7 +139,7 @@ where
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub pool_mode: PoolMode,
 }

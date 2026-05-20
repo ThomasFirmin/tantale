@@ -1,6 +1,6 @@
 use crate::{
     Bool, Bounded, CSVWritable, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
-    Sampler, Unit,
+    DomainSampler, Unit,
     domain::{CategoricalDomain, PreDomain, TypeDom, bounded::BoundedBounds},
     errors::OntoError,
 };
@@ -63,7 +63,7 @@ impl<T: GridBounds> GridDom<T> {
     pub fn new<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: Sampler<Self> + Into<GridDomDistribution>,
+        S: DomainSampler<Self> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,
@@ -78,7 +78,7 @@ impl<T: GridBounds> GridDom<T> {
     pub fn grid<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: Sampler<GridDom<T>> + Into<GridDomDistribution>,
+        S: DomainSampler<GridDom<T>> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,

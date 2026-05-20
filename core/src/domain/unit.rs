@@ -5,7 +5,7 @@ use crate::{
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, Sampler},
+    sampler::{BoundedDistribution, DomainSampler},
 };
 
 use num::cast::AsPrimitive;
@@ -38,7 +38,7 @@ pub struct Unit {
 
 impl Unit {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new<S: Sampler<Self> + Into<BoundedDistribution>>(sampler: S) -> Unit {
+    pub fn new<S: DomainSampler<Self> + Into<BoundedDistribution>>(sampler: S) -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
             mid: 0.5,

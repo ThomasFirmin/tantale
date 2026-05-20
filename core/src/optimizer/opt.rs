@@ -5,7 +5,7 @@ use crate::{
     objective::{FuncWrapper, Outcome},
     recorder::csv::CSVWritable,
     searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{Batch, Id, IntoComputed, SolInfo, SolutionShape, Uncomputed, shape::RawObj},
+    solution::{Batch, Id, IntoComputed, SolInfo, Uncomputed, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
@@ -91,8 +91,8 @@ where
 }
 
 /// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`].
-pub type CompBatch<SolId, SInfo, Info, Scp, PSol, Cod, Out> =
-    Batch<SolId, SInfo, Info, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>>;
+pub type CompBatch<SolId, SInfo, Info, SolShape, Cod, Out> =
+    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Cod, Out>>;
 
 /// Batch optimizer interface.
 ///
@@ -107,7 +107,6 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     type Info: OptInfo + Send + Sync;
@@ -133,9 +132,9 @@ where
     /// elitist strategies).
     fn step(
         &mut self,
-        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp, PSol, Self::Cod, Out>,
+        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>,
         scp: &Scp,
-        acc: &CompAcc<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
 
     /// Sets the batch size for the optimizer.
@@ -158,7 +157,6 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SolId, Self::SInfo>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Computes a single iteration of the [`Optimizer`].
@@ -179,9 +177,9 @@ where
     /// models or elitist strategies).
     fn step(
         &mut self,
-        x: OptionCompShape<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
         scp: &Scp,
-        acc: &CompAcc<Scp, PSol, SolId, Self::SInfo, Self::Cod, Out>,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
     ) -> Scp::SolShape;
 }
 

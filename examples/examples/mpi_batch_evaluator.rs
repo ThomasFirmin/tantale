@@ -144,7 +144,7 @@ fn main() {
                 Calls,
                 Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
                 _,
-                OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
+                OutBatchEvaluate<SId, EmptyInfo, RSInfo,  Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, SingleCodomain<OutEvaluator>, OutEvaluator>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();

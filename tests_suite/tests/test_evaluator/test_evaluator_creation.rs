@@ -64,7 +64,7 @@ fn test_batchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
@@ -187,7 +187,7 @@ fn test_thrbatchevaluator() {
         OutEvaluator,
         Calls,
         Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
-        OutBatchEvaluate<SId, _, _, Sp<Mixed, NoDomain>, BaseSol<SId, _, _>, _, _>,
+        OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _, _>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -314,8 +314,7 @@ fn test_seqevaluator() {
         OutShapeEvaluate<
             SId,
             EmptyInfo,
-            Sp<Mixed, NoDomain>,
-            BaseSol<SId, Mixed, EmptyInfo>,
+            Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
             SingleCodomain<OutEvaluator>,
             OutEvaluator,
         >,

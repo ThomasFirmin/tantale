@@ -1,19 +1,13 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Grid, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp,
-    StepSId, Stepped, Uncomputed, HasFidelity, HasStep,
-    domain::{codomain::SingleCodomain, onto::LinkOpt},
-    objective::{
+    BaseSol, Codomain, Criteria, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp, StepSId, Stepped, Uncomputed, domain::{codomain::SingleCodomain, onto::LinkOpt}, objective::{
         Step,
         outcome::{FuncState, Outcome},
-    },
-    optimizer::{
+    }, optimizer::{
         EmptyInfo, OptState,
         opt::{Optimizer, SequentialOptimizer},
-    },
-    searchspace::{Searchspace},
-    solution::{
-        IntoComputed, SId, SolutionShape, partial::FidelitySol, shape::RawObj,
-    },
+    }, searchspace::Searchspace, solution::{
+        IntoComputedShape, SId, partial::FidelitySol, shape::RawObj
+    }
 };
 
 use serde::{Deserialize, Serialize};
@@ -173,11 +167,6 @@ where
     Out: Outcome,
     Sp<Grid, NoDomain>:
         Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
-    <<Sp<Grid, NoDomain> as Searchspace<
-        BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        SId,
-        EmptyInfo,
-    >>::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn step(
         &mut self,
@@ -237,12 +226,6 @@ where
             StepSId,
             EmptyInfo,
         >,
-    <<Sp<Grid, NoDomain> as Searchspace<
-        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        StepSId,
-        EmptyInfo,
-    >>::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
     <Sp<Grid, NoDomain> as Searchspace<
         FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
         StepSId,
@@ -258,7 +241,7 @@ where
         if let Some(comp_x) = x
             && let Step::Partially(_) = comp_x.step()
         {
-            return IntoComputed::extract(comp_x).0;
+            return IntoComputedShape::extract(comp_x).0;
         }
 
         let x: Vec<MixedTypeDom> = self

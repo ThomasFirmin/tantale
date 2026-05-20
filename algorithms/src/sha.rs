@@ -62,16 +62,13 @@
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol,
-    FuncState, HasFidelity, HasStep, IntoComputed, LinkOpt, OptInfo, OptState, Optimizer,
-    Searchspace, SingleCodomain, SolutionShape, Step, StepSId, Stepped,
-    optimizer::opt::BudgetPruner, recorder::CSVWritable,
+    Batch, BatchOptimizer, Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptInfo, OptState, Optimizer, Searchspace, SingleCodomain, Step, StepSId, Stepped, optimizer::opt::BudgetPruner, recorder::CSVWritable, solution::IntoComputedShape
 };
 
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{BatchFCompShape, FCompAcc, SimpleStepped};
+use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
 
 /// Creates a codomain for Successive Halving optimization.
 ///
@@ -409,8 +406,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
@@ -495,7 +491,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(i, computed)| {
-                    let (mut pair, _): (Scp::SolShape, _) = IntoComputed::extract(computed);
+                    let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
                     if i < k {
                         // Discard worst performers
                         pair.discard();

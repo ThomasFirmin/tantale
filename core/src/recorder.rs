@@ -36,7 +36,7 @@
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, HasY, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, SolutionShape, Uncomputed}
+    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
 };
 
 #[cfg(feature = "mpi")]
@@ -91,8 +91,6 @@ where
     Out: Outcome,
     Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder storage for a new sequential experiment.
@@ -126,7 +124,7 @@ where
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
     fn save(
         &self,
-        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
@@ -159,8 +157,6 @@ where
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder storage for a new batched experiment.
@@ -190,9 +186,10 @@ where
     /// * `outputed` - The output [`Batch`](crate::Batch) with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
+    #[allow(clippy::type_complexity)]
     fn save(
         &self,
-        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
@@ -226,8 +223,6 @@ where
     Out: Outcome,
     Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder storage for a new distributed sequential experiment.
@@ -265,7 +260,7 @@ where
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
     fn save_dist(
         &self,
-        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
@@ -299,8 +294,6 @@ where
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder storage for a new distributed batch experiment.
@@ -336,9 +329,10 @@ where
     /// * `outputed` - The output batch with outcomes
     /// * `scp` - [`Searchspace`] used to interpret the solutions
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
+    #[allow(clippy::type_complexity)]
     fn save_dist(
         &self,
-        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,

@@ -1,7 +1,6 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace, SolInfo, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, has_trait::HasX, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{
-         IntoComputed, SolutionShape, Uncomputed,
-        id::StepId, shape::RawObj,
+         IntoComputedShape, SolutionShape, Uncomputed, id::StepId, shape::RawObj
     }, stop::ExpStep
 };
 #[cfg(feature = "mpi")]
@@ -106,12 +105,10 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
@@ -129,8 +126,6 @@ where
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -152,12 +147,12 @@ where
         stop: &mut St,
         acc: &mut TypeAcc<
             Op::Cod,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
             pair.expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
@@ -275,7 +270,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -296,8 +291,6 @@ where
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -320,14 +313,14 @@ where
             Mutex<
                 TypeAcc<
                     Op::Cod,
-                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
                     SolId,
                     Op::SInfo,
                     Out,
                 >,
             >,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
         let (pair, state) = self.take();
         let mut pair =
             pair.expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
@@ -613,8 +606,6 @@ where
     Scp::SolShape: HasStep + HasFidelity,
     SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
     SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -661,7 +652,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
+        Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity +,
@@ -684,8 +675,6 @@ where
     Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId>,
     SolObj<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
     SolOpt<Scp::SolShape, SolId, Op::SInfo>: HasStep + HasFidelity + HasStepId<SolId>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
     St: Stop,
     Out: FidOutcome,
     FnState: FuncState,
@@ -720,12 +709,12 @@ where
         stop: &mut St,
         acc: &mut TypeAcc<
             Op::Cod,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>> {
+    ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
         let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();

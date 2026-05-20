@@ -1,5 +1,5 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, HasFidelity, HasStep, Id, StepSId, Uncomputed, domain::{
+    BaseSol, Codomain, Criteria, FidOutcome, HasFidelity, HasStep, Id, IntoComputedShape, StepSId, Uncomputed, domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
     }, objective::{
@@ -9,7 +9,7 @@ use tantale_core::{
         EmptyInfo, OptInfo, OptState,
         opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
     }, recorder::csv::CSVWritable, searchspace::Searchspace, solution::{
-        Batch, IntoComputed, SId, SolutionShape, partial::FidelitySol,
+        Batch, SId, partial::FidelitySol,
     }
 };
 
@@ -206,7 +206,6 @@ impl<Out, Scp>
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     fn step(
         &mut self,
@@ -231,8 +230,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity,
     FnState: FuncState,
 {
     fn step(
@@ -244,7 +242,7 @@ where
         match x {
             Some(comp) => {
                 let (pair, _): (Scp::SolShape, Arc<TypeCodom<SingleCodomain<Out>, Out>>) =
-                    IntoComputed::extract(comp);
+                    IntoComputedShape::extract(comp);
                 match pair.step() {
                     Step::Pending => {
                         unreachable!(
@@ -415,7 +413,6 @@ impl<Out, Scp>
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>: SolutionShape<SId, Self::SInfo>,
 {
     type Info = RSInfo;
 
@@ -481,8 +478,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity,
     FnState: FuncState,
 {
     type Info = RSInfo;
@@ -503,7 +499,7 @@ where
                 Step::Evaluated | Step::Discard | Step::Error => {
                     scp.sample_pair(&mut self.1, self.0._emptyinfo.clone())
                 }
-                _ => IntoComputed::extract(p).0,
+                _ => IntoComputedShape::extract(p).0,
             })
             .collect();
         self.0.iteration += 1;

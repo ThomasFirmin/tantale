@@ -328,6 +328,66 @@ pub trait IntoComputed: Sized {
     ) -> (Self, Arc<Cod::TypeCodom>);
 }
 
+pub trait IntoComputedShape<SolId, SInfo>: SolutionShape<SolId, SInfo> 
+where
+    SolId: Id,
+    SInfo: SolInfo,
+    Self::SolObj: Uncomputed<SolId, Self::Obj, SInfo> + IntoComputed,
+    Self::SolOpt: Uncomputed<SolId, Self::Opt, SInfo> + IntoComputed,
+{
+    /// The computed type wrapping `Self` with an objective value.
+    ///
+    /// This type must implement [`HasY`] to provide access to the objective function output.
+    type Computed<Cod: Codomain<Out>, Out: Outcome>: SolutionShape<
+        SolId,
+        SInfo,
+        Obj = Self::Obj,
+        Opt = Self::Opt,
+        SolObj = Computed<Self::SolObj, SolId, Self::Obj, Cod, Out, SInfo>,
+        SolOpt = Computed<Self::SolOpt, SolId, Self::Opt, Cod, Out, SInfo>,
+    > + HasY<Cod, Out> + Serialize + for<'a> Deserialize<'a> + Debug;
+
+    /// Converts this uncomputed solution into a computed one with an objective value.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Cod` - The [`Codomain`] defining the output structure
+    /// * `Out` - The outcome type from the objective function
+    ///
+    /// # Parameters
+    ///
+    /// * `y` - The objective function output to associate with this solution
+    ///
+    /// # Returns
+    ///
+    /// A computed solution containing both `self` and `y`.
+    fn into_computed<Cod: Codomain<Out>, Out: Outcome>(
+        self,
+        y: Arc<Cod::TypeCodom>,
+    ) -> Self::Computed<Cod, Out>;
+
+    /// Extracts the uncomputed solution and objective value from a computed solution.
+    ///
+    /// This is the inverse operation of [`into_computed`](IntoComputed::into_computed),
+    /// decomposing a computed solution back into its constituent parts.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Cod` - The [`Codomain`] of the objective value
+    /// * `Out` - The [`Outcome`] type
+    ///
+    /// # Parameters
+    ///
+    /// * `comp` - The computed solution to decompose
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(uncomputed_solution, objective_value)`.
+    fn extract<Cod: Codomain<Out>, Out: Outcome>(
+        comp: Self::Computed<Cod, Out>,
+    ) -> (Self, Arc<Cod::TypeCodom>);
+}
+
 /// Type alias for the twin solution type in an alternative domain.
 ///
 /// [`SolTwin`] extracts the [`Twin`](Solution::Twin) associated type from a solution,
@@ -348,7 +408,7 @@ pub mod partial;
 pub use partial::{BaseSol, Fidelity, FidelitySol};
 
 pub mod computed;
-pub use computed::Computed;
+pub use computed::{Computed, Xy};
 
 pub mod batchtype;
 pub use batchtype::{Batch, OutBatch};

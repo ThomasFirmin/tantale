@@ -256,14 +256,13 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, SolutionShape, Uncomputed, shape::RawObj}, stop::Stop
+    Accumulator, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, Uncomputed, shape::RawObj}, stop::Stop
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
 use crate::{
-    HasY,
     checkpointer::DistCheckpointer,
     experiment::mpi::{
         utils::{MPIProcess, SendRec, XMsg},
@@ -355,7 +354,6 @@ where
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
@@ -386,7 +384,6 @@ where
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
@@ -455,7 +452,6 @@ where
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: ThrCheckpointer,
@@ -486,7 +482,6 @@ where
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: ThrCheckpointer,
@@ -570,7 +565,6 @@ where
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
@@ -617,7 +611,6 @@ where
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
@@ -703,7 +696,6 @@ where
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
@@ -732,7 +724,6 @@ where
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: MonoCheckpointer,
     Out: Outcome,
@@ -803,14 +794,6 @@ where
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<
-        Scp,
-        PSol,
-        SolId,
-        Op::SInfo,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-        Out,
-    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
@@ -839,14 +822,6 @@ where
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<
-        Scp,
-        PSol,
-        SolId,
-        Op::SInfo,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-        Out,
-    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: ThrCheckpointer,
     Out: Outcome,
@@ -940,14 +915,6 @@ where
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<
-        Scp,
-        PSol,
-        SolId,
-        Op::SInfo,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-        Out,
-    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
@@ -997,14 +964,6 @@ where
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<
-        Scp,
-        PSol,
-        SolId,
-        Op::SInfo,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-        Out,
-    >: SolutionShape<SolId, Op::SInfo>,
     Rec: Recorder,
     Check: DistCheckpointer,
     Out: Outcome,
@@ -1215,8 +1174,8 @@ macro_rules! load {
 }
 
 /// Type alias for an [`Accumulator`] made of [`CompShape`].
-pub type CompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
-    TypeAcc<Cod, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
+pub type CompAcc<SolShape, SolId, SInfo, Cod, Out> =
+    TypeAcc<Cod, CompShape<SolShape, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
 
 /// Type alias for the tuple of components passed to the optimization loop.
 pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
@@ -1361,7 +1320,6 @@ where
     Check: Checkpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
 {
     /// Creates a new default experiment from its components.
     ///
@@ -1403,7 +1361,7 @@ where
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
-    fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Restores an experiment from a checkpoint.
     ///
@@ -1475,13 +1433,13 @@ where
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
 
     /// Returns a read-only reference to the [`Accumulator`].
-    fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Returns a mutable reference to the [`Accumulator`].
-    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`].
-    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
+    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
 
@@ -1501,7 +1459,6 @@ where
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -1521,7 +1478,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
     Check: DistCheckpointer,
@@ -1529,7 +1485,7 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     #[allow(clippy::type_complexity)]
-    pub fn run(self) -> Option<CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>> {
+    pub fn run(self) -> Option<CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>> {
         match self {
             MasterWorker::Master(exp) => Some(exp.run()),
             MasterWorker::Worker(worker) => {
@@ -1553,7 +1509,6 @@ where
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     St: Stop,
     Rec: Recorder,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Check: DistCheckpointer,
     Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -1602,7 +1557,7 @@ where
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
-    fn run(self) -> CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Restores an experiment from a checkpoint.
     ///
@@ -1663,13 +1618,13 @@ where
     /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
     /// Returns a read-only reference to the [`Accumulator`].
-    fn get_accumalator(&self) -> &CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Returns a mutable reference to the [`Accumulator`].
-    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`].
-    fn update_accumulator(&mut self, comp: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>) {
+    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
     /// Extracts the components of the experiment.
@@ -1687,8 +1642,8 @@ where
 /// - An [`OutBatch`] containing the raw outcomes and IDs
 ///
 /// This type is used by [`BatchEvaluator`] to return evaluated batches.
-pub type OutBatchEvaluate<SolId, SInfo, Info, Scp, PSol, Cod, Out> = (
-    Batch<SolId, SInfo, Info, CompShape<Scp, PSol, SolId, SInfo, Cod, Out>>,
+pub type OutBatchEvaluate<SolId, SInfo, Info, SolShape, Cod, Out> = (
+    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Cod, Out>>,
     OutBatch<SolId, Info, Out>,
 );
 
@@ -1699,8 +1654,8 @@ pub type OutBatchEvaluate<SolId, SInfo, Info, Scp, PSol, Cod, Out> = (
 /// - A tuple of (solution ID, raw outcome)
 ///
 /// This type is used by sequential evaluators to return individual evaluated solutions.
-pub type OutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> =
-    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, (SolId, Out));
+pub type OutShapeEvaluate<SolId, SInfo, SolShape, Cod, Out> =
+    (CompShape<SolShape, SolId, SInfo, Cod, Out>, (SolId, Out));
 
 /// Output type for distributed evaluation with MPI.
 ///
@@ -1710,9 +1665,9 @@ pub type OutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> =
 ///
 /// This allows the master process to track which worker evaluated each solution.
 #[cfg(feature = "mpi")]
-pub type DistOutShapeEvaluate<SolId, SInfo, Scp, PSol, Cod, Out> = (
+pub type DistOutShapeEvaluate<SolId, SInfo, SolShape, Cod, Out> = (
     Rank,
-    (CompShape<Scp, PSol, SolId, SInfo, Cod, Out>, (SolId, Out)),
+    (CompShape<SolShape, SolId, SInfo, Cod, Out>, (SolId, Out)),
 );
 
 /// Marker trait for evaluation strategies.
@@ -1790,7 +1745,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Out: Outcome,
     St: Stop,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -1821,12 +1775,12 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     ) -> OutType;
 }
 
-type ArcMutexCompAcc<Scp, PSol, SolId, SInfo, Cod, Out> =
-    Arc<Mutex<CompAcc<Scp, PSol, SolId, SInfo, Cod, Out>>>;
+type ArcMutexCompAcc<SolShape, SolId, SInfo, Cod, Out> =
+    Arc<Mutex<CompAcc<SolShape, SolId, SInfo, Cod, Out>>>;
 
 /// Multi-threaded evaluation strategy.
 ///
@@ -1876,7 +1830,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     Out: Outcome,
     St: Stop,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -1904,7 +1857,7 @@ where
         ob: Arc<Fn>,
         cod: Arc<Op::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: ArcMutexCompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: ArcMutexCompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     ) -> OutType;
 }
 
@@ -1961,8 +1914,6 @@ where
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     Out: Outcome,
     St: Stop,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
@@ -1997,6 +1948,6 @@ where
         ob: &Fn,
         cod: &Op::Cod,
         stop: &mut St,
-        acc: &mut CompAcc<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
     ) -> OutType;
 }

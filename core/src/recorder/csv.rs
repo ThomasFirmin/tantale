@@ -293,20 +293,15 @@ where
     Out: Outcome + CSVWritable<(), ()>,
     Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-PartOpt::Twin<Self::Obj>:
-    Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
-    CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
-    SolObj<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Self::Obj, SInfo, Uncomputed = SolObj<Self::SolShape, SolId, SInfo>>,
-    SolOpt<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Self::Opt, SInfo, Uncomputed = SolOpt<Self::SolShape, SolId, SInfo>>,
+    PartOpt::Twin<Self::Obj>:
+        Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
 {
     /// Write a fully computed solution without optimizer info.
     ///
     /// Used by sequential optimizers that don't provide batch-level metadata.
     fn write(
         &self,
-        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
         cod: &Cod,
         wrts: &CSVFiles,
@@ -317,7 +312,7 @@ PartOpt::Twin<Self::Obj>:
     /// Used by batch optimizers that provide iteration/batch metadata via [`OptInfo`].
     fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
         &self,
-        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
         info: Arc<Info>,
         cod: &Cod,
@@ -669,15 +664,10 @@ where
 PartOpt::Twin<Self::Obj>:
     Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
     Scp: SolCSVWrite<PartOpt, SolId, SInfo>,
-    CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>: InfoCSVWrite<SolId, SInfo>,
-    SolObj<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Self::Obj, SInfo, Uncomputed = SolObj<Self::SolShape, SolId, SInfo>>,
-    SolOpt<CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Self::Opt, SInfo, Uncomputed = SolOpt<Self::SolShape, SolId, SInfo>>,
 {
     fn write(
         &self,
-        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
         cod: &Cod,
         wrts: &CSVFiles,
@@ -707,7 +697,7 @@ PartOpt::Twin<Self::Obj>:
 
     fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
         &self,
-        pair: &CompShape<Self, PartOpt, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
         opair: &(SolId, Out),
         info: Arc<Info>,
         cod: &Cod,
@@ -752,11 +742,6 @@ where
     PartOpt::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
     Scp: Searchspace<PartOpt, SolId, SInfo>,
-    CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
-    SolObj<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Scp::Obj, SInfo, Uncomputed = SolObj<Scp::SolShape, SolId, SInfo>>,
-    SolOpt<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Scp::Opt, SInfo, Uncomputed = SolOpt<Scp::SolShape, SolId, SInfo>>,
 {
     /// Write a batch of computed solutions and raw outcomes in parallel.
     ///
@@ -771,8 +756,9 @@ where
 
 impl<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
     BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
-    for Batch<SolId, SInfo, Info, CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>>
+    for Batch<SolId, SInfo, Info, CompShape<Scp::SolShape, SolId, SInfo, Cod, Out>>
 where
+    Self: Send + Sync,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     SInfo: SolInfo + CSVWritable<(), ()>,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
@@ -785,12 +771,7 @@ where
         + ScpCSVWrite<PartOpt, SolId, SInfo, Cod, Out>
         + Send
         + Sync,
-    CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>:
-        SolutionShape<SolId, SInfo> + HasY<Cod, Out> + Send + Sync,
-    SolObj<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Scp::Obj, SInfo, Uncomputed = SolObj<Scp::SolShape, SolId, SInfo>>,
-    SolOpt<CompShape<Scp, PartOpt, SolId, SInfo, Cod, Out>, SolId, SInfo>:
-        HasUncomputed<SolId, Scp::Opt, SInfo, Uncomputed = SolOpt<Scp::SolShape, SolId, SInfo>>,
+    CompShape<Scp::SolShape, SolId, SInfo, Cod, Out>: Send + Sync,
 {
     fn write(
         &self,
@@ -931,20 +912,6 @@ where
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        InfoCSVWrite<SolId, Op::SInfo> + HasY<Op::Cod, Out> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Obj,
-            Op::SInfo,
-            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-        >,
-    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Opt,
-            Op::SInfo,
-            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-        >,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
@@ -1076,7 +1043,7 @@ where
     /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save(
         &self,
-        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
@@ -1112,20 +1079,8 @@ where
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: 
         InfoCSVWrite<SolId, Op::SInfo> + HasY<Op::Cod, Out> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Obj,
-            Op::SInfo,
-            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-        >,
-    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Opt,
-            Op::SInfo,
-            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-        >,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
@@ -1257,7 +1212,7 @@ where
     /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save(
         &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,
@@ -1312,20 +1267,6 @@ where
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        InfoCSVWrite<SolId, Op::SInfo> + HasY<Op::Cod, Out> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Obj,
-            Op::SInfo,
-            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-        >,
-    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Opt,
-            Op::SInfo,
-            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-        >,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
@@ -1457,7 +1398,7 @@ where
     /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_dist(
         &self,
-        computed: &CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
         cod: &Op::Cod,
@@ -1511,21 +1452,8 @@ where
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        InfoCSVWrite<SolId, Op::SInfo> + HasY<Op::Cod, Out> + Send + Sync,
-    SolObj<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Obj,
-            Op::SInfo,
-            Uncomputed = SolObj<Scp::SolShape, SolId, Op::SInfo>,
-        >,
-    SolOpt<CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo>: HasUncomputed<
-            SolId,
-            Scp::Opt,
-            Op::SInfo,
-            Uncomputed = SolOpt<Scp::SolShape, SolId, Op::SInfo>,
-        >,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: Send + Sync,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
     ///
@@ -1656,7 +1584,7 @@ where
     /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_dist(
         &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
         cod: &Op::Cod,

@@ -23,7 +23,7 @@ use crate::{
     Codomain, Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
         Domain,
         onto::{LinkObj, LinkOpt, Linked},
-    }, objective::Step, solution::{IntoComputed, Uncomputed}
+    }, objective::Step, solution::{IntoComputedShape, Uncomputed}
 };
 
 use serde::{Deserialize, Serialize};
@@ -346,7 +346,7 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> IntoComputed
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> IntoComputedShape<SolId, SInfo>
     for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
 where
     SolId: Id,
@@ -729,7 +729,7 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> IntoComputed for Lone<SolObj, SolId, Obj, SInfo>
+impl<SolObj, SolId, Obj, SInfo> IntoComputedShape<SolId, SInfo> for Lone<SolObj, SolId, Obj, SInfo>
 where
     SolId: Id,
     Obj: Domain,

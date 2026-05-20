@@ -94,7 +94,7 @@ where
 }
 
 /// A helper struct to hold the raw solution and the computed codomain value together.
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Xy<Raw, Y>
 {
     pub x: Raw,
@@ -427,6 +427,18 @@ where
     }
 }
 
+
+impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y>
+{
+    fn ref_x(&self) -> &Raw {
+        &self.x
+    }
+
+    fn clone_x(&self) -> Raw {
+        self.x.clone()
+    }
+}
+
 impl<Raw, Cod, Out> HasY<Cod, Out> for Xy<Raw, Cod::TypeCodom>
 where
     Cod: Codomain<Out>,
@@ -435,5 +447,46 @@ where
     /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
     fn y(&self) -> Arc<Cod::TypeCodom> {
         self.y.clone()
+    }
+}
+
+
+impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y>
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.y == other.y
+    }
+}
+
+impl<Raw, Y: Eq> Eq for Xy<Raw, Y>
+{
+}
+
+impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw,Y>
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.y.partial_cmp(&other.y)
+    }
+}
+
+impl<Raw, Y: Ord> Ord for Xy<Raw,Y>
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.y.cmp(&other.y)
+    }
+}
+
+impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y>
+{
+    fn dominates(&self, other: &Self) -> bool {
+        self.y.dominates(&other.y)
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.y.get_objective_by_index(idx)
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.y.get_max_objectives()
     }
 }

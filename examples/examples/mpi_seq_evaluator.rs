@@ -140,8 +140,7 @@ fn main() {
                 OutShapeEvaluate<
                     SId,
                     EmptyInfo,
-                    Sp<Mixed, NoDomain>,
-                    BaseSol<SId, Mixed, EmptyInfo>,
+                    Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
                     SingleCodomain<OutEvaluator>,
                     OutEvaluator,
                 >,

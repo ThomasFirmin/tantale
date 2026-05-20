@@ -1,7 +1,7 @@
 use crate::{
     Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
-    HasFidelity, HasStep, HasY,
-    solution::{IntoComputed, SolutionShape},
+    HasFidelity, HasStep,
+    solution::SolutionShape,
 };
 
 use bincode::{config::Configuration, serde::Compat};
@@ -275,8 +275,7 @@ impl IdleWorker {
 pub struct SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId, SInfo> + IntoComputed,
-    <Shape as IntoComputed>::Computed<Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+    Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Cod: Codomain<Out>,
@@ -295,8 +294,7 @@ where
 impl<'a, Msg, Shape, SolId, SInfo, Cod, Out> SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
-    Shape: SolutionShape<SolId, SInfo> + IntoComputed,
-    <Shape as IntoComputed>::Computed<Cod, Out>: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+    Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Cod: Codomain<Out>,

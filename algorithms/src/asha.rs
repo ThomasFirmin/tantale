@@ -69,9 +69,9 @@ use std::cell::RefCell;
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    IntoComputed, LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer,
+    LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer,
     SingleCodomain, SolInfo, SolutionShape, Step, StepSId,
-    optimizer::opt::BudgetPruner,
+    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -296,8 +296,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
-        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
 {
     type State = AshaState<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>;
     type Cod = SingleCodomain<Out>;
@@ -328,8 +327,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
-        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -393,7 +391,7 @@ where
             .drain(..)
             .flatten()
             .map(|comp| {
-                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
                 sol.discard();
                 sol
             })
@@ -405,7 +403,7 @@ where
     fn drain_one(&mut self) -> Option<Scp::SolShape> {
         for rung in self.0.rung.iter_mut() {
             if let Some(comp) = rung.pop() {
-                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
                 sol.discard();
                 return Some(sol);
             }
@@ -431,8 +429,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>:
-        SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
@@ -506,7 +503,7 @@ where
             } else {
                 self.0.rung[i].select_nth_unstable(k);
                 self.0.current_budget = self.0.budgets[i];
-                IntoComputed::extract(self.0.rung[i].pop().unwrap()).0
+                IntoComputedShape::extract(self.0.rung[i].pop().unwrap()).0
             }
         } else {
             self.0.current_budget = self.0.budgets[0];

@@ -10,7 +10,7 @@
 //! - [`Recorder`] - Base trait for all recorders
 
 use crate::{
-    BatchOptimizer, BatchRecorder, CompBatch, FuncWrapper, HasY, RawObj, SeqRecorder, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, SolutionShape, Uncomputed}
+    BatchOptimizer, BatchRecorder, FuncWrapper, RawObj, SeqRecorder, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
 };
 use serde::{Deserialize, Serialize};
 
@@ -64,8 +64,6 @@ where
     Out: Outcome,
     Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
@@ -77,7 +75,7 @@ where
     /// Save a single solution - no-op.
     fn save(
         &self,
-        _computed: &CompShape<Scp, PSol, SolId, <Op>::SInfo, <Op>::Cod, Out>,
+        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, <Op>::Cod, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &<Op>::Cod,
@@ -97,10 +95,6 @@ where
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
-    CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
@@ -112,7 +106,7 @@ where
     /// Save a batch of solutions - no-op.
     fn save(
         &self,
-        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp, PSol, <Op>::Cod, Out>,
+        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, <Op>::Cod, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,
         _scp: &Scp,
         _cod: &<Op>::Cod,
@@ -134,8 +128,6 @@ where
     Out: Outcome,
     Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
@@ -147,7 +139,7 @@ where
     /// Save a single solution in distributed context - no-op.
     fn save_dist(
         &self,
-        _computed: &CompShape<Scp, PSol, SolId, <Op>::SInfo, <Op>::Cod, Out>,
+        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, <Op>::Cod, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
         _cod: &<Op>::Cod,
@@ -169,10 +161,6 @@ where
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
-    CompBatch<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>:
-        SolutionShape<SolId, Op::SInfo> + HasY<Op::Cod, Out>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
@@ -184,7 +172,7 @@ where
     /// Save a batch of solutions in distributed context - no-op.
     fn save_dist(
         &self,
-        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp, PSol, <Op>::Cod, Out>,
+        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, <Op>::Cod, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,
         _scp: &Scp,
         _cod: &<Op>::Cod,

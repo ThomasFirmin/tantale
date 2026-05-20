@@ -286,7 +286,7 @@ pub use domain::{
 
 pub mod sampler;
 pub use sampler::{
-    Bernoulli, BoolDistribution, BoundedDistribution, GridDomDistribution, Sampler, Uniform,
+    Bernoulli, BoolDistribution, BoundedDistribution, GridDomDistribution, DomainSampler, Uniform,
 };
 
 pub mod variable;
@@ -294,7 +294,7 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, IntoComputed, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
+    BaseSol, Batch, Computed, Xy, Fidelity, FidelitySol, Id, IntoComputed, IntoComputedShape, Lone, OutBatch, Pair, ParSId, SId, SolInfo,
     Solution, SolutionShape, StepId, StepSId, Uncomputed, shape::RawObj,
 };
 

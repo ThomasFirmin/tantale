@@ -1,4 +1,5 @@
 use tantale::algos::RandomSearch;
+use tantale::core::IntoComputedShape;
 use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
@@ -15,7 +16,7 @@ use tantale::core::{
         sequential::seqfidevaluator::FidDistSeqEvaluator,
     },
     objective::Step,
-    solution::{IntoComputed, Lone, SolutionShape},
+    solution::{Lone, SolutionShape},
 };
 use tantale::core::{EmptyInfo, Searchspace, SingleCodomain, stop::Calls};
 
@@ -193,8 +194,7 @@ fn main() {
                 DistOutShapeEvaluate<
                     StepSId,
                     EmptyInfo,
-                    Sp<Mixed, NoDomain>,
-                    FidelitySol<StepSId, Mixed, EmptyInfo>,
+                    Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                     SingleCodomain<FidOutEvaluator>,
                     FidOutEvaluator,
                 >,
@@ -226,7 +226,7 @@ fn main() {
         );
 
         let mut step = comp.step();
-        eval.update(IntoComputed::extract(comp).0);
+        eval.update(IntoComputedShape::extract(comp).0);
 
         while step != Step::Evaluated {
             let out = <FidDistSeqEvaluator<
@@ -246,8 +246,7 @@ fn main() {
                     DistOutShapeEvaluate<
                         StepSId,
                         EmptyInfo,
-                        Sp<Mixed, NoDomain>,
-                        FidelitySol<StepSId, Mixed, EmptyInfo>,
+                        Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                         SingleCodomain<FidOutEvaluator>,
                         FidOutEvaluator,
                     >,
@@ -257,7 +256,7 @@ fn main() {
             );
             let (_, (comp, _)) = out.unwrap();
             step = comp.step();
-            eval.update(IntoComputed::extract(comp).0);
+            eval.update(IntoComputedShape::extract(comp).0);
         }
 
         assert_eq!(stop.calls(), 1, "Number of calls is wrong.");

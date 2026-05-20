@@ -83,11 +83,12 @@ use std::sync::Arc;
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tantale_core::optimizer::opt::BudgetPruner;
+use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
-    Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, IntoComputed,
+    Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
     LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer, SingleCodomain,
-    SolutionShape, StepSId,
+    StepSId,
 };
 
 use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
@@ -441,8 +442,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
+    FCompShape<Scp, Out, SInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -561,8 +561,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -599,7 +598,7 @@ where
         } else {
             let to_discard = x.map_or(self.0.inner.drain_one(), |mut comp| {
                 comp.discard();
-                Some(IntoComputed::extract(comp).0)
+                Some(IntoComputedShape::extract(comp).0)
             });
 
             if let Some(discard) = to_discard {

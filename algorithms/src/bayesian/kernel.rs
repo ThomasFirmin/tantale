@@ -1,5 +1,5 @@
 
-use tantale_core::{Codomain, CompShape, Computed, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, SolutionShape, Uncomputed, Unit, domain::{CategoricalDomain, NumericalDomain, TypeDom, grid::GridBounds}, has_trait::HasVariables};
+use tantale_core::{Codomain, Computed, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, SolutionShape, Uncomputed, Unit, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, grid::GridBounds}, has_trait::HasVariables};
 
 use serde::{Deserialize, Serialize};
 use statrs::{distribution::{Continuous, ContinuousCDF, Normal as StatrsNormal }, function::erf::erf};
@@ -381,21 +381,20 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Sp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, D, Cod, Out, SInfo>>
 {
 
     type Context;
 
     fn prepare(
         &self,
-        archive: &[CompShape<Sp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Sp
     ) -> Self::Context;
 
     fn compute(
         &self,
         s: &S::Raw, 
-        archive: &[CompShape<Sp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         weights: &PointWeights,
         searchspace: &Sp, 
         context: &Self::Context
@@ -406,7 +405,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Sp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Sp, 
         context: &Self::Context
     ) -> S::Raw;
@@ -554,14 +553,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Mixed, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -573,20 +571,20 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += compute_kernel(x1, x2, bandwidth, dom) * weight;
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Univariate as Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
     
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -596,7 +594,7 @@ where
             {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 sample_kernel(rng, &x[d], bandwidth, dom)
             }
         ).collect()
@@ -609,7 +607,7 @@ where
         }).product()
     }
     
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -628,13 +626,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -646,7 +644,7 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
             }
@@ -659,7 +657,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -669,7 +667,7 @@ where
             {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 GaussianKernel.sample(rng, &x[d], bandwidth, dom)
             }
         ).collect()
@@ -682,7 +680,7 @@ where
         }).product()
     }
     
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -701,13 +699,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -719,7 +717,7 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
             }
@@ -732,7 +730,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -755,7 +753,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -774,14 +772,14 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -793,7 +791,7 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
             }
@@ -806,7 +804,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -829,7 +827,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -848,13 +846,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -866,7 +864,7 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
             }
@@ -878,7 +876,7 @@ where
     
     fn sample<R: Rng>(
         &self, rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -901,7 +899,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -921,13 +919,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -939,7 +937,7 @@ where
             let dom = searchspace.opt_at(d).unwrap();
             let bandwidth = context[d];
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-                let s2 = comp.get_sopt().ref_x();
+                let s2 = comp.ref_x();
                 let x2 = &s2[d];
                 sum += AitchisonAitkenKernel.compute(x1, x2, bandwidth, dom) * weight;
             }
@@ -952,7 +950,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -975,7 +973,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         (0..searchspace.size()).map(|d| {
             let dom = searchspace.opt_at(d).unwrap();
@@ -1004,13 +1002,12 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Mixed, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1018,7 +1015,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1028,19 +1025,19 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp, 
         context: &Self::Context
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x  = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x  = archive.choose(rng).unwrap().ref_x();
         (0..dim).map(
             |d|
             {
@@ -1058,7 +1055,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1077,7 +1074,7 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
 {
 
     type Context = Vec<f64>;
@@ -1085,7 +1082,7 @@ where
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1093,7 +1090,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1110,7 +1107,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1133,7 +1130,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1152,13 +1149,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1166,7 +1163,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1183,7 +1180,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1206,7 +1203,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1225,13 +1222,13 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1239,7 +1236,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1256,7 +1253,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1279,7 +1276,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1298,14 +1295,14 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1313,7 +1310,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1330,7 +1327,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1353,7 +1350,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1373,14 +1370,14 @@ where
     SInfo: SolInfo,
     Cod: Codomain<Out>,
     Out: Outcome,
-    CompShape<Scp,S,SolId,SInfo,Cod,Out>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
+    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>],
+        archive: &[Xy<S::Raw, Cod::TypeCodom>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1388,7 +1385,7 @@ where
     {
         let mut sum = 0.0;
         for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
-            let s2 = comp.get_sopt().ref_x();
+            let s2 = comp.ref_x();
             let mut product = 1.0;
             for (d, x1) in s1.iter().enumerate() {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1405,7 +1402,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], 
+        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1428,7 +1425,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[CompShape<Scp,S,SolId,SInfo,Cod,Out>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         (0..searchspace.size()).map(|d| {
             let dom = searchspace.opt_at(d).unwrap();

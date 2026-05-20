@@ -1,6 +1,6 @@
 use crate::{
     BatchRecorder, Codomain, FidOutcome, SId, Stepped, ThrCheckpointer,
-    HasFidelity, HasStep, HasStepId, HasY,
+    HasFidelity, HasStep, HasStepId,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
@@ -13,7 +13,7 @@ use crate::{
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::{CompShape, Searchspace},
     solution::{
-        SolutionShape, Uncomputed, id::StepSId,
+        Uncomputed, id::StepSId,
         shape::RawObj,
     },
     stop::{ExpStep, Stop},
@@ -31,10 +31,7 @@ use crate::{
     }, solution::shape::{SolObj, SolOpt}
 };
 
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 //--------------------//
 //--- MONOTHREADED ---//
@@ -87,8 +84,6 @@ where
         >,
     Check: MonoCheckpointer,
     Out: Outcome,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`BatchRecorder`] and [`MonoCheckpointer`].
@@ -177,7 +172,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`BatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => BatchEvaluator::new(self.optimizer.first_step(&self.searchspace)),
@@ -203,7 +198,7 @@ where
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -293,7 +288,7 @@ where
         &self,
     ) -> &crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -305,7 +300,7 @@ where
         &mut self,
     ) -> &mut crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -381,8 +376,6 @@ where
         >,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
     St: Stop,
     Rec: BatchRecorder<
             PSol,
@@ -511,7 +504,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidBatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -552,7 +545,7 @@ where
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -644,7 +637,7 @@ where
         &self,
     ) -> &crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -656,7 +649,7 @@ where
         &mut self,
     ) -> &mut crate::domain::codomain::TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -727,7 +720,7 @@ where
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     Scp::SolShape: Send + Sync,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>: SolutionShape<SId, Op::SInfo> + Send + Sync,
+    CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
     Rec: BatchRecorder<
@@ -739,7 +732,7 @@ where
             Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         >,
     Check: ThrCheckpointer,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+    TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
         Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
@@ -835,7 +828,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrBatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let cod = Arc::new(self.codomain);
         let st = Arc::new(Mutex::new(self.stop));
@@ -871,7 +864,7 @@ where
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone()
             );
@@ -960,7 +953,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -969,7 +962,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -1047,8 +1040,7 @@ where
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<StepSId, Op::SInfo> + Debug + Send + Sync,
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
@@ -1068,7 +1060,7 @@ where
     Check::FnStateCheck: Send + Sync,
     TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1175,7 +1167,7 @@ where
     /// are saved using the inner [`BatchRecorder`] when [`FidThrBatchEvaluator`] has finished evaluating all elements.
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidBatchEvaluator`] updates) step.
-    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let ob = Arc::new(self.objective);
         let cod = Arc::new(self.codomain);
         let st = Arc::new(Mutex::new(self.stop));
@@ -1225,7 +1217,7 @@ where
                 Out,
                 St,
                 _,
-                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval, ob.clone(), cod.clone(), st.clone(), acc.clone()
             );
@@ -1318,7 +1310,7 @@ where
         &self,
     ) -> &TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1330,7 +1322,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1401,8 +1393,6 @@ where
             Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-    CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>:
-        SolutionShape<SId, Op::SInfo> + HasY<Op::Cod, Out>,
     St: Stop,
     Rec: DistBatchRecorder<
             PSol,
@@ -1560,7 +1550,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`BatchEvaluator`] updates) step by the main process.
-    fn run(mut self) -> CompAcc<Scp, PSol, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -1602,7 +1592,7 @@ where
                 St,
                 _,
                 _,
-                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<SId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -1697,7 +1687,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -1706,7 +1696,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -1780,11 +1770,6 @@ where
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
     SolObj<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
     SolOpt<Scp::SolShape, StepSId, Op::SInfo>: HasStep + HasFidelity + HasStepId<StepSId>,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>: SolutionShape<StepSId, Op::SInfo>
-        + HasY<Op::Cod, Out>
-        + HasStep
-        + HasFidelity
-        + HasStepId<StepSId>,
     St: Stop,
     Rec: DistBatchRecorder<
             PSol,
@@ -1997,7 +1982,7 @@ where
     /// termination of all [`Worker`](crate::Worker)s.
     /// [`CompBatch`](crate::Batch)es of [`Computed`](crate::Computed), are saved using the inner [`DistBatchRecorder`] when
     /// [`FidDistBatchEvaluator`] has finished evaluating all elements.
-    fn run(mut self) -> CompAcc<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidDistBatchEvaluator::new(
@@ -2038,7 +2023,7 @@ where
                 St,
                 _,
                 _,
-                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+                OutBatchEvaluate<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
             >::evaluate(
                 &mut eval,
                 &mut sendrec,
@@ -2137,7 +2122,7 @@ where
         &self,
     ) -> &TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -2149,7 +2134,7 @@ where
         &mut self,
     ) -> &mut TypeAcc<
         Op::Cod,
-        CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
         StepSId,
         Op::SInfo,
         Out,

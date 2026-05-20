@@ -34,7 +34,7 @@ use crate::{
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, Sampler},
+    sampler::{BoundedDistribution, DomainSampler},
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};
@@ -114,7 +114,7 @@ impl<T: BoundedBounds> Bounded<T> {
     /// * `lower` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper` - Upper bound of the [`Bounded`] [`Domain`].
     ///
-    pub fn new<S: Sampler<Self> + Into<BoundedDistribution>>(
+    pub fn new<S: DomainSampler<Self> + Into<BoundedDistribution>>(
         lower: T,
         upper: T,
         sampler: S,
@@ -141,7 +141,7 @@ impl<T: BoundedBounds> Bounded<T> {
     pub fn grid<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: Sampler<GridDom<T>> + Into<GridDomDistribution>,
+        S: DomainSampler<GridDom<T>> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,

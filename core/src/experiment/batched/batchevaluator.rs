@@ -1,12 +1,11 @@
 use crate::{
     Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo, domain::{Codomain, codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, has_trait::HasX, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
-        Batch, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
+        Batch, IntoComputedShape, OutBatch, SolutionShape, Uncomputed, shape::RawObj
     }, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "mpi")]
@@ -68,7 +67,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -84,7 +83,6 @@ where
             Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Out: Outcome,
 {
@@ -106,13 +104,13 @@ where
         stop: &mut St,
         acc: &mut TypeAcc<
             Op::Cod,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
     ) -> (
-        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>>,
+        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
         let mut obatch = OutBatch::empty(self.batch.info());
@@ -147,7 +145,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -163,7 +161,6 @@ where
             Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>: SolutionShape<SolId, Op::SInfo>,
     St: Stop,
     Out: Outcome,
 {
@@ -200,7 +197,7 @@ where
         stop: &mut St,
         acc: &mut TypeAcc<
             Op::Cod,
-            CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
             SolId,
             Op::SInfo,
             Out,
@@ -210,7 +207,7 @@ where
             SolId,
             Op::SInfo,
             Op::Info,
-            crate::searchspace::CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         >,
         OutBatch<SolId, Op::Info, Out>,
     ) {
@@ -307,7 +304,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -326,9 +323,8 @@ where
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: Send + Sync,
-    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>:
-        Debug + SolutionShape<SolId, Op::SInfo> + Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: Send + Sync,
+    TypeAcc<Op::Cod, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
         Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
@@ -357,7 +353,7 @@ where
             Mutex<
                 TypeAcc<
                     Op::Cod,
-                    CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+                    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
                     SolId,
                     Op::SInfo,
                     Out,
@@ -369,7 +365,7 @@ where
             SolId,
             Op::SInfo,
             Op::Info,
-            crate::searchspace::CompShape<Scp, PSol, SolId, Op::SInfo, Op::Cod, Out>,
+            crate::searchspace::CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
         >,
         OutBatch<SolId, Op::Info, Out>,
     ) {

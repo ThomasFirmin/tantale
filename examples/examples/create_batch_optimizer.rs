@@ -18,7 +18,7 @@ pub struct ShaInfo {
 }
 
 use rand::prelude::ThreadRng;
-use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain, StepSId};
+use tantale::core::{Codomain, CompShape, Criteria, FidOutcome, SingleCodomain, StepSId};
 
 pub struct Sha(pub ShaState, ThreadRng);
 
@@ -87,8 +87,8 @@ where
 }
 
 use tantale::core::{
-    Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep, IntoComputed,
-    RawObj, SolutionShape, Step, Stepped,
+    Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep,
+    RawObj, Step, Stepped, IntoComputedShape
 };
 
 impl<Out, Scp, FnState>
@@ -104,8 +104,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    <Scp::SolShape as IntoComputed>::Computed<Self::Cod, Out>:
-        SolutionShape<StepSId, Self::SInfo> + HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
@@ -126,22 +125,19 @@ where
         );
         Batch::new(pairs, info.into())
     }
-
     fn step(
         &mut self,
         x: CompBatch<
             StepSId,
             Self::SInfo,
             Self::Info,
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            Scp::SolShape,
             Self::Cod,
             Out,
         >,
         scp: &Scp,
         _acc: &CompAcc<
-            Scp,
-            FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+            Scp::SolShape,
             StepSId,
             Self::SInfo,
             Self::Cod,
@@ -175,7 +171,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(i, computed)| {
-                    let (mut pair, _): (Scp::SolShape, _) = IntoComputed::extract(computed);
+                    let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
                     if i < k {
                         pair.discard(); // Discard all solution before k and k others
                     } else {

@@ -21,9 +21,9 @@
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, IntoComputed, LinkOpt, MultiCodomain, OptState, Optimizer, Searchspace,
+    HasStep, LinkOpt, MultiCodomain, OptState, Optimizer, Searchspace,
     SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId,
-    optimizer::opt::BudgetPruner,
+    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -269,8 +269,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
-        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     type State =
@@ -304,8 +303,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
-        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -366,7 +364,7 @@ where
             .drain(..)
             .flatten()
             .map(|comp| {
-                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
                 sol.discard();
                 sol
             })
@@ -378,7 +376,7 @@ where
     fn drain_one(&mut self) -> Option<Scp::SolShape> {
         for rung in self.0.rung.iter_mut() {
             if let Some(comp) = rung.pop() {
-                let mut sol: Scp::SolShape = IntoComputed::extract(comp).0;
+                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
                 sol.discard();
                 return Some(sol);
             }
@@ -404,8 +402,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>:
-        SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
     FnState: FuncState,
     Selector: CandidateSelector,
 {
@@ -480,7 +477,7 @@ where
             } else {
                 let idx = self.select(i, k)[0];
                 self.0.current_budget = self.0.budgets[i];
-                IntoComputed::extract(self.0.rung[i].remove(idx)).0
+                IntoComputedShape::extract(self.0.rung[i].remove(idx)).0
             }
         } else {
             self.0.current_budget = self.0.budgets[0];

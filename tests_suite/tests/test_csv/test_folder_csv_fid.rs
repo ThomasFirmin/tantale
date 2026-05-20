@@ -1,7 +1,8 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::algos::random_search;
+use tantale::core::IntoComputedShape;
 use tantale::core::domain::NoDomain;
-use tantale::core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
+use tantale::core::domain::onto::{LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale::core::objective::FuncWrapper;
 use tantale::core::objective::Step;
 use tantale::core::optimizer::opt::{BatchOptimizer, CompBatch};
@@ -9,9 +10,9 @@ use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{
-    IntoComputed, SolutionShape, Uncomputed,
+    SolutionShape, Uncomputed,
 };
-use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, Computed, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
+use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
 use tantale::core::{
     Codomain, FolderConfig, Mixed, MixedTypeDom, Searchspace, HasX, Sp, StepSId,
     recorder::csv::{CSVRecorder, CSVWritable},
@@ -69,7 +70,8 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     stop: &mut St,
     recorder: &mut Rec,
     size: usize,
-) where
+) 
+where
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
@@ -81,33 +83,21 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>
         + Send
         + Sync,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>: SolutionShape<
-            StepSId,
-            Op::SInfo,
-            SolObj = Computed<
-                PSol::Twin<LinkObj<Scp>>,
-                StepSId,
-                LinkObj<Scp>,
-                Op::Cod,
-                FidOutExample,
-                Op::SInfo,
-            >,
-            SolOpt = Computed<PSol, StepSId, LinkOpt<Scp>, Op::Cod, FidOutExample, Op::SInfo>,
-        > + HasY<Op::Cod, FidOutExample>
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>: HasY<Op::Cod, FidOutExample>
         + InfoCSVWrite<StepSId, Op::SInfo>
         + HasY<Op::Cod, FidOutExample>
         + HasStep
         + HasFidelity
         + Send
         + Sync,
-    SolObj<CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Obj,
                 Op::SInfo,
                 Uncomputed = SolObj<Scp::SolShape, StepSId, Op::SInfo>,
             >,
-    SolOpt<CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Opt,
@@ -178,9 +168,9 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
 
 pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     path: &str,
-    cbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, FidOutExample>,
+    cbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, FidOutExample>,
     obatch: OutBatch<StepSId, Op::Info, FidOutExample>,
-    tcbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp, PSol, Op::Cod, FidOutExample>,
+    tcbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, FidOutExample>,
     tobatch: OutBatch<StepSId, Op::Info, FidOutExample>,
     cod: &Op::Cod,
     size: usize,
@@ -196,33 +186,21 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>
         + Send
         + Sync,
-    CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>: SolutionShape<
-            StepSId,
-            Op::SInfo,
-            SolObj = Computed<
-                PSol::Twin<LinkObj<Scp>>,
-                StepSId,
-                LinkObj<Scp>,
-                Op::Cod,
-                FidOutExample,
-                Op::SInfo,
-            >,
-            SolOpt = Computed<PSol, StepSId, LinkOpt<Scp>, Op::Cod, FidOutExample, Op::SInfo>,
-        > + HasY<Op::Cod, FidOutExample>
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>: HasY<Op::Cod, FidOutExample>
         + InfoCSVWrite<StepSId, Op::SInfo>
         + HasY<Op::Cod, FidOutExample>
         + HasStep
         + HasFidelity
         + Send
         + Sync,
-    SolObj<CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Obj,
                 Op::SInfo,
                 Uncomputed = SolObj<Scp::SolShape, StepSId, Op::SInfo>,
             >,
-    SolOpt<CompShape<Scp, PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Opt,
