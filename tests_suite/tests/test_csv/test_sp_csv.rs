@@ -1,6 +1,6 @@
 use super::init_sp::*;
 use tantale::core::recorder::csv::CSVLeftRight;
-use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, Solution, Sp};
+use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, HasX, Sp};
 
 use paste::paste;
 use std::sync::Arc;
@@ -25,8 +25,8 @@ macro_rules! get_test {
                 let mut rng = rand::rng();
 
                 let sample_obj: BaseSol<SId,$name::ObjType,EmptyInfo> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>,SId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
-                let s_str : Vec<String> = sample_obj.get_x().iter().map(|x| x.to_string()).collect();
-                let s_csv = sp.write_left(&sample_obj.get_x());
+                let s_str : Vec<String> = sample_obj.ref_x().iter().map(|x| x.to_string()).collect();
+                let s_csv = sp.write_left(&sample_obj.ref_x());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
 

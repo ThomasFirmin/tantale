@@ -1,7 +1,7 @@
 use tantale::core::{
-    EmptyInfo, FidOutcome, FidelitySol, MixedTypeDom, Searchspace, Solution, Sp, StepSId,
+    EmptyInfo, FidOutcome, FidelitySol, MixedTypeDom, Searchspace, HasX, Sp, StepSId, HasFidelity,
     objective::Step,
-    solution::{HasFidelity, SolutionShape},
+    solution::SolutionShape,
 };
 
 use super::init_func::*;
@@ -23,7 +23,7 @@ macro_rules! get_test {
                 let mut rng = rand::rng();
 
                 let sample_obj : FidelitySol<StepSId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::sample_obj(&sp, &mut rng,sinfo.clone());
-                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
+                assert_eq!(sample_obj.ref_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(sample_obj.clone_x(), sample_obj.fidelity(), None);
 
@@ -69,7 +69,7 @@ macro_rules! get_test {
 
 
                 let sample_opt : FidelitySol<StepSId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::sample_opt(&sp, &mut rng,sinfo.clone());
-                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
+                assert_eq!(sample_obj.ref_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::onto_obj(&sp, sample_opt);
                 assert_eq!(converted_obj.get_sobj().clone_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 
@@ -157,7 +157,7 @@ macro_rules! get_test_real {
                 let mut rng = rand::rng();
 
                 let sample_obj : FidelitySol<StepSId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
-                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
+                assert_eq!(sample_obj.ref_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
 
                 let (out, state) = func(sample_obj.clone_x(), sample_obj.fidelity(), None);
 
@@ -200,7 +200,7 @@ macro_rules! get_test_real {
 
 
                 let sample_opt : FidelitySol<StepSId,_,_> = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::sample_opt(&sp,&mut rng,sinfo.clone());
-                assert_eq!(sample_obj.get_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
+                assert_eq!(sample_obj.ref_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
                 let converted_obj = <Sp<_,_> as Searchspace<FidelitySol<StepSId,_,_>, StepSId,EmptyInfo>>::onto_obj(&sp,sample_opt);
                 assert_eq!(converted_obj.get_sobj().clone_x().len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
 

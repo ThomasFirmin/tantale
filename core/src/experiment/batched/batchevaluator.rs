@@ -1,15 +1,7 @@
 use crate::{
-    Accumulator, Id, OptInfo, Outcome, Searchspace, SolInfo, Solution,
-    HasId, HasInfo,
-    domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
-    objective::{Objective, Step},
-    optimizer::opt::{BatchOptimizer, OpSInfType},
-    searchspace::CompShape,
-    solution::{
+    Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo, domain::{Codomain, codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, has_trait::HasX, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
         Batch, IntoComputed, OutBatch, SolutionShape, Uncomputed, shape::RawObj,
-    },
-    stop::{ExpStep, Stop},
+    }, stop::{ExpStep, Stop}
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -80,6 +72,8 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: BatchOptimizer<
             PSol,
@@ -157,6 +151,8 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: BatchOptimizer<
             PSol,
@@ -315,6 +311,8 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + Send + Sync,
     Op: BatchOptimizer<
             PSol,

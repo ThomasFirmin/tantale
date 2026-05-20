@@ -8,9 +8,9 @@ use rmp_serde;
 use std::sync::Arc;
 use tantale::core::Mixed;
 use tantale::core::{
-    BaseSol, Computed, EmptyInfo, SId, Solution,
+    BaseSol, Computed, EmptyInfo, SId, HasX,
+    HasId, HasY,
     searchspace::Searchspace,
-    solution::{HasId, HasY},
 };
 
 macro_rules! get_test {
@@ -36,8 +36,8 @@ macro_rules! get_test {
                 let nid = ncomputed.id();
                 assert_eq!(id,nid, "IDs are not equal");
 
-                let x = computed.get_x();
-                let nx = ncomputed.get_x();
+                let x = computed.ref_x();
+                let nx = ncomputed.ref_x();
                 assert!(x.iter().zip(nx.iter()).all($comp),"Solutions x are not equal");
 
                 let y = computed.y();

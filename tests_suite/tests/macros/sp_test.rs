@@ -1,13 +1,13 @@
 mod test {
     use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale::core::domain::TypeDom;
+    use tantale::core::{HasX, domain::TypeDom};
 
     #[test]
     pub fn main() {
         use std::sync::Arc;
         use tantale::core::{
-            BaseSol, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Solution, Sp,
+            BaseSol, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Sp,
             sampler::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
         };

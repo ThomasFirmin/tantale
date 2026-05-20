@@ -1,25 +1,16 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, SId, SeqRecorder, Solution, Stepped,
-    HasFidelity, HasId, HasStep, HasStepId,
-    checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
-    domain::{codomain::TypeAcc, onto::LinkOpt},
-    experiment::{
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, SId, SeqRecorder, Stepped, checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
         CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment,
         basics::{FuncStatePool, IdxMapPool, LoadPool, Pool},
         sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
         },
-    },
-    objective::{Objective, Outcome, Step, outcome::FuncState},
-    optimizer::opt::{OpSInfType, SequentialOptimizer},
-    searchspace::{CompShape, Searchspace},
-    solution::{
+    }, has_trait::HasX, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
         IntoComputed, SolutionShape, Uncomputed,
         id::{StepId, StepSId},
         shape::RawObj,
-    },
-    stop::{ExpStep, Stop},
+    }, stop::{ExpStep, Stop}
 };
 
 use std::{
@@ -74,6 +65,8 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             SId,
@@ -360,7 +353,9 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,
@@ -704,6 +699,8 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + 'static,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             SId,
@@ -1039,7 +1036,9 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,
@@ -1482,6 +1481,8 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             SId,
@@ -1870,7 +1871,9 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         FidDistSeqEvaluator<StepSId, Op::SInfo, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SequentialOptimizer<
             PSol,
             StepSId,

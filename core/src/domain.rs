@@ -8,7 +8,7 @@
 //! The central abstraction is the [`Domain`] trait. A domain:
 //! - Defines an associated value, an element from the domain, via [`Domain::TypeDom`]
 //! - Provides a sampling method via [`Domain::sample`]
-//! - Validates membership via [`Domain::is_in`]
+//! - Validates membership via [`Domain::contains`]
 //!
 //! Domains are used by [`Var`] inside a [`Searchspace`](crate::searchspace::Searchspace)
 //! to describe the inputs expected by an [`Objective`] and explored by an
@@ -104,7 +104,7 @@ pub trait PreDomain: Debug {}
 ///
 /// Implementors must provide:
 /// - [`sample`](Domain::sample) - Generate a random valid value from the domain
-/// - [`is_in`](Domain::is_in) - Check whether a value belongs to the domain
+/// - [`is_in`](Domain::contains) - Check whether a value belongs to the domain
 ///
 /// # Constructor Convention
 ///
@@ -196,7 +196,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     ///
     /// # Returns
     ///
-    /// A randomly sampled value of type [`TypeDom`](Domain::TypeDom) that satisfies [`is_in`](Domain::is_in).
+    /// A randomly sampled value of type [`TypeDom`](Domain::TypeDom) that satisfies [`is_in`](Domain::contains).
     ///
     /// # Example
     ///
@@ -214,7 +214,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     /// # Parameters
     ///
     /// * `point` - A reference to a value of type [`TypeDom`](Domain::TypeDom) to validate
-    fn is_in(&self, point: &Self::TypeDom) -> bool;
+    fn contains(&self, point: &Self::TypeDom) -> bool;
 }
 
 pub trait NumericalDomain: Domain 
@@ -232,6 +232,8 @@ pub trait CategoricalDomain: Domain
 where
     Self::TypeDom: PartialEq,
 {
+    /// Retrieves the list of features in the categorical domain.
+    fn get_features(&self) -> &[Self::TypeDom];
     /// Retrieves the size of the categorical domain, i.e., the number of distinct categories.
     fn size(&self) -> usize;
 }

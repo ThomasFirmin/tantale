@@ -21,17 +21,14 @@ use crate::{
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistBatchRecorder,
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::{
+    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    },
-    solution::shape::{SolObj, SolOpt},
+    }, solution::shape::{SolObj, SolOpt}
 };
 
 use std::{
@@ -68,6 +65,8 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -365,7 +364,9 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -712,6 +713,8 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -1025,7 +1028,9 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         >,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<StepSId>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -1385,6 +1390,8 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -1754,7 +1761,9 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         FidDistBatchEvaluator<StepSId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo>,
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,

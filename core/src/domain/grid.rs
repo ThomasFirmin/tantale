@@ -31,7 +31,7 @@ impl<T> GridBounds for T where
 /// let grid = GridDom::<f64>::new([0.1, 0.5, 0.9], Uniform);
 /// let mut rng = rand::rng();
 /// let sample = grid.sample(&mut rng);
-/// assert!(grid.is_in(&sample));
+/// assert!(grid.contains(&sample));
 /// let values = grid.values.to_vec();
 /// assert_eq!(values, vec![0.1, 0.5, 0.9])
 /// ```
@@ -56,7 +56,7 @@ impl<T: GridBounds> GridDom<T> {
     ///
     /// let mut rng = rand::rng();
     /// let sample = grid.sample(&mut rng);
-    /// assert!(grid.is_in(&sample));
+    /// assert!(grid.contains(&sample));
     /// let values = grid.values.to_vec();
     /// assert_eq!(values, vec![0.1, 0.5, 0.9])
     /// ```
@@ -102,7 +102,7 @@ impl<T: GridBounds> Domain for GridDom<T> {
         self.values[idx].clone()
     }
 
-    fn is_in(&self, point: &Self::TypeDom) -> bool {
+    fn contains(&self, point: &Self::TypeDom) -> bool {
         self.values.contains(point)
     }
 }
@@ -110,6 +110,10 @@ impl<T: GridBounds> Domain for GridDom<T> {
 impl<T:GridBounds> CategoricalDomain for GridDom<T> {
     fn size(&self) -> usize {
         self.values.len()
+    }
+    
+    fn get_features(&self) -> &[Self::TypeDom] {
+        &self.values
     }
 }
 
@@ -160,7 +164,7 @@ where
                 let c: f64 = target.width.as_();
                 let mapped: Out = (a / b * c).as_() + *target.bounds.start();
 
-                if target.is_in(&mapped) {
+                if target.contains(&mapped) {
                     Ok(mapped)
                 } else {
                     Err(OntoError(format!("{} input not in {}", item, self)))
@@ -209,7 +213,7 @@ impl<In: GridBounds> Onto<Unit> for GridDom<In> {
                 let b: f64 = self.values.len().as_();
                 let mapped: f64 = a / b;
 
-                if target.is_in(&mapped) {
+                if target.contains(&mapped) {
                     Ok(mapped)
                 } else {
                     Err(OntoError(format!("{} input not in {}", item, self)))
@@ -323,7 +327,7 @@ impl<T: GridBounds> CSVWritable<(), T> for GridDom<T> {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(dom.values.to_vec(), vec![1.0, 2.0, 3.0]);
 /// ```
 pub type GridReal = GridDom<f64>;
@@ -353,7 +357,7 @@ impl From<Mixed> for GridReal {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(dom.values.to_vec(), vec![-1, 0, 1]);
 /// ```
 pub type GridInt = GridDom<i64>;
@@ -383,7 +387,7 @@ impl From<Mixed> for GridInt {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(dom.values.to_vec(), vec![1, 2, 3]);
 /// ```
 pub type GridNat = GridDom<u64>;
@@ -413,7 +417,7 @@ impl From<Mixed> for GridNat {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(dom.values.to_vec(), vec!["relu", "sigmoid", "tanh"]);
 /// ```
 pub type Cat = GridDom<String>;
@@ -510,13 +514,13 @@ impl Domain for Grid {
         }
     }
 
-    fn is_in(&self, point: &Self::TypeDom) -> bool {
+    fn contains(&self, point: &Self::TypeDom) -> bool {
         match (self, point) {
-            (Grid::Real(dom), MixedTypeDom::Real(p)) => dom.is_in(p),
-            (Grid::Int(dom), MixedTypeDom::Int(p)) => dom.is_in(p),
-            (Grid::Nat(dom), MixedTypeDom::Nat(p)) => dom.is_in(p),
-            (Grid::Cat(dom), MixedTypeDom::Cat(p)) => dom.is_in(p),
-            (Grid::Bool(dom), MixedTypeDom::Bool(p)) => dom.is_in(p),
+            (Grid::Real(dom), MixedTypeDom::Real(p)) => dom.contains(p),
+            (Grid::Int(dom), MixedTypeDom::Int(p)) => dom.contains(p),
+            (Grid::Nat(dom), MixedTypeDom::Nat(p)) => dom.contains(p),
+            (Grid::Cat(dom), MixedTypeDom::Cat(p)) => dom.contains(p),
+            (Grid::Bool(dom), MixedTypeDom::Bool(p)) => dom.contains(p),
             _ => false, // Type mismatch
         }
     }

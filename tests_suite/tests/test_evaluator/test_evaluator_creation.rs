@@ -1,13 +1,13 @@
 use tantale::algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale::core::{
     BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain,
-    Sp,
+    Sp, HasId,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
         ThrEvaluate, sequential::seqevaluator::SeqEvaluator,
     },
-    solution::{Batch, HasId, Lone, SolutionShape},
+    solution::{Batch, Lone, SolutionShape},
     stop::Calls,
 };
 

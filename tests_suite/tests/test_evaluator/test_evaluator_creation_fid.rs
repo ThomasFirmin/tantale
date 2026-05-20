@@ -4,14 +4,14 @@ use tantale::core::checkpointer::messagepack::MPFnStateCheckpointer;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::{
     Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
-    StepSId, Stepped,
+    StepSId, Stepped, HasId,
     checkpointer::NoFuncStateCheck,
     domain::NoDomain,
     experiment::{
         FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate,
         ThrEvaluate, basics::IdxMapPool, sequential::seqfidevaluator::FidSeqEvaluator,
     },
-    solution::{Batch, HasId, IntoComputed, Lone, SolutionShape},
+    solution::{Batch, IntoComputed, Lone, SolutionShape},
     stop::Calls,
 };
 

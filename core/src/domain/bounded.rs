@@ -20,7 +20,7 @@
 //!
 //! let mut rng = rand::rng();
 //! let sample = dom.sample(&mut rng);
-//! assert!(dom.is_in(&sample));
+//! assert!(dom.contains(&sample));
 //! assert_eq!(*dom.bounds.start(), 0);
 //! assert_eq!(*dom.bounds.end(), 255);
 //! assert_eq!(dom.mid, 127);
@@ -166,7 +166,7 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
     }
 
     /// Method to check if a given point is in the domain.
-    fn is_in(&self, item: &T) -> bool {
+    fn contains(&self, item: &T) -> bool {
         self.bounds.contains(item)
     }
 }
@@ -237,13 +237,13 @@ where
         item: &Self::Item,
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
             let b: f64 = self.width.as_();
             let c: f64 = target.width.as_();
             let mapped: Out = (a / b * c).as_() + *target.bounds.start();
 
-            if target.is_in(&mapped) {
+            if target.contains(&mapped) {
                 Ok(mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))
@@ -284,7 +284,7 @@ where
     ///     * if [`Onto::Item`] to be mapped is not into [`Bounded`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             Ok(*item > self.mid)
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
@@ -324,12 +324,12 @@ where
     ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
     ///
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
             let b: f64 = self.width.as_();
             let mapped: f64 = a / b;
 
-            if target.is_in(&mapped) {
+            if target.contains(&mapped) {
                 Ok(mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))
@@ -382,7 +382,7 @@ where
         item: &Self::Item,
         target: &GridDom<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let a: f64 = (*item - *self.bounds.start()).as_();
             let b: f64 = self.width.as_();
             let c: f64 = target.values.len().as_();
@@ -463,7 +463,7 @@ where
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(*dom.bounds.start(), 0.0);
 /// assert_eq!(*dom.bounds.end(), 10.0);
 /// assert_eq!(dom.mid, 5.0);
@@ -497,7 +497,7 @@ impl From<Mixed> for Real {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(*dom.bounds.start(), 0);
 /// assert_eq!(*dom.bounds.end(), 10);
 /// assert_eq!(dom.mid, 5);
@@ -532,7 +532,7 @@ impl From<Mixed> for Nat {
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(*dom.bounds.start(), 0);
 /// assert_eq!(*dom.bounds.end(), 10);
 /// assert_eq!(dom.mid, 5);

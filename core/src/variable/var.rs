@@ -343,7 +343,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     /// assert!(!var.is_in_obj(&150.0));
     /// ```
     pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
-        LinkObj::<Self>::is_in(&self.domain_obj, item)
+        LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds.
     ///
@@ -377,7 +377,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     /// assert!(!var.is_in_opt(&-0.1));
     /// ```
     pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
-        LinkOpt::<Self>::is_in(&self.domain_opt, item)
+        LinkOpt::<Self>::contains(&self.domain_opt, item)
     }
     /// Replicates the variable a specified number of times.
     ///
@@ -563,7 +563,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     /// assert!(!var.is_in_obj(&15.0));
     /// ```
     pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
-        LinkObj::<Self>::is_in(&self.domain_obj, item)
+        LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds (same as objective).
     ///
@@ -580,7 +580,7 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     /// assert!(!var.is_in_opt(&-5.0));
     /// ```
     pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
-        LinkOpt::<Self>::is_in(&self.domain_obj, item)
+        LinkOpt::<Self>::contains(&self.domain_obj, item)
     }
     /// Replicates the variable a specified number of times.
     ///

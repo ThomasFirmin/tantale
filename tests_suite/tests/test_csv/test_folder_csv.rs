@@ -3,6 +3,7 @@ use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;
 use tantale::algos::random_search;
+use tantale::core::HasX;
 use tantale::core::domain::onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale::core::objective::FuncWrapper;
 use tantale::core::objective::Step;
@@ -11,14 +12,15 @@ use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{
-    HasId, HasSolInfo, HasUncomputed, HasY, IntoComputed, SolutionShape, Uncomputed,
+    IntoComputed, SolutionShape, Uncomputed,
 };
 use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 use tantale::core::{
-    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Solution, Sp,
+    HasId, HasSolInfo, HasUncomputed, HasY, HasInfo,
+    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::csv::{CSVRecorder, CSVWritable},
-    solution::{Batch, HasInfo, OutBatch},
+    solution::{Batch,  OutBatch},
     stop::{Calls, Stop},
 };
 
@@ -67,7 +69,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     size: usize,
 ) where
     PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
+    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, OutExample>
@@ -107,7 +109,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     let mut cbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
         let id = pair.id();
-        let aelem = pair.get_sobj().get_x()[0].clone();
+        let aelem = pair.get_sobj().ref_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
@@ -132,7 +134,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     let mut tcbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
         let id = pair.id();
-        let aelem = pair.get_sobj().get_x()[0].clone();
+        let aelem = pair.get_sobj().ref_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
@@ -166,7 +168,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     size: usize,
 ) where
     PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<SId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>,
+    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, Op::Cod, OutExample>
@@ -246,7 +248,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.id().id)]);
         let x_str: Vec<String> = pair
             .get_sobj()
-            .get_x()
+            .ref_x()
             .iter()
             .map(|x| format!("{}", x))
             .collect();
@@ -264,7 +266,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         let mut str_content: Vec<String> = Vec::from([format!("{}", pair.get_sopt().id().id)]);
         let x_str: Vec<String> = pair
             .get_sopt()
-            .get_x()
+            .ref_x()
             .iter()
             .map(|x| format!("{}", x))
             .collect();
@@ -331,7 +333,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
             .unwrap();
         let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
-        let true_con = match pair.get_sobj().sol.get_x()[0] {
+        let true_con = match pair.get_sobj().sol.ref_x()[0] {
             MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };

@@ -6,7 +6,7 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
-    BaseSol, EmptyInfo, Mixed, SId, Solution, searchspace::Searchspace, solution::HasId,
+    BaseSol, EmptyInfo, Mixed, SId, HasX, searchspace::Searchspace, HasId,
 };
 
 macro_rules! get_test {
@@ -23,8 +23,8 @@ macro_rules! get_test {
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
                 let nsample : BaseSol<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
-                let x = sample.get_x();
-                let nx = nsample.get_x();
+                let x = sample.ref_x();
+                let nx = nsample.ref_x();
 
                 let id = sample.id();
                 let nid = nsample.id();

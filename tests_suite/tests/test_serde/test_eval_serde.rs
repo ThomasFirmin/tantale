@@ -7,14 +7,14 @@ use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::stop::Calls;
 use tantale::core::{
     BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed,
-    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, HasId,
     checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer},
     domain::NoDomain,
     experiment::{
         BatchEvaluator, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, OutBatchEvaluate,
         ThrBatchEvaluator, ThrEvaluate, basics::IdxMapPool,
     },
-    solution::{Batch, HasId, Lone, SolutionShape},
+    solution::{Batch, Lone, SolutionShape},
 };
 
 use super::init_func::{FidOutEvaluator, FnState, OutEvaluator, sp_evaluator, sp_evaluator_fid};

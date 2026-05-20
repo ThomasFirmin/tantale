@@ -58,16 +58,30 @@ pub trait HasSolInfo<Info: SolInfo> {
     fn sinfo(&self) -> Arc<Info>;
 }
 
+
+/// Trait for objects containing a raw solution.
+/// 
+/// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution. 
+/// This trait is typically implemented by both [`Uncomputed`] and [`Computed`](crate::Computed) solutions,
+/// allowing retrieval of the underlying raw solution regardless of its computed state.
+pub trait HasX<Raw: Clone> {
+    /// Returns a reference to the raw solution associated with this object.
+    fn ref_x(&self) -> &Raw;
+
+    /// Returns a clone of the raw solution associated with this object.
+    fn clone_x(&self) -> Raw;
+}
+
 /// Trait for objects with an associated objective function value.
 ///
 /// [`HasY`] provides access to a solution's evaluation result ([`TypeCodom`](Codomain::TypeCodom)), representing the output of the
-/// objective function. This trait is typically implemented by [`Computed`] solutions.
+/// objective function. This trait is typically implemented by [`Computed`](crate::Computed) solutions.
 ///
 /// # Note
 ///
 /// When the [`TypeCodom`](Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
 /// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
-/// [`Computed`], [`Pair`], [`Lone`], are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
+/// [`Computed`](crate::Computed), [`Pair`](crate::Pair), [`Lone`](crate::Lone), are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
 pub trait HasY<Cod: Codomain<Out>, Out: Outcome> {
     /// Returns the objective function value associated with this solution.
     ///
@@ -163,7 +177,7 @@ pub trait HasFidelity {
 /// Trait for objects containing an uncomputed solution.
 ///
 /// [`HasUncomputed`] provides access to the underlying [`Uncomputed`] solution within
-/// wrapper types like [`Computed`] or [`SolutionShape`].
+/// wrapper types like [`Computed`](crate::Computed) or [`SolutionShape`](crate::SolutionShape).
 pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
     /// The uncomputed solution type contained within.
     type Uncomputed: Uncomputed<SolId, Dom, SInfo>;

@@ -51,18 +51,14 @@
 //! ```
 
 use crate::{
-    EvalStep, Fidelity, StepId,
-    HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY,
-    domain::{Codomain, Domain},
-    objective::{Outcome, Step},
-    solution::{
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, domain::{Codomain, Domain}, has_trait::HasX, objective::{Outcome, Step}, solution::{
         Id, IntoComputed,
         SolInfo, Solution, Uncomputed,
-    },
+    }
 };
 
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
+use std::{cmp::Ordering, marker::PhantomData};
 use std::{fmt::Debug, sync::Arc};
 
 /// A solution of the [`Objective`](crate::Objective) or the [`Optimizer`](crate::Optimizer)
@@ -95,6 +91,32 @@ where
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
     _info: PhantomData<Info>,
+}
+
+/// A helper struct to hold the raw solution and the computed codomain value together.
+#[derive(Debug)]
+pub struct Xy<Raw, Y>
+{
+    pub x: Raw,
+    pub y: Arc<Y>,
+}
+
+impl<PSol, SolId, Dom, Cod, Out, Info> HasX<PSol::Raw> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+where
+    PSol: Uncomputed<SolId, Dom, Info>,
+    Dom: Domain,
+    Info: SolInfo,
+    Cod: Codomain<Out>,
+    Out: Outcome,
+    SolId: Id,
+{
+    fn ref_x(&self) -> &PSol::Raw {
+        self.sol.ref_x()
+    }
+
+    fn clone_x(&self) -> PSol::Raw {
+        self.sol.clone_x()
+    }
 }
 
 impl<PSol, SolId, Dom, Cod, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
@@ -267,15 +289,6 @@ where
     type Raw = PSol::Raw;
     type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Cod, Out, Info>;
 
-    /// Return the raw representation of the underlying solution.
-    fn get_x(&self) -> &Self::Raw {
-        self.sol.get_x()
-    }
-
-    fn clone_x(&self) -> Self::Raw {
-        self.sol.clone_x()
-    }
-
     fn _clone_sol(&self) -> Self {
         Self::new(self.sol._clone_sol(), self.y.clone())
     }
@@ -285,6 +298,91 @@ where
         x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
     ) -> Self::Twin<B> {
         Computed::new(Uncomputed::twin(&self.sol, x), self.y.clone())
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialEq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialEq,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.y() == other.y()
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Eq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Eq,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialOrd for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: PartialOrd,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.y().partial_cmp(&other.y())
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Ord for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Codomain<Out>,
+    Cod::TypeCodom: Ord,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.y().cmp(&other.y())
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Cod, Out> Dominate for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+where
+    Self: HasY<Cod, Out>,
+    Cod: Multi<Out>,
+    Cod::TypeCodom: Dominate,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn dominates(&self, other: &Self) -> bool {
+        self.y().dominates(&other.y())
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self.y().get_objective_by_index(idx)
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.y().get_max_objectives()
     }
 }
 
@@ -319,5 +417,23 @@ where
             .zip(y)
             .map(|(s, cod)| Self::new(s, cod))
             .collect()
+    }
+
+    pub fn xy(&self) -> Xy<PSol::Raw, Cod::TypeCodom> {
+        Xy {
+            x: self.clone_x(),
+            y: self.y(),
+        }
+    }
+}
+
+impl<Raw, Cod, Out> HasY<Cod, Out> for Xy<Raw, Cod::TypeCodom>
+where
+    Cod: Codomain<Out>,
+    Out: Outcome,
+{
+    /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
+    fn y(&self) -> Arc<Cod::TypeCodom> {
+        self.y.clone()
     }
 }

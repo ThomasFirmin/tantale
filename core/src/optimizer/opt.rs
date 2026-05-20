@@ -70,7 +70,9 @@ pub type OpCodType<Op, PSol, Scp, SolId, Out> =
 /// checkpoint an experiment.
 pub trait Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -98,7 +100,9 @@ pub type CompBatch<SolId, SInfo, Info, Scp, PSol, Cod, Out> =
 pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -147,7 +151,9 @@ where
 pub trait SequentialOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -185,7 +191,9 @@ where
 pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -201,7 +209,9 @@ where
 /// Multi-fidelity marker trait for optimizers.
 pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed + HasFidelity + HasStep,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol> + HasFidelity + HasStep,
     SolId: Id,
     Opt: Domain,
     Out: FidOutcome,

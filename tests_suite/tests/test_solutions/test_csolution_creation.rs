@@ -1,8 +1,9 @@
-use tantale::core::Solution;
+use tantale::core::HasX;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{
     BaseSol, Codomain, Computed, ParSId, SingleCodomain,
-    solution::{HasId, HasSolInfo, HasY, Uncomputed},
+    HasId, HasSolInfo, HasY,
+    solution::Uncomputed,
 };
 
 use num::cast::AsPrimitive;

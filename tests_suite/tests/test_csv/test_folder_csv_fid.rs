@@ -9,12 +9,11 @@ use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{
-    HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, IntoComputed,
-    SolutionShape, Uncomputed,
+    IntoComputed, SolutionShape, Uncomputed,
 };
-use tantale::core::{BatchRecorder, Computed, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
+use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, Computed, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
 use tantale::core::{
-    Codomain, FolderConfig, Mixed, MixedTypeDom, Searchspace, Solution, Sp, StepSId,
+    Codomain, FolderConfig, Mixed, MixedTypeDom, Searchspace, HasX, Sp, StepSId,
     recorder::csv::{CSVRecorder, CSVWritable},
     solution::{Batch, OutBatch},
     stop::{Calls, Stop},
@@ -74,7 +73,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<StepSId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>
+    PSol::Twin<Mixed>: Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>
         + HasStep
         + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
@@ -128,7 +127,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     let mut cbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
         let id = pair.id();
-        let aelem = pair.get_sobj().get_x()[0].clone();
+        let aelem = pair.get_sobj().ref_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
@@ -150,7 +149,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     let mut tcbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
         let id = pair.id();
-        let aelem = pair.get_sobj().get_x()[0].clone();
+        let aelem = pair.get_sobj().ref_x()[0].clone();
         let aelem = match aelem {
             MixedTypeDom::Int(ae) => ae,
             _ => panic!("Should be a Int."),
@@ -189,7 +188,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
-    PSol::Twin<LinkObj<Scp>>: Uncomputed<StepSId, LinkObj<Scp>, Op::SInfo, Raw = Arc<[LinkTyObj<Scp>]>>
+    PSol::Twin<Mixed>: Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>
         + HasStep
         + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
@@ -286,7 +285,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         ]);
         let x_str: Vec<String> = pair
             .get_sobj()
-            .get_x()
+            .ref_x()
             .iter()
             .map(|x| format!("{}", x))
             .collect();
@@ -311,7 +310,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         ]);
         let x_str: Vec<String> = pair
             .get_sobj()
-            .get_x()
+            .ref_x()
             .iter()
             .map(|x| format!("{}", x))
             .collect();
@@ -389,7 +388,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
             .find(|(sid, out)| (sid.id == id) && (out.fid2 == id))
             .unwrap();
         let pair = iter_cbatch.find(|p| p.id().id == id).unwrap();
-        let true_con = match pair.get_sobj().sol.get_x()[0] {
+        let true_con = match pair.get_sobj().sol.ref_x()[0] {
             MixedTypeDom::Int(f) => f,
             _ => panic!("Wrong type for con2"),
         };

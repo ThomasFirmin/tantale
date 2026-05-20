@@ -43,7 +43,7 @@ impl Drop for Cleaner {
 use searchspace::{OutExample, get_function, get_searchspace};
 use tantale::algos::{BatchRandomSearch, random_search};
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
+    CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{distributed, mpi::utils::MPIProcess},
     stop::Calls,
 };
@@ -81,7 +81,7 @@ fn main() {
         let best = acc.get().unwrap().get_sobj();
         println!(
             "Best solution found: f({:?}) ={}",
-            best.get_x(),
+            best.ref_x(),
             best.y().value
         );
     }

@@ -1,23 +1,16 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Id, Solution, StepSId,
-     HasFidelity, HasStep,
-    domain::{
+    BaseSol, Codomain, Criteria, FidOutcome, HasFidelity, HasStep, Id, StepSId, Uncomputed, domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
-    },
-    objective::{
+    }, objective::{
         Step,
         outcome::{FuncState, Outcome},
-    },
-    optimizer::{
+    }, optimizer::{
         EmptyInfo, OptInfo, OptState,
         opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
-    },
-    recorder::csv::CSVWritable,
-    searchspace::Searchspace,
-    solution::{
+    }, recorder::csv::CSVWritable, searchspace::Searchspace, solution::{
         Batch, IntoComputed, SId, SolutionShape, partial::FidelitySol,
-    },
+    }
 };
 
 use rand::{prelude::ThreadRng, rngs::StdRng};
@@ -374,7 +367,8 @@ fn rs_iter<Scp, PSol, SolId>(
     bsize: usize,
 ) -> Batch<SolId, EmptyInfo, RSInfo, Scp::SolShape>
 where
-    PSol: Solution<SolId, Scp::Opt, EmptyInfo>,
+    PSol: Uncomputed<SolId, Scp::Opt, EmptyInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, EmptyInfo>,
     Scp: Searchspace<PSol, SolId, EmptyInfo>,
     SolId: Id,
 {

@@ -1,5 +1,5 @@
 use rand::rngs::ThreadRng;
-use tantale::core::BaseSol;
+use tantale::core::{BaseSol, HasX};
 
 #[test]
 fn obj_test() {
@@ -69,7 +69,7 @@ fn obj_test() {
         );
     }
 
-    use tantale::core::{EmptyInfo, SId, Searchspace, Solution, solution::shape::SolutionShape};
+    use tantale::core::{EmptyInfo, SId, Searchspace, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
 
     let mut rng = rand::rng();

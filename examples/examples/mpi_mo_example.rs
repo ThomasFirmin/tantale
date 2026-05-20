@@ -107,7 +107,7 @@ use tantale::algos::{MoAsha, moasha};
 use tantale::core::{DistSaverConfig, MPIProcess, PoolMode, distributed_with_pool};
 use tantale::{
     algos::mo::NSGA2Selector,
-    core::{CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape, stop::Calls},
+    core::{CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls},
 };
 
 fn main() {
@@ -154,7 +154,7 @@ fn main() {
         for dominant in pareto {
             println!(
                 "Dominant: f({:?}) ={:?}",
-                dominant.get_sobj().get_x(),
+                dominant.get_sobj().ref_x(),
                 dominant.y().value
             );
         }

@@ -71,8 +71,8 @@ use crate::{
     domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    }, has_trait::HasVariables, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo, SpPar}, solution::{
-        Id, IntoComputed, Lone, Pair, Solution, Uncomputed,
+    }, has_trait::{HasVariables, HasX}, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo, SpPar}, solution::{
+        Id, Lone, Pair, Solution, Uncomputed,
         shape::{RawObj, RawOpt},
     }, variable::Var
 };
@@ -114,9 +114,9 @@ where
     SInfo: SolInfo,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo, Raw = Arc<[Opt::TypeDom]>> + IntoComputed,
+    SolOpt: Uncomputed<SolId, Opt, SInfo, Raw = Arc<[Opt::TypeDom]>>,
     SolOpt::Twin<Obj>:
-        Uncomputed<SolId, Obj, SInfo, Twin<Opt> = SolOpt, Raw = Arc<[Obj::TypeDom]>> + IntoComputed,
+        Uncomputed<SolId, Obj, SInfo, Twin<Opt> = SolOpt, Raw = Arc<[Obj::TypeDom]>>,
 {
     type SolShape = Pair<SolOpt::Twin<Obj>, SolOpt, SolId, Self::Obj, Self::Opt, SInfo>;
 
@@ -126,7 +126,7 @@ where
         let outx: Vec<LinkTyObj<Self>> = self
             .var
             .iter()
-            .zip(inp.get_x().iter())
+            .zip(inp.ref_x().iter())
             .map(|(v, xi)| v.onto_obj(xi).unwrap())
             .collect();
         let solobj = Solution::twin::<Obj>(&inp, outx.into());
@@ -139,7 +139,7 @@ where
         let outx: Vec<LinkTyOpt<Self>> = self
             .var
             .iter()
-            .zip(inp.get_x().iter())
+            .zip(inp.ref_x().iter())
             .map(|(v, xi)| v.onto_opt(xi).unwrap())
             .collect();
         let solopt = Solution::twin::<Opt>(&inp, outx.into());
@@ -162,17 +162,11 @@ where
 
     /// Check whether a solution belongs to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn is_in_obj<S>(&self, inp: &S) -> bool
+    fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<
-                SolId,
-                Self::Obj,
-                SInfo,
-                Raw = <SolOpt::Twin<Obj> as Solution<SolId, Self::Obj, SInfo>>::Raw,
-            > + Send
-            + Sync,
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
-        inp.get_x()
+        inp.ref_x()
             .iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_obj(elem))
@@ -180,13 +174,11 @@ where
 
     /// Check whether a solution belongs to the optimizer domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn is_in_opt<S>(&self, inp: &S) -> bool
+    fn contains_opt<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw = <SolOpt as Solution<SolId, Opt, SInfo>>::Raw>
-            + Send
-            + Sync,
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
-        inp.get_x()
+        inp.ref_x()
             .iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_opt(elem))
@@ -229,27 +221,23 @@ where
 
     /// Check whether all solutions belong to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
-            + Send
-            + Sync,
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
         inp.iter().all(|sol| {
-            <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::is_in_obj::<S>(self, sol)
+            <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::contains_obj::<S>(self, sol)
         })
     }
 
     /// Check whether all solutions belong to the optimizer domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw = RawOpt<Self::SolShape, SolId, SInfo>>
-            + Send
-            + Sync,
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
         inp.iter().all(|sol| {
-            <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::is_in_opt::<S>(self, sol)
+            <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::contains_opt::<S>(self, sol)
         })
     }
 
@@ -390,7 +378,7 @@ where
     Obj: Domain,
     SolOpt: Solution<SolId, Obj, SInfo, Raw = Arc<[Obj::TypeDom]>, Twin<Obj> = SolOpt>
         + Uncomputed<SolId, Obj, SInfo>
-        + IntoComputed,
+    ,
 {
     type SolShape = Lone<SolOpt, SolId, Obj, SInfo>;
 
@@ -422,17 +410,11 @@ where
 
     /// Check whether a solution belongs to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn is_in_obj<S>(&self, inp: &S) -> bool
+    fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<
-                SolId,
-                Self::Obj,
-                SInfo,
-                Raw = <SolOpt::Twin<Obj> as Solution<SolId, Self::Obj, SInfo>>::Raw,
-            > + Send
-            + Sync,
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
-        inp.get_x()
+        inp.ref_x()
             .iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_obj(elem))
@@ -440,16 +422,11 @@ where
 
     /// Check whether a solution belongs to the optimizer domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn is_in_opt<S>(&self, inp: &S) -> bool
+    fn contains_opt<S>(&self, inp: &S) -> bool
     where
-        S: Solution<
-                SolId,
-                Self::Opt,
-                SInfo,
-                Raw = <SolOpt::Twin<Obj> as Solution<SolId, Self::Opt, SInfo>>::Raw,
-            >,
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
-        inp.get_x()
+        inp.ref_x()
             .iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_opt(elem))
@@ -524,12 +501,12 @@ where
 
     /// Check whether all solutions belong to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync,
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
     {
         inp.iter().all(|sol| {
-            <Sp<Obj, NoDomain> as Searchspace<SolOpt::Twin<Obj>, SolId, SInfo>>::is_in_obj::<S>(
+            <Sp<Obj, NoDomain> as Searchspace<SolOpt::Twin<Obj>, SolId, SInfo>>::contains_obj::<S>(
                 self, sol,
             )
         })
@@ -537,12 +514,12 @@ where
 
     /// Check whether all solutions belong to the optimizer domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw = Arc<[Obj::TypeDom]>> + Send + Sync,
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.iter().all(|sol| {
-            <Sp<Obj, NoDomain> as Searchspace<SolOpt::Twin<Obj>, SolId, SInfo>>::is_in_obj::<S>(
+            <Sp<Obj, NoDomain> as Searchspace<SolOpt::Twin<Obj>, SolId, SInfo>>::contains_obj::<S>(
                 self, sol,
             )
         })

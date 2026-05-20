@@ -40,8 +40,9 @@ impl Drop for Cleaner {
 
 use searchspace::{OutExample, get_function, get_searchspace};
 use tantale::algos::{GridSearch, grid_search};
+use tantale::core::HasX;
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasY, MessagePack, Solution, SolutionShape,
+    CSVRecorder, FolderConfig, HasY, MessagePack, SolutionShape,
     experiment::{Runable, mono},
     stop::Calls,
 };
@@ -71,7 +72,7 @@ fn main() {
     let best = accumulator.get().unwrap().get_sobj();
     println!(
         "Best solution found: f({:?}) = {}",
-        best.get_x(),
+        best.ref_x(),
         best.y().value
     );
 }

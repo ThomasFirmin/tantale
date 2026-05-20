@@ -14,6 +14,7 @@
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
+use crate::has_trait::HasX;
 use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
 use crate::domain::Domain;
 use crate::objective::Step;
@@ -98,6 +99,22 @@ where
     pub info: Arc<Info>,
 }
 
+impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for BaseSol<SolId, Dom, Info>
+where
+    SolId: Id,
+    Dom: Domain,
+    Info: SolInfo,
+{
+    /// Return the raw representation for evaluation by the objective.
+    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
+        &self.x
+    }
+
+    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
+        self.x.clone()
+    }
+}
+
 impl<SolId, Dom, Info> HasId<SolId> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
@@ -128,6 +145,8 @@ where
     }
 }
 
+
+
 impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
 where
     Dom: Domain,
@@ -136,15 +155,6 @@ where
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = BaseSol<SolId, B, Info>;
-
-    /// Return the raw representation for evaluation by the objective.
-    fn get_x(&self) -> &Self::Raw {
-        &self.x
-    }
-
-    fn clone_x(&self) -> Self::Raw {
-        self.x.clone()
-    }
 
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
@@ -312,6 +322,22 @@ where
     pub info: Arc<Info>,
 }
 
+impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for FidelitySol<SolId, Dom, Info>
+where
+    SolId: StepId,
+    Dom: Domain,
+    Info: SolInfo,
+{
+    /// Return the raw representation for evaluation by the objective.
+    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
+        &self.x
+    }
+
+    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
+        self.x.clone()
+    }
+}
+
 impl<SolId, Dom, Info> HasId<SolId> for FidelitySol<SolId, Dom, Info>
 where
     Dom: Domain,
@@ -430,17 +456,7 @@ where
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
-
-    /// Return the raw representation for evaluation by the objective.
-    fn get_x(&self) -> &Self::Raw {
-        &self.x
-    }
-
-    /// Creates a clone of the raw values for this solution.
-    fn clone_x(&self) -> Self::Raw {
-        self.x.clone()
-    }
-
+    
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
     fn _clone_sol(&self) -> Self {

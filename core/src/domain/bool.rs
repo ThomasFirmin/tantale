@@ -23,7 +23,7 @@ use std::fmt;
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// ```
 #[derive(Clone, Copy)]
 pub struct Bool(pub BoolDistribution);
@@ -67,9 +67,9 @@ impl Domain for Bool {
     ///
     /// let mut rng = rand::rng();
     /// let sample = dom.sample(&mut rng);
-    /// assert!(dom.is_in(&sample));
+    /// assert!(dom.contains(&sample));
     /// ```
-    fn is_in(&self, _point: &Self::TypeDom) -> bool {
+    fn contains(&self, _point: &Self::TypeDom) -> bool {
         true
     }
 }
@@ -77,6 +77,10 @@ impl Domain for Bool {
 impl CategoricalDomain for Bool {
     fn size(&self) -> usize {
         2
+    }
+    
+    fn get_features(&self) -> &[Self::TypeDom] {
+        &[false, true]
     }
 }
 
@@ -115,13 +119,13 @@ where
         item: &Self::Item,
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let mapped = if *item {
                 target.bounds.end()
             } else {
                 target.bounds.start()
             };
-            if target.is_in(mapped) {
+            if target.contains(mapped) {
                 Ok(*mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))
@@ -154,9 +158,9 @@ impl Onto<Unit> for Bool {
     ///     * if [`Onto::Item`] to be mapped is not into [`Bool`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Unit`] domain.
     fn onto(&self, item: &Self::Item, target: &Unit) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let mapped = if *item { 1.0 } else { 0.0 };
-            if target.is_in(&mapped) {
+            if target.contains(&mapped) {
                 Ok(mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))

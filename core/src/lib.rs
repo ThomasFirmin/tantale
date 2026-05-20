@@ -338,4 +338,4 @@ pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
 
 pub mod has_trait;
-pub use has_trait::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, HasVariables};
+pub use has_trait::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasX, HasY, HasVariables};

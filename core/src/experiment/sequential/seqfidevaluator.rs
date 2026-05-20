@@ -1,16 +1,8 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, Searchspace, SolInfo, Solution, Stepped, Stop,
-    HasFidelity, HasId, HasStep, HasStepId,
-    domain::{codomain::TypeAcc, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
-    objective::{Step, outcome::FuncState},
-    optimizer::opt::{OpSInfType, SequentialOptimizer},
-    searchspace::CompShape,
-    solution::{
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace, SolInfo, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, has_trait::HasX, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{
          IntoComputed, SolutionShape, Uncomputed,
         id::StepId, shape::RawObj,
-    },
-    stop::ExpStep,
+    }, stop::ExpStep
 };
 #[cfg(feature = "mpi")]
 use crate::{
@@ -117,7 +109,11 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStepId<SolId> + HasStep + HasFidelity,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -282,7 +278,9 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStep + HasFidelity + HasStepId<SolId>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -596,6 +594,8 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
 ) -> (bool, bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,
@@ -664,7 +664,9 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp, PSol, Op::Cod, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasStepId<SolId> + HasStep + HasFidelity,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity +,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SequentialOptimizer<
             PSol,

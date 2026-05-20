@@ -134,8 +134,8 @@
 //! ```
 
 use crate::{
-    HasId, HasSolInfo, domain::onto::Linked, solution::{
-        Id, IntoComputed, SolInfo, Solution, SolutionShape, shape::RawObj,
+    HasId, HasSolInfo, Uncomputed, domain::onto::Linked, has_trait::HasX, solution::{
+        Id, IntoComputed, SolInfo, SolutionShape, shape::{RawObj, RawOpt},
     }
 };
 
@@ -188,8 +188,8 @@ pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, 
 /// - [`onto_obj`](Searchspace::onto_obj) - Map Opt → Obj domain
 ///
 /// ## Validation
-/// - [`is_in_obj`](Searchspace::is_in_obj) - Check if solution is valid in Obj domain
-/// - [`is_in_opt`](Searchspace::is_in_opt) - Check if solution is valid in Opt domain
+/// - [`contains_obj`](Searchspace::contains_obj) - Check if solution is valid in Obj domain
+/// - [`contains_opt`](Searchspace::contains_opt) - Check if solution is valid in Opt domain
 ///
 /// # Usage
 ///
@@ -218,8 +218,9 @@ pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, 
 /// - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining searchspaces and wrap objective functions
 pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
 where
-    SolOpt: Solution<SolId, Self::Opt, SInfo>,
-    SolOpt::Twin<Self::Obj>: Solution<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
+    SolOpt: Uncomputed<SolId, Self::Opt, SInfo>,
+    SolOpt::Twin<Self::Obj>:
+        Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
     SolId: Id,
     SInfo: SolInfo,
 {
@@ -234,6 +235,18 @@ where
         > + HasId<SolId>
         + HasSolInfo<SInfo>
         + IntoComputed;
+
+    /// Create a new solution from a raw solution in the Obj domain.
+    fn new_obj<T: Into<RawObj<Self::SolShape,SolId, SInfo>>>(&self, x: T, info: Arc<SInfo>) -> Self::SolShape {
+        let sobj = SolOpt::Twin::new(SolId::generate(), x, info);
+        self.onto_opt(sobj)
+    }
+    
+    /// Create a new solution from a raw solution in the Opt domain.
+    fn new_opt<T: Into<RawOpt<Self::SolShape,SolId, SInfo>>>(&self, x: T, info: Arc<SInfo>) -> Self::SolShape {
+        let sopt = SolOpt::new(SolId::generate(), x, info);
+        self.onto_obj(sopt)
+    }
 
     /// Maps a solution from the Obj domain to the Opt domain.
     ///
@@ -445,7 +458,7 @@ where
     /// Validates that a solution belongs to the Obj domain of this searchspace.
     ///
     /// Checks each variable value against its Obj domain constraints using
-    /// [`Domain::is_in`](crate::Domain::is_in).
+    /// [`Domain::contains`](crate::Domain::contains).
     ///
     /// # Parameters
     ///
@@ -481,18 +494,18 @@ where
     ///
     /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::is_in_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &obj));
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &obj));
     ///
     /// ```
-    fn is_in_obj<S>(&self, inp: &S) -> bool
+    fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>>
             + Send
             + Sync;
     /// Validates that a solution belongs to the Opt domain of this searchspace.
     ///
     /// Checks each variable value against its Opt domain constraints using
-    /// [`Domain::is_in`](crate::Domain::is_in).
+    /// [`Domain::contains`](crate::Domain::contains).
     ///
     /// # Parameters
     ///
@@ -528,12 +541,12 @@ where
     ///
     /// let opt: BaseSol<SId, Real, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::is_in_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &opt));
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &opt));
     ///
     /// ```
-    fn is_in_opt<S>(&self, inp: &S) -> bool
+    fn contains_opt<S>(&self, inp: &S) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw = SolOpt::Raw> + Send + Sync;
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync;
     /// Maps a [`Solution`] of type `Opt` onto an [`Solution`] of type `Obj`.
     ///
     /// # Example
@@ -959,7 +972,7 @@ where
 
     /// Validates that all solutions in a vector belong to the Obj domain.
     ///
-    /// Batch version of [`is_in_obj`](Searchspace::is_in_obj) that returns `true` only if
+    /// Batch version of [`contains_obj`](Searchspace::contains_obj) that returns `true` only if
     /// all solutions satisfy their Obj domain constraints.
     ///
     /// # Parameters
@@ -996,17 +1009,15 @@ where
     ///
     /// let vobj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
     ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_is_in_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &vobj));
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &vobj));
     ///
     /// ```
-    fn vec_is_in_obj<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Obj, SInfo, Raw = RawObj<Self::SolShape, SolId, SInfo>>
-            + Send
-            + Sync;
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync;
     /// Validates that all solutions in a vector belong to the Opt domain.
     ///
-    /// Batch version of [`is_in_opt`](Searchspace::is_in_opt) that returns `true` only if
+    /// Batch version of [`contains_opt`](Searchspace::contains_opt) that returns `true` only if
     /// all solutions satisfy their Opt domain constraints.
     ///
     /// # Parameters
@@ -1043,12 +1054,12 @@ where
     ///
     /// let vopt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_is_in_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &vopt));
+    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &vopt));
     ///
     /// ```
-    fn vec_is_in_opt<S>(&self, inp: &[S]) -> bool
+    fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
     where
-        S: Solution<SolId, Self::Opt, SInfo, Raw = SolOpt::Raw> + Send + Sync;
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync;
 }
 
 pub mod spbase;

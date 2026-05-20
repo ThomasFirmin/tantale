@@ -1,13 +1,5 @@
 use crate::{
-    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer,
-    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
-    domain::onto::LinkOpt,
-    experiment::{CompAcc, Evaluate, PoolMode},
-    objective::FuncWrapper,
-    optimizer::opt::OpSInfType,
-    recorder::Recorder,
-    searchspace::CompShape,
-    solution::{SolutionShape, Uncomputed, shape::RawObj},
+    FuncState, Id, Optimizer, Outcome, Searchspace, Stop, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::onto::LinkOpt, experiment::{CompAcc, Evaluate, PoolMode}, objective::FuncWrapper, optimizer::opt::OpSInfType, recorder::Recorder, searchspace::CompShape, solution::{SolutionShape, Uncomputed, shape::RawObj}
 };
 
 #[cfg(feature = "mpi")]
@@ -45,6 +37,8 @@ use indexmap::IndexMap;
 pub struct MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
@@ -84,6 +78,8 @@ where
 pub struct ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
@@ -125,6 +121,8 @@ where
 pub struct MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,

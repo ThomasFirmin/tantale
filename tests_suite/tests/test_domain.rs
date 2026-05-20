@@ -16,23 +16,23 @@ mod check_bounds {
         );
 
         assert!(
-            real_1.is_in(&0.0),
+            real_1.contains(&0.0),
             "Issue with is_in for lower bound of Real."
         );
         assert!(
-            real_1.is_in(&5.0),
+            real_1.contains(&5.0),
             "Issue with is_in for mid value from Real."
         );
         assert!(
-            real_1.is_in(&10.0),
+            real_1.contains(&10.0),
             "Issue with is_in for upper bound of Real."
         );
         assert!(
-            !real_1.is_in(&-1.0),
+            !real_1.contains(&-1.0),
             "Issue with is_in with value < lower bound of Real."
         );
         assert!(
-            !real_1.is_in(&11.0),
+            !real_1.contains(&11.0),
             "Issue with is_in with value > upper bound of Real."
         );
     }
@@ -47,15 +47,15 @@ mod check_bounds {
         assert_eq!(nat_1.bounds.start(), &1, "Issue with lower bound of Nat.");
         assert_eq!(nat_1.bounds.end(), &10, "Issue with upper bound of Nat.");
 
-        assert!(nat_1.is_in(&1), "Issue with is_in for lower bound of Nat.");
-        assert!(nat_1.is_in(&5), "Issue with is_in for mid value from Nat.");
-        assert!(nat_1.is_in(&10), "Issue with is_in for upper bound of Nat.");
+        assert!(nat_1.contains(&1), "Issue with is_in for lower bound of Nat.");
+        assert!(nat_1.contains(&5), "Issue with is_in for mid value from Nat.");
+        assert!(nat_1.contains(&10), "Issue with is_in for upper bound of Nat.");
         assert!(
-            !nat_1.is_in(&0),
+            !nat_1.contains(&0),
             "Issue with is_in with value < lower bound of Nat."
         );
         assert!(
-            !nat_1.is_in(&11),
+            !nat_1.contains(&11),
             "Issue with is_in with value > upper bound of Nat."
         );
     }
@@ -70,15 +70,15 @@ mod check_bounds {
         assert_eq!(int_1.bounds.start(), &0, "Issue with lower bound of Int.");
         assert_eq!(int_1.bounds.end(), &10, "Issue with upper bound of Int.");
 
-        assert!(int_1.is_in(&0), "Issue with is_in for lower bound of Int.");
-        assert!(int_1.is_in(&5), "Issue with is_in for mid value from Int.");
-        assert!(int_1.is_in(&10), "Issue with is_in for upper bound of Int.");
+        assert!(int_1.contains(&0), "Issue with is_in for lower bound of Int.");
+        assert!(int_1.contains(&5), "Issue with is_in for mid value from Int.");
+        assert!(int_1.contains(&10), "Issue with is_in for upper bound of Int.");
         assert!(
-            !int_1.is_in(&-1),
+            !int_1.contains(&-1),
             "Issue with is_in with value < lower bound of Int."
         );
         assert!(
-            !int_1.is_in(&11),
+            !int_1.contains(&11),
             "Issue with is_in with value > upper bound of Int."
         );
     }
@@ -91,9 +91,9 @@ mod check_bounds {
     fn bool() {
         let bool_1 = Bool::new(Bernoulli(0.5));
 
-        assert!(bool_1.is_in(&true), "Issue with is_in for `true` of Bool.");
+        assert!(bool_1.contains(&true), "Issue with is_in for `true` of Bool.");
         assert!(
-            bool_1.is_in(&false),
+            bool_1.contains(&false),
             "Issue with is_in for `false` of Bool."
         );
     }
@@ -109,19 +109,19 @@ mod check_bounds {
         assert_eq!(&values, &check, "Issue with content of Cat.");
 
         assert!(
-            cat_1.is_in(&String::from("relu")),
+            cat_1.contains(&String::from("relu")),
             "Issue with is_in for the first element of Cat."
         );
         assert!(
-            cat_1.is_in(&String::from("tanh")),
+            cat_1.contains(&String::from("tanh")),
             "Issue with is_in for the second element of Cat."
         );
         assert!(
-            cat_1.is_in(&String::from("sigmoid")),
+            cat_1.contains(&String::from("sigmoid")),
             "Issue with is_in for the third element of Cat."
         );
         assert!(
-            !cat_1.is_in(&String::from("a")),
+            !cat_1.contains(&String::from("a")),
             "Issue with is_in with value not in values of Cat."
         );
     }
@@ -132,23 +132,23 @@ mod check_bounds {
         assert_eq!(unit.bounds.end(), &1.0, "Issue with upper bound of Unit.");
 
         assert!(
-            unit.is_in(&0.0),
+            unit.contains(&0.0),
             "Issue with is_in for lower bound of Unit."
         );
         assert!(
-            unit.is_in(&0.5),
+            unit.contains(&0.5),
             "Issue with is_in for mid value from Unit."
         );
         assert!(
-            unit.is_in(&1.0),
+            unit.contains(&1.0),
             "Issue with is_in for upper bound of Unit."
         );
         assert!(
-            !unit.is_in(&-1.0),
+            !unit.contains(&-1.0),
             "Issue with is_in with value < lower bound of Unit."
         );
         assert!(
-            !unit.is_in(&11.0),
+            !unit.contains(&11.0),
             "Issue with is_in with value > upper bound of Unit."
         );
     }
@@ -160,27 +160,27 @@ mod check_bounds {
         assert_eq!(&values, &check, "Issue with content of GridReal.");
 
         assert!(
-            greal_1.is_in(&-2.0),
+            greal_1.contains(&-2.0),
             "Issue with is_in for the first element of GridReal."
         );
         assert!(
-            greal_1.is_in(&-1.0),
+            greal_1.contains(&-1.0),
             "Issue with is_in for the second element of GridReal."
         );
         assert!(
-            greal_1.is_in(&0.0),
+            greal_1.contains(&0.0),
             "Issue with is_in for the third element of GridReal."
         );
         assert!(
-            greal_1.is_in(&1.0),
+            greal_1.contains(&1.0),
             "Issue with is_in for the fourth element of GridReal."
         );
         assert!(
-            greal_1.is_in(&2.0),
+            greal_1.contains(&2.0),
             "Issue with is_in for the fifth element of GridReal."
         );
         assert!(
-            !greal_1.is_in(&3.0),
+            !greal_1.contains(&3.0),
             "Issue with is_in with value not in values of GridReal."
         );
     }
@@ -192,27 +192,27 @@ mod check_bounds {
         assert_eq!(&values, &check, "Issue with content of GridInt.");
 
         assert!(
-            greal_1.is_in(&-2),
+            greal_1.contains(&-2),
             "Issue with is_in for the first element of GridInt."
         );
         assert!(
-            greal_1.is_in(&-1),
+            greal_1.contains(&-1),
             "Issue with is_in for the second element of GridInt."
         );
         assert!(
-            greal_1.is_in(&0),
+            greal_1.contains(&0),
             "Issue with is_in for the third element of GridInt."
         );
         assert!(
-            greal_1.is_in(&1),
+            greal_1.contains(&1),
             "Issue with is_in for the fourth element of GridInt."
         );
         assert!(
-            greal_1.is_in(&2),
+            greal_1.contains(&2),
             "Issue with is_in for the fifth element of GridInt."
         );
         assert!(
-            !greal_1.is_in(&3),
+            !greal_1.contains(&3),
             "Issue with is_in with value not in values of GridInt."
         );
     }
@@ -224,19 +224,19 @@ mod check_bounds {
         assert_eq!(&values, &check, "Issue with content of GridNat.");
 
         assert!(
-            greal_1.is_in(&0),
+            greal_1.contains(&0),
             "Issue with is_in for the first element of GridNat."
         );
         assert!(
-            greal_1.is_in(&1),
+            greal_1.contains(&1),
             "Issue with is_in for the second element of GridNat."
         );
         assert!(
-            greal_1.is_in(&2),
+            greal_1.contains(&2),
             "Issue with is_in for the third element of GridNat."
         );
         assert!(
-            !greal_1.is_in(&3),
+            !greal_1.contains(&3),
             "Issue with is_in with value not in values of GridNat."
         );
     }
@@ -327,7 +327,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let real_1 = Real::new(0.0, 10.0, Uniform);
         assert!(
-            real_1.is_in(&real_1.sample(&mut rng)),
+            real_1.contains(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -336,7 +336,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let nat_1 = Nat::new(0, 10, Uniform);
         assert!(
-            nat_1.is_in(&nat_1.sample(&mut rng)),
+            nat_1.contains(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -345,7 +345,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let int_1 = Int::new(0, 10, Uniform);
         assert!(
-            int_1.is_in(&int_1.sample(&mut rng)),
+            int_1.contains(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
         );
     }
@@ -354,7 +354,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let bool_1 = Bool::new(Bernoulli(0.5));
         assert!(
-            bool_1.is_in(&bool_1.sample(&mut rng)),
+            bool_1.contains(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -363,7 +363,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
         assert!(
-            cat_1.is_in(&cat_1.sample(&mut rng)),
+            cat_1.contains(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -372,7 +372,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let unit_1: Unit = Unit::new(Uniform);
         assert!(
-            unit_1.is_in(&unit_1.sample(&mut rng)),
+            unit_1.contains(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
         );
     }
@@ -382,7 +382,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let gridreal_1 = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform);
         assert!(
-            gridreal_1.is_in(&gridreal_1.sample(&mut rng)),
+            gridreal_1.contains(&gridreal_1.sample(&mut rng)),
             "Error while sampling with the default sampler of GridReal"
         );
     }
@@ -391,7 +391,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let gridnat_1 = GridNat::new([0_u64, 1, 2, 3, 4], Uniform);
         assert!(
-            gridnat_1.is_in(&gridnat_1.sample(&mut rng)),
+            gridnat_1.contains(&gridnat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of GridNat"
         );
     }
@@ -400,7 +400,7 @@ mod check_default_sampler {
         let mut rng = rand::rng();
         let gridint_1 = GridInt::new([-2, -1, 0, 1, 2], Uniform);
         assert!(
-            gridint_1.is_in(&gridint_1.sample(&mut rng)),
+            gridint_1.contains(&gridint_1.sample(&mut rng)),
             "Error while sampling with the default sampler of GridInt"
         );
     }
@@ -417,7 +417,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let real_1 = Mixed::Real(Real::new(0.0, 10.0, Uniform));
         assert!(
-            real_1.is_in(&real_1.sample(&mut rng)),
+            real_1.contains(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -426,7 +426,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let nat_1 = Mixed::Nat(Nat::new(0, 10, Uniform));
         assert!(
-            nat_1.is_in(&nat_1.sample(&mut rng)),
+            nat_1.contains(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Nat"
         );
     }
@@ -435,7 +435,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let int_1 = Mixed::Int(Int::new(0, 10, Uniform));
         assert!(
-            int_1.is_in(&int_1.sample(&mut rng)),
+            int_1.contains(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
         );
     }
@@ -444,7 +444,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let bool_1 = Mixed::Bool(Bool::new(Bernoulli(0.5)));
         assert!(
-            bool_1.is_in(&bool_1.sample(&mut rng)),
+            bool_1.contains(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Bool"
         );
     }
@@ -453,7 +453,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let cat_1 = Mixed::Cat(Cat::new(["relu", "tanh", "sigmoid"], Uniform));
         assert!(
-            cat_1.is_in(&cat_1.sample(&mut rng)),
+            cat_1.contains(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Cat"
         );
     }
@@ -462,7 +462,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let unit_1 = Mixed::Unit(Unit::new(Uniform));
         assert!(
-            unit_1.is_in(&unit_1.sample(&mut rng)),
+            unit_1.contains(&unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Unit"
         );
     }
@@ -471,7 +471,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let gridreal_1 = Mixed::GridReal(GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform));
         assert!(
-            gridreal_1.is_in(&gridreal_1.sample(&mut rng)),
+            gridreal_1.contains(&gridreal_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Mixed::GridReal"
         );
     }
@@ -480,7 +480,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let gridnat_1 = Mixed::GridNat(GridNat::new([0_u64, 1, 2, 3, 4], Uniform));
         assert!(
-            gridnat_1.is_in(&gridnat_1.sample(&mut rng)),
+            gridnat_1.contains(&gridnat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Mixed::GridNat"
         );
     }
@@ -489,7 +489,7 @@ mod check_default_sampler_mixed {
         let mut rng = rand::rng();
         let gridint_1 = Mixed::GridInt(GridInt::new([-2, -1, 0, 1, 2], Uniform));
         assert!(
-            gridint_1.is_in(&gridint_1.sample(&mut rng)),
+            gridint_1.contains(&gridint_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Mixed::GridInt"
         );
     }

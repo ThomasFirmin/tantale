@@ -7,7 +7,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let real_1 = Real::new(0.0, 10.0, Uniform);
         assert!(
-            real_1.is_in(&real_1.sample(&mut rng)),
+            real_1.contains(&real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -16,7 +16,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let nat_1 = Nat::new(0, 10, Uniform);
         assert!(
-            nat_1.is_in(&nat_1.sample(&mut rng)),
+            nat_1.contains(&nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -25,7 +25,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let int_1 = Int::new(0, 10, Uniform);
         assert!(
-            int_1.is_in(&int_1.sample(&mut rng)),
+            int_1.contains(&int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Int"
         );
     }
@@ -34,7 +34,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let bool_1 = Bool::new(Bernoulli(0.5));
         assert!(
-            bool_1.is_in(&bool_1.sample(&mut rng)),
+            bool_1.contains(&bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -43,7 +43,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let cat_1 = Cat::new(["relu", "tanh", "sigmoid"], Uniform);
         assert!(
-            cat_1.is_in(&cat_1.sample(&mut rng)),
+            cat_1.contains(&cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -53,7 +53,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let greal_1 = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform);
         assert!(
-            greal_1.is_in(&greal_1.sample(&mut rng)),
+            greal_1.contains(&greal_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -62,7 +62,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let gnat_1 = GridNat::new([0_u64, 10, 20, 30], Uniform);
         assert!(
-            gnat_1.is_in(&gnat_1.sample(&mut rng)),
+            gnat_1.contains(&gnat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -71,7 +71,7 @@ mod check_sampler {
         let mut rng = rand::rng();
         let gint_1 = GridInt::new([-50_i64, -25, 0, 25, 50], Uniform);
         assert!(
-            gint_1.is_in(&gint_1.sample(&mut rng)),
+            gint_1.contains(&gint_1.sample(&mut rng)),
             "Error while sampling with the default sampler of Real"
         );
     }
@@ -87,7 +87,7 @@ mod check_sampler_base {
         let mixed: Mixed = Real::new(0.0, 10.0, Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Real"
         );
     }
@@ -97,7 +97,7 @@ mod check_sampler_base {
         let mixed: Mixed = Nat::new(0, 10, Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Nat"
         );
     }
@@ -107,7 +107,7 @@ mod check_sampler_base {
         let mixed: Mixed = Int::new(0, 10, Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Int"
         );
     }
@@ -117,7 +117,7 @@ mod check_sampler_base {
         let mixed: Mixed = Bool::new(Bernoulli(0.5)).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Bool"
         );
     }
@@ -127,7 +127,7 @@ mod check_sampler_base {
         let mixed: Mixed = Cat::new(["relu", "tanh", "sigmoid"], Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Cat"
         );
     }
@@ -137,7 +137,7 @@ mod check_sampler_base {
         let mixed: Mixed = Unit::new(Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Unit"
         );
     }
@@ -148,7 +148,7 @@ mod check_sampler_base {
         let mixed: Mixed = GridReal::new([-2.0, -1.0, 0.0, 1.0, 2.0], Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridReal"
         );
     }
@@ -159,7 +159,7 @@ mod check_sampler_base {
         let mixed: Mixed = GridNat::new([0_u64, 10, 20, 30], Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridNat"
         );
     }
@@ -170,7 +170,7 @@ mod check_sampler_base {
         let mixed: Mixed = GridInt::new([-50_i64, -25, 0, 25, 50], Uniform).into();
 
         assert!(
-            mixed.is_in(&mixed.sample(&mut rng)),
+            mixed.contains(&mixed.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridInt"
         );
     }
@@ -206,83 +206,83 @@ mod check_sampler_base {
         let mixed_gint_2: Mixed = GridInt::new([-500_i64, -250, 250, 500], Uniform).into();
 
         assert!(
-            mixed_real_1.is_in(&mixed_real_1.sample(&mut rng)),
+            mixed_real_1.contains(&mixed_real_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Real"
         );
         assert!(
-            mixed_real_2.is_in(&mixed_real_2.sample(&mut rng)),
+            mixed_real_2.contains(&mixed_real_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Real"
         );
 
         assert!(
-            mixed_nat_1.is_in(&mixed_nat_1.sample(&mut rng)),
+            mixed_nat_1.contains(&mixed_nat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Nat"
         );
         assert!(
-            mixed_nat_2.is_in(&mixed_nat_2.sample(&mut rng)),
+            mixed_nat_2.contains(&mixed_nat_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Nat"
         );
 
         assert!(
-            mixed_int_1.is_in(&mixed_int_1.sample(&mut rng)),
+            mixed_int_1.contains(&mixed_int_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Int"
         );
         assert!(
-            mixed_int_2.is_in(&mixed_int_2.sample(&mut rng)),
+            mixed_int_2.contains(&mixed_int_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Int"
         );
 
         assert!(
-            mixed_bool_1.is_in(&mixed_bool_1.sample(&mut rng)),
+            mixed_bool_1.contains(&mixed_bool_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Bool"
         );
         assert!(
-            mixed_bool_2.is_in(&mixed_bool_2.sample(&mut rng)),
+            mixed_bool_2.contains(&mixed_bool_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Bool"
         );
 
         assert!(
-            mixed_cat_1.is_in(&mixed_cat_1.sample(&mut rng)),
+            mixed_cat_1.contains(&mixed_cat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Cat"
         );
         assert!(
-            mixed_cat_2.is_in(&mixed_cat_2.sample(&mut rng)),
+            mixed_cat_2.contains(&mixed_cat_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Cat"
         );
 
         assert!(
-            mixed_unit_1.is_in(&mixed_unit_1.sample(&mut rng)),
+            mixed_unit_1.contains(&mixed_unit_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Unit"
         );
         assert!(
-            mixed_unit_2.is_in(&mixed_unit_2.sample(&mut rng)),
+            mixed_unit_2.contains(&mixed_unit_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::Unit"
         );
 
         assert!(
-            mixed_greal_1.is_in(&mixed_greal_1.sample(&mut rng)),
+            mixed_greal_1.contains(&mixed_greal_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridReal"
         );
         assert!(
-            mixed_greal_2.is_in(&mixed_greal_2.sample(&mut rng)),
+            mixed_greal_2.contains(&mixed_greal_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridReal"
         );
 
         assert!(
-            mixed_gnat_1.is_in(&mixed_gnat_1.sample(&mut rng)),
+            mixed_gnat_1.contains(&mixed_gnat_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridNat"
         );
         assert!(
-            mixed_gnat_2.is_in(&mixed_gnat_2.sample(&mut rng)),
+            mixed_gnat_2.contains(&mixed_gnat_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridNat"
         );
 
         assert!(
-            mixed_gint_1.is_in(&mixed_gint_1.sample(&mut rng)),
+            mixed_gint_1.contains(&mixed_gint_1.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridInt"
         );
         assert!(
-            mixed_gint_2.is_in(&mixed_gint_2.sample(&mut rng)),
+            mixed_gint_2.contains(&mixed_gint_2.sample(&mut rng)),
             "Error while sampling with the default sampler of BaseDom::GridInt"
         );
     }

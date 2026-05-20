@@ -23,7 +23,7 @@ use std::{fmt, ops::RangeInclusive};
 ///
 /// let mut rng = rand::rng();
 /// let sample = dom.sample(&mut rng);
-/// assert!(dom.is_in(&sample));
+/// assert!(dom.contains(&sample));
 /// assert_eq!(*dom.bounds.start(), 0.0);
 /// assert_eq!(*dom.bounds.end(), 1.0);
 /// assert_eq!(dom.mid, 0.5);
@@ -63,7 +63,7 @@ impl Domain for Unit {
         self.sampler.sample(self, rng)
     }
 
-    fn is_in(&self, item: &Self::TypeDom) -> bool {
+    fn contains(&self, item: &Self::TypeDom) -> bool {
         self.bounds.contains(item)
     }
 }
@@ -132,12 +132,12 @@ where
         item: &Self::Item,
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let a: f64 = *item;
             let c: f64 = target.width.as_();
             let mapped: Out = (a * c).as_() + *target.bounds.start();
 
-            if target.is_in(&mapped) {
+            if target.contains(&mapped) {
                 Ok(mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))
@@ -175,7 +175,7 @@ where
     ///     * if [`Onto::Item`] to be mapped is not into [`Unit`] domain.
     ///     * if [`Onto::TargetItem`] is not into the [`Bool`] domain.
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             Ok(*item > 0.5)
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
@@ -214,7 +214,7 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
         item: &Self::Item,
         target: &GridDom<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
-        if self.is_in(item) {
+        if self.contains(item) {
             let a: f64 = item.as_();
             let c: f64 = target.values.len().as_();
             let idx = (a * c) as usize;
@@ -225,7 +225,7 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
             };
             let mapped = target.values[idx].clone();
 
-            if target.is_in(&mapped) {
+            if target.contains(&mapped) {
                 Ok(mapped)
             } else {
                 Err(OntoError(format!("{} input not in {}", item, self)))

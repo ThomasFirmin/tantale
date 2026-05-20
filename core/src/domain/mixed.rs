@@ -119,18 +119,18 @@ impl Domain for Mixed {
         }
     }
 
-    /// Checks if a given point is in the [`Mixed`] domain, according to each sub-domain `is_in` method.
-    fn is_in(&self, item: &Self::TypeDom) -> bool {
+    /// Checks if a given point is in the [`Mixed`] domain, according to each sub-domain `contains` method.
+    fn contains(&self, item: &Self::TypeDom) -> bool {
         match (self, item) {
-            (Self::Real(e), MixedTypeDom::Real(i)) => e.is_in(i),
-            (Self::Nat(e), MixedTypeDom::Nat(i)) => e.is_in(i),
-            (Self::Int(e), MixedTypeDom::Int(i)) => e.is_in(i),
-            (Self::Bool(e), MixedTypeDom::Bool(i)) => e.is_in(i),
-            (Self::Cat(e), MixedTypeDom::Cat(i)) => e.is_in(i),
-            (Self::Unit(e), MixedTypeDom::Unit(i)) => e.is_in(i),
-            (Self::GridReal(e), MixedTypeDom::Real(i)) => e.is_in(i),
-            (Self::GridNat(e), MixedTypeDom::Nat(i)) => e.is_in(i),
-            (Self::GridInt(e), MixedTypeDom::Int(i)) => e.is_in(i),
+            (Self::Real(e), MixedTypeDom::Real(i)) => e.contains(i),
+            (Self::Nat(e), MixedTypeDom::Nat(i)) => e.contains(i),
+            (Self::Int(e), MixedTypeDom::Int(i)) => e.contains(i),
+            (Self::Bool(e), MixedTypeDom::Bool(i)) => e.contains(i),
+            (Self::Cat(e), MixedTypeDom::Cat(i)) => e.contains(i),
+            (Self::Unit(e), MixedTypeDom::Unit(i)) => e.contains(i),
+            (Self::GridReal(e), MixedTypeDom::Real(i)) => e.contains(i),
+            (Self::GridNat(e), MixedTypeDom::Nat(i)) => e.contains(i),
+            (Self::GridInt(e), MixedTypeDom::Int(i)) => e.contains(i),
             _ => false, // Type mismatch
         }
     }

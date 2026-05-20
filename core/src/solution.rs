@@ -45,8 +45,8 @@
 //! ## Multi-Fidelity Support
 //!
 //! For multi-fidelity optimization, solutions can track:
-//! - **[`Step`]** progress via [`HasStep`]
-//! - **[`Fidelity`]** level via [`HasFidelity`]
+//! - **[`Step`](crate::Step)** progress via [`HasStep`](crate::HasStep)
+//! - **[`Fidelity`]** level via [`HasFidelity`](crate::HasFidelity)
 //!
 //! This enables progressive evaluation and resource allocation strategies.
 //!
@@ -80,11 +80,11 @@
 //!
 
 use crate::{
-    Dominate, HasId, HasSolInfo, HasY, Multi, Outcome, domain::{Codomain, Domain}, solution::shape::CompPair
+    HasId, HasSolInfo, HasY, Outcome, domain::{Codomain, Domain}, has_trait::HasX
 };
 
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 /// Metadata associated with a solution during optimization.
 ///
@@ -127,7 +127,7 @@ pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 /// - [`Computed`] - Wrapper for evaluated solutions
 pub trait Solution<SolId, Dom, SInfo>
 where
-    Self: Sized + Debug + HasId<SolId> + HasSolInfo<SInfo> + Serialize + for<'de> Deserialize<'de>,
+    Self: Sized + Debug + HasX<Self::Raw> + HasId<SolId> + HasSolInfo<SInfo> + Serialize + for<'de> Deserialize<'de>,
     SolId: Id,
     SInfo: SolInfo,
     Dom: Domain,
@@ -152,17 +152,6 @@ where
         &self,
         x: <Self::Twin<B> as Solution<SolId, B, SInfo>>::Raw,
     ) -> Self::Twin<B>;
-
-    /// Returns the raw values for this solution.
-    ///
-    /// This is the actual sampled point from the domain, represented in the
-    /// domain's [`Raw`](Solution::Raw) type.
-    fn get_x(&self) -> &Self::Raw;
-
-    /// Creates a clone of the raw values for this solution.
-    fn clone_x(&self) -> Self::Raw {
-        self.get_x().clone()
-    }
 
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
@@ -196,8 +185,9 @@ where
 /// - [`new`](Uncomputed::new) - From explicit values
 /// - [`default`](Uncomputed::default) - Placeholder with zero/default values
 /// - [`default_vec`](Uncomputed::default_vec) - Batch of placeholders
-pub trait Uncomputed<SolId, Dom, SInfo>: Solution<SolId, Dom, SInfo> + IntoComputed
+pub trait Uncomputed<SolId, Dom, SInfo>
 where
+    Self: Solution<SolId, Dom, SInfo> + IntoComputed,
     SolId: Id,
     Dom: Domain,
     SInfo: SolInfo,
@@ -336,278 +326,6 @@ pub trait IntoComputed: Sized {
     fn extract<Cod: Codomain<Out>, Out: Outcome>(
         comp: Self::Computed<Cod, Out>,
     ) -> (Self, Arc<Cod::TypeCodom>);
-}
-
-impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialEq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
-    Out: Outcome,
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.y() == other.y()
-    }
-}
-
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Eq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
-    Out: Outcome,
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
-{
-}
-
-impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialOrd for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
-    Out: Outcome,
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.y().partial_cmp(&other.y())
-    }
-}
-
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Ord for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
-    Out: Outcome,
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.y().cmp(&other.y())
-    }
-}
-
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Dominate for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
-    Out: Outcome,
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
-{
-    fn dominates(&self, other: &Self) -> bool {
-        self.y().dominates(&other.y())
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y().get_objective_by_index(idx)
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
-    }
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialEq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.y() == other.y()
-    }
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Eq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
-{
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialOrd
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.y().partial_cmp(&other.y())
-    }
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Ord
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.y().cmp(&other.y())
-    }
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Dominate
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
-{
-    fn dominates(&self, other: &Self) -> bool {
-        self.y().dominates(&other.y())
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y().get_objective_by_index(idx)
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
-    }
-}
-
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialEq
-    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.y() == other.y()
-    }
-}
-
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Eq for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-{
-}
-
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialOrd
-    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.y().partial_cmp(&other.y())
-    }
-}
-
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Ord for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.y().cmp(&other.y())
-    }
-}
-
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
-where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-{
-    fn dominates(&self, other: &Self) -> bool {
-        self.y().dominates(&other.y())
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y().get_objective_by_index(idx)
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
-    }
 }
 
 /// Type alias for the twin solution type in an alternative domain.
