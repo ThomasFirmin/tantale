@@ -1,40 +1,27 @@
-# Tantale core
+# Tantale
 
-`tantale_core` is the foundational crate of the [Tantale](https://github.com/your-org/tantale) AutoML library.
-It defines the modeling layer (domains, variables, search spaces, solutions), the optimization layer (objectives, optimizers, stop criteria), and the execution layer (experiments, recorders, checkpointing).
+**Tantale** is a Rust library for **Automated Machine Learning (AutoML)**, focusing on:
+- **Hyperparameter Optimization (HPO)** — find the best hyperparameters for a model.
+- **Neural Architecture Search (NAS)** *(planned)* — find the best architecture for a neural network.
 
-> **Note:** This is the first release of the core library. It is stable and usable but designed to evolve. Most users will interact with the top-level `tantale` crate, which re-exports this crate as `tantale::core`.
-
----
-
-## Architecture overview
-
-```
-tantale_core
-|--- domain        — Domain definitions (Real, Int, Nat, Cat, Bool, Unit, Mixed…) and Codomain (objective outputs)
-|--- sampler       — Sampling utilities and probability distributions (Uniform, Bernoulli…)
-|--- variable      — Var: relates objective and optimizer domains via Onto mappings
-|--- searchspace   — Searchspace: composition of Vars into a typed search space (Sp, SpPar)
-|--- solution      — Solution shapes, identifiers, fidelity, computed wrappers (Uncomputed, Computed, Batch…)
-|--- objective     — Objective functions, multi-step evaluation (Stepped), outcomes
-|--- optimizer     — Optimizer traits (BatchOptimizer, SequentialOptimizer) and state metadata
-|--- stop          — Stop criteria (Calls, Evaluated…)
-|--- experiment    — Execution pipelines: mono, threaded, distributed (MPI)
-|--- recorder      — Result logging utilities (CSVRecorder, NoSaver…)
-|--- checkpointer  — Experiment checkpointing (MessagePack)
-```
+> **Why Rust?**
+> AutoML is computationally expensive, and all types are statically known from the search space definition.
+> AutoML involves long run and costly experiments. Thus, Rust's provide higher rank security with its strong
+> type system which catches errors at compile time, eliminates whole classes of runtime bugs, 
+> and delivers the performance needed when running thousands of evaluations or benchmarking algorithms without an expensive objective.
 
 ---
 
-## Main building blocks
+## Crate structure
 
-| Category | Items |
-|---|---|
-| **Modeling** | `Domain`, `Var`, `Searchspace`, `Solution` |
-| **Objective** | `Objective`, `Outcome`, `Stepped`, `Step` |
-| **Optimization** | `Optimizer`, `BatchOptimizer`, `SequentialOptimizer` |
-| **Execution** | `Runable`, `MonoExperiment`, `ThrExperiment`, `MPIExperiment` |
-| **Support** | `Recorder`, `Checkpointer`, `Stop`, `FolderConfig` |
+Tantale is a workspace of three crates, re-exported from this top-level crate:
+
+| Sub-crate | Re-exported as | Role |
+|---|---|---|
+| `tantale_core` | `tantale::core` | Core abstractions: domains, search spaces, solutions, objectives, optimizers, experiments |
+| `tantale_macros` | `tantale::macros` | Procedural macros: `objective!`, `hpo!`, `Outcome`... |
+| `tantale_algos` | `tantale::algos` | Concrete algorithms: Random Search, SHA, ASHA, Hyperband |
+| `tantale_python` | `tantale::python` | Python bindings with [pyo3](https://pyo3.rs) |
 
 ---
 
@@ -42,45 +29,32 @@ tantale_core
 
 | Flag | Description |
 |---|---|
-| `mpi` | Enables MPI-based distributed execution via `MPIExperiment` and related helpers. Requires a local MPI installation (e.g. OpenMPI). |
+| `mpi` | Enables MPI-based distributed execution across multiple machines. Requires a local MPI installation (e.g. OpenMPI). Propagates to `tantale_core` and `tantale_algos`. |
+| `py` | Enables Python bindings with [pyo3](https://pyo3.rs) allowing to optimize Python functions |
 
 ---
 
-## Dependencies
+## Installation
 
-| Crate | Role |
-|---|---|
-| `num` | Traits for numeric types |
-| `rand` | RNG traits used by domains and samplers to generate valid values |
-| `rayon` | Parallel evaluation in synchronous batched optimization and `SpPar` utilities |
-| `csv` | CSV-backed `CSVRecorder` |
-| `serde` | Serialization / deserialization for all core types (required for checkpointing) |
-| `rmp-serde` | MessagePack serialization used by `MessagePack` for compact checkpointing |
-| `mpi` *(features = mpi)*| Message parsing interface, for distributed computing |
-| `bincode` *(optional)* | Binary serialization for MPI message passing |
-| `bitvec` *(optional)* | Bit-level storage used by MPI idle-worker tracking |
-| `num_cpus` | Detects available CPU cores to size thread pools in multi-threaded execution |
-| `indexmap` | Used for managing pools of funcstate, in order to implement FIFO pruning of old states | 
+```console
+foo@bar:~$ cargo add tantale
+```
+
+Minimum supported Rust version: **1.91.1** (2024 edition).
 
 ---
 
-## Usage
+## Algorithms
 
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-tantale_core = { version = "0.1.1" }
-# or, for MPI-distributed execution:
-tantale_core = { version = "0.1.1", features = ["mpi"] }
-```
-
-Prefer the top-level `tantale` crate:
-
-```toml
-[dependencies]
-tantale = { version = "0.1.1" }
-```
+| Algorithm | Module | Type | Multi-fidelity | Multi-objective | Description |
+|---|---|---|---|---|---|
+| Random Search | `tantale::algos::random_search` | Sequential | No |  No | Sequential Random sampling |
+| BatchRandomSearch | `tantale::algos::random_search` | Batched | No |  No | Random sampling in fixed-size batches |
+| GridSearch | `tantale::algos::grid_search` | Sequential | No |  No | Deterministic sequential sampling of a grid of solutions|
+| SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
+| ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
+| Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
+| MO-ASHA | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-ASHA](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
 
 ---
 
@@ -88,11 +62,11 @@ tantale = { version = "0.1.1" }
 
 ### 1 — Define the objective function
 
-The `objective!` macro builds a `Searchspace` and wraps a user-defined function into an `Objective`.
-It must be called inside a dedicated module or file so that the generated code does not conflict with the surrounding scope.
+The `objective!` macro extracts the search space from the function body and produces:
+- `example::get_searchspace()` — the typed `Searchspace`.
+- `example::get_function()` — the user function wrapped in an `Objective` or `Stepped`.
 
-Each variable is declared with the syntax `[! name | ObjectiveDomain | OptimizerDomain !]`.
-When the optimizer domain is left empty (`!]`), the optimizer searches directly over the objective domain.
+It must be called inside a dedicated module or file.
 
 ```rust
 mod searchspace {
@@ -108,11 +82,11 @@ mod searchspace {
 
     objective!(
         pub fn example() -> OutExample {
-            let _a = [! a | Int(0,100,    Uniform)                    | !];
-            let _b = [! b | Nat(0,100,    Uniform)                    | !];
-            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-            let _d = [! d | Bool(Bernoulli(0.5))                      | !];
-            let e  = [! e | Real(1000.0, 2000.0, Uniform)             | !];
+            let _a = [! a | Int(0, 100, Uniform)                      | !];
+            let _b = [! b | Nat(0, 100, Uniform)                      | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | !];
+            let _d = [! d | Bool(Bernoulli(0.5))                       | !];
+            let e  = [! e | Real(1000.0, 2000.0, Uniform)              | !];
 
             OutExample {
                 obj:  e,
@@ -123,18 +97,16 @@ mod searchspace {
 }
 ```
 
-The macro generates:
-- `example::get_searchspace()` — returns the `Searchspace` object.
-- `example::get_function()` — returns the function wrapped in an `Objective`.
-- `example::ObjType` / `example::OptType` — type aliases for the objective and optimizer solution domains.
+Each variable is declared with `[! name | ObjectiveDomain | OptimizerDomain !]`.
+Leaving the optimizer domain empty (`| !]`) means the optimizer searches directly over the objective domain.
 
-### 2 — Run a batch optimization experiment
+### 2 — Assemble and run the experiment
 
 ```rust
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{random_search, BatchRandomSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -142,65 +114,65 @@ use std::sync::Arc;
 
 let sp  = get_searchspace();
 let obj = get_function();
-let opt = BatchRandomSearch::new(7);
-let cod = random_search::codomain(|o: &OutExample| o.obj);
+let opt = BatchRandomSearch::new(7);                              // batch size = 7
+let cod = random_search::codomain(|o: &OutExample| o.obj);       // maximize o.obj
 
-let stop   = Calls::new(50);
+let stop   = Calls::new(50);                                     // stop after 50 evaluations
 let config = Arc::new(FolderConfig::new("run_batch"));
 let rec    = CSVRecorder::new(config.clone(), true, true, true, true);
 let check  = MessagePack::new(config);
 
-let exp         = mono((sp, cod), obj, opt, stop, (rec, check));
+let exp         = mono((sp, cod), obj, opt, stop, (rec, check)); // mono-threaded
 let accumulator = exp.run();
 let best        = accumulator.get().unwrap().get_sobj();
-println!("Best: f({:?}) = {}", best.get_x(), best.y().value);
+println!("Best: f({:?}) = {}", best.ref_x(), best.y().value);
 ```
 
----
+## Experiment components
 
-## Execution contexts
+An experiment is composed of up to 7 components:
 
-| Function | Type | Description |
+| Component | Trait | Role |
 |---|---|---|
-| `mono` | `MonoExperiment` | Single-threaded, sequential or batched |
-| `threaded` | `ThrExperiment` | Multi-threaded on a single machine |
-| `distributed` | `MPIExperiment` | MPI-distributed across multiple machines (`mpi` feature) |
+| Search space | `Searchspace` | Defines the input domain |
+| Codomain | `Codomain` | Extracts metrics (objective, constraints, cost) from an `Outcome` |
+| Function | `FuncWrapper` | The function to optimize (`Objective` or `Stepped`) |
+| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SequentialOptimizer`) |
+| Stop | `Stop` | Defines when to terminate (`Calls`, `Evaluated`, …) |
+| Recorder *(optional)* | `Recorder` | Logs solutions to disk (CSV, …) |
+| Checkpointer *(optional)* | `Checkpointer` | Saves and restores experiment state (MessagePack) |
+
+### Execution contexts
+
+| Function | Experiment | Parallelism |
+|---|---|---|
+| `mono` | `MonoExperiment` | Single-threaded |
+| `threaded` | `ThrExperiment` | Multi-threaded (one machine) |
+| `distributed` | `MPIExperiment` | MPI-distributed (multiple machines) |
 
 ### Parallelization philosophy
 
-- **Synchronous** (`BatchOptimizer`): batches of solutions are evaluated in parallel; optimization steps are sequential by batch.
-- **Asynchronous** (`SequentialOptimizer`): solutions are generated on demand as threads/processes become free.
+- **Synchronous** (`BatchOptimizer`): a full batch is evaluated in parallel before the next optimization step.
+- **Asynchronous** (`SequentialOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
 
 ---
 
-## Optimization concepts
+---
 
-### Searchspace and Domains
+## Macros
 
-A `Searchspace` is a product of typed `Var`s. Each variable has:
-- An **objective domain** — the domain in which the objective function is evaluated (e.g. `Real`, `Int`, `Cat`).
-- An **optimizer domain** — the domain in which the optimizer searches. When empty, it matches the objective domain.
-  The mapping between the two is handled by `Onto`.
+| Macro | Kind | Description |
+|---|---|---|
+| `objective!` | Declarative | Defines a search space and wraps a function into `Objective` / `Stepped` |
+| `hpo!` | Declarative | Concise search space definition (without a function body) |
+| `pyhpo!` | Declarative | Same as `hpo!` but for Python bindings (`py` feature) |
+| `Outcome` | Derive | Implements the `Outcome` trait for a result struct |
+| `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
+| `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
+| `OptInfo` | Derive | Attaches metadata to solutions produced by an optimizer |
+| `SolInfo` | Derive | Attaches per-solution metadata |
 
-Mixed-type search spaces are represented by `Mixed`.
-
-### Codomain
-
-A `Codomain` extracts the metrics to optimize from an `Outcome`. It defines the type of optimization problem:
-
-| Type | Description |
-|---|---|
-| `SingleCodomain` | Single real-valued objective |
-| `MultiCodomain` | Multi-objective (Pareto) |
-| `CostCodomain` | Cost-aware (objective + cost) |
-| `Constrained` | Constrained optimization |
-
-### Stopping criteria
-
-| Criterion | Description |
-|---|---|
-| `Calls` | Stop after a fixed number of function evaluations |
-| `Evaluated` | Stop after a fixed number of fully evaluated solutions (multi-fidelity) |
+---
 
 ---
 

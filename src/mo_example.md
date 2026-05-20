@@ -223,7 +223,7 @@ mod searchspace {
 # }
 
 use tantale::{algos::mo::NSGA2Selector, core::{
-    CSVRecorder, FolderConfig, HasY, MessagePack, SaverConfig, Solution, SolutionShape, experiment::{Runable, threaded}, stop::Calls
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SaverConfig, SolutionShape, experiment::{Runable, threaded}, stop::Calls
 }};
 use tantale::algos::{MoAsha, moasha};
 use searchspace::{get_searchspace, get_function, MoFidOutEvaluator};
@@ -259,7 +259,7 @@ let pareto = acc.get();
 for dominant in pareto {
     println!(
         "Dominant: f({:?}) ={:?}",
-        dominant.get_sobj().get_x(),
+        dominant.get_sobj().ref_x(),
         dominant.y().value
     );
 }

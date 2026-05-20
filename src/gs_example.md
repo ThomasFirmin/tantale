@@ -82,7 +82,7 @@ mod searchspace {
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{grid_search, GridSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -109,5 +109,5 @@ let check = MessagePack::new(config);
 let exp = mono((sp, cod), obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 let best = accumulator.get().unwrap().get_sobj();
-println!("Best solution found: f({:?}) = {}",best.get_x(), best.y().value);
+println!("Best solution found: f({:?}) = {}",best.ref_x(), best.y().value);
 ```

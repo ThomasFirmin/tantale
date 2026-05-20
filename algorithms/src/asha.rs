@@ -204,7 +204,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
 ///   evaluation state across fidelity levels
-/// - [`Stepped`] functions
+/// - [`Stepped`](tantale_core::Stepped) functions
 ///
 /// # Internal State
 ///

@@ -439,7 +439,7 @@ This file contains the definition of the experiment itself:
 ```rust, ignore
 use tantale::{
     algos::{MoAsha, mo::NSGA2Selector, moasha},
-    core::{CSVRecorder, Calls, DistSaverConfig, FolderConfig, HasY, MPIProcess, MessagePack, PoolMode, Solution, SolutionShape, distributed_with_pool},
+    core::{CSVRecorder, Calls, DistSaverConfig, FolderConfig, HasX, HasY, MPIProcess, MessagePack, PoolMode, SolutionShape, distributed_with_pool},
     python::{PyFidOutcome, init_python},
 };
 
@@ -499,7 +499,7 @@ use std::env;
         for dominant in pareto {
             println!(
                 "Dominant: f({:?}) = {:?}",
-                dominant.get_sobj().get_x(),
+                dominant.get_sobj().ref_x(),
                 dominant.y().value
             );
         }

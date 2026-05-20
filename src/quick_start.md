@@ -25,12 +25,15 @@ It must be called within a separate module/file. Here for example, we define an 
 The procedural macro generate the following items:
 - `example::get_searchspace()`: returns a `Searchspace` object containing all variables defined in the function body.
 - `example::get_function()`: returns the user-defined function wrapped in an [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped) object.
+
 Here `example` is wrapped in an [`Objective`](crate::core::Objective).
 - `example::ObjType`: the type of the solution used in the objective function.
+
 Here the [`Searchspace`](crate::core::Searchspace) is made of 4 variables of different types 
 ([`Real`](crate::core::Real), [`Int`](crate::core::Int), [`Cat`](crate::core::Cat), [`Bool`](crate::core::Bool) ,[`Unit`](crate::core::Unit)).
 So the domain of the objective function is of mixed types, and `example::ObjType` is an alias for [`Mixed`](crate::core::Mixed).
 - `example::OptType`: the type of the search space used for optimization.
+
 Here the right-hand side of the variable definitions are empty (replaced by a [`NoDomain`](crate::core::NoDomain) under the hood).
 This indicate that the optimizer will search over the domain of the objective function (left-hand side of the variable definitions).
 So the domain of the optimizer is the same as the domain of the objective function, and `example::OptType` is an alias for `example::ObjType` (which is [`Mixed`](crate::core::Mixed)).
@@ -80,14 +83,14 @@ mod searchspace {
 
 An optimization experiment is made of 7 components:
 - A [`FuncWrapper`](crate::core::FuncWrapper): [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped).
-It contains the function to optimize.
+  It contains the function to optimize.
 - A [`Searchspace`](crate::core::Searchspace): it contains the variables [`Var`](crate::core::Var) and their domains.
 - A [`Codomain`](crate::core::Codomain): it extracts the different metrics from an [`Outcome`](crate::core::Outcome), which will be optimized.
 * A [`Codomain`](crate::core::Codomain) defines [`Single`](crate::core::Single)-objective, [`Constrained`](crate::core::Constrained), [`Multi`](crate::core::Multi)-objective, [`Cost`](crate::core::Cost)-aware optimization problems.
 - An [`Optimizer`](crate::core::Optimizer): defines a single step of the optimization process.
-We distinguish between 2 types of optimizers:
-* [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
-* [`SequentialOptimizer`](crate::core::SequentialOptimizer): generates a single solution at each optimization step.
+  We distinguish between 2 types of optimizers:
+  * [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
+  * [`SequentialOptimizer`](crate::core::SequentialOptimizer): generates a single solution at each optimization step.
 - A [`Stop`](crate::core::Stop): defines the stopping criterion of the optimization process.
 - Optional [`Recorder`](crate::core::Recorder): defines how to log the optimization process.
 - Optional [`Checkpointer`](crate::core::Checkpointer): defines how to checkpoint the optimization process.
@@ -151,7 +154,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{random_search, BatchRandomSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -178,7 +181,7 @@ let check = MessagePack::new(config);
 let exp = mono((sp, cod), obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 let best = accumulator.get().unwrap().get_sobj();
-println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 ```
 
 
@@ -230,7 +233,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 # use tantale::core::{
 #     CSVRecorder, FolderConfig, MessagePack,
 #     experiment::{Runable, threaded}, stop::Calls,
-#     HasY, Solution, SolutionShape,
+#     HasX, HasY, SolutionShape,
 # };
 # use tantale::algos::{random_search, BatchRandomSearch};
 # use searchspace::{get_searchspace, get_function, OutExample};
@@ -257,7 +260,7 @@ println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
 let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 let best = accumulator.get().unwrap().get_sobj();
-println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 ```
 
 
@@ -316,7 +319,7 @@ foo@bar:~$ cargo add tantale --features mpi
 use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
     experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{random_search, BatchRandomSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -350,7 +353,7 @@ let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 if let Some(acc) = accumulator{ // <==== Because workers return None !
     let best = acc.get().unwrap().get_sobj();
-    println!("Best solution found: f({:?}) ={}",best.get_x(), best.y().value);
+    println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 }
 ```
 
