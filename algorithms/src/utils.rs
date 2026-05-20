@@ -3,14 +3,14 @@
 use serde::{Deserialize, Serialize};
 use tantale_core::{BaseSol, Batch, CompAcc, CompShape, FidelitySol, LinkOpt, Objective, RawObj, SId, StepSId, Stepped};
 
-/// A type alias for [`SolutionShape`](tantale_core::SolutionShape) made of [`Computed`](tantale_core::Computed) [`BaseSol`](tantale_core::BaseSol), identified with [`SId`].
+/// A type alias for [`SolutionShape`](tantale_core::SolutionShape) made of [`Computed`](tantale_core::Computed) [`BaseSol`], identified with [`SId`].
 pub type BCompShape<Scp, Out, SInfo, Cod> = CompShape<Scp,BaseSol<SId, LinkOpt<Scp>, SInfo>,SId,SInfo,Cod,Out>;
 /// A type alias for a [`Batch`] of [`BCompShape`]s, identified with [`SId`].
 pub type BatchBCompShape<Scp, Out, Info, SInfo, Cod> = Batch<SId, SInfo, Info, BCompShape<Scp, Out, SInfo, Cod>>;
 /// A type alias for an [`Accumulator`](tantale_core::Accumulator) of [`BCompShape`]s.
 pub type BCompAcc<Scp,Out, SInfo, Cod> = CompAcc<Scp,BaseSol<SId, LinkOpt<Scp>, SInfo>,SId,SInfo,Cod,Out>;
 
-/// A type alias for a [`CompShape`] made of [`Computed`](tantale_core::Computed) [`FidelitySol`](tantale_core::FidelitySol), identified with [`StepSId`].
+/// A type alias for a [`CompShape`] made of [`Computed`](tantale_core::Computed) [`FidelitySol`], identified with [`StepSId`].
 pub type FCompShape<Scp, Out, SInfo, Cod> = CompShape<Scp,FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,StepSId,SInfo,Cod,Out>;
 /// A type alias for a [`Batch`] of [`FCompShape`]s, identified with [`StepSId`].
 pub type BatchFCompShape<Scp, Out, Info, SInfo, Cod> = Batch<StepSId, SInfo, Info, FCompShape<Scp, Out, SInfo, Cod>>;
@@ -29,7 +29,7 @@ pub type SimpleStepped<Shape, SInfo, Out, State> = Stepped<RawObj<Shape, StepSId
     serialize = "T: Serialize",
     deserialize = "T: for<'a> Deserialize<'a>",
 ))]
-pub struct PointArchive<T>
+pub struct OrdArchive<T>
 where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
@@ -38,16 +38,16 @@ where
     pub points: Vec<T>,  // sorted ascending by point
 }
 
-impl <T> PointArchive<T>
+impl <T> OrdArchive<T>
 where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
     pub fn new() -> Self {
-        PointArchive { points: Vec::new() }
+        OrdArchive { points: Vec::new() }
     }
 }
 
-impl<T> Default for PointArchive<T>
+impl<T> Default for OrdArchive<T>
 where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
@@ -56,7 +56,7 @@ where
     }
 }
 
-impl<T> PointArchive<T>
+impl<T> OrdArchive<T>
 where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
@@ -66,5 +66,7 @@ where
     }
     pub fn size(&self) -> usize { self.points.len() }
 }
+
+pub type CompArchive<Scp,S,SolId,SInfo,Cod,Out> = OrdArchive<CompShape<Scp, S, SolId, SInfo, Cod, Out>>;
 
 pub mod mo;
