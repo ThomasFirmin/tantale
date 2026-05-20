@@ -1,7 +1,7 @@
 use tantale_core::errors::ErrMsg;
 use std::{error::Error, fmt};
 
-/// Error type for checkpointing operations from a [`Checkpointer`](crate::Checkpointer).
+/// Error type for splitting operations from a [`Splitter`](crate::bayesian::splitter::Splitter).
 pub struct SplitError(pub String);
 
 impl Error for SplitError {}

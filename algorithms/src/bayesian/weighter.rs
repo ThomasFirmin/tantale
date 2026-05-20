@@ -1,12 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-/// A struct to hold the weights for the good and bad sets, as well as the prior weights for both sets.
+
 #[derive(Serialize,Deserialize, Debug)]
+/// A struct to hold the weights for a set of points, as well as the prior weight.
+pub struct PointWeights{
+    pub weights: Vec<f64>,
+    pub prior_weight: f64,
+}
+
+impl PointWeights {
+    /// Computes the total weight by summing the individual weights and adding the prior weight.
+    pub fn total_weight(&self) -> f64 {
+        self.weights.iter().sum::<f64>() + self.prior_weight
+    }
+}
+
+#[derive(Serialize,Deserialize, Debug)]
+/// A struct to hold the weights for the good and bad sets, as well as the prior weights for both sets.
 pub struct TPEWeights{
-    pub good_weights: Vec<f64>,
-    pub bad_weights: Vec<f64>,
-    pub good_prior_weight: f64,
-    pub bad_prior_weight: f64,
+    pub good: PointWeights,
+    pub bad: PointWeights,
 }
 
 /// The [`Weighter`] trait defines a method for weighting the good and bad sets within the TPE algorithm.
@@ -24,15 +37,6 @@ where
     /// # Returns
     /// A [`TPEWeights`] struct containing the weights for the good and bad sets, as well as the prior weights for both sets.
     fn weight(&self, good: &[T], bad: &[T]) -> TPEWeights;
-
-    /// Returns a new instance of the weighter with the specified prior weight.
-    /// 
-    /// # Parameters
-    /// - `prior`: The prior weight to be used in the weighting scheme.
-    /// 
-    /// # Returns
-    /// A new instance of the weighter with the specified prior weight.
-    fn with_prior(self, prior: f64) -> Self;
 }
 
 /// A simple uniform [`Weighter`].
@@ -41,23 +45,29 @@ where
 /// 
 /// $$ 
 /// w_s = \\begin{cases}
-/// \\frac{1}{|\\texttt{good} + w_0|} & \\text{if } s \\in \\texttt{good} \\\\
-/// \\frac{1}{|\\texttt{bad} + w_0|} & \\text{if } s \\in \\texttt{bad}
-/// \end{cases}
+/// \\frac{1}{|\\texttt{good} + \\texttt{prior}|} & \\text{if } s \\in \\texttt{good} \\\\
+/// \\frac{1}{|\\texttt{bad} + \\texttt{prior}|} & \\text{if } s \\in \\texttt{bad}
+/// \end{cases}\enspace\\text{,}
+/// $$
+/// there is a $+1$ for the prior weight.
+/// The prior weight for each set is computed as:
+/// $$
+/// w_0 = \\frac{\\texttt{prior}}{|\\texttt{set}| + \\texttt{prior}}
 /// $$
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UniformWeighter(f64);
 
 impl UniformWeighter {
     /// Creates a new [`UniformWeighter`] with a default prior weight of 1.0.
-    pub fn new() -> Self {
-        UniformWeighter(1.0)
+    pub fn new(prior: f64) -> Self {
+        UniformWeighter(prior)
     }
 }
 
+/// The default implementation of [`UniformWeighter`] uses a prior weight of 1.0.
 impl Default for UniformWeighter {
     fn default() -> Self {
-        Self::new()
+        Self::new(1.0)
     }
 }
 
@@ -79,16 +89,15 @@ where
         let bad_prior_weight = self.0 / normalize_cst_bad;
 
         TPEWeights {
-            good_weights: vec![good_weight; good.len()],
-            bad_weights: vec![bad_weight; bad.len()],
-            good_prior_weight,
-            bad_prior_weight,
+            good: PointWeights {
+                weights: vec![good_weight; good.len()],
+                prior_weight: good_prior_weight,
+            },
+            bad: PointWeights {
+                weights: vec![bad_weight; bad.len()],
+                prior_weight: bad_prior_weight,
+            },
         }
-    }
-    
-    fn with_prior(mut self, prior: f64) -> Self {
-        self.0 = prior;
-        self
     }
 }
 
@@ -142,10 +151,14 @@ where
 //         let bad_weight = 1.0 / (bad.len() + 1) as f64;
 //         let bad_weights = vec![bad_weight ; bad.len()];
 //         TPEWeights {
-//             good_weights,
-//             bad_weights,
-//             good_prior_weight: good_mean / (good_sum + good_mean),
-//             bad_prior_weight: bad_weight,
+//             good: PointWeights {
+//                 weights: good_weights,
+//                 prior_weight: good_mean / (good_sum + good_mean),
+//             },
+//             bad: PointWeights {
+//                 weights: bad_weights,
+//                 prior_weight: bad_weight,
+//             },
 //         }
 //     }
     
@@ -207,10 +220,14 @@ where
 //         if bad.len() < self.1 {
 //             let bad_weight = 1.0 / (bad.len() + 1) as f64;
 //             return TPEWeights {
-//                 good_weights,
-//                 bad_weights: vec![bad_weight ; bad.len()],
-//                 good_prior_weight: good_weight,
-//                 bad_prior_weight: bad_weight,
+//                 good: PointWeights {
+//                     weights: good_weights,
+//                     prior_weight: good_weight,
+//                 },
+//                 bad: PointWeights {
+//                     weights: vec![bad_weight ; bad.len()],
+//                     prior_weight: bad_weight,
+//                 },
 //             }
 //         }
 //         let mut sum :f64 = 0.0;

@@ -2,6 +2,7 @@ use tantale_core::domain::{CategoricalDomain, NumericalDomain};
 
 use num::{Num, cast::AsPrimitive};
 
+#[deprecated(note = "Experimental API - may change or be removed")]
 /// Bandwidth methods for Gaussian kernels.
 pub enum GaussianBandwidth {
     /// Hyperopt method to compute the bandwidth.
@@ -22,6 +23,7 @@ pub enum GaussianBandwidth {
     Optuna(bool),
 }
 
+#[deprecated(note = "Experimental API - may change or be removed")]
 /// Bandwidth methods for Aitchison-Aitken kernels.
 pub enum AitchisonAitkenBandwidth {
     /// Categorical bandwidth method to compute the bandwidth.
@@ -29,7 +31,7 @@ pub enum AitchisonAitkenBandwidth {
     Optuna,
 }
 
-/// Computes the bandwidth for a given point in the archive ($\\left\\{ x_n \\right\\}_{n=0}^{N+1}$) using the Hyperopt method:
+/// Computes the bandwidth for a given point in the archive ($ \\{ x_0,\\, x_1,\\, \\dots\\,,\\, x_N,\\, x_{N+1} \\}$) using the Hyperopt method:
 /// $$
 /// b_n = \\max(x_{n+1} - x_n, x_n - x_{n-1})\\enspace\\text{,}
 /// $$
@@ -41,6 +43,7 @@ pub enum AitchisonAitkenBandwidth {
 ///   The `archive` is assumed to be sorted in ascending order $x_1 \leq x_2 \leq \ldots \leq x_N$.
 /// - `n`: The index of the point for which to compute the bandwidth, where $0 \leq n < N$.
 /// - `dom`: The numerical domain within which the points in the archive are defined.
+#[deprecated(note = "Experimental API - may change or be removed")]
 pub fn hyperopt_bw<D>(archive: &[&D::TypeDom], n:usize, dom: &D) -> f64
 where
     D: NumericalDomain,
@@ -78,6 +81,7 @@ where
 /// $$
 /// where $N$ is the number of points in the archive, $\\sigma$ is the standard deviation of the points in the archive, and $IQR$ is the interquartile range of the points in the archive. 
 /// The interquartile range is computed as $IQR = Q_3 - Q_1$, where $Q_1$ and $Q_3$ are the first and third quartiles of the points in the archive, respectively.
+#[deprecated(note = "Experimental API - may change or be removed")]
 pub fn scott_bw<D>(archive: &mut [&D::TypeDom]) -> f64
 where
     D: NumericalDomain,
@@ -129,6 +133,12 @@ where
     (c - 1.)/(n + c)
 }
 
+/// "Magic clipping" function.
+/// For a [`Bounded`](tantale_core::Bounded) ($[L, U]$) domain:
+/// $$
+/// b = \\max\\left(b, \\frac{U - L}{\\min(N, 100)}\\right)\\enspace\\text{,}
+/// $$
+/// where $b$ is the bandwidth computed by another methods, and $N$ is the number of points in the archive.
 pub fn magic_clip<D>(bandwidth: f64, size: usize, dom: &D) -> f64 
 where
     D: NumericalDomain,

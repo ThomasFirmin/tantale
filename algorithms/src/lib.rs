@@ -43,3 +43,11 @@ pub use utils::mo;
 
 #[cfg(feature = "bayes")]
 pub mod bayesian;
+#[cfg(feature = "bayes")]
+pub use bayesian::{
+    kernel::Univariate,
+    splitter::{LinearSplit, SqrtSplit},
+    tpe,
+    tpe::Tpe,
+    weighter::UniformWeighter,
+};

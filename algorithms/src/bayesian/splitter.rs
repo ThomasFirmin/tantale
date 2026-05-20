@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{bayesian::error::SplitError, utils::PointArchive};
+use crate::{bayesian::error::SplitError, utils::OrdArchive};
 
 
 /// The [`Splitter`] trait defines a method for splitting a vector into two parts within the TPE algorithm.
@@ -13,11 +13,11 @@ where
     /// The split is typically based on a quantile of the archive, which determines the fraction of points that belong to the "good" set.
     /// 
     /// # Parameters
-    /// - `archive`: A reference to a [`PointArchive`] containing the observed points, sorted in ascending order by their objective values.
+    /// - `archive`: A reference to a [`OrdArchive`] containing the observed points, sorted in ascending order by their objective values.
     /// 
     /// # Returns
     /// A tuple containing two slices: the first slice corresponds to the "good" set (the best points), and the second slice corresponds to the "bad" set (the worst points).
-    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a PointArchive<T>) -> (&'a [T], &'a [T]);
+    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a OrdArchive<T>) -> (&'a [T], &'a [T]);
 }
 
 /// A simple linear [`Splitter`].
@@ -41,8 +41,8 @@ impl LinearSplit {
     }
 }
 impl Splitter for LinearSplit {
-    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a PointArchive<T>) -> (&'a [T], &'a [T]) {
-        let quantile = (self.0 * archive.size() as f64) as usize;
+    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a OrdArchive<T>) -> (&'a [T], &'a [T]) {
+        let quantile = (archive.size() as f64 * (1.0 - self.0)).ceil() as usize;
         (&archive.points[quantile..], &archive.points[..quantile])
     }
 }
@@ -73,8 +73,13 @@ impl SqrtSplit {
     }
 }
 impl Splitter for SqrtSplit {
-    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a PointArchive<T>) -> (&'a [T], &'a [T]) {
-        let quantile = (self.0 * (archive.size() as f64).sqrt()) as usize;
+    fn split<'a, T: Ord + Serialize + for<'de> Deserialize<'de>>(&self, archive: &'a OrdArchive<T>) -> (&'a [T], &'a [T]) {
+        let size = archive.size() as f64;
+        let quantile = (size - (self.0 / size.sqrt())).ceil();
+        if quantile < 0.0 {
+            return (&[], &archive.points[..]);
+        }
+        let quantile = quantile as usize;
         (&archive.points[quantile..], &archive.points[..quantile])
     }
 }
