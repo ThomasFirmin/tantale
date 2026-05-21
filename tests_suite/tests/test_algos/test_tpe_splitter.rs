@@ -2,7 +2,7 @@ use tantale::algos::bayesian::splitter::{LinearSplit, Splitter, SqrtSplit};
 use tantale::algos::utils::OrdArchive;
 
 fn make_archive<I:IntoIterator<Item = i32>>(values: I) -> OrdArchive<i32> {
-    let mut archive = OrdArchive::new();
+    let mut archive = OrdArchive::default();
     for v in values {
         archive.add(v);
     }

@@ -1,5 +1,5 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective, Sp, StepSId, Stepped, Uncomputed, domain::{codomain::SingleCodomain, onto::LinkOpt}, objective::{
+    BaseSol, Codomain, Criteria, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective, Sampler, SingleSampler, Sp, StepSId, Stepped, Uncomputed, domain::{codomain::SingleCodomain, onto::LinkOpt}, objective::{
         Step,
         outcome::{FuncState, Outcome},
     }, optimizer::{
@@ -268,5 +268,136 @@ where
             }
         }
         Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
+    }
+}
+
+
+impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for GridSearch
+where
+    Out: Outcome,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+
+}
+
+impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for GridSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+{
+
+}
+
+
+impl<Out>
+    SingleSampler<
+        BaseSol<SId, Grid, EmptyInfo>,
+        SId,
+        Grid,
+        Out,
+        Sp<Grid, NoDomain>,
+        Objective<
+            RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
+            Out,
+        >,
+    > for GridSearch
+where
+    Out: Outcome,
+    Sp<Grid, NoDomain>:
+        Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
+{
+    fn sample(&mut self, scp: &Sp<Grid, NoDomain>, _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>
+    {
+        let x: Vec<MixedTypeDom> = self
+            .0
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
+                let var = &scp.var[i];
+                var.domain_obj.get(idx).unwrap()
+            })
+            .collect();
+
+        for i in (0..self.0.0.len()).rev() {
+            let var = &scp.var[i];
+            self.0.0[i] += 1;
+            if self.0.0[i] < var.domain_obj.size() {
+                break;
+            } else {
+                self.0.0[i] = 0;
+                if i == 0 {
+                    self.0.1 += 1;
+                }
+            }
+        }
+        Lone::new(BaseSol::new(SId::generate(), x, EmptyInfo.into()))
+    }
+
+    fn update(&mut self, _x: &BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>, _scp: &Sp<Grid, NoDomain>, _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>) {
+    }
+}
+
+impl<Out, FnState>
+    SingleSampler<
+        FidelitySol<StepSId, Grid, EmptyInfo>,
+        StepSId,
+        Grid,
+        Out,
+        Sp<Grid, NoDomain>,
+        Stepped<
+            RawObj<
+                Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
+                StepSId,
+                EmptyInfo,
+            >,
+            Out,
+            FnState,
+        >,
+    > for GridSearch
+where
+    Out: FidOutcome,
+    FnState: FuncState,
+    Sp<Grid, NoDomain>: Searchspace<
+            FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+            StepSId,
+            EmptyInfo,
+        >,
+    <Sp<Grid, NoDomain> as Searchspace<
+        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
+        StepSId,
+        EmptyInfo,
+    >>::SolShape: HasStep + HasFidelity,
+{
+    fn sample(&mut self, scp: &Sp<Grid, NoDomain>, _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>
+    {
+        let x: Vec<MixedTypeDom> = self
+            .0
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
+                let var = &scp.var[i];
+                var.domain_obj.get(idx).unwrap()
+            })
+            .collect();
+
+        for i in (0..self.0.0.len()).rev() {
+            let var = &scp.var[i];
+            self.0.0[i] += 1;
+            if self.0.0[i] < var.domain_obj.size() {
+                break;
+            } else {
+                self.0.0[i] = 0;
+                if i == 0 {
+                    self.0.1 += 1;
+                }
+            }
+        }
+        Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
+    }
+
+    fn update(&mut self, _x: &FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>, _scp: &Sp<Grid, NoDomain>, _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo, Self::Cod>) {
     }
 }

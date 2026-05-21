@@ -311,6 +311,7 @@ pub use crate::objective::{
 pub mod optimizer;
 pub use crate::optimizer::{
     BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer, opt::CompBatch,
+    Sampler, BatchSampler, SingleSampler
 };
 
 pub mod stop;

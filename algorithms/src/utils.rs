@@ -42,8 +42,8 @@ impl <T> OrdArchive<T>
 where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
-    pub fn new() -> Self {
-        OrdArchive { points: Vec::new() }
+    pub fn new(elem: T) -> Self {
+        OrdArchive { points: vec![elem] }
     }
 }
 
@@ -52,7 +52,7 @@ where
     T: Ord + Serialize + for<'a> Deserialize<'a>,
 {
     fn default() -> Self {
-        Self::new()
+        OrdArchive { points: Vec::new() }
     }
 }
 

@@ -1,5 +1,5 @@
 use tantale_core::{
-    BaseSol, Codomain, Criteria, FidOutcome, HasFidelity, HasStep, Id, IntoComputedShape, StepSId, Uncomputed, domain::{
+    BaseSol, BatchSampler, Codomain, CompAcc, CompBatch, CompShape, Criteria, FidOutcome, HasFidelity, HasStep, Id, IntoComputedShape, Sampler, SingleSampler, StepSId, Uncomputed, domain::{
         codomain::{SingleCodomain, TypeCodom},
         onto::LinkOpt,
     }, objective::{
@@ -258,6 +258,76 @@ where
     }
 }
 
+
+impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for RandomSearch
+where
+    Out: Outcome,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+
+}
+
+impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for RandomSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+{
+
+}
+
+impl<Out, Scp>
+    SingleSampler<
+        BaseSol<SId, Scp::Opt, EmptyInfo>,
+        SId,
+        Scp::Opt,
+        Out,
+        Scp,
+        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
+    > for RandomSearch
+where
+    Out: Outcome,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+    /// Generates a new candidate by sampling from the search space.
+    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape {
+        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+    }
+
+    /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
+    fn update(&mut self, _x: &CompShape<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>) {
+        
+    }
+}
+
+impl<Out, Scp, FnState>
+    SingleSampler<
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
+        Scp::Opt,
+        Out,
+        Scp,
+        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
+    > for RandomSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity,
+    FnState: FuncState,
+{
+    /// Generates a new candidate by sampling from the search space.
+    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape {
+        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+    }
+
+    /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
+    fn update(&mut self, _x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>) {
+
+    }
+}
+
 //------------------//
 //--- Batched ---//
 //------------------//
@@ -401,6 +471,29 @@ where
     }
 }
 
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for BatchRandomSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+{
+    type State = BatchRSState;
+    type Cod = SingleCodomain<Out>;
+    type SInfo = EmptyInfo;
+
+    fn get_state(&self) -> &Self::State {
+        &self.0
+    }
+
+    fn get_mut_state(&mut self) -> &Self::State {
+        &self.0
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        Self(state, rand::rng())
+    }
+}
+
 impl<Out, Scp>
     BatchOptimizer<
         BaseSol<SId, Scp::Opt, EmptyInfo>,
@@ -438,32 +531,6 @@ where
     }
 }
 
-//---------------//
-//--- STEPPED ---//
-//---------------//
-
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for BatchRandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-    type State = BatchRSState;
-    type Cod = SingleCodomain<Out>;
-    type SInfo = EmptyInfo;
-
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
-
-    fn from_state(state: Self::State) -> Self {
-        Self(state, rand::rng())
-    }
-}
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
@@ -523,4 +590,90 @@ where
     fn get_batch_size(&self) -> usize {
         self.0.batch
     }
+}
+
+
+
+impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
+    for BatchRandomSearch
+where
+    Out: Outcome,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+
+}
+
+impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for BatchRandomSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+{
+
+}
+
+
+impl<Out, Scp>
+    BatchSampler<
+        BaseSol<SId, Scp::Opt, EmptyInfo>,
+        SId,
+        Scp::Opt,
+        Out,
+        Scp,
+        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
+    > for BatchRandomSearch
+where
+    Out: Outcome,
+    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
+{
+    type Info = RSInfo;
+    
+    fn sample(
+        &mut self,
+        batch:usize,
+        scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>,
+    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> 
+    {
+         rs_iter(self, scp, batch)
+    }
+    
+    fn update(&mut self, _x: CompBatch<SId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>) {
+    }
+
+    
+}
+
+
+impl<Out, Scp, FnState>
+    BatchSampler<
+        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        StepSId,
+        Scp::Opt,
+        Out,
+        Scp,
+        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
+    > for BatchRandomSearch
+where
+    Out: FidOutcome,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity,
+    FnState: FuncState,
+{
+    type Info = RSInfo;
+
+    fn sample(
+        &mut self,
+        batch:usize,
+        scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>,
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> 
+    {
+         rs_iter(self, scp, batch)
+    }
+    
+    fn update(&mut self, _x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>) {
+    }
+    
 }

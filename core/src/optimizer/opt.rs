@@ -5,7 +5,7 @@ use crate::{
     objective::{FuncWrapper, Outcome},
     recorder::csv::CSVWritable,
     searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{Batch, Id, IntoComputed, SolInfo, Uncomputed, shape::RawObj},
+    solution::{Batch, Id, SolInfo, Uncomputed, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ pub type OpCodType<Op, PSol, Scp, SolId, Out> =
 /// checkpoint an experiment.
 pub trait Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
@@ -100,7 +100,7 @@ pub type CompBatch<SolId, SInfo, Info, SolShape, Cod, Out> =
 pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
@@ -150,7 +150,7 @@ where
 pub trait SequentialOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
@@ -189,7 +189,7 @@ where
 pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
@@ -207,7 +207,7 @@ where
 /// Multi-fidelity marker trait for optimizers.
 pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, Out, Scp>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + IntoComputed + HasFidelity + HasStep,
+    PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol> + HasFidelity + HasStep,
     SolId: Id,
@@ -240,4 +240,71 @@ where
 
     /// Drains a single pending candidate from the optimizer, if available.
     fn drain_one(&mut self) -> Option<Scp::SolShape>;
+}
+
+/// A [`Sampler`] is an [`Optimizer`] that always generates on-demand new candidates by sampling from an internal state.
+/// Conversely to [`SequentialOptimizer`]s or [`BatchOptimizer`]s, 
+/// a [`Sampler`] does not consume previously computed solutions to generate new candidates, 
+/// but only relies on its internal state.
+pub trait Sampler<PSol, SolId, Opt, Out, Scp> :Optimizer<PSol, SolId, Opt, Out, Scp>
+where
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+    SolId: Id,
+    Opt: Domain,
+    Out: Outcome,
+    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+{
+
+}
+
+/// Single-solution sampler interface.
+/// A [`SingleSampler`] generates one candidate at a time by sampling from an internal state, 
+/// and can update this state with newly computed solutions.
+pub trait SingleSampler<PSol, SolId, Opt, Out, Scp, Fn> :Sampler<PSol, SolId, Opt, Out, Scp>
+where
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+    SolId: Id,
+    Opt: Domain,
+    Out: Outcome,
+    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+{
+    /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
+    fn sample(&mut self, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape;
+
+    /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
+    fn update(&mut self, x: &CompShape<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>);
+}
+
+/// Batch sampler interface.
+/// A [`BatchSampler`] generates a batch of candidates at a time by sampling from an internal state, 
+/// and can update this state with newly computed batches of solutions.
+/// The `Info` associated type allows the [`BatchSampler`] to produce per-batch metadata.
+pub trait BatchSampler<PSol, SolId, Opt, Out, Scp, Fn> :Sampler<PSol, SolId, Opt, Out, Scp>
+where
+    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
+    PSol::Twin<Scp::Obj>:
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+    SolId: Id,
+    Opt: Domain,
+    Out: Outcome,
+    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+{
+    type Info: OptInfo + Send + Sync;
+
+    /// Generates a new batch of candidates by sampling from the internal state of the [`Sampler`].
+    fn sample(
+        &mut self,
+        batch: usize,
+        scp: &Scp,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
+    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+
+    /// Update the internal state of the [`Sampler`] with a new batch of [`Computed`](crate::Computed) candidates.
+    fn update(&mut self, x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>);
 }
