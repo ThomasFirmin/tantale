@@ -1,4 +1,4 @@
-use tantale::algos::{Asha, Hyperband, asha};
+use tantale::algos::{Asha, Hyperband, RandomSearch, asha};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -26,7 +26,8 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let asha = Asha::new(1., 5., 1.61); // log(max/min)
+    let sampler = RandomSearch::new();
+    let asha = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
     let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
@@ -58,7 +59,7 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(
         mono,
-        Hyperband<Asha<_>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
         Evaluated,
         (sp, cod),
         obj,
@@ -111,7 +112,7 @@ fn test_fid_seq_run() {
 
     let exp = load!(
         mono,
-        Hyperband<Asha<_>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
         Evaluated,
         (sp, cod),
         obj,
@@ -170,7 +171,8 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let asha = Asha::new(1., 5., 1.61);
+    let sampler = RandomSearch::new();
+    let asha = Asha::new(sampler,1., 5., 1.61);
     let opt = Hyperband::new(asha);
     let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
@@ -198,7 +200,7 @@ fn test_fid_seq_parrun() {
 
     let mut exp = load!(
         threaded,
-        Hyperband<Asha<_>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
         Evaluated,
         (sp, cod),
         obj,
@@ -257,7 +259,7 @@ fn test_fid_seq_parrun() {
 
     let exp = load!(
         threaded,
-        Hyperband<Asha<_>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
         Evaluated,
         (sp, cod),
         obj,

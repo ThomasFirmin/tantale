@@ -65,17 +65,14 @@
 //!
 //! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
-use std::cell::RefCell;
+use std::{cell::RefCell, marker::PhantomData};
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer,
-    SingleCodomain, SolInfo, SolutionShape, Step, StepSId,
-    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Codomain, CompShape, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptState, Optimizer, Sampler, Searchspace, SingleCodomain, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, optimizer::opt::BudgetPruner, solution::IntoComputedShape
 };
 
 use rand::rngs::StdRng;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{self, Visitor}, ser::SerializeStruct};
 
 use crate::utils::{FCompAcc, FCompShape, SimpleStepped};
 
@@ -103,49 +100,47 @@ where
     out.into()
 }
 
+type AshaRungs<SInfo, Cod, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Cod, Out>>>;
+
 /// Internal state of the [`Asha`] optimizer.
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "SShape: Serialize",
-    deserialize = "SShape: for<'a> Deserialize<'a>",
-))]
-pub struct AshaState<SShape>
+pub struct AshaState<Smpl, Scp, PSol, Out>
 where
-    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
 {
+    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
     /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: Vec<Vec<SShape>>,
+    pub rung: AshaRungs<Smpl::SInfo, Smpl::Cod, Scp::SolShape, Out>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
+    _scp: PhantomData<Scp>,
+    _out: PhantomData<Out>,
 }
-impl<SShape> OptState for AshaState<SShape> where
-    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord
+
+impl<Smpl, Scp, PSol, Out> OptState for AshaState<Smpl, Scp, PSol, Out> 
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
 {
 }
 
-/// [`SolInfo`] for single-solution metadata of ASHA.
-/// Used to track the maximum budget level a solution can reach.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct AshaInfo(f64);
-impl SolInfo for AshaInfo {}
-
-impl CSVWritable<(), ()> for AshaInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        vec!["budget_max".to_string()]
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        vec![self.0.to_string()]
-    }
-}
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)multi-fidelity optimizer.
+/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934) multi-fidelity optimizer.
 ///
 /// A [`SingleOptimizer`] implementing the
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
@@ -156,7 +151,8 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
 /// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
 ///   selecting the top performers and promoting them to the next level of fidelity, if the rung has enough candidates.
-/// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
+/// - If not, it continues down the rungs until it finds candidates to promote or defaults to generate a new candidate at the lowest budget level
+///   using a [`Sampler`].
 ///
 /// # Workflow
 ///
@@ -170,10 +166,13 @@ impl CSVWritable<(), ()> for AshaInfo {
 ///     Yes /     \ No
 ///        /       \
 ///       v         v
-///  +--------+   +---------------------+
-///  | Add to |   | Start from highest  |
-///  | rung   |-->| budget rung         |
-///  +--------+   +---------------------+
+///  +----------+   +--------------------+
+///  | Add to   |   | Start from highest |
+///  | rung and |-->| budget rung        |
+///  | update   |   +--------------------+
+///  | sampler  |      |
+///  | state    |      |
+///  +----------+      |
 ///                    |
 ///                    v
 ///         +----------------+
@@ -200,6 +199,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// # Type Parameters
 ///
 /// This optimizer is generic over:
+/// - **Sampler**: Must implement [`Sampler`] for generating new candidates when no computed solutions are available for promotion
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
 /// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
@@ -224,13 +224,23 @@ impl CSVWritable<(), ()> for AshaInfo {
 /// ```rust,ignore
 /// self.with_rng(|rng| scp.sample_pair(rng, AshaInfo::default().into()))
 /// ```
-pub struct Asha<SShape>(pub AshaState<SShape>)
+pub struct Asha<Smpl, Scp, PSol, Out>(pub AshaState<Smpl, Scp, PSol, Out>)
 where
-    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord;
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord;
 
-impl<SShape> Asha<SShape>
+impl<Smpl, Scp, PSol, Out> Asha<Smpl, Scp, PSol, Out>
 where
-    SShape: SolutionShape<StepSId, AshaInfo> + HasStep + HasFidelity + Ord,
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -249,7 +259,7 @@ where
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -273,10 +283,13 @@ where
         let length = budgets.len();
         let current_budget = budgets[0];
         Asha(AshaState {
+            sampler,
             budgets,
             scaling,
             rung: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
+            _scp: PhantomData,
+            _out: PhantomData,
         })
     }
     pub fn with_rng<F, T>(&self, f: F) -> T
@@ -287,20 +300,23 @@ where
     }
 }
 
+
 /// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
+impl<Smpl, Out, Scp, SInfo> Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out>
 where
+    Smpl: Sampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SInfo = SInfo, Cod = SingleCodomain<Out>>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo, Smpl::Cod>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
 {
-    type State = AshaState<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>;
-    type Cod = SingleCodomain<Out>;
-    type SInfo = AshaInfo;
+    type State = AshaState<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out>;
+    type Cod = Smpl::Cod;
+    type SInfo = SInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -321,13 +337,15 @@ where
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, AshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
+impl<Smpl, Out, Scp, SInfo> BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out>
 where
+    Smpl: Sampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SInfo = SInfo, Cod = SingleCodomain<Out>>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -416,20 +434,22 @@ where
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
-impl<Out, Scp, FnState>
+impl<Smpl, Out, Scp, SInfo, FnState>
     SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, AshaInfo>,
+        FidelitySol<StepSId, Scp::Opt, SInfo>,
         StepSId,
         Scp::Opt,
         Out,
         Scp,
-        SimpleStepped<Scp::SolShape, AshaInfo, Out, FnState>,
-    > for Asha<FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>>
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
+    > for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out>
 where
+    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>, SInfo = SInfo, Cod = SingleCodomain<Out>>,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, AshaInfo>, StepSId, AshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, AshaInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
     FnState: FuncState,
 {
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
@@ -476,10 +496,11 @@ where
         &mut self,
         x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
         scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
+        acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {
+                self.0.sampler.update(&comp, scp, acc);
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
                     self.0.rung[i + 1].push(comp);
@@ -494,12 +515,7 @@ where
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
-                self.with_rng(|rng| {
-                    scp.sample_pair(
-                        rng,
-                        AshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
-                    )
-                })
+                self.0.sampler.sample(scp, acc)
             } else {
                 self.0.rung[i].select_nth_unstable(k);
                 self.0.current_budget = self.0.budgets[i];
@@ -507,14 +523,246 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.with_rng(|rng| {
-                scp.sample_pair(
-                    rng,
-                    AshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
-                )
-            })
+            self.0.sampler.sample(scp, acc)
         };
         p.set_fidelity(self.0.current_budget);
         p
+    }
+}
+
+
+
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct AshaStateVisitor<Smpl, Scp, PSol, Out>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+{
+    _scp: PhantomData<Scp>,
+    _psol: PhantomData<PSol>,
+    _smpl: PhantomData<Smpl>,
+    _out: PhantomData<Out>,
+}
+
+enum AshaField {
+    Sampler,
+    Budgets,
+    Scaling,
+    Rung,
+    CurrentBudget,
+}
+
+struct AshaFieldVisitor;
+
+impl<Smpl, Scp, PSol, Out> Serialize for AshaState<Smpl, Scp, PSol, Out>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AshaState", 5)?;
+        state.serialize_field("sampler", &self.sampler.get_state())?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rung)?;
+        state.serialize_field("current_budget", &self.current_budget)?;
+        state.end()
+    }
+}
+
+impl<Smpl, Scp, PSol, Out> AshaStateVisitor<Smpl, Scp, PSol, Out>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
+{
+    fn new() -> Self {
+        AshaStateVisitor {
+            _scp: PhantomData,
+            _psol: PhantomData,
+            _smpl: PhantomData,
+            _out: PhantomData,
+        }
+    }
+}
+
+impl<'de> Visitor<'de> for AshaFieldVisitor {
+    type Value = AshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter
+            .write_str("`sampler`, `budgets`, `scaling`, `rung` or `current_budget`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(AshaField::Sampler),
+            "budgets" => Ok(AshaField::Budgets),
+            "scaling" => Ok(AshaField::Scaling),
+            "rung" => Ok(AshaField::Rung),
+            "current_budget" => Ok(AshaField::CurrentBudget),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "sampler",
+                    "budgets",
+                    "scaling",
+                    "rung",
+                    "current_budget",
+                ],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for AshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(AshaFieldVisitor)
+    }
+}
+
+impl<'de, Scp, PSol, Smpl, Out> Visitor<'de> for AshaStateVisitor<Smpl, Scp, PSol, Out>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
+{
+    type Value = AshaState<Smpl, Scp, PSol, Out>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct AshaState")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let current_budget = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        Ok(AshaState {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rung,
+            current_budget,
+            _scp: PhantomData,
+            _out: PhantomData,
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut current_budget = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                AshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                AshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                AshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                AshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                AshaField::CurrentBudget => {
+                    if current_budget.is_some() {
+                        return Err(de::Error::duplicate_field("current_budget"));
+                    }
+                    current_budget = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+
+        Ok(AshaState {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rung,
+            current_budget,
+            _scp: PhantomData,
+            _out: PhantomData,
+        })
+    }
+}
+
+impl<'de, Scp, PSol, Smpl, Out> Deserialize<'de> for AshaState<Smpl, Scp, PSol, Out>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: Sampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp>,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Smpl::Cod, Out>: HasStep + HasFidelity + Ord,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(AshaStateVisitor::new())
     }
 }

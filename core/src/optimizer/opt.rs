@@ -72,7 +72,7 @@ pub trait Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -102,7 +102,7 @@ pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -152,7 +152,7 @@ pub trait SingleOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -191,7 +191,7 @@ pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -209,7 +209,7 @@ pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, 
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol> + HasFidelity + HasStep,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol> + HasFidelity + HasStep,
     SolId: Id,
     Opt: Domain,
     Out: FidOutcome,
@@ -250,7 +250,7 @@ pub trait Sampler<PSol, SolId, Opt, Out, Scp> :Optimizer<PSol, SolId, Opt, Out, 
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -266,7 +266,7 @@ pub trait SingleSampler<PSol, SolId, Opt, Out, Scp, Fn> :Sampler<PSol, SolId, Op
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
@@ -288,7 +288,7 @@ pub trait BatchSampler<PSol, SolId, Opt, Out, Scp, Fn> :Sampler<PSol, SolId, Opt
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Scp::Opt> = PSol>,
+        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
     SolId: Id,
     Opt: Domain,
     Out: Outcome,
