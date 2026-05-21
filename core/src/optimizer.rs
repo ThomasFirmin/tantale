@@ -21,12 +21,12 @@
 //! - **Sequential optimization**: generates one solution at a time
 //! - **Batch optimization**: generates a batch of solutions at each step
 //!
-//! These styles are captured by the [`SequentialOptimizer`] and [`BatchOptimizer`] traits.
+//! These styles are captured by the [`SingleOptimizer`] and [`BatchOptimizer`] traits.
 //!
 //! ## Core Traits
 //!
 //! - [`Optimizer`] - Base trait implemented by all optimizers
-//! - [`SequentialOptimizer`] - Optimizers that produce a single solution per step
+//! - [`SingleOptimizer`] - Optimizers that produce a single solution per step
 //! - [`BatchOptimizer`] - Optimizers that produce a batch of solutions per step
 //!
 //! ## State and Metadata
@@ -45,4 +45,4 @@
 //!
 //! See the [`opt`] submodule for trait definitions and details.
 pub mod opt;
-pub use opt::{BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer, Sampler, SingleSampler, BatchSampler};
+pub use opt::{BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SingleOptimizer, Sampler, SingleSampler, BatchSampler};

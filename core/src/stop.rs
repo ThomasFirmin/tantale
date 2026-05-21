@@ -5,7 +5,7 @@
 //! [`Stop::update`], and return their state through [`Stop::stop`].
 //!
 //! The [`ExpStep`] enum provides a minimal signal of where the experiment is in
-//! its progression: distribution, iteration, or after a [`step`](crate::BatchOptimizer::step) (see also sequential [`step`](crate::SequentialOptimizer::step)).
+//! its progression: distribution, iteration, or after a [`step`](crate::BatchOptimizer::step) (see also single [`step`](crate::SingleOptimizer::step)).
 
 use crate::objective::Step;
 use serde::{Deserialize, Serialize};

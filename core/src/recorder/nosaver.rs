@@ -10,7 +10,7 @@
 //! - [`Recorder`] - Base trait for all recorders
 
 use crate::{
-    BatchOptimizer, BatchRecorder, FuncWrapper, RawObj, SeqRecorder, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
+    BatchOptimizer, BatchRecorder, FuncWrapper, RawObj, SeqRecorder, SingleOptimizer, domain::onto::LinkOpt, objective::Outcome, recorder::Recorder, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
 };
 use serde::{Deserialize, Serialize};
 
@@ -62,7 +62,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
@@ -126,7 +126,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {

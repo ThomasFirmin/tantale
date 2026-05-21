@@ -36,7 +36,7 @@
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, RawObj, SequentialOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
+    BatchOptimizer, FuncWrapper, RawObj, SingleOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
 };
 
 #[cfg(feature = "mpi")]
@@ -67,7 +67,7 @@ pub trait Recorder {}
 
 /// Recorder trait for sequential optimization experiments.
 ///
-/// [`SeqRecorder`] is used with [`SequentialOptimizer`]s,
+/// [`SeqRecorder`] is used with [`SingleOptimizer`]s,
 /// which generate and evaluate one solution at a time. Each call to [`save`](SeqRecorder::save)
 /// records a single evaluated solution and its associated outcome.
 ///
@@ -89,7 +89,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
@@ -221,7 +221,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {

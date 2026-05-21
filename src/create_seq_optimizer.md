@@ -341,11 +341,11 @@ where
 }
 ```
 
-### Implementing SequentialOptimizer trait
+### Implementing SingleOptimizer trait
 
 We have implemented the Optimizer trait to characterize ASHA.
 Now we can define computations of an iteration.
-ASHA generates on demand [`FidelitySol`](crate::core::FidelitySol).So, ASHA is a [`SequentialOptimizer`](crate::core::SequentialOptimizer).
+ASHA generates on demand [`FidelitySol`](crate::core::FidelitySol).So, ASHA is a [`SingleOptimizer`](crate::core::SingleOptimizer).
 We have to define one functions:
 - `step`: the usual iteration of the algorithm after initialization. It should be able ot generate solutions when it receives one or no
   [`Computed`](crate::core::Computed).
@@ -461,10 +461,10 @@ We have to define one functions:
 #     }
 # }
 
-use tantale_core::{CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped};
+use tantale_core::{CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, Stepped};
 
 impl<Out, Scp, FnState>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
         StepSId,
         Scp::Opt,

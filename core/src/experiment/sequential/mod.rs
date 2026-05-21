@@ -1,5 +1,5 @@
 //! Module dedicated to sequential experiment implementations.
-//! A sequential experiment uses a [`SequentialOptimizer`](crate::SequentialOptimizer)
+//! A sequential experiment uses a [`SingleOptimizer`](crate::SingleOptimizer)
 //! to generate single [`SolutionShape`](crate::solution::SolutionShape) of [`Uncomputed`](crate::solution::Uncomputed)
 //! at a time.
 //! For threaded and distributed experiments, [`SolutionShape`](crate::solution::SolutionShape) are generated on demand,

@@ -144,10 +144,10 @@ where
     fn get_batch_size(&self) -> usize;
 }
 
-/// Sequential optimizer interface.
+/// Single optimizer interface.
 ///
 /// At each iteration, the optimizer produces a single [`Uncomputed`] candidate.
-pub trait SequentialOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait SingleOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -243,7 +243,7 @@ where
 }
 
 /// A [`Sampler`] is an [`Optimizer`] that always generates on-demand new candidates by sampling from an internal state.
-/// Conversely to [`SequentialOptimizer`]s or [`BatchOptimizer`]s, 
+/// Conversely to [`SingleOptimizer`]s or [`BatchOptimizer`]s, 
 /// a [`Sampler`] does not consume previously computed solutions to generate new candidates, 
 /// but only relies on its internal state.
 pub trait Sampler<PSol, SolId, Opt, Out, Scp> :Optimizer<PSol, SolId, Opt, Out, Scp>

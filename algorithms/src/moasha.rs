@@ -22,7 +22,7 @@
 use tantale_core::{
     CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
     HasStep, LinkOpt, MultiCodomain, OptState, Optimizer, Searchspace,
-    SequentialOptimizer, SolInfo, SolutionShape, Step, StepSId,
+    SingleOptimizer, SolInfo, SolutionShape, Step, StepSId,
     optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
@@ -106,7 +106,7 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 }
 /// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
 ///
-/// A [`SequentialOptimizer`] implementing the
+/// A [`SingleOptimizer`] implementing the
 /// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639)  algorithm for multi-fidelity evaluations.
 ///
 /// # Overview
@@ -385,12 +385,12 @@ where
     }
 }
 
-/// Implementation of the [`SequentialOptimizer`] trait for Successive Halving.
+/// Implementation of the [`SingleOptimizer`] trait for Successive Halving.
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState, Selector>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
         StepSId,
         Scp::Opt,

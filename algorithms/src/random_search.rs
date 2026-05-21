@@ -7,7 +7,7 @@ use tantale_core::{
         outcome::{FuncState, Outcome},
     }, optimizer::{
         EmptyInfo, OptInfo, OptState,
-        opt::{BatchOptimizer, Optimizer, SequentialOptimizer},
+        opt::{BatchOptimizer, Optimizer, SingleOptimizer},
     }, recorder::csv::CSVWritable, searchspace::Searchspace, solution::{
         Batch, SId, partial::FidelitySol,
     }
@@ -106,7 +106,7 @@ impl OptState for SeqRSState {}
 ///
 /// # Note
 ///
-/// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
+/// It implements [`SingleOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
 /// allowing it to handle [`Step`]-based optimization scenarios.
 /// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
 /// any state or history of evaluations.
@@ -195,7 +195,7 @@ where
 }
 
 impl<Out, Scp>
-    SequentialOptimizer<
+    SingleOptimizer<
         BaseSol<SId, Scp::Opt, EmptyInfo>,
         SId,
         Scp::Opt,
@@ -218,7 +218,7 @@ where
 }
 
 impl<Out, Scp, FnState>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
         StepSId,
         Scp::Opt,

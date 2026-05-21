@@ -57,7 +57,7 @@
 //!
 //! Each bracket is executed sequentially, with the inner optimizer managing successive halving
 //! within each bracket. For [`BatchOptimizer`] inner optimizers (like SHA), brackets run one after another. For
-//! [`SequentialOptimizer`] (like ASHA) when the inner [`BudgetPruner`] reaches its budget limit,
+//! [`SingleOptimizer`] (like ASHA) when the inner [`BudgetPruner`] reaches its budget limit,
 //! the internal solutions are drained and [`Discarded`](tantale_core::Step::Discard), incoming solution from
 //! previous brackets might be included within the next bracket if their fidelity level correspond to new fidelity
 //! level of the next bracket.
@@ -87,7 +87,7 @@ use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
     Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer, SingleCodomain,
+    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer, SingleCodomain,
     StepSId,
 };
 
@@ -123,7 +123,7 @@ where
 ///
 /// - `Optim` - The inner optimizer (typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha)).
 ///   The behavior of Hyperband is determined by the inner optimizer's
-///   type [`SequentialOptimizer`] or [`BatchOptimizer`].
+///   type [`SingleOptimizer`] or [`BatchOptimizer`].
 /// - `Out` - The outcome type satisfying [`FidOutcome`]
 /// - `Scp` - The searchspace
 /// - `SInfo` - The solution info type for the inner optimizer
@@ -533,7 +533,7 @@ where
 }
 
 impl<Optim, Out, Scp, FnState, SInfo>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, SInfo>,
         StepSId,
         Scp::Opt,
@@ -542,7 +542,7 @@ impl<Optim, Out, Scp, FnState, SInfo>
         SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
     > for Hyperband<Optim, Out, Scp, SInfo>
 where
-    Optim: SequentialOptimizer<
+    Optim: SingleOptimizer<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,

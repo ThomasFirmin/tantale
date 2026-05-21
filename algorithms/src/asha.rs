@@ -69,7 +69,7 @@ use std::cell::RefCell;
 
 use tantale_core::{
     CSVWritable, Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    LinkOpt, OptState, Optimizer, Searchspace, SequentialOptimizer,
+    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer,
     SingleCodomain, SolInfo, SolutionShape, Step, StepSId,
     optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
@@ -147,7 +147,7 @@ impl CSVWritable<(), ()> for AshaInfo {
 }
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)multi-fidelity optimizer.
 ///
-/// A [`SequentialOptimizer`] implementing the
+/// A [`SingleOptimizer`] implementing the
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
 ///
 /// # Overview
@@ -412,12 +412,12 @@ where
     }
 }
 
-/// Implementation of the [`SequentialOptimizer`] trait for Successive Halving.
+/// Implementation of the [`SingleOptimizer`] trait for Successive Halving.
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
 impl<Out, Scp, FnState>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, AshaInfo>,
         StepSId,
         Scp::Opt,

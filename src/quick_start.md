@@ -90,7 +90,7 @@ An optimization experiment is made of 7 components:
 - An [`Optimizer`](crate::core::Optimizer): defines a single step of the optimization process.
   We distinguish between 2 types of optimizers:
   * [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
-  * [`SequentialOptimizer`](crate::core::SequentialOptimizer): generates a single solution at each optimization step.
+  * [`SingleOptimizer`](crate::core::SingleOptimizer): generates a single solution at each optimization step.
 - A [`Stop`](crate::core::Stop): defines the stopping criterion of the optimization process.
 - Optional [`Recorder`](crate::core::Recorder): defines how to log the optimization process.
 - Optional [`Checkpointer`](crate::core::Checkpointer): defines how to checkpoint the optimization process.
@@ -103,7 +103,7 @@ These 7 components are then assembled together in an optimization loop using dif
 ### Parallelization 
 The parallelization philosophy is defined by the optimizer and by the user via [`mono`](crate::core::mono), [`threaded`](crate::core::threaded) or [`distributed`](crate::core::distributed):
 * Synchronous: For [`BatchOptimizer`](crate::core::BatchOptimizer) where [`Batch`](crate::core::Batch)es of solutions are evaluated in parallel, but the optimization steps are executed sequentially.
-* Asynchronous: For [`SequentialOptimizer`](crate::core::SequentialOptimizer) where the optimizer generates on-demand new solutions as soon as one thread is free.
+* Asynchronous: For [`SingleOptimizer`](crate::core::SingleOptimizer) where the optimizer generates on-demand new solutions as soon as one thread is free.
 <!-- * Hybrid **(not yet implemented)**: For [`HybridOptimizer`](crate::core::HybridOptimizer) where the optimizer can generate [`Batch`](crate::core::Batch)es of solutions on demand and of variable sizes. -->
 
 ### Example

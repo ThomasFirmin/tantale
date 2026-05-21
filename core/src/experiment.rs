@@ -132,7 +132,7 @@
 //! - Evaluation times are expected to be similar
 //! - Examples: Random Search with batch size, CMA-ES population
 //!
-//! ## Sequential Optimization ([`SequentialOptimizer`](crate::optimizer::SequentialOptimizer))
+//! ## Sequential Optimization ([`SingleOptimizer`](crate::optimizer::SingleOptimizer))
 //!
 //! The optimizer generates solutions one at a time:
 //! - Solutions are generated on-demand as evaluations complete
@@ -1241,7 +1241,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 ///
 /// [`Runable`] is implemented for combinations of:
 /// - Experiment types: [`MonoExperiment`], [`ThrExperiment`], [`MPIExperiment`]
-/// - Optimizer types: [`BatchOptimizer`](crate::optimizer::BatchOptimizer), [`SequentialOptimizer`](crate::optimizer::SequentialOptimizer)
+/// - Optimizer types: [`BatchOptimizer`](crate::optimizer::BatchOptimizer), [`SingleOptimizer`](crate::optimizer::SingleOptimizer)
 /// - Objective types: [`Objective`](crate::objective::Objective), [`Stepped`](crate::objective::Stepped)
 ///
 /// # Example: Basic Usage

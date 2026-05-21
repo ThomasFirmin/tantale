@@ -107,7 +107,7 @@ impl<Obj: Domain> Linked for Sp<Obj, NoDomain> {
     type TrueOpt = NoDomain;
 }
 
-/// Sequential [`Searchspace`] implementation for paired objective/optimizer domains.
+/// [`Searchspace`] implementation for paired objective/optimizer domains.
 impl<SolOpt, SolId, Obj, Opt, SInfo> Searchspace<SolOpt, SolId, SInfo> for Sp<Obj, Opt>
 where
     SolId: Id,
@@ -370,7 +370,7 @@ impl <Obj:Domain> HasVariables for Sp<Obj, NoDomain>
     }
 }
 
-/// Sequential [`Searchspace`] implementation for objective-only domains.
+/// [`Searchspace`] implementation for objective-only domains.
 impl<SolOpt, SolId, Obj, SInfo> Searchspace<SolOpt, SolId, SInfo> for Sp<Obj, NoDomain>
 where
     SolId: Id,

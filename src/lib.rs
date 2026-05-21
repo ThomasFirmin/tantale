@@ -16,7 +16,7 @@
 //!
 //! ## Advanced guides
 //! * [Create your batched optimizer](crate::docs::CreateBatchOptimizer)
-//! * [Create your sequential optimizer](crate::docs::CreateSequentialOptimizer)
+//! * [Create your sequential optimizer](crate::docs::CreateSingleOptimizer)
 //! * [Create your domain](crate::docs::CreateDomain) (Coming soon)
 //! * [Create your search space](crate::docs::CreateSearchSpace) (Coming soon)
 //! * [Create your solution](crate::docs::CreateSolution) (Coming soon)
@@ -73,7 +73,7 @@ pub mod docs {
     pub mod CreateBatchOptimizer {}
     #[doc = include_str!("create_seq_optimizer.md")]
     #[allow(non_snake_case)]
-    pub mod CreateSequentialOptimizer {}
+    pub mod CreateSingleOptimizer {}
     #[doc = include_str!("create_domain.md")]
     #[allow(non_snake_case)]
     pub mod CreateDomain {}

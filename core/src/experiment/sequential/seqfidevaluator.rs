@@ -1,5 +1,5 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace, SolInfo, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, has_trait::HasX, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace, SolInfo, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, has_trait::HasX, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::CompShape, solution::{
          IntoComputedShape, SolutionShape, Uncomputed, id::StepId, shape::RawObj
     }, stop::ExpStep
 };
@@ -112,7 +112,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,
@@ -277,7 +277,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,
@@ -590,7 +590,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,
@@ -659,7 +659,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,

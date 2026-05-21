@@ -109,11 +109,11 @@ where
 }
 
 use tantale::core::{
-    CompAcc, FuncState, OptionCompShape, RawObj, SequentialOptimizer, Step, Stepped,
+    CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, Stepped,
 };
 
 impl<Out, Scp, FnState>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
         StepSId,
         Scp::Opt,

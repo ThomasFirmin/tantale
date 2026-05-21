@@ -6,7 +6,7 @@ use crate::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
         },
-    }, has_trait::HasX, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
+    }, has_trait::HasX, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
         IntoComputedShape, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
     }, stop::{ExpStep, Stop}
 };
@@ -65,7 +65,7 @@ where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SId,
             LinkOpt<Scp>,
@@ -81,7 +81,7 @@ where
     Out: Outcome,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
+    /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -162,7 +162,7 @@ where
         }
     }
 
-    /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
     /// is saved using the inner [`SeqRecorder`] when [`SeqEvaluator`] has finished evaluating an element.
@@ -353,7 +353,7 @@ where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             StepSId,
             LinkOpt<Scp>,
@@ -385,7 +385,7 @@ where
     FnState: FuncState,
 {
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
+    /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
@@ -482,7 +482,7 @@ where
         }
     }
 
-    /// Run the [`MonoExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`],
     /// per iteration, using the inner [`FidSeqEvaluator`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
@@ -696,7 +696,7 @@ where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + 'static,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SId,
             LinkOpt<Scp>,
@@ -721,7 +721,7 @@ where
         Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
-    /// [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
+    /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
@@ -806,9 +806,9 @@ where
         }
     }
 
-    /// Run the [`ThrExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the [`ThrExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`ThrSeqEvaluator`],
-    /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
+    /// while asking on demand new solutions from the shared [`SingleOptimizer`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
     /// is saved using the inner [`SeqRecorder`] when [`ThrSeqEvaluator`] has finished evaluating an element.
     ///
@@ -1032,7 +1032,7 @@ where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             StepSId,
             LinkOpt<Scp>,
@@ -1082,7 +1082,7 @@ where
     >: Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
-    /// [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
+    /// [`Stepped`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
         space: (Scp, Op::Cod),
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
@@ -1177,9 +1177,9 @@ where
         }
     }
 
-    /// Run the [`ThrExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the [`ThrExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// Each thread evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidThrSeqEvaluator`],
-    /// while asking on demand new solutions from the shared [`SequentialOptimizer`].
+    /// while asking on demand new solutions from the shared [`SingleOptimizer`].
     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
     /// is saved using the inner [`SeqRecorder`] when [`FidThrSeqEvaluator`] has finished evaluating an element.
     ///
@@ -1475,7 +1475,7 @@ where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SId,
             LinkOpt<Scp>,
@@ -1501,7 +1501,7 @@ where
     type WType = BaseWorker<'a, RawObj<Scp::SolShape, SId, Op::SInfo>, Out>;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`], [`Objective`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`Codomain`], [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional
     /// [`DistSeqRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](MasterWorker) while
     /// all other processes will be [`Worker`](crate::Worker)s.
     /// It also uses an internal [`DistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
@@ -1626,9 +1626,9 @@ where
         }
     }
 
-    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] using the inner [`DistSeqEvaluator`],
-    /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
+    /// while asking on demand new solutions to the Master process which computes a [`SingleOptimizer`].
     /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
     /// is saved using the inner [`DistSeqRecorder`] when [`DistSeqEvaluator`] has finished evaluating an element.
     ///
@@ -1864,7 +1864,7 @@ where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
     PSol::Twin<Scp::Obj>:
         Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             StepSId,
             LinkOpt<Scp>,
@@ -1907,7 +1907,7 @@ where
     >;
 
     /// Create a new distributed [`MPIExperiment`] wrapped in a [`MasterWorker`] from a [`Searchspace`],
-    /// [`Codomain`], [`Stepped`], [`SequentialOptimizer`], [`Stop`] condition and optional
+    /// [`Codomain`], [`Stepped`], [`SingleOptimizer`], [`Stop`] condition and optional
     /// [`DistSeqRecorder`] and [`DistCheckpointer`]. The main process (rank 0) will be the [`Master`](crate::MasterWorker) while
     /// all other processes will be [`Worker`](crate::Worker)s.
     /// It also uses an internal [`FidDistSeqEvaluator`] to evaluate single [`SolutionShape`]s per process.
@@ -2072,9 +2072,9 @@ where
         }
     }
 
-    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SequentialOptimizer`], until the [`Stop`] condition is met.
+    /// Run the distributed [`MPIExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
     /// Each process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`], using the inner [`FidDistSeqEvaluator`],
-    /// while asking on demand new solutions to the Master process which computes a [`SequentialOptimizer`].
+    /// while asking on demand new solutions to the Master process which computes a [`SingleOptimizer`].
     /// A checkpoint is performed after each optimization step by the main process (rank 0). And a single [`Computed`](crate::Computed),
     /// is saved using the inner [`DistSeqRecorder`] when [`FidDistSeqEvaluator`] has finished evaluating an element.
     ///

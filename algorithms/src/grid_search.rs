@@ -4,7 +4,7 @@ use tantale_core::{
         outcome::{FuncState, Outcome},
     }, optimizer::{
         EmptyInfo, OptState,
-        opt::{Optimizer, SequentialOptimizer},
+        opt::{Optimizer, SingleOptimizer},
     }, searchspace::Searchspace, solution::{
         IntoComputedShape, SId, partial::FidelitySol, shape::RawObj
     }
@@ -56,7 +56,7 @@ impl OptState for GSState {}
 ///
 /// # Note
 ///
-/// The algorithm is only a [`SequentialOptimizer`] due to the exponential growth of the number of solutions in the grid.
+/// The algorithm is only a [`SingleOptimizer`] due to the exponential growth of the number of solutions in the grid.
 ///
 /// # Workflow
 ///
@@ -91,7 +91,7 @@ impl OptState for GSState {}
 ///
 /// # Note
 ///
-/// It implements [`SequentialOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
+/// It implements [`SingleOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
 /// allowing it to handle [`Step`]-based optimization scenarios.
 /// [`GridSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
 /// any state or history of evaluations.
@@ -152,7 +152,7 @@ where
 }
 
 impl<Out>
-    SequentialOptimizer<
+    SingleOptimizer<
         BaseSol<SId, Grid, EmptyInfo>,
         SId,
         Grid,
@@ -202,7 +202,7 @@ where
 }
 
 impl<Out, FnState>
-    SequentialOptimizer<
+    SingleOptimizer<
         FidelitySol<StepSId, Grid, EmptyInfo>,
         StepSId,
         Grid,

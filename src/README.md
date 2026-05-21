@@ -31,6 +31,7 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 |---|---|
 | `mpi` | Enables MPI-based distributed execution across multiple machines. Requires a local MPI installation (e.g. OpenMPI). Propagates to `tantale_core` and `tantale_algos`. |
 | `py` | Enables Python bindings with [pyo3](https://pyo3.rs) allowing to optimize Python functions |
+| `bayes` | Enables Bayesian optimization using [statrs](https://docs.rs/statrs/latest/statrs/) and [rand_distr](https://docs.rs/rand_distr/latest/rand_distr/)|
 
 ---
 
@@ -46,15 +47,36 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 
 ## Algorithms
 
-| Algorithm | Module | Type | Multi-fidelity | Multi-objective | Description |
-|---|---|---|---|---|---|
-| Random Search | `tantale::algos::random_search` | Sequential | No |  No | Sequential Random sampling |
-| BatchRandomSearch | `tantale::algos::random_search` | Batched | No |  No | Random sampling in fixed-size batches |
-| GridSearch | `tantale::algos::grid_search` | Sequential | No |  No | Deterministic sequential sampling of a grid of solutions|
-| SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
-| ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
-| Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
-| MO-ASHA | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-ASHA](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
+Algorithms are divided in three categories:
+- *Standalone optimizer*: an algorithm that can be used directly to optimize a function.
+  For example random search, Bayesian optimization...
+  Optimizers are divided into two subcategories
+  - Single optimizer: consumes a previously evaluated solution to generate a new one.
+    For example simulated annealing.
+  - Batch optimizer: consumes a batch of evaluted solution to generate a new batch.
+    For example evolutionnary algorithms.
+- *Sampler*: an algorithm able to generate points from an internal state; updated with computed solutions.
+  For example, random search, latin hypercube sampling...
+  A sampler can be a standalone optimizer.
+  - Single sampler: generates on-demand a single non-evaluated solution.
+    For example a gaussian process with single point acquisition function.
+  - Batch sampler: generates on-demand a batch of non-evaluated solutions.
+    For example random search. 
+- *Budget pruner*: a multi-fidelity algorithm relying on an internal sampler. It manages 
+  budget allocated to partially evaluated solution, deciding which one to discard or not.
+  For example, ASHA, Hyperband, SHA...
+
+Then these algorithms can be specialized for multi-fidelity, multi-objectives or constrained problems.
+
+| Algorithm | Feature | Type | Optimizer | Sampler  | Pruner | Multi-fidelity | Multi-objective |
+|---|---|---|---|---|---|---|---|
+| [RandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Sequential | ✔️ | ✔️ | ❌ | ❌ |  ❌ |
+| [BatchRandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Batched | ✔️ | ✔️ | ❌ | ❌ |  ❌ |
+| [GridSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Sequential | ❌ |  ❌ |
+| [SHA](https://arxiv.org/abs/1502.07943) | Base | Batched | ✔️ |  ❌ | 
+| [ASHA](https://arxiv.org/abs/1810.05934) | Base | Sequential | ✔️ |  ❌ |
+| [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Sequential | ✔️ |  ❌ |
+| [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Sequential | ✔️ | ✔️  |
 
 ---
 

@@ -8,7 +8,7 @@
 //!
 //! - **Modeling:** [`Domain`], [`Var`], [`Searchspace`], [`Solution`]
 //! - **Objective:** [`Objective`], [`Outcome`], [`Stepped`]
-//! - **Optimization:** [`Optimizer`], [`BatchOptimizer`], [`SequentialOptimizer`]
+//! - **Optimization:** [`Optimizer`], [`BatchOptimizer`], [`SingleOptimizer`]
 //! - **Execution:** [`Runable`], [`Recorder`], [`Checkpointer`], [`Stop`]
 //!
 //! Most of these items are re-exported at the crate root for convenience.
@@ -310,7 +310,7 @@ pub use crate::objective::{
 
 pub mod optimizer;
 pub use crate::optimizer::{
-    BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SequentialOptimizer, opt::CompBatch,
+    BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SingleOptimizer, opt::CompBatch,
     Sampler, BatchSampler, SingleSampler
 };
 

@@ -1,5 +1,5 @@
 
-use tantale_core::{BaseSol, CSVWritable, Codomain, CompAcc, CompShape, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Outcome, SId, Sampler, Searchspace, SequentialOptimizer, SingleCodomain, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Uncomputed, domain::codomain::ElemSingleCodomain, solution::{computed::Xy, shape::RawOpt}};
+use tantale_core::{BaseSol, CSVWritable, Codomain, CompAcc, CompShape, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleCodomain, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Uncomputed, domain::codomain::ElemSingleCodomain, solution::{computed::Xy, shape::RawOpt}};
 use crate::{bayesian::{kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, OrdArchive, SimpleObjective, SimpleStepped}};
 
 use std::{cell::RefCell, sync::Arc};
@@ -216,7 +216,7 @@ where
 
 // Implementation for Mixed-NoDomain searchspace
 impl<Kern, Wght, Splt, Scp, Out> 
-    SequentialOptimizer<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, LinkOpt<Scp>, Out, Scp, SimpleObjective<Scp::SolShape, TpeSInfo, Out>,>
+    SingleOptimizer<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, LinkOpt<Scp>, Out, Scp, SimpleObjective<Scp::SolShape, TpeSInfo, Out>,>
     for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, SingleCodomain<Out>, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
@@ -279,7 +279,7 @@ where
 
 
 impl<Kern, Wght, Splt, Scp, Out, FnState> 
-    SequentialOptimizer<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, TpeSInfo, Out, FnState>>
+    SingleOptimizer<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, TpeSInfo, Out, FnState>>
     for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,

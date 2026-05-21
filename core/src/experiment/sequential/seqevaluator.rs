@@ -4,7 +4,7 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate}, has_trait::HasX, objective::Step, optimizer::opt::{OpSInfType, SequentialOptimizer}, searchspace::CompShape, solution::{IntoComputedShape, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
+    Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate}, has_trait::HasX, objective::Step, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::CompShape, solution::{IntoComputedShape, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
 };
 
 use serde::{Deserialize, Serialize};
@@ -77,7 +77,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,
@@ -205,7 +205,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,
@@ -403,7 +403,7 @@ where
     PSol::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
-    Op: SequentialOptimizer<
+    Op: SingleOptimizer<
             PSol,
             SolId,
             LinkOpt<Scp>,

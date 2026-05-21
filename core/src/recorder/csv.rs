@@ -35,7 +35,7 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SequentialOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, onto::LinkOpt}, has_trait::HasX, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
+    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, onto::LinkOpt}, has_trait::HasX, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
         Batch, Id, OutBatch,
         SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
@@ -901,7 +901,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Cod: CodCSVWrite<SolId, Out>
         + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
@@ -1256,7 +1256,7 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: SequentialOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
+    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Cod: CodCSVWrite<SolId, Out>
         + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
