@@ -1,7 +1,11 @@
 use crate::{
     Grid,
     domain::{
-        CategoricalDomain, Domain, PreDomain, TypeDom, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit
+        CategoricalDomain, Domain, PreDomain, TypeDom,
+        bounded::{Bounded, BoundedBounds},
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+        unit::Unit,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -78,7 +82,7 @@ impl CategoricalDomain for Bool {
     fn size(&self) -> usize {
         2
     }
-    
+
     fn get_features(&self) -> &[Self::TypeDom] {
         &[false, true]
     }

@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-
-#[derive(Serialize,Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 /// A struct to hold the weights for a set of points, as well as the prior weight.
-pub struct PointWeights{
+pub struct PointWeights {
     pub weights: Vec<f64>,
     pub prior_weight: f64,
 }
@@ -15,9 +14,9 @@ impl PointWeights {
     }
 }
 
-#[derive(Serialize,Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 /// A struct to hold the weights for the good and bad sets, as well as the prior weights for both sets.
-pub struct TPEWeights{
+pub struct TPEWeights {
     pub good: PointWeights,
     pub bad: PointWeights,
 }
@@ -29,11 +28,11 @@ where
     T: Sized + Serialize + for<'de> Deserialize<'de>,
 {
     /// Computes the weights for the good and bad sets.
-    /// 
+    ///
     /// # Parameters
     /// - `good`: A slice of points in the good set.
     /// - `bad`: A slice of points in the bad set.
-    /// 
+    ///
     /// # Returns
     /// A [`TPEWeights`] struct containing the weights for the good and bad sets, as well as the prior weights for both sets.
     fn weight(&self, good: &[T], bad: &[T]) -> TPEWeights;
@@ -42,8 +41,8 @@ where
 /// A simple uniform [`Weighter`].
 /// Each point $s$ in the $\\texttt{good}$ and $\\texttt{bad}$ sets is assigned the same weight.
 /// The weight is inversely proportional to the size of the respective set.
-/// 
-/// $$ 
+///
+/// $$
 /// w_s = \\begin{cases}
 /// \\frac{1}{|\\texttt{good} + \\texttt{prior}|} & \\text{if } s \\in \\texttt{good} \\\\
 /// \\frac{1}{|\\texttt{bad} + \\texttt{prior}|} & \\text{if } s \\in \\texttt{bad}
@@ -71,7 +70,7 @@ impl Default for UniformWeighter {
     }
 }
 
-impl<T> Weighter<T> for UniformWeighter 
+impl<T> Weighter<T> for UniformWeighter
 where
     T: Sized + Serialize + for<'de> Deserialize<'de>,
 {
@@ -102,13 +101,13 @@ where
 }
 
 // /// An Expected Improvement (EI) [`Weighter`] that assigns weights based on the difference between the quantile of the good set and the values in both sets.
-// /// 
+// ///
 // /// For the $\\texttt{good} \subset \\mathcal{D}$ set, the weight for each point $s$ is computed as:
 // /// $$
 // /// w_s = \\frac{y^\\gamma - y_s}{\\sum_{s' \\in \\texttt{good}} \\left( 1 + \\frac{1}{|\\texttt{good}|} \\right)\\left(y^\\gamma - y(s')\\right)}
 // /// $$
 // /// where $\\gamma$ is the quantile parameter and $y^\\gamma$ is the value at that quantile within $\\mathcal{D}$, and $y(s)$ is the value of point $s$.
-// /// 
+// ///
 // /// For the bad set, the weight for each point is uniform and inversely proportional to the size of the bad set, with an additional prior weight:
 // /// $$
 // /// w_s = \\frac{1}{|\\texttt{bad}| + 1}
@@ -138,7 +137,7 @@ where
 //     {
 //         let quantile = good.last().unwrap().y();
 //         let mut good_sum = 0.0;
-//         let good_diff: Vec<f64> = good.iter().map(|s| 
+//         let good_diff: Vec<f64> = good.iter().map(|s|
 //         {
 //             let diff = *quantile - *s.y();
 //             good_sum += diff;
@@ -147,7 +146,7 @@ where
 
 //         let good_mean = good_sum / (good.len() as f64);
 //         let good_weights: Vec<f64> = good_diff.iter().map(|d| d / (good_sum + good_mean)).collect();
-        
+
 //         let bad_weight = 1.0 / (bad.len() + 1) as f64;
 //         let bad_weights = vec![bad_weight ; bad.len()];
 //         TPEWeights {
@@ -161,25 +160,24 @@ where
 //             },
 //         }
 //     }
-    
+
 //     fn with_prior(mut self, prior: f64) -> Self {
 //         self.0 = prior;
 //         self
 //     }
 // }
 
-
 // /// An old decay [`Weighter`] described in [Watanabe 2025](https://arxiv.org/pdf/2304.11127).
-// /// 
+// ///
 // /// $$
 // ///  w_s = \\begin{cases}
 // /// \\frac{1}{|\\texttt{good}| + 1} & \\text{if } s \\in \\texttt{good} \\\\
 // /// \\tau(i) + \\frac{1 - \\tau(i)}{|\\texttt{bad}| + 1} & \\text{if } s \\in \\texttt{bad}
 // /// \\end{cases}
 // /// $$
-// /// 
+// ///
 // /// where $i$ is the index of the point in the sorted bad set, and $\tau(i)$ is a decay function defined as:
-// /// 
+// ///
 // /// $$
 // ///  \tau(i) := \\texttt{i} / (\\texttt{length} - \\texttt{decay\_length})
 // /// $$
@@ -208,7 +206,7 @@ where
 //     }
 // }
 
-// impl<Cod,Out> Weighter<Cod,Out> for OldDecayWeighter 
+// impl<Cod,Out> Weighter<Cod,Out> for OldDecayWeighter
 // where
 //     Cod: Codomain<Out>,
 //     Out: Outcome,
@@ -245,13 +243,13 @@ where
 //             }
 //         ).collect();
 //         let bad_weights: Vec<f64> = bad_weight_prime.iter().map(|w| w/sum).collect();
-//         TPEWeights { 
-//             good_weights, 
-//             bad_weights, 
-//             good_prior_weight: good_weight, 
+//         TPEWeights {
+//             good_weights,
+//             bad_weights,
+//             good_prior_weight: good_weight,
 //             bad_prior_weight: self.0 / sum }
 //     }
-    
+
 //     fn with_prior(mut self, prior: f64) -> Self {
 //         self.0 = prior;
 //         self

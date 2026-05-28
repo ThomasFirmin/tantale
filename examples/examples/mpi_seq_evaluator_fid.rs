@@ -4,8 +4,8 @@ use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
-    Codomain, FidelitySol, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
-    checkpointer::NoCheck,HasId, HasStep,
+    Codomain, FidelitySol, HasId, HasStep, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
+    checkpointer::NoCheck,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, DistOutShapeEvaluate,

@@ -112,7 +112,7 @@ impl Display for PyFuncState {
 ///
 /// # Panics
 /// Panics if no callable has been registered via [`PyObjective::register`].
-pub fn py_objective<E: ElementIntoPyObject, Out:PyOutWrap>(x: Arc<[E]>) -> Out {
+pub fn py_objective<E: ElementIntoPyObject, Out: PyOutWrap>(x: Arc<[E]>) -> Out {
     let binding = PY_OBJECTIVE_FUNC
         .get()
         .expect("The PyObjective was not initialized");
@@ -133,7 +133,7 @@ pub fn py_objective<E: ElementIntoPyObject, Out:PyOutWrap>(x: Arc<[E]>) -> Out {
 /// # Panics
 /// Panics if no callable has been registered via [`PyStepped::register`],
 /// or if the Python callable does not return a 2-tuple.
-pub fn py_stepped<E: ElementIntoPyObject, Out:PyOutWrap + FidOutcome>(
+pub fn py_stepped<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
     x: Arc<[E]>,
     fidelity: Fidelity,
     state: Option<PyFuncState>,
@@ -224,7 +224,9 @@ impl PyStepped {
     /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`]`, `[`PyFuncState`]`>`.
     ///
     /// Only one `PyStepped` may be active per thread at a time.
-    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(&self) -> Stepped<Arc<[E]>, Out, PyFuncState> {
+    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
+        &self,
+    ) -> Stepped<Arc<[E]>, Out, PyFuncState> {
         Python::attach(|py| {
             PY_STEPPED_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python stepped objective function: a function has already been registered");
         });

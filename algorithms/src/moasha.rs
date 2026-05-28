@@ -20,14 +20,24 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, OptState, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
+    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep,
+    LinkOpt, Multi, OptState, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler,
+    SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
+    solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{self, Visitor}, ser::SerializeStruct};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
+    ser::SerializeStruct,
+};
 use std::{cell::RefCell, marker::PhantomData};
 
-use crate::{mo::CandidateSelector, utils::{FCompAcc, FCompShape, SimpleStepped}};
+use crate::{
+    mo::CandidateSelector,
+    utils::{FCompAcc, FCompShape, SimpleStepped},
+};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -58,10 +68,10 @@ type MoAshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SI
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-pub struct MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn> 
+pub struct MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
@@ -83,12 +93,13 @@ where
     pub rung: MoAshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
-    _fn : PhantomData<Fn>,
+    _fn: PhantomData<Fn>,
 }
-impl<Smpl, Selector, Scp, PSol, Out, Fn>  OptState for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn> 
+impl<Smpl, Selector, Scp, PSol, Out, Fn> OptState
+    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
@@ -165,10 +176,12 @@ where
 /// # Internal State
 ///
 /// - [`MoAsha`]: Checkpointable state including budget, scaling factor, and iteration count
-pub struct MoAsha<Smpl, Selector, Scp, PSol, Out, Fn> (pub MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>)
+pub struct MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>(
+    pub MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>,
+)
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
@@ -180,7 +193,7 @@ where
 impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Multi<Out>,
@@ -196,10 +209,10 @@ where
     /// Creates a new [`MoAsha`] optimizer with the specified parameters.
     ///
     /// # Parameters
-    /// 
+    ///
     /// * `sampler` - A [`SingleSampler`] used to sample random configuration.
-    /// * `selector` - The candidate selection strategy used for promoting candidates between rungs. 
-    ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based 
+    /// * `selector` - The candidate selection strategy used for promoting candidates between rungs.
+    ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based
     ///   on their performance and diversity.
     /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
     ///   fidelity level, typically 1 epoch or similar.
@@ -214,7 +227,13 @@ where
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(sampler: Smpl, selector: Selector, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(
+        sampler: Smpl,
+        selector: Selector,
+        budget_min: f64,
+        budget_max: f64,
+        scaling: f64,
+    ) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -265,10 +284,19 @@ where
 /// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Smpl, Selector, Out, Scp, SInfo, Fn> Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+impl<Smpl, Selector, Out, Scp, SInfo, Fn>
+    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
-    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Smpl: SingleSampler<
+            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
+            StepSId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Fn,
+            SInfo = SInfo,
+        >,
     Out::Cod: Multi<Out>,
     TypeCodom<Out>: Dominate,
     Out: FidOutcome,
@@ -302,10 +330,19 @@ where
     }
 }
 
-impl<Smpl, Selector, Out, Scp, SInfo, Fn> BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+impl<Smpl, Selector, Out, Scp, SInfo, Fn>
+    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
-    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Smpl: SingleSampler<
+            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
+            StepSId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            Fn,
+            SInfo = SInfo,
+        >,
     Out::Cod: Multi<Out>,
     TypeCodom<Out>: Dominate,
     Out: FidOutcome,
@@ -407,9 +444,25 @@ impl<Smpl, Selector, Out, Scp, SInfo, FnState>
         Out,
         Scp,
         SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    > for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>>
+    >
+    for MoAsha<
+        Smpl,
+        Selector,
+        Scp,
+        FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
+        Out,
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
+    >
 where
-    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>, SInfo = SInfo>,
+    Smpl: SingleSampler<
+            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
+            StepSId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
+            SInfo = SInfo,
+        >,
     Out::Cod: Multi<Out>,
     TypeCodom<Out>: Dominate,
     Out: FidOutcome,
@@ -497,21 +550,6 @@ where
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //-------------//
 //--- SERDE ---//
 //-------------//
@@ -519,7 +557,7 @@ where
 struct MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Multi<Out>,
@@ -547,10 +585,11 @@ enum MoAshaField {
 
 struct MoAshaFieldVisitor;
 
-impl<Smpl, Selector, Scp, PSol, Out, Fn> Serialize for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<Smpl, Selector, Scp, PSol, Out, Fn> Serialize
+    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Multi<Out>,
@@ -578,7 +617,7 @@ where
 impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Multi<Out>,
@@ -641,10 +680,11 @@ impl<'de> Deserialize<'de> for MoAshaField {
     }
 }
 
-impl<'de, Scp, PSol, Smpl, Selector, Out, Fn> Visitor<'de> for MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Scp, PSol, Smpl, Selector, Out, Fn> Visitor<'de>
+    for MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
@@ -750,7 +790,8 @@ where
         let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
         let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
-        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let current_budget =
+            current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
 
         Ok(MoAshaState {
             sampler: Smpl::from_state(sampler),
@@ -764,10 +805,11 @@ where
     }
 }
 
-impl<'de, Scp, Selector, PSol, Smpl, Out, Fn> Deserialize<'de> for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Scp, Selector, PSol, Smpl, Out, Fn> Deserialize<'de>
+    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Multi<Out>,

@@ -13,9 +13,10 @@ const EPS: f64 = 1e-9;
 fn test_gaussian_kernel_real() {
     let dom = Real::new(0.0, 1.0, Uniform);
     let k = GaussianKernel.compute(&0.5, &0.4, 1.0, &dom);
-    let g = 1.0/(2.0*PI*1.0_f64.powi(2)).sqrt()*(-0.5*((0.5-0.4)/1.0_f64).powi(2)).exp();
+    let g =
+        1.0 / (2.0 * PI * 1.0_f64.powi(2)).sqrt() * (-0.5 * ((0.5 - 0.4) / 1.0_f64).powi(2)).exp();
     let norm_cst = 0.38116862386025063;
-    let expected = g/norm_cst;
+    let expected = g / norm_cst;
     assert!(
         (k - expected).abs() < EPS,
         "Gaussian kernel on Real failed: {} != {}",
@@ -57,9 +58,10 @@ fn test_gaussian_kernel_real_prior_positive() {
 fn test_gaussian_kernel_unit_positive() {
     let dom = Unit::new(Uniform);
     let k = GaussianKernel.compute(&0.5, &0.4, 1.0, &dom);
-    let g = 1.0/(2.0*PI*1.0_f64.powi(2)).sqrt()*(-0.5*((0.5-0.4)/1.0_f64).powi(2)).exp();
+    let g =
+        1.0 / (2.0 * PI * 1.0_f64.powi(2)).sqrt() * (-0.5 * ((0.5 - 0.4) / 1.0_f64).powi(2)).exp();
     let norm_cst = 0.38116862386025063;
-    let expected = g/norm_cst;
+    let expected = g / norm_cst;
     assert!(
         (k - expected).abs() < EPS,
         "Gaussian kernel on Unit failed: {} != {}",
@@ -90,7 +92,7 @@ fn test_gaussian_kernel_int_positive() {
     let k = GaussianKernel.compute(&5_i64, &4_i64, 5.0, &dom);
     let g = 0.07808358491192358;
     let norm_cst = 0.7191393900676302;
-    let expected = g/norm_cst;
+    let expected = g / norm_cst;
     assert!(
         (k - expected).abs() < EPS,
         "Gaussian kernel on Int failed: {} != {}",
@@ -135,7 +137,7 @@ fn test_gaussian_kernel_nat_positive() {
     let k = GaussianKernel.compute(&5_u64, &4_u64, 5.0, &dom);
     let g = 0.07808358491192358;
     let norm_cst = 0.7191393900676302;
-    let expected = g/norm_cst;
+    let expected = g / norm_cst;
     assert!(
         (k - expected).abs() < EPS,
         "Gaussian kernel on Nat failed: {} != {}",
@@ -176,10 +178,7 @@ fn test_gaussian_kernel_nat_sample_in_bounds() {
 
 #[test]
 fn test_aitchison_aitken_same_category() {
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let bw = 0.1;
     let k = AitchisonAitkenKernel.compute(&"a".to_string(), &"a".to_string(), bw, &dom);
     // Formula: 1 - bw = 1 - 0.1 = 0.9
@@ -193,10 +192,7 @@ fn test_aitchison_aitken_same_category() {
 
 #[test]
 fn test_aitchison_aitken_different_category() {
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let bw = 0.1;
     let k = AitchisonAitkenKernel.compute(&"a".to_string(), &"b".to_string(), bw, &dom);
     // Formula: bw / (|D| - 1) = 0.1 / 2 = 0.05
@@ -211,10 +207,7 @@ fn test_aitchison_aitken_different_category() {
 
 #[test]
 fn test_aitchison_aitken_prior_uniform() {
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let p = AitchisonAitkenKernel.prior(&"a".to_string(), &dom);
     // Formula: 1 / |D| = 1/3
     let expected = 1.0 / 3.0;
@@ -228,10 +221,7 @@ fn test_aitchison_aitken_prior_uniform() {
 
 #[test]
 fn test_aitchison_aitken_sample_stays_in_domain() {
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let mut rng = rand::rng();
     for _ in 0..30 {
         let sample = AitchisonAitkenKernel.sample(&mut rng, &"a".to_string(), 1.0, &dom);
@@ -246,13 +236,12 @@ fn test_aitchison_aitken_sample_stays_in_domain() {
 #[test]
 fn test_aitchison_aitken_sums_to_one() {
     // Total probability across all categories should sum to 1 when categories are uniform
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let bw = 0.2;
     let x2 = "a".to_string();
-    let total: f64 = dom.values.iter()
+    let total: f64 = dom
+        .values
+        .iter()
         .map(|x1| AitchisonAitkenKernel.compute(x1, &x2, bw, &dom))
         .sum();
     assert!(
@@ -267,13 +256,21 @@ fn test_aitchison_aitken_sums_to_one() {
 #[test]
 fn test_acquisition_ratio() {
     let acq = acquisition(2.0, 1.0);
-    assert!((acq - 2.0).abs() < EPS, "acquisition should be best/worse: {}", acq);
+    assert!(
+        (acq - 2.0).abs() < EPS,
+        "acquisition should be best/worse: {}",
+        acq
+    );
 }
 
 #[test]
 fn test_acquisition_equal_densities() {
     let acq = acquisition(1.0, 1.0);
-    assert!((acq - 1.0).abs() < EPS, "Equal densities should give acquisition=1: {}", acq);
+    assert!(
+        (acq - 1.0).abs() < EPS,
+        "Equal densities should give acquisition=1: {}",
+        acq
+    );
 }
 
 #[test]

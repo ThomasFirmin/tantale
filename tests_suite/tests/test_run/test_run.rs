@@ -1,7 +1,4 @@
-use tantale::algos::{
-    BatchRandomSearch,
-    random_search::RandomSearch,
-};
+use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded},
@@ -20,7 +17,7 @@ fn test_batch_run() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
-    
+
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -94,14 +91,7 @@ fn test_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, BatchRandomSearch, Calls, sp, obj, (rec, check));
 
     let expstop: &mut Calls = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -121,14 +111,7 @@ fn test_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, BatchRandomSearch, Calls, sp, obj, (rec, check));
     run_reader("tmp_test_parbatchrun", 100);
 
     let expstop: &Calls = exp.get_stop();
@@ -145,7 +128,7 @@ fn test_seqrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = RandomSearch::new();
-    
+
     let obj = Objective::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_seqrun").init();

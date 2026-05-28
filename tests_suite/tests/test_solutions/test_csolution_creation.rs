@@ -1,9 +1,7 @@
 use tantale::core::HasX;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
 use tantale::core::{
-    BaseSol, Codomain, Computed, ParSId,
-    HasId, HasSolInfo, HasY,
-    solution::Uncomputed,
+    BaseSol, Codomain, Computed, HasId, HasSolInfo, HasY, ParSId, solution::Uncomputed,
 };
 
 use num::cast::AsPrimitive;
@@ -16,8 +14,7 @@ use std::sync::Arc;
 use super::init_outcome::{OutExample, get_struct};
 use super::init_sinfo::{TestSInfo, get_sinfo};
 
-type TestComp<Sol, Dom> =
-    Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
+type TestComp<Sol, Dom> = Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
 where

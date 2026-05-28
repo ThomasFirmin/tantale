@@ -110,7 +110,8 @@ pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
 pub type TypeCodom<Out> = <<Out as Outcome>::Cod as Codomain<Out>>::TypeCodom;
 
 /// Type alias for cleaner associated type definitions of [`Accumulator`] of the [`Codomain`].
-pub type TypeAcc<C, SolId, SInfo, Out> = <<Out as Outcome>::Cod as Codomain<Out>>::Acc<C, SolId, SInfo>;
+pub type TypeAcc<C, SolId, SInfo, Out> =
+    <<Out as Outcome>::Cod as Codomain<Out>>::Acc<C, SolId, SInfo>;
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
@@ -400,7 +401,9 @@ impl<Out: Outcome<Cod = Self>> SingleCodomain<Out> {
     }
 }
 
-impl<Out: Outcome<Cod = Self>> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain> for SingleCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain>
+    for SingleCodomain<Out>
+{
     fn header(_elem: &SingleCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y")])
     }
@@ -442,7 +445,7 @@ impl PartialOrd for ElemSingleCodomain {
     }
 }
 
-impl<Out: Outcome<Cod=Self>> Codomain<Out> for SingleCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
     type Acc<C, SolId, SInfo>
         = BestAccumulator<C, SolId, SInfo, Out>
@@ -480,7 +483,9 @@ impl<Out: Outcome<Cod = Self>> CostCodomain<Out> {
     }
 }
 
-impl<Out: Outcome<Cod = Self>> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<CostCodomain<Out>, ElemCostCodomain>
+    for CostCodomain<Out>
+{
     fn header(_elem: &CostCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("cost")])
     }
@@ -570,7 +575,9 @@ impl<Out: Outcome<Cod = Self>> ConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome<Cod = Self>> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<ConstCodomain<Out>, ElemConstCodomain>
+    for ConstCodomain<Out>
+{
     fn header(elem: &ConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(
@@ -797,7 +804,9 @@ impl<Out: Outcome<Cod = Self>> MultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome<Cod = Self>> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain> for MultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain>
+    for MultiCodomain<Out>
+{
     fn header(elem: &MultiCodomain<Out>) -> Vec<String> {
         elem.y_criteria
             .iter()

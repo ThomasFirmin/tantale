@@ -50,7 +50,7 @@ mod searchspace {
         pub obj1: f64, // First objective
         #[maximize]
         pub obj2: f64, // Second objective
-        info: f64,     // Extra info
+        info: f64, // Extra info
         #[step]
         pub fid: Step, // Evaluation step
         pub rank: i32,

@@ -36,7 +36,14 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        sha!(BatchRandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -57,7 +64,14 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
+    let exp = load!(
+        mono,
+        sha!(BatchRandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_sh_run", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
@@ -95,7 +109,14 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        sha!(BatchRandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -116,7 +137,14 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
+    let exp = load!(
+        threaded,
+        sha!(BatchRandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_sh_parrun", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

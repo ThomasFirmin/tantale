@@ -1,7 +1,7 @@
 use tantale::algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale::core::{
-    BaseSol, Codomain, EmptyInfo, Mixed, MixedTypeDom, Objective, SId, Searchspace, SingleCodomain,
-    Sp, HasId,
+    BaseSol, Codomain, EmptyInfo, HasId, Mixed, MixedTypeDom, Objective, SId, Searchspace,
+    SingleCodomain, Sp,
     domain::NoDomain,
     experiment::{
         BatchEvaluator, MonoEvaluate, OutBatchEvaluate, OutShapeEvaluate, ThrBatchEvaluator,
@@ -315,7 +315,8 @@ fn test_seqevaluator() {
             SId,
             EmptyInfo,
             Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
-            OutEvaluator,>,
+            OutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let best = &comp;

@@ -88,9 +88,8 @@ use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
-    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer,
-    StepSId,
+    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptState, Optimizer,
+    Searchspace, SingleOptimizer, StepSId,
 };
 
 use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
@@ -456,7 +455,11 @@ where
     /// # Returns
     ///
     /// A [`Batch`] with metadata indicating which bracket these candidates belong to
-    fn first_step(&mut self, scp: &Scp, acc: &FCompAcc<Scp, Out, Self::SInfo>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(
+        &mut self,
+        scp: &Scp,
+        acc: &FCompAcc<Scp, Out, Self::SInfo>,
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
             / (self.0.current_s + 1) as f64)
             .ceil() as usize;

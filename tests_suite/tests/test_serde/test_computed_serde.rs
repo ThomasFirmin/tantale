@@ -7,9 +7,7 @@ use rmp_serde;
 use std::sync::Arc;
 use tantale::core::Mixed;
 use tantale::core::{
-    BaseSol, Computed, EmptyInfo, SId, HasX,
-    HasId, HasY,
-    searchspace::Searchspace,
+    BaseSol, Computed, EmptyInfo, HasId, HasX, HasY, SId, searchspace::Searchspace,
 };
 
 macro_rules! get_test {

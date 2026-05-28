@@ -12,16 +12,14 @@ use tantale::core::optimizer::opt::CompBatch;
 use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
-use tantale::core::solution::{
-    SolutionShape, Uncomputed,
-};
+use tantale::core::solution::{SolutionShape, Uncomputed};
 use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
 use tantale::core::{
-    HasId, HasSolInfo, HasUncomputed, HasY, HasInfo,
-    Codomain, FolderConfig, Mixed, MixedTypeDom, SId, Searchspace, Sp,
+    Codomain, FolderConfig, HasId, HasInfo, HasSolInfo, HasUncomputed, HasY, Mixed, MixedTypeDom,
+    SId, Searchspace, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::csv::{CSVRecorder, CSVWritable},
-    solution::{Batch,  OutBatch},
+    solution::{Batch, OutBatch},
     stop::{Calls, Stop},
 };
 
@@ -79,13 +77,7 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     CompShape<Scp::SolShape, SId, Op::SInfo, OutExample>: SolutionShape<
             SId,
             Op::SInfo,
-            SolObj = Computed<
-                PSol::Twin<LinkObj<Scp>>,
-                SId,
-                LinkObj<Scp>,
-                OutExample,
-                Op::SInfo,
-            >,
+            SolObj = Computed<PSol::Twin<LinkObj<Scp>>, SId, LinkObj<Scp>, OutExample, Op::SInfo>,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, OutExample, Op::SInfo>,
         > + HasY<OutExample>
         + InfoCSVWrite<SId, Op::SInfo>
@@ -177,13 +169,7 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     CompShape<Scp::SolShape, SId, Op::SInfo, OutExample>: SolutionShape<
             SId,
             Op::SInfo,
-            SolObj = Computed<
-                PSol::Twin<LinkObj<Scp>>,
-                SId,
-                LinkObj<Scp>,
-                OutExample,
-                Op::SInfo,
-            >,
+            SolObj = Computed<PSol::Twin<LinkObj<Scp>>, SId, LinkObj<Scp>, OutExample, Op::SInfo>,
             SolOpt = Computed<PSol, SId, LinkOpt<Scp>, OutExample, Op::SInfo>,
         > + HasY<OutExample>
         + InfoCSVWrite<SId, Op::SInfo>

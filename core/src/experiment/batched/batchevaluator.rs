@@ -1,7 +1,13 @@
 use crate::{
-    Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo, domain::{Codomain, codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate}, has_trait::HasX, objective::{Objective, Step}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::CompShape, solution::{
-        Batch, IntoComputedShape, OutBatch, SolutionShape, Uncomputed, shape::RawObj
-    }, stop::{ExpStep, Stop}
+    Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo,
+    domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
+    has_trait::HasX,
+    objective::{Objective, Step},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::CompShape,
+    solution::{Batch, IntoComputedShape, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
+    stop::{ExpStep, Stop},
 };
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -71,8 +77,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: BatchOptimizer<
             PSol,
@@ -102,12 +107,7 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -148,8 +148,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: BatchOptimizer<
             PSol,
@@ -193,19 +192,9 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> (
-        Batch<
-            SolId,
-            Op::SInfo,
-            Op::Info,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-        >,
+        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
@@ -305,8 +294,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + Send + Sync,
     Op: BatchOptimizer<
             PSol,
@@ -321,8 +309,7 @@ where
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: Send + Sync,
     CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: Send + Sync,
-    TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>:
-        Send + Sync,
+    TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out: Outcome + Send + Sync,
 {
@@ -347,14 +334,7 @@ where
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
-            Mutex<
-                TypeAcc<
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-                    SolId,
-                    Op::SInfo,
-                    Out,
-                >,
-            >,
+            Mutex<TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>>,
         >,
     ) -> (
         Batch<

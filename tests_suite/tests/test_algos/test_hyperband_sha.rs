@@ -1,6 +1,12 @@
-use tantale::{algos::{BatchRandomSearch, hyperband}, core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, stop::Evaluated
-}};
+use tantale::{
+    algos::{BatchRandomSearch, hyperband},
+    core::{
+        CSVRecorder, FolderConfig, MessagePack, SaverConfig,
+        experiment::{Runable, mono, threaded},
+        load,
+        stop::Evaluated,
+    },
+};
 
 use tantale::algos::{Hyperband, Sha, sha};
 
@@ -106,7 +112,7 @@ fn test_fid_seq_run() {
 
     let exp = load!(
         mono,
-        Hyperband<Sha<BatchRandomSearch, _, _, _, _>,_, _, _>,
+        Hyperband<Sha<BatchRandomSearch, _, _, _, _>, _, _, _>,
         Evaluated,
         sp,
         obj,

@@ -49,7 +49,14 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -70,7 +77,14 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
+    let exp = load!(
+        mono,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj,
+        (rec, check)
+    );
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_run", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
@@ -120,7 +134,14 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Calls = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -147,7 +168,14 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
+    let exp = load!(
+        threaded,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj,
+        (rec, check)
+    );
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_parrun", 400, 100);
     let expstop: &Calls = exp.get_stop();

@@ -1,4 +1,7 @@
-use crate::{Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed, Var, domain::codomain::TypeCodom};
+use crate::{
+    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed,
+    Var, domain::codomain::TypeCodom,
+};
 use std::sync::Arc;
 
 /// Trait for objects with a unique solution identifier.
@@ -33,7 +36,6 @@ pub trait HasId<SolId: Id> {
     }
 }
 
-
 /// Trait for objects with a unique solution identifier.
 ///
 /// [`HasStepId`] extends [`HasId`] to provide access to a solution's unique identifier that also tracks
@@ -58,10 +60,9 @@ pub trait HasSolInfo<Info: SolInfo> {
     fn sinfo(&self) -> Arc<Info>;
 }
 
-
 /// Trait for objects containing a raw solution.
-/// 
-/// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution. 
+///
+/// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution.
 /// This trait is typically implemented by both [`Uncomputed`] and [`Computed`](crate::Computed) solutions,
 /// allowing retrieval of the underlying raw solution regardless of its computed state.
 pub trait HasX<Raw: Clone> {
@@ -187,8 +188,7 @@ pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
 }
 
 /// Trait for objects containing a slice of [`Var`]iables.
-pub trait HasVariables: Linked
-{
+pub trait HasVariables: Linked {
     /// Returns a vector of variables associated with this object.
     fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
 
@@ -202,5 +202,4 @@ pub trait HasVariables: Linked
     fn size(&self) -> usize {
         self.variables().len()
     }
-
 }

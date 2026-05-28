@@ -68,7 +68,9 @@ where
     }
 }
 
-use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
+use tantale::core::{
+    FidOutcome, FidelitySol, IntoComputedShape, LinkOpt, Optimizer, Searchspace, Single, TypeCodom,
+};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
@@ -96,9 +98,7 @@ where
     }
 }
 
-use tantale::core::{
-    CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, Stepped,
-};
+use tantale::core::{CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, Stepped};
 
 impl<Out, Scp, FnState>
     SingleOptimizer<
@@ -120,19 +120,9 @@ where
 {
     fn step(
         &mut self,
-        x: OptionCompShape<
-            Scp::SolShape,
-            StepSId,
-            Self::SInfo,
-            Out,
-        >,
+        x: OptionCompShape<Scp::SolShape, StepSId, Self::SInfo, Out>,
         scp: &Scp,
-        _acc: &CompAcc<
-            Scp::SolShape,
-            StepSId,
-            Self::SInfo,
-            Out,
-        >,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
         if let Some(comp) = x {

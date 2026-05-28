@@ -250,7 +250,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
-    
+
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -273,7 +273,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    
+
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
@@ -309,7 +309,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    
+
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);

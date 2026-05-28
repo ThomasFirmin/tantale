@@ -21,7 +21,7 @@
 //! ```
 
 use crate::{
-    OptInfo, StepId, HasInfo, HasStep,
+    HasInfo, HasStep, OptInfo, StepId,
     objective::{Outcome, Step},
     solution::{Id, SolInfo, SolutionShape},
 };

@@ -1,10 +1,9 @@
 use tantale::algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
-use tantale::core::{IntoComputedShape, StepId};
 use tantale::core::checkpointer::messagepack::MPFnStateCheckpointer;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::{
-    Codomain, EmptyInfo, FidelitySol, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
-    StepSId, Stepped, HasId,
+    Codomain, EmptyInfo, FidelitySol, HasId, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
+    StepSId, Stepped,
     checkpointer::NoFuncStateCheck,
     domain::NoDomain,
     experiment::{
@@ -14,6 +13,7 @@ use tantale::core::{
     solution::{Batch, Lone, SolutionShape},
     stop::Calls,
 };
+use tantale::core::{IntoComputedShape, StepId};
 
 use super::init_func::sp_evaluator_fid;
 use crate::init_func::{FidOutEvaluator, FnState};
@@ -47,7 +47,7 @@ fn test_fidbatchevaluator() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -76,7 +76,13 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
@@ -158,7 +164,7 @@ fn test_fidbatchevaluator() {
 
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -177,11 +183,17 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -200,11 +212,17 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -223,11 +241,17 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -246,7 +270,13 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     assert_eq!(
@@ -271,7 +301,7 @@ fn test_fidthrbatchevaluator() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -300,7 +330,13 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -391,7 +427,7 @@ fn test_fidthrbatchevaluator() {
 
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -410,7 +446,13 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -420,7 +462,7 @@ fn test_fidthrbatchevaluator() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -439,7 +481,13 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -449,7 +497,7 @@ fn test_fidthrbatchevaluator() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -468,7 +516,13 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -478,7 +532,7 @@ fn test_fidthrbatchevaluator() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -497,7 +551,13 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -527,7 +587,7 @@ fn test_seqfidevaluator() {
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
@@ -553,7 +613,7 @@ fn test_seqfidevaluator() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, raw) = out.unwrap();
@@ -609,7 +669,7 @@ fn test_seqfidevaluator() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -635,7 +695,7 @@ fn test_seqfidevaluator() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -661,7 +721,7 @@ fn test_seqfidevaluator() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -687,7 +747,7 @@ fn test_seqfidevaluator() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -737,7 +797,7 @@ fn test_fidbatchevaluator_loadpool() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -771,7 +831,13 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
@@ -853,7 +919,7 @@ fn test_fidbatchevaluator_loadpool() {
 
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -872,11 +938,17 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -895,11 +967,17 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -918,11 +996,17 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -941,7 +1025,13 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     assert_eq!(
@@ -973,7 +1063,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -1007,7 +1097,13 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1098,7 +1194,7 @@ fn test_fidthrbatchevaluator_loadpool() {
 
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -1117,7 +1213,13 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1127,7 +1229,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -1146,7 +1248,13 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1156,7 +1264,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -1175,7 +1283,13 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1185,7 +1299,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     );
     let pairs: Vec<_> = bcomp
         .into_iter()
-        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_,_>>::extract(p).0)
+        .map(|p| <Lone<_, _, _, _> as IntoComputedShape<_, _>>::extract(p).0)
         .collect();
     let batch = Batch::new(pairs, info.clone());
     eval.update(batch);
@@ -1204,7 +1318,13 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
+        OutBatchEvaluate<
+            StepSId,
+            EmptyInfo,
+            RSInfo,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            FidOutEvaluator,
+        >,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1241,7 +1361,7 @@ fn test_seqfidevaluator_loadpool() {
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-      EmptyInfo,
+        EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
@@ -1272,7 +1392,7 @@ fn test_seqfidevaluator_loadpool() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, raw) = out.unwrap();
@@ -1326,7 +1446,7 @@ fn test_seqfidevaluator_loadpool() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1352,7 +1472,7 @@ fn test_seqfidevaluator_loadpool() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1378,7 +1498,7 @@ fn test_seqfidevaluator_loadpool() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1404,7 +1524,7 @@ fn test_seqfidevaluator_loadpool() {
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
                 FidOutEvaluator,
-            >
+            >,
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();

@@ -256,7 +256,15 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, Searchspace, checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, objective::{FuncWrapper, Outcome}, optimizer::Optimizer, recorder::Recorder, searchspace::CompShape, solution::{Batch, Id, OutBatch, Uncomputed, shape::RawObj}, stop::Stop
+    Accumulator, Searchspace,
+    checkpointer::{Checkpointer, MonoCheckpointer, ThrCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    objective::{FuncWrapper, Outcome},
+    optimizer::Optimizer,
+    recorder::Recorder,
+    searchspace::CompShape,
+    solution::{Batch, Id, OutBatch, Uncomputed, shape::RawObj},
+    stop::Stop,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -347,8 +355,7 @@ pub fn mono<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -361,7 +368,7 @@ where
     SolId: Id,
     Out: Outcome,
 {
-    <MonoExperiment<_, _, _, _, _, _, _, _, _,  _> as Runable< _, _, _, _, _, _, _, _, _>>::new(
+    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
         space, objective, optimizer, stop, saver,
     )
 }
@@ -377,8 +384,7 @@ pub fn mono_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -444,8 +450,7 @@ pub fn threaded<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -474,8 +479,7 @@ pub fn threaded_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -556,8 +560,7 @@ pub fn distributed<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
 >
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -602,8 +605,7 @@ pub fn distributed_with_pool<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, 
 >
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
@@ -688,8 +690,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -716,8 +717,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MonoExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -731,7 +731,7 @@ where
         space, objective, saver, pool_mode
     )
 }
-    
+
 /// Loads a multi-threaded experiment from a checkpoint.
 ///
 /// Restores a [`ThrExperiment`] from saved state. The checkpoint must have been created
@@ -786,8 +786,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -814,8 +813,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     ThrExperiment<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -904,8 +902,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -950,8 +947,7 @@ where
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     St: Stop,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     MPIExperiment<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn, Eval>:
         MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1299,8 +1295,7 @@ pub trait Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     Self: Sized,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1441,8 +1436,7 @@ pub enum MasterWorker<'a, DRun, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     DRun: MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1462,8 +1456,7 @@ impl<'a, DRun, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     DRun: MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1491,8 +1484,7 @@ pub trait MPIRunable<'a, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
 where
     Self: Sized,
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1654,10 +1646,8 @@ pub type OutShapeEvaluate<SolId, SInfo, SolShape, Out> =
 ///
 /// This allows the master process to track which worker evaluated each solution.
 #[cfg(feature = "mpi")]
-pub type DistOutShapeEvaluate<SolId, SInfo, SolShape, Out> = (
-    Rank,
-    (CompShape<SolShape, SolId, SInfo, Out>, (SolId, Out)),
-);
+pub type DistOutShapeEvaluate<SolId, SInfo, SolShape, Out> =
+    (Rank, (CompShape<SolShape, SolId, SInfo, Out>, (SolId, Out)));
 
 /// Marker trait for evaluation strategies.
 ///
@@ -1729,8 +1719,7 @@ where
 pub trait MonoEvaluate<PSol, SolId, Op, Scp, Out, St, Fn, OutType>: Evaluate
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1814,8 +1803,7 @@ type ArcMutexCompAcc<SolShape, SolId, SInfo, Out> =
 pub trait ThrEvaluate<PSol, SolId, Op, Scp, Out, St, Fn, OutType>: Evaluate
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,
@@ -1898,8 +1886,7 @@ where
 pub trait DistEvaluate<PSol, SolId, Op, Scp, Out, St, Fn, M, OutType>: Evaluate
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>,
     Scp: Searchspace<PSol, SolId, Op::SInfo>,

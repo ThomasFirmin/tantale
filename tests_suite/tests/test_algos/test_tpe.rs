@@ -1,10 +1,4 @@
-use tantale::algos::{
-    tpe,
-    Univariate,
-    LinearSplit,
-    Tpe,
-    UniformWeighter,
-};
+use tantale::algos::{LinearSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -48,7 +42,14 @@ fn test_tpe_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, tpe!(Univariate, UniformWeighter, LinearSplit), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -64,7 +65,14 @@ fn test_tpe_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = load!(mono, tpe!(Univariate, UniformWeighter, LinearSplit), Evaluated, sp, obj, (rec, check));
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     run_reader("tmp_test_tpe_seqrun", 100);
 }
 
@@ -100,7 +108,14 @@ fn test_tpe_seqthr_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, tpe!(Univariate, UniformWeighter, LinearSplit), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -116,6 +131,13 @@ fn test_tpe_seqthr_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = load!(threaded, tpe!(Univariate, UniformWeighter, LinearSplit), Evaluated, sp, obj, (rec, check));
+    let _exp = load!(
+        threaded,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     run_reader_eps("tmp_test_tpe_seqthrrun", 100, num_cpus::get() * 4);
 }

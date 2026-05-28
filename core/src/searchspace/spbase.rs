@@ -71,10 +71,15 @@ use crate::{
     domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    }, has_trait::{HasVariables, HasX}, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo, SpPar}, solution::{
+    },
+    has_trait::{HasVariables, HasX},
+    recorder::csv::{CSVLeftRight, CSVWritable},
+    searchspace::{Searchspace, SolInfo, SpPar},
+    solution::{
         Id, Lone, Pair, Solution, Uncomputed,
         shape::{RawObj, RawOpt},
-    }, variable::Var
+    },
+    variable::Var,
 };
 
 use rand::prelude::Rng;
@@ -115,8 +120,7 @@ where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
     SolOpt: Uncomputed<SolId, Opt, SInfo, Raw = Arc<[Opt::TypeDom]>>,
-    SolOpt::Twin<Obj>:
-        Uncomputed<SolId, Obj, SInfo, Twin<Opt> = SolOpt, Raw = Arc<[Obj::TypeDom]>>,
+    SolOpt::Twin<Obj>: Uncomputed<SolId, Obj, SInfo, Twin<Opt> = SolOpt, Raw = Arc<[Obj::TypeDom]>>,
 {
     type SolShape = Pair<SolOpt::Twin<Obj>, SolOpt, SolId, Self::Obj, Self::Opt, SInfo>;
 
@@ -164,7 +168,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.ref_x()
             .iter()
@@ -176,7 +180,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_opt<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.ref_x()
             .iter()
@@ -223,7 +227,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.iter().all(|sol| {
             <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::contains_obj::<S>(self, sol)
@@ -234,7 +238,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
     where
-        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.iter().all(|sol| {
             <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::contains_opt::<S>(self, sol)
@@ -337,7 +341,7 @@ where
     }
 }
 
-impl<Obj,Opt> HasVariables for Sp<Obj, Opt>
+impl<Obj, Opt> HasVariables for Sp<Obj, Opt>
 where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
@@ -355,8 +359,7 @@ where
     }
 }
 
-impl <Obj:Domain> HasVariables for Sp<Obj, NoDomain>
-{
+impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
     fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
         &self.var
     }
@@ -377,8 +380,7 @@ where
     SInfo: SolInfo,
     Obj: Domain,
     SolOpt: Solution<SolId, Obj, SInfo, Raw = Arc<[Obj::TypeDom]>, Twin<Obj> = SolOpt>
-        + Uncomputed<SolId, Obj, SInfo>
-    ,
+        + Uncomputed<SolId, Obj, SInfo>,
 {
     type SolShape = Lone<SolOpt, SolId, Obj, SInfo>;
 
@@ -412,7 +414,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.ref_x()
             .iter()
@@ -503,7 +505,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         inp.iter().all(|sol| {
             <Sp<Obj, NoDomain> as Searchspace<SolOpt::Twin<Obj>, SolId, SInfo>>::contains_obj::<S>(

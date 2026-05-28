@@ -44,7 +44,7 @@ pub static PY_STEPPED_FUNC: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 pub static PY_OUTCOME_CLASS: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
 pub mod pyoutcome;
-pub use pyoutcome::{PyFidOutcome, PyOutcome, PyStep, PyOutWrap};
+pub use pyoutcome::{PyFidOutcome, PyOutWrap, PyOutcome, PyStep};
 
 pub mod pyfunction;
 pub use pyfunction::{PyFuncState, PyObjective, PyStepped, py_objective, py_stepped};

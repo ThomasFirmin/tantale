@@ -36,7 +36,12 @@
 //! ```
 
 use crate::{
-    BatchOptimizer, FuncWrapper, RawObj, SingleOptimizer, domain::onto::LinkOpt, objective::Outcome, optimizer::opt::CompBatch, searchspace::{CompShape, Searchspace}, solution::{Id, OutBatch, Uncomputed}
+    BatchOptimizer, FuncWrapper, RawObj, SingleOptimizer,
+    domain::onto::LinkOpt,
+    objective::Outcome,
+    optimizer::opt::CompBatch,
+    searchspace::{CompShape, Searchspace},
+    solution::{Id, OutBatch, Uncomputed},
 };
 
 #[cfg(feature = "mpi")]
@@ -85,8 +90,7 @@ pub trait Recorder {}
 pub trait SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
@@ -151,8 +155,7 @@ where
 pub trait BatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
@@ -217,8 +220,7 @@ where
 pub trait DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
@@ -288,8 +290,7 @@ where
 pub trait DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Out: Outcome,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,

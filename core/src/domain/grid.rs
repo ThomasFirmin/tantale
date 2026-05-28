@@ -1,6 +1,6 @@
 use crate::{
-    Bool, Bounded, CSVWritable, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
-    DomainSampler, Unit,
+    Bool, Bounded, CSVWritable, Domain, DomainSampler, GridDomDistribution, Mixed, MixedTypeDom,
+    Onto, OntoDom, Unit,
     domain::{CategoricalDomain, PreDomain, TypeDom, bounded::BoundedBounds},
     errors::OntoError,
 };
@@ -107,11 +107,11 @@ impl<T: GridBounds> Domain for GridDom<T> {
     }
 }
 
-impl<T:GridBounds> CategoricalDomain for GridDom<T> {
+impl<T: GridBounds> CategoricalDomain for GridDom<T> {
     fn size(&self) -> usize {
         self.values.len()
     }
-    
+
     fn get_features(&self) -> &[Self::TypeDom] {
         &self.values
     }

@@ -1,4 +1,6 @@
-use tantale::algos::{Asha, LinearSplit, RandomSearch, Tpe, UniformWeighter, Univariate, asha, tpe};
+use tantale::algos::{
+    Asha, LinearSplit, RandomSearch, Tpe, UniformWeighter, Univariate, asha, tpe,
+};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -117,7 +119,14 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, asha!(RandomSearch), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        asha!(RandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -144,7 +153,14 @@ fn test_fid_seq_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, asha!(RandomSearch), Evaluated, sp, obj, (rec, check));
+    let exp = load!(
+        threaded,
+        asha!(RandomSearch),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     // 400 = 4 steps * 50 calls  + 6 evals for rungs filling, epsilon added to account for parallelism
     run_reader_eps("tmp_test_asha_parrun", 400 + 6, num_cpus::get() * 3);
     let expstop: &Evaluated = exp.get_stop();
@@ -163,18 +179,6 @@ fn test_fid_seq_parrun() {
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 #[test]
 fn test_fid_seq_run_tpe() {
     let _clean = Cleaner::new("tmp_test_asha_run_tpe");
@@ -190,7 +194,13 @@ fn test_fid_seq_run_tpe() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let sampler = Tpe::new(5, 30, Univariate, UniformWeighter::default(), LinearSplit::new(0.25).unwrap());
+    let sampler = Tpe::new(
+        5,
+        30,
+        Univariate,
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
     let opt = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
@@ -211,7 +221,14 @@ fn test_fid_seq_run_tpe() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, asha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        mono,
+        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -232,7 +249,14 @@ fn test_fid_seq_run_tpe() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, asha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, sp, obj, (rec, check));
+    let exp = load!(
+        mono,
+        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader("tmp_test_asha_run_tpe", 400 + 6);
     let expstop = exp.get_stop();
@@ -261,7 +285,13 @@ fn test_fid_seq_parrun_tpe() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let sampler = Tpe::new(5, 30, Univariate, UniformWeighter::default(), LinearSplit::new(0.25).unwrap());
+    let sampler = Tpe::new(
+        5,
+        30,
+        Univariate,
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
     let opt = Asha::new(sampler, 1., 5., 1.61);
 
     let stop = Evaluated::new(50);
@@ -282,7 +312,14 @@ fn test_fid_seq_parrun_tpe() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, asha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, sp, obj, (rec, check));
+    let mut exp = load!(
+        threaded,
+        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -309,7 +346,14 @@ fn test_fid_seq_parrun_tpe() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, asha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, sp, obj, (rec, check));
+    let exp = load!(
+        threaded,
+        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
     // 400 = 4 steps * 50 calls  + 6 evals for rungs filling, epsilon added to account for parallelism
     run_reader_eps("tmp_test_asha_parrun_tpe", 400 + 6, num_cpus::get() * 3);
     let expstop: &Evaluated = exp.get_stop();

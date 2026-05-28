@@ -1,7 +1,4 @@
-use tantale::algos::{
-    BatchRandomSearch,
-    random_search::RandomSearch,
-};
+use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{MonoExperiment, ThrExperiment},
@@ -39,14 +36,7 @@ fn test_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -65,14 +55,7 @@ fn test_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
     let expstop: &Evaluated = exp.get_stop();
     let expoptimizer = exp.get_optimizer();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
@@ -223,14 +206,7 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        RandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, RandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     let calls = expstop.calls();
@@ -247,14 +223,7 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        RandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, RandomSearch, Evaluated, sp, obj, (rec, check));
     let expstop: &Evaluated = exp.get_stop();
     let calls = expstop.calls();
     assert!((100..=105).contains(&calls), "Number of calls is wrong");
@@ -285,14 +254,7 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -313,14 +275,7 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader_eps("tmp_test_fidbatchrun", 524, num_cpus::get() * 4);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
@@ -356,14 +311,7 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -381,14 +329,7 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
     // times 2
     run_reader("tmp_test_fidbatchparrun", 548);
     let expstop = exp.get_stop();
@@ -466,14 +407,7 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        RandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, RandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -493,14 +427,7 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        RandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, RandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader_eps("tmp_test_fidthrseqrun", 500, num_cpus::get() * 4);
     let expstop: &Evaluated = exp.get_stop();
     let max_call = expstop.calls() + num_cpus::get();

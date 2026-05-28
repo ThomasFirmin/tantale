@@ -1,6 +1,5 @@
 use crate::{
-    Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
-    HasFidelity, HasStep,
+    Domain, EvalStep, Fidelity, HasFidelity, HasStep, Id, Outcome, SolInfo, Solution,
     solution::SolutionShape,
 };
 

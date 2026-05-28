@@ -12,7 +12,7 @@ fn test_optuna_bw_real() {
     let dom = Real::new(-5.0, 5.0, Uniform);
     let bw = optuna_bw(10, 3, &dom);
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/5)
-    let expected = 10.0/5.0 * 10.0.powf(-1.0/7.0);
+    let expected = 10.0 / 5.0 * 10.0.powf(-1.0 / 7.0);
     assert!(
         (bw - expected).abs() < EPS,
         "optuna_bw Real failed: {} != {}",
@@ -26,7 +26,7 @@ fn test_optuna_bw_int() {
     let dom = Int::new(-5, 5, Uniform);
     let bw = optuna_bw(10, 3, &dom);
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/5)
-    let expected = 10.0/5.0 * 10.0.powf(-1.0/7.0);
+    let expected = 10.0 / 5.0 * 10.0.powf(-1.0 / 7.0);
     assert!(
         (bw - expected).abs() < EPS,
         "optuna_bw Int failed: {} != {}",
@@ -40,7 +40,7 @@ fn test_optuna_bw_nat() {
     let dom = Nat::new(0_u64, 10_u64, Uniform);
     let bw = optuna_bw(10, 3, &dom);
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/5)
-    let expected = 10.0/5.0 * 10.0.powf(-1.0/7.0);
+    let expected = 10.0 / 5.0 * 10.0.powf(-1.0 / 7.0);
     assert!(
         (bw - expected).abs() < EPS,
         "optuna_bw Nat failed: {} != {}",
@@ -54,7 +54,7 @@ fn test_optuna_bw_unit() {
     let dom = Unit::new(Uniform);
     let bw = optuna_bw(10, 3, &dom);
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/5)
-    let expected = 1.0/5.0 * 10.0.powf(-1.0/7.0);
+    let expected = 1.0 / 5.0 * 10.0.powf(-1.0 / 7.0);
     assert!(
         (bw - expected).abs() < EPS,
         "optuna_bw Unit failed: {} != {}",
@@ -67,10 +67,7 @@ fn test_optuna_bw_unit() {
 
 #[test]
 fn test_cat_bw_three_categories() {
-    let dom = Cat::new(
-        ["a", "b", "c"],
-        Uniform,
-    );
+    let dom = Cat::new(["a", "b", "c"], Uniform);
     let bw = cat_bw(10, &dom);
     // formula: (C - 1)/(N + C) = (3 - 1)/(10 + 3) = 2/13
     let expected = 2.0 / 13.0;
@@ -114,12 +111,22 @@ fn test_bool_bw_two_categories() {
 fn test_cat_bw_is_always_in_range() {
     // cat_bw should always produce a value in (0, 1)
     let dom = Cat::new(
-        ["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()],
+        [
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+            "d".to_string(),
+        ],
         Uniform,
     );
     for n in [1, 5, 10, 100] {
         let bw = cat_bw(n, &dom);
-        assert!(bw > 0.0 && bw < 1.0, "cat_bw out of (0,1): {} for n={}", bw, n);
+        assert!(
+            bw > 0.0 && bw < 1.0,
+            "cat_bw out of (0,1): {} for n={}",
+            bw,
+            n
+        );
     }
 }
 

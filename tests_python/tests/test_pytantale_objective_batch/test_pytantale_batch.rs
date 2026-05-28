@@ -44,15 +44,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    mono_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    )
-    .run();
+    mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
     run_reader("tmp_test_python_batch_rs", 50);
 
     let sp = sp_ms_nosamp::get_searchspace();
@@ -62,14 +54,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -83,14 +68,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        mono,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(mono, BatchRandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_python_batch_rs", 100);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

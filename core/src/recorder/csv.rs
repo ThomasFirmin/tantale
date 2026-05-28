@@ -35,11 +35,18 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt}, has_trait::HasX, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
-        Batch, Id, OutBatch,
-        SolutionShape, Uncomputed,
+    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId,
+    HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo,
+    StepId,
+    domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt},
+    has_trait::HasX,
+    objective::{Outcome, Step},
+    recorder::{BatchRecorder, Recorder, SeqRecorder},
+    searchspace::{CompShape, Searchspace},
+    solution::{
+        Batch, Id, OutBatch, SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
-    }
+    },
 };
 
 use rayon::iter::IntoParallelIterator;
@@ -184,8 +191,7 @@ pub trait CSVLeftRight<H, L, R> {
 pub trait SolCSVWrite<PartOpt, SolId, SInfo>: Searchspace<PartOpt, SolId, SInfo>
 where
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-PartOpt::Twin<Self::Obj>:
-    Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
+    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
@@ -293,8 +299,7 @@ where
     Out: Outcome + CSVWritable<(), ()>,
     Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    PartOpt::Twin<Self::Obj>:
-        Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
+    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
 {
     /// Write a fully computed solution without optimizer info.
     ///
@@ -660,8 +665,7 @@ where
     Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
     TypeCodom<Out>: Send + Sync,
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    PartOpt::Twin<Self::Obj>:
-    Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
+    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
     Scp: SolCSVWrite<PartOpt, SolId, SInfo>,
 {
     fn write(
@@ -738,8 +742,7 @@ where
     Out: Outcome + CSVWritable<(), ()>,
     Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
     PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
-    PartOpt::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
+    PartOpt::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
     Scp: Searchspace<PartOpt, SolId, SInfo>,
 {
     /// Write a batch of computed solutions and raw outcomes in parallel.
@@ -750,11 +753,16 @@ where
     /// * `scp` - Searchspace for interpreting solutions
     /// * `cod` - Codomain for interpreting outcomes
     /// * `wrts` - Thread-safe CSV file handles
-    fn write(&self, obatch: &OutBatch<SolId, Info, Out>, scp: &Scp, cod: &Out::Cod, wrts: Arc<CSVFiles>);
+    fn write(
+        &self,
+        obatch: &OutBatch<SolId, Info, Out>,
+        scp: &Scp,
+        cod: &Out::Cod,
+        wrts: Arc<CSVFiles>,
+    );
 }
 
-impl<PartOpt, Scp, SolId, SInfo, Out, Info>
-    BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
+impl<PartOpt, Scp, SolId, SInfo, Out, Info> BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
     for Batch<SolId, SInfo, Info, CompShape<Scp::SolShape, SolId, SInfo, Out>>
 where
     Self: Send + Sync,
@@ -764,12 +772,8 @@ where
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
     Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
-    PartOpt::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
-    Scp: Searchspace<PartOpt, SolId, SInfo>
-        + ScpCSVWrite<PartOpt, SolId, SInfo, Out>
-        + Send
-        + Sync,
+    PartOpt::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
+    Scp: Searchspace<PartOpt, SolId, SInfo> + ScpCSVWrite<PartOpt, SolId, SInfo, Out> + Send + Sync,
     CompShape<Scp::SolShape, SolId, SInfo, Out>: Send + Sync,
 {
     fn write(
@@ -896,8 +900,7 @@ impl<PSol, SolId, Out, Scp, Op, FnWrap> SeqRecorder<PSol, SolId, Out, Scp, Op, F
     for CSVRecorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
@@ -1060,23 +1063,19 @@ impl<PSol, SolId, Out, Scp, Op, FnWrap> BatchRecorder<PSol, SolId, Out, Scp, Op,
     for CSVRecorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Out::Cod, TypeCodom<Out>>
-        + Send
-        + Sync,
+    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
         + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: 
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>:
         InfoCSVWrite<SolId, Op::SInfo> + HasY<Out> + Send + Sync,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
@@ -1250,16 +1249,12 @@ impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, O
     for CSVRecorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Out::Cod, TypeCodom<Out>>
-        + Send
-        + Sync,
+    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
         + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
@@ -1435,17 +1430,13 @@ impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp,
     for CSVRecorder
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Out::Cod, TypeCodom<Out>>
-        + Send
-        + Sync,
+    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
         + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send

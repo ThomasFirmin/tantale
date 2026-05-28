@@ -67,10 +67,16 @@
 //! ```
 
 use crate::{
-    RawObj, Sp, domain::{
+    RawObj, Sp,
+    domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    }, has_trait::{HasVariables, HasX}, recorder::csv::{CSVLeftRight, CSVWritable}, searchspace::{Searchspace, SolInfo}, solution::{Id, IntoComputed, Lone, Pair, Solution, Uncomputed, shape::RawOpt}, variable::Var
+    },
+    has_trait::{HasVariables, HasX},
+    recorder::csv::{CSVLeftRight, CSVWritable},
+    searchspace::{Searchspace, SolInfo},
+    solution::{Id, IntoComputed, Lone, Pair, Solution, Uncomputed, shape::RawOpt},
+    variable::Var,
 };
 
 use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
@@ -106,7 +112,7 @@ impl<Obj: Domain> Linked for SpPar<Obj, NoDomain> {
     type TrueOpt = NoDomain;
 }
 
-impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> HasVariables for SpPar<Obj,Opt>{
+impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> HasVariables for SpPar<Obj, Opt> {
     fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
         &self.var
     }
@@ -120,7 +126,7 @@ impl<Obj:OntoDom<Opt>, Opt:OntoDom<Obj>> HasVariables for SpPar<Obj,Opt>{
     }
 }
 
-impl<Obj:Domain> HasVariables for SpPar<Obj, NoDomain>{
+impl<Obj: Domain> HasVariables for SpPar<Obj, NoDomain> {
     fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
         &self.var
     }
@@ -225,7 +231,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         let variter = self.var.par_iter();
         inp.ref_x()
@@ -238,7 +244,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_opt<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync
+        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync,
     {
         let variter = self.var.par_iter();
         inp.ref_x()

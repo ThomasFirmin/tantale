@@ -63,9 +63,10 @@ impl Sha {
     }
 }
 
-use tantale::core::{EmptyInfo, FidelitySol, Optimizer, Searchspace, LinkOpt, Single};
+use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Optimizer, Searchspace, Single};
 
-impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
+impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Sha
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
@@ -74,7 +75,7 @@ where
 {
     type State = ShaState;
     type SInfo = EmptyInfo;
-    
+
     fn get_state(&self) -> &Self::State {
         &self.0
     }
@@ -82,15 +83,15 @@ where
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
-    
+
     fn from_state(state: Self::State) -> Self {
         Sha(state, rand::rng())
     }
 }
 
 use tantale::core::{
-    Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep,
-    RawObj, Step, Stepped, IntoComputedShape
+    Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep, IntoComputedShape,
+    RawObj, Step, Stepped,
 };
 
 impl<Out, Scp, FnState>
@@ -113,7 +114,11 @@ where
 {
     type Info = ShaInfo;
 
-    fn first_step(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(
+        &mut self,
+        scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let info = ShaInfo {
             iteration: self.0.iteration,
         };
@@ -131,22 +136,9 @@ where
     }
     fn step(
         &mut self,
-        x: CompBatch<
-            StepSId,
-            Self::SInfo,
-            Self::Info,
-            Scp::SolShape,
-        
-            Out,
-        >,
+        x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
         scp: &Scp,
-        acc: &CompAcc<
-            Scp::SolShape,
-            StepSId,
-            Self::SInfo,
-        
-            Out,
-        >,
+        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let (pairs, _) = x.extract(); // Extract component of CompBatch
         // Keep only Partially computed solution
@@ -161,7 +153,9 @@ where
         // If no solution is remaining, then generate a new batch with first_step
         if pairs.is_empty() {
             self.0.budget = self.0.budget_min; // Reset budget
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
+            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                self, scp, acc,
+            )
         } else {
             // Compute the k to extract top k solution and discard others
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
@@ -189,7 +183,7 @@ where
             if new_pairs.is_empty() {
                 self.0.budget = self.0.budget_min; // Reset budget
                 <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                    self, scp, acc
+                    self, scp, acc,
                 )
             } else {
                 Batch::new(

@@ -57,7 +57,7 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(
         mono,
-        Hyperband<Asha<RandomSearch, _, _,_, _>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _, _, _>, _, _, _>,
         Evaluated,
         sp,
         obj,
@@ -169,7 +169,7 @@ fn test_fid_seq_parrun() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = RandomSearch::new();
-    let asha = Asha::new(sampler,1., 5., 1.61);
+    let asha = Asha::new(sampler, 1., 5., 1.61);
     let opt = Hyperband::new(asha);
 
     let stop = Evaluated::new(50);

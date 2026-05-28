@@ -23,7 +23,7 @@ mod searchspace {
 }
 
 use searchspace::{ObjType, OptType};
-use tantale::core::{BaseSol, EmptyInfo, HasX, HasId, SId, Searchspace, Sp};
+use tantale::core::{BaseSol, EmptyInfo, HasId, HasX, SId, Searchspace, Sp};
 fn main() {
     let sp = searchspace::get_searchspace();
     let info = std::sync::Arc::new(EmptyInfo {});

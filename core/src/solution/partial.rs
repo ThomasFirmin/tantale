@@ -14,17 +14,14 @@
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
+use crate::domain::Domain;
 use crate::domain::codomain::TypeCodom;
 use crate::has_trait::HasX;
-use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
-use crate::domain::Domain;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
-use crate::solution::{
-    Id, IntoComputed, SolInfo, Solution,
-    SolutionShape, Uncomputed,
-};
+use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
 use crate::{Computed, EvalStep, Outcome, StepId};
+use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -110,7 +107,7 @@ where
     fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
         &self.x
     }
-    
+
     /// Return a clone of the raw representation for evaluation by the objective.
     fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
         self.x.clone()
@@ -146,8 +143,6 @@ where
         self.info.clone()
     }
 }
-
-
 
 impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
 where
@@ -264,16 +259,11 @@ where
 {
     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
 
-    fn into_computed<Out: crate::Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out> {
+    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
         Computed::new(self, y)
     }
 
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         (comp.sol, comp.y)
     }
 }
@@ -459,7 +449,7 @@ where
 {
     type Raw = Arc<[Dom::TypeDom]>;
     type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
-    
+
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
     fn _clone_sol(&self) -> Self {
@@ -557,16 +547,11 @@ where
 {
     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
 
-    fn into_computed<Out: crate::Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out> {
+    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
         Computed::new(self, y)
     }
 
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         (comp.sol, comp.y)
     }
 }

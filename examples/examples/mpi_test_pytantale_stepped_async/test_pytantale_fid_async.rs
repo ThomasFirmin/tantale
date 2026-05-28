@@ -71,8 +71,15 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp =
-        load!(distributed, &proc, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj2, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj2,
+        (rec, check)
+    );
 
     if proc.rank == 0 {
         match exp {
@@ -94,8 +101,15 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp =
-        load!(distributed, &proc, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj3, (rec, check));
+    let exp = load!(
+        distributed,
+        &proc,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj3,
+        (rec, check)
+    );
     if proc.rank == 0 {
         // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
         run_reader_eps("tmp_mpi_test_python_fid", 400, 100); // 100 for randomness

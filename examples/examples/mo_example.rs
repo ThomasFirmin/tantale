@@ -50,7 +50,7 @@ mod searchspace {
         pub obj1: f64, // First objective
         #[maximize]
         pub obj2: f64, // Second objective
-        info: f64,     // Extra info
+        info: f64, // Extra info
         #[step]
         pub fid: Step, // Evaluation step
     }
@@ -102,6 +102,8 @@ impl Drop for Cleaner {
     }
 }
 
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::{MoAsha, RandomSearch};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
@@ -110,8 +112,6 @@ use tantale::{
         stop::Calls,
     },
 };
-use tantale::algos::{MoAsha, RandomSearch};
-use searchspace::{get_function, get_searchspace};
 
 fn main() {
     drop(Cleaner {

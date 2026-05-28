@@ -1,22 +1,28 @@
 use tantale_core::{
-    BaseSol, BatchSampler, CompAcc, CompBatch, CompShape, FidOutcome, HasFidelity, HasStep, Id, IntoComputedShape, Sampler, SingleSampler, StepSId, Uncomputed, domain::{
-        onto::LinkOpt,
-    }, objective::{
+    BaseSol, BatchSampler, CompAcc, CompBatch, CompShape, FidOutcome, HasFidelity, HasStep, Id,
+    IntoComputedShape, Sampler, SingleSampler, StepSId, Uncomputed,
+    domain::onto::LinkOpt,
+    objective::{
         Step,
         outcome::{FuncState, Outcome},
-    }, optimizer::{
+    },
+    optimizer::{
         EmptyInfo, OptInfo, OptState,
         opt::{BatchOptimizer, Optimizer, SingleOptimizer},
-    }, recorder::csv::CSVWritable, searchspace::Searchspace, solution::{
-        Batch, SId, partial::FidelitySol,
-    }
+    },
+    recorder::csv::CSVWritable,
+    searchspace::Searchspace,
+    solution::{Batch, SId, partial::FidelitySol},
 };
 
 use rand::{prelude::ThreadRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, sync::Arc};
 
-use crate::utils::{BCompAcc, BCompShape, BatchBCompShape, BatchFCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped};
+use crate::utils::{
+    BCompAcc, BCompShape, BatchBCompShape, BatchFCompShape, FCompAcc, FCompShape, SimpleObjective,
+    SimpleStepped,
+};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -218,8 +224,7 @@ where
     ) -> Scp::SolShape {
         match x {
             Some(comp) => {
-                let (pair, _): (Scp::SolShape, _) =
-                    IntoComputedShape::extract(comp);
+                let (pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(comp);
                 match pair.step() {
                     Step::Pending => {
                         unreachable!(
@@ -235,14 +240,11 @@ where
     }
 }
 
-
-impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for RandomSearch
+impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for RandomSearch
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-
 }
 
 impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
@@ -251,7 +253,6 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
-
 }
 
 impl<Out, Scp>
@@ -268,13 +269,21 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     /// Generates a new candidate by sampling from the search space.
-    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>) -> Scp::SolShape {
+    fn sample(
+        &mut self,
+        scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
+    ) -> Scp::SolShape {
         self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
     }
 
     /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
-    fn update(&mut self, _x: &CompShape<Scp::SolShape, SId, Self::SInfo, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>) {
-        
+    fn update(
+        &mut self,
+        _x: &CompShape<Scp::SolShape, SId, Self::SInfo, Out>,
+        _scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
+    ) {
     }
 }
 
@@ -295,13 +304,21 @@ where
     FnState: FuncState,
 {
     /// Generates a new candidate by sampling from the search space.
-    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Scp::SolShape {
+    fn sample(
+        &mut self,
+        scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
+    ) -> Scp::SolShape {
         self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
     }
 
     /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
-    fn update(&mut self, _x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) {
-
+    fn update(
+        &mut self,
+        _x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>,
+        _scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
+    ) {
     }
 }
 
@@ -484,7 +501,11 @@ where
 {
     type Info = RSInfo;
 
-    fn first_step(&mut self, scp: &Scp, _acc: &BCompAcc<Scp, Out, Self::SInfo>) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(
+        &mut self,
+        scp: &Scp,
+        _acc: &BCompAcc<Scp, Out, Self::SInfo>,
+    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
 
@@ -506,7 +527,6 @@ where
     }
 }
 
-
 impl<Out, Scp, FnState>
     BatchOptimizer<
         FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
@@ -525,7 +545,11 @@ where
 {
     type Info = RSInfo;
 
-    fn first_step(&mut self, scp: &Scp,_acc: &FCompAcc<Scp, Out, Self::SInfo>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(
+        &mut self,
+        scp: &Scp,
+        _acc: &FCompAcc<Scp, Out, Self::SInfo>,
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         rs_iter(self, scp, self.0.batch)
     }
 
@@ -567,15 +591,12 @@ where
     }
 }
 
-
-
 impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
     for BatchRandomSearch
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-
 }
 
 impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
@@ -584,9 +605,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
-
 }
-
 
 impl<Out, Scp>
     BatchSampler<
@@ -602,23 +621,24 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
     type Info = RSInfo;
-    
+
     fn sample(
         &mut self,
-        batch:usize,
+        batch: usize,
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> 
-    {
-         rs_iter(self, scp, batch)
-    }
-    
-    fn update(&mut self, _x: CompBatch<SId, Self::SInfo, Self::Info, Scp::SolShape, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>) {
+    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
+        rs_iter(self, scp, batch)
     }
 
-    
+    fn update(
+        &mut self,
+        _x: CompBatch<SId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
+        _scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
+    ) {
+    }
 }
-
 
 impl<Out, Scp, FnState>
     BatchSampler<
@@ -640,15 +660,18 @@ where
 
     fn sample(
         &mut self,
-        batch:usize,
+        batch: usize,
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> 
-    {
-         rs_iter(self, scp, batch)
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+        rs_iter(self, scp, batch)
     }
-    
-    fn update(&mut self, _x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) {
+
+    fn update(
+        &mut self,
+        _x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
+        _scp: &Scp,
+        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
+    ) {
     }
-    
 }

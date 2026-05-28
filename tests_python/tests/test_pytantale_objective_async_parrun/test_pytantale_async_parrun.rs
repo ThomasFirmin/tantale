@@ -44,15 +44,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    mono_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    )
-    .run();
+    mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
     run_reader("tmp_test_python_async_parrun_parrun_rs", 50);
 
     let sp = sp_ms_nosamp::get_searchspace();

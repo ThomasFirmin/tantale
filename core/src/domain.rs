@@ -216,7 +216,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     fn contains(&self, point: &Self::TypeDom) -> bool;
 }
 
-pub trait NumericalDomain: Domain 
+pub trait NumericalDomain: Domain
 where
     Self::TypeDom: Num,
 {
@@ -227,7 +227,7 @@ where
     fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom);
 }
 
-pub trait CategoricalDomain: Domain 
+pub trait CategoricalDomain: Domain
 where
     Self::TypeDom: PartialEq,
 {
@@ -273,5 +273,6 @@ pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Dominate,
-    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeCodom, TypeAcc
+    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeAcc,
+    TypeCodom,
 };

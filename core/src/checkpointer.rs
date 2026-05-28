@@ -35,7 +35,7 @@
 //!
 //! ### Function State Checkpointing
 //! - **[`FuncStateCheckpointer`]** - For managing the [`FuncState`] of individual function evaluation.
-//! 
+//!
 //! ## Usage
 //!
 //! ```ignore
@@ -132,9 +132,9 @@ pub trait FuncStateCheckpointer {
 /// - [`OptState`] - Optimizer Algorithm State
 ///   Contains the internal data structure of the optimizer. This might include:
 ///   This state is algorithm-specific and must be implemented for each optimizer.
-/// 
+///
 /// - [`Accumulator`] - Evaluation Accumulator State
-/// 
+///
 /// - [`Stop`] - Termination Criteria State
 ///   Tracks progress toward stopping conditions.
 ///

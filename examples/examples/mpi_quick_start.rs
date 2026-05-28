@@ -41,13 +41,13 @@ impl Drop for Cleaner {
     }
 }
 
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{distributed, mpi::utils::MPIProcess},
     stop::Calls,
 };
-use searchspace::{get_function, get_searchspace};
-use tantale::algos::BatchRandomSearch;
 
 fn main() {
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {

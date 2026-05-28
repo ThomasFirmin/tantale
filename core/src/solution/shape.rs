@@ -20,9 +20,15 @@
 //! ```
 
 use crate::{
-    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
-        Domain, codomain::TypeCodom, onto::{LinkObj, LinkOpt, Linked}
-    }, objective::Step, solution::{IntoComputedShape, Uncomputed}
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
+    HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId,
+    domain::{
+        Domain,
+        codomain::TypeCodom,
+        onto::{LinkObj, LinkOpt, Linked},
+    },
+    objective::Step,
+    solution::{IntoComputedShape, Uncomputed},
 };
 
 use serde::{Deserialize, Serialize};
@@ -363,18 +369,13 @@ where
         SInfo,
     >;
 
-    fn into_computed<Out: Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out> {
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
         let cobj = Computed::new(self.0, y.clone());
         let copt = Computed::new(self.1, y);
         Pair::new(cobj, copt)
     }
 
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Pair::new(comp.0.sol, comp.1.sol);
         (pair, y)
@@ -729,19 +730,13 @@ where
     SInfo: SolInfo,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
 {
-    type Computed<Out: Outcome> =
-        Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
+    type Computed<Out: Outcome> = Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
 
-    fn into_computed<Out: Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out> {
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
         Lone::new(Computed::new(self.0, y))
     }
 
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Lone::new(comp.0.sol);
         (pair, y)
@@ -760,8 +755,7 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> PartialEq
-    for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> PartialEq for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
     Self: HasY<Out>,
     TypeCodom<Out>: PartialEq,
@@ -788,8 +782,7 @@ where
 {
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> PartialOrd
-    for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> PartialOrd for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
     Self: HasY<Out>,
     TypeCodom<Out>: PartialOrd,

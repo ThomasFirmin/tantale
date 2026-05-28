@@ -1,7 +1,4 @@
-use tantale::algos::{
-    BatchRandomSearch,
-    random_search::RandomSearch,
-};
+use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{PoolMode, Runable, mono, mono_with_pool, threaded, threaded_with_pool},
@@ -93,14 +90,7 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, BatchRandomSearch, Calls, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert!(
@@ -121,14 +111,7 @@ fn test_fid_batch_parrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, BatchRandomSearch, Calls, sp, obj, (rec, check));
     run_reader_eps("tmp_test_fidbatchparrun", 500, 35);
     let expstop = exp.get_stop();
     assert!(
@@ -252,14 +235,7 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let exp = mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     exp.run();
 
     run_reader_eps("tmp_test_fidbatchrun_loadpool", 264, 20);
@@ -330,14 +306,7 @@ fn test_fid_batch_parrun_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let exp = threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     exp.run();
 
     run_reader_eps("tmp_test_fidbatchparrun_loadpool", 250, 35);
@@ -411,14 +380,7 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let exp = mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     exp.run();
     run_reader("tmp_test_fidseqrun_loadpool", 250);
 
@@ -478,14 +440,7 @@ fn test_fid_thr_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let exp = threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     exp.run();
     run_reader_eps("tmp_test_fidthrseqrun_loadpool", 250, 249);
 

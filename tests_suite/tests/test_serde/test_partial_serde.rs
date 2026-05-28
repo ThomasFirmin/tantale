@@ -5,9 +5,7 @@ use super::init_sp::{
 use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
-use tantale::core::{
-    BaseSol, EmptyInfo, Mixed, SId, HasX, searchspace::Searchspace, HasId,
-};
+use tantale::core::{BaseSol, EmptyInfo, HasId, HasX, Mixed, SId, searchspace::Searchspace};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | $comp : expr),*) => {

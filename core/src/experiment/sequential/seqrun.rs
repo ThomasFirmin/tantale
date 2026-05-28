@@ -1,14 +1,26 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, SId, SeqRecorder, Stepped, checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, SId, SeqRecorder,
+    Stepped,
+    checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{
         CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment,
         basics::{FuncStatePool, IdxMapPool, LoadPool, Pool},
         sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
         },
-    }, has_trait::HasX, objective::{Objective, Outcome, Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::{CompShape, Searchspace}, solution::{
-        IntoComputedShape, SolutionShape, Uncomputed, id::{StepId, StepSId}, shape::RawObj
-    }, stop::{ExpStep, Stop}
+    },
+    has_trait::HasX,
+    objective::{Objective, Outcome, Step, outcome::FuncState},
+    optimizer::opt::{OpSInfType, SingleOptimizer},
+    searchspace::{CompShape, Searchspace},
+    solution::{
+        IntoComputedShape, SolutionShape, Uncomputed,
+        id::{StepId, StepSId},
+        shape::RawObj,
+    },
+    stop::{ExpStep, Stop},
 };
 
 use std::{
@@ -23,10 +35,12 @@ use crate::{
     DistSeqRecorder,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
-        DistEvaluate, ExpComponent, MPIExperiment, MPIRunable, MasterWorker, mpi::{
+        DistEvaluate, ExpComponent, MPIExperiment, MPIRunable, MasterWorker,
+        mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
-        }, sequential::{seqevaluator::DistSeqEvaluator, seqfidevaluator::FidDistSeqEvaluator}
+        },
+        sequential::{seqevaluator::DistSeqEvaluator, seqfidevaluator::FidDistSeqEvaluator},
     },
     solution::shape::{SolObj, SolOpt},
 };
@@ -61,8 +75,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             SId,
@@ -283,25 +296,27 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,
@@ -345,8 +360,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             StepSId,
@@ -619,29 +633,28 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,
@@ -683,8 +696,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo> + 'static,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             SId,
@@ -953,25 +965,27 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,
@@ -1015,8 +1029,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             StepSId,
@@ -1035,12 +1048,8 @@ where
     Scp:
         Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
-    CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>: HasStep
-        + HasFidelity
-        + HasStepId<StepSId>
-        + Send
-        + Sync
-        + 'static,
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>:
+        HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
     St: Stop + Send + Sync + 'static,
     Out::Cod: Codomain<Out> + Send + Sync + 'static,
     Out: FidOutcome + Send + Sync + 'static,
@@ -1058,12 +1067,8 @@ where
     Check::FnStateCheck: Send + Sync + 'static,
     FnState: FuncState + Send + Sync + 'static,
     RawObj<Scp::SolShape, StepSId, Op::SInfo>: 'static,
-    TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    >: Send + Sync + 'static,
+    TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>:
+        Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Stepped`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
@@ -1385,29 +1390,28 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,
@@ -1452,8 +1456,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             SId,
@@ -1777,25 +1780,27 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,
@@ -1836,8 +1841,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: SingleOptimizer<
             PSol,
             StepSId,
@@ -2229,29 +2233,28 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
             self.searchspace,
             self.codomain,

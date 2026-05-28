@@ -76,7 +76,7 @@
 //!         OutStruct{out:42.0}
 //!     }
 //! }
-//! 
+//!
 //! use tantale::core::{HasX, Sp, BaseSol, EmptyInfo,Searchspace,Solution,SId, HasId};
 //! use searchspace::{ObjType, OptType};
 //!
@@ -130,9 +130,13 @@
 //! ```
 
 use crate::{
-    Uncomputed, domain::onto::Linked, has_trait::HasX, solution::{
-        Id, IntoComputedShape, SolInfo, SolutionShape, shape::{RawObj, RawOpt}
-    }
+    Uncomputed,
+    domain::onto::Linked,
+    has_trait::HasX,
+    solution::{
+        Id, IntoComputedShape, SolInfo, SolutionShape,
+        shape::{RawObj, RawOpt},
+    },
 };
 
 use rand::prelude::Rng;
@@ -143,9 +147,8 @@ pub type CompShape<SolShape, SolId, SInfo, Out> =
     <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>;
 
 /// Type alias for an optional computed solution shape of solution shape.
-pub type OptionCompShape<SolShape, SolId, SInfo, Out> = Option<
-    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>
->;
+pub type OptionCompShape<SolShape, SolId, SInfo, Out> =
+    Option<<SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>>;
 
 /// Type alias for the raw solution shape of a searchspace.
 pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape;
@@ -215,8 +218,7 @@ pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, 
 pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
 where
     SolOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    SolOpt::Twin<Self::Obj>:
-        Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
+    SolOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
     SolId: Id,
     SInfo: SolInfo,
 {
@@ -228,17 +230,24 @@ where
             Opt = Self::Opt,
             SolObj = SolOpt::Twin<Self::Obj>,
             SolOpt = SolOpt,
-        >
-        + IntoComputedShape<SolId, SInfo>;
+        > + IntoComputedShape<SolId, SInfo>;
 
     /// Create a new solution from a raw solution in the Obj domain.
-    fn new_obj<T: Into<RawObj<Self::SolShape,SolId, SInfo>>>(&self, x: T, info: Arc<SInfo>) -> Self::SolShape {
+    fn new_obj<T: Into<RawObj<Self::SolShape, SolId, SInfo>>>(
+        &self,
+        x: T,
+        info: Arc<SInfo>,
+    ) -> Self::SolShape {
         let sobj = SolOpt::Twin::new(SolId::generate(), x, info);
         self.onto_opt(sobj)
     }
-    
+
     /// Create a new solution from a raw solution in the Opt domain.
-    fn new_opt<T: Into<RawOpt<Self::SolShape,SolId, SInfo>>>(&self, x: T, info: Arc<SInfo>) -> Self::SolShape {
+    fn new_opt<T: Into<RawOpt<Self::SolShape, SolId, SInfo>>>(
+        &self,
+        x: T,
+        info: Arc<SInfo>,
+    ) -> Self::SolShape {
         let sopt = SolOpt::new(SolId::generate(), x, info);
         self.onto_obj(sopt)
     }
@@ -482,9 +491,7 @@ where
     /// ```
     fn contains_obj<S>(&self, inp: &S) -> bool
     where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>>
-            + Send
-            + Sync;
+        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync;
     /// Validates that a solution belongs to the Opt domain of this searchspace.
     ///
     /// Checks each variable value against its Opt domain constraints using

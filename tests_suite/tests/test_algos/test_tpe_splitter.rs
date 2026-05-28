@@ -1,7 +1,7 @@
 use tantale::algos::bayesian::splitter::{LinearSplit, Splitter, SqrtSplit};
 use tantale::algos::utils::OrdArchive;
 
-fn make_archive<I:IntoIterator<Item = i32>>(values: I) -> OrdArchive<i32> {
+fn make_archive<I: IntoIterator<Item = i32>>(values: I) -> OrdArchive<i32> {
     let mut archive = OrdArchive::default();
     for v in values {
         archive.add(v);
@@ -20,13 +20,19 @@ fn test_linear_split_valid() {
 #[test]
 fn test_linear_split_invalid_zero() {
     let result = LinearSplit::new(0.0);
-    assert!(result.is_err(), "LinearSplit(0.0) should fail (beta must be > 0)");
+    assert!(
+        result.is_err(),
+        "LinearSplit(0.0) should fail (beta must be > 0)"
+    );
 }
 
 #[test]
 fn test_linear_split_invalid_one() {
     let result = LinearSplit::new(1.0);
-    assert!(result.is_err(), "LinearSplit(1.0) should fail (beta must be < 1)");
+    assert!(
+        result.is_err(),
+        "LinearSplit(1.0) should fail (beta must be < 1)"
+    );
 }
 
 #[test]
@@ -98,7 +104,7 @@ fn test_linear_split_small_archive() {
 }
 
 #[test]
-fn test_linear_split_one_archive(){
+fn test_linear_split_one_archive() {
     let archive = make_archive([42]);
     let splitter = LinearSplit::new(0.25).unwrap();
     let (top, bottom) = splitter.split(&archive);
@@ -118,7 +124,10 @@ fn test_sqrt_split_valid() {
 #[test]
 fn test_sqrt_split_invalid_zero() {
     let result = SqrtSplit::new(0.0);
-    assert!(result.is_err(), "SqrtSplit(0.0) should fail (beta must be > 0)");
+    assert!(
+        result.is_err(),
+        "SqrtSplit(0.0) should fail (beta must be > 0)"
+    );
 }
 
 #[test]
@@ -170,7 +179,7 @@ fn test_sqrt_split_small_archive() {
 }
 
 #[test]
-fn test_sqrt_split_one_archive(){
+fn test_sqrt_split_one_archive() {
     let archive = make_archive([42]);
     let splitter = SqrtSplit::new(4.0).unwrap();
     let (top, bottom) = splitter.split(&archive);

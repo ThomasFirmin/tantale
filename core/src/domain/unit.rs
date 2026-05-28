@@ -1,7 +1,12 @@
 use crate::{
     GridDom,
     domain::{
-        Domain, NumericalDomain, PreDomain, TypeDom, bool::Bool, bounded::{Bounded, BoundedBounds, RangeDomain}, grid::GridBounds, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}
+        Domain, NumericalDomain, PreDomain, TypeDom,
+        bool::Bool,
+        bounded::{Bounded, BoundedBounds, RangeDomain},
+        grid::GridBounds,
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -70,9 +75,9 @@ impl Domain for Unit {
 
 impl NumericalDomain for Unit {
     fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom) {
-        (0.0,1.0)
+        (0.0, 1.0)
     }
-    
+
     fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom) {
         (&0.0, &1.0)
     }

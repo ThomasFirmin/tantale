@@ -6,8 +6,8 @@ use tantale::core::StepSId;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::stop::Calls;
 use tantale::core::{
-    BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, MessagePack, Mixed,
-    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped, HasId,
+    BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, HasId, MessagePack, Mixed,
+    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,
     checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer},
     domain::NoDomain,
     experiment::{
@@ -287,7 +287,13 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -339,7 +345,13 @@ fn test_serde_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -425,7 +437,13 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(
         &mut neval,
         obj.clone(),
@@ -490,7 +508,13 @@ fn test_serde_thrfidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(
         &mut nneval,
         obj.clone(),
@@ -575,7 +599,13 @@ fn test_serde_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -627,7 +657,13 @@ fn test_serde_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(&mut nneval, &obj, &cod, &mut stop, &mut acc);
 
     assert!(
@@ -711,7 +747,13 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(
         &mut neval,
         obj.clone(),
@@ -776,7 +818,13 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _>,
+        OutBatchEvaluate<
+            StepSId,
+            _,
+            _,
+            Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
+            _,
+        >,
     >>::evaluate(
         &mut nneval,
         obj.clone(),

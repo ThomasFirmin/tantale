@@ -1,7 +1,14 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace, SolInfo, Stepped, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool}, has_trait::HasX, objective::{Step, outcome::FuncState}, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::CompShape, solution::{
-         IntoComputedShape, SolutionShape, Uncomputed, id::StepId, shape::RawObj
-    }, stop::ExpStep
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace,
+    SolInfo, Stepped, Stop,
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
+    has_trait::HasX,
+    objective::{Step, outcome::FuncState},
+    optimizer::opt::{OpSInfType, SingleOptimizer},
+    searchspace::CompShape,
+    solution::{IntoComputedShape, SolutionShape, Uncomputed, id::StepId, shape::RawObj},
+    stop::ExpStep,
 };
 #[cfg(feature = "mpi")]
 use crate::{
@@ -109,8 +116,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SingleOptimizer<
             PSol,
@@ -145,12 +151,7 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let (pair, state) = self.take();
         let mut pair =
@@ -273,8 +274,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SingleOptimizer<
             PSol,
@@ -309,14 +309,7 @@ where
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
-            Mutex<
-                TypeAcc<
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-                    SolId,
-                    Op::SInfo,
-                    Out,
-                >,
-            >,
+            Mutex<TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>>,
         >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let (pair, state) = self.take();
@@ -585,8 +578,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
 ) -> (bool, bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SingleOptimizer<
             PSol,
@@ -653,9 +645,8 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity +,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: SingleOptimizer<
             PSol,
@@ -704,12 +695,7 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();

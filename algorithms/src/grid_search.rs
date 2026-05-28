@@ -1,13 +1,17 @@
 use tantale_core::{
-    BaseSol, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective, Sampler, SingleSampler, Sp, StepSId, Stepped, Uncomputed, domain::onto::LinkOpt, objective::{
+    BaseSol, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective,
+    Sampler, SingleSampler, Sp, StepSId, Stepped, Uncomputed,
+    domain::onto::LinkOpt,
+    objective::{
         Step,
         outcome::{FuncState, Outcome},
-    }, optimizer::{
+    },
+    optimizer::{
         EmptyInfo, OptState,
         opt::{Optimizer, SingleOptimizer},
-    }, searchspace::Searchspace, solution::{
-        IntoComputedShape, SId, partial::FidelitySol, shape::RawObj
-    }
+    },
+    searchspace::Searchspace,
+    solution::{IntoComputedShape, SId, partial::FidelitySol, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
@@ -249,13 +253,11 @@ where
     }
 }
 
-
 impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for GridSearch
 where
     Out: Outcome,
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
 {
-
 }
 
 impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
@@ -264,9 +266,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
-
 }
-
 
 impl<Out>
     SingleSampler<
@@ -285,8 +285,11 @@ where
     Sp<Grid, NoDomain>:
         Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
 {
-    fn sample(&mut self, scp: &Sp<Grid, NoDomain>, _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>
-    {
+    fn sample(
+        &mut self,
+        scp: &Sp<Grid, NoDomain>,
+        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+    ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
         let x: Vec<MixedTypeDom> = self
             .0
             .0
@@ -313,7 +316,12 @@ where
         Lone::new(BaseSol::new(SId::generate(), x, EmptyInfo.into()))
     }
 
-    fn update(&mut self, _x: &BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>, _scp: &Sp<Grid, NoDomain>, _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>) {
+    fn update(
+        &mut self,
+        _x: &BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+        _scp: &Sp<Grid, NoDomain>,
+        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+    ) {
     }
 }
 
@@ -348,8 +356,11 @@ where
         EmptyInfo,
     >>::SolShape: HasStep + HasFidelity,
 {
-    fn sample(&mut self, scp: &Sp<Grid, NoDomain>, _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>
-    {
+    fn sample(
+        &mut self,
+        scp: &Sp<Grid, NoDomain>,
+        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
         let x: Vec<MixedTypeDom> = self
             .0
             .0
@@ -376,6 +387,11 @@ where
         Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
     }
 
-    fn update(&mut self, _x: &FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>, _scp: &Sp<Grid, NoDomain>, _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>) {
+    fn update(
+        &mut self,
+        _x: &FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+        _scp: &Sp<Grid, NoDomain>,
+        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+    ) {
     }
 }

@@ -80,7 +80,9 @@
 //!
 
 use crate::{
-    HasId, HasSolInfo, HasY, Outcome, domain::{Domain, codomain::TypeCodom}, has_trait::HasX
+    HasId, HasSolInfo, HasY, Outcome,
+    domain::{Domain, codomain::TypeCodom},
+    has_trait::HasX,
 };
 
 use serde::{Deserialize, Serialize};
@@ -127,7 +129,13 @@ pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 /// - [`Computed`] - Wrapper for evaluated solutions
 pub trait Solution<SolId, Dom, SInfo>
 where
-    Self: Sized + Debug + HasX<Self::Raw> + HasId<SolId> + HasSolInfo<SInfo> + Serialize + for<'de> Deserialize<'de>,
+    Self: Sized
+        + Debug
+        + HasX<Self::Raw>
+        + HasId<SolId>
+        + HasSolInfo<SInfo>
+        + Serialize
+        + for<'de> Deserialize<'de>,
     SolId: Id,
     SInfo: SolInfo,
     Dom: Domain,
@@ -301,10 +309,7 @@ pub trait IntoComputed: Sized {
     /// # Returns
     ///
     /// A computed solution containing both `self` and `y`.
-    fn into_computed<Out: Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out>;
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out>;
 
     /// Extracts the uncomputed solution and objective value from a computed solution.
     ///
@@ -323,12 +328,10 @@ pub trait IntoComputed: Sized {
     /// # Returns
     ///
     /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>);
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>);
 }
 
-pub trait IntoComputedShape<SolId, SInfo>: SolutionShape<SolId, SInfo> 
+pub trait IntoComputedShape<SolId, SInfo>: SolutionShape<SolId, SInfo>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -339,13 +342,16 @@ where
     ///
     /// This type must implement [`HasY`] to provide access to the objective function output.
     type Computed<Out: Outcome>: SolutionShape<
-        SolId,
-        SInfo,
-        Obj = Self::Obj,
-        Opt = Self::Opt,
-        SolObj = Computed<Self::SolObj, SolId, Self::Obj, Out, SInfo>,
-        SolOpt = Computed<Self::SolOpt, SolId, Self::Opt, Out, SInfo>,
-    > + HasY<Out> + Serialize + for<'a> Deserialize<'a> + Debug;
+            SolId,
+            SInfo,
+            Obj = Self::Obj,
+            Opt = Self::Opt,
+            SolObj = Computed<Self::SolObj, SolId, Self::Obj, Out, SInfo>,
+            SolOpt = Computed<Self::SolOpt, SolId, Self::Opt, Out, SInfo>,
+        > + HasY<Out>
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Debug;
 
     /// Converts this uncomputed solution into a computed one with an objective value.
     ///
@@ -361,10 +367,7 @@ where
     /// # Returns
     ///
     /// A computed solution containing both `self` and `y`.
-    fn into_computed<Out: Outcome>(
-        self,
-        y: Arc<TypeCodom<Out>>,
-    ) -> Self::Computed<Out>;
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out>;
 
     /// Extracts the uncomputed solution and objective value from a computed solution.
     ///
@@ -383,9 +386,7 @@ where
     /// # Returns
     ///
     /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract<Out: Outcome>(
-        comp: Self::Computed<Out>,
-    ) -> (Self, Arc<TypeCodom<Out>>);
+    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>);
 }
 
 /// Type alias for the twin solution type in an alternative domain.

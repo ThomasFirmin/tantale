@@ -47,9 +47,18 @@ mod check_bounds {
         assert_eq!(nat_1.bounds.start(), &1, "Issue with lower bound of Nat.");
         assert_eq!(nat_1.bounds.end(), &10, "Issue with upper bound of Nat.");
 
-        assert!(nat_1.contains(&1), "Issue with is_in for lower bound of Nat.");
-        assert!(nat_1.contains(&5), "Issue with is_in for mid value from Nat.");
-        assert!(nat_1.contains(&10), "Issue with is_in for upper bound of Nat.");
+        assert!(
+            nat_1.contains(&1),
+            "Issue with is_in for lower bound of Nat."
+        );
+        assert!(
+            nat_1.contains(&5),
+            "Issue with is_in for mid value from Nat."
+        );
+        assert!(
+            nat_1.contains(&10),
+            "Issue with is_in for upper bound of Nat."
+        );
         assert!(
             !nat_1.contains(&0),
             "Issue with is_in with value < lower bound of Nat."
@@ -70,9 +79,18 @@ mod check_bounds {
         assert_eq!(int_1.bounds.start(), &0, "Issue with lower bound of Int.");
         assert_eq!(int_1.bounds.end(), &10, "Issue with upper bound of Int.");
 
-        assert!(int_1.contains(&0), "Issue with is_in for lower bound of Int.");
-        assert!(int_1.contains(&5), "Issue with is_in for mid value from Int.");
-        assert!(int_1.contains(&10), "Issue with is_in for upper bound of Int.");
+        assert!(
+            int_1.contains(&0),
+            "Issue with is_in for lower bound of Int."
+        );
+        assert!(
+            int_1.contains(&5),
+            "Issue with is_in for mid value from Int."
+        );
+        assert!(
+            int_1.contains(&10),
+            "Issue with is_in for upper bound of Int."
+        );
         assert!(
             !int_1.contains(&-1),
             "Issue with is_in with value < lower bound of Int."
@@ -91,7 +109,10 @@ mod check_bounds {
     fn bool() {
         let bool_1 = Bool::new(Bernoulli(0.5));
 
-        assert!(bool_1.contains(&true), "Issue with is_in for `true` of Bool.");
+        assert!(
+            bool_1.contains(&true),
+            "Issue with is_in for `true` of Bool."
+        );
         assert!(
             bool_1.contains(&false),
             "Issue with is_in for `false` of Bool."

@@ -1,3 +1,4 @@
+use tantale::core::Outcome;
 pub use tantale::core::{
     domain::codomain::{
         ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
@@ -8,7 +9,6 @@ pub use tantale::core::{
     objective::Step,
 };
 use tantale::macros::Outcome;
-use tantale::core::Outcome;
 
 use serde::{Deserialize, Serialize};
 
@@ -30,10 +30,7 @@ pub struct OutCodSingle {
 }
 
 pub fn get_elemsingle() -> (<OutCodSingle as Outcome>::Cod, ElemSingleCodomain) {
-    (
-        OutCodSingle::codomain(),
-        ElemSingleCodomain { value: 1.1 },
-    )
+    (OutCodSingle::codomain(), ElemSingleCodomain { value: 1.1 })
 }
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -234,7 +231,10 @@ pub struct OutCodCostConstMulti {
     pub more: f64,
     pub info: f64,
 }
-pub fn get_elemcostconstmulti() -> (<OutCodCostConstMulti as Outcome>::Cod, ElemCostConstMultiCodomain) {
+pub fn get_elemcostconstmulti() -> (
+    <OutCodCostConstMulti as Outcome>::Cod,
+    ElemCostConstMultiCodomain,
+) {
     (
         OutCodCostConstMulti::codomain(),
         ElemCostConstMultiCodomain {

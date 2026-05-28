@@ -4,7 +4,6 @@ use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
 use crate::has_trait::HasX;
 use crate::solution::IntoComputedShape;
-use crate::{HasStepId, HasFidelity, HasId, HasInfo, HasStep};
 use crate::solution::id::StepId;
 use crate::{
     Codomain, OptInfo, Searchspace, SolInfo,
@@ -13,12 +12,10 @@ use crate::{
     objective::{FidOutcome, Step, Stepped, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
-    solution::{
-        Batch, OutBatch,
-        SolutionShape, Uncomputed, shape::RawObj,
-    },
+    solution::{Batch, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
     stop::{ExpStep, Stop},
 };
+use crate::{HasFidelity, HasId, HasInfo, HasStep, HasStepId};
 
 #[cfg(feature = "mpi")]
 use core::panic;
@@ -115,8 +112,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: BatchOptimizer<
             PSol,
@@ -153,12 +149,7 @@ where
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
@@ -316,27 +307,25 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId + Send + Sync,
     Op: BatchOptimizer<
-        PSol,
-        SolId,
-        LinkOpt<Scp>,
-        Out,
-        Scp,
-        Stepped<
-            RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+            PSol,
+            SolId,
+            LinkOpt<Scp>,
             Out,
-            FnState,
+            Scp,
+            Stepped<
+                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
+                Out,
+                FnState,
+            >,
         >,
-    >,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId> + Send + Sync,
     CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: Send + Sync,
-    TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>:
-    Send + Sync,
+    TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>: Send + Sync,
     St: Stop + Send + Sync,
     Out::Cod: Send + Sync,
     Out: FidOutcome + Send + Sync,
@@ -370,14 +359,7 @@ where
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
-            Mutex<
-                TypeAcc<
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-                    SolId,
-                    Op::SInfo,
-                    Out,
-                >,
-            >,
+            Mutex<TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>>,
         >,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
@@ -551,8 +533,7 @@ fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
 ) -> (bool, bool)
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: BatchOptimizer<
             PSol,
@@ -620,8 +601,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId,
     Op: BatchOptimizer<
             PSol,
@@ -677,12 +657,7 @@ where
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> (
         Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,

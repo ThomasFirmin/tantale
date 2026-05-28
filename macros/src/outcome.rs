@@ -1,11 +1,10 @@
 extern crate proc_macro;
 
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Field, ItemStruct, parse_macro_input, spanned::Spanned};
-use proc_macro2::TokenStream;
 
-
-pub struct Attributes{
+pub struct Attributes {
     pub objectives: Vec<TokenStream>,
 
     pub constraint: Vec<TokenStream>,
@@ -38,13 +37,10 @@ impl Attributes {
         }) {
             panic!(
                 "{:?}",
-                syn::Error::new(
-                    field.span(),
-                    "Objective fields must be of type f64."
-                )
+                syn::Error::new(field.span(), "Objective fields must be of type f64.")
             );
         }
-        let ident= &field.ident;
+        let ident = &field.ident;
         if is_max {
             self.objectives.push(quote! { o.#ident });
         } else {
@@ -62,13 +58,10 @@ impl Attributes {
         }) {
             panic!(
                 "{:?}",
-                syn::Error::new(
-                    field.span(),
-                    "Constraints fields must be of type f64."
-                )
+                syn::Error::new(field.span(), "Constraints fields must be of type f64.")
             );
         }
-        let ident= &field.ident;
+        let ident = &field.ident;
         self.constraint.push(quote! { #ident });
         if !self.is_constrained && !self.constraint.is_empty() {
             self.is_constrained = true;
@@ -82,13 +75,10 @@ impl Attributes {
         }) {
             panic!(
                 "{:?}",
-                syn::Error::new(
-                    field.span(),
-                    "The Cost field must be of type f64."
-                )
+                syn::Error::new(field.span(), "The Cost field must be of type f64.")
             );
         }
-        let ident= &field.ident;
+        let ident = &field.ident;
         if self.cost.is_some() {
             panic!(
                 "{:?}",
@@ -108,13 +98,10 @@ impl Attributes {
         }) {
             panic!(
                 "{:?}",
-                syn::Error::new(
-                    field.span(),
-                    "Step field must be of type Step."
-                )
+                syn::Error::new(field.span(), "Step field must be of type Step.")
             );
         }
-        let ident= &field.ident;
+        let ident = &field.ident;
         if self.step.is_some() {
             panic!(
                 "{:?}",
@@ -129,7 +116,10 @@ impl Attributes {
 
     pub fn parse_from_field(&mut self, field: &syn::Field) -> Result<(), syn::Error> {
         if field.ident.is_none() {
-            return Err(syn::Error::new(field.span(), "Outcome fields must be named."));
+            return Err(syn::Error::new(
+                field.span(),
+                "Outcome fields must be named.",
+            ));
         }
         for attr in &field.attrs {
             if attr.path().is_ident("maximize") {
@@ -155,7 +145,6 @@ impl Attributes {
 /// 2. `FidOutcome` - Multi-fidelity tracking (if Step field exists)
 ///
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-
     let mut attr = Attributes::new();
 
     let input = parse_macro_input!(input as ItemStruct);
@@ -171,12 +160,12 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             )
         );
     }
-    
+
     // Parse helper attributes for objectives, constraints, costs, and step
     input.fields.iter().for_each(|field| {
         attr.parse_from_field(field).unwrap();
     });
-    
+
     if !attr.at_least_one_objective() {
         panic!(
             "{:?}",
@@ -200,7 +189,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (true, false, false) => {
             let obj = attr.objectives;
             quote! {
@@ -217,7 +206,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (false, true, false) => {
             let obj = &attr.objectives[0];
             let constraints = attr.constraint;
@@ -236,7 +225,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (false, false, true) => {
             let obj = &attr.objectives[0];
             let cost = attr.cost.unwrap();
@@ -251,7 +240,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (false, true, true) => {
             let obj = &attr.objectives[0];
             let cost = attr.cost.unwrap();
@@ -272,7 +261,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (true, true, false) => {
             let obj = attr.objectives;
             let constraints = attr.constraint;
@@ -295,7 +284,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (true, false, true) => {
             let obj = attr.objectives;
             let cost = attr.cost.unwrap();
@@ -314,7 +303,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
         (true, true, true) => {
             let obj = attr.objectives;
             let constraints = attr.constraint;
@@ -339,7 +328,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
             }
-        },
+        }
     };
 
     let fid_outcome = if let Some(step) = attr.step {
@@ -355,5 +344,6 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     quote! {
         #outcome
         #fid_outcome
-    }.into()
+    }
+    .into()
 }

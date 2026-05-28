@@ -31,13 +31,13 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{Runable, mono},
     stop::Calls,
 };
-use tantale::algos::BatchRandomSearch;
-use searchspace::{get_function, get_searchspace};
 
 use std::sync::Arc;
 

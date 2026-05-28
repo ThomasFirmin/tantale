@@ -54,7 +54,10 @@ use crate::{
     },
 };
 
-use rand::{RngExt, prelude::{IteratorRandom, Rng}};
+use rand::{
+    RngExt,
+    prelude::{IteratorRandom, Rng},
+};
 
 /// Core trait for sampling strategies that generate random values from a domain.
 ///

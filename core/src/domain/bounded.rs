@@ -30,7 +30,12 @@
 use crate::{
     GridDomDistribution,
     domain::{
-        Domain, NumericalDomain, PreDomain, TypeDom, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit
+        Domain, NumericalDomain, PreDomain, TypeDom,
+        bool::Bool,
+        grid::{GridBounds, GridDom},
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+        unit::Unit,
     },
     errors::OntoError,
     recorder::csv::CSVWritable,
@@ -175,7 +180,7 @@ impl<T: BoundedBounds> NumericalDomain for Bounded<T> {
     fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom) {
         (*self.bounds.start(), *self.bounds.end())
     }
-    
+
     fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom) {
         (self.bounds.start(), self.bounds.end())
     }

@@ -12,7 +12,7 @@
 //! Same applies for [`PartialOrd`], [`PartialEq`] and [`Eq`].
 //! For [`TypeCodom`] that are [`Dominate`] the
 //! [`Computed`] solution implements [`Dominate`].
-//! 
+//!
 //! # Examples
 //! ```
 //! use tantale::core::{HasX, Solution, BaseSol, Outcome, Computed, Codomain, EmptyInfo, Real, Id, SId, Uncomputed};
@@ -53,10 +53,12 @@
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, domain::{Domain, codomain::TypeCodom}, has_trait::HasX, objective::{Outcome, Step}, solution::{
-        Id, IntoComputed,
-        SolInfo, Solution, Uncomputed,
-    }
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
+    HasUncomputed, HasY, Multi, StepId,
+    domain::{Domain, codomain::TypeCodom},
+    has_trait::HasX,
+    objective::{Outcome, Step},
+    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed},
 };
 
 use serde::{Deserialize, Serialize};
@@ -96,8 +98,7 @@ where
 
 /// A helper struct to hold the raw solution and the computed codomain value together.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Xy<Raw, Y>
-{
+pub struct Xy<Raw, Y> {
     pub x: Raw,
     pub y: Arc<Y>,
 }
@@ -141,8 +142,7 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Out, Info> HasStepId<SolId>
-    for Computed<PSol, SolId, Dom, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasStepId<SolId> for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasStepId<SolId> + HasStep,
     Dom: Domain,
@@ -163,8 +163,7 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Out, Info> HasSolInfo<Info>
-    for Computed<PSol, SolId, Dom, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasSolInfo<Info> for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
@@ -414,9 +413,7 @@ where
     }
 }
 
-
-impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y>
-{
+impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y> {
     fn ref_x(&self) -> &Raw {
         &self.x
     }
@@ -436,34 +433,27 @@ where
     }
 }
 
-
-impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y>
-{
+impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y> {
     fn eq(&self, other: &Self) -> bool {
         self.y == other.y
     }
 }
 
-impl<Raw, Y: Eq> Eq for Xy<Raw, Y>
-{
-}
+impl<Raw, Y: Eq> Eq for Xy<Raw, Y> {}
 
-impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw,Y>
-{
+impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw, Y> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y.partial_cmp(&other.y)
     }
 }
 
-impl<Raw, Y: Ord> Ord for Xy<Raw,Y>
-{
+impl<Raw, Y: Ord> Ord for Xy<Raw, Y> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.y.cmp(&other.y)
     }
 }
 
-impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y>
-{
+impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y> {
     fn dominates(&self, other: &Self) -> bool {
         self.y.dominates(&other.y)
     }

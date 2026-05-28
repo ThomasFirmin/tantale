@@ -1,22 +1,34 @@
 use crate::{
-    BatchRecorder, Codomain, FidOutcome, HasFidelity, HasStep, HasStepId, SId, Stepped, ThrCheckpointer, checkpointer::{FuncStateCheckpointer, MonoCheckpointer}, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{
-        BatchEvaluator, CompAcc, ExpComponent, FidBatchEvaluator, FidThrBatchEvaluator, MonoEvaluate, MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator, ThrEvaluate, ThrExperiment, basics::{IdxMapPool, LoadPool, Pool}
-    }, objective::{Objective, Outcome, outcome::FuncState}, optimizer::opt::{BatchOptimizer, OpSInfType}, searchspace::{CompShape, Searchspace}, solution::{
-        Uncomputed, id::StepSId,
-        shape::RawObj,
-    }, stop::{ExpStep, Stop}
+    BatchRecorder, Codomain, FidOutcome, HasFidelity, HasStep, HasStepId, SId, Stepped,
+    ThrCheckpointer,
+    checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{
+        BatchEvaluator, CompAcc, ExpComponent, FidBatchEvaluator, FidThrBatchEvaluator,
+        MonoEvaluate, MonoExperiment, OutBatchEvaluate, PoolMode, Runable, ThrBatchEvaluator,
+        ThrEvaluate, ThrExperiment,
+        basics::{IdxMapPool, LoadPool, Pool},
+    },
+    objective::{Objective, Outcome, outcome::FuncState},
+    optimizer::opt::{BatchOptimizer, OpSInfType},
+    searchspace::{CompShape, Searchspace},
+    solution::{Uncomputed, id::StepSId, shape::RawObj},
+    stop::{ExpStep, Stop},
 };
 
 #[cfg(feature = "mpi")]
 use crate::{
-    DistBatchRecorder, checkpointer::{DistCheckpointer, WorkerCheckpointer}, experiment::{
+    DistBatchRecorder,
+    checkpointer::{DistCheckpointer, WorkerCheckpointer},
+    experiment::{
         DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         batched::batchfidevaluator::FidDistBatchEvaluator,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
         },
-    }, solution::shape::{SolObj, SolOpt}
+    },
+    solution::shape::{SolObj, SolOpt},
 };
 
 use std::sync::{Arc, Mutex};
@@ -50,8 +62,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -165,7 +176,10 @@ where
     fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
-            None => BatchEvaluator::new(self.optimizer.first_step(&self.searchspace, &self.accumulator)),
+            None => BatchEvaluator::new(
+                self.optimizer
+                    .first_step(&self.searchspace, &self.accumulator),
+            ),
         };
 
         let mut batch;
@@ -276,32 +290,29 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>
-    {
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,
@@ -344,8 +355,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -498,7 +508,9 @@ where
                     .checkpointer
                     .as_ref()
                     .map(|c| c.new_func_state_checkpointer());
-                let batch = self.optimizer.first_step(&self.searchspace, &self.accumulator);
+                let batch = self
+                    .optimizer
+                    .first_step(&self.searchspace, &self.accumulator);
                 match self.pool_mode {
                     PoolMode::InMemory => {
                         let pool = IdxMapPool::new(fn_check);
@@ -621,31 +633,30 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,
@@ -685,8 +696,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -711,8 +721,7 @@ where
             Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         >,
     Check: ThrCheckpointer,
-    TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>:
-        Send + Sync,
+    TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>: Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`BatchRecorder`] and [`ThrCheckpointer`].
@@ -934,27 +943,29 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,
@@ -997,8 +1008,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -1033,12 +1043,8 @@ where
         >,
     Check: ThrCheckpointer,
     Check::FnStateCheck: Send + Sync,
-    TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    >: Send + Sync,
+    TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>:
+        Send + Sync,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`BatchRecorder`] and [`ThrCheckpointer`].
@@ -1284,31 +1290,30 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,
@@ -1351,8 +1356,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
     >
 where
     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             SId,
@@ -1525,7 +1529,9 @@ where
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
-                let batch = self.optimizer.first_step(&self.searchspace, &self.accumulator);
+                let batch = self
+                    .optimizer
+                    .first_step(&self.searchspace, &self.accumulator);
                 BatchEvaluator::new(batch)
             }
         };
@@ -1657,27 +1663,29 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
-    {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
-        SId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,
@@ -1716,8 +1724,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
     >
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     Op: BatchOptimizer<
             PSol,
             StepSId,
@@ -1952,7 +1959,8 @@ where
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => FidDistBatchEvaluator::new(
-                self.optimizer.first_step(&self.searchspace, &self.accumulator),
+                self.optimizer
+                    .first_step(&self.searchspace, &self.accumulator),
                 self.proc.size as usize,
             ),
         };
@@ -2085,31 +2093,30 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
         &self.accumulator
     }
 
     fn get_mut_accumalator(
         &mut self,
-    ) -> &mut TypeAcc<
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
-        StepSId,
-        Op::SInfo,
-        Out,
-    > {
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
         &mut self.accumulator
     }
 
     fn extract(
         self,
-    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
         (
-            self.searchspace, 
+            self.searchspace,
             self.codomain,
             self.objective,
             self.optimizer,

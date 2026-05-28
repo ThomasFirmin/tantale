@@ -1,8 +1,8 @@
+use tantale::core::Codomain;
 use tantale::core::domain::TypeDom;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::Uncomputed;
-use tantale::core::{HasId, HasSolInfo, HasY, BaseSol, Computed, ParSId, HasX};
-use tantale::core::Codomain;
+use tantale::core::{BaseSol, Computed, HasId, HasSolInfo, HasX, HasY, ParSId};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -14,8 +14,7 @@ use std::sync::Arc;
 use super::init_outcome::{OutExample, get_struct};
 use super::init_sinfo::{TestSInfo, get_sinfo};
 
-type TestComp<Sol, Dom> =
-    Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
+type TestComp<Sol, Dom> = Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
 where

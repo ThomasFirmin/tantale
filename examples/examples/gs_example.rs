@@ -39,13 +39,13 @@ impl Drop for Cleaner {
     }
 }
 
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::GridSearch;
 use tantale::core::{
-    HasX, CSVRecorder, FolderConfig, HasY, MessagePack, SolutionShape,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{Runable, mono},
     stop::Calls,
 };
-use tantale::algos::GridSearch;
-use searchspace::{get_function, get_searchspace};
 
 use std::sync::Arc;
 

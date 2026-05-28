@@ -1,5 +1,5 @@
-use tantale_core::errors::ErrMsg;
 use std::{error::Error, fmt};
+use tantale_core::errors::ErrMsg;
 
 /// Error type for splitting operations from a [`Splitter`](crate::bayesian::splitter::Splitter).
 pub struct SplitError(pub String);

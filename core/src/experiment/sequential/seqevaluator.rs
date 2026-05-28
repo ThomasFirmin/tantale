@@ -4,7 +4,15 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop, domain::{codomain::TypeAcc, onto::LinkOpt}, experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate}, has_trait::HasX, objective::Step, optimizer::opt::{OpSInfType, SingleOptimizer}, searchspace::CompShape, solution::{IntoComputedShape, SolutionShape, Uncomputed, shape::RawObj}, stop::ExpStep
+    Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop,
+    domain::{codomain::TypeAcc, onto::LinkOpt},
+    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
+    has_trait::HasX,
+    objective::Step,
+    optimizer::opt::{OpSInfType, SingleOptimizer},
+    searchspace::CompShape,
+    solution::{IntoComputedShape, SolutionShape, Uncomputed, shape::RawObj},
+    stop::ExpStep,
 };
 
 use serde::{Deserialize, Serialize};
@@ -74,8 +82,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for SeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: SingleOptimizer<
             PSol,
@@ -99,12 +106,7 @@ where
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out> {
         let pair = self
             .pair
@@ -201,8 +203,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for ThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: SingleOptimizer<
             PSol,
@@ -231,14 +232,7 @@ where
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
-            Mutex<
-                TypeAcc<
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-                    SolId,
-                    Op::SInfo,
-                    Out,
-                >,
-            >,
+            Mutex<TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>>,
         >,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let pair = self
@@ -398,8 +392,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
     > for DistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id,
     Op: SingleOptimizer<
             PSol,
@@ -440,12 +433,7 @@ where
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut TypeAcc<
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-            SolId,
-            Op::SInfo,
-            Out,
-        >,
+        acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
     ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         // Fill workers with first solutions
         while sendrec.idle.has_idle() && !self.shapes.is_empty() && !stop.stop() {

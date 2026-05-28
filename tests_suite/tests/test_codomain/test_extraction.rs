@@ -1,6 +1,6 @@
 use super::init_cod::*;
-use tantale::core::Codomain;
 use paste::paste;
+use tantale::core::Codomain;
 
 macro_rules! test_const {
     ($($name : ident , $out : ident);*) => {

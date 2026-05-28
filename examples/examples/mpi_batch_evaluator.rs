@@ -1,7 +1,7 @@
 use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
-    BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp, HasId,
+    BaseSol, Codomain, HasId, Mixed, MixedTypeDom, Objective, SId, Sp,
     domain::{NoDomain, TypeDom},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
@@ -145,7 +145,13 @@ fn main() {
                 Calls,
                 Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
                 _,
-                OutBatchEvaluate<SId, EmptyInfo, RSInfo,  Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, OutEvaluator>,
+                OutBatchEvaluate<
+                    SId,
+                    EmptyInfo,
+                    RSInfo,
+                    Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
+                    OutEvaluator,
+                >,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();

@@ -1,6 +1,6 @@
 use super::init_sp::*;
 use tantale::core::recorder::csv::CSVLeftRight;
-use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, HasX, Sp};
+use tantale::core::{BaseSol, EmptyInfo, HasX, SId, Searchspace, Sp};
 
 use paste::paste;
 use std::sync::Arc;

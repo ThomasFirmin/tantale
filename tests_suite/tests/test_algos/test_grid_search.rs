@@ -87,14 +87,7 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        GridSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
 
@@ -113,14 +106,7 @@ fn test_thrseqrun() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        GridSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
     let expstop: &Evaluated = exp.get_stop();
@@ -200,14 +186,7 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        GridSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
 
@@ -229,14 +208,7 @@ fn test_fid_thr_seq_run() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        GridSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
     let opt_state: &GSState = &exp.get_optimizer().0;
     assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
     run_reader_eps("tmp_test_gs_fidthrseqrun", 1500, 740);

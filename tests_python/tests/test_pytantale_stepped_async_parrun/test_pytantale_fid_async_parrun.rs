@@ -1,5 +1,5 @@
-use tantale::algos::{RandomSearch, moasha};
 use tantale::algos::{MoAsha, mo::NSGA2Selector};
+use tantale::algos::{RandomSearch, moasha};
 use tantale::core::{
     CSVRecorder, Calls, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
     threaded_with_pool,
@@ -47,15 +47,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    threaded_with_pool(
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    )
-    .run();
+    threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid_parrun", 200, 100); // 100 for randomness
@@ -66,7 +58,14 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj2, (rec, check));
+    let mut exp = load!(
+        threaded,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj2,
+        (rec, check)
+    );
 
     let expstop = exp.get_mut_stop();
     assert!(
@@ -82,7 +81,14 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj3, (rec, check));
+    let exp = load!(
+        threaded,
+        moasha!(RandomSearch, NSGA2Selector),
+        Calls,
+        sp,
+        obj3,
+        (rec, check)
+    );
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid_parrun", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();

@@ -9,12 +9,13 @@ use tantale::core::optimizer::opt::{BatchOptimizer, CompBatch};
 use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
-use tantale::core::solution::{
-    SolutionShape, Uncomputed,
-};
-use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, EmptyInfo, FidelitySol, Stepped};
+use tantale::core::solution::{SolutionShape, Uncomputed};
 use tantale::core::{
-    Codomain, FolderConfig, Mixed, MixedTypeDom, Searchspace, HasX, Sp, StepSId,
+    BatchRecorder, EmptyInfo, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep,
+    HasUncomputed, HasY, Stepped,
+};
+use tantale::core::{
+    Codomain, FolderConfig, HasX, Mixed, MixedTypeDom, Searchspace, Sp, StepSId,
     recorder::csv::{CSVRecorder, CSVWritable},
     solution::{Batch, OutBatch},
     stop::{Calls, Stop},
@@ -76,14 +77,12 @@ pub fn run_recorder<Out, Scp, Op, St, Rec, Fn, PSol>(
     stop: &mut St,
     recorder: &mut Rec,
     size: usize,
-) 
-where
+) where
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
-    PSol::Twin<Mixed>: Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>
-        + HasStep
-        + HasFidelity,
+    PSol::Twin<Mixed>:
+        Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
@@ -117,7 +116,7 @@ where
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let acc= <FidOutExample as Outcome>::Cod::new_accumulator();
+    let acc = <FidOutExample as Outcome>::Cod::new_accumulator();
     let cod = FidOutExample::codomain();
     let batch = opt.first_step(sp, &acc);
     let mut obatch = OutBatch::empty(batch.info());
@@ -183,9 +182,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
-    PSol::Twin<Mixed>: Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>
-        + HasStep
-        + HasFidelity,
+    PSol::Twin<Mixed>:
+        Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
@@ -219,7 +217,6 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-
     let cod = FidOutExample::codomain();
 
     let true_path = Path::new(path);
