@@ -155,3 +155,69 @@
 - *(mpi)* MPI test examples now cleanly remove temporary folders.
 - *(mpi)* Added a bash script to run `mpi_*.rs` tests sequentially.
 - *(pytantale)* Added test for mono, threaded, and distributed for `Objective` and `Stepped` cases with Python functions.
+
+## Release 0.2.0 Advanced Outcome, Samplers and Tree Parzen structured Estimator
+
+### 🚀 Features
+
+- *(Outcome)*[*breaking*] Because Codomain and `Outcome` were almost always bounded together within all type bounds. Now the `Outcome` has a `Cod` associated type corresponding to a codomain.
+  Optimizer do not have associated `Codomain` anymore.
+  This allows Optimizers  and Samplers to be generic over `Codomains`. For example `RandomSearch` does not need any information from the codomain. It is now generic over all `Codomain`.
+  `Sha` and `Asha` requires elements from codomain to be `Ord`, so they are now generic over `Single`-objective codomains that have `Ord` elements. Same for MoAsha that requires codomains to be `Multi` and codomain elements to be `Dominate`. Etc.
+  The `Outcome` macro was modified with helper attributes like `#[maximize]`, `#[minimize]`, `#[constraint]`, `#[cost]` and `#[step]`. The derive macro automaticaly determines which `Codomain` corresponds to tagged fields within the user defined outcome.
+  Defining a codomain before, and passing a codomain to, an experiment is no longer required.
+  For Python `Outcome` the `init_python!` macro was extended with extra syntax to include objectives, constraint, cost and step.
+  All examples, documentation, and tests were modified consequently.
+- *(codomain!)* Removed all `codomain!` macros as the codomain is now automatically defined by the `Outcome` derive macro, and because `Optimizer` and `Sampler` can be generic over codomains
+- *(sampler)* Add the `Sampler` trait allowing to define a new kind of algorithms where the update of internal state is decorrelated from the sampling phase.
+  - `RandomSearch` is now a `Sampler` and a `SingleSampler`
+  - `BatchRandomSearch` is now a `Sampler` and a `BatchSampler`
+  - `GridSearch` is now a `Sampler` and a `SingleSampler`
+  - `TPE` is a `Sampler` and a `SingleSampler`
+- *(TPE)* Add the "bayes" feature,  and Tree Parzen structured Estimator algorithm (An Optimizer and a Sampler).
+- *(Asha)* Asha is now generic over `Samplers`
+- *(Sha)* Asha is now generic over `Samplers`
+- *(is_in)* Renamed `is_in` functions as `contains` for searchspaces and domains. Same for `vec_is_in`, etc.
+- *(new_)* Add `new_obj`, `new_opt` to searchspace allowing to create a `SolutionShape` from a `Raw` `Opt` or `Obj` solution. 
+- *(HasX)*[*breaking*] Add `HasX` traits for object containing a `Raw` solutions. Removed `get_x` and `clone_x` from Solution. Now implements `HasX`.
+- *(load)* Added `moasha!`, `hyperband!`, `asha!`, `sha!` and `tpe!` macros to help loading with `load!` these algorithm. It automatically fills generics that are usually guessed by the compiler.
+- *(domain)* Added extra trait to characterize Numerical and Categorical domains.
+  - `NumericalDomain`: has lower and upper bounds
+  - `CategoricalDomain`:  has a size (number of features)
+- *(Linked)* Added `TrueOpt` associated type, containing the true underlying `Opt` domain (`Opt` if defined, otherwise `NoDomain`)
+- *(HasVariable)* Added `HasVariable` for object containing a slice of variables.
+- *(OrdArchive)* Add an archive of solutions that are `Ord`.
+
+### 🐛 Bug Fixes
+
+- *(Twin)* Add constraints to Twins of uncomputed, so it is also an `Uncomputed`. 
+
+### 🚜 Refactor
+
+- *(dependencies)* Make serde, rand and serde workspace dependencies shared among modules.
+- *(SingleOptimizer)* Changed the name of SequentialOptimizer to SingleOptimizer
+- *(algos)* Added type aliases to simlpify typing of `Accumulator`, `Computed` single and batched solutions, and `FuncWrapper`, for basic HPO algorithms made of (`BaseSol` and `FidelitySol` with `SId`)
+  - `BCompShape`
+  - `BatchBCompShape`
+  - `BCompAcc`
+  - `FCompShape`
+  - `BatchFCompShape`
+  - `FCompAcc`
+  - `SimpleObjective`
+  - `SimpleStepped`
+- *(Has)* Moved `Has`-like traits to a dedicated file.
+- *(IntoComputedShape)* Added the `IntoComputedShape` to replace `IntoComputed` implementation on `SolutionShape`. It simplifies most of the trait bounds.
+
+### 📚 Documentation
+
+- *(tantale)* Corrected minor mistakes in examples and docs.
+- *(examples)* Solve minor link issues, and update examples with HasX trait
+
+### 🧪 Testing
+
+- *(dev-deps)* Added dev dependencies to tantale and macros to Cargo.toml
+- *(sha)* Renamed saving folder due to error when tests are run in parallel
+
+### ⚙️ Miscellaneous Tasks
+
+- *(rand)* Update rand version from 0.9.0 to 0.10.0
