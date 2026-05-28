@@ -1,4 +1,4 @@
-use tantale::algos::{Asha, Hyperband, RandomSearch, asha};
+use tantale::algos::{Asha, Hyperband, RandomSearch, asha, hyperband};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -7,7 +7,7 @@ use tantale::core::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
+use crate::init_func::sp_evaluator_sh;
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
@@ -29,14 +29,13 @@ fn test_fid_seq_run() {
     let sampler = RandomSearch::new();
     let asha = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
     let opt = Hyperband::new(asha);
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     // 1000 =
@@ -51,7 +50,6 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -59,9 +57,9 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(
         mono,
-        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
+        Hyperband<Asha<RandomSearch, _, _,_, _>, _, _, _>,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -104,7 +102,6 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_asha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -112,9 +109,9 @@ fn test_fid_seq_run() {
 
     let exp = load!(
         mono,
-        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
+        hyperband!(asha!(RandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -174,14 +171,13 @@ fn test_fid_seq_parrun() {
     let sampler = RandomSearch::new();
     let asha = Asha::new(sampler,1., 5., 1.61);
     let opt = Hyperband::new(asha);
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader_eps(
@@ -192,7 +188,6 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -200,9 +195,9 @@ fn test_fid_seq_parrun() {
 
     let mut exp = load!(
         threaded,
-        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
+        hyperband!(asha!(RandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -251,7 +246,6 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = asha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -259,9 +253,9 @@ fn test_fid_seq_parrun() {
 
     let exp = load!(
         threaded,
-        Hyperband<Asha<RandomSearch, _, _, _>, _, _, _>,
+        hyperband!(asha!(RandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

@@ -1,14 +1,11 @@
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, SaverConfig,
-    experiment::{Runable, mono, threaded},
-    load,
-    stop::Evaluated,
-};
+use tantale::{algos::{BatchRandomSearch, hyperband}, core::{
+    CSVRecorder, FolderConfig, MessagePack, SaverConfig, experiment::{Runable, mono, threaded}, load, stop::Evaluated
+}};
 
 use tantale::algos::{Hyperband, Sha, sha};
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
+use crate::init_func::sp_evaluator_sh;
 use crate::run_checker::run_reader;
 
 #[test]
@@ -27,16 +24,16 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let sha = Sha::new(10, 1., 5., 1.61); // log(max/min)
+    let sampler = BatchRandomSearch::new(10);
+    let sha = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
     let opt = Hyperband::new(sha);
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_sha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     // 1450 = 4 brackets at
@@ -51,7 +48,6 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_sha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -59,9 +55,9 @@ fn test_fid_seq_run() {
 
     let mut exp = load!(
         mono,
-        Hyperband<Sha, _, _, _>,
+        hyperband!(sha!(BatchRandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -103,7 +99,6 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_sha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -111,9 +106,9 @@ fn test_fid_seq_run() {
 
     let exp = load!(
         mono,
-        Hyperband<Sha, _, _, _>,
+        Hyperband<Sha<BatchRandomSearch, _, _, _, _>,_, _, _>,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -168,23 +163,22 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let sha = Sha::new(10, 1., 5., 1.61);
+    let sampler = BatchRandomSearch::new(10);
+    let sha = Sha::new(sampler, 10, 1., 5., 1.61);
     let opt = Hyperband::new(sha);
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_sha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_hyperband_sha_parrun", 1450);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_sha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -192,9 +186,9 @@ fn test_fid_seq_parrun() {
 
     let mut exp = load!(
         threaded,
-        Hyperband<Sha, _, _, _>,
+        hyperband!(sha!(BatchRandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -242,7 +236,6 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_hyperband_sha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -250,9 +243,9 @@ fn test_fid_seq_parrun() {
 
     let exp = load!(
         threaded,
-        Hyperband<Sha, _, _, _>,
+        hyperband!(sha!(BatchRandomSearch)),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

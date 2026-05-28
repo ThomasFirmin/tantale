@@ -5,6 +5,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -30,13 +31,13 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-use searchspace::{OutExample, get_function, get_searchspace};
-use tantale::algos::{BatchRandomSearch, random_search};
 use tantale::core::{
     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{Runable, mono},
     stop::Calls,
 };
+use tantale::algos::BatchRandomSearch;
+use searchspace::{get_function, get_searchspace};
 
 use std::sync::Arc;
 
@@ -61,14 +62,13 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &OutExample| o.obj);
 
     let stop = Calls::new(50);
     let config = Arc::new(FolderConfig::new("tmp_run_batch"));
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
     println!(

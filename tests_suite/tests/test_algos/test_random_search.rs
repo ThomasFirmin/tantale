@@ -1,9 +1,9 @@
 use tantale::algos::{
     BatchRandomSearch,
-    random_search::{self, RandomSearch},
+    random_search::RandomSearch,
 };
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig, SingleCodomain,
+    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{MonoExperiment, ThrExperiment},
     experiment::{Runable, mono, threaded},
     load,
@@ -11,7 +11,7 @@ use tantale::core::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{FidOutEvaluator, OutEvaluator, sp_evaluator, sp_evaluator_fid};
+use crate::init_func::{sp_evaluator, sp_evaluator_fid};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
@@ -21,20 +21,18 @@ fn test_batch_run() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod: SingleCodomain<OutEvaluator> = random_search::codomain(|o: &OutEvaluator| o.obj);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = MonoExperiment::new((sp, cod), obj, opt, stop, (rec, check));
+    let exp = MonoExperiment::new(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_batchrun", 50);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
@@ -45,7 +43,7 @@ fn test_batch_run() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -61,7 +59,6 @@ fn test_batch_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
@@ -72,7 +69,7 @@ fn test_batch_run() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -92,21 +89,19 @@ fn test_batch_parrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_parbatchrun", 50);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
@@ -117,7 +112,7 @@ fn test_batch_parrun() {
         threaded,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -134,7 +129,6 @@ fn test_batch_parrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
@@ -145,7 +139,7 @@ fn test_batch_parrun() {
         threaded,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -165,28 +159,26 @@ fn test_seqrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = RandomSearch::new();
-    let cod: SingleCodomain<OutEvaluator> = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_seqrun", 50);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -196,14 +188,13 @@ fn test_seqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let _exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_seqrun", 100);
 }
 
@@ -214,20 +205,18 @@ fn test_thrseqrun() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new();
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = ThrExperiment::new((sp, cod), obj, opt, stop, (rec, check));
+    let exp = ThrExperiment::new(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader_eps("tmp_test_thr_seq_run", 50, num_cpus::get() * 4);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
@@ -238,7 +227,7 @@ fn test_thrseqrun() {
         threaded,
         RandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -252,7 +241,6 @@ fn test_thrseqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
@@ -263,7 +251,7 @@ fn test_thrseqrun() {
         threaded,
         RandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -279,21 +267,19 @@ fn test_fid_batch_run() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_fidbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader_eps("tmp_test_fidbatchrun", 264, num_cpus::get() * 4);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -303,7 +289,7 @@ fn test_fid_batch_run() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -322,7 +308,6 @@ fn test_fid_batch_run() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -332,7 +317,7 @@ fn test_fid_batch_run() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -351,14 +336,13 @@ fn test_fid_batch_parrun() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_fidbatchparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     // 56 = 7 batches * 8 iteration. 5 partials to get to evaluated
@@ -367,7 +351,6 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidbatchparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -377,7 +360,7 @@ fn test_fid_batch_parrun() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -393,7 +376,6 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidbatchparrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -403,7 +385,7 @@ fn test_fid_batch_parrun() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -423,26 +405,24 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let opt = RandomSearch::new();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
     run_reader("tmp_test_fidseqrun", 250);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -452,13 +432,12 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_fidseqrun", 500);
     let expstop: &Evaluated = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
@@ -471,19 +450,17 @@ fn test_fid_thr_seq_run() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let opt = RandomSearch::new();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_fidthrseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
     run_reader_eps("tmp_test_fidthrseqrun", 250, num_cpus::get() * 4);
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidthrseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -493,7 +470,7 @@ fn test_fid_thr_seq_run() {
         threaded,
         RandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -511,7 +488,6 @@ fn test_fid_thr_seq_run() {
 
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_fidthrseqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -521,7 +497,7 @@ fn test_fid_thr_seq_run() {
         threaded,
         RandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

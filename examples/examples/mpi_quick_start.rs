@@ -5,6 +5,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -40,13 +41,13 @@ impl Drop for Cleaner {
     }
 }
 
-use searchspace::{OutExample, get_function, get_searchspace};
-use tantale::algos::{BatchRandomSearch, random_search};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     experiment::{distributed, mpi::utils::MPIProcess},
     stop::Calls,
 };
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::BatchRandomSearch;
 
 fn main() {
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
@@ -68,13 +69,13 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &OutExample| o.obj);
+
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_batch_run").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
     let accumulator = exp.run();
     if let Some(acc) = accumulator {
         // <==== Because workers return None !

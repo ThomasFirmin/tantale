@@ -20,9 +20,8 @@
 //! ```
 
 use crate::{
-    Codomain, Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
-        Domain,
-        onto::{LinkObj, LinkOpt, Linked},
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
+        Domain, codomain::TypeCodom, onto::{LinkObj, LinkOpt, Linked}
     }, objective::Step, solution::{IntoComputedShape, Uncomputed}
 };
 
@@ -115,9 +114,9 @@ where
     SolOpt: Solution<SolId, Opt, SInfo>;
 
 /// Type alias for a computed [`Pair`] solution.
-pub type CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> = Pair<
-    Computed<SolObj, SolId, Obj, Cod, Out, SInfo>,
-    Computed<SolOpt, SolId, Opt, Cod, Out, SInfo>,
+pub type CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> = Pair<
+    Computed<SolObj, SolId, Obj, Out, SInfo>,
+    Computed<SolOpt, SolId, Opt, Out, SInfo>,
     SolId,
     Obj,
     Opt,
@@ -222,19 +221,18 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> HasY<Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> HasY<Out>
     for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
 where
     SolId: Id,
     Obj: Domain,
     Opt: Domain,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasY<Cod, Out>,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasY<Cod, Out>,
+    SolObj: Solution<SolId, Obj, SInfo> + HasY<Out>,
+    SolOpt: Solution<SolId, Opt, SInfo> + HasY<Out>,
 {
-    fn y(&self) -> Arc<Cod::TypeCodom> {
+    fn y(&self) -> Arc<TypeCodom<Out>> {
         self.0.y()
     }
 }
@@ -356,27 +354,27 @@ where
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
 {
-    type Computed<Cod: Codomain<Out>, Out: Outcome> = Pair<
-        Computed<SolObj, SolId, Obj, Cod, Out, SInfo>,
-        Computed<SolOpt, SolId, Opt, Cod, Out, SInfo>,
+    type Computed<Out: Outcome> = Pair<
+        Computed<SolObj, SolId, Obj, Out, SInfo>,
+        Computed<SolOpt, SolId, Opt, Out, SInfo>,
         SolId,
         Obj,
         Opt,
         SInfo,
     >;
 
-    fn into_computed<Cod: Codomain<Out>, Out: Outcome>(
+    fn into_computed<Out: Outcome>(
         self,
-        y: Arc<Cod::TypeCodom>,
-    ) -> Self::Computed<Cod, Out> {
+        y: Arc<TypeCodom<Out>>,
+    ) -> Self::Computed<Out> {
         let cobj = Computed::new(self.0, y.clone());
         let copt = Computed::new(self.1, y);
         Pair::new(cobj, copt)
     }
 
-    fn extract<Cod: Codomain<Out>, Out: Outcome>(
-        comp: Self::Computed<Cod, Out>,
-    ) -> (Self, Arc<Cod::TypeCodom>) {
+    fn extract<Out: Outcome>(
+        comp: Self::Computed<Out>,
+    ) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Pair::new(comp.0.sol, comp.1.sol);
         (pair, y)
@@ -405,12 +403,11 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialEq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> PartialEq
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialEq,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -424,12 +421,11 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Eq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Eq
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Eq,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -440,12 +436,11 @@ where
 {
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> PartialOrd
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> PartialOrd
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialOrd,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -459,12 +454,11 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Ord
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Ord
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -478,12 +472,12 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out> Dominate
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Cod, Out>
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Dominate
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Self: HasY<Out>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -545,8 +539,8 @@ where
     SolObj: Solution<SolId, Obj, SInfo>;
 
 /// Type alias for a computed [`Lone`] solution.
-pub type CompLone<SolObj, SolId, Obj, SInfo, Cod, Out> =
-    Lone<Computed<SolObj, SolId, Obj, Cod, Out, SInfo>, SolId, Obj, SInfo>;
+pub type CompLone<SolObj, SolId, Obj, SInfo, Out> =
+    Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
 
 impl<SolObj, SolId, Obj, SInfo> Lone<SolObj, SolId, Obj, SInfo>
 where
@@ -625,16 +619,15 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> HasY<Cod, Out> for Lone<SolObj, SolId, Obj, SInfo>
+impl<SolObj, SolId, Obj, SInfo, Out> HasY<Out> for Lone<SolObj, SolId, Obj, SInfo>
 where
     SolId: Id,
     Obj: Domain,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    SolObj: Solution<SolId, Obj, SInfo> + HasY<Cod, Out>,
+    SolObj: Solution<SolId, Obj, SInfo> + HasY<Out>,
 {
-    fn y(&self) -> Arc<Cod::TypeCodom> {
+    fn y(&self) -> Arc<TypeCodom<Out>> {
         self.0.y()
     }
 }
@@ -736,19 +729,19 @@ where
     SInfo: SolInfo,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
 {
-    type Computed<Cod: Codomain<Out>, Out: Outcome> =
-        Lone<Computed<SolObj, SolId, Obj, Cod, Out, SInfo>, SolId, Obj, SInfo>;
+    type Computed<Out: Outcome> =
+        Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
 
-    fn into_computed<Cod: Codomain<Out>, Out: Outcome>(
+    fn into_computed<Out: Outcome>(
         self,
-        y: Arc<Cod::TypeCodom>,
-    ) -> Self::Computed<Cod, Out> {
+        y: Arc<TypeCodom<Out>>,
+    ) -> Self::Computed<Out> {
         Lone::new(Computed::new(self.0, y))
     }
 
-    fn extract<Cod: Codomain<Out>, Out: Outcome>(
-        comp: Self::Computed<Cod, Out>,
-    ) -> (Self, Arc<Cod::TypeCodom>) {
+    fn extract<Out: Outcome>(
+        comp: Self::Computed<Out>,
+    ) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Lone::new(comp.0.sol);
         (pair, y)
@@ -767,12 +760,11 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialEq
-    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> PartialEq
+    for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialEq,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,
@@ -784,11 +776,10 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Eq for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> Eq for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Eq,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,
@@ -797,12 +788,11 @@ where
 {
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> PartialOrd
-    for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> PartialOrd
+    for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialOrd,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,
@@ -814,11 +804,10 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Ord for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> Ord for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,
@@ -830,11 +819,11 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Cod, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Cod, Out>
+impl<SolObj, SolId, Obj, SInfo, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Self: HasY<Out>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,

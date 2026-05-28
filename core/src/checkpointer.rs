@@ -65,7 +65,7 @@ use std::panic;
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::{utils::MPIProcess, worker::WorkerState};
 use crate::{
-    Accumulator, Codomain, FuncState, GlobalParameters, HasY, Id, Outcome, SaverConfig, SolInfo,
+    Accumulator, FuncState, GlobalParameters, HasY, Id, Outcome, SaverConfig, SolInfo,
     SolutionShape, config::NoConfig, experiment::Evaluate, optimizer::OptState, stop::Stop,
 };
 
@@ -132,7 +132,9 @@ pub trait FuncStateCheckpointer {
 /// - [`OptState`] - Optimizer Algorithm State
 ///   Contains the internal data structure of the optimizer. This might include:
 ///   This state is algorithm-specific and must be implemented for each optimizer.
-///
+/// 
+/// - [`Accumulator`] - Evaluation Accumulator State
+/// 
 /// - [`Stop`] - Termination Criteria State
 ///   Tracks progress toward stopping conditions.
 ///
@@ -288,23 +290,21 @@ pub trait MonoCheckpointer: Checkpointer {
     fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError>;
 
     /// Saves the state of an accumulator to a checkpoint.
-    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    fn save_accumulator<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
 
     /// Loads the state of an accumulator from a checkpoint.
-    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
 }
 
@@ -317,10 +317,10 @@ pub trait MonoCheckpointer: Checkpointer {
 /// # Relationship to Checkpointer
 ///
 /// [`ThrCheckpointer`] extends [`Checkpointer`] by adding thread-aware variants of key methods:
-/// - `init()` → `init_thr()` - Initialize for multi-threaded storage
-/// - `before_load()` → `before_load_thr()` - Verify multi-threaded checkpoint
-/// - `save_state()` → `save_state_thr()` - Save with thread context
-/// - `load()` → `load_thr()` - Restore multiple thread states
+/// - `init()` > `init_thr()` - Initialize for multi-threaded storage
+/// - `before_load()` > `before_load_thr()` - Verify multi-threaded checkpoint
+/// - `save_state()` > `save_state_thr()` - Save with thread context
+/// - `load()` > `load_thr()` - Restore multiple thread states
 /// - Individual load methods remain unchanged (they apply to shared state)
 ///
 /// # See Also
@@ -360,23 +360,21 @@ pub trait ThrCheckpointer: Checkpointer {
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
 
     /// Saves the state of an accumulator to a checkpoint.
-    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
 
     /// Loads the state of an accumulator from a checkpoint.
-    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
 }
 
@@ -596,26 +594,24 @@ where
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for distributed optimization experiments, returning global parameters (same across ranks).
     fn load_parameters_dist(&self, rank: Rank) -> Result<GlobalParameters, CheckpointError>;
     /// Saves the state of an accumulator to a checkpoint.
-    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc, rank: Rank)
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc, rank: Rank)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
 
     /// Loads the state of an accumulator from a checkpoint.
-    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Out>(
         &self,
         rank: Rank,
     ) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome;
     /// Retrieves the worker checkpointer.
     fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState>;
@@ -697,25 +693,23 @@ impl MonoCheckpointer for NoCheck {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
-    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc)
+    fn save_accumulator<Acc, C, SolId, SInfo, Out>(&self, _acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to save an accumulator.")
     }
 
-    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to load an experiment.")
@@ -763,25 +757,23 @@ impl ThrCheckpointer for NoCheck {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
-    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc)
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self, _acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to save an accumulator.")
     }
 
-    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to load an experiment.")
@@ -826,28 +818,26 @@ impl DistCheckpointer for NoCheck {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
-    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, _acc: &Acc, _rank: Rank)
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Out>(&self, _acc: &Acc, _rank: Rank)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to save an accumulator.")
     }
 
-    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Out>(
         &self,
         _rank: Rank,
     ) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         panic!("NoCheck should not be called to load an experiment.")

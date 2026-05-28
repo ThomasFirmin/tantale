@@ -1,5 +1,5 @@
-#[path = "../init_outcome.rs"]
-pub mod init_outcome;
+#[path = "../init_cod.rs"]
+pub mod init_cod;
 
 pub mod test_extraction;
 pub mod test_new;

@@ -5,14 +5,16 @@ pub use tantale::core::{
         ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain,
         ElemMultiCodomain, ElemSingleCodomain, FidCriteria, MultiCodomain, SingleCodomain,
     },
-    objective::EvalStep,
+    objective::Step,
 };
 use tantale::macros::Outcome;
+use tantale::core::Outcome;
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
-pub struct OutCod {
+pub struct OutCodSingle {
+    #[maximize]
     pub obj1: f64,
     pub cost2: f64,
     pub con3: f64,
@@ -22,45 +24,95 @@ pub struct OutCod {
     pub mul7: f64,
     pub mul8: f64,
     pub mul9: f64,
-    pub fid10: EvalStep,
+    pub fid10: Step,
     pub more: f64,
     pub info: f64,
 }
 
-pub fn get_elemsingle() -> (SingleCodomain<OutCod>, ElemSingleCodomain) {
+pub fn get_elemsingle() -> (<OutCodSingle as Outcome>::Cod, ElemSingleCodomain) {
     (
-        SingleCodomain::new(|a| a.obj1),
+        OutCodSingle::codomain(),
         ElemSingleCodomain { value: 1.1 },
     )
 }
-pub fn get_elemcost() -> (CostCodomain<OutCod>, ElemCostCodomain) {
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodCost {
+    #[maximize]
+    pub obj1: f64,
+    #[cost]
+    pub cost2: f64,
+    pub con3: f64,
+    pub con4: f64,
+    pub con5: f64,
+    pub mul6: f64,
+    pub mul7: f64,
+    pub mul8: f64,
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemcost() -> (<OutCodCost as Outcome>::Cod, ElemCostCodomain) {
     (
-        CostCodomain::new(|a| a.obj1, |a| a.cost2),
+        OutCodCost::codomain(),
         ElemCostCodomain {
             value: 1.1,
             cost: 2.2,
         },
     )
 }
-pub fn get_elemconst() -> (ConstCodomain<OutCod>, ElemConstCodomain) {
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodConst {
+    #[maximize]
+    pub obj1: f64,
+    pub cost2: f64,
+    #[constraint]
+    pub con3: f64,
+    #[constraint]
+    pub con4: f64,
+    #[constraint]
+    pub con5: f64,
+    pub mul6: f64,
+    pub mul7: f64,
+    pub mul8: f64,
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemconst() -> (<OutCodConst as Outcome>::Cod, ElemConstCodomain) {
     (
-        ConstCodomain::new(
-            |a| a.obj1,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
+        OutCodConst::codomain(),
         ElemConstCodomain {
             value: 1.1,
-            constraints: Box::from([2.2, 3.3]),
+            constraints: Box::from([2.2, 3.3, 4.4]),
         },
     )
 }
-pub fn get_elemcostconst() -> (CostConstCodomain<OutCod>, ElemCostConstCodomain) {
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodCostConst {
+    #[maximize]
+    pub obj1: f64,
+    #[cost]
+    pub cost2: f64,
+    #[constraint]
+    pub con3: f64,
+    #[constraint]
+    pub con4: f64,
+    #[constraint]
+    pub con5: f64,
+    pub mul6: f64,
+    pub mul7: f64,
+    pub mul8: f64,
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemcostconst() -> (<OutCodCostConst as Outcome>::Cod, ElemCostConstCodomain) {
     (
-        CostConstCodomain::new(
-            |a| a.obj1,
-            |a| a.cost2,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
+        OutCodCostConst::codomain(),
         ElemCostConstCodomain {
             value: 1.1,
             cost: 2.2,
@@ -68,47 +120,125 @@ pub fn get_elemcostconst() -> (CostConstCodomain<OutCod>, ElemCostConstCodomain)
         },
     )
 }
-pub fn get_elemmulti() -> (MultiCodomain<OutCod>, ElemMultiCodomain) {
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodMulti {
+    pub obj1: f64,
+    pub cost2: f64,
+    pub con3: f64,
+    pub con4: f64,
+    pub con5: f64,
+    #[maximize]
+    pub mul6: f64,
+    #[maximize]
+    pub mul7: f64,
+    #[maximize]
+    pub mul8: f64,
+    #[maximize]
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemmulti() -> (<OutCodMulti as Outcome>::Cod, ElemMultiCodomain) {
     (
-        MultiCodomain::new(vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice()),
+        OutCodMulti::codomain(),
         ElemMultiCodomain {
-            value: Box::from([1.1, 2.2]),
+            value: Box::from([1.1, 2.2, 3.3, 4.4]),
         },
     )
 }
-pub fn get_elemcostmulti() -> (CostMultiCodomain<OutCod>, ElemCostMultiCodomain) {
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodCostMulti {
+    pub obj1: f64,
+    #[cost]
+    pub cost2: f64,
+    pub con3: f64,
+    pub con4: f64,
+    pub con5: f64,
+    #[maximize]
+    pub mul6: f64,
+    #[maximize]
+    pub mul7: f64,
+    #[maximize]
+    pub mul8: f64,
+    #[maximize]
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemcostmulti() -> (<OutCodCostMulti as Outcome>::Cod, ElemCostMultiCodomain) {
     (
-        CostMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            |a| a.cost2,
-        ),
+        OutCodCostMulti::codomain(),
         ElemCostMultiCodomain {
-            value: Box::from([1.1, 2.2]),
+            value: Box::from([1.1, 2.2, 3.3, 4.4]),
             cost: 3.3,
         },
     )
 }
-pub fn get_elemconstmulti() -> (ConstMultiCodomain<OutCod>, ElemConstMultiCodomain) {
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodConstMulti {
+    pub obj1: f64,
+    pub cost2: f64,
+    #[constraint]
+    pub con3: f64,
+    #[constraint]
+    pub con4: f64,
+    #[constraint]
+    pub con5: f64,
+    #[maximize]
+    pub mul6: f64,
+    #[maximize]
+    pub mul7: f64,
+    #[maximize]
+    pub mul8: f64,
+    #[maximize]
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemconstmulti() -> (<OutCodConstMulti as Outcome>::Cod, ElemConstMultiCodomain) {
     (
-        ConstMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
+        OutCodConstMulti::codomain(),
         ElemConstMultiCodomain {
-            value: Box::from([1.1, 2.2]),
+            value: Box::from([1.1, 2.2, 3.3, 4.4]),
             constraints: Box::from([3.3, 4.4]),
         },
     )
 }
-pub fn get_elemcostconstmulti() -> (CostConstMultiCodomain<OutCod>, ElemCostConstMultiCodomain) {
+
+#[derive(Outcome, Debug, Serialize, Deserialize)]
+pub struct OutCodCostConstMulti {
+    pub obj1: f64,
+    #[cost]
+    pub cost2: f64,
+    #[constraint]
+    pub con3: f64,
+    #[constraint]
+    pub con4: f64,
+    #[constraint]
+    pub con5: f64,
+    #[maximize]
+    pub mul6: f64,
+    #[maximize]
+    pub mul7: f64,
+    #[maximize]
+    pub mul8: f64,
+    #[maximize]
+    pub mul9: f64,
+    pub fid10: Step,
+    pub more: f64,
+    pub info: f64,
+}
+pub fn get_elemcostconstmulti() -> (<OutCodCostConstMulti as Outcome>::Cod, ElemCostConstMultiCodomain) {
     (
-        CostConstMultiCodomain::new(
-            vec![|a: &OutCod| a.mul6, |a: &OutCod| a.mul7].into_boxed_slice(),
-            |a| a.cost2,
-            vec![|a: &OutCod| a.con3, |a: &OutCod| a.con4].into_boxed_slice(),
-        ),
+        OutCodCostConstMulti::codomain(),
         ElemCostConstMultiCodomain {
-            value: Box::from([1.1, 2.2]),
+            value: Box::from([1.1, 2.2, 3.3, 4.4]),
             cost: 3.3,
             constraints: Box::from([4.4, 5.5]),
         },

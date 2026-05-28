@@ -37,7 +37,7 @@ use mpi::Rank;
 #[cfg(feature = "mpi")]
 use std::collections::HashMap;
 
-/// A [`Batch`] describes a collection of `Obj` and `Opt` [`SolutionShape`].
+/// A [`Batch`] describes a collection of [`SolutionShape`].
 ///
 /// All pairs in the batch share the same [`OptInfo`].
 #[derive(Serialize, Deserialize, Debug)]
@@ -242,12 +242,12 @@ where
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{Batch, EmptyInfo, FidelitySol, HasStep, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
+    /// use tantale::core::{Batch, EmptyInfo, FidelitySol, HasStep, Id, HasId, Pair, Real, StepSId, Unit, Uncomputed};
     /// use std::sync::Arc;
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let obj = FidelitySol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-    /// let opt = FidelitySol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
+    /// let obj = FidelitySol::<StepSId, Real, _>::new(StepSId::generate(), Arc::from(vec![0.1]), info.clone());
+    /// let opt = FidelitySol::<StepSId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let mut pair = Pair::new(obj, opt);
     /// pair.evaluated(); // Only modified by internal state, not by the user.
     ///
@@ -479,7 +479,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let info = Arc::new(EmptyInfo {});
     /// let out = vec![(SId::generate(), Out { value: 1.0 })];
@@ -500,7 +500,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());
@@ -522,7 +522,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let info = Arc::new(EmptyInfo {});
     /// let mut batch: OutBatch<_, _, Out> = OutBatch::empty(info);
@@ -543,7 +543,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let info = Arc::new(EmptyInfo {});
     /// let mut batch: OutBatch<_, _, Out> = OutBatch::empty(info);
@@ -564,7 +564,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let info = Arc::new(EmptyInfo {});
     /// let mut a: OutBatch<_, _, Out> = OutBatch::empty(info.clone());
@@ -586,7 +586,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert_eq!(batch.size(), 0);
@@ -605,7 +605,7 @@ where
     /// use tantale::macros::Outcome;
     ///
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
-    /// struct Out { value: f64 }
+    /// struct Out { #[maximize] value: f64 }
     ///
     /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
     /// assert!(batch.is_empty());

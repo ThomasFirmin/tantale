@@ -10,7 +10,7 @@ mod front {
     use rand::seq::SliceRandom;
     use serde::{Deserialize, Serialize};
     use tantale::core::domain::codomain::ElemMultiCodomain;
-    use tantale::core::{BaseSol, Computed, EmptyInfo, MultiCodomain, Real, SId, Uncomputed};
+    use tantale::core::{BaseSol, Computed, EmptyInfo, Real, SId, Uncomputed};
     use tantale::macros::Outcome;
 
     use std::sync::Arc;
@@ -18,7 +18,9 @@ mod front {
     #[allow(dead_code)]
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj1: f64,
+        #[maximize]
         pub obj2: f64,
     }
 
@@ -28,7 +30,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         >,
@@ -42,7 +43,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol1, y1.into());
@@ -53,7 +53,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol2, y2.into());
@@ -64,7 +63,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol3, y3.into());
@@ -75,7 +73,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol4, y4.into());
@@ -86,7 +83,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol5, y5.into());
@@ -98,7 +94,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol6, y6.into());
@@ -109,7 +104,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol7, y7.into());
@@ -120,7 +114,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol8, y8.into());
@@ -131,7 +124,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol9, y9.into());
@@ -142,7 +134,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol10, y10.into());
@@ -154,7 +145,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol11, y11.into());
@@ -165,7 +155,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol12, y12.into());
@@ -176,7 +165,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol13, y13.into());
@@ -187,7 +175,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol14, y14.into());
@@ -198,7 +185,6 @@ mod front {
             BaseSol<SId, Real, EmptyInfo>,
             SId,
             Real,
-            MultiCodomain<OutExample>,
             OutExample,
             EmptyInfo,
         > = Computed::new(sol15, y15.into());

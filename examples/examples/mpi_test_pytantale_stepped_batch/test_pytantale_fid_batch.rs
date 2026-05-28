@@ -1,9 +1,9 @@
-use tantale::algos::{Sha, sha};
+use tantale::algos::{BatchRandomSearch, Sha, sha};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode,
     distributed_with_pool, experiment, load,
 };
-use tantale::python::{PyFidOutcome, init_python};
+use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader;
@@ -31,20 +31,16 @@ pub fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Stepped,
-        sp_ms_nosamp,
-        "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py",
-        "function_fid_batch",
-        "objective",
-        "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py",
-        "function_fid_batch",
-        "MyOutcome"
+        Stepped, sp_ms_nosamp,
+        "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "objective",
+        "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "MyOutcome",
+        objectives: [maximize "obj1"],
+        step: "step",
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-
-    let opt = Sha::new(10, 1., 5., 1.61); // log(max/min)
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
+    let sampler = BatchRandomSearch::new(10);
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
@@ -53,7 +49,7 @@ pub fn test_python_function() {
 
     distributed_with_pool(
         &proc,
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -68,7 +64,6 @@ pub fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -77,9 +72,9 @@ pub fn test_python_function() {
     let exp = load!(
         distributed,
         &proc,
-        Sha,
+        sha!(BatchRandomSearch),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -104,7 +99,6 @@ pub fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj3;
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -113,9 +107,9 @@ pub fn test_python_function() {
     let exp = load!(
         distributed,
         &proc,
-        Sha,
+        sha!(BatchRandomSearch),
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

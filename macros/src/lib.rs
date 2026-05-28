@@ -36,6 +36,7 @@ mod solinfo;
 /// pub struct ModelResult {
 ///     pub train_loss: f64,
 ///     pub val_loss: f64,
+///     #[maximize]
 ///     pub accuracy: f64,
 /// }
 /// ```
@@ -54,16 +55,13 @@ mod solinfo;
 ///
 /// #[derive(Outcome, Debug, Serialize, Deserialize)]
 /// pub struct ProgressiveResult {
+///     #[maximize]
 ///     pub loss: f64,
+///     #[step]
 ///     pub epoch: Step,  // Tracks evaluation stage
 /// }
-///
-/// // The macro Outcome generates:
-/// // impl FidOutcome for ProgressiveResult {
-/// //     fn get_step(&self) -> EvalStep { self.epoch.into() }
-/// // }
 /// ```
-#[proc_macro_derive(Outcome)]
+#[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step))]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }
@@ -86,6 +84,7 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
 /// struct OutExample {
+///     #[maximize]
 ///     obj: f64,
 ///     info: f64,
 /// }
@@ -124,7 +123,9 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
 /// struct OutExample {
+///     #[maximize]
 ///     obj: f64,
+///     #[step]
 ///     info: f64,
 /// }
 ///
@@ -163,8 +164,10 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
 /// struct OutExample {
+///     #[maximize]
 ///     obj: f64,
 ///     info: f64,
+///     #[step]
 ///     step: Step,
 /// }
 ///

@@ -1,6 +1,6 @@
 use crate::{
     FidOutcome, HasFidelity, HasStep,
-    domain::{Codomain, Domain, onto::LinkOpt},
+    domain::{Domain, onto::LinkOpt},
     experiment::CompAcc,
     objective::{FuncWrapper, Outcome},
     recorder::csv::CSVWritable,
@@ -59,9 +59,6 @@ impl CSVWritable<(), ()> for EmptyInfo {
 /// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`SolInfo`].
 pub type OpSInfType<Op, PSol, Scp, SolId, Out> =
     <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::SInfo;
-/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`Codomain`].
-pub type OpCodType<Op, PSol, Scp, SolId, Out> =
-    <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod;
 
 /// Core optimizer abstraction.
 ///
@@ -79,7 +76,6 @@ where
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
 {
     type State: OptState;
-    type Cod: Codomain<Out>;
     type SInfo: SolInfo;
 
     /// Returns a mutable reference to the [`OptState`] of the [`Optimizer`].
@@ -91,8 +87,8 @@ where
 }
 
 /// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`].
-pub type CompBatch<SolId, SInfo, Info, SolShape, Cod, Out> =
-    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Cod, Out>>;
+pub type CompBatch<SolId, SInfo, Info, SolShape, Out> =
+    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Out>>;
 
 /// Batch optimizer interface.
 ///
@@ -113,7 +109,7 @@ where
 
     /// Executed once at the beginning of the optimization. Does not require previous
     /// computed solutions.
-    fn first_step(&mut self, scp: &Scp) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+    fn first_step(&mut self, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
     /// Computes a single iteration of the [`Optimizer`].
     ///
     /// It consumes a [`Batch`] of computed solutions and returns a new batch of
@@ -132,9 +128,9 @@ where
     /// elitist strategies).
     fn step(
         &mut self,
-        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>,
+        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
         scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
 
     /// Sets the batch size for the optimizer.
@@ -177,9 +173,9 @@ where
     /// models or elitist strategies).
     fn step(
         &mut self,
-        x: OptionCompShape<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
+        x: OptionCompShape<Scp::SolShape, SolId, Self::SInfo, Out>,
         scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Scp::SolShape;
 }
 
@@ -274,10 +270,10 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
-    fn sample(&mut self, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape;
+    fn sample(&mut self, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>) -> Scp::SolShape;
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
-    fn update(&mut self, x: &CompShape<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>);
+    fn update(&mut self, x: &CompShape<Scp::SolShape, SolId, Self::SInfo, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>);
 }
 
 /// Batch sampler interface.
@@ -302,9 +298,9 @@ where
         &mut self,
         batch: usize,
         scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
 
     /// Update the internal state of the [`Sampler`] with a new batch of [`Computed`](crate::Computed) candidates.
-    fn update(&mut self, x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Self::Cod, Out>);
+    fn update(&mut self, x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Out>, scp: &Scp, acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>);
 }

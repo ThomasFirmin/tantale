@@ -29,13 +29,15 @@
 //! |-- recorder/
 //! |   |-- obj.csv
 //! |   |-- opt.csv
+//! |   |-- cod.csv
 //! |   |-- info.csv
 //! |   |-- out.csv
 //! |-- checkpointer/
-//!     |-- state_opt.mp
-//!     |-- state_stp.mp
+//!     |-- state_optim.mp
+//!     |-- state_acc.mp
+//!     |-- state_stop.mp
 //!     |-- state_eval.mp
-//!     |-- state_param.mp
+//!     |-- state_config.mp
 //! ```
 //!
 //! With the `mpi` feature enabled, distributed runs can add rank-specific subfolders.
@@ -89,13 +91,15 @@ pub trait DistSaverConfig: SaverConfig {
 ///  * evaluations
 ///   * obj.csv             (points from the [`FuncWrapper`](crate::FuncWrapper) view)
 ///   * opt.csv             (points from the [`Optimizer`](crate::Optimizer) view)
+///   * cod.csv             ([`Codomain`](crate::Codomain) elements)
 ///   * info.csv            ([`SolInfo`](crate::SolInfo) and [`OptInfo`](crate::OptInfo))
 ///   * out.csv             ([`Outcome`](crate::Outcome))
 ///  * checkpoint
-///   * state_opt.mp      ([`OptState`](crate::OptState))
-///   * state_stp.mp      ([`Stop`](crate::Stop))
+///   * state_optim.mp      ([`OptState`](crate::OptState))
+///   * state_acc.mp      ([`Accumulator`](crate::Accumulator))
+///   * state_stop.mp      ([`Stop`](crate::Stop))
 ///   * state_eval.mp     ([`Evaluate`](crate::experiment::Evaluate))
-///   * state_param.mp    ([`GlobalParameters`](crate::GlobalParameters))
+///   * state_config.mp    ([`GlobalParameters`](crate::GlobalParameters))
 pub struct FolderConfig {
     pub path: PathBuf,
     pub path_rec: PathBuf,

@@ -1,4 +1,4 @@
-use crate::{Codomain, Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed, Var};
+use crate::{Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed, Var, domain::codomain::TypeCodom};
 use std::sync::Arc;
 
 /// Trait for objects with a unique solution identifier.
@@ -82,13 +82,13 @@ pub trait HasX<Raw: Clone> {
 /// When the [`TypeCodom`](Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
 /// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
 /// [`Computed`](crate::Computed), [`Pair`](crate::Pair), [`Lone`](crate::Lone), are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
-pub trait HasY<Cod: Codomain<Out>, Out: Outcome> {
+pub trait HasY<Out: Outcome> {
     /// Returns the objective function value associated with this solution.
     ///
     /// # Returns
     ///
     /// A shared reference to the codomain value (objective function output).
-    fn y(&self) -> Arc<Cod::TypeCodom>;
+    fn y(&self) -> Arc<TypeCodom<Out>>;
 }
 
 /// Trait for objects carrying optimizer-specific metadata.

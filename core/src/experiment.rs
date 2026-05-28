@@ -70,7 +70,7 @@
 //! use tantale::core::experiment::mono;
 //!
 //! let experiment = mono(
-//!     (searchspace, codomain),
+//!     searchspace,
 //!     objective,
 //!     optimizer,
 //!     stop_criterion,
@@ -87,7 +87,7 @@
 //! use tantale::core::experiment::threaded;
 //!
 //! let experiment = threaded(
-//!     (searchspace, codomain),
+//!     searchspace,
 //!     objective,
 //!     optimizer,
 //!     stop_criterion,
@@ -112,7 +112,7 @@
 //!
 //! let experiment = distributed(
 //!     &mpi_process,
-//!     (searchspace, codomain),
+//!     searchspace,
 //!     objective,
 //!     optimizer,
 //!     stop_criterion,
@@ -239,7 +239,7 @@
 //!
 //! // Run experiment
 //! let experiment = mono(
-//!     (searchspace, codomain),
+//!     searchspace,
 //!     objective,
 //!     optimizer,
 //!     stop,
@@ -307,7 +307,7 @@ pub use basics::MPIExperiment;
 ///
 /// # Parameters
 ///
-/// * `space` - A tuple of ([`Searchspace`], [`Codomain`](crate::Codomain)), $f: X \rightarrow Y$
+/// * `space` - A [`Searchspace`], $f: X \rightarrow Y$
 /// * `objective` - The objective function wrapped in [`Objective`](crate::objective::Objective) or [`Stepped`](crate::objective::Stepped), $f$
 /// * `optimizer` - An optimizer implementing [`Optimizer`]
 /// * `stop` - A stopping criterion implementing [`Stop`]
@@ -321,15 +321,14 @@ pub use basics::MPIExperiment;
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::mono, Objective, stop::Calls};
-/// use tantale::algos::{random_search, RandomSearch};
+/// use tantale::algos::RandomSearch;
 ///
 /// let sp = my_searchspace();
-/// let cod = random_search::codomain(|out| out.value);
 /// let obj = Objective::new(my_function);
 /// let opt = RandomSearch::new();
 /// let stop = Calls::new(100);
 ///
-/// let experiment = mono((sp, cod), obj, opt, stop, (None, None)); // No recording or checkpointing
+/// let experiment = mono(sp, obj, opt, stop, (None, None)); // No recording or checkpointing
 /// experiment.run();
 /// ```
 ///
@@ -340,7 +339,7 @@ pub use basics::MPIExperiment;
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`MonoExperiment`] - The underlying experiment type
 pub fn mono<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -357,19 +356,19 @@ where
     St: Stop,
     Rec: Recorder,
     Check: MonoCheckpointer,
-    Out: Outcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
     Eval: Evaluate,
     SolId: Id,
+    Out: Outcome,
 {
-    <MonoExperiment<_, _, _, _, _, _, _, _, _, _> as Runable<_, _, _, _, _, _, _, _, _>>::new(
+    <MonoExperiment<_, _, _, _, _, _, _, _, _,  _> as Runable< _, _, _, _, _, _, _, _, _>>::new(
         space, objective, optimizer, stop, saver,
     )
 }
 
 /// Similar to [`mono`] but allows specifying a [`PoolMode`] for function state management.
 pub fn mono_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -405,7 +404,7 @@ where
 ///
 /// # Parameters
 ///
-/// * `space` - A tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `space` - A [`Searchspace`]
 /// * `objective` - The objective function wrapped in [`Objective`](crate::objective::Objective) or [`Stepped`](crate::objective::Stepped)
 /// * `optimizer` - An optimizer implementing [`Optimizer`]
 /// * `stop` - A stopping criterion implementing [`Stop`]
@@ -419,15 +418,14 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::threaded, Objective, stop::Calls};
-/// use tantale::algos::{random_search, BatchRandomSearch};
+/// use tantale::algos::BatchRandomSearch;
 ///
 /// let sp = my_searchspace();
-/// let cod = random_search::codomain(|out| out.value);
 /// let obj = Objective::new(my_function);
 /// let opt = BatchRandomSearch::new(10);  // Batch size 10
 /// let stop = Calls::new(100);
 ///
-/// let experiment = threaded((sp, cod), obj, opt, stop, (None, None)); // No recording or checkpointing
+/// let experiment = threaded(sp, obj, opt, stop, (None, None)); // No recording or checkpointing
 /// experiment.run();  // Evaluates batches in parallel
 /// ```
 ///
@@ -438,7 +436,7 @@ where
 /// * [`distributed`] - For MPI-based distributed execution
 /// * [`ThrExperiment`] - The underlying experiment type
 pub fn threaded<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -467,7 +465,7 @@ where
 
 /// Similar to [`threaded`] but allows specifying a [`PoolMode`] for function state management.
 pub fn threaded_with_pool<SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -508,7 +506,7 @@ where
 /// # Parameters
 ///
 /// * `proc` - A reference to an initialized [`MPIProcess`] containing rank, communicator, etc.
-/// * `space` - A tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `space` - A [`Searchspace`]
 /// * `objective` - The objective function wrapped in [`Objective`](crate::objective::Objective) or [`Stepped`](crate::objective::Stepped)
 /// * `optimizer` - An optimizer implementing [`Optimizer`]
 /// * `stop` - A stopping criterion implementing [`Stop`]
@@ -519,15 +517,14 @@ where
 ///
 /// ```rust,ignore
 /// use tantale::core::{experiment::threaded, Objective, stop::Calls};
-/// use tantale::algos::{random_search, BatchRandomSearch};
+/// use tantale::algos::BatchRandomSearch;
 ///
 /// let sp = my_searchspace();
-/// let cod = random_search::codomain(|out| out.value);
 /// let obj = Objective::new(my_function);
 /// let opt = BatchRandomSearch::new(10);  // Batch size 10
 /// let stop = Calls::new(100);
 ///
-/// let experiment = distributed(&proc, (sp, cod), obj, opt, stop, (None, None)); // No recording or checkpointing
+/// let experiment = distributed(&proc, sp, obj, opt, stop, (None, None)); // No recording or checkpointing
 /// experiment.run();  // Evaluates batches in parallel
 /// ```
 ///
@@ -539,7 +536,7 @@ where
 /// * [`MPIExperiment`] - The underlying experiment type
 pub fn distributed<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -584,7 +581,7 @@ where
 /// Similar to [`distributed`] but allows specifying a [`PoolMode`] for function state management.
 pub fn distributed_with_pool<'a, SolId, PSol, Scp, Op, St, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     optimizer: Op,
     stop: St,
@@ -633,7 +630,7 @@ where
 ///
 /// # Parameters
 ///
-/// * `space` - Tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `space` - A [`Searchspace`] (must be the same as used for the original experiment)
 /// * `objective` - The objective function wrapper  
 /// * `saver` - Tuple of (optional [`Recorder`], **required** [`Checkpointer`])
 ///
@@ -659,7 +656,7 @@ where
 /// let checkpointer = MessagePack::new(config).unwrap();
 ///
 /// let mut exp = mono_load::<RandomSearch, Calls, _, _, _, _, _, _, _>(
-///     (searchspace, codomain),
+///     searchspace,
 ///     objective,
 ///     (None, checkpointer)
 /// );
@@ -682,7 +679,7 @@ where
 /// * [`threaded_load`] - For loading multi-threaded experiments
 /// * `load!` - Macro for simpler loading syntax
 pub fn mono_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
@@ -709,7 +706,7 @@ where
 
 /// Similar to [`mono_load`] but allows specifying a [`PoolMode`] for function state management.
 pub fn mono_load_with_pool<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
@@ -734,7 +731,7 @@ where
         space, objective, saver, pool_mode
     )
 }
-
+    
 /// Loads a multi-threaded experiment from a checkpoint.
 ///
 /// Restores a [`ThrExperiment`] from saved state. The checkpoint must have been created
@@ -742,7 +739,7 @@ where
 ///
 /// # Parameters
 ///
-/// * `space` - Tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `space` - A [`Searchspace`] (must be the same as used for the original experiment)
 /// * `objective` - The objective function wrapper
 /// * `saver` - Tuple of (optional [`Recorder`], **required** [`ThrCheckpointer`])
 ///
@@ -762,7 +759,7 @@ where
 /// let checkpointer = MessagePack::new(config).unwrap();
 ///
 /// let mut exp = threaded_load::<BatchRandomSearch, Calls, _, _, _, _, _, _, _>(
-///     (searchspace, codomain),
+///     searchspace,
 ///     objective,
 ///     (None, checkpointer)
 /// );
@@ -780,7 +777,7 @@ where
 /// * [`mono_load`] - For loading single-threaded experiments
 /// * `load!` - Macro for simpler loading syntax
 pub fn threaded_load<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
 ) -> impl Runable<PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn>
@@ -807,7 +804,7 @@ where
 
 /// Similar to [`threaded_load`] but allows specifying a [`PoolMode`] for function state management.
 pub fn threaded_load_with_pool<SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
-    space: (Scp, Op::Cod),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
@@ -845,7 +842,7 @@ where
 /// # Parameters
 ///
 /// * `proc` - A reference to an initialized [`MPIProcess`] containing rank, communicator, etc.
-/// * `space` - Tuple of ([`Searchspace`], [`Codomain`](crate::Codomain))
+/// * `space` - A [`Searchspace`] (must be the same as used for the original experiment)
 /// * `objective` - The objective function wrapper
 /// * `saver` - Tuple of (optional [`Recorder`], **required** [`DistCheckpointer`])
 ///
@@ -868,7 +865,7 @@ where
 ///
 /// let mut exp = distributed_load::<BatchRandomSearch, Calls, _, _, _, _, _, _, _>(
 ///     &proc,
-///     (searchspace, codomain),
+///     searchspace,
 ///     objective,
 ///     (None, checkpointer)
 /// );
@@ -887,10 +884,7 @@ where
 /// * `load!` - Macro for simpler loading syntax
 pub fn distributed_load<'a, SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
-    space: (
-        Scp,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-    ),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
 ) -> MasterWorker<
@@ -935,10 +929,7 @@ where
 /// Similar to [`distributed_load`] but allows specifying a [`PoolMode`] for function state management.
 pub fn distributed_load_with_pool<'a, SolId, Op, St, PSol, Scp, Rec, Check, Out, Fn, Eval>(
     proc: &'a MPIProcess,
-    space: (
-        Scp,
-        <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-    ),
+    space: Scp,
     objective: Fn,
     saver: (Option<Rec>, Check),
     pool_mode: PoolMode,
@@ -1000,7 +991,7 @@ where
 /// * For distributed: `mpi_proc` - Reference to [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess)
 /// * `OptimizerType` - The concrete optimizer type (e.g., `RandomSearch`)
 /// * `StopType` - The concrete stopping criterion type (e.g., `Calls`)
-/// * `space` - Tuple of (searchspace, codomain)
+/// * `space` - Tuple of searchspace
 /// * `objective` - The objective function wrapper
 /// * `saver` - Tuple of (optional recorder, required checkpointer)
 ///
@@ -1027,7 +1018,7 @@ where
 ///     mono,                    // Execution context
 ///     RandomSearch,            // Optimizer type
 ///     Calls,                   // Stop criterion type
-///     (searchspace, codomain), // Space
+///     searchspace, // Space
 ///     objective,               // Objective function
 ///     (None, checkpointer)     // Saver (no recorder, with checkpointer)
 /// );
@@ -1038,7 +1029,7 @@ where
 /// ## Extending Optimization Budget
 ///
 /// ```rust,ignore
-/// let mut exp = load!(mono, MyOpt, Calls, (searchspace, codomain), obj, (None, checkpointer));
+/// let mut exp = load!(mono, MyOpt, Calls, searchspace, obj, (None, checkpointer));
 ///
 /// let config = FolderConfig::new("results[`FuncWrapper``] / ").init();
 /// let checkpointer = MessagePack::new(config).unwrap();
@@ -1079,7 +1070,7 @@ where
 ///         &mpi_process,
 ///         MyOptimizer,
 ///         Calls,
-///         (searchspace, codomain),
+///         searchspace,
 ///         obj,
 ///         (None, checkpointer)
 ///     );
@@ -1174,15 +1165,13 @@ macro_rules! load {
 }
 
 /// Type alias for an [`Accumulator`] made of [`CompShape`].
-pub type CompAcc<SolShape, SolId, SInfo, Cod, Out> =
-    TypeAcc<Cod, CompShape<SolShape, SolId, SInfo, Cod, Out>, SolId, SInfo, Out>;
+pub type CompAcc<SolShape, SolId, SInfo, Out> =
+    TypeAcc<CompShape<SolShape, SolId, SInfo, Out>, SolId, SInfo, Out>;
 
 /// Type alias for the tuple of components passed to the optimization loop.
-pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
-    (
-        Scp,
-        <Op as crate::Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::Cod,
-    ),
+pub type ExpComponent<Out, Scp, Op, Fn, St, Rec, Check> = (
+    Scp,
+    <Out as Outcome>::Cod,
     Fn,
     Op,
     St,
@@ -1252,7 +1241,7 @@ pub type ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check> = (
 ///
 /// // Create experiment
 /// let experiment = mono(
-///     (searchspace, codomain),
+///     searchspace,
 ///     Objective::new(my_function),
 ///     RandomSearch::new(),
 ///     Calls::new(100),
@@ -1335,7 +1324,7 @@ where
     /// which means that function states will be kept in memory if possible.
     /// If you want to specify a different pool mode, use the [`new_with_pool`](Runable::new_with_pool) method.
     fn new(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         optimizer: Op,
         stop: St,
@@ -1346,7 +1335,7 @@ where
 
     /// Similar to [`new`](Self::new), but allows specifying the [`PoolMode`] for function state management.
     fn new_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         optimizer: Op,
         stop: St,
@@ -1361,7 +1350,7 @@ where
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
-    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Restores an experiment from a checkpoint.
     ///
@@ -1370,13 +1359,13 @@ where
     /// supplied explicitly because they are not serialized.
     ///
     /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the `load!` macro.
-    fn load(space: (Scp, Op::Cod), objective: Fn, saver: (Option<Rec>, Check)) -> Self {
+    fn load(space: Scp, objective: Fn, saver: (Option<Rec>, Check)) -> Self {
         Self::load_with_pool(space, objective, saver, PoolMode::InMemory)
     }
 
     /// Restores an experiment from a checkpoint with specified [`PoolMode`].
     fn load_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
@@ -1389,7 +1378,7 @@ where
     fn get_searchspace(&self) -> &Scp;
 
     /// Returns a reference to the [`Codomain`](crate::Codomain).
-    fn get_codomain(&self) -> &Op::Cod;
+    fn get_codomain(&self) -> &Out::Cod;
 
     /// Returns a reference to the objective function wrapper.
     fn get_objective(&self) -> &Fn;
@@ -1418,7 +1407,7 @@ where
     fn get_mut_searchspace(&mut self) -> &mut Scp;
 
     /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod;
 
     /// Returns a mutable reference to the objective function wrapper.
     fn get_mut_objective(&mut self) -> &mut Fn;
@@ -1433,18 +1422,18 @@ where
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
 
     /// Returns a read-only reference to the [`Accumulator`].
-    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Returns a mutable reference to the [`Accumulator`].
-    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`].
-    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>) {
+    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
 
     /// Extracts the components of the experiment.
-    fn extract(self) -> ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check>;
+    fn extract(self) -> ExpComponent<Out, Scp, Op, Fn, St, Rec, Check>;
 }
 
 #[cfg(feature = "mpi")]
@@ -1485,7 +1474,7 @@ where
     Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     #[allow(clippy::type_complexity)]
-    pub fn run(self) -> Option<CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>> {
+    pub fn run(self) -> Option<CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>> {
         match self {
             MasterWorker::Master(exp) => Some(exp.run()),
             MasterWorker::Worker(worker) => {
@@ -1523,7 +1512,7 @@ where
     /// If you want to specify a different pool mode, use the [`new_with_pool`](MPIRunable::new_with_pool) method.
     fn new(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         optimizer: Op,
         stop: St,
@@ -1542,7 +1531,7 @@ where
     /// Creates a new distributed experiment from its components with specified [`PoolMode`].
     fn new_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         optimizer: Op,
         stop: St,
@@ -1557,7 +1546,7 @@ where
     /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
-    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn run(self) -> CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Restores an experiment from a checkpoint.
     ///
@@ -1568,7 +1557,7 @@ where
     /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the `load!` macro.
     fn load(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         saver: (Option<Rec>, Check),
     ) -> MasterWorker<'a, Self, PSol, SolId, Scp, Op, St, Rec, Check, Out, Fn> {
@@ -1576,7 +1565,7 @@ where
     }
     fn load_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Fn,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
@@ -1586,7 +1575,7 @@ where
     /// Returns a reference to the [`Searchspace`].
     fn get_searchspace(&self) -> &Scp;
     /// Returns a reference to the [`Codomain`](crate::Codomain).
-    fn get_codomain(&self) -> &Op::Cod;
+    fn get_codomain(&self) -> &Out::Cod;
     /// Returns a reference to the objective function wrapper.
     fn get_objective(&self) -> &Fn;
     /// Returns a reference to the [`Optimizer`].
@@ -1608,7 +1597,7 @@ where
     /// Returns a mutable reference to the [`Searchspace`].
     fn get_mut_searchspace(&mut self) -> &mut Scp;
     /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod;
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod;
     /// Returns a mutable reference to the objective function wrapper.
     fn get_mut_objective(&mut self) -> &mut Fn;
     /// Returns a mutable reference to the [`Optimizer`].
@@ -1618,17 +1607,17 @@ where
     /// Returns a mutable reference to the [`Checkpointer`], if any.
     fn get_mut_checkpointer(&mut self) -> Option<&mut Check>;
     /// Returns a read-only reference to the [`Accumulator`].
-    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_accumalator(&self) -> &CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Returns a mutable reference to the [`Accumulator`].
-    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>;
+    fn get_mut_accumalator(&mut self) -> &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`].
-    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>) {
+    fn update_accumulator(&mut self, comp: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>) {
         self.get_mut_accumalator().accumulate(comp);
     }
     /// Extracts the components of the experiment.
-    fn extract(self) -> ExpComponent<PSol, SolId, Out, Scp, Op, Fn, St, Rec, Check>;
+    fn extract(self) -> ExpComponent<Out, Scp, Op, Fn, St, Rec, Check>;
 }
 
 //------------------------//
@@ -1642,8 +1631,8 @@ where
 /// - An [`OutBatch`] containing the raw outcomes and IDs
 ///
 /// This type is used by [`BatchEvaluator`] to return evaluated batches.
-pub type OutBatchEvaluate<SolId, SInfo, Info, SolShape, Cod, Out> = (
-    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Cod, Out>>,
+pub type OutBatchEvaluate<SolId, SInfo, Info, SolShape, Out> = (
+    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Out>>,
     OutBatch<SolId, Info, Out>,
 );
 
@@ -1654,8 +1643,8 @@ pub type OutBatchEvaluate<SolId, SInfo, Info, SolShape, Cod, Out> = (
 /// - A tuple of (solution ID, raw outcome)
 ///
 /// This type is used by sequential evaluators to return individual evaluated solutions.
-pub type OutShapeEvaluate<SolId, SInfo, SolShape, Cod, Out> =
-    (CompShape<SolShape, SolId, SInfo, Cod, Out>, (SolId, Out));
+pub type OutShapeEvaluate<SolId, SInfo, SolShape, Out> =
+    (CompShape<SolShape, SolId, SInfo, Out>, (SolId, Out));
 
 /// Output type for distributed evaluation with MPI.
 ///
@@ -1665,9 +1654,9 @@ pub type OutShapeEvaluate<SolId, SInfo, SolShape, Cod, Out> =
 ///
 /// This allows the master process to track which worker evaluated each solution.
 #[cfg(feature = "mpi")]
-pub type DistOutShapeEvaluate<SolId, SInfo, SolShape, Cod, Out> = (
+pub type DistOutShapeEvaluate<SolId, SInfo, SolShape, Out> = (
     Rank,
-    (CompShape<SolShape, SolId, SInfo, Cod, Out>, (SolId, Out)),
+    (CompShape<SolShape, SolId, SInfo, Out>, (SolId, Out)),
 );
 
 /// Marker trait for evaluation strategies.
@@ -1773,14 +1762,14 @@ where
     fn evaluate(
         &mut self,
         ob: &Fn,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     ) -> OutType;
 }
 
-type ArcMutexCompAcc<SolShape, SolId, SInfo, Cod, Out> =
-    Arc<Mutex<CompAcc<SolShape, SolId, SInfo, Cod, Out>>>;
+type ArcMutexCompAcc<SolShape, SolId, SInfo, Out> =
+    Arc<Mutex<CompAcc<SolShape, SolId, SInfo, Out>>>;
 
 /// Multi-threaded evaluation strategy.
 ///
@@ -1855,9 +1844,9 @@ where
     fn evaluate(
         &mut self,
         ob: Arc<Fn>,
-        cod: Arc<Op::Cod>,
+        cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
-        acc: ArcMutexCompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: ArcMutexCompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     ) -> OutType;
 }
 
@@ -1944,10 +1933,10 @@ where
     /// which rank evaluated each solution (see [`DistOutShapeEvaluate`]).
     fn evaluate(
         &mut self,
-        sendrec: &mut SendRec<'_, M, Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        sendrec: &mut SendRec<'_, M, Scp::SolShape, SolId, Op::SInfo, Out>,
         ob: &Fn,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
-        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        acc: &mut CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     ) -> OutType;
 }

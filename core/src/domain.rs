@@ -52,7 +52,7 @@
 //! ## Macro Integration
 //!
 //! Domains are constructed directly or through macros like [`objective!`](../../../tantale/macros/macro.objective.html)
-//! and [`sp!`](../../../tantale/macros/macro.sp.html). For compatibility with those macros, domain types should
+//! and [`hpo!`](../../../tantale/macros/macro.hpo.html). For compatibility with those macros, domain types should
 //! provide a `new(...) -> Self` constructor.
 
 #[cfg(doc)]
@@ -79,7 +79,7 @@ use std::fmt::{Debug, Display};
 ///
 /// This trait is typically not implemented directly by users. But created by
 /// the [`objective!`](../../../tantale/macros/macro.objective.html) and
-///  [`sp!`](../../../tantale/macros/macro.sp.html) macros when defining domains for objectives and searchspaces.
+///  [`hpo!`](../../../tantale/macros/macro.hpo.html) macros when defining domains for objectives and searchspaces.
 pub trait PreDomain: Debug {}
 
 /// Core trait defining a domain and its associated value type.
@@ -104,20 +104,20 @@ pub trait PreDomain: Debug {}
 ///
 /// Implementors must provide:
 /// - [`sample`](Domain::sample) - Generate a random valid value from the domain
-/// - [`is_in`](Domain::contains) - Check whether a value belongs to the domain
+/// - [`contains`](Domain::contains) - Check whether a value belongs to the domain
 ///
 /// # Constructor Convention
 ///
 /// By convention, domain types should provide a `new(...) -> Self` constructor. This is required
 /// for compatibility with Tantale's procedural macros:
 /// - [`objective!`](../../../tantale/macros/macro.objective.html) - Defines objective functions with domain constraints
-/// - [`sp!`](../../../tantale/macros/macro.sp.html) - Constructs searchspaces from domain specifications
+/// - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Constructs searchspaces from domain specifications
 ///
 /// # Example
 ///
-/// ```ignore
-/// use tantale_core::domain::{Domain, PreDomain};
-/// use rand::Rng;
+/// ```
+/// use tantale::core::domain::{Domain, PreDomain};
+/// use rand::{RngExt, prelude::{IteratorRandom, Rng}};
 ///
 /// #[derive(Debug, PartialEq)]
 /// pub struct BinaryDomain;
@@ -128,10 +128,10 @@ pub trait PreDomain: Debug {}
 ///     type TypeDom = bool;
 ///
 ///     fn sample<R: Rng>(&self, rng: &mut R) -> bool {
-///         rng.gen_bool(0.5)
+///         rng.random_bool(0.5)
 ///     }
 ///
-///     fn is_in(&self, _point: &bool) -> bool {
+///     fn contains(&self, _point: &bool) -> bool {
 ///         true  // All booleans are valid
 ///     }
 /// }
@@ -196,18 +196,17 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug {
     ///
     /// # Returns
     ///
-    /// A randomly sampled value of type [`TypeDom`](Domain::TypeDom) that satisfies [`is_in`](Domain::contains).
+    /// A randomly sampled value of type [`TypeDom`](Domain::TypeDom) that satisfies [`contains`](Domain::contains).
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// use tantale_core::domain::{Domain, Real};
-    /// use rand::thread_rng;
+    /// ```
+    /// use tantale::core::{Domain, Real, Uniform};
     ///
-    /// let domain = Real::new(0.0, 1.0);
-    /// let mut rng = thread_rng();
+    /// let domain = Real::new(0.0, 1.0, Uniform);
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     /// let value = domain.sample(&mut rng);
-    /// assert!(domain.is_in(&value));
+    /// assert!(domain.contains(&value));
     /// ```
     fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom;
     /// Checks whether a value belongs to the domain.
@@ -274,5 +273,5 @@ pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Dominate,
-    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain,
+    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeCodom, TypeAcc
 };

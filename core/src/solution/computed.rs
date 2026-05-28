@@ -1,57 +1,59 @@
 //! Computed (evaluated) solutions.
 //!
 //! A [`Computed`] solution pairs an [`Uncomputed`] solution with the
-//! corresponding codomain value (a [`Codomain::TypeCodom`]) produced by evaluating the raw
+//! corresponding codomain value (a [`TypeCodom`]) produced by evaluating the raw
 //! solution with an [`Objective`](crate::Objective). This is the evaluated form used by
 //! optimizers and recorders.
 //!
 //! # Note
 //!
-//! For [`TypeCodom`](crate::domain::codomain::TypeCodom) that are [`Ord`] the
+//! For [`TypeCodom`] that are [`Ord`] the
 //! [`Computed`] solution implements [`Ord`] and can be used in sorted collections.
 //! Same applies for [`PartialOrd`], [`PartialEq`] and [`Eq`].
-//!
+//! For [`TypeCodom`] that are [`Dominate`] the
+//! [`Computed`] solution implements [`Dominate`].
+//! 
 //! # Examples
 //! ```
-//! use tantale::core::{Solution, BaseSol, Computed, Codomain, SingleCodomain, EmptyInfo, Id, Real, SId, Uncomputed};
+//! use tantale::core::{HasX, Solution, BaseSol, Outcome, Computed, Codomain, EmptyInfo, Real, Id, SId, Uncomputed};
 //! use tantale::macros::Outcome;
 //! use std::sync::Arc;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Outcome, Serialize, Deserialize, Debug)]
-//! struct Out { value: f64 }
+//! struct Out { #[maximize] value: f64 }
 //!
-//! let cod = SingleCodomain::new(|o: &Out| o.value);
+//! let cod = Out::codomain();
 //! let x = Arc::from(vec![0.1, 0.2]);
 //! let info = Arc::new(EmptyInfo {});
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! let y = Arc::new(cod.get_elem(&Out { value: 0.5 }));
 //!
-//! let computed: Computed<_, SId, Real, SingleCodomain<Out>, Out, _> = Computed::new(sol, y);
-//! assert_eq!(computed.get_x().len(), 2);
+//! let computed: Computed<_, SId, Real, Out, _> = Computed::new(sol, y);
+//! assert_eq!(computed.ref_x().len(), 2);
 //! ```
 //!
 //! ```
-//! use tantale::core::{Solution, BaseSol, Codomain, SingleCodomain, EmptyInfo, Id, IntoComputed, Real, SId, Uncomputed};
+//! use tantale::core::{HasX, Solution, BaseSol, Outcome, Codomain, EmptyInfo, IntoComputed, Real, Id, SId, Uncomputed};
 //! use tantale::macros::Outcome;
 //! use std::sync::Arc;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Outcome, Serialize, Deserialize, Debug)]
-//! struct Out { value: f64 }
+//! struct Out { #[maximize] value: f64 }
 //!
-//! let cod = SingleCodomain::new(|o: &Out| o.value);
+//! let cod = Out::codomain();
 //! let x = Arc::from(vec![0.4, 0.8]);
 //! let info = Arc::new(EmptyInfo {});
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! let y = Arc::new(cod.get_elem(&Out { value: 1.2 }));
 //!
-//! let computed = sol.into_computed::<SingleCodomain<Out>, Out>(y);
-//! assert_eq!(computed.get_x().len(), 2);
+//! let computed = sol.into_computed::<Out>(y);
+//! assert_eq!(computed.ref_x().len(), 2);
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, domain::{Codomain, Domain}, has_trait::HasX, objective::{Outcome, Step}, solution::{
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, domain::{Domain, codomain::TypeCodom}, has_trait::HasX, objective::{Outcome, Step}, solution::{
         Id, IntoComputed,
         SolInfo, Solution, Uncomputed,
     }
@@ -62,32 +64,31 @@ use std::{cmp::Ordering, marker::PhantomData};
 use std::{fmt::Debug, sync::Arc};
 
 /// A solution of the [`Objective`](crate::Objective) or the [`Optimizer`](crate::Optimizer)
-/// [`Domains`](Domain), enriched with the computed [`Codomain`] value [`TypeCodom`](Codomain::TypeCodom).
+/// [`Domain`], enriched with the computed [`Codomain`](crate::Codomain) value [`TypeCodom`].
 ///
 /// # Attributes
 /// * `sol` : [`Uncomputed`] - An already created partial solution.
-/// * `y` : [`Arc`]`<Cod::TypeCodom>` - The computed codomain value.
+/// * `y` : [`Arc<TypeCodom<Out>>`](TypeCodom) - The computed codomain value.
 ///
 /// # Note
 ///
 /// A [`Computed`] is obtained by evaluating the raw solution from an [`Uncomputed`] with the
-/// [`Objective`](crate::Objective) and then extracting a [`Codomain::TypeCodom`].
+/// [`Objective`](crate::Objective) and then extracting a [`TypeCodom`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
-    serialize = "Dom::TypeDom: Serialize, Cod::TypeCodom: Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, Cod::TypeCodom: for<'a> Deserialize<'a>",
+    serialize = "Dom::TypeDom: Serialize, TypeCodom<Out>: Serialize",
+    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>, TypeCodom<Out>: for<'a> Deserialize<'a>",
 ))]
-pub struct Computed<PSol, SolId, Dom, Cod, Out, Info>
+pub struct Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
     pub sol: PSol,
-    pub y: Arc<Cod::TypeCodom>,
+    pub y: Arc<TypeCodom<Out>>,
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
     _info: PhantomData<Info>,
@@ -101,12 +102,11 @@ pub struct Xy<Raw, Y>
     pub y: Arc<Y>,
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasX<PSol::Raw> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasX<PSol::Raw> for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -119,12 +119,11 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasId<SolId> for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -142,13 +141,12 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasStepId<SolId>
-    for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasStepId<SolId>
+    for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasStepId<SolId> + HasStep,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: StepId,
 {
@@ -165,13 +163,12 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasSolInfo<Info>
-    for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasSolInfo<Info>
+    for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -181,12 +178,11 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasStep for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasStep for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasStep,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -224,12 +220,11 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasFidelity for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasFidelity for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + HasFidelity,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -244,28 +239,26 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasY<Cod, Out> for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasY<Out> for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + IntoComputed,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
     /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
-    fn y(&self) -> Arc<Cod::TypeCodom> {
+    fn y(&self) -> Arc<TypeCodom<Out>> {
         self.y.clone()
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> HasUncomputed<SolId, Dom, Info>
-    for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> HasUncomputed<SolId, Dom, Info>
+    for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info> + IntoComputed,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
@@ -276,18 +269,17 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Cod, Out, Info> Solution<SolId, Dom, Info>
-    for Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Out, Info> Solution<SolId, Dom, Info>
+    for Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     SolId: Id,
     Dom: Domain,
-    Cod: Codomain<Out>,
     Out: Outcome,
     Info: SolInfo,
 {
     type Raw = PSol::Raw;
-    type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Cod, Out, Info>;
+    type Twin<B: Domain> = Computed<PSol::TwinUC<B>, SolId, B, Out, Info>;
 
     fn _clone_sol(&self) -> Self {
         Self::new(self.sol._clone_sol(), self.y.clone())
@@ -301,11 +293,10 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialEq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+impl<PSol, SolId, Dom, SInfo, Out> PartialEq for Computed<PSol, SolId, Dom, Out, SInfo>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialEq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialEq,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,
@@ -317,11 +308,10 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Eq for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+impl<PSol, SolId, Dom, SInfo, Out> Eq for Computed<PSol, SolId, Dom, Out, SInfo>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Eq,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Eq,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,
@@ -330,11 +320,10 @@ where
 {
 }
 
-impl<PSol, SolId, Dom, SInfo, Cod, Out> PartialOrd for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+impl<PSol, SolId, Dom, SInfo, Out> PartialOrd for Computed<PSol, SolId, Dom, Out, SInfo>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: PartialOrd,
+    Self: HasY<Out>,
+    TypeCodom<Out>: PartialOrd,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,
@@ -346,11 +335,10 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Ord for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+impl<PSol, SolId, Dom, SInfo, Out> Ord for Computed<PSol, SolId, Dom, Out, SInfo>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    Self: HasY<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,
@@ -362,11 +350,11 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, SInfo, Cod, Out> Dominate for Computed<PSol, SolId, Dom, Cod, Out, SInfo>
+impl<PSol, SolId, Dom, SInfo, Out> Dominate for Computed<PSol, SolId, Dom, Out, SInfo>
 where
-    Self: HasY<Cod, Out>,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Self: HasY<Out>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,
@@ -386,17 +374,16 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Info, Cod, Out> Computed<PSol, SolId, Dom, Cod, Out, Info>
+impl<PSol, SolId, Dom, Info, Out> Computed<PSol, SolId, Dom, Out, Info>
 where
     PSol: Uncomputed<SolId, Dom, Info>,
     Dom: Domain,
     Info: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
     SolId: Id,
 {
     /// Creates a new [`Computed`] from a [`BaseSol`](crate::solution::BaseSol) and a [`TypeCodom`](Codomain::TypeCodom).
-    pub fn new(sol: PSol, y: Arc<Cod::TypeCodom>) -> Self {
+    pub fn new(sol: PSol, y: Arc<TypeCodom<Out>>) -> Self {
         Computed {
             sol,
             y,
@@ -411,7 +398,7 @@ where
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where
         I: IntoIterator<Item = PSol>,
-        J: IntoIterator<Item = Arc<<Cod as Codomain<Out>>::TypeCodom>>,
+        J: IntoIterator<Item = Arc<TypeCodom<Out>>>,
     {
         sol.into_iter()
             .zip(y)
@@ -419,7 +406,7 @@ where
             .collect()
     }
 
-    pub fn xy(&self) -> Xy<PSol::Raw, Cod::TypeCodom> {
+    pub fn xy(&self) -> Xy<PSol::Raw, TypeCodom<Out>> {
         Xy {
             x: self.clone_x(),
             y: self.y(),
@@ -439,13 +426,12 @@ impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y>
     }
 }
 
-impl<Raw, Cod, Out> HasY<Cod, Out> for Xy<Raw, Cod::TypeCodom>
+impl<Raw, Out> HasY<Out> for Xy<Raw, TypeCodom<Out>>
 where
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
-    fn y(&self) -> Arc<Cod::TypeCodom> {
+    fn y(&self) -> Arc<TypeCodom<Out>> {
         self.y.clone()
     }
 }

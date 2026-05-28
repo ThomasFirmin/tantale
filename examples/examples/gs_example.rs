@@ -5,6 +5,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
     }
 
@@ -38,14 +39,13 @@ impl Drop for Cleaner {
     }
 }
 
-use searchspace::{OutExample, get_function, get_searchspace};
-use tantale::algos::{GridSearch, grid_search};
-use tantale::core::HasX;
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasY, MessagePack, SolutionShape,
+    HasX, CSVRecorder, FolderConfig, HasY, MessagePack, SolutionShape,
     experiment::{Runable, mono},
     stop::Calls,
 };
+use tantale::algos::GridSearch;
+use searchspace::{get_function, get_searchspace};
 
 use std::sync::Arc;
 
@@ -60,14 +60,13 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     let opt = GridSearch::new(&sp);
-    let cod = grid_search::codomain(|o: &OutExample| o.obj);
 
     let stop = Calls::new(50);
     let config = Arc::new(FolderConfig::new("tmp_gs_example"));
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
     println!(

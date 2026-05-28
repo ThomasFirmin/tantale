@@ -10,6 +10,8 @@ $$ f: \mathcal{X} \to \mathcal{O} \enspace,$$
 where $\mathcal{O}$ is the [`Outcome`](crate::core::Outcome) such that $\mathcal{Y} \subseteq \mathcal{O}$. With $\mathcal{Y}$ the [`Codomain`](crate::core::Codomain) of the optimization problem.
 We differentiate the [`Outcome`](crate::core::Outcome) containing extra information/meta-data, and the [`Codomain`](crate::core::Codomain) containing only the metrics to optimize, constraints, costs...
 
+In Tantale the [`Codomain`](crate::core::Codomain) is an associated type of the [`Outcome`](crate::core::Outcome), and it can be automatically defined using the corresponding [derive macro](crate::macros::Outcome).
+
 To reach this optimal solution $x^\star$, or at least a good solution, we need an [`Optimizer`](crate::core::Optimizer) generating candidate solutions in the search space $\mathcal{X}$.
 
 ## Define the objective function within a separate module
@@ -53,6 +55,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -86,7 +89,7 @@ An optimization experiment is made of 7 components:
   It contains the function to optimize.
 - A [`Searchspace`](crate::core::Searchspace): it contains the variables [`Var`](crate::core::Var) and their domains.
 - A [`Codomain`](crate::core::Codomain): it extracts the different metrics from an [`Outcome`](crate::core::Outcome), which will be optimized.
-* A [`Codomain`](crate::core::Codomain) defines [`Single`](crate::core::Single)-objective, [`Constrained`](crate::core::Constrained), [`Multi`](crate::core::Multi)-objective, [`Cost`](crate::core::Cost)-aware optimization problems.
+* A [`Codomain`](crate::core::Codomain) defines [`Single`](crate::core::Single)-objective, [`Constrained`](crate::core::Constrained), [`Multi`](crate::core::Multi)-objectives, [`Cost`](crate::core::Cost)-aware optimization problems.
 - An [`Optimizer`](crate::core::Optimizer): defines a single step of the optimization process.
   We distinguish between 2 types of optimizers:
   * [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
@@ -116,13 +119,14 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 # 
 #     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
 #     pub struct OutExample {
+#         #[maximize]
 #         pub obj: f64,
 #         pub info: f64,
 #     }
 # 
 #     objective!(
 #         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
 #             let _b = [! b | Nat(0,100, Uniform) | !];
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
@@ -131,7 +135,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 #             // ... more variables and computation ...
 # 
 #             OutExample{
-#                 obj: e,
+#                 obj: e, // In practice put your accuracy, MSE... here
 #                 info: [! f | Unit(Uniform) | !],
 #             }
 #         }
@@ -152,36 +156,39 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 # }
 
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::{Runable, mono}, stop::Calls,
-    HasX, HasY, SolutionShape,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+    experiment::{Runable, mono},
+    stop::Calls,
 };
-use tantale::algos::{random_search, BatchRandomSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
+use tantale::algos::BatchRandomSearch;
+use searchspace::{get_function, get_searchspace};
 
 use std::sync::Arc;
 
 # drop(Cleaner {
-#     path: String::from("run_batch"),
+#     path: String::from("tmp_run_batch1"),
 # });
 # let _clean = Cleaner {
-#     path: String::from("run_batch"),
+#     path: String::from("tmp_run_batch1"),
 # };
 
 let sp = get_searchspace();
 let obj = get_function();
 let opt = BatchRandomSearch::new(7);
-let cod= random_search::codomain(|o: &OutExample| o.obj);
 
 let stop = Calls::new(50);
-let config = Arc::new(FolderConfig::new("run_batch"));
+let config = Arc::new(FolderConfig::new("tmp_run_batch1"));
 let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 let check = MessagePack::new(config);
 
-let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+let exp = mono(sp, obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 let best = accumulator.get().unwrap().get_sobj();
-println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
+println!(
+    "Best solution found: f({:?}) ={}",
+    best.ref_x(),
+    best.y().value
+);
 ```
 
 
@@ -195,13 +202,14 @@ println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 # 
 #     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
 #     pub struct OutExample {
+#         #[maximize]
 #         pub obj: f64,
 #         pub info: f64,
 #     }
 # 
 #     objective!(
 #         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
 #             let _b = [! b | Nat(0,100, Uniform) | !];
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
@@ -210,7 +218,7 @@ println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 #             // ... more variables and computation ...
 # 
 #             OutExample{
-#                 obj: e,
+#                 obj: e, // In practice put your accuracy, MSE... here
 #                 info: [! f | Unit(Uniform) | !],
 #             }
 #         }
@@ -231,33 +239,32 @@ println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
 # }
 # 
 # use tantale::core::{
-#     CSVRecorder, FolderConfig, MessagePack,
-#     experiment::{Runable, threaded}, stop::Calls,
-#     HasX, HasY, SolutionShape,
+#     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+#     experiment::{Runable, threaded},
+#     stop::Calls,
 # };
-# use tantale::algos::{random_search, BatchRandomSearch};
-# use searchspace::{get_searchspace, get_function, OutExample};
+# use tantale::algos::BatchRandomSearch;
+# use searchspace::{get_function, get_searchspace};
 # 
 # use std::sync::Arc;
 # 
 # drop(Cleaner {
-#     path: String::from("run_batch_thr"),
+#     path: String::from("tmp_run_batch2"),
 # });
 # let _clean = Cleaner {
-#     path: String::from("run_batch_thr"),
+#     path: String::from("tmp_run_batch2"),
 # };
 # 
 # let sp = get_searchspace();
 # let obj = get_function();
 # let opt = BatchRandomSearch::new(7);
-# let cod= random_search::codomain(|o: &OutExample| o.obj);
 # 
 # let stop = Calls::new(50);
-# let config = Arc::new(FolderConfig::new("run_batch_thr"));
+# let config = Arc::new(FolderConfig::new("tmp_run_batch2"));
 # let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 # let check = MessagePack::new(config);
-#
-let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+# 
+let exp = threaded(sp, obj, opt, stop, (rec, check));
 let accumulator = exp.run();
 let best = accumulator.get().unwrap().get_sobj();
 println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
@@ -281,13 +288,14 @@ foo@bar:~$ cargo add tantale --features mpi
 # 
 #     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
 #     pub struct OutExample {
+#         #[maximize]
 #         pub obj: f64,
 #         pub info: f64,
 #     }
 # 
 #     objective!(
 #         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
+#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
 #             let _b = [! b | Nat(0,100, Uniform) | !];
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
@@ -296,7 +304,7 @@ foo@bar:~$ cargo add tantale --features mpi
 #             // ... more variables and computation ...
 # 
 #             OutExample{
-#                 obj: e,
+#                 obj: e, // In practice put your accuracy, MSE... here
 #                 info: [! f | Unit(Uniform) | !],
 #             }
 #         }
@@ -317,12 +325,12 @@ foo@bar:~$ cargo add tantale --features mpi
 # }
 # 
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack,
-    experiment::{distributed, mpi::utils::MPIProcess}, stop::Calls,
-    HasX, HasY, SolutionShape,
+    CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+    experiment::{distributed, mpi::utils::MPIProcess},
+    stop::Calls,
 };
-use tantale::algos::{random_search, BatchRandomSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::BatchRandomSearch;
 
 if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
     eprintln!("Skipping MPI test (not under mpirun)");
@@ -333,31 +341,35 @@ let proc = MPIProcess::new();
 # 
 # if proc.rank == 0 {
 #     drop(Cleaner {
-#         path: String::from("run_batch_mpi"),
+#         path: String::from("tmp_run_batch3"),
 #     });
 #     let _clean = Cleaner {
-#         path: String::from("run_batch_mpi"),
+#         path: String::from("tmp_run_batch3"),
 #     };
 # }
 
 let sp = get_searchspace();
 let obj = get_function();
 let opt = BatchRandomSearch::new(7);
-let cod = random_search::codomain(|o: &OutExample| o.obj);
+
 let stop = Calls::new(50);
-let config = FolderConfig::new("run_batch_mpi").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
+let config = FolderConfig::new("tmp_run_batch3").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
 let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 let check = MessagePack::new(config);
 
-let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
+let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
 let accumulator = exp.run();
-if let Some(acc) = accumulator{ // <==== Because workers return None !
+if let Some(acc) = accumulator { // <==== Because workers return None !
     let best = acc.get().unwrap().get_sobj();
-    println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
+    println!(
+        "Best solution found: f({:?}) ={}",
+        best.ref_x(),
+        best.y().value
+    );
 }
 ```
 
-Then you have to run the binaries obtained with `cargo build` with `mpirun` or `mpiexec`.
+Then you have to run the binaries obtained from `cargo build` with `mpirun` or `mpiexec`.
 The following example uses 4 distributed processes:
 
 ```console
@@ -369,10 +381,10 @@ foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
 For multi-fidelity optimization, [`Stepped`](crate::core::Stepped) functions are used. Such a mode implies managing [`FuncState`](crate::core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](crate::core::Pool) of [`FuncState`](crate::core::FuncState) is dedicated to retrieve and remove these states. 
 In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](crate::core::FuncState)s from volatile or persitent memory using [`PoolMode`](crate::core::PoolMode). To do so alternative experiment constructor and loader functions are available:
 ```rust,ignore
-let exp = mono_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
-let exp = threaded_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+let exp = mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
+let exp = threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
 // When the `mpi` feature flag is used
-let exp = distributed_with_pool((sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+let exp = distributed_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
 ```
 Moreover, the `load!` macro also has alternative mode:
 ```rust,ignore

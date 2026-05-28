@@ -20,15 +20,12 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CSVWritable, Codomain, Criteria, Dominate, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, LinkOpt, MultiCodomain, OptState, Optimizer, Searchspace,
-    SingleOptimizer, SolInfo, SolutionShape, Step, StepSId,
-    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, OptState, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
 };
 
 use rand::rngs::StdRng;
-use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{self, Visitor}, ser::SerializeStruct};
+use std::{cell::RefCell, marker::PhantomData};
 
 use crate::{mo::CandidateSelector, utils::{FCompAcc, FCompShape, SimpleStepped}};
 
@@ -36,40 +33,45 @@ thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
-/// Creates a codomain for Successive Halving optimization.
-///
-/// Constructs a [`MultiCodomain`] from a single-objective
-/// [`Criteria`].
-///
-/// # Arguments
-///
-/// * `extractor` - A slice of [`Criteria`] defining how to extract the
-///   optimization objective from the [`Outcome`](tantale_core::Outcome).
-pub fn codomain<Cod, Out>(extractor: Box<[Criteria<Out>]>) -> Cod
-where
-    Cod: Codomain<Out> + From<MultiCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = MultiCodomain {
-        y_criteria: extractor,
+/// A helper macro to simplify the type signature of [`MoAsha`].
+/// You can write:
+/// ```rust,ignore
+/// let exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+/// or even:
+/// ```rust,ignore
+/// let exp = load!(mono, moasha!(tpe!(Univariate, UniformWeighter, LinearSplit), NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+#[macro_export]
+macro_rules! moasha {
+    ($sampler : ident, $selector : ident) => {
+        MoAsha<$sampler, $selector, _, _, _, _>
     };
-    out.into()
+    ($sampler : ty, $selector: ident) => {
+        MoAsha<$sampler, $selector, _, _, _, _>
+    };
 }
+
+type MoAshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
 
 /// Internal state of the [`MoAsha`] optimizer.
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "SShape: Serialize",
-    deserialize = "SShape: for<'a> Deserialize<'a>",
-))]
-pub struct MoAshaState<Selector, SShape>
+pub struct MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn> 
 where
-    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
-    Selector: CandidateSelector,
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
 {
+    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
     /// The candidate selection strategy used for promoting candidates between rungs.
     /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
     pub selector: Selector,
@@ -78,32 +80,26 @@ where
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: Vec<Vec<SShape>>,
+    pub rung: MoAshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
+    _fn : PhantomData<Fn>,
 }
-impl<SShape, Selector> OptState for MoAshaState<Selector, SShape>
+impl<Smpl, Selector, Scp, PSol, Out, Fn>  OptState for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn> 
 where
-    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
 }
 
-/// [`SolInfo`] for single-solution metadata of ASHA.
-/// Used to track the maximum budget level a solution can reach.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MoAshaInfo(f64);
-impl SolInfo for MoAshaInfo {}
-
-impl CSVWritable<(), ()> for MoAshaInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        vec!["budget_max".to_string()]
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        vec![self.0.to_string()]
-    }
-}
 /// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
 ///
 /// A [`SingleOptimizer`] implementing the
@@ -159,6 +155,7 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 /// # Type Parameters
 ///
 /// This optimizer is generic over:
+/// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion.
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
 /// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
@@ -168,35 +165,39 @@ impl CSVWritable<(), ()> for MoAshaInfo {
 /// # Internal State
 ///
 /// - [`MoAsha`]: Checkpointable state including budget, scaling factor, and iteration count
-///
-/// # Note on RNG
-///
-/// The optimizer uses a thread-local [`StdRng`] for random sampling.
-/// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
-/// The [`StdRng`] is defined at the module level as follows:
-/// ```rust,ignore
-/// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-/// }
-/// ```
-/// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
-/// ```rust,ignore
-/// self.with_rng(|rng| scp.sample_pair(rng, MoAshaInfo::default().into()))
-/// ```
-pub struct MoAsha<Selector, SShape>(pub MoAshaState<Selector, SShape>)
+pub struct MoAsha<Smpl, Selector, Scp, PSol, Out, Fn> (pub MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>)
 where
-    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
-    Selector: CandidateSelector;
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate;
 
-impl<SShape, Selector> MoAsha<Selector, SShape>
+impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>
 where
-    SShape: SolutionShape<StepSId, MoAshaInfo> + HasStep + HasFidelity + Dominate,
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: Dominate,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
     Selector: CandidateSelector,
 {
     /// Creates a new [`MoAsha`] optimizer with the specified parameters.
     ///
     /// # Parameters
     /// 
+    /// * `sampler` - A [`SingleSampler`] used to sample random configuration.
     /// * `selector` - The candidate selection strategy used for promoting candidates between rungs. 
     ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based 
     ///   on their performance and diversity.
@@ -213,7 +214,7 @@ where
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(selector: Selector, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(sampler: Smpl, selector: Selector, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -233,11 +234,13 @@ where
         let length = budgets.len();
         let current_budget = budgets[0];
         MoAsha(MoAshaState {
+            sampler,
             selector,
             budgets,
             scaling,
             rung: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
+            _fn: PhantomData,
         })
     }
 
@@ -262,20 +265,23 @@ where
 /// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp, Selector>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
+impl<Smpl, Selector, Out, Scp, SInfo, Fn> Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
+    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
+    SInfo: SolInfo,
     Selector: CandidateSelector,
 {
     type State =
-        MoAshaState<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>;
-    type Cod = MultiCodomain<Out>;
-    type SInfo = MoAshaInfo;
+        MoAshaState<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
+    type SInfo = SInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -296,14 +302,18 @@ where
     }
 }
 
-impl<Out, Scp, Selector>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, MoAshaInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
+impl<Smpl, Selector, Out, Scp, SInfo, Fn> BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
+    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
+    SInfo: SolInfo,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     Selector: CandidateSelector,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -389,20 +399,24 @@ where
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
-impl<Out, Scp, FnState, Selector>
+impl<Smpl, Selector, Out, Scp, SInfo, FnState>
     SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, MoAshaInfo>,
+        FidelitySol<StepSId, Scp::Opt, SInfo>,
         StepSId,
         Scp::Opt,
         Out,
         Scp,
-        SimpleStepped<Scp::SolShape, MoAshaInfo, Out, FnState>,
-    > for MoAsha<Selector, FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>>
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
+    > for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>>
 where
+    Smpl: SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>, SInfo = SInfo>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, MoAshaInfo>, StepSId, MoAshaInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, MoAshaInfo, MultiCodomain<Out>>: HasStep + HasFidelity + Dominate,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
+    SInfo: SolInfo,
     FnState: FuncState,
     Selector: CandidateSelector,
 {
@@ -448,9 +462,9 @@ where
     ///
     fn step(
         &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
+        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
         scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
+        acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Scp::SolShape {
         let mut p = if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {
@@ -468,12 +482,7 @@ where
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
-                self.with_rng(|rng| {
-                    scp.sample_pair(
-                        rng,
-                        MoAshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
-                    )
-                })
+                self.0.sampler.sample(scp, acc)
             } else {
                 let idx = self.select(i, k)[0];
                 self.0.current_budget = self.0.budgets[i];
@@ -481,14 +490,297 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.with_rng(|rng| {
-                scp.sample_pair(
-                    rng,
-                    MoAshaInfo(self.0.budgets[self.0.budgets.len() - 1]).into(),
-                )
-            })
+            self.0.sampler.sample(scp, acc)
         };
         p.set_fidelity(self.0.current_budget);
         p
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Selector: CandidateSelector,
+{
+    _scp: PhantomData<Scp>,
+    _psol: PhantomData<PSol>,
+    _smpl: PhantomData<Smpl>,
+    _out: PhantomData<Out>,
+    _fn: PhantomData<Fn>,
+    _selector: PhantomData<Selector>,
+}
+
+enum MoAshaField {
+    Sampler,
+    Selector,
+    Budgets,
+    Scaling,
+    Rung,
+    CurrentBudget,
+}
+
+struct MoAshaFieldVisitor;
+
+impl<Smpl, Selector, Scp, PSol, Out, Fn> Serialize for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Selector: CandidateSelector,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("MoAshaState", 6)?;
+        state.serialize_field("sampler", &self.sampler.get_state())?;
+        state.serialize_field("selector", &self.selector)?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rung)?;
+        state.serialize_field("current_budget", &self.current_budget)?;
+        state.end()
+    }
+}
+
+impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Selector: CandidateSelector,
+{
+    fn new() -> Self {
+        MoAshaStateVisitor {
+            _scp: PhantomData,
+            _psol: PhantomData,
+            _smpl: PhantomData,
+            _out: PhantomData,
+            _fn: PhantomData,
+            _selector: PhantomData,
+        }
+    }
+}
+
+impl<'de> Visitor<'de> for MoAshaFieldVisitor {
+    type Value = MoAshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter
+            .write_str("`sampler`, `selector`, `budgets`, `scaling`, `rung` or `current_budget`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(MoAshaField::Sampler),
+            "selector" => Ok(MoAshaField::Selector),
+            "budgets" => Ok(MoAshaField::Budgets),
+            "scaling" => Ok(MoAshaField::Scaling),
+            "rung" => Ok(MoAshaField::Rung),
+            "current_budget" => Ok(MoAshaField::CurrentBudget),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "sampler",
+                    "selector",
+                    "budgets",
+                    "scaling",
+                    "rung",
+                    "current_budget",
+                ],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for MoAshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(MoAshaFieldVisitor)
+    }
+}
+
+impl<'de, Scp, PSol, Smpl, Selector, Out, Fn> Visitor<'de> for MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    Selector: CandidateSelector,
+{
+    type Value = MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct MoAshaState")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let selector = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let current_budget = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        Ok(MoAshaState {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rung,
+            current_budget,
+            _fn: PhantomData,
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut selector = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut current_budget = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                MoAshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                MoAshaField::Selector => {
+                    if selector.is_some() {
+                        return Err(de::Error::duplicate_field("selector"));
+                    }
+                    selector = Some(map.next_value()?);
+                }
+                MoAshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                MoAshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                MoAshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                MoAshaField::CurrentBudget => {
+                    if current_budget.is_some() {
+                        return Err(de::Error::duplicate_field("current_budget"));
+                    }
+                    current_budget = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let selector = selector.ok_or_else(|| de::Error::missing_field("selector"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+
+        Ok(MoAshaState {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rung,
+            current_budget,
+            _fn: PhantomData,
+        })
+    }
+}
+
+impl<'de, Scp, Selector, PSol, Smpl, Out, Fn> Deserialize<'de> for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
+    Out: FidOutcome,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Selector: CandidateSelector,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(MoAshaStateVisitor::new())
     }
 }

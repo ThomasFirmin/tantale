@@ -1,4 +1,4 @@
-use tantale::algos::{BatchRandomSearch, random_search};
+use tantale::algos::BatchRandomSearch;
 use tantale::core::experiment::{PoolMode, distributed_with_pool};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
@@ -42,7 +42,9 @@ mod init_func {
 
     #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
+        #[maximize]
         pub obj: f64,
+        #[step]
         pub fid: Step,
     }
 
@@ -114,7 +116,7 @@ mod init_func {
     }
 }
 
-use init_func::{FidOutEvaluator, sp_evaluator};
+use init_func::sp_evaluator;
 
 #[derive(serde::Deserialize)]
 pub struct RowCod {
@@ -248,7 +250,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = BatchRandomSearch::new(7);
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -256,7 +258,7 @@ fn main() {
 
     let exp = distributed_with_pool(
         &proc,
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -271,7 +273,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
@@ -284,7 +286,7 @@ fn main() {
         &proc,
         BatchRandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -307,7 +309,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
@@ -320,7 +322,7 @@ fn main() {
         &proc,
         BatchRandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

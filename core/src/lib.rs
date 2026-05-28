@@ -76,6 +76,7 @@
 //!
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
+//!     #[maximize]
 //!     obj: f64,
 //!     info: f64,
 //! }
@@ -118,8 +119,10 @@
 //!
 //! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 //! struct OutExample {
+//!     #[maximize]
 //!     obj: f64,
 //!     info: f64,
+//!     #[step]
 //!     step: Step,
 //! }
 //!
@@ -182,19 +185,18 @@
 //!     CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
 //!     experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale::algos::{random_search, BatchRandomSearch};
+//! use tantale::algos::BatchRandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = BatchRandomSearch::new(7);
-//! let cod: SingleCodomain<_> = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_batch").init();
 //! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 //! let check = MessagePack::new(config);
 //!
-//! let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+//! let exp = mono(sp, obj, opt, stop, (rec, check));
 //! exp.run();
 //! ```
 //!
@@ -205,19 +207,18 @@
 //!     CSVRecorder, FolderConfig, MessagePack, Objective,
 //!     experiment::{Runable, threaded}, stop::Calls,
 //! };
-//! use tantale::algos::{random_search, RandomSearch};
+//! use tantale::algos::RandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = RandomSearch::new();
-//! let cod = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_seq_threads").init();
 //! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 //! let check = MessagePack::new(config);
 //!
-//! let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+//! let exp = threaded(sp, obj, opt, stop, (rec, check));
 //! exp.run();
 //! ```
 //!
@@ -227,19 +228,18 @@
 //! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale::algos::{random_search,BatchRandomSearch};
+//! use tantale::algos::{random_searcatchRandomSearch;
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
 //! let opt = BatchRandomSearch::new(7);
-//! let cod = random_search::codomain(|o: OutExample| o.obj);
 //!
 //! let stop = Calls::new(50);
 //! let config = FolderConfig::new("run_fidelity").init();
 //! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 //! let check = MessagePack::new(config);
 //!
-//! let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+//! let exp = mono(sp, obj, opt, stop, (rec, check));
 //! exp.run();
 //! ```
 
@@ -281,7 +281,7 @@ pub use domain::{
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
     Criteria, Domain, Dominate, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int,
     LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
-    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, Unit,
+    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, Unit, TypeAcc, TypeCodom
 };
 
 pub mod sampler;

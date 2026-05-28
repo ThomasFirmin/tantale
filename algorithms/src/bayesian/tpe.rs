@@ -1,5 +1,5 @@
 
-use tantale_core::{BaseSol, CSVWritable, Codomain, CompAcc, CompShape, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleCodomain, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Uncomputed, domain::codomain::ElemSingleCodomain, solution::{computed::Xy, shape::RawOpt}};
+use tantale_core::{BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, solution::{computed::Xy, shape::RawOpt}};
 use crate::{bayesian::{kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, OrdArchive, SimpleObjective, SimpleStepped}};
 
 use std::{cell::RefCell, sync::Arc};
@@ -11,24 +11,20 @@ thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
-/// Creates a codomain for Tree-structured Parzen optimization.
-///
-/// Constructs a [`SingleCodomain`] from a single-objective
-/// [`Criteria`].
-///
-/// # Arguments
-///
-/// * `extractor` - A [`Criteria`] defining how to extract the
-///   optimization objective from the [`Outcome`].
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: Outcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
+/// A helper macro to simplify the type signature of [`Tpe`].
+/// For example, to load a TPE optimizer with `Univariate`, `UniformWeighter` and `LinearSplit`, instead of writing:
+/// ```
+/// let exp = load!(mono, Tpe<Univariate, UniformWeighter, LinearSplit, _, _, _, _, _>, Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+/// you can write:
+/// ```
+/// let exp = load!(mono, tpe!(Univariate, UniformWeighter, LinearSplit), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+#[macro_export]
+macro_rules! tpe {
+    ($kernel : ident, $weighter : ident, $splitter : ident) => {
+        Tpe<$kernel, $weighter, $splitter, _, _, _, _>
     };
-    out.into()
 }
 
 /// Computes the acquisition function value based on the best and worse KDE-PDF values.
@@ -72,17 +68,16 @@ type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrdArchive<Xy<Raw, CodElem>>
     serialize = "Wght: Serialize, Splt: Serialize",
     deserialize = "Wght: for<'a> Deserialize<'a>, Splt: for<'a> Deserialize<'a>",
 ))]
-pub struct TpeState<Kern, Wght, Splt, Scp, S, SolId, Cod, Out> 
+pub struct TpeState<Kern, Wght, Splt, Scp, S, SolId, Out> 
 where
     S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Scp: Searchspace<S, SolId, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Cod, Out>,
-    Wght: Weighter<Xy<S::Raw, Cod::TypeCodom>>,
+    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
     Splt: Splitter,
     SolId: Id,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     pub n_init: usize,
@@ -90,51 +85,48 @@ where
     pub kernel: Kern,
     pub weighter: Wght,
     pub splitter: Splt,
-    pub point_archive: JointFidelityArchive<S::Raw, Cod::TypeCodom>,
+    pub point_archive: JointFidelityArchive<S::Raw, TypeCodom<Out>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
 }
 
-impl<Kern, Wght, Splt, Scp, S, SolId, Cod, Out> OptState for TpeState<Kern, Wght, Splt, Scp, S, SolId, Cod, Out> 
+impl<Kern, Wght, Splt, Scp, S, SolId, Out> OptState for TpeState<Kern, Wght, Splt, Scp, S, SolId, Out> 
 where
     S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Scp: Searchspace<S, SolId, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Cod, Out>,
-    Wght: Weighter<Xy<S::Raw, Cod::TypeCodom>>,
+    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
     Splt: Splitter,
     SolId: Id,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
 
 }
 
-pub struct Tpe<Kern, Wght, Splt, Scp, S, SolId, Cod, Out>(pub TpeState<Kern, Wght, Splt, Scp, S, SolId, Cod, Out>)
+pub struct Tpe<Kern, Wght, Splt, Scp, S, SolId, Out>(pub TpeState<Kern, Wght, Splt, Scp, S, SolId, Out>)
 where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Cod, Out>,
-    Wght: Weighter<Xy<S::Raw, Cod::TypeCodom>>,
+    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
     Splt: Splitter,
     SolId: Id,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    TypeCodom<Out>: Ord,
     Out: Outcome;
 
-impl<Kern, Wght, Splt, Scp, S, SolId, Cod, Out> Tpe<Kern, Wght, Splt, Scp, S, SolId, Cod, Out>
+impl<Kern, Wght, Splt, Scp, S, SolId, Out> Tpe<Kern, Wght, Splt, Scp, S, SolId, Out>
 where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Cod, Out>,
-    Wght: Weighter<Xy<S::Raw, Cod::TypeCodom>>,
+    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
     Splt: Splitter,
     SolId: Id,
-    Cod: Codomain<Out>,
-    Cod::TypeCodom: Ord,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     pub fn new(n_init: usize, n_sample:usize, kernel: Kern, weighter: Wght, splitter: Splt) -> Self {
@@ -162,16 +154,16 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out> 
     Optimizer<BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Scp::Opt, Out, Scp> 
-    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
-    type State = TpeState<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, SingleCodomain<Out>, Out>;
-    type Cod = SingleCodomain<Out>;
+    type State = TpeState<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>;
     type SInfo = TpeSInfo;
 
     fn get_state(&self) -> &Self::State {
@@ -189,16 +181,16 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out> 
     Optimizer<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp> 
-    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
-    type State = TpeState<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>;
-    type Cod = SingleCodomain<Out>;
+    type State = TpeState<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out>;
     type SInfo = TpeSInfo;
 
     fn get_state(&self) -> &Self::State {
@@ -217,19 +209,20 @@ where
 // Implementation for Mixed-NoDomain searchspace
 impl<Kern, Wght, Splt, Scp, Out> 
     SingleOptimizer<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, LinkOpt<Scp>, Out, Scp, SimpleObjective<Scp::SolShape, TpeSInfo, Out>,>
-    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     fn step(
         &mut self,
-        x: Option<BCompShape<Scp, Out, TpeSInfo, Self::Cod>>,
+        x: Option<BCompShape<Scp, Out, TpeSInfo>>,
         scp: &Scp,
-        _acc: &BCompAcc<Scp, Out, TpeSInfo, Self::Cod>,
+        _acc: &BCompAcc<Scp, Out, TpeSInfo>,
     ) -> Scp::SolShape 
     {
         if let Some(point) = x {
@@ -280,22 +273,23 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out, FnState> 
     SingleOptimizer<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, TpeSInfo, Out, FnState>>
-    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: FidOutcome,
     FnState: FuncState,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, TpeSInfo, SingleCodomain<Out>>: HasStep + HasFidelity,
+    FCompShape<Scp, Out, TpeSInfo>: HasStep + HasFidelity,
 {
     fn step(
         &mut self,
-        x: Option<FCompShape<Scp, Out, TpeSInfo, Self::Cod>>,
+        x: Option<FCompShape<Scp, Out, TpeSInfo>>,
         scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, TpeSInfo, Self::Cod>,
+        _acc: &FCompAcc<Scp, Out, TpeSInfo>,
     ) -> Scp::SolShape 
     {   
         if let Some(comp) = x {
@@ -364,12 +358,13 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out> 
     Sampler<BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Scp::Opt, Out, Scp> 
-    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     
@@ -377,12 +372,13 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out> 
     Sampler<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp> 
-    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
 
@@ -394,15 +390,16 @@ where
 // Implementation for Mixed-NoDomain searchspace
 impl<Kern, Wght, Splt, Scp, Out> 
     SingleSampler<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, LinkOpt<Scp>, Out, Scp, SimpleObjective<Scp::SolShape, TpeSInfo, Out>,>
-    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
-    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape {
+    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>) -> Scp::SolShape {
         let n_init = self.0.n_init;
         if self.0.point_archive[0].1.size() < n_init {
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
@@ -443,7 +440,7 @@ where
         }
     }
     
-    fn update(&mut self, x: &CompShape<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Self::Cod, Out>) {
+    fn update(&mut self, x: &CompShape<Scp::SolShape, SId, Self::SInfo, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>) {
         self.0.point_archive[0].1.add(x.get_sopt().xy());
     }
 }
@@ -451,16 +448,17 @@ where
 
 impl<Kern, Wght, Splt, Scp, Out, FnState> 
     SingleSampler<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, TpeSInfo, Out, FnState>>
-    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, SingleCodomain<Out>, Out>
+    for Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, SingleCodomain<Out>, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, ElemSingleCodomain>>,
+    Kern: Kernel<LinkOpt<Scp>, Scp, FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo, Out>,
+    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter,
+    TypeCodom<Out>: Ord,
     Out: FidOutcome,
     FnState: FuncState,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, TpeSInfo, SingleCodomain<Out>>: HasStep + HasFidelity,
+    FCompShape<Scp, Out, TpeSInfo>: HasStep + HasFidelity,
 {
     /// Samples a new point in the search space using the TPE acquisition function.
     /// If the number of points in the current archive is less than `n_init`, 
@@ -468,7 +466,7 @@ where
     /// Otherwise, samples `n_sample` points from the KDEs 
     /// of the good and bad points, computes their acquisition values, 
     /// and returns the point with the highest acquisition value.
-    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>) -> Scp::SolShape {
+    fn sample(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Scp::SolShape {
         let n_init = self.0.n_init;
         if self.0.point_archive[self.0.current_archive].1.size() < n_init {
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
@@ -519,7 +517,7 @@ where
     /// removes all archives with lower fidelities and updates the current archive and fidelity to the new ones.
     /// This way, it mimics the behavior of BOHB, where only the points with the highest fidelity 
     /// are used for sampling if there are enough of them, otherwise points with lower fidelities are used.
-    fn update(&mut self, x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>) {
+    fn update(&mut self, x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>, _scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) {
         let fidelity = x.fidelity().0;
 
         if fidelity == self.0.current_fidelity {

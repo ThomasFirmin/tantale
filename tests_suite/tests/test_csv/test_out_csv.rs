@@ -11,6 +11,7 @@ mod outcome {
         pub con3: f64,
         pub con4: f64,
         pub con5: f64,
+        #[maximize]
         pub mul6: f64,
         pub mul7: f64,
         pub mul8: f64,

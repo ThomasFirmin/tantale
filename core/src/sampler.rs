@@ -1,6 +1,6 @@
-//! # Sampler
+//! # Domain Samplers
 //!
-//! This module provides sampling strategies for different [`Domain`] types. Samplers define how
+//! This module provides sampling strategies for different [`Domain`] types. Domain samplers define how
 //! random values are drawn from a [`Domain`].
 //!
 //! ## Overview
@@ -18,11 +18,9 @@
 //! - [`GridDomDistribution`] - Samplers for [`GridDom`] numeric domains
 //! - [`BoolDistribution`] - Samplers for [`Bool`] domains
 //!
-//! These enums allow runtime selection of sampling strategies when needed.
-//!
 //! ## Some built-in samplers
 //!
-//! ### [`Uniform`] provides a runtime-selectable wrapper
+//! ### [`Uniform`] provides sampler:
 //! - **For numeric domains**: Samples uniformly over `[lower, upper]`
 //! - **For grid domains**: Random choice among possible values with equal probability
 //!
@@ -84,7 +82,7 @@ use rand::{RngExt, prelude::{IteratorRandom, Rng}};
 ///
 /// // Sample a random value from [0.0, 10.0]
 /// let value = domain.sample(&mut rng);
-/// assert!(domain.is_in(&value));
+/// assert!(domain.contains(&value));
 /// ```
 pub trait DomainSampler<D: Domain> {
     /// Generates a random value from the given domain using this sampling strategy.

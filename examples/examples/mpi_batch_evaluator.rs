@@ -24,6 +24,7 @@ mod init_func {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
+        #[maximize]
         pub obj: f64,
     }
 
@@ -100,7 +101,7 @@ fn main() {
         );
     } else {
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, XMessage<SId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, XMessage<SId, _>, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -144,7 +145,7 @@ fn main() {
                 Calls,
                 Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
                 _,
-                OutBatchEvaluate<SId, EmptyInfo, RSInfo,  Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, SingleCodomain<OutEvaluator>, OutEvaluator>,
+                OutBatchEvaluate<SId, EmptyInfo, RSInfo,  Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, OutEvaluator>,
             >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
 
         let mut hcobj = HashMap::new();

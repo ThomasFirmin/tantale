@@ -47,7 +47,9 @@ mod init_func {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
+        #[maximize]
         pub obj: f64,
+        #[step]
         pub fid: Step,
     }
 
@@ -151,7 +153,7 @@ fn main() {
     } else {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -195,7 +197,6 @@ fn main() {
                     StepSId,
                     EmptyInfo,
                     Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                    SingleCodomain<FidOutEvaluator>,
                     FidOutEvaluator,
                 >,
             >,
@@ -247,7 +248,6 @@ fn main() {
                         StepSId,
                         EmptyInfo,
                         Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                        SingleCodomain<FidOutEvaluator>,
                         FidOutEvaluator,
                     >,
                 >,

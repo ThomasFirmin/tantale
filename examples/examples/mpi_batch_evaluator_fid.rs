@@ -47,7 +47,9 @@ mod init_func {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
+        #[maximize]
         pub obj: f64,
+        #[step]
         pub fid: Step,
     }
 
@@ -157,7 +159,7 @@ fn main() {
     } else {
         // Define send/rec utilitaries and parameters
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, FXMessage<StepSId, _>, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
@@ -200,7 +202,7 @@ fn main() {
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>,
+            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
         >>::evaluate(
             &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
         );
@@ -293,7 +295,7 @@ fn main() {
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>,
+            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
         >>::evaluate(
             &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
         );
@@ -317,7 +319,7 @@ fn main() {
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>,
+            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
         >>::evaluate(
             &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
         );
@@ -341,7 +343,7 @@ fn main() {
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>,
+            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
         >>::evaluate(
             &mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc
         );
@@ -365,7 +367,7 @@ fn main() {
             Calls,
             Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
-            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, SingleCodomain<FidOutEvaluator>, FidOutEvaluator>,
+            OutBatchEvaluate<StepSId, EmptyInfo, RSInfo,  Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
         >>::evaluate(&mut eval, &mut sendrec, &obj, &cod, &mut stop, &mut acc);
         assert!(
             stop.calls() >= 20,

@@ -50,13 +50,13 @@ where
     Eval: Evaluate,
 {
     pub searchspace: Scp,
-    pub codomain: Op::Cod,
+    pub codomain: Out::Cod,
     pub objective: Fn,
     pub optimizer: Op,
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub(crate) pool_mode: PoolMode,
 }
@@ -90,13 +90,13 @@ where
     Eval: Evaluate,
 {
     pub searchspace: Scp,
-    pub codomain: Op::Cod,
+    pub codomain: Out::Cod,
     pub objective: Fn,
     pub optimizer: Op,
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub(crate) pool_mode: PoolMode,
 }
@@ -133,13 +133,13 @@ where
 {
     pub proc: &'a MPIProcess,
     pub searchspace: Scp,
-    pub codomain: Op::Cod,
+    pub codomain: Out::Cod,
     pub objective: Fn,
     pub optimizer: Op,
     pub stop: St,
     pub recorder: Option<Rec>,
     pub checkpointer: Option<Check>,
-    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+    pub accumulator: CompAcc<Scp::SolShape, SolId, Op::SInfo, Out>,
     pub(crate) evaluator: Option<Eval>,
     pub pool_mode: PoolMode,
 }

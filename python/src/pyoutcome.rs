@@ -39,7 +39,16 @@ use crate::{
 };
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{CSVWritable, EvalStep, FidOutcome, Outcome, Step};
+use tantale_core::{CSVWritable, Outcome, Step};
+
+pub trait PyOutWrap: Outcome {
+    /// Wraps a Python return value in the appropriate Rust wrapper type.
+    ///
+    /// The Python callable registered via [`PyObjective::register`] or
+    /// [`PyStepped::register`] must return a value that can be wrapped by this
+    /// method, or the optimizer will panic at runtime.
+    fn wrap(py: Python, obj: Py<PyAny>) -> Self;
+}
 
 /// Python-accessible wrapper for the [`Step`] evaluation state.
 #[pyclass(module = "pytantale", from_py_object)]
@@ -176,7 +185,7 @@ impl CSVWritable<(), ()> for PyOutcome {
     }
 }
 
-impl Outcome for PyOutcome {}
+// impl Outcome for PyOutcome {}
 
 impl PyOutcome {
     /// Extracts a named attribute from the Python outcome as `f64`.
@@ -238,7 +247,7 @@ impl<'de> Deserialize<'de> for PyFidOutcome {
     }
 }
 
-impl Outcome for PyFidOutcome {}
+// impl Outcome for PyFidOutcome {}
 
 impl CSVWritable<(), ()> for PyFidOutcome {
     fn header(_elem: &()) -> Vec<String> {
@@ -276,21 +285,6 @@ impl PyFidOutcome {
                 .getattr(attr)
                 .and_then(|v| v.extract::<f64>())
                 .unwrap_or(f64::NAN)
-        })
-    }
-}
-
-impl FidOutcome for PyFidOutcome {
-    /// Calls `self.get_step()` on the Python object and converts the returned
-    /// [`PyStep`] to an [`EvalStep`].  Returns [`EvalStep::error()`] if the call fails.
-    fn get_step(&self) -> EvalStep {
-        Python::attach(|py| {
-            self.0
-                .bind(py)
-                .getattr("step")
-                .and_then(|s| Ok(s.extract::<PyStep>()?))
-                .map(|s| s.inner.into())
-                .unwrap_or_else(|_| EvalStep::error())
         })
     }
 }

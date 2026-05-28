@@ -1,9 +1,9 @@
-use tantale::algos::{BatchRandomSearch, random_search};
+use tantale::algos::BatchRandomSearch;
 use tantale::core::{
     CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
     mono_with_pool,
 };
-use tantale::python::{PyOutcome, init_python};
+use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader;
@@ -29,20 +29,15 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Objective,
-        sp_ms_nosamp,
-        "/tests/test_pytantale_objective_batch/function_batch.py",
-        "function_batch",
-        "objective",
-        "/tests/test_pytantale_objective_batch/function_batch.py",
-        "function_batch",
-        "MyOutcome"
+        Objective, sp_ms_nosamp,
+        "/tests/test_pytantale_objective_batch/function_batch.py", "function_batch", "objective",
+        "/tests/test_pytantale_objective_batch/function_batch.py", "function_batch", "MyOutcome",
+        objectives: [maximize "obj1"],
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
 
     let opt = BatchRandomSearch::new(7); // log(max/min)
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_python_batch_rs").init();
@@ -50,7 +45,7 @@ fn test_python_function() {
     let check = MessagePack::new(config);
 
     mono_with_pool(
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -62,7 +57,6 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_batch_rs").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -72,7 +66,7 @@ fn test_python_function() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -84,7 +78,6 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj3;
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_batch_rs").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -94,7 +87,7 @@ fn test_python_function() {
         mono,
         BatchRandomSearch,
         Evaluated,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

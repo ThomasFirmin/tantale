@@ -1,4 +1,4 @@
-use tantale::algos::{RandomSearch, random_search};
+use tantale::algos::RandomSearch;
 use tantale::core::{
     CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective,
     experiment::{self, distributed, mpi::utils::MPIProcess},
@@ -22,6 +22,7 @@ mod init_func {
 
     #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
+        #[maximize]
         pub obj: f64,
     }
 
@@ -75,7 +76,7 @@ mod init_func {
     }
 }
 
-use init_func::{OutEvaluator, sp_evaluator};
+use init_func::sp_evaluator;
 
 pub fn run_reader(path: &str, size: usize) {
     let true_path = Path::new(path);
@@ -131,12 +132,12 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new();
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
+
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
-    let exp = distributed(&proc, (sp, cod), obj, opt, stop, (rec, check));
+    let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
     exp.run();
 
     if proc.rank == 0 {
@@ -145,7 +146,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
+
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
@@ -157,7 +158,7 @@ fn main() {
         &proc,
         RandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -179,7 +180,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &OutEvaluator| o.obj);
+
     let obj = Objective::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
@@ -191,7 +192,7 @@ fn main() {
         &proc,
         RandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

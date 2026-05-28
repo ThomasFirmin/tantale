@@ -36,7 +36,7 @@ We consider the [Asynchronous Successive Halving](https://arxiv.org/abs/1502.079
 
 The optimizer uses a thread-local [`StdRng`](https://docs.rs/rand/latest/rand/rngs/struct.StdRng.html) for random sampling. The RNG is not part of the optimizer state, as it cannot be serialized or deserialized. The [`StdRng`](https://docs.rs/rand/latest/rand/rngs/struct.StdRng.html) is defined at the module level as follows:
 ```rust
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{prelude::ThreadRng, rngs::StdRng};
 use std::cell::RefCell;
 
 thread_local! {
@@ -119,7 +119,6 @@ This include:
 
 Then, multiple associated types have to be defined:
 * [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
-* [`Cod`](crate::core::Optimizer::Cod): The [`Codomain`](crate::core::Codomain) the algorithm is optimizing (e.g. single or multi-objectives)
 * [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
 
 Finally, two methods have to be written:
@@ -130,16 +129,16 @@ Finally, two methods have to be written:
 
 ASHA only requires its [`OptState`](crate::core::OptState), i.e. `AshaState`.
 
-Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` method
-to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer. ASHA must be generic over all
-[`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape), i.e. solutions that can be ordered, so to select the Top k.
+Then, we can implement some methods for a better user usage. For example, a `new` builder method. 
+ASHA must be generic over all [`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape), 
+i.e. solutions that can be ordered, so to select the Top k.
 
 ``` rust
-# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
+# use rand::{prelude::ThreadRng, rngs::StdRng};
+# use serde::{Deserialize, Serialize};
+# use std::{cell::RefCell, cmp::Ord};
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 # use tantale::macros::OptState;
-# use std::{cmp::Ord, cell::RefCell};
-# use serde::{Serialize,Deserialize};
-# use rand::rngs::StdRng;
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -162,19 +161,6 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 #     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
 #     pub current_budget: f64,
 # }
-
-use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
-    };
-    out.into()
-}
 
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
@@ -227,14 +213,16 @@ be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generi
 This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that ASHA can be used whatever
 the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
-Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Out>, Out>`. It specifies that the computed version of a [`SolutionShape`](crate::core::SolutionShape) must follows the same bound described within `AshaState`.
+The [`Codomain`](crate::core::Codomain) and its associated [`TypeCodom`](crate::core::Codomain::TypeCodom) can be constrained to specialize the optimizer.
+For the ASHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`Ord`](std::cmp::Ord) to b able to compare solutions between each others.
+Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-objective optimizer.
 
 ```rust
-# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
+# use rand::{prelude::ThreadRng, rngs::StdRng};
+# use serde::{Deserialize, Serialize};
+# use std::{cell::RefCell, cmp::Ord};
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 # use tantale::macros::OptState;
-# use std::{cmp::Ord, cell::RefCell};
-# use serde::{Serialize,Deserialize};
-# use rand::rngs::StdRng;
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -256,19 +244,6 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #     pub rung: Vec<Vec<SShape>>,
 #     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
 #     pub current_budget: f64,
-# }
-# 
-# use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# 
-# pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-# where
-#     Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#     Out: FidOutcome,
-# {
-#     let out = SingleCodomain {
-#         y_criteria: extractor,
-#     };
-#     out.into()
 # }
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
@@ -312,19 +287,19 @@ Notice the bound on `<Scp::SolShape as IntoComputed>::Computed<SingleCodomain<Ou
 #         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
-
-use tantale::core::{Optimizer, IntoComputed, FidelitySol, Searchspace, LinkOpt};
+use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
+    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
 {
-    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
-    type Cod = SingleCodomain<Out>;
+    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
     type SInfo = EmptyInfo; // No metadata
 
     fn get_state(&self) -> &Self::State {
@@ -351,11 +326,11 @@ We have to define one functions:
   [`Computed`](crate::core::Computed).
 
 ```rust
-# use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
+# use rand::{prelude::ThreadRng, rngs::StdRng};
+# use serde::{Deserialize, Serialize};
+# use std::{cell::RefCell, cmp::Ord};
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
 # use tantale::macros::OptState;
-# use std::{cmp::Ord, cell::RefCell};
-# use serde::{Serialize,Deserialize};
-# use rand::rngs::StdRng;
 # 
 # thread_local! {
 #     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -377,19 +352,6 @@ We have to define one functions:
 #     pub rung: Vec<Vec<SShape>>,
 #     // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
 #     pub current_budget: f64,
-# }
-# 
-# use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-# 
-# pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-# where
-#     Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#     Out: FidOutcome,
-# {
-#     let out = SingleCodomain {
-#         y_criteria: extractor,
-#     };
-#     out.into()
 # }
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
@@ -433,19 +395,19 @@ We have to define one functions:
 #         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
-# 
-# use tantale::core::{Optimizer, FidelitySol, Searchspace, LinkOpt};
+# use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
 # 
 # impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-#     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
+#     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 # where
 #     Out: FidOutcome,
+#     Out::Cod: Single<Out>,
+#     TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 #     Scp::SolShape: HasStep + HasFidelity,
-#     CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
+#     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
 # {
-#     type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
-#     type Cod = SingleCodomain<Out>;
+#     type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
 #     type SInfo = EmptyInfo; // No metadata
 # 
 #     fn get_state(&self) -> &Self::State {
@@ -471,19 +433,31 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
+    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
         &mut self,
-        x: OptionCompShape<Scp::SolShape,StepSId,Self::SInfo,Self::Cod,Out>,
+        x: OptionCompShape<
+            Scp::SolShape,
+            StepSId,
+            Self::SInfo,
+            Out,
+        >,
         scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape,StepSId,Self::SInfo,Self::Cod,Out>,
+        _acc: &CompAcc<
+            Scp::SolShape,
+            StepSId,
+            Self::SInfo,
+            Out,
+        >,
     ) -> Scp::SolShape {
         // If input is not empty (a solution has been computed)
         if let Some(comp) = x {

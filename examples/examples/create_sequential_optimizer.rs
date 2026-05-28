@@ -26,19 +26,6 @@ where
     pub current_budget: f64,
 }
 
-use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
-
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
-    };
-    out.into()
-}
-
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
@@ -81,18 +68,19 @@ where
     }
 }
 
-use tantale::core::{FidelitySol, IntoComputedShape, LinkOpt, Optimizer, Searchspace};
+use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
+    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
 {
-    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>;
-    type Cod = SingleCodomain<Out>;
+    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
     type SInfo = EmptyInfo; // No metadata
 
     fn get_state(&self) -> &Self::State {
@@ -120,12 +108,14 @@ impl<Out, Scp, FnState>
         Out,
         Scp,
         Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>>
+    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, SingleCodomain<Out>, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     fn step(
@@ -134,7 +124,6 @@ where
             Scp::SolShape,
             StepSId,
             Self::SInfo,
-            Self::Cod,
             Out,
         >,
         scp: &Scp,
@@ -142,7 +131,6 @@ where
             Scp::SolShape,
             StepSId,
             Self::SInfo,
-            Self::Cod,
             Out,
         >,
     ) -> Scp::SolShape {

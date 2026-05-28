@@ -1,23 +1,31 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::objective::EvalStep;
+use tantale::core::{Outcome, Step};
 use tantale::macros::Outcome;
 
 #[test]
 fn mixed_derive() {
     use tantale::core::Codomain;
-    use tantale::core::CostConstMultiCodomain;
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutExample {
+        #[cost]
         pub cost2: f64,
+        #[constraint]
         pub con3: f64,
+        #[constraint]
         pub con4: f64,
+        #[constraint]
         pub con5: f64,
+        #[maximize]
         pub mul6: f64,
+        #[maximize]
         pub mul7: f64,
+        #[maximize]
         pub mul8: f64,
+        #[maximize]
         pub mul9: f64,
-        pub fid10: EvalStep,
+        #[step]
+        pub fid10: Step,
     }
 
     pub fn get_struct() -> OutExample {
@@ -30,30 +38,12 @@ fn mixed_derive() {
             mul7: 7.0,
             mul8: 8.0,
             mul9: 9.0,
-            fid10: EvalStep::partially(0),
+            fid10: Step::Partially(0),
         }
     }
 
-    let codom = CostConstMultiCodomain::new(
-        // Define multi-objective
-        vec![
-            |h: &OutExample| h.mul6,
-            |h: &OutExample| h.mul7,
-            |h: &OutExample| h.mul8,
-            |h: &OutExample| h.mul9,
-        ]
-        .into_boxed_slice(),
-        // Define fidelity
-        |h: &OutExample| h.cost2,
-        // Define constraints
-        vec![
-            |h: &OutExample| h.con3,
-            |h: &OutExample| h.con4,
-            |h: &OutExample| h.con5,
-        ]
-        .into_boxed_slice(),
-    );
     let out = get_struct();
+    let codom = OutExample::codomain();
     let extracted = codom.get_elem(&out);
 
     assert_eq!(

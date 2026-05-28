@@ -23,12 +23,10 @@ use crate::{
     DistSeqRecorder,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
-        DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
-        mpi::{
+        DistEvaluate, ExpComponent, MPIExperiment, MPIRunable, MasterWorker, mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
-        },
-        sequential::{seqevaluator::DistSeqEvaluator, seqfidevaluator::FidDistSeqEvaluator},
+        }, sequential::{seqevaluator::DistSeqEvaluator, seqfidevaluator::FidDistSeqEvaluator}
     },
     solution::shape::{SolObj, SolOpt},
 };
@@ -83,7 +81,7 @@ where
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
@@ -91,10 +89,11 @@ where
         _pool_mode: PoolMode,
     ) -> Self {
         let (recorder, checkpointer) = saver;
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init(&searchspace);
                 Some(r)
             }
             None => None,
@@ -107,7 +106,7 @@ where
             None => None,
         };
 
-        let accumulator = Op::Cod::new_accumulator();
+        let accumulator = Out::Cod::new_accumulator();
 
         MonoExperiment {
             searchspace,
@@ -127,12 +126,13 @@ where
     /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         checkpointer.before_load();
 
@@ -140,7 +140,7 @@ where
         let optimizer = Op::from_state(state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load(&searchspace);
                 Some(rec)
             }
             None => None,
@@ -169,7 +169,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`SeqEvaluator`]. updates) step.
-    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => SeqEvaluator::new(self.optimizer.step(
@@ -197,7 +197,7 @@ where
                 Out,
                 St,
                 _,
-                OutShapeEvaluate<SId, Op::SInfo, Scp::SolShape, Op::Cod, Out>,
+                OutShapeEvaluate<SId, Op::SInfo, Scp::SolShape, Out>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -233,7 +233,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -261,7 +261,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -283,7 +283,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -291,8 +291,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -302,15 +301,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,
@@ -387,7 +381,7 @@ where
     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
@@ -395,10 +389,11 @@ where
         pool_mode: PoolMode,
     ) -> Self {
         let (recorder, checkpointer) = saver;
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init(&searchspace);
                 Some(r)
             }
             None => None,
@@ -410,7 +405,7 @@ where
             }
             None => None,
         };
-        let accumulator = Op::Cod::new_accumulator();
+        let accumulator = Out::Cod::new_accumulator();
         MonoExperiment {
             searchspace,
             codomain,
@@ -429,12 +424,13 @@ where
     /// and [`Stepped`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         checkpointer.before_load();
         let fnstatecheck = checkpointer.new_func_state_checkpointer();
@@ -458,7 +454,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut r) => {
-                r.after_load(&searchspace, &codomain);
+                r.after_load(&searchspace);
                 Some(r)
             }
             None => None,
@@ -490,7 +486,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidSeqEvaluator`]. updates) step.
-    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -531,7 +527,7 @@ where
                 Out,
                 St,
                 _,
-                Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+                Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp::SolShape, Out>>,
             >::evaluate(
                 &mut eval,
                 &self.objective,
@@ -571,7 +567,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -599,7 +595,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -624,8 +620,7 @@ where
     fn get_accumalator(
         &self,
     ) -> &TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -636,8 +631,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -647,15 +641,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,
@@ -706,7 +695,7 @@ where
         > + Send
         + Sync
         + 'static,
-    Op::Cod: Send + Sync + 'static,
+    Out::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>> + Send + Sync + 'static,
     Scp::SolShape: Send + Sync + 'static,
@@ -717,24 +706,25 @@ where
         + Sync
         + 'static,
     Check: ThrCheckpointer + Send + Sync + 'static,
-    TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>:
+    TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>:
         Send + Sync + 'static,
 {
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
         _pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, checkpointer) = saver;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init(&searchspace);
                 Some(r)
             }
             None => None,
@@ -746,7 +736,7 @@ where
             }
             None => None,
         };
-        let accumulator = Op::Cod::new_accumulator();
+        let accumulator = Out::Cod::new_accumulator();
 
         ThrExperiment {
             searchspace,
@@ -766,12 +756,13 @@ where
     /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`ThrCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         checkpointer.before_load_thr();
         let stop = checkpointer.load_stop_thr().unwrap();
@@ -783,7 +774,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load(&searchspace);
                 Some(rec)
             }
             None => None,
@@ -814,7 +805,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`ThrSeqEvaluator`]. updates) step.
-    fn run(self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -912,7 +903,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -940,7 +931,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -962,7 +953,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -970,8 +961,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -981,15 +971,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,
@@ -1046,18 +1031,18 @@ where
         > + Send
         + Sync
         + 'static,
-    Op::Cod: Send + Sync + 'static,
     Op::SInfo: Send + Sync + 'static,
     Scp:
         Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>> + Send + Sync + 'static,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId> + Send + Sync + 'static,
-    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>: HasStep
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>: HasStep
         + HasFidelity
         + HasStepId<StepSId>
         + Send
         + Sync
         + 'static,
     St: Stop + Send + Sync + 'static,
+    Out::Cod: Codomain<Out> + Send + Sync + 'static,
     Out: FidOutcome + Send + Sync + 'static,
     Rec: SeqRecorder<
             PSol,
@@ -1074,8 +1059,7 @@ where
     FnState: FuncState + Send + Sync + 'static,
     RawObj<Scp::SolShape, StepSId, Op::SInfo>: 'static,
     TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1084,18 +1068,19 @@ where
     /// Create a new [`ThrExperiment`] from a [`Searchspace`], [`Codomain`],
     /// [`Stepped`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`ThrCheckpointer`].
     fn new_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
         pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, checkpointer) = saver;
         let recorder = match recorder {
             Some(mut r) => {
-                r.init(&searchspace, &codomain);
+                r.init(&searchspace);
                 Some(r)
             }
             None => None,
@@ -1107,7 +1092,7 @@ where
             }
             None => None,
         };
-        let accumulator = Op::Cod::new_accumulator();
+        let accumulator = Out::Cod::new_accumulator();
         ThrExperiment {
             searchspace,
             codomain,
@@ -1126,12 +1111,13 @@ where
     /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`ThrCheckpointer`].
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         checkpointer.before_load_thr();
         let fnstatecheck = checkpointer.new_func_state_checkpointer();
@@ -1155,7 +1141,7 @@ where
         let optimizer = Op::from_state(opt_state);
         let recorder = match recorder {
             Some(mut rec) => {
-                rec.after_load(&searchspace, &codomain);
+                rec.after_load(&searchspace);
                 Some(rec)
             }
             None => None,
@@ -1185,7 +1171,7 @@ where
     ///
     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
     /// (inner [`FidThrSeqEvaluator`]. updates) step.
-    fn run(self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Out> {
         let ob = Arc::new(self.objective);
         let op = Arc::new(Mutex::new(self.optimizer));
         let cod = Arc::new(self.codomain);
@@ -1347,7 +1333,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -1375,7 +1361,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -1400,8 +1386,7 @@ where
     fn get_accumalator(
         &self,
     ) -> &TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1412,8 +1397,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -1423,15 +1407,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,
@@ -1509,7 +1488,7 @@ where
     /// Other processes will use a [`NoWCheck`](crate::checkpointer::NoWCheck) version of the [`DistCheckpointer`].
     fn new_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
@@ -1528,12 +1507,13 @@ where
         Out,
         Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     > {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, checkpointer) = saver;
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_dist(proc, &searchspace, &codomain);
+                    r.init_dist(proc, &searchspace);
                     Some(r)
                 }
                 None => None,
@@ -1545,7 +1525,7 @@ where
                 }
                 None => None,
             };
-            let accumulator = Op::Cod::new_accumulator();
+            let accumulator = Out::Cod::new_accumulator();
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -1575,7 +1555,7 @@ where
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
@@ -1592,7 +1572,8 @@ where
         Out,
         Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     > {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
             checkpointer.before_load_dist(proc);
@@ -1600,12 +1581,12 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_dist(proc, &searchspace, &codomain);
+                    r.after_load_dist(proc, &searchspace);
                     Some(r)
                 }
                 None => None,
             };
-            let accumulator = Op::Cod::new_accumulator();
+            let accumulator = Out::Cod::new_accumulator();
             checkpointer.after_load_dist(proc);
             MasterWorker::Master(MPIExperiment {
                 proc,
@@ -1637,7 +1618,7 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -1669,7 +1650,6 @@ where
             Scp::SolShape,
             SId,
             Op::SInfo,
-            Op::Cod,
             Out,
         >::new(config, self.proc);
 
@@ -1747,7 +1727,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -1775,7 +1755,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -1797,7 +1777,7 @@ where
 
     fn get_accumalator(
         &self,
-    ) -> &TypeAcc<Op::Cod, CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>, SId, Op::SInfo, Out>
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>
     {
         &self.accumulator
     }
@@ -1805,8 +1785,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, SId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, SId, Op::SInfo, Out>,
         SId,
         Op::SInfo,
         Out,
@@ -1816,15 +1795,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,
@@ -1915,7 +1889,7 @@ where
     /// Other processes will use a [`WorkerCheckpointer`] associated to the [`DistCheckpointer`].
     fn new_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
@@ -1935,11 +1909,12 @@ where
         Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
         let (recorder, checkpointer) = saver;
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         if proc.rank == 0 {
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.init_dist(proc, &searchspace, &codomain);
+                    r.init_dist(proc, &searchspace);
                     Some(r)
                 }
                 None => None,
@@ -1951,7 +1926,7 @@ where
                 }
                 None => None,
             };
-            let accumulator = Op::Cod::new_accumulator();
+            let accumulator = Out::Cod::new_accumulator();
             MasterWorker::Master(MPIExperiment {
                 proc,
                 searchspace,
@@ -2006,7 +1981,7 @@ where
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         proc: &'a MPIProcess,
-        space: (Scp, Op::Cod),
+        space: Scp,
         objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
@@ -2023,7 +1998,8 @@ where
         Out,
         Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
-        let (searchspace, codomain) = space;
+        let searchspace = space;
+        let codomain = Out::codomain();
         let (recorder, mut checkpointer) = saver;
         if proc.rank == 0 {
             checkpointer.before_load_dist(proc);
@@ -2031,7 +2007,7 @@ where
             let optimizer = Op::from_state(state);
             let recorder = match recorder {
                 Some(mut r) => {
-                    r.after_load_dist(proc, &searchspace, &codomain);
+                    r.after_load_dist(proc, &searchspace);
                     Some(r)
                 }
                 None => None,
@@ -2085,7 +2061,7 @@ where
     ///
     /// At the end of the experiment, all processes are sent a stop signal, to cleanly end the distributed run.
     /// This can result in overflows of evaluated solutions after the stop condition is met, which are [`flushed`](SendRec::flush).
-    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out> {
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Out> {
         let mut eval = match self.evaluator {
             Some(e) => e,
             None => {
@@ -2107,7 +2083,6 @@ where
             Scp::SolShape,
             StepSId,
             Op::SInfo,
-            Op::Cod,
             Out,
         >::new(config, self.proc);
 
@@ -2202,7 +2177,7 @@ where
         &self.searchspace
     }
 
-    fn get_codomain(&self) -> &Op::Cod {
+    fn get_codomain(&self) -> &Out::Cod {
         &self.codomain
     }
 
@@ -2230,7 +2205,7 @@ where
         &mut self.searchspace
     }
 
-    fn get_mut_codomain(&mut self) -> &mut Op::Cod {
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
         &mut self.codomain
     }
 
@@ -2255,8 +2230,7 @@ where
     fn get_accumalator(
         &self,
     ) -> &TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -2267,8 +2241,7 @@ where
     fn get_mut_accumalator(
         &mut self,
     ) -> &mut TypeAcc<
-        Op::Cod,
-        CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, Out>,
+        CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>,
         StepSId,
         Op::SInfo,
         Out,
@@ -2278,15 +2251,10 @@ where
 
     fn extract(
         self,
-    ) -> (
-        (Scp, Op::Cod),
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-        Op,
-        St,
-        (Option<Rec>, Option<Check>),
-    ) {
+    ) -> ExpComponent<Out, Scp, Op, Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>, St, Rec, Check>{
         (
-            (self.searchspace, self.codomain),
+            self.searchspace,
+            self.codomain,
             self.objective,
             self.optimizer,
             self.stop,

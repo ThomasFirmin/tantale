@@ -16,6 +16,7 @@
 //!
 //!  #[derive(Outcome, Debug, Serialize, Deserialize)]
 //!  pub struct OutExample {
+//!      #[maximize]
 //!      pub obj: f64,
 //!      pub fid: f64,
 //!      pub con: f64,
@@ -66,6 +67,7 @@
 //!
 //! #[derive(Outcome, Debug, Serialize, Deserialize)]
 //! pub struct FidOutExample {
+//!     #[maximize]
 //!     pub obj: f64,
 //!     pub fid: f64,
 //!     pub con: f64,
@@ -75,6 +77,7 @@
 //!     pub boolinfo: bool,
 //!     pub natinfo: u64,
 //!     pub catinfo: String,
+//!     #[step]
 //!     pub step: Step,
 //! }
 //!

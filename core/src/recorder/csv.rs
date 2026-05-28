@@ -35,7 +35,7 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, onto::LinkOpt}, has_trait::HasX, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
+    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo, StepId, domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt}, has_trait::HasX, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
         Batch, Id, OutBatch,
         SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
@@ -286,12 +286,12 @@ pub trait OutCSVWrite<SolId: Id>: Outcome {
 /// This trait combines [`SolCSVWrite`], [`CodCSVWrite`], [`InfoCSVWrite`], and [`OutCSVWrite`]
 /// to write a complete [`CompShape`] and its raw [`Outcome`]
 /// across all CSV files in a coordinated manner.
-pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Cod, Out>: Searchspace<PartOpt, SolId, SInfo>
+pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Out>: Searchspace<PartOpt, SolId, SInfo>
 where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
     Out: Outcome + CSVWritable<(), ()>,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
+    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
     PartOpt::Twin<Self::Obj>:
         Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
@@ -301,9 +301,9 @@ where
     /// Used by sequential optimizers that don't provide batch-level metadata.
     fn write(
         &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
         opair: &(SolId, Out),
-        cod: &Cod,
+        cod: &Out::Cod,
         wrts: &CSVFiles,
     );
 
@@ -312,10 +312,10 @@ where
     /// Used by batch optimizers that provide iteration/batch metadata via [`OptInfo`].
     fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
         &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
         opair: &(SolId, Out),
         info: Arc<Info>,
-        cod: &Cod,
+        cod: &Out::Cod,
         wrts: &CSVFiles,
     );
 }
@@ -494,11 +494,10 @@ where
     }
 }
 
-impl<SolId, Cod, Out> CodCSVWrite<SolId, Out> for Cod
+impl<SolId, Out> CodCSVWrite<SolId, Out> for Out::Cod
 where
     Self: Sized + CSVWritable<Self, Self::TypeCodom>,
     SolId: Id + CSVWritable<(), ()>,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     /// Header row columns: `SolId` fields followed by codomain columns.
@@ -512,7 +511,7 @@ where
     fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
-        idstr.extend(Cod::header(self));
+        idstr.extend(Self::header(self));
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
@@ -653,30 +652,30 @@ where
     }
 }
 
-impl<Scp, PartOpt, SolId, SInfo, Cod, Out> ScpCSVWrite<PartOpt, SolId, SInfo, Cod, Out> for Scp
+impl<Scp, PartOpt, SolId, SInfo, Out> ScpCSVWrite<PartOpt, SolId, SInfo, Out> for Scp
 where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
     Out: Outcome + OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
-    Cod::TypeCodom: Send + Sync,
+    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
+    TypeCodom<Out>: Send + Sync,
     PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-PartOpt::Twin<Self::Obj>:
+    PartOpt::Twin<Self::Obj>:
     Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
     Scp: SolCSVWrite<PartOpt, SolId, SInfo>,
 {
     fn write(
         &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
         opair: &(SolId, Out),
-        cod: &Cod,
+        cod: &Out::Cod,
         wrts: &CSVFiles,
     ) {
         let id = pair.id();
         let idstr = id.write(&());
 
         // CODOM
-        <Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
+        <Out::Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
         // OBJ
         if let Some(f) = wrts.obj.clone() {
             self.write_partial_obj(&idstr, pair.get_sobj().get_uncomputed(), f);
@@ -697,17 +696,17 @@ PartOpt::Twin<Self::Obj>:
 
     fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
         &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Cod, Out>,
+        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
         opair: &(SolId, Out),
         info: Arc<Info>,
-        cod: &Cod,
+        cod: &Out::Cod,
         wrts: &CSVFiles,
     ) {
         let id = pair.id();
         let idstr = id.write(&());
 
         // CODOM
-        <Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
+        <Out::Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
         // OBJ
         if let Some(f) = wrts.obj.clone() {
             self.write_partial_obj(&idstr, pair.get_sobj().get_uncomputed(), f);
@@ -731,13 +730,13 @@ PartOpt::Twin<Self::Obj>:
 ///
 /// This trait enables efficient parallel writing of multiple solutions using Rayon.
 /// Each solution in the batch is written to all configured CSV files simultaneously.
-pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
+pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
 where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
     Info: OptInfo + CSVWritable<(), ()>,
     Out: Outcome + CSVWritable<(), ()>,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom>,
+    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
     PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
     PartOpt::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
@@ -751,33 +750,33 @@ where
     /// * `scp` - Searchspace for interpreting solutions
     /// * `cod` - Codomain for interpreting outcomes
     /// * `wrts` - Thread-safe CSV file handles
-    fn write(&self, obatch: &OutBatch<SolId, Info, Out>, scp: &Scp, cod: &Cod, wrts: Arc<CSVFiles>);
+    fn write(&self, obatch: &OutBatch<SolId, Info, Out>, scp: &Scp, cod: &Out::Cod, wrts: Arc<CSVFiles>);
 }
 
-impl<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
-    BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Cod, Out, Info>
-    for Batch<SolId, SInfo, Info, CompShape<Scp::SolShape, SolId, SInfo, Cod, Out>>
+impl<PartOpt, Scp, SolId, SInfo, Out, Info>
+    BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
+    for Batch<SolId, SInfo, Info, CompShape<Scp::SolShape, SolId, SInfo, Out>>
 where
     Self: Send + Sync,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     SInfo: SolInfo + CSVWritable<(), ()>,
     Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
     Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Cod: Codomain<Out> + CSVWritable<Cod, Cod::TypeCodom> + Send + Sync,
+    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
     PartOpt::Twin<Scp::Obj>:
         Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
     Scp: Searchspace<PartOpt, SolId, SInfo>
-        + ScpCSVWrite<PartOpt, SolId, SInfo, Cod, Out>
+        + ScpCSVWrite<PartOpt, SolId, SInfo, Out>
         + Send
         + Sync,
-    CompShape<Scp::SolShape, SolId, SInfo, Cod, Out>: Send + Sync,
+    CompShape<Scp::SolShape, SolId, SInfo, Out>: Send + Sync,
 {
     fn write(
         &self,
         obatch: &OutBatch<SolId, Info, Out>,
         scp: &Scp,
-        cod: &Cod,
+        cod: &Out::Cod,
         wrts: Arc<CSVFiles>,
     ) {
         let info = self.info();
@@ -901,14 +900,11 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
+    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
-        + Send
-        + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Cod, Out>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
@@ -926,7 +922,8 @@ where
     ///   out.csv
     /// ```
     /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
+    fn init(&mut self, scp: &Scp) {
+        let cod = Out::codomain();
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
             panic!(
@@ -986,7 +983,7 @@ where
     }
 
     /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {
+    fn after_load(&mut self, _scp: &Scp) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
@@ -1043,10 +1040,10 @@ where
     /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save(
         &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
     ) {
         let files = CSVFiles::new(
             &self.path_pobj,
@@ -1070,17 +1067,17 @@ where
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
+    Out::Cod: CodCSVWrite<SolId, Out>
+        + CSVWritable<Out::Cod, TypeCodom<Out>>
         + Send
         + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Cod, Out>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: 
-        InfoCSVWrite<SolId, Op::SInfo> + HasY<Op::Cod, Out> + Send + Sync,
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: 
+        InfoCSVWrite<SolId, Op::SInfo> + HasY<Out> + Send + Sync,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
@@ -1095,7 +1092,8 @@ where
     ///   out.csv
     /// ```
     /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init(&mut self, scp: &Scp, cod: &Op::Cod) {
+    fn init(&mut self, scp: &Scp) {
+        let cod = Out::codomain();
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
             panic!(
@@ -1155,7 +1153,7 @@ where
     }
 
     /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load(&mut self, _scp: &Scp, _cod: &Op::Cod) {
+    fn after_load(&mut self, _scp: &Scp) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
@@ -1212,10 +1210,10 @@ where
     /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save(
         &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
+        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
     ) {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
@@ -1224,7 +1222,7 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(
+        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Out, Op::Info>::write(
             computed, outputed, scp, cod, files,
         );
     }
@@ -1258,12 +1256,12 @@ where
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
+    Out::Cod: CodCSVWrite<SolId, Out>
+        + CSVWritable<Out::Cod, TypeCodom<Out>>
         + Send
         + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Cod, Out>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
@@ -1281,7 +1279,8 @@ where
     ///   out.csv
     /// ```
     /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
+    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp) {
+        let cod = Out::codomain();
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
             panic!(
@@ -1341,7 +1340,7 @@ where
     }
 
     /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
@@ -1398,10 +1397,10 @@ where
     /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_dist(
         &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
         outputed: &(SolId, Out),
         scp: &Scp,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
     ) {
         let files = CSVFiles::new(
             &self.path_pobj,
@@ -1443,17 +1442,17 @@ where
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Op::Cod: CodCSVWrite<SolId, Out>
-        + CSVWritable<Op::Cod, <Op::Cod as Codomain<Out>>::TypeCodom>
+    Out::Cod: CodCSVWrite<SolId, Out>
+        + CSVWritable<Out::Cod, TypeCodom<Out>>
         + Send
         + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Op::Cod, Out>
+        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
         + Sync,
     Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: Send + Sync,
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: Send + Sync,
 {
     /// Initialize the recorder folder and CSV files, and write CSV headers.
     ///
@@ -1467,7 +1466,8 @@ where
     ///   out.csv
     /// ```
     /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp, cod: &Op::Cod) {
+    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp) {
+        let cod = Out::codomain();
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
             panic!(
@@ -1527,7 +1527,7 @@ where
     }
 
     /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &Op::Cod) {
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {
         // Check if all folder and files exist
         if self.config.path_rec.try_exists().unwrap() {
             if let Some(ppobj) = &self.path_pobj
@@ -1584,10 +1584,10 @@ where
     /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
     fn save_dist(
         &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
+        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
         outputed: &OutBatch<SolId, Op::Info, Out>,
         scp: &Scp,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
     ) {
         let files = Arc::new(CSVFiles::new(
             &self.path_pobj,
@@ -1596,7 +1596,7 @@ where
             &self.path_info,
             &self.path_out,
         ));
-        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Op::Cod, Out, Op::Info>::write(
+        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Out, Op::Info>::write(
             computed, outputed, scp, cod, files,
         );
     }

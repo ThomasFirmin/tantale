@@ -1,9 +1,9 @@
-use tantale::algos::{Sha, sha};
+use tantale::algos::{BatchRandomSearch, Sha, sha};
 use tantale::core::{
     CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
     mono_with_pool,
 };
-use tantale::python::{PyFidOutcome, init_python};
+use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader;
@@ -29,20 +29,16 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Stepped,
-        sp_ms_nosamp,
-        "/tests/test_pytantale_stepped_batch/function_fid_batch.py",
-        "function_fid_batch",
-        "objective",
-        "/tests/test_pytantale_stepped_batch/function_fid_batch.py",
-        "function_fid_batch",
-        "MyOutcome"
+        Stepped, sp_ms_nosamp,
+        "/tests/test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch",
+        "objective", "/tests/test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "MyOutcome",
+        objectives: [maximize "obj1"],
+        step: "step",
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-
-    let opt = Sha::new(10, 1., 5., 1.61); // log(max/min)
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
+    let sampler = BatchRandomSearch::new(10);
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_python_sha").init();
@@ -50,7 +46,7 @@ fn test_python_function() {
     let check = MessagePack::new(config);
 
     mono_with_pool(
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -62,13 +58,12 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_sha").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -84,13 +79,12 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj3;
-    let cod = sha::codomain(|o: &PyFidOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_sha").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_python_sha", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

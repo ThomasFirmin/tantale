@@ -1,5 +1,5 @@
 use crate::{
-    Codomain, Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
+    Domain, EvalStep, Fidelity, Id, Outcome, SolInfo, Solution,
     HasFidelity, HasStep,
     solution::SolutionShape,
 };
@@ -272,13 +272,12 @@ impl IdleWorker {
 /// A structure allowing to send and receive messages to/from [`Worker`](crate::Worker)s.
 /// It holds the current configuration, the MPI process, an [`IdleWorker`] to track idle workers,
 /// and a `HashMap` of waiting [`SolutionShape`] identified by their [`Id`] currently being evaluated.
-pub struct SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
+pub struct SendRec<'a, Msg, Shape, SolId, SInfo, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     pub config: Configuration,
@@ -287,17 +286,15 @@ where
     pub waiting: HashMap<SolId, Shape>,
     _msg: PhantomData<Msg>,
     _sinfo: PhantomData<SInfo>,
-    _cod: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<'a, Msg, Shape, SolId, SInfo, Cod, Out> SendRec<'a, Msg, Shape, SolId, SInfo, Cod, Out>
+impl<'a, Msg, Shape, SolId, SInfo, Out> SendRec<'a, Msg, Shape, SolId, SInfo, Out>
 where
     Msg: XMsg<Shape::SolObj, SolId, Shape::Obj, SInfo>,
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     /// Create a new [`SendRec`] structure from a given [bincode] [`Configuration`] and [`MPIProcess`].
@@ -310,7 +307,6 @@ where
             waiting: HashMap::new(),
             _msg: PhantomData,
             _sinfo: PhantomData,
-            _cod: PhantomData,
             _out: PhantomData,
         }
     }

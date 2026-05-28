@@ -4,6 +4,7 @@ use tantale::macros::{CSVWritable, Outcome};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
+    #[maximize]
     pub obj: f64,
     pub int_v: i64,
     pub poi: (i64, i64),
@@ -48,6 +49,7 @@ impl CSVWritable<(), ()> for OutExample {
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutUnique {
+    #[maximize]
     pub obj: f64,
     pub int_v: f64,
     pub poi: (f64, f64),
@@ -93,6 +95,7 @@ impl CSVWritable<(), ()> for OutUnique {
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutExample {
+    #[maximize]
     pub obj: f64,
     pub int_v: i64,
     pub poi: (i64, i64),
@@ -102,6 +105,7 @@ pub struct FidOutExample {
     pub bool_v: bool,
     pub neuron: Neuron,
     pub vec: Vec<u64>,
+    #[step]
     pub fid: Step,
 }
 
@@ -141,6 +145,7 @@ impl CSVWritable<(), ()> for FidOutExample {
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutUnique {
+    #[maximize]
     pub obj: f64,
     pub int_v: f64,
     pub poi: (f64, f64),
@@ -150,6 +155,7 @@ pub struct FidOutUnique {
     pub bool_v: f64,
     pub point: Point,
     pub vec: Vec<f64>,
+    #[step]
     pub fid: Step,
 }
 
@@ -533,6 +539,7 @@ pub mod sp_sm_samp_noright {
 
 #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct OutEvaluator {
+    #[maximize]
     pub obj: f64,
 }
 
@@ -544,7 +551,9 @@ impl PartialEq for OutEvaluator {
 
 #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct FidOutEvaluator {
+    #[maximize]
     pub obj: f64,
+    #[step]
     pub fid: Step,
 }
 
@@ -1064,9 +1073,12 @@ pub mod sp_sm_samp_noright_fid {
 
 #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct MoFidOutEvaluator {
+    #[maximize]
     pub obj1: f64,
+    #[maximize]
     pub obj2: f64,
     info: f64,
+    #[step]
     pub fid: Step,
 }
 

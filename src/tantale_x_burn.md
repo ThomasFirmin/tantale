@@ -275,9 +275,12 @@ First we define the [`Outcome`](crate::core::Outcome), describing the output of 
 pub struct Output {
     pub train_accuracy: f32,
     pub train_loss: f32,
-    pub test_accuracy: f32,
+    #[maximize]
+    pub test_accuracy: f64,
     pub test_loss: f32,
+    #[minimize]
     pub parameters: f64, // <---- Number of parameters to minimize as a f64
+    #[step]
     pub step: Step, // <---- Step to define the current step of the evaluation
     pub rank: i32, // <---- Rank to record which worker computed the solution
 }
@@ -459,7 +462,7 @@ let step = if next_step >= config.num_epochs {
     Output{
         train_accuracy,
         train_loss,
-        test_accuracy,
+        test_accuracy: test_accuracy as f64,
         test_loss,
         parameters: model.num_params() as f64,
         step,
@@ -589,7 +592,7 @@ objective!{
             Output{
                 train_accuracy,
                 train_loss,
-                test_accuracy,
+                test_accuracy: test_accuracy as f64,
                 test_loss,
                 parameters: model.num_params() as f64,
                 step,
@@ -620,40 +623,25 @@ fn main() {
     
     let proc = MPIProcess::new();
     let rank = proc.rank;
-
-    // here we isolate a GPU for each process.
-    // For node 1 GPU 0 is for rank 2, GPU 1 for rank 1,
-    // node 2, GPU 0 is for rank 4, GPU 1 for rank 3 ...
     unsafe { std::env::set_var("CUDA_VISIBLE_DEVICES", (rank % 2).to_string()) };
     
     let device = CudaDevice::new(0);
+    println!("GPU 0/{}, on {:?}",CudaDevice::device_count_total(), device);
+
 
     let sp = get_searchspace();
-    let obj = get_function::<Cuda<f32, i32>>(); // <--- The generics are inherited from the user-defined function
+    let obj = get_function::<Cuda<f32, i32>>();
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.);
 
-    let opt = MoAsha::new(NSGA2Selector, 1., 20., 2.); // <--- Define the optimizer (min 1 epoch, max 20 epoch, scale 2)
-    // Define the codomain, i.e. what to optimize
-    let cod = moasha::codomain(
-        [
-            |o: &Output| o.test_accuracy as f64, // <---- Maximize accuracy
-            |o: &Output| -o.parameters,  // <----- Minimize parameters
-        ].into()
-    );
-    let stop = Calls::new(1000); // <---- Define a stopping criterion, i.e. 1000 calls to the user-defined `run` function
-    let config = FolderConfig::new("moasha_example").init(&proc); // <---- Define where to save recorded points and checkpoints
-    let rec = CSVRecorder::new(config.clone(), true, false, true, true); // <--- Define a CSV recorder, do not record opt part (equal to obj part)
-    let check = MessagePack::new(config); // <--- Checkpointer based on message pack. The user-defined function state has its own checkpointing method.
+    let stop = Calls::new(100000);
+    let config = FolderConfig::new("moasha_example").init(&proc);
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
 
-    // Combine everything within a distributed experiment
-    // PoolMode is set to persistent. It means that each worker can only handle a single funcstate at a time.
-    // If a worker has to remember a previous func state from another solution, then the current one will be checkpointed
-    // and replaced by the new one.
-    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
-
+    let exp = distributed_with_pool(&proc, sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     println!("RUNNING EXPERIMENT from rank {}", rank);
     let acc = exp.run();
-
-    // Retrieve and print the pareto front
     if let Some(a) = acc {
         let pareto = a.get();
         for dominant in pareto {

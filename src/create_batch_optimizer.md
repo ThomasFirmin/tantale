@@ -41,13 +41,13 @@ We add an extra field `iteration`, to count the number of calls to the SHA `step
 use tantale::macros::OptState;
 use serde::{Serialize,Deserialize};
 
-#[derive(OptState,Serialize,Deserialize)]
-pub struct ShaState{
-    pub batch: usize, // batch size
-    pub budget_min: f64, // b0
-    pub budget_max: f64, // bmax
-    pub budget: f64, // b
-    pub scaling: f64, // eta
+#[derive(OptState, Serialize, Deserialize)]
+pub struct ShaState {
+    pub batch: usize,     // batch size
+    pub budget_min: f64,  // b0
+    pub budget_max: f64,  // bmax
+    pub budget: f64,      // b
+    pub scaling: f64,     // eta
     pub iteration: usize, // i
 }
 ```
@@ -66,7 +66,7 @@ use tantale::macros::{OptInfo, CSVWritable};
 use serde::{Serialize,Deserialize};
 
 #[derive(OptInfo, CSVWritable, Default, Debug, Serialize, Deserialize)]
-pub struct ShaInfo{
+pub struct ShaInfo {
     pub iteration: usize,
 }
 
@@ -133,7 +133,6 @@ This include:
 
 Then, multiple associated types have to be defined:
 * [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
-* [`Cod`](crate::core::Optimizer::Cod): The [`Codomain`](crate::core::Codomain) the algorithm is optimizing (e.g. single or multi-objectives)
 * [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
   and for [`BatchOptimizer`](crate::core::BatchOptimizer):
 * [`Info`](crate::core::OptInfo): Per-iteration meta-data
@@ -148,8 +147,7 @@ SHA requires a [`ThreadRng`](https://docs.rs/rand/latest/rand/rngs/struct.Thread
 But, it is not serializable, nor deserializable, so it cannot be stored within the 
 [`OptState`](crate::core::OptState).
 
-Then, we can implement some methods for a better user usage. For example, a `new` builder method. Or, a `codomain` function within the module
-to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer.
+Then, we can implement some methods for a better user usage. For example, a `new` builder method.
 
 ``` rust
 # use tantale::macros::OptState;
@@ -171,21 +169,9 @@ to help creating the right [`Codomain`](crate::core::Codomain) for the optimizer
 #     pub iteration: usize,
 # }
 
-use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
 use rand::prelude::ThreadRng;
 
 pub struct Sha(pub ShaState, ThreadRng);
-
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
-    };
-    out.into()
-}
 
 impl Sha {
     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
@@ -219,6 +205,10 @@ be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generi
 This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that the SHA can be used whatever
 the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
+The [`Codomain`](crate::core::Codomain) and its associated [`TypeCodom`](crate::core::Codomain::TypeCodom) can be constrained to specialize the optimizer.
+For the SHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`Ord`](std::cmp::Ord) to b able to compare solutions between each others.
+Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-objective optimizer.
+
 ```rust
 # use tantale::macros::OptState;
 # use serde::{Serialize,Deserialize};
@@ -239,7 +229,6 @@ the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer,
 #     pub iteration: usize,
 # }
 # 
-# use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
 # use rand::prelude::ThreadRng;
 # 
 # pub struct Sha(pub ShaState, ThreadRng);
@@ -265,28 +254,18 @@ the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer,
 #             rand::rng(),
 #         )
 #     }
-# 
-#     pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-#     where
-#         Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#         Out: FidOutcome,
-#     {
-#         let out = SingleCodomain {
-#             y_criteria: extractor,
-#         };
-#         out.into()
-#     }
 # }
 
-use tantale::core::{EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt};
+use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom};
 
 impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
-    type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
     
     fn get_state(&self) -> &Self::State {
@@ -326,13 +305,12 @@ We have to define two functions:
 #     pub iteration:usize, // i
 # }
 # use tantale::macros::{OptInfo, CSVWritable};
-#
+# 
 # #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
 # pub struct ShaInfo{
 #     pub iteration: usize,
 # }
 # 
-# use tantale::core::{Codomain, Criteria, FidOutcome, SingleCodomain};
 # use rand::prelude::ThreadRng;
 # 
 # pub struct Sha(pub ShaState, ThreadRng);
@@ -358,44 +336,37 @@ We have to define two functions:
 #             rand::rng(),
 #         )
 #     }
-# 
-#     pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-#     where
-#         Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-#         Out: FidOutcome,
-#     {
-#         let out = SingleCodomain {
-#             y_criteria: extractor,
-#         };
-#         out.into()
-#     }
 # }
 # 
-# use tantale::core::{EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt};
+# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom};
 # 
 # impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 # where
 #     Out: FidOutcome,
+#     Out::Cod: Single<Out>,
+#     TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 # {
 #     type State = ShaState;
-#     type Cod = SingleCodomain<Out>;
 #     type SInfo = EmptyInfo;
 #     
 #     fn get_state(&self) -> &Self::State {
 #         &self.0
 #     }
-#     
+# 
 #     fn get_mut_state(&mut self) -> &Self::State {
 #         &self.0
 #     }
-#
+#     
 #     fn from_state(state: Self::State) -> Self {
 #         Sha(state, rand::rng())
 #     }
 # }
 
-use tantale::core::{Batch, BatchOptimizer, CompBatch, FuncState, HasFidelity, HasStep, IntoComputedShape, RawObj, Step, Stepped, SolutionShape, CompAcc};
+use tantale::core::{
+    CompShape, Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, 
+    HasFidelity, HasStep, RawObj, Step, Stepped, IntoComputedShape
+};
 
 impl<Out, Scp, FnState>
     BatchOptimizer<
@@ -408,19 +379,22 @@ impl<Out, Scp, FnState>
     > for Sha
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    // Computed Scp::SolShape should also implement HasStep, HasFidelity, and Ord
-    CompShape<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
 
-    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = ShaInfo{iteration: self.0.iteration};
-        let pairs: Vec<_> = scp.vec_apply_pair( // Use vec_apply_pair to set minimum fidelity
-            |mut pair| 
-            {
+    fn first_step(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+        let info = ShaInfo {
+            iteration: self.0.iteration,
+        };
+        let pairs: Vec<_> = scp.vec_apply_pair(
+            // Use vec_apply_pair to set minimum fidelity
+            |mut pair| {
                 pair.set_fidelity(self.0.budget);
                 pair
             },
@@ -430,61 +404,81 @@ where
         );
         Batch::new(pairs, info.into())
     }
-
     fn step(
-            &mut self,
-            x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Self::Cod, Out>,
-            scp: &Scp,
-            _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>,
-        ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-            
-            let (pairs,_) = x.extract(); // Extract component of CompBatch
-            // Keep only Partially computed solution
-            let mut pairs: Vec<_> = pairs.into_iter().filter_map(
-                |comp|
-                match comp.step() {
-                    Step::Partially(_) => Some(comp),
-                    _ => None,
-                }
-            ).collect();
+        &mut self,
+        x: CompBatch<
+            StepSId,
+            Self::SInfo,
+            Self::Info,
+            Scp::SolShape,
+        
+            Out,
+        >,
+        scp: &Scp,
+        acc: &CompAcc<
+            Scp::SolShape,
+            StepSId,
+            Self::SInfo,
+        
+            Out,
+        >,
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+        let (pairs, _) = x.extract(); // Extract component of CompBatch
+        // Keep only Partially computed solution
+        let mut pairs: Vec<_> = pairs
+            .into_iter()
+            .filter_map(|comp| match comp.step() {
+                Step::Partially(_) => Some(comp),
+                _ => None,
+            })
+            .collect();
 
-            // If no solution is remaining, then generate a new batch with first_step
-            if pairs.is_empty() {
-                self.0.budget = self.0.budget_min; // Reset budget
-                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
-            }else{
-                // Compute the k to extract top k solution and discard others
-                let k = pairs.len() - (((pairs.len() as f64)/ self.0.scaling) as usize).max(1);
-                self.0.budget = (self.0.budget*self.0.scaling).min(self.0.budget_max); // min to prevent overflowing budget_max
-                self.0.iteration += 1;
+        // If no solution is remaining, then generate a new batch with first_step
+        if pairs.is_empty() {
+            self.0.budget = self.0.budget_min; // Reset budget
+            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
+        } else {
+            // Compute the k to extract top k solution and discard others
+            let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
+            self.0.budget = (self.0.budget * self.0.scaling).min(self.0.budget_max); // min to prevent overflowing budget_max
+            self.0.iteration += 1;
 
-                // worst solutions before index k, top k  solution at index k and after
-                pairs.select_nth_unstable(k);
-                // Extract Uncomputed solution from Computed
-                let new_pairs:Vec<_> = pairs.into_iter().enumerate().map(
-                    |(i,computed)|
-                    {
-                        let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
-                        if i < k {
-                            pair.discard(); // Discard all solution before k and k others
-                        } else {
-                            pair.set_fidelity(self.0.budget); // Set new budget for solution after index k
-                        }
-                        pair
+            // worst solutions before index k, top k  solution at index k and after
+            pairs.select_nth_unstable(k);
+            // Extract Uncomputed solution from Computed
+            let new_pairs: Vec<_> = pairs
+                .into_iter()
+                .enumerate()
+                .map(|(i, computed)| {
+                    let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
+                    if i < k {
+                        pair.discard(); // Discard all solution before k and k others
+                    } else {
+                        pair.set_fidelity(self.0.budget); // Set new budget for solution after index k
                     }
-                ).collect();
+                    pair
+                })
+                .collect();
 
-                // If no solution remaining then generate new ones
-                if new_pairs.is_empty() {
-                    self.0.budget = self.0.budget_min; // Reset budget
-                    <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
-                } else {
-                    Batch::new(new_pairs, ShaInfo{iteration: self.0.iteration}.into())
-                }
+            // If no solution remaining then generate new ones
+            if new_pairs.is_empty() {
+                self.0.budget = self.0.budget_min; // Reset budget
+                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                    self, scp, acc
+                )
+            } else {
+                Batch::new(
+                    new_pairs,
+                    ShaInfo {
+                        iteration: self.0.iteration,
+                    }
+                    .into(),
+                )
             }
+        }
     }
 
-    fn set_batch_size(&mut self, batch_size : usize){
+    fn set_batch_size(&mut self, batch_size: usize) {
         self.0.batch = batch_size
     }
 

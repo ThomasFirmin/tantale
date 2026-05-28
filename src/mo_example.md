@@ -28,7 +28,7 @@ e   1.0 |  .  .  .  .  . 14  .  .  .  .  5
 ```rust
 mod searchspace {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{FuncState, Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
+    use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
     use tantale::macros::{CSVWritable, Outcome, objective};
 
 #   pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
@@ -59,7 +59,7 @@ mod searchspace {
     }
 
     impl FuncState for FnState {
-        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
             rmp_serde::encode::write(&mut file, &self).unwrap();
             Ok(())
@@ -74,9 +74,12 @@ mod searchspace {
 
     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct MoFidOutEvaluator {
+        #[maximize]
         pub obj1: f64, // First objective
+        #[maximize]
         pub obj2: f64, // Second objective
         info: f64,     // Extra info
+        #[step]
         pub fid: Step, // Evaluation step
     }
 
@@ -123,7 +126,7 @@ mod searchspace {
 ```rust
 # mod searchspace {
 #     use serde::{Deserialize, Serialize};
-#     use tantale::core::{FuncState, Bernoulli, Bool, Cat, Int, Nat, Real, Step, Uniform};
+#     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
 #     use tantale::macros::{CSVWritable, Outcome, objective};
 # 
 #   pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
@@ -147,69 +150,72 @@ mod searchspace {
 #           _ => unreachable!("Index out of bounds for random codomain generation"),
 #       }
 #   }
-#
-#    #[derive(Serialize, Deserialize)]
-#    pub struct FnState {
-#        pub state: isize,
-#    }
-#
-#    impl FuncState for FnState {
-#        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
-#            let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
-#            rmp_serde::encode::write(&mut file, &self).unwrap();
-#            Ok(())
-#        }
-#        fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
-#            let file_path = path.join("fn_state.mp");
-#            let file = std::fs::File::open(file_path)?;
-#            let state = rmp_serde::decode::from_read(file).unwrap();
-#            Ok(state)
-#        }
-#    }
-#
-#    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
-#    pub struct MoFidOutEvaluator {
-#        pub obj1: f64, // First objective
-#        pub obj2: f64, // Second objective
-#        info: f64,     // Extra info
-#        pub fid: Step, // Evaluation step
-#    }
-#
-#    objective!(
-#        pub fn example() -> (MoFidOutEvaluator, FnState) {
-#
-#            let fid = [! FIDELITY !];
-#
-#            let _a = [! a | Int(0,100, Uniform) | !];
-#            let _b = [! b | Nat(0,100, Uniform) | !];
-#            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
-#            let _d = [! d | Bool(Bernoulli(0.5)) | !];
-#
-#            // ... some extra computation ...
-#
-#            // Virtually update the step
-#            let mut state = match [! STATE !]{
-#                Some(s) => s,
-#                None => FnState { state: 0 },
-#            };
-#            state.state += 1;
-#            let evalstate = if fid == 10. {Step::Evaluated} else{Step::Partially(fid as isize)};
-#            let obj = random_codom();
-#            (
-#                MoFidOutEvaluator{
-#                    obj1: obj.value[0],
-#                    obj2: obj.value[1],
-#                    info: [!j | Real(0.0,2000.0, Uniform) | !],
-#                    fid: evalstate,
-#                },
-#                state
-#            )
-#
-#        }
-#    );
-#    // The macro expands to helpers like:
-#    // let sp = example::get_searchspace();
-#    // let obj = example::get_function();
+# 
+#     #[derive(Serialize, Deserialize)]
+#     pub struct FnState {
+#         pub state: isize,
+#     }
+# 
+#     impl FuncState for FnState {
+#         fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
+#             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
+#             rmp_serde::encode::write(&mut file, &self).unwrap();
+#             Ok(())
+#         }
+#         fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+#             let file_path = path.join("fn_state.mp");
+#             let file = std::fs::File::open(file_path)?;
+#             let state = rmp_serde::decode::from_read(file).unwrap();
+#             Ok(state)
+#         }
+#     }
+# 
+#     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#     pub struct MoFidOutEvaluator {
+#         #[maximize]
+#         pub obj1: f64, // First objective
+#         #[maximize]
+#         pub obj2: f64, // Second objective
+#         info: f64,     // Extra info
+#         #[step]
+#         pub fid: Step, // Evaluation step
+#     }
+# 
+#     objective!(
+#         pub fn example() -> (MoFidOutEvaluator, FnState) {
+# 
+#             let fid = [! FIDELITY !];
+# 
+#             let _a = [! a | Int(0,100, Uniform) | !];
+#             let _b = [! b | Nat(0,100, Uniform) | !];
+#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
+# 
+#             // ... some extra computation ...
+# 
+#             // Virtually update the step
+#             let mut state = match [! STATE !]{
+#                 Some(s) => s,
+#                 None => FnState { state: 0 },
+#             };
+#             state.state += 1;
+#             let evalstate = if fid == 10. {Step::Evaluated} else{Step::Partially(fid as isize)};
+#             let obj = random_codom();
+#             (
+#                 MoFidOutEvaluator{
+#                     obj1: obj.value[0],
+#                     obj2: obj.value[1],
+#                     info: [!j | Real(0.0,2000.0, Uniform) | !],
+#                     fid: evalstate,
+#                 },
+#                 state
+#             )
+# 
+#         }
+#     );
+#     // The macro expands to helpers like:
+#     // let sp = example::get_searchspace();
+#     // let obj = example::get_function();
 # }
 # 
 # struct Cleaner {
@@ -222,37 +228,36 @@ mod searchspace {
 #     }
 # }
 
-use tantale::{algos::mo::NSGA2Selector, core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SaverConfig, SolutionShape, experiment::{Runable, threaded}, stop::Calls
-}};
-use tantale::algos::{MoAsha, moasha};
-use searchspace::{get_searchspace, get_function, MoFidOutEvaluator};
+use tantale::{
+    algos::mo::NSGA2Selector,
+    core::{
+        CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SaverConfig, SolutionShape,
+        experiment::{Runable, threaded},
+        stop::Calls,
+    },
+};
+use tantale::algos::{MoAsha, RandomSearch};
+use searchspace::{get_function, get_searchspace};
 
 # drop(Cleaner {
-#     path: String::from("moasha_example"),
+#     path: String::from("tmp_moasha_example"),
 # });
 # let _clean = Cleaner {
-#     path: String::from("moasha_example"),
+#     path: String::from("tmp_moasha_example"),
 # };
 
 let sp = get_searchspace();
 let obj = get_function();
 // Selector, budget min and max per solution, scaling factor
-let opt = MoAsha::new(NSGA2Selector, 1., 10., 1.61);
-let cod = moasha::codomain(
-    [
-        |o: &MoFidOutEvaluator| o.obj1,
-        |o: &MoFidOutEvaluator| o.obj2,
-    ]
-    .into(),
-);
+let sampler = RandomSearch::new();
+let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61);
 
 let stop = Calls::new(25);
-let config = FolderConfig::new("moasha_example").init();
+let config = FolderConfig::new("tmp_moasha_example").init();
 let rec = CSVRecorder::new(config.clone(), true, true, true, true);
 let check = MessagePack::new(config);
 
-let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+let exp = threaded(sp, obj, opt, stop, (rec, check));
 let acc = exp.run();
 let pareto = acc.get();
 

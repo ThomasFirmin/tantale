@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tantale::core::domain::codomain::TypeCodom;
 use tantale::macros::OptState;
 
 #[derive(OptState, Serialize, Deserialize)]
@@ -62,18 +63,18 @@ impl Sha {
     }
 }
 
-use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Optimizer, Searchspace};
+use tantale::core::{EmptyInfo, FidelitySol, Optimizer, Searchspace, LinkOpt, Single};
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Sha
+impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
-    type Cod = SingleCodomain<Out>;
     type SInfo = EmptyInfo;
-
+    
     fn get_state(&self) -> &Self::State {
         &self.0
     }
@@ -81,6 +82,7 @@ where
     fn get_mut_state(&mut self) -> &Self::State {
         &self.0
     }
+    
     fn from_state(state: Self::State) -> Self {
         Sha(state, rand::rng())
     }
@@ -102,14 +104,16 @@ impl<Out, Scp, FnState>
     > for Sha
 where
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, Self::SInfo, Self::Cod, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
 {
     type Info = ShaInfo;
 
-    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let info = ShaInfo {
             iteration: self.0.iteration,
         };
@@ -132,15 +136,15 @@ where
             Self::SInfo,
             Self::Info,
             Scp::SolShape,
-            Self::Cod,
+        
             Out,
         >,
         scp: &Scp,
-        _acc: &CompAcc<
+        acc: &CompAcc<
             Scp::SolShape,
             StepSId,
             Self::SInfo,
-            Self::Cod,
+        
             Out,
         >,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
@@ -157,7 +161,7 @@ where
         // If no solution is remaining, then generate a new batch with first_step
         if pairs.is_empty() {
             self.0.budget = self.0.budget_min; // Reset budget
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
+            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
         } else {
             // Compute the k to extract top k solution and discard others
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
@@ -185,7 +189,7 @@ where
             if new_pairs.is_empty() {
                 self.0.budget = self.0.budget_min; // Reset budget
                 <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                    self, scp,
+                    self, scp, acc
                 )
             } else {
                 Batch::new(

@@ -46,9 +46,12 @@ mod searchspace {
 
     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct MoFidOutEvaluator {
+        #[maximize]
         pub obj1: f64, // First objective
+        #[maximize]
         pub obj2: f64, // Second objective
         info: f64,     // Extra info
+        #[step]
         pub fid: Step, // Evaluation step
         pub rank: i32,
     }
@@ -102,8 +105,8 @@ impl Drop for Cleaner {
     }
 }
 
-use searchspace::{MoFidOutEvaluator, get_function, get_searchspace};
-use tantale::algos::{MoAsha, moasha};
+use searchspace::{get_function, get_searchspace};
+use tantale::algos::{MoAsha, RandomSearch};
 use tantale::core::{DistSaverConfig, MPIProcess, PoolMode, distributed_with_pool};
 use tantale::{
     algos::mo::NSGA2Selector,
@@ -125,14 +128,8 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     // Selector, budget min and max per solution, scaling factor
-    let opt = MoAsha::new(NSGA2Selector, 1., 10., 1.61);
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61);
 
     let stop = Calls::new(25);
     let config = FolderConfig::new("tmp_test_mpi_moasha").init(&proc);
@@ -141,7 +138,7 @@ fn main() {
 
     let exp = distributed_with_pool(
         &proc,
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,

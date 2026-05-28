@@ -1,9 +1,9 @@
-use tantale::algos::{RandomSearch, random_search};
+use tantale::algos::RandomSearch;
 use tantale::core::{
     CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
     mono_with_pool,
 };
-use tantale::python::{PyOutcome, init_python};
+use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader;
@@ -29,20 +29,15 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Objective,
-        sp_ms_nosamp,
-        "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py",
-        "function_async_parrun",
-        "objective",
-        "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py",
-        "function_async_parrun",
-        "MyOutcome"
+        Objective, sp_ms_nosamp,
+        "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py", "function_async_parrun", "objective",
+        "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py", "function_async_parrun", "MyOutcome",
+        objectives: [maximize "obj1"],
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
 
     let opt = RandomSearch::new(); // log(max/min)
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
@@ -50,7 +45,7 @@ fn test_python_function() {
     let check = MessagePack::new(config);
 
     mono_with_pool(
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -62,13 +57,12 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj2;
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -77,13 +71,12 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = obj3;
-    let cod = random_search::codomain(|o: &PyOutcome| o.getattr_f64("obj1"));
 
     let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, RandomSearch, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_python_async_parrun_parrun_rs", 100);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

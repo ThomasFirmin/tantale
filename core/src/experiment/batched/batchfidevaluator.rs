@@ -111,7 +111,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -151,17 +151,16 @@ where
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
     ) -> (
-        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>>,
+        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
@@ -313,7 +312,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -321,25 +320,25 @@ where
         Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
     SolId: StepId + Send + Sync,
     Op: BatchOptimizer<
-            PSol,
-            SolId,
-            LinkOpt<Scp>,
+        PSol,
+        SolId,
+        LinkOpt<Scp>,
+        Out,
+        Scp,
+        Stepped<
+            RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
             Out,
-            Scp,
-            Stepped<
-                RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
-                Out,
-                FnState,
-            >,
+            FnState,
         >,
-    Op::Cod: Send + Sync,
+    >,
     Op::SInfo: Send + Sync,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     Scp::SolShape: HasStep + HasFidelity + HasStepId<SolId> + Send + Sync,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>: Send + Sync,
-    TypeAcc<Op::Cod, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>, SolId, Op::SInfo, Out>:
-        Send + Sync,
+    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: Send + Sync,
+    TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>:
+    Send + Sync,
     St: Stop + Send + Sync,
+    Out::Cod: Send + Sync,
     Out: FidOutcome + Send + Sync,
     FnState: FuncState + Send + Sync,
     FnStPool: FuncStatePool<FnState, SolId> + Send + Sync,
@@ -368,13 +367,12 @@ where
     fn evaluate(
         &mut self,
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
-        cod: Arc<Op::Cod>,
+        cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
             Mutex<
                 TypeAcc<
-                    Op::Cod,
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
                     SolId,
                     Op::SInfo,
                     Out,
@@ -382,7 +380,7 @@ where
             >,
         >,
     ) -> (
-        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>>,
+        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results
@@ -533,8 +531,8 @@ pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolI
 
 #[cfg(feature = "mpi")]
 /// [`SendRec`] type for fidelity-aware distributed evaluation, wrapping a fidelity-aware message type.
-pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
-    SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Cod, Out>;
+pub type FidSendRec<'a, SolId, SolShape, SInfo, Out> =
+    SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Out>;
 
 #[cfg(feature = "mpi")]
 /// Recursive function to send a [`Raw`](Solution::Raw) to an available rank.
@@ -544,7 +542,7 @@ pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
 /// It returns `true` if all ranks are idle or if [`Stop`] returns `true`, `false` otherwise.
 fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     available: Rank,
-    sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Op::Cod, Out>,
+    sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Out>,
     where_is_id: &mut HashMap<SolId, Rank>,
     new_batch: &mut Batch<SolId, Op::SInfo, Op::Info, Scp::SolShape>,
     priority_discard: &mut PriorityList<Scp::SolShape>,
@@ -618,7 +616,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, Out>,
+        OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -674,21 +672,19 @@ where
             Scp::SolShape,
             SolId,
             Op::SInfo,
-            Op::Cod,
             Out,
         >,
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
     ) -> (
-        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>>,
+        Batch<SolId, Op::SInfo, Op::Info, CompShape<Scp::SolShape, SolId, Op::SInfo, Out>>,
         OutBatch<SolId, Op::Info, Out>,
     ) {
         //Results

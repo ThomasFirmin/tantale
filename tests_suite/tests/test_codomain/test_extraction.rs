@@ -1,20 +1,29 @@
-use super::init_outcome::{OutExample, get_struct};
-
-use tantale::core::domain::codomain::{
-    Codomain, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain,
-    CostConstMultiCodomain, CostMultiCodomain, MultiCodomain, SingleCodomain,
-};
-
+use super::init_cod::*;
+use tantale::core::Codomain;
 use paste::paste;
 
 macro_rules! test_const {
-    ($object:ident | $($name : ident , $codom : expr);*) => {
+    ($($name : ident , $out : ident);*) => {
         $(
             paste!{
                 #[test]
                 fn [< $name _const>] (){
-                    let out = $object ();
-                    let elem = $codom .get_elem(&out);
+                    let out = $out {
+                        obj1: 1.0,
+                        cost2: 2.0,
+                        con3: 3.0,
+                        con4: 4.0,
+                        con5: 5.0,
+                        mul6: 6.0,
+                        mul7: 7.0,
+                        mul8: 8.0,
+                        mul9: 9.0,
+                        fid10: tantale::core::Step::Evaluated,
+                        more: 10.0,
+                        info: 11.0,
+                    };
+                    let codom = <$out as tantale::core::Outcome>::codomain();
+                    let elem = codom.get_elem(&out);
 
                     assert_eq!(elem.constraints[0] , 3.0, "Constraints not equal.");
                     assert_eq!(elem.constraints[1] , 4.0, "Constraints not equal.");
@@ -26,61 +35,34 @@ macro_rules! test_const {
 }
 
 test_const!(
-    get_struct |
-    struct_constcodomain, ConstCodomain::new(
-        |h : &OutExample| h.obj1,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    );
-    struct_costconstcodomain, CostConstCodomain::new(
-        |h : &OutExample| h.obj1,
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    );
-    struct_constmulticodomain, ConstMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    );
-    struct_costconstmulticodomain, CostConstMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    )
+    outcodconst, OutCodConst;
+    outcodcostconst, OutCodCostConst;
+    outcodconstmulti, OutCodConstMulti;
+    outcodcostconstmulti, OutCodCostConstMulti
 );
 
 macro_rules! test_cost {
-    ($object:ident | $($name : ident , $codom : expr);*) => {
+    ($($name : ident , $out : ident);*) => {
         $(
             paste!{
                 #[test]
                 fn [< $name _cost>] (){
-                    let out = $object ();
-                    let elem = $codom .get_elem(&out);
+                    let out = $out {
+                        obj1: 1.0,
+                        cost2: 2.0,
+                        con3: 3.0,
+                        con4: 4.0,
+                        con5: 5.0,
+                        mul6: 6.0,
+                        mul7: 7.0,
+                        mul8: 8.0,
+                        mul9: 9.0,
+                        fid10: tantale::core::Step::Evaluated,
+                        more: 10.0,
+                        info: 11.0,
+                    };
+                    let codom = <$out as tantale::core::Outcome>::codomain();
+                    let elem = codom.get_elem(&out);
 
                     assert_eq!(elem.cost , 2.0, "Cost not equal.");
                 }
@@ -90,53 +72,34 @@ macro_rules! test_cost {
 }
 
 test_cost!(
-    get_struct |
-    struct_costconstcodomain, CostConstCodomain::new(
-        |h : &OutExample| h.obj1,
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    );
-    struct_costconstmulticodomain, CostConstMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-    );
-    struct_costcodomain , CostCodomain::new(
-        |h : &OutExample| h.obj1,
-        |h : &OutExample| h.cost2,
-    );
-    struct_costmulticodomain , CostMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        |h : &OutExample| h.cost2,
-    )
+    outcodcost, OutCodCost;
+    outcodcostconst, OutCodCostConst;
+    outcodcostmulti, OutCodCostMulti;
+    outcodcostconstmulti, OutCodCostConstMulti
 );
 
 macro_rules! test_single {
-    ($object:ident | $($name : ident , $codom : expr);*) => {
+    ($($name : ident , $out : ident);*) => {
         $(
             paste!{
                 #[test]
                 fn [< $name _single>] (){
-                    let out = $object ();
-                    let elem = $codom .get_elem(&out);
+                    let out = $out {
+                        obj1: 1.0,
+                        cost2: 2.0,
+                        con3: 3.0,
+                        con4: 4.0,
+                        con5: 5.0,
+                        mul6: 6.0,
+                        mul7: 7.0,
+                        mul8: 8.0,
+                        mul9: 9.0,
+                        fid10: tantale::core::Step::Evaluated,
+                        more: 10.0,
+                        info: 11.0,
+                    };
+                    let codom = <$out as tantale::core::Outcome>::codomain();
+                    let elem = codom.get_elem(&out);
 
                     assert_eq!(elem.value , 1.0, "costity not equal.");
                 }
@@ -146,43 +109,34 @@ macro_rules! test_single {
 }
 
 test_single!(
-    get_struct |
-    struct_singlecodomain, SingleCodomain::new(
-        |h : &OutExample| h.obj1,
-    );
-    struct_costcodomain, CostCodomain::new(
-        |h : &OutExample| h.obj1,
-        |h : &OutExample| h.cost2,
-    );
-    struct_constcodomain, ConstCodomain::new(
-        |h : &OutExample| h.obj1,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-
-    );
-    struct_costconstcodomain, CostConstCodomain::new(
-        |h : &OutExample| h.obj1,
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-
-    )
+    outcodsingle , OutCodSingle;
+    outcodcost , OutCodCost;
+    outcodconst , OutCodConst;
+    outcodcostconst , OutCodCostConst
 );
 
 macro_rules! test_multi {
-    ($object:ident | $($name : ident , $codom : expr);*) => {
+    ($($name : ident , $out : ident);*) => {
         $(
             paste!{
                 #[test]
                 fn [< $name _multi>] (){
-                    let out = $object ();
-                    let elem = $codom .get_elem(&out);
+                    let out = $out {
+                        obj1: 1.0,
+                        cost2: 2.0,
+                        con3: 3.0,
+                        con4: 4.0,
+                        con5: 5.0,
+                        mul6: 6.0,
+                        mul7: 7.0,
+                        mul8: 8.0,
+                        mul9: 9.0,
+                        fid10: tantale::core::Step::Evaluated,
+                        more: 10.0,
+                        info: 11.0,
+                    };
+                    let codom = <$out as tantale::core::Outcome>::codomain();
+                    let elem = codom.get_elem(&out);
 
                     assert_eq!(elem.value[0] , 6.0, "Multi not equal.");
                     assert_eq!(elem.value[1] , 7.0, "Multi not equal.");
@@ -195,51 +149,8 @@ macro_rules! test_multi {
 }
 
 test_multi!(
-    get_struct |
-    struct_multicodomain, MultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-    );
-    struct_costmulticodomain, CostMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        |h : &OutExample| h.cost2,
-    );
-    struct_constmulticodomain, ConstMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-
-    );
-    struct_costconstmulticodomain, CostConstMultiCodomain::new(
-        vec![
-            |h : &OutExample| h.mul6,
-            |h : &OutExample| h.mul7,
-            |h : &OutExample| h.mul8,
-            |h : &OutExample| h.mul9,
-        ].into_boxed_slice(),
-        |h : &OutExample| h.cost2,
-        vec![
-            |h : &OutExample| h.con3,
-            |h : &OutExample| h.con4,
-            |h : &OutExample| h.con5,
-            ].into_boxed_slice(),
-
-    )
+    outcodmulti , OutCodMulti;
+    outcodcostmulti , OutCodCostMulti;
+    outcodconstmulti , OutCodConstMulti;
+    outcodcostconstmulti , OutCodCostConstMulti
 );

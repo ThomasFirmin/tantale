@@ -1,4 +1,4 @@
-use tantale::algos::{MoAsha, moasha};
+use tantale::algos::{MoAsha, RandomSearch, moasha};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
@@ -10,7 +10,7 @@ use tantale::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{MoFidOutEvaluator, sp_evaluator_mo};
+use crate::init_func::sp_evaluator_mo;
 use crate::run_checker::run_reader_eps;
 
 #[test]
@@ -28,21 +28,15 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61); // log(max/min)
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
@@ -50,19 +44,12 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_test_moasha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -78,19 +65,12 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_test_moasha_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_run", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
@@ -119,21 +99,15 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61);
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61);
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     // 200 = 4 steps * 100 calls  + 6 evals for rungs filling
@@ -141,19 +115,12 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj, (rec, check));
+    let mut exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
 
     let expstop: &mut Calls = exp.get_mut_stop();
     let max_call = expstop.calls() + num_cpus::get();
@@ -175,19 +142,12 @@ fn test_fid_seq_parrun() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, MoAsha<NSGA2Selector, _>, Calls, (sp, cod), obj, (rec, check));
+    let exp = load!(threaded, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj, (rec, check));
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_parrun", 400, 100);
     let expstop: &Calls = exp.get_stop();

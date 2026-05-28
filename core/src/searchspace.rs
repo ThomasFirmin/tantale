@@ -6,10 +6,10 @@
 //!
 //! ## Overview
 //!
-//! A [`Searchspace`] is composed of [`Var`](crate::Var) instances, each defining a variable with:
+//! A [`Searchspace`] is typed by :
 //! - An **Obj domain**: The domain for the objective function's input
 //! - An **Opt domain**: The domain for the optimizer's representation
-//! - Mapping functions between these two domains via [`Onto`](crate::Onto)
+//!   `Obj` and `Opt` types are related via [`Onto`](crate::Onto)
 //!
 //! ## Dual Domain Architecture
 //!
@@ -33,66 +33,62 @@
 //! # Example with [`hpo!`](../../../tantale/macros/macro.hpo.html).
 //!
 //! This is a mock example to illustrate the usage of the searchspace and its mapping functions.
-//! See concrete examples within the repository for more detailed use cases.
+//! See actual examples within the repository for more detailed use cases.
 //!
-//! ```rust,ignore
-//!
-//!     use tantale::core::{Bool, Cat, Nat, Real, Searchspace,
-//!                         Uniform, Bernoulli,
-//!                         EmptyInfo, Solution, SId};
-//!     use tantale::macros::{hpo,Outcome};
+//! ```rust
+//! mod searchspace{
+//!     use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+//!     use tantale::macros::{hpo, Outcome};
 //!     use std::sync::Arc;
 //!     use serde::{Serialize,Deserialize};
 //!
 //!     
 //!     hpo!(
-//!         a | Real(0.0,1.0,Uniform)            |                       ;
-//!         b | Nat(0,100,Uniform)               | Real(0.0,1.0,Uniform) ;
-//!         c | Cat(["relu", "tanh", "sigmoid"]) | Real(0.0,1.0,Uniform) ;
-//!         d | Bool()                           | Real(0.0,1.0,Uniform) ;
+//!         a | Real(0.0,1.0,Uniform)         |                       ;
+//!         b | Nat(0,100,Uniform)            | Real(0.0,1.0,Uniform) ;
+//!         c | Cat(["a", "b", "c"], Uniform) | Real(0.0,1.0,Uniform) ;
+//!         d | Bool(Bernoulli(0.5))          | Real(0.0,1.0,Uniform) ;
 //!     );
 //!
-//!     let mut rng: rand::rngs::ThreadRng = rand::rng();
-//!     let sp = get_searchspace();
-//!     let info = std::sync::Arc::new(EmptyInfo{});
-//!
-//!     let obj = sp.sample_obj(&mut rng, info.clone());
-//!     let opt = sp.onto_opt(obj.clone()); // Map obj => opt
-//!     // Paired solutions have the same ID
-//!     let id1 : SId = obj.get_id();
-//!     let id2 : SId = opt.get_id();
-//!     println!("Obj ID : {} <=> Opt ID : {}", id1.id, id2.id);
-//!
-//!     #[derive(Outcome,Serialize,Deserialize)]
-//!     struct OutStruct{pub out:f64}
+//!     #[derive(Outcome, Debug, Serialize, Deserialize)]
+//!     pub struct OutStruct{#[maximize] pub out:f64}
 //!
 //!     // _TantaleMixedObj is automatically created by hpo!
-//!     fn compute_obj(tantale_in : Arc::<[<_TantaleMixedObj as Domain >::TypeDom]>) -> OutStruct{
+//!     pub fn example(tantale_in : Arc::<[<ObjType as Domain>::TypeDom]>) -> OutStruct{
 //!         let a = match tantale_in[0]{
-//!             _TantaleMixedObjTypeDom::Real(value) => value,
-//!             _ !(""),
+//!             MixedTypeDom::Real(value) => value,
+//!             _ => panic!("Unexpected type for a"),
 //!         };
 //!         let b = match tantale_in[1]{
-//!             _TantaleMixedObjTypeDom::Nat(value) => value,
-//!             _ !(""),
+//!             MixedTypeDom::Nat(value) => value,
+//!             _ => panic!("Unexpected type for b"),
 //!         };
 //!         let c = match tantale_in[2]{
-//!             _TantaleMixedObjTypeDom::Cat(ref value) => value,
-//!             _ !(""),
+//!             MixedTypeDom::Cat(ref value) => value,
+//!             _ => panic!("Unexpected type for c"),
 //!         };
 //!         let d = match tantale_in[3]{
-//!             _TantaleMixedObjTypeDom::Bool(value) => value,
-//!             _ !(""),
+//!             MixedTypeDom::Bool(value) => value,
+//!             _ => panic!("Unexpected type for d"),
 //!         };
 //!         println!("a {}, b {}, c {}, d {}", a, b, c, d);
 //!
 //!         OutStruct{out:42.0}
 //!     }
+//! }
+//! 
+//! use tantale::core::{HasX, Sp, BaseSol, EmptyInfo,Searchspace,Solution,SId, HasId};
+//! use searchspace::{ObjType, OptType};
 //!
-//!     let o = compute_obj(obj.get_x());
-//!     println!("OUT {}", o.out);
+//! let sp = searchspace::get_searchspace();
+//! let info = std::sync::Arc::new(EmptyInfo{});
+//! let mut rng: rand::rngs::ThreadRng = rand::rng();
 //!
-//!
+//! let sample: BaseSol<SId,ObjType,EmptyInfo> =
+//! <Sp<ObjType, OptType> as Searchspace<BaseSol<_,OptType,_>, _, _>>::sample_obj(&sp, &mut rng, info.clone());
+//! let id1: SId = sample.id();
+//! let out = searchspace::example(sample.clone_x());
+//! println!("ID : {} -- Out {}",id1.id,out.out);
 //! ```
 //!
 //! # Example with [`objective!`](../../../tantale/macros/macro.objective.html).
@@ -104,7 +100,7 @@
 //!     use serde::{Serialize,Deserialize};
 //!
 //!     #[derive(Outcome,Debug,Serialize,Deserialize)]
-//!     pub struct OutStruct{pub out:f64}
+//!     pub struct OutStruct{#[maximize] pub out:f64}
 //!
 //!     objective!(
 //!         pub fn example() -> OutStruct {
@@ -119,7 +115,7 @@
 //!     );
 //! }
 //!
-//! use tantale::core::{Sp, BaseSol, EmptyInfo,Searchspace,Solution,SId, HasId};
+//! use tantale::core::{HasX, Sp, BaseSol, EmptyInfo,Searchspace,Solution,SId, HasId};
 //! use searchspace::{ObjType, OptType};
 //!
 //! let sp = searchspace::get_searchspace();
@@ -143,12 +139,12 @@ use rand::prelude::Rng;
 use std::sync::Arc;
 
 /// Type alias for the computed solution shape of solution shape.
-pub type CompShape<SolShape, SolId, SInfo, Cod, Out> =
-    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Cod, Out>;
+pub type CompShape<SolShape, SolId, SInfo, Out> =
+    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>;
 
 /// Type alias for an optional computed solution shape of solution shape.
-pub type OptionCompShape<SolShape, SolId, SInfo, Cod, Out> = Option<
-    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Cod, Out>
+pub type OptionCompShape<SolShape, SolId, SInfo, Out> = Option<
+    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>
 >;
 
 /// Type alias for the raw solution shape of a searchspace.
@@ -206,7 +202,7 @@ pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, 
 /// let obj_solution = sp.onto_obj(opt_solution);
 ///
 /// // Evaluate objective function
-/// let outcome = objective_fn(obj_solution.get_x());
+/// let outcome = objective_fn(obj_solution.ref_x());
 /// ```
 ///
 /// # See Also
@@ -258,7 +254,6 @@ where
     /// * `inp` - Solution in the Obj domain
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -273,7 +268,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
+    /// use tantale::core::{HasX, Sp, BaseSol, Bounded, Mixed, Real, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -284,10 +279,9 @@ where
     /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     /// let opt: Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, SId, _, _, _> = sp.onto_opt(obj); // Map obj => opt
     ///
-    /// for (i, o) in opt.get_sobj().get_x().iter().zip(opt.get_sopt().get_x().iter()) {
+    /// for (i, o) in opt.get_sobj().ref_x().iter().zip(opt.get_sopt().ref_x().iter()) {
     ///     println!("Obj: {:?} => Opt: {}", i, o);
     /// }
-    ///
     /// ```
     fn onto_opt(&self, inp: SolOpt::Twin<Self::Obj>) -> Self::SolShape;
     /// Maps a solution from the Opt domain to the Obj domain.
@@ -297,7 +291,6 @@ where
     /// * `inp` - Solution in the Opt domain
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -312,7 +305,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
+    /// use tantale::core::{HasX, Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, SolutionShape};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -323,10 +316,9 @@ where
     /// let opt: BaseSol<SId, Bounded<f64>, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     /// let obj = sp.onto_obj(opt); // Map opt => obj
     ///
-    /// for (i, o) in obj.get_sopt().get_x().iter().zip(obj.get_sobj().get_x().iter()) {
+    /// for (i, o) in obj.get_sopt().ref_x().iter().zip(obj.get_sobj().ref_x().iter()) {
     ///     println!("Opt: {} => Obj: {:?}", i, o);
     /// }
-    ///
     /// ```
     fn onto_obj(&self, inp: SolOpt) -> Self::SolShape;
     /// Generates a random solution in the Obj (objective function) domain.
@@ -339,7 +331,6 @@ where
     /// * `info` - Shared solution metadata
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -354,7 +345,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
+    /// use tantale::core::{HasX, Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -364,10 +355,9 @@ where
     ///
     /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     ///
-    /// for i in obj.get_x().iter(){
+    /// for i in obj.ref_x().iter(){
     ///     println!("{:?}", i);
     /// }
-    ///
     /// ```
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
     /// Generates a random solution in the Opt (optimizer) domain.
@@ -380,7 +370,6 @@ where
     /// * `info` - Shared solution metadata
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -395,7 +384,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
+    /// use tantale::core::{HasX, Sp, BaseSol, Bounded, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -405,10 +394,9 @@ where
     ///
     /// let opt: BaseSol<SId, Bounded<f64>, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     ///
-    /// for i in opt.get_x().iter(){
+    /// for i in opt.ref_x().iter(){
     ///     println!("{}", i);
     /// }
-    ///
     /// ```
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
     /// Generates a random paired solution containing both Obj and Opt representations.
@@ -422,7 +410,6 @@ where
     /// * `info` - Shared solution metadata
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -437,7 +424,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape, HasId};
+    /// use tantale::core::{HasX,Sp, BaseSol, Real, Mixed, Pair, Solution, EmptyInfo, SId, Searchspace, SolutionShape, HasId};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -448,9 +435,8 @@ where
     /// let pair: Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, SId, _, _, _> = sp.sample_pair(&mut rng, info.clone());
     ///
     /// println!("Paired ID: {:?}", pair.id());
-    /// println!("Obj: {:?}", pair.get_sobj().get_x());
-    /// println!("Opt: {:?}", pair.get_sopt().get_x());
-    ///
+    /// println!("Obj: {:?}", pair.get_sobj().ref_x());
+    /// println!("Opt: {:?}", pair.get_sopt().ref_x());
     /// ```
     ///
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
@@ -468,7 +454,6 @@ where
     /// `true` if all variable values satisfy their Obj domain constraints, `false` otherwise.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -494,7 +479,6 @@ where
     /// let obj: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp, &mut rng, info.clone());
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &obj));
-    ///
     /// ```
     fn contains_obj<S>(&self, inp: &S) -> bool
     where
@@ -515,7 +499,6 @@ where
     /// `true` if all variable values satisfy their Opt domain constraints, `false` otherwise.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -541,7 +524,6 @@ where
     /// let opt: BaseSol<SId, Real, EmptyInfo> = sp.sample_opt(&mut rng, info.clone());
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &opt));
-    ///
     /// ```
     fn contains_opt<S>(&self, inp: &S) -> bool
     where
@@ -549,7 +531,6 @@ where
     /// Maps a [`Solution`] of type `Opt` onto an [`Solution`] of type `Obj`.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -564,7 +545,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
+    /// use tantale::core::{HasX, Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -576,11 +557,10 @@ where
     /// let vec_pair: Vec<Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, _, _, _, _>> = sp.vec_onto_obj(vec_opt);
     ///
     /// for pair in vec_pair {
-    ///     for (i, o) in pair.get_sopt().get_x().iter().zip(pair.get_sobj().get_x().iter()){
+    ///     for (i, o) in pair.get_sopt().ref_x().iter().zip(pair.get_sobj().ref_x().iter()){
     ///         println!("Opt: {} => Obj: {:?}", i, o);
     ///     }
     /// }
-    ///
     /// ```
     fn vec_onto_obj(&self, inp: Vec<SolOpt>) -> Vec<Self::SolShape>;
     /// Maps a vector of solutions from the Obj domain to the Opt domain.
@@ -597,7 +577,6 @@ where
     /// Vector of paired solutions with both Obj and Opt representations.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -612,7 +591,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
+    /// use tantale::core::{HasX, Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace, Pair, SolutionShape};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -624,11 +603,10 @@ where
     /// let vec_pair: Vec<Pair<BaseSol<SId, Mixed, EmptyInfo>, BaseSol<SId, Real, EmptyInfo>, _, _, _, EmptyInfo>> = sp.vec_onto_opt(vec_obj); // Map obj => opt
     ///
     /// for pair in vec_pair.iter(){
-    ///     for (i, o) in pair.get_sobj().get_x().iter().zip(pair.get_sopt().get_x().iter()){
+    ///     for (i, o) in pair.get_sobj().ref_x().iter().zip(pair.get_sopt().ref_x().iter()){
     ///         println!("Obj: {:?} => Opt: {}", i, o);
     ///     }
     /// }
-    ///
     /// ```
     fn vec_onto_opt(&self, inp: Vec<SolOpt::Twin<Self::Obj>>) -> Vec<Self::SolShape>;
     /// Generates multiple random solutions in the Obj domain.
@@ -647,7 +625,6 @@ where
     /// Vector of randomly sampled solutions in the Obj domain, each with a unique [`Id`].
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -662,7 +639,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
+    /// use tantale::core::{HasX, Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
     /// use std::{fmt::Debug, sync::Arc};
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -673,9 +650,8 @@ where
     /// let vec_obj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
     ///
     /// for obj in vec_obj.into_iter(){
-    ///     println!("Obj: {:?}", obj.get_x());
+    ///     println!("Obj: {:?}", obj.ref_x());
     /// }
-    ///
     /// ```
     ///
     fn vec_sample_obj<R: Rng>(
@@ -700,7 +676,6 @@ where
     /// Vector of randomly sampled solutions in the Opt domain, each with a unique [`Id`].
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -715,7 +690,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
+    /// use tantale::core::{HasX, Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
     /// use std::sync::Arc;
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -726,9 +701,8 @@ where
     /// let vec_opt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
     /// for opt in vec_opt.into_iter(){
-    ///     println!("Opt: {:?}", opt.get_x());
+    ///     println!("Opt: {:?}", opt.ref_x());
     /// }
-    ///
     /// ```
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>;
     /// Generates multiple random [`SolutionShape`] with both Obj and Opt representations.
@@ -747,7 +721,6 @@ where
     /// Vector of paired solutions ([`SolutionShape`]), each with both Obj and Opt representations sharing a unique [`Id`].
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -762,7 +735,7 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Solution, Sp, BaseSol, Real, Mixed, Pair, EmptyInfo, HasId, SId, Searchspace, SolutionShape};
+    /// use tantale::core::{HasX, Solution, Sp, BaseSol, Real, Mixed, Pair, EmptyInfo, HasId, SId, Searchspace, SolutionShape};
     /// use std::{fmt::Debug, sync::Arc};
     ///
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
@@ -774,10 +747,9 @@ where
     ///
     /// for pair in vec_pair.iter(){
     ///     println!("Paired: {:?}", pair.id());
-    ///     println!("Obj: {:?}", pair.get_sobj().get_x());
-    ///     println!("Opt: {:?}", pair.get_sopt().get_x());
+    ///     println!("Obj: {:?}", pair.get_sobj().ref_x());
+    ///     println!("Opt: {:?}", pair.get_sopt().ref_x());
     /// }
-    ///
     /// ```
     ///
     fn vec_sample_pair<R: Rng>(
@@ -806,7 +778,6 @@ where
     /// Vector of `Obj` solutions after applying `f` to each sample.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -820,16 +791,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, Mixed, Real, EmptyInfo, Searchspace, SId, FidelitySol, HasFidelity};
+    /// use tantale::core::{Sp, Mixed, Real, EmptyInfo, Searchspace, StepSId, FidelitySol, HasFidelity};
     /// use std::sync::Arc;
     ///
     /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sols: Vec<FidelitySol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_apply_obj(
+    /// let sols: Vec<FidelitySol<StepSId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<StepSId, Real, EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_obj(
     ///     &sp,
-    ///     |mut sol: FidelitySol<SId, Mixed, EmptyInfo>| { sol.set_fidelity(1.0); sol },
+    ///     |mut sol: FidelitySol<StepSId, Mixed, EmptyInfo>| { sol.set_fidelity(1.0); sol },
     ///     &mut rng,
     ///     5,
     ///     info.clone(),
@@ -869,7 +840,6 @@ where
     /// Vector of `Opt` solutions after applying `f` to each sample.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -883,16 +853,16 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{Sp, Mixed, Real, FidelitySol, EmptyInfo, Searchspace, SId, HasFidelity};
+    /// use tantale::core::{Sp, Mixed, Real, FidelitySol, EmptyInfo, Searchspace, StepSId, HasFidelity};
     /// use std::sync::Arc;
     ///
     /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let sols: Vec<FidelitySol<SId, Real, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_apply_opt(
+    /// let sols: Vec<FidelitySol<StepSId, Real, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<FidelitySol<StepSId, Real, EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_opt(
     ///     &sp,
-    ///     |mut sol: FidelitySol<SId, Real, EmptyInfo>| { sol.set_fidelity(1.0); sol },
+    ///     |mut sol: FidelitySol<StepSId, Real, EmptyInfo>| { sol.set_fidelity(1.0); sol },
     ///     &mut rng,
     ///     5,
     ///     info.clone(),
@@ -926,7 +896,6 @@ where
     /// Vector of paired solutions after applying `f` to each sample.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -940,14 +909,14 @@ where
     /// #        );
     /// #    }
     ///
-    /// use tantale::core::{FidelitySol, EmptyInfo, Searchspace, Pair, Sp, Mixed, Real, SId, HasFidelity};
+    /// use tantale::core::{FidelitySol, EmptyInfo, Searchspace, Pair, Sp, Mixed, Real, StepSId, HasFidelity};
     /// use std::sync::Arc;
     ///
     /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
     /// let info = Arc::new(EmptyInfo);
     /// let mut rng: rand::rngs::ThreadRng = rand::rng();
     ///
-    /// let pairs: Vec<Pair<FidelitySol<SId, Mixed, EmptyInfo>, FidelitySol<SId, Real, EmptyInfo>, SId, _, _, _>> = sp.vec_apply_pair(
+    /// let pairs: Vec<Pair<FidelitySol<StepSId, Mixed, EmptyInfo>, FidelitySol<StepSId, Real, EmptyInfo>, StepSId, _, _, _>> = sp.vec_apply_pair(
     ///     |mut pair: Pair<_, _, _, Mixed, Real, EmptyInfo>| { pair.set_fidelity(1.0); pair },
     ///     &mut rng,
     ///     5,
@@ -983,7 +952,6 @@ where
     /// `true` if all solutions are valid in the Obj domain, `false` otherwise.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -1009,7 +977,6 @@ where
     /// let vobj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &vobj));
-    ///
     /// ```
     fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
     where
@@ -1028,7 +995,6 @@ where
     /// `true` if all solutions are valid in the Opt domain, `false` otherwise.
     ///
     /// # Example
-    ///
     /// ```
     /// # mod sp{
     /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
@@ -1054,7 +1020,6 @@ where
     /// let vopt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &vopt));
-    ///
     /// ```
     fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
     where

@@ -428,19 +428,28 @@ The [`init_python!`](crate::python::init_python) macros takes 8 parameters:
   * Internally it is extended with `concat!(env!("CARGO_MANIFEST_DIR"), $out_file))`
 * The name of the Python module containing the outcome; here `model`
 * The name of the outcome to optimize; here `MyOutcome`
+* The components of the [`Codomain`](crate::core::Codomain)
+  * objectives: `maximize` or `minimize` followed by corresponding stringified fields
+    * if there is only a single field: `objectives: [maximize "field"]`, then it defines a [`Single`](crate::core::Single) codomain for single-objective optimization.
+    * if there are multiple fields: `objectives: [maximize "field1", minimize "field2"]`, then it defines a [`Multi`](crate::core::Multi) codomain for multi-objectives optimization.
+  * step: followed by the corresponding stringified field, if `Stepped`
+  * constraints: followed by corresponding stringified fields
+  * cost: followed by the corresponding stringified field
 
 The Python object `State` will be automatically wrapped within a [`PyFuncState`](crate::python::PyFuncState).
 Then, the Python `MyOutcome` is handled with a [`PyFidOutcome`](crate::python::PyFidOutcome).
-And, the Python `objective` function is wrappaed in a [`PyStepped`](crate::python::PyStepped).
+The [`PyFidOutcome`](crate::python::PyFidOutcome) is then wrapped within `__PyOutWrapper` or
+`__PyFidWrapper`. These wrapper are single-tuple struct created within the macro, various traits are then implemented allowing a Python-Rust interface.
+And, the Python `objective` function is wrapped in a [`PyStepped`](crate::python::PyStepped).
 
 
 This file contains the definition of the experiment itself:
 
 ```rust, ignore
 use tantale::{
-    algos::{MoAsha, mo::NSGA2Selector, moasha},
+    algos::{MoAsha, RandomSearch, mo::NSGA2Selector},
     core::{CSVRecorder, Calls, DistSaverConfig, FolderConfig, HasX, HasY, MPIProcess, MessagePack, PoolMode, SolutionShape, distributed_with_pool},
-    python::{PyFidOutcome, init_python},
+    python::init_python,
 };
 
 pub mod searchspace;
@@ -453,52 +462,33 @@ use std::env;
     let proc = MPIProcess::new();
     let rank = proc.rank;
 
-    // here we isolate a GPU for each process.
-    // For node 1 GPU 0 is for rank 2, GPU 1 for rank 1,
-    // node 2, GPU 0 is for rank 4, GPU 1 for rank 3 ...
     unsafe { std::env::set_var("CUDA_VISIBLE_DEVICES", (rank % 2).to_string()) };
-    
 
     let sp = get_searchspace();
     let obj = init_python!(
-        Stepped,
-        searchspace,
-        "/src/model.py",
-        "model",
-        "objective",
-        "/src/model.py",
-        "model",
-        "MyOutcome"
+        Stepped, searchspace,
+        "/src/model.py", "model", "objective",
+        "/src/model.py", "model", "MyOutcome",
+        objectives: [maximize "test_accuracy", minimize "parameters"],
+        step: "step"
     );
 
-    let opt = MoAsha::new(NSGA2Selector, 1., 20., 2.); // <--- Define the optimizer (min 1 epoch, max 20 epoch, scale 2)
-    // Define the codomain, i.e. what to optimize
-    let cod = moasha::codomain(
-        [
-            |o: &PyFidOutcome| o.getattr_f64("test_accuracy"), // <---- Maximize accuracy
-            |o: &PyFidOutcome| -o.getattr_f64("parameters"), // <----- Minimize parameters
-        ].into()
-    );
-    let stop = Calls::new(1000); // <---- Define a stopping criterion, i.e. 1000 calls to the user-defined `run` function
-    let config = FolderConfig::new("moasha_example").init(&proc); // <---- Define where to save recorded points and checkpoints
-    let rec = CSVRecorder::new(config.clone(), true, false, true, true); // <--- Define a CSV recorder, do not record opt part (equal to obj part)
-    let check = MessagePack::new(config); // <--- Checkpointer based on message pack. The user-defined function state has its own checkpointing method.
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.);
 
-    // Combine everything within a distributed experiment
-    // PoolMode is set to persistent. It means that each worker can only handle a single funcstate at a time.
-    // If a worker has to remember a previous func state from another solution, then the current one will be checkpointed
-    // and replaced by the new one.
-    let exp = distributed_with_pool(&proc, (sp, cod), obj, opt, stop, (rec, check), PoolMode::Persistent);
+    let stop = Calls::new(1000);
+    let config = FolderConfig::new("pytorch_example").init(&proc);
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
 
+    let exp = distributed_with_pool(&proc, sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
     println!("RUNNING EXPERIMENT from rank {}", rank);
     let acc = exp.run();
-
-    // Retrieve and print the pareto front
     if let Some(a) = acc {
         let pareto = a.get();
         for dominant in pareto {
             println!(
-                "Dominant: f({:?}) = {:?}",
+                "Dominant: f({:?}) ={:?}",
                 dominant.get_sobj().ref_x(),
                 dominant.y().value
             );

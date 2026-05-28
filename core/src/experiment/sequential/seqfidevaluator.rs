@@ -105,7 +105,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -143,16 +143,15 @@ where
     fn evaluate(
         &mut self,
         ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let (pair, state) = self.take();
         let mut pair =
             pair.expect("The pair FidSeqEvaluator should not be empty (None) during evaluate.");
@@ -270,7 +269,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Out,
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<SolId>,
@@ -307,20 +306,19 @@ where
     fn evaluate(
         &mut self,
         ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
-        cod: Arc<Op::Cod>,
+        cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
             Mutex<
                 TypeAcc<
-                    Op::Cod,
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
                     SolId,
                     Op::SInfo,
                     Out,
                 >,
             >,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let (pair, state) = self.take();
         let mut pair =
             pair.expect("The pair FidThrSeqEvaluator should not be empty (None) during evaluate.");
@@ -567,8 +565,8 @@ where
 pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolId, SInfo>>;
 
 #[cfg(feature = "mpi")]
-pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
-    SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Cod, Out>;
+pub type FidSendRec<'a, SolId, SolShape, SInfo, Out> =
+    SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Out>;
 
 #[cfg(feature = "mpi")]
 /// Recursive function to send a [`Raw`](Solution::Raw) to an available [`Worker`](crate::Worker).
@@ -578,7 +576,7 @@ pub type FidSendRec<'a, SolId, SolShape, SInfo, Cod, Out> =
 /// It returns `true` if all ranks are idle or if [`Stop`] returns `true`, `false` otherwise.
 fn recursive_send_a_pair<'a, PSol, SolId, Op, Scp, St, Out, FnState>(
     available: Rank,
-    sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Op::Cod, Out>,
+    sendrec: &mut FidSendRec<'a, SolId, Scp::SolShape, Op::SInfo, Out>,
     where_is_id: &mut HashMap<SolId, Rank>,
     new_pairs: &mut Vec<Scp::SolShape>,
     priority_discard: &mut PriorityList<Scp::SolShape>,
@@ -652,7 +650,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         St,
         Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+        Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo> + HasFidelity +,
@@ -701,20 +699,18 @@ where
             Scp::SolShape,
             SolId,
             Op::SInfo,
-            Op::Cod,
             Out,
         >,
         _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
+    ) -> Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         // Fill workers with first solutions
         let mut stop_loop = stop.stop();
         let mut iter_idle = sendrec.idle.iter_idle().collect::<Vec<_>>().into_iter();

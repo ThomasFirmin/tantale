@@ -77,12 +77,18 @@ Then these algorithms can be specialized for multi-fidelity, multi-objectives or
 | [ASHA](https://arxiv.org/abs/1810.05934) | Base | Sequential | ✔️ |  ❌ |
 | [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Sequential | ✔️ |  ❌ |
 | [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Sequential | ✔️ | ✔️  |
-
 ---
 
 ## Quick start
 
 ### 1 — Define the objective function
+
+The `Outcome` derive macro allows defining both the output of the function and the codomain to optimize via helper attribute:
+- `objectives: [maximize "accuracy", minimize "memory_size"]` for single- or multi-objectives optimization.
+- (Optional) `constraints: ["c1", "c2", "c3"]` for black-box constrained optimization.
+- (Optional) `cost: "computation_time" ` for cost-aware optimization.
+- (Optional) `step: "iteration"` for multi-fidelity optimization where functions are evaluated by step with intermediate results.
+
 
 The `objective!` macro extracts the search space from the function body and produces:
 - `example::get_searchspace()` — the typed `Searchspace`.
@@ -98,6 +104,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -137,14 +144,13 @@ use std::sync::Arc;
 let sp  = get_searchspace();
 let obj = get_function();
 let opt = BatchRandomSearch::new(7);                              // batch size = 7
-let cod = random_search::codomain(|o: &OutExample| o.obj);       // maximize o.obj
 
 let stop   = Calls::new(50);                                     // stop after 50 evaluations
 let config = Arc::new(FolderConfig::new("run_batch"));
 let rec    = CSVRecorder::new(config.clone(), true, true, true, true);
 let check  = MessagePack::new(config);
 
-let exp         = mono((sp, cod), obj, opt, stop, (rec, check)); // mono-threaded
+let exp         = mono(sp, obj, opt, stop, (rec, check)); // mono-threaded
 let accumulator = exp.run();
 let best        = accumulator.get().unwrap().get_sobj();
 println!("Best: f({:?}) = {}", best.ref_x(), best.y().value);
@@ -159,7 +165,7 @@ An experiment is composed of up to 7 components:
 | Search space | `Searchspace` | Defines the input domain |
 | Codomain | `Codomain` | Extracts metrics (objective, constraints, cost) from an `Outcome` |
 | Function | `FuncWrapper` | The function to optimize (`Objective` or `Stepped`) |
-| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SequentialOptimizer`) |
+| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SingleOptimizer`) |
 | Stop | `Stop` | Defines when to terminate (`Calls`, `Evaluated`, …) |
 | Recorder *(optional)* | `Recorder` | Logs solutions to disk (CSV, …) |
 | Checkpointer *(optional)* | `Checkpointer` | Saves and restores experiment state (MessagePack) |
@@ -175,20 +181,20 @@ An experiment is composed of up to 7 components:
 ### Parallelization philosophy
 
 - **Synchronous** (`BatchOptimizer`): a full batch is evaluated in parallel before the next optimization step.
-- **Asynchronous** (`SequentialOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
+- **Asynchronous** (`SingleOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
 
 ---
 
 ---
 
-## Macros
+## Procedural Macros
 
 | Macro | Kind | Description |
 |---|---|---|
 | `objective!` | Declarative | Defines a search space and wraps a function into `Objective` / `Stepped` |
 | `hpo!` | Declarative | Concise search space definition (without a function body) |
 | `pyhpo!` | Declarative | Same as `hpo!` but for Python bindings (`py` feature) |
-| `Outcome` | Derive | Implements the `Outcome` trait for a result struct |
+| `Outcome` | Derive | Implements the `Outcome` trait for a struct |
 | `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
 | `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
 | `OptInfo` | Derive | Attaches metadata to solutions produced by an optimizer |

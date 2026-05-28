@@ -1,9 +1,10 @@
+use tantale::algos::RandomSearch;
 use tantale::algos::{MoAsha, mo::NSGA2Selector, moasha};
 use tantale::core::{
     CSVRecorder, Calls, DistSaverConfig, FolderConfig, MPIProcess, MessagePack, PoolMode,
     distributed_with_pool, experiment, load,
 };
-use tantale::python::{PyFidOutcome, init_python};
+use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader_eps;
@@ -31,27 +32,17 @@ pub fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Stepped,
-        sp_ms_nosamp,
-        "/examples/mpi_test_pytantale_stepped_async/function_fid_async.py",
-        "function_fid_async",
-        "objective",
-        "/examples/mpi_test_pytantale_stepped_async/function_fid_async.py",
-        "function_fid_async",
-        "MyOutcome"
+        Stepped, sp_ms_nosamp,
+        "/examples/mpi_test_pytantale_stepped_async/function_fid_async.py", "function_fid_async", "objective",
+        "/examples/mpi_test_pytantale_stepped_async/function_fid_async.py", "function_fid_async", "MyOutcome",
+        objectives: [maximize "obj1", minimize "obj2"],
+        step: "step",
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
 
-    let cod = moasha::codomain(
-        [
-            |o: &PyFidOutcome| o.getattr_f64("obj1"),
-            |o: &PyFidOutcome| -o.getattr_f64("obj2"),
-        ]
-        .into(),
-    );
-
-    let opt = MoAsha::new(NSGA2Selector, 1., 5., 1.61); // log(max/min)
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_mpi_test_python_fid").init(&proc);
@@ -60,7 +51,7 @@ pub fn test_python_function() {
 
     distributed_with_pool(
         &proc,
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -75,20 +66,13 @@ pub fn test_python_function() {
     }
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let cod = moasha::codomain(
-        [
-            |o: &PyFidOutcome| o.getattr_f64("obj1"),
-            |o: &PyFidOutcome| -o.getattr_f64("obj2"),
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_mpi_test_python_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
     let exp =
-        load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj2, (rec, check));
+        load!(distributed, &proc, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj2, (rec, check));
 
     if proc.rank == 0 {
         match exp {
@@ -105,20 +89,13 @@ pub fn test_python_function() {
     }
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let cod = moasha::codomain(
-        [
-            |o: &PyFidOutcome| o.getattr_f64("obj1"),
-            |o: &PyFidOutcome| -o.getattr_f64("obj2"),
-        ]
-        .into(),
-    );
 
     let config = FolderConfig::new("tmp_mpi_test_python_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
     let exp =
-        load!(distributed, &proc, MoAsha<NSGA2Selector,_>, Calls, (sp, cod), obj3, (rec, check));
+        load!(distributed, &proc, moasha!(RandomSearch, NSGA2Selector), Calls, sp, obj3, (rec, check));
     if proc.rank == 0 {
         // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
         run_reader_eps("tmp_mpi_test_python_fid", 400, 100); // 100 for randomness

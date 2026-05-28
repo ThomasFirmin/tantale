@@ -2,7 +2,7 @@ use tantale::core::domain::TypeDom;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::Uncomputed;
 use tantale::core::{HasId, HasSolInfo, HasY, BaseSol, Computed, ParSId, HasX};
-use tantale::core::{Codomain, SingleCodomain};
+use tantale::core::Codomain;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use super::init_outcome::{OutExample, get_struct};
 use super::init_sinfo::{TestSInfo, get_sinfo};
 
 type TestComp<Sol, Dom> =
-    Computed<Sol, ParSId, Dom, SingleCodomain<OutExample>, OutExample, TestSInfo>;
+    Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
 where
@@ -50,7 +50,7 @@ macro_rules! get_default_vec {
             let mut idsol = Vec::new();
             let sinfo = std::sync::Arc::new(get_sinfo());
             let out = get_struct();
-            let codom = SingleCodomain::new(|h : &OutExample| h.obj1);
+            let codom = <OutExample as tantale::core::Outcome>::codomain();
             $(
                 let y = std::sync::Arc::new(codom.get_elem(&out));
                 let psol = $sol::<ParSId,$dom,TestSInfo>::default_vec(sinfo.clone(),$size,7);

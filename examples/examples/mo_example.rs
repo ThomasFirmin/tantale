@@ -46,9 +46,12 @@ mod searchspace {
 
     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
     pub struct MoFidOutEvaluator {
+        #[maximize]
         pub obj1: f64, // First objective
+        #[maximize]
         pub obj2: f64, // Second objective
         info: f64,     // Extra info
+        #[step]
         pub fid: Step, // Evaluation step
     }
 
@@ -99,8 +102,6 @@ impl Drop for Cleaner {
     }
 }
 
-use searchspace::{MoFidOutEvaluator, get_function, get_searchspace};
-use tantale::algos::{MoAsha, moasha};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
@@ -109,6 +110,8 @@ use tantale::{
         stop::Calls,
     },
 };
+use tantale::algos::{MoAsha, RandomSearch};
+use searchspace::{get_function, get_searchspace};
 
 fn main() {
     drop(Cleaner {
@@ -121,21 +124,15 @@ fn main() {
     let sp = get_searchspace();
     let obj = get_function();
     // Selector, budget min and max per solution, scaling factor
-    let opt = MoAsha::new(NSGA2Selector, 1., 10., 1.61);
-    let cod = moasha::codomain(
-        [
-            |o: &MoFidOutEvaluator| o.obj1,
-            |o: &MoFidOutEvaluator| o.obj2,
-        ]
-        .into(),
-    );
+    let sampler = RandomSearch::new();
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61);
 
     let stop = Calls::new(25);
     let config = FolderConfig::new("tmp_moasha_example").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     let acc = exp.run();
     let pareto = acc.get();
 

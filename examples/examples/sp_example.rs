@@ -5,6 +5,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutStruct {
+        #[maximize]
         pub out: f64,
     }
 

@@ -4,8 +4,10 @@ use tantale::macros::{CSVWritable, Outcome, objective};
 
 #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
 struct OutExample {
+    #[maximize]
     obj: f64,
     info: f64,
+    #[step]
     step: Step,
 }
 

@@ -1,6 +1,6 @@
 use tantale::algos::BatchRandomSearch;
-use tantale::algos::random_search;
 use tantale::core::IntoComputedShape;
+use tantale::core::Outcome;
 use tantale::core::domain::NoDomain;
 use tantale::core::domain::onto::{LinkOpt, LinkTyObj, LinkTyOpt};
 use tantale::core::objective::FuncWrapper;
@@ -12,7 +12,7 @@ use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{
     SolutionShape, Uncomputed,
 };
-use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, EmptyInfo, FidelitySol, SingleCodomain, Stepped};
+use tantale::core::{HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, BatchRecorder, EmptyInfo, FidelitySol, Stepped};
 use tantale::core::{
     Codomain, FolderConfig, Mixed, MixedTypeDom, Searchspace, HasX, Sp, StepSId,
     recorder::csv::{CSVRecorder, CSVWritable},
@@ -35,13 +35,20 @@ mod infos {
     pub struct FidOutExample {
         pub fid2: usize,
         pub con3: i64,
+        #[constraint]
         pub con4: f64,
+        #[constraint]
         pub con5: f64,
+        #[maximize]
         pub mul6: f64,
+        #[maximize]
         pub mul7: f64,
+        #[maximize]
         pub mul8: f64,
+        #[maximize]
         pub mul9: f64,
         pub tvec: Vec<f64>,
+        #[step]
         pub state: Step,
     }
 
@@ -63,9 +70,8 @@ mod infos {
 
 use infos::FidOutExample;
 
-pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
+pub fn run_recorder<Out, Scp, Op, St, Rec, Fn, PSol>(
     sp: &Scp,
-    cod: &Op::Cod,
     opt: &mut Op,
     stop: &mut St,
     recorder: &mut Rec,
@@ -80,24 +86,24 @@ where
         + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
-        + ScpCSVWrite<PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>
+        + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
         + Send
         + Sync,
-    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>: HasY<Op::Cod, FidOutExample>
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>: HasY<FidOutExample>
         + InfoCSVWrite<StepSId, Op::SInfo>
-        + HasY<Op::Cod, FidOutExample>
+        + HasY<FidOutExample>
         + HasStep
         + HasFidelity
         + Send
         + Sync,
-    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Obj,
                 Op::SInfo,
                 Uncomputed = SolObj<Scp::SolShape, StepSId, Op::SInfo>,
             >,
-    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Opt,
@@ -108,11 +114,12 @@ where
     St: Stop + Send + Sync,
     Rec: BatchRecorder<PSol, StepSId, FidOutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
-    Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<FidOutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
-    let batch = opt.first_step(sp);
+    let acc= <FidOutExample as Outcome>::Cod::new_accumulator();
+    let cod = FidOutExample::codomain();
+    let batch = opt.first_step(sp, &acc);
     let mut obatch = OutBatch::empty(batch.info());
     let mut cbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
@@ -132,9 +139,9 @@ where
     stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save(&cbatch, &obatch, sp, cod);
+    recorder.save(&cbatch, &obatch, sp, &cod);
 
-    let batch = opt.first_step(sp);
+    let batch = opt.first_step(sp, &acc);
     let mut tobatch = OutBatch::empty(batch.info());
     let mut tcbatch = Batch::empty(batch.info());
     batch.into_iter().for_each(|pair| {
@@ -154,25 +161,23 @@ where
     stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
     stop.update(tantale::core::stop::ExpStep::Distribution(Step::Evaluated));
 
-    recorder.save(&tcbatch, &tobatch, sp, cod);
+    recorder.save(&tcbatch, &tobatch, sp, &cod);
     run_reader::<Scp, Op, St, CSVRecorder, Fn, PSol>(
         "tmp_test_fid",
         cbatch,
         obatch,
         tcbatch,
         tobatch,
-        cod,
         size,
     );
 }
 
 pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     path: &str,
-    cbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, FidOutExample>,
+    cbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, FidOutExample>,
     obatch: OutBatch<StepSId, Op::Info, FidOutExample>,
-    tcbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, Op::Cod, FidOutExample>,
+    tcbatch: CompBatch<StepSId, Op::SInfo, Op::Info, Scp::SolShape, FidOutExample>,
     tobatch: OutBatch<StepSId, Op::Info, FidOutExample>,
-    cod: &Op::Cod,
     size: usize,
 ) where
     PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
@@ -183,24 +188,24 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
         + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
-        + ScpCSVWrite<PSol, StepSId, Op::SInfo, Op::Cod, FidOutExample>
+        + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
         + Send
         + Sync,
-    CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>: HasY<Op::Cod, FidOutExample>
+    CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>: HasY<FidOutExample>
         + InfoCSVWrite<StepSId, Op::SInfo>
-        + HasY<Op::Cod, FidOutExample>
+        + HasY<FidOutExample>
         + HasStep
         + HasFidelity
         + Send
         + Sync,
-    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolObj<CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Obj,
                 Op::SInfo,
                 Uncomputed = SolObj<Scp::SolShape, StepSId, Op::SInfo>,
             >,
-    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, Op::Cod, FidOutExample>, StepSId, Op::SInfo>:
+    SolOpt<CompShape<Scp::SolShape, StepSId, Op::SInfo, FidOutExample>, StepSId, Op::SInfo>:
         HasUncomputed<
                 StepSId,
                 Scp::Opt,
@@ -211,10 +216,12 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     St: Stop + Send + Sync,
     Rec: BatchRecorder<PSol, StepSId, FidOutExample, Scp, Op, Fn>,
     Fn: FuncWrapper<Arc<[LinkTyObj<Scp>]>>,
-    Op::Cod: CSVWritable<Op::Cod, <Op::Cod as Codomain<FidOutExample>>::TypeCodom> + Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Op::SInfo: CSVWritable<(), ()> + Send + Sync,
 {
+
+    let cod = FidOutExample::codomain();
+
     let true_path = Path::new(path);
     let eval_path = true_path.join(Path::new("recorder"));
     let path_obj = eval_path.join("obj.csv");
@@ -411,7 +418,6 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
 
 fn test_csv_func() {
     let sp = get_searchspace();
-    let cod: SingleCodomain<FidOutExample> = random_search::codomain(|x: &FidOutExample| x.mul6);
 
     let mut rs = BatchRandomSearch::new(3);
     let mut stop = Calls::new(100);
@@ -424,16 +430,17 @@ fn test_csv_func() {
         Sp<Mixed, NoDomain>,
         BatchRandomSearch,
         Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
-    >>::init(&mut recorder, &sp, &cod);
+    >>::init(&mut recorder, &sp);
 
     run_recorder::<
+        FidOutExample,
         Sp<Mixed, NoDomain>,
         BatchRandomSearch,
         Calls,
         CSVRecorder,
         Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
         FidelitySol<StepSId, Mixed, EmptyInfo>,
-    >(&sp, &cod, &mut rs, &mut stop, &mut recorder, 6);
+    >(&sp, &mut rs, &mut stop, &mut recorder, 6);
 }
 
 struct Cleaner;

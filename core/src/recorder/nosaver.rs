@@ -67,18 +67,18 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
-    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn init(&mut self, _scp: &Scp) {}
 
     /// Prepare for loading - no-op.
-    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn after_load(&mut self, _scp: &Scp) {}
 
     /// Save a single solution - no-op.
     fn save(
         &self,
-        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, <Op>::Cod, Out>,
+        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
-        _cod: &<Op>::Cod,
+        _cod: &Out::Cod,
     ) {
     }
 }
@@ -98,18 +98,18 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize recorder - no-op.
-    fn init(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn init(&mut self, _scp: &Scp) {}
 
     /// Prepare for loading - no-op.
-    fn after_load(&mut self, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn after_load(&mut self, _scp: &Scp) {}
 
     /// Save a batch of solutions - no-op.
     fn save(
         &self,
-        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, <Op>::Cod, Out>,
+        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,
         _scp: &Scp,
-        _cod: &<Op>::Cod,
+        _cod: &Out::Cod,
     ) {
     }
 }
@@ -131,18 +131,18 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
-    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {}
 
     /// Prepare distributed recorder for loading - no-op.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {}
 
     /// Save a single solution in distributed context - no-op.
     fn save_dist(
         &self,
-        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, <Op>::Cod, Out>,
+        _computed: &CompShape<Scp::SolShape, SolId, <Op>::SInfo, Out>,
         _outputed: &(SolId, Out),
         _scp: &Scp,
-        _cod: &<Op>::Cod,
+        _cod: &Out::Cod,
     ) {
     }
 }
@@ -164,18 +164,18 @@ where
     FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
 {
     /// Initialize distributed recorder - no-op.
-    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn init_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {}
 
     /// Prepare distributed recorder for loading - no-op.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp, _cod: &<Op>::Cod) {}
+    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {}
 
     /// Save a batch of solutions in distributed context - no-op.
     fn save_dist(
         &self,
-        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, <Op>::Cod, Out>,
+        _computed: &crate::CompBatch<SolId, <Op>::SInfo, Op::Info, Scp::SolShape, Out>,
         _outputed: &OutBatch<SolId, Op::Info, Out>,
         _scp: &Scp,
-        _cod: &<Op>::Cod,
+        _cod: &Out::Cod,
     ) {
     }
 }

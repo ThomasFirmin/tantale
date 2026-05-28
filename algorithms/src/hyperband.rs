@@ -42,7 +42,9 @@
 //!
 //! ```ignore
 //! // Create inner optimizer (e.g., SHA)
+//! let sampler = RandomSearch::new();
 //! let sha = Sha::new(
+//!     sampler,
 //!     batch_size,
 //!     budget_min,
 //!     budget_max,
@@ -86,31 +88,27 @@ use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
-    Codomain, Criteria, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
-    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer, SingleCodomain,
+    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep,
+    LinkOpt, OptState, Optimizer, Searchspace, SingleOptimizer,
     StepSId,
 };
 
 use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
 
-/// Creates a codomain for Successive Halving optimization.
-///
-/// Constructs a [`SingleCodomain`] from a single-objective
-/// [`Criteria`].
-///
-/// # Arguments
-///
-/// * `extractor` - A [`Criteria`] defining how to extract the
-///   optimization objective from the [`Outcome`](tantale_core::Outcome).
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
+/// A helper macro to simplify the type signature of [`Hyperband`].
+/// You can write:
+/// ```ignore
+/// let exp = load!(mono, hyperband!(asha!(RandomSearch)), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+/// or even:
+/// ```ignore
+/// let exp = load!(mono, hyperband!(asha!(tpe!(Univariate, UniformWeighter, LinearSplit))), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+#[macro_export]
+macro_rules! hyperband {
+    ($inner : ty) => {
+        Hyperband<$inner, _, _, _>
     };
-    out.into()
 }
 
 /// Internal state of the [`Hyperband`] optimizer.
@@ -394,7 +392,6 @@ where
     SInfo: SolInfo,
 {
     type State = HyperbandState<Optim, Out, Scp, Optim::SInfo>;
-    type Cod = Optim::Cod;
     type SInfo = Optim::SInfo;
 
     /// Provides mutable access to the internal state of the [`Hyperband`] optimizer.
@@ -442,7 +439,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo, SingleCodomain<Out>>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -459,12 +456,12 @@ where
     /// # Returns
     ///
     /// A [`Batch`] with metadata indicating which bracket these candidates belong to
-    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp, acc: &FCompAcc<Scp, Out, Self::SInfo>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
             / (self.0.current_s + 1) as f64)
             .ceil() as usize;
         self.0.inner.set_batch_size(n);
-        let (pairs, info) = self.0.inner.first_step(scp).extract();
+        let (pairs, info) = self.0.inner.first_step(scp, acc).extract();
         let new_info = HyperbandInfo::new(self.0.current_s, info);
         Batch::new(pairs, new_info.into())
     }
@@ -491,9 +488,9 @@ where
     /// indicating the current bracket
     fn step(
         &mut self,
-        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
+        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo>,
         scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
+        acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             let (pairs, info) = x.extract();
@@ -515,7 +512,7 @@ where
             let to_discard = self.0.inner.drain();
 
             if to_discard.is_empty() {
-                self.first_step(scp)
+                self.first_step(scp, acc)
             } else {
                 let new_info = HyperbandInfo::new(self.0.current_s, Optim::Info::default().into());
                 Batch::new(to_discard, new_info.into())
@@ -561,7 +558,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity + Ord,
     FnState: FuncState,
     SInfo: SolInfo,
 {
@@ -589,9 +586,9 @@ where
     /// The next uncomputed [`Solution`](tantale_core::Solution) to evaluate at the current bracket's budget level
     fn step(
         &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo, Self::Cod>>,
+        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
         scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
+        acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Scp::SolShape {
         if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
             self.0.inner.step(x, scp, acc)

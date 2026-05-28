@@ -70,7 +70,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>,
+        OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>,
     > for SeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -97,16 +97,15 @@ where
     fn evaluate(
         &mut self,
         ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out> {
+    ) -> OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out> {
         let pair = self
             .pair
             .take()
@@ -198,7 +197,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Out,
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for ThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -229,20 +228,19 @@ where
     fn evaluate(
         &mut self,
         ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
-        cod: Arc<Op::Cod>,
+        cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
             Mutex<
                 TypeAcc<
-                    Op::Cod,
-                    CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+                    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
                     SolId,
                     Op::SInfo,
                     Out,
                 >,
             >,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         let pair = self
             .pair
             .take()
@@ -396,7 +394,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         St,
         Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>>,
+        Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for DistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
     PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
@@ -437,20 +435,18 @@ where
             Scp::SolShape,
             SolId,
             Op::SInfo,
-            Op::Cod,
             Out,
         >,
         _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
-        cod: &Op::Cod,
+        cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<
-            Op::Cod,
-            CompShape<Scp::SolShape, SolId, Op::SInfo, Op::Cod, Out>,
+            CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
             SolId,
             Op::SInfo,
             Out,
         >,
-    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Op::Cod, Out>> {
+    ) -> Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>> {
         // Fill workers with first solutions
         while sendrec.idle.has_idle() && !self.shapes.is_empty() && !stop.stop() {
             if sendrec.send_to_worker(self.shapes.pop().unwrap()).is_none() {

@@ -47,7 +47,7 @@ fn test_fidbatchevaluator() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -76,7 +76,7 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
@@ -177,7 +177,7 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -200,7 +200,7 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -223,7 +223,7 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -246,7 +246,7 @@ fn test_fidbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     assert_eq!(
@@ -271,7 +271,7 @@ fn test_fidthrbatchevaluator() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -300,7 +300,7 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -410,7 +410,7 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -439,7 +439,7 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -468,7 +468,7 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -497,7 +497,7 @@ fn test_fidthrbatchevaluator() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -527,7 +527,7 @@ fn test_seqfidevaluator() {
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
@@ -552,9 +552,8 @@ fn test_seqfidevaluator() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, raw) = out.unwrap();
@@ -609,9 +608,8 @@ fn test_seqfidevaluator() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -636,9 +634,8 @@ fn test_seqfidevaluator() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -663,9 +660,8 @@ fn test_seqfidevaluator() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -690,9 +686,8 @@ fn test_seqfidevaluator() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -742,7 +737,7 @@ fn test_fidbatchevaluator_loadpool() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -776,7 +771,7 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     let mut hcobj = HashMap::new();
@@ -877,7 +872,7 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -900,7 +895,7 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -923,7 +918,7 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let pairs: Vec<_> = bcomp
         .into_iter()
@@ -946,7 +941,7 @@ fn test_fidbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
     assert_eq!(
@@ -978,7 +973,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     let sobj = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::vec_sample_obj(&sp, &mut rng, 20, sinfo.clone());
     let pair = sp.vec_onto_obj(sobj);
     let sobj_bis: Vec<(StepSId, Arc<[tantale::core::MixedTypeDom]>)> = pair
@@ -1012,7 +1007,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1122,7 +1117,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1151,7 +1146,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1180,7 +1175,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1209,7 +1204,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         FidOutEvaluator,
         Calls,
         Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
-        OutBatchEvaluate<StepSId, _, _, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, _, _>,
+        OutBatchEvaluate<StepSId, EmptyInfo, RSInfo, Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>, FidOutEvaluator>,
     >>::evaluate(
         &mut eval,
         obj.clone(),
@@ -1246,7 +1241,7 @@ fn test_seqfidevaluator_loadpool() {
     let pair = <Sp<Mixed, NoDomain> as Searchspace<
         FidelitySol<StepSId, Mixed, EmptyInfo>,
         StepSId,
-        EmptyInfo,
+      EmptyInfo,
     >>::sample_pair(&sp, &mut rng, sinfo.clone());
     let sobj_bis = (pair.id(), pair.get_sobj().x.clone());
     let sopt_bis = (pair.id(), pair.get_sopt().x.clone());
@@ -1276,9 +1271,8 @@ fn test_seqfidevaluator_loadpool() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, raw) = out.unwrap();
@@ -1331,9 +1325,8 @@ fn test_seqfidevaluator_loadpool() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1358,9 +1351,8 @@ fn test_seqfidevaluator_loadpool() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1385,9 +1377,8 @@ fn test_seqfidevaluator_loadpool() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();
@@ -1412,9 +1403,8 @@ fn test_seqfidevaluator_loadpool() {
                 StepSId,
                 EmptyInfo,
                 Lone<FidelitySol<StepSId, Mixed, EmptyInfo>, StepSId, Mixed, EmptyInfo>,
-                SingleCodomain<FidOutEvaluator>,
                 FidOutEvaluator,
-            >,
+            >
         >,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
     let (comp, _) = out.unwrap();

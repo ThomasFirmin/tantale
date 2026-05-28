@@ -11,6 +11,7 @@ fn obj_test() {
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutExample {
+            #[maximize]
             pub obj: f64,
             pub fid: f64,
             pub con: f64,

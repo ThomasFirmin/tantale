@@ -1,4 +1,4 @@
-use tantale::algos::{Sha, sha};
+use tantale::algos::{BatchRandomSearch, Sha, sha};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -7,7 +7,7 @@ use tantale::core::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{FidOutEvaluator, sp_evaluator_sh};
+use crate::init_func::sp_evaluator_sh;
 use crate::run_checker::run_reader;
 
 #[test]
@@ -16,28 +16,27 @@ fn test_fid_batch_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = Sha::new(10, 1., 5., 1.61); // log(max/min)
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
+    let sampler = BatchRandomSearch::new(10);
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_sh_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = mono((sp, cod), obj, opt, stop, (rec, check));
+    let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_sh_run", 1000);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -53,13 +52,12 @@ fn test_fid_batch_run() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(mono, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_sh_run", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
@@ -77,28 +75,27 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let opt = Sha::new(10, 1., 5., 1.61);
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
+    let sampler = BatchRandomSearch::new(10);
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61);
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
-    let exp = threaded((sp, cod), obj, opt, stop, (rec, check));
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
     exp.run();
 
     run_reader("tmp_test_sh_parrun", 1000);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(threaded, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let mut exp = load!(threaded, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
 
     let expstop = exp.get_mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -114,13 +111,12 @@ fn test_fid_batch_parrun() {
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
-    let cod = sha::codomain(|o: &FidOutEvaluator| o.obj);
 
     let config = FolderConfig::new("tmp_test_sh_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, Sha, Evaluated, (sp, cod), obj, (rec, check));
+    let exp = load!(threaded, sha!(BatchRandomSearch), Evaluated, sp, obj, (rec, check));
     run_reader("tmp_test_sh_parrun", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

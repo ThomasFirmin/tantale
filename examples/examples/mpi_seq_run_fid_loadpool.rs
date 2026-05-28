@@ -1,7 +1,5 @@
 use tantale::algos::RandomSearch;
-use tantale::algos::random_search;
-use tantale::core::experiment::PoolMode;
-use tantale::core::experiment::distributed_with_pool;
+use tantale::core::experiment::{PoolMode, distributed_with_pool};
 use tantale::core::{
     CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
     experiment::{self, mpi::utils::MPIProcess},
@@ -44,7 +42,9 @@ mod init_func {
 
     #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
+        #[maximize]
         pub obj: f64,
+        #[step]
         pub fid: Step,
     }
 
@@ -79,7 +79,6 @@ mod init_func {
 
         objective!(
             pub fn example() -> (FidOutEvaluator, FnState) {
-
                 let _rank = [! MPI_RANK !];
                 let _size = [! MPI_SIZE !];
 
@@ -117,7 +116,7 @@ mod init_func {
     }
 }
 
-use init_func::{FidOutEvaluator, sp_evaluator};
+use init_func::sp_evaluator;
 
 #[derive(serde::Deserialize)]
 pub struct RowCod {
@@ -133,6 +132,7 @@ pub struct RowOut {
 #[derive(serde::Deserialize)]
 pub struct RowInfo {
     pub id: usize,
+    pub iteration: usize,
 }
 #[derive(serde::Deserialize)]
 pub struct RowSol {
@@ -222,36 +222,14 @@ pub fn run_reader(path: &str, size: usize) {
 
     let linesobj = rdr_obj.records();
     linesobj.for_each(|l| println!("{:?}", l));
-    assert!(
-        count_cod >= size * 5,
-        "Some solutions are missing in cod; {} < {}",
-        count_cod,
-        size * 5
-    );
-    assert!(
-        count_opt >= size * 5,
-        "Some solutions are missing in opt; {} < {}",
-        count_opt,
-        size * 5
-    );
-    assert!(
-        id_cod.len() >= size,
-        "Some solutions are missing in cod; {} < {}",
-        id_cod.len(),
-        size
-    );
+    assert!(count_cod >= size * 5, "Some solutions are missing in cod.");
+    assert!(count_opt >= size * 5, "Some solutions are missing in opt.");
+    assert!(id_cod.len() >= size, "Some solutions are missing in cod.");
     assert!(
         count_info >= size * 5,
-        "Some solutions are missing in info; {} < {}",
-        count_info,
-        size * 5
+        "Some solutions are missing in info."
     );
-    assert!(
-        count_out >= size * 5,
-        "Some solutions are missing in out; {} < {}",
-        count_out,
-        size * 5
-    );
+    assert!(count_out >= size * 5, "Some solutions are missing in out.");
 }
 
 fn main() {
@@ -272,7 +250,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let obj = sp_evaluator::get_function();
     let opt = RandomSearch::new();
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -280,7 +258,7 @@ fn main() {
 
     let exp = distributed_with_pool(
         &proc,
-        (sp, cod),
+        sp,
         obj,
         opt,
         stop,
@@ -295,7 +273,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
@@ -308,7 +286,7 @@ fn main() {
         &proc,
         RandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );
@@ -329,7 +307,7 @@ fn main() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let cod = random_search::codomain(|o: &FidOutEvaluator| o.obj);
+    
     let obj = Stepped::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
@@ -342,7 +320,7 @@ fn main() {
         &proc,
         RandomSearch,
         Calls,
-        (sp, cod),
+        sp,
         obj,
         (rec, check)
     );

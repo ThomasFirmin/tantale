@@ -1,5 +1,5 @@
 
-use tantale_core::{Codomain, Computed, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, SolutionShape, Uncomputed, Unit, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, grid::GridBounds}, has_trait::HasVariables};
+use tantale_core::{Computed, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, SolutionShape, Uncomputed, Unit, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, codomain::TypeCodom, grid::GridBounds}, has_trait::HasVariables};
 
 use serde::{Deserialize, Serialize};
 use statrs::{distribution::{Continuous, ContinuousCDF, Normal as StatrsNormal }, function::erf::erf};
@@ -370,7 +370,7 @@ impl KernelFunc<Mixed> for MixedKernel
 /// # See also
 /// - [`Univariate`] for the univariate kernel, which assumes independence between dimensions and computes the product of the kernel values for each dimension.
 /// - [`Multivariate`] for the multivariate kernel, which models the joint distribution of all dimensions.
-pub trait Kernel<D, Sp, S, SolId, SInfo, Cod, Out>
+pub trait Kernel<D, Sp, S, SolId, SInfo, Out>
 where
     Self: Sized + Serialize + for<'a> Deserialize<'a>,
     D: Domain,
@@ -379,7 +379,6 @@ where
     S::Twin<Sp::Obj>: Uncomputed<SolId, Sp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
 
@@ -387,14 +386,14 @@ where
 
     fn prepare(
         &self,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Sp
     ) -> Self::Context;
 
     fn compute(
         &self,
         s: &S::Raw, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         weights: &PointWeights,
         searchspace: &Sp, 
         context: &Self::Context
@@ -405,7 +404,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Sp, 
         context: &Self::Context
     ) -> S::Raw;
@@ -544,14 +543,13 @@ pub fn compute_prior(x: &TypeDom<Mixed>, dom: &Mixed) -> f64
 #[derive(Serialize, Deserialize)]
 pub struct Univariate;
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Mixed> + HasVariables,
     S: Uncomputed<SolId, Mixed, SInfo, Raw = Arc<[TypeDom<Mixed>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     type Context = Vec<f64>;
@@ -559,7 +557,7 @@ where
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -577,14 +575,14 @@ where
             }
             product *= sum;
         }
-        let prior = <Univariate as Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out>>::prior(self, s1, searchspace);
+        let prior = <Univariate as Kernel<Mixed, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
     
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -607,7 +605,7 @@ where
         }).product()
     }
     
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -617,22 +615,21 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Real, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Real, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Real> + HasVariables,
     S: Uncomputed<SolId, Real, SInfo, Raw = Arc<[TypeDom<Real>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -657,7 +654,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -680,7 +677,7 @@ where
         }).product()
     }
     
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -690,22 +687,21 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Int, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Int, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Int> + HasVariables,
     S: Uncomputed<SolId, Int, SInfo, Raw = Arc<[TypeDom<Int>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -730,7 +726,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -753,7 +749,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -763,23 +759,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Nat, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Nat, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Nat> + HasVariables,
     S: Uncomputed<SolId, Nat, SInfo, Raw = Arc<[TypeDom<Nat>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -804,7 +799,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -827,7 +822,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -837,22 +832,21 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Unit, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Unit, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Unit> + HasVariables,
     S: Uncomputed<SolId, Unit, SInfo, Raw = Arc<[TypeDom<Unit>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -876,7 +870,7 @@ where
     
     fn sample<R: Rng>(
         &self, rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -899,7 +893,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -909,7 +903,7 @@ where
     }
 }
 
-impl<T, Scp, S, SolId, SInfo, Cod, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Cod, Out> for Univariate 
+impl<T, Scp, S, SolId, SInfo, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out> for Univariate 
 where
     T: GridBounds,
     Scp: Searchspace<S, SolId, SInfo, Opt=GridDom<T>> + HasVariables,
@@ -917,15 +911,14 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -950,7 +943,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -973,7 +966,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         (0..searchspace.size()).map(|d| {
             let dom = searchspace.opt_at(d).unwrap();
@@ -993,21 +986,20 @@ where
 #[derive(Serialize, Deserialize)]
 pub struct Multivariate;
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Mixed> + HasVariables,
     S: Uncomputed<SolId, Mixed, SInfo, Raw = Arc<[TypeDom<Mixed>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1025,14 +1017,14 @@ where
             }
             sum += product * weight;
         }
-        let prior = <Multivariate as Kernel<Mixed, Scp, S, SolId, SInfo, Cod, Out>>::prior(self, s1, searchspace);
+        let prior = <Multivariate as Kernel<Mixed, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp, 
         context: &Self::Context
     ) -> S::Raw {
@@ -1055,7 +1047,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1065,16 +1057,15 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Real, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Real, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Real> + HasVariables,
     S: Uncomputed<SolId, Real, SInfo, Raw = Arc<[TypeDom<Real>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Real, Out, SInfo>>
 {
 
     type Context = Vec<f64>;
@@ -1082,7 +1073,7 @@ where
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1107,7 +1098,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1130,7 +1121,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1140,22 +1131,21 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Int, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Int, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Int> + HasVariables,
     S: Uncomputed<SolId, Int, SInfo, Raw = Arc<[TypeDom<Int>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Int, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1180,7 +1170,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1203,7 +1193,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1213,22 +1203,21 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Nat, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Nat, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Nat> + HasVariables,
     S: Uncomputed<SolId, Nat, SInfo, Raw = Arc<[TypeDom<Nat>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Nat, Out, SInfo>>
 {
     type Context = Vec<f64>;
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1253,7 +1242,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1276,7 +1265,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1286,23 +1275,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Cod, Out> Kernel<Unit, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<Scp, S, SolId, SInfo, Out> Kernel<Unit, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     Scp: Searchspace<S, SolId, SInfo, Opt=Unit> + HasVariables,
     S: Uncomputed<SolId, Unit, SInfo, Raw = Arc<[TypeDom<Unit>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, Unit, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1327,7 +1315,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1350,7 +1338,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         let dim = searchspace.size();
         (0..searchspace.size()).map(|d| {
@@ -1360,7 +1348,7 @@ where
     }
 }
 
-impl<T, Scp, S, SolId, SInfo, Cod, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Cod, Out> for Multivariate 
+impl<T, Scp, S, SolId, SInfo, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out> for Multivariate 
 where
     T: GridBounds,
     Scp: Searchspace<S, SolId, SInfo, Opt=GridDom<T>> + HasVariables,
@@ -1368,16 +1356,15 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
-    Xy<S::Raw, Cod::TypeCodom>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Cod, Out, SInfo>>
+    Xy<S::Raw, TypeCodom<Out>>: SolutionShape<SolId,SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Out, SInfo>>
 {
     type Context = Vec<f64>;
 
     fn compute(
         &self,
         s1: &S::Raw,
-        archive: &[Xy<S::Raw, Cod::TypeCodom>],
+        archive: &[Xy<S::Raw, TypeCodom<Out>>],
         weights: &PointWeights,
         searchspace: &Scp,
         context: &Self::Context
@@ -1402,7 +1389,7 @@ where
     fn sample<R: Rng>(
         &self, 
         rng: &mut R, 
-        archive: &[Xy<S::Raw, Cod::TypeCodom>], 
+        archive: &[Xy<S::Raw, TypeCodom<Out>>], 
         searchspace: &Scp,
         context: &Self::Context
     ) -> S::Raw {
@@ -1425,7 +1412,7 @@ where
         }).product()
     }
 
-    fn prepare(&self, archive: &[Xy<S::Raw, Cod::TypeCodom>], searchspace: &Scp) -> Self::Context {
+    fn prepare(&self, archive: &[Xy<S::Raw, TypeCodom<Out>>], searchspace: &Scp) -> Self::Context {
         let size = archive.len();
         (0..searchspace.size()).map(|d| {
             let dom = searchspace.opt_at(d).unwrap();

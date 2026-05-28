@@ -44,6 +44,7 @@ mod test {
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]
         pub struct OutStruct {
+            #[maximize]
             out: f64,
         }
 

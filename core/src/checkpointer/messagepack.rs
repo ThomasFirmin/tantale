@@ -1,5 +1,5 @@
 use crate::{
-    Accumulator, Codomain, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome,
+    Accumulator, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome,
     RUN_ID, SOL_ID, SolInfo, SolutionShape,
     checkpointer::{
         CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
@@ -403,26 +403,24 @@ impl MonoCheckpointer for MessagePack {
         }
     }
 
-    fn save_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    fn save_accumulator<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
         rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
 
-    fn load_accumulator<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         // Check if file exist
@@ -729,26 +727,24 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
-    fn save_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc)
+    fn save_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
         rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
 
-    fn load_accumulator_thr<Acc, C, SolId, SInfo, Cod, Out>(&self) -> Result<Acc, CheckpointError>
+    fn load_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         // Check if file exist
@@ -1071,29 +1067,27 @@ impl DistCheckpointer for MessagePack {
         WCheckMessagePack::new(self.config.clone(), proc)
     }
 
-    fn save_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(&self, acc: &Acc, _rank: Rank)
+    fn save_accumulator_dist<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc, _rank: Rank)
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         let mut wrt = File::create(&self.path_acc).unwrap();
         rmp_serde::encode::write(&mut wrt, acc).unwrap();
     }
 
-    fn load_accumulator_dist<Acc, C, SolId, SInfo, Cod, Out>(
+    fn load_accumulator_dist<Acc, C, SolId, SInfo, Out>(
         &self,
         _rank: Rank,
     ) -> Result<Acc, CheckpointError>
     where
-        Acc: Accumulator<C, SolId, SInfo, Cod, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+        Acc: Accumulator<C, SolId, SInfo, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
-        Cod: Codomain<Out>,
         Out: Outcome,
     {
         // Check if file exist

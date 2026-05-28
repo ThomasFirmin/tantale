@@ -18,7 +18,7 @@
 //! internal state based on evaluated results. Tantale distinguishes between two execution
 //! styles:
 //!
-//! - **Sequential optimization**: generates one solution at a time
+//! - **Single optimization**: generates one solution at a time
 //! - **Batch optimization**: generates a batch of solutions at each step
 //!
 //! These styles are captured by the [`SingleOptimizer`] and [`BatchOptimizer`] traits.
@@ -44,5 +44,6 @@
 //! - [`Runable`](crate::experiment::Runable) for execution control
 //!
 //! See the [`opt`] submodule for trait definitions and details.
+
 pub mod opt;
 pub use opt::{BatchOptimizer, EmptyInfo, OptInfo, OptState, Optimizer, SingleOptimizer, Sampler, SingleSampler, BatchSampler};

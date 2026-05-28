@@ -25,20 +25,28 @@
 //!
 //! ```
 //! // An example of a multi-objective, constrained and cost codomain.
-//! use tantale::core::{Codomain, CostConstMultiCodomain};
+//! use tantale::core::{Outcome, Codomain};
 //! use tantale::macros::Outcome;
 //! use serde::{Serialize,Deserialize};
 //!
 //! // Define a specific struct as the output of the function
-//! #[derive(Outcome,Debug,Serialize,Deserialize)]
+//! #[derive(Outcome, Debug, Serialize, Deserialize)]
 //! pub struct  OutExample{
+//!     #[maximize]
 //!     pub mul1 : f64,
+//!     #[minimize]
 //!     pub mul2 : f64,
+//!     #[minimize]
 //!     pub mul3 : f64,
+//!     #[maximize]
 //!     pub mul4 : f64,
+//!     #[cost]
 //!     pub cost5 : f64,
+//!     #[constraint]
 //!     pub con6 : f64,
+//!     #[constraint]
 //!     pub con7 : f64,
+//!     #[constraint]
 //!     pub con8 : f64,
 //!     pub more : f64,
 //!     pub info : f64,
@@ -57,31 +65,15 @@
 //!         info: 10.0,
 //!     };
 //!
-//! let codom = CostConstMultiCodomain::new(
-//!         // Define multi-objective
-//!         vec![
-//!             |h : &OutExample| h.mul1,
-//!             |h : &OutExample| h.mul2,
-//!             |h : &OutExample| h.mul3,
-//!             |h : &OutExample| h.mul4,
-//!         ].into_boxed_slice(),
-//!         // Define cost
-//!         |h : &OutExample| h.cost5,
-//!         // Define constraints
-//!         vec![
-//!             |h : &OutExample| h.con6,
-//!             |h : &OutExample| h.con7,
-//!             |h : &OutExample| h.con8,
-//!             ].into_boxed_slice(),
-//!     );
+//! let codom = OutExample::codomain();
 //!
 //! let elem = codom.get_elem(&outcome);
 //!
 //! assert_eq!(elem.value.len(),4);
-//! assert_eq!(elem.value[0]       , 1.0);
-//! assert_eq!(elem.value[1]       , 2.0);
-//! assert_eq!(elem.value[2]       , 3.0);
-//! assert_eq!(elem.value[3]       , 4.0);
+//! assert_eq!(elem.value[0]       ,  1.0);
+//! assert_eq!(elem.value[1]       , -2.0);
+//! assert_eq!(elem.value[2]       , -3.0);
+//! assert_eq!(elem.value[3]       ,  4.0);
 //!
 //! assert_eq!(elem.cost       , 5.0);
 //!
@@ -89,7 +81,6 @@
 //! assert_eq!(elem.constraints[0] , 6.0);
 //! assert_eq!(elem.constraints[1] , 7.0);
 //! assert_eq!(elem.constraints[2] , 8.0);
-//!
 //! ```
 //!
 //! # Notes
@@ -116,10 +107,10 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 pub type FidCriteria<Out> = fn(&Out) -> EvalStep;
 
 /// [`TypeCodom`](Codomain::TypeCodom) of a [`Codomain`].
-pub type TypeCodom<Cod, Out> = <Cod as Codomain<Out>>::TypeCodom;
+pub type TypeCodom<Out> = <<Out as Outcome>::Cod as Codomain<Out>>::TypeCodom;
 
 /// Type alias for cleaner associated type definitions of [`Accumulator`] of the [`Codomain`].
-pub type TypeAcc<Cod, C, SolId, SInfo, Out> = <Cod as Codomain<Out>>::Acc<C, SolId, SInfo>;
+pub type TypeAcc<C, SolId, SInfo, Out> = <<Out as Outcome>::Cod as Codomain<Out>>::Acc<C, SolId, SInfo>;
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
@@ -128,9 +119,9 @@ pub trait Codomain<Out: Outcome>: Debug + Sized {
     type TypeCodom: Debug + Serialize + for<'a> Deserialize<'a>;
 
     /// The accumulator type used to track the best solution seen so far.
-    type Acc<C, SolId, SInfo>: Accumulator<C, SolId, SInfo, Self, Out>
+    type Acc<C, SolId, SInfo>: Accumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -141,7 +132,7 @@ pub trait Codomain<Out: Outcome>: Debug + Sized {
     /// Creates a new, empty [`Accumulator`] for this [`Codomain`].
     fn new_accumulator<C, SolId, SInfo>() -> Self::Acc<C, SolId, SInfo>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo,
     {
@@ -152,13 +143,12 @@ pub trait Codomain<Out: Outcome>: Debug + Sized {
 /// Defines how to accumulate elements of a [`Codomain`] across evaluations,
 /// e.g. to keep track of the best solution seen so far for a [`Single`] objective,
 /// or the Pareto front for a [`Multi`] objective.
-pub trait Accumulator<C, SolId, SInfo, Cod, Out>:
+pub trait Accumulator<C, SolId, SInfo, Out>:
     Debug + Default + Serialize + for<'a> Deserialize<'a>
 where
-    C: SolutionShape<SolId, SInfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, SInfo> + HasY<Out>,
     SolId: Id,
     SInfo: SolInfo,
-    Cod: Codomain<Out>,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C);
@@ -239,30 +229,29 @@ pub trait Dominate {
 /// [`Ord`] value. The inner [`best`](BestAccumulator::best) is [`None`] until the first update.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
-pub struct BestAccumulator<C, SolId, Sinfo, Cod, Out>
+pub struct BestAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Single<Out>,
-    Cod::TypeCodom: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     /// The best element seen so far, or [`None`] if no element has been added yet.
     pub best: Option<C>,
     _sid: PhantomData<SolId>,
     _sinfo: PhantomData<Sinfo>,
-    _cod: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<C, SolId, Sinfo, Cod, Out> BestAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> BestAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Single<Out>,
-    Cod::TypeCodom: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     /// Creates an empty [`BestAccumulator`].
@@ -271,7 +260,6 @@ where
             best: None,
             _sid: PhantomData,
             _sinfo: PhantomData,
-            _cod: PhantomData,
             _out: PhantomData,
         }
     }
@@ -282,13 +270,13 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Default for BestAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> Default for BestAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Single<Out>,
-    Cod::TypeCodom: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     fn default() -> Self {
@@ -296,14 +284,14 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
-    for BestAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> Accumulator<C, SolId, Sinfo, Out>
+    for BestAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Single<Out>,
-    Cod::TypeCodom: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C) {
@@ -324,30 +312,29 @@ where
 /// dominates is removed before the new element is added.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
-pub struct ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
+pub struct ParetoAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
 {
     /// The current Pareto front (non-dominated set).
     pub front: Vec<C>,
     _sid: PhantomData<SolId>,
     _sinfo: PhantomData<Sinfo>,
-    _cod: PhantomData<Cod>,
     _out: PhantomData<Out>,
 }
 
-impl<C, SolId, Sinfo, Cod, Out> ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> ParetoAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
 {
     /// Creates an empty [`ParetoAccumulator`].
@@ -356,7 +343,6 @@ where
             front: Vec::new(),
             _sid: PhantomData,
             _sinfo: PhantomData,
-            _cod: PhantomData,
             _out: PhantomData,
         }
     }
@@ -367,13 +353,13 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Default for ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> Default for ParetoAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
 {
     fn default() -> Self {
@@ -381,14 +367,14 @@ where
     }
 }
 
-impl<C, SolId, Sinfo, Cod, Out> Accumulator<C, SolId, Sinfo, Cod, Out>
-    for ParetoAccumulator<C, SolId, Sinfo, Cod, Out>
+impl<C, SolId, Sinfo, Out> Accumulator<C, SolId, Sinfo, Out>
+    for ParetoAccumulator<C, SolId, Sinfo, Out>
 where
-    C: SolutionShape<SolId, Sinfo> + HasY<Cod, Out>,
+    C: SolutionShape<SolId, Sinfo> + HasY<Out>,
     SolId: Id,
     Sinfo: SolInfo,
-    Cod: Multi<Out>,
-    Cod::TypeCodom: Dominate,
+    Out::Cod: Multi<Out>,
+    TypeCodom<Out>: Dominate,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C) {
@@ -408,13 +394,13 @@ pub struct SingleCodomain<Out: Outcome> {
     pub y_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> SingleCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> SingleCodomain<Out> {
     pub fn new(crit: Criteria<Out>) -> Self {
         SingleCodomain { y_criteria: crit }
     }
 }
 
-impl<Out: Outcome> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain> for SingleCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<SingleCodomain<Out>, ElemSingleCodomain> for SingleCodomain<Out> {
     fn header(_elem: &SingleCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y")])
     }
@@ -456,12 +442,12 @@ impl PartialOrd for ElemSingleCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
+impl<Out: Outcome<Cod=Self>> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
     type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -472,7 +458,7 @@ impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for SingleCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Single<Out> for SingleCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
@@ -485,7 +471,7 @@ pub struct CostCodomain<Out: Outcome> {
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CostCodomain<Out> {
     pub fn new(crit: Criteria<Out>, cost: Criteria<Out>) -> Self {
         CostCodomain {
             y_criteria: crit,
@@ -494,7 +480,7 @@ impl<Out: Outcome> CostCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<CostCodomain<Out>, ElemCostCodomain> for CostCodomain<Out> {
     fn header(_elem: &CostCodomain<Out>) -> Vec<String> {
         Vec::from([String::from("y"), String::from("cost")])
     }
@@ -540,12 +526,12 @@ impl PartialOrd for ElemCostCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for CostCodomain<Out> {
     type TypeCodom = ElemCostCodomain;
     type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -557,12 +543,12 @@ impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Single<Out> for CostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for CostCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Cost<Out> for CostCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
@@ -575,7 +561,7 @@ pub struct ConstCodomain<Out: Outcome> {
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> ConstCodomain<Out> {
     pub fn new(crit: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
         ConstCodomain {
             y_criteria: crit,
@@ -584,7 +570,7 @@ impl<Out: Outcome> ConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<ConstCodomain<Out>, ElemConstCodomain> for ConstCodomain<Out> {
     fn header(elem: &ConstCodomain<Out>) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(
@@ -645,12 +631,12 @@ impl PartialOrd for ElemConstCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
     type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -662,13 +648,13 @@ impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Single<Out> for ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Single<Out> for ConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
 
-impl<Out: Outcome> Constrained<Out> for ConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Constrained<Out> for ConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -682,7 +668,7 @@ pub struct CostConstCodomain<Out: Outcome> {
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> CostConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CostConstCodomain<Out> {
     pub fn new(crit: Criteria<Out>, cost: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
         CostConstCodomain {
             y_criteria: crit,
@@ -692,7 +678,7 @@ impl<Out: Outcome> CostConstCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<CostConstCodomain<Out>, ElemCostConstCodomain>
+impl<Out: Outcome<Cod = Self>> CSVWritable<CostConstCodomain<Out>, ElemCostConstCodomain>
     for CostConstCodomain<Out>
 {
     fn header(elem: &CostConstCodomain<Out>) -> Vec<String> {
@@ -762,12 +748,12 @@ impl PartialOrd for ElemCostConstCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
     type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Self, Out>
+        = BestAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -779,17 +765,17 @@ impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Single<Out> for CostConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Single<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for CostConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Cost<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out> for CostConstCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Constrained<Out> for CostConstCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -805,13 +791,13 @@ pub struct MultiCodomain<Out: Outcome> {
     pub y_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> MultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> MultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>) -> Self {
         MultiCodomain { y_criteria: crit }
     }
 }
 
-impl<Out: Outcome> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain> for MultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CSVWritable<MultiCodomain<Out>, ElemMultiCodomain> for MultiCodomain<Out> {
     fn header(elem: &MultiCodomain<Out>) -> Vec<String> {
         elem.y_criteria
             .iter()
@@ -868,12 +854,12 @@ impl Dominate for ElemMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -884,7 +870,7 @@ impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Multi<Out> for MultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Multi<Out> for MultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
@@ -897,7 +883,7 @@ pub struct CostMultiCodomain<Out: Outcome> {
     pub co_criteria: Criteria<Out>,
 }
 
-impl<Out: Outcome> CostMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CostMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, cost: Criteria<Out>) -> Self {
         CostMultiCodomain {
             y_criteria: crit,
@@ -906,7 +892,7 @@ impl<Out: Outcome> CostMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<CostMultiCodomain<Out>, ElemCostMultiCodomain>
+impl<Out: Outcome<Cod = Self>> CSVWritable<CostMultiCodomain<Out>, ElemCostMultiCodomain>
     for CostMultiCodomain<Out>
 {
     fn header(elem: &CostMultiCodomain<Out>) -> Vec<String> {
@@ -972,12 +958,12 @@ impl Dominate for ElemCostMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for CostMultiCodomain<Out> {
     type TypeCodom = ElemCostMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -988,12 +974,12 @@ impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for CostMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Multi<Out> for CostMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Cost<Out> for CostMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Cost<Out> for CostMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
@@ -1006,7 +992,7 @@ pub struct ConstMultiCodomain<Out: Outcome> {
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> ConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> ConstMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, con: Box<[Criteria<Out>]>) -> Self {
         ConstMultiCodomain {
             y_criteria: crit,
@@ -1015,7 +1001,7 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<ConstMultiCodomain<Out>, ElemConstMultiCodomain>
+impl<Out: Outcome<Cod = Self>> CSVWritable<ConstMultiCodomain<Out>, ElemConstMultiCodomain>
     for ConstMultiCodomain<Out>
 {
     fn header(elem: &ConstMultiCodomain<Out>) -> Vec<String> {
@@ -1095,12 +1081,12 @@ impl Dominate for ElemConstMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for ConstMultiCodomain<Out> {
     type TypeCodom = ElemConstMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -1112,12 +1098,12 @@ impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> Multi<Out> for ConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Multi<Out> for ConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
-impl<Out: Outcome> Constrained<Out> for ConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Constrained<Out> for ConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }
@@ -1131,7 +1117,7 @@ pub struct CostConstMultiCodomain<Out: Outcome> {
     pub c_criteria: Box<[Criteria<Out>]>,
 }
 
-impl<Out: Outcome> CostConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> CostConstMultiCodomain<Out> {
     pub fn new(crit: Box<[Criteria<Out>]>, cost: Criteria<Out>, con: Box<[Criteria<Out>]>) -> Self {
         CostConstMultiCodomain {
             y_criteria: crit,
@@ -1141,7 +1127,7 @@ impl<Out: Outcome> CostConstMultiCodomain<Out> {
     }
 }
 
-impl<Out: Outcome> CSVWritable<CostConstMultiCodomain<Out>, ElemCostConstMultiCodomain>
+impl<Out: Outcome<Cod = Self>> CSVWritable<CostConstMultiCodomain<Out>, ElemCostConstMultiCodomain>
     for CostConstMultiCodomain<Out>
 {
     fn header(elem: &CostConstMultiCodomain<Out>) -> Vec<String> {
@@ -1231,12 +1217,12 @@ impl Dominate for ElemCostConstMultiCodomain {
     }
 }
 
-impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Codomain<Out> for CostConstMultiCodomain<Out> {
     type TypeCodom = ElemCostConstMultiCodomain;
     type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Self, Out>
+        = ParetoAccumulator<C, SolId, SInfo, Out>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Self, Out>,
+        C: SolutionShape<SolId, SInfo> + HasY<Out>,
         SolId: Id,
         SInfo: SolInfo;
 
@@ -1248,19 +1234,19 @@ impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
         }
     }
 }
-impl<Out: Outcome> Multi<Out> for CostConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Multi<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.y_criteria
     }
 }
 
-impl<Out: Outcome> Cost<Out> for CostConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Cost<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> Criteria<Out> {
         self.co_criteria
     }
 }
 
-impl<Out: Outcome> Constrained<Out> for CostConstMultiCodomain<Out> {
+impl<Out: Outcome<Cod = Self>> Constrained<Out> for CostConstMultiCodomain<Out> {
     fn get_criteria(&self) -> &[Criteria<Out>] {
         &self.c_criteria
     }

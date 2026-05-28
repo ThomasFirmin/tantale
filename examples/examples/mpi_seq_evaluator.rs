@@ -1,4 +1,5 @@
 use tantale::algos::RandomSearch;
+use tantale::core::Outcome;
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     BaseSol, Codomain, Mixed, MixedTypeDom, Objective, SId, Sp,
@@ -24,6 +25,7 @@ mod init_func {
 
     #[derive(Outcome, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
+        #[maximize]
         pub obj: f64,
     }
 
@@ -97,11 +99,11 @@ fn main() {
         );
     } else {
         let config = bincode::config::standard(); // Bytes encoding config
-        let mut sendrec = SendRec::<'_, XMessage<SId, _>, _, _, _, _, _>::new(config, &proc);
+        let mut sendrec = SendRec::<'_, XMessage<SId, _>, _, _, _, _>::new(config, &proc);
 
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
-        let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
+        let cod = OutEvaluator::codomain();
         let obj = Arc::new(Objective::new(func));
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
@@ -141,7 +143,6 @@ fn main() {
                     SId,
                     EmptyInfo,
                     Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>,
-                    SingleCodomain<OutEvaluator>,
                     OutEvaluator,
                 >,
             >,

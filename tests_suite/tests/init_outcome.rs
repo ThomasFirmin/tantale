@@ -1,19 +1,25 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::EvalStep;
+use tantale::core::Step;
 use tantale::macros::Outcome;
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
+    #[maximize]
     pub obj1: f64,
+    #[cost]
     pub cost2: f64,
+    #[constraint]
     pub con3: f64,
+    #[constraint]
     pub con4: f64,
+    #[constraint]
     pub con5: f64,
     pub mul6: f64,
     pub mul7: f64,
     pub mul8: f64,
     pub mul9: f64,
-    pub fid10: EvalStep,
+    #[step]
+    pub fid10: Step,
     pub more: f64,
     pub info: f64,
 }
@@ -29,7 +35,7 @@ pub fn get_struct() -> OutExample {
         mul7: 7.0,
         mul8: 8.0,
         mul9: 9.0,
-        fid10: EvalStep::evaluated(),
+        fid10: Step::Evaluated,
         more: 10.0,
         info: 11.0,
     }

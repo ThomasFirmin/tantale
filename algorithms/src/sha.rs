@@ -61,41 +61,59 @@
 //!
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
+use std::marker::PhantomData;
+
 use tantale_core::{
-    Batch, BatchOptimizer, Codomain, Criteria, EmptyInfo, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptInfo, OptState, Optimizer, Searchspace, SingleCodomain, Step, StepSId, Stepped, optimizer::opt::BudgetPruner, recorder::CSVWritable, solution::IntoComputedShape
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
 };
 
-use rand::prelude::ThreadRng;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{self, Visitor}, ser::SerializeStruct};
 
 use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
 
-/// Creates a codomain for Successive Halving optimization.
-///
-/// Constructs a [`SingleCodomain`] from a single-objective
-/// [`Criteria`].
-///
-/// # Arguments
-///
-/// * `extractor` - A [`Criteria`] defining how to extract the
-///   optimization objective from the [`Outcome`](tantale_core::Outcome).
-pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-where
-    Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-    Out: FidOutcome,
-{
-    let out = SingleCodomain {
-        y_criteria: extractor,
+
+/// A helper macro to simplify the type signature of [`Sha`].
+/// For example, to load a TPE optimizer with `Univariate`, `UniformWeighter` and `LinearSplit`, instead of writing:
+/// ```rust,ignore
+/// let exp = load!(mono, Sha<Tpe<Univariate, UniformWeighter, LinearSplit, _, _, _, _>, _,_,_>, Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+/// you can write:
+/// ```rust,ignore
+/// let exp = load!(mono, sha!(RandomSearch), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+/// or even:
+/// ```rust,ignore
+/// let exp = load!(mono, sha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, (sp, cod), obj, (rec, check));
+/// ```
+#[macro_export]
+macro_rules! sha {
+    ($sampler : ident) => {
+        Sha<$sampler, _, _, _, _>
     };
-    out.into()
+    ($sampler : ty) => {
+        Sha<$sampler, _, _, _, _>
+    };
 }
 
 /// Internal state of the Successive Halving optimizer.
 ///
 /// This structure maintains all essential information needed to resume an optimization
 /// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-#[derive(Serialize, Deserialize)]
-pub struct ShaState {
+pub struct ShaState<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
     /// Initial batch size for each iteration. Determines how many candidates are evaluated at the lowest fidelity level.
     pub batch: usize,
     /// A vector of budget levels corresponding to the halving rounds.
@@ -108,46 +126,25 @@ pub struct ShaState {
     pub scaling: f64,
     /// Current iteration count. Increments after each call to [`step()`](Sha::step).
     pub iteration: usize,
-}
-impl OptState for ShaState {}
-
-/// Metadata for a Successive Halving optimization step, associated to each [`Batch`].
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct ShaInfo {
-    /// The iteration number at which this info was created. Increments after each call to [`step()`](Sha::step).
-    pub iteration: usize,
-}
-impl OptInfo for ShaInfo {}
-
-impl ShaInfo {
-    /// Creates a new [`ShaInfo`] for the given iteration number.
-    ///
-    /// # Arguments
-    ///
-    /// * `iteration` - The iteration count at which this info was created
-    pub fn new(iteration: usize) -> Self {
-        ShaInfo { iteration }
-    }
+    _scp : PhantomData<Scp>,
+    _out : PhantomData<Out>,
+    _psol : PhantomData<PSol>,
+    _fn : PhantomData<Fn>,
 }
 
-/// CSV serialization support for [`ShaInfo`].
-///
-/// Enables recording of Successive Halving optimization metadata to CSV files.
-/// The generic parameters are `(),()` because [`ShaInfo`] is self-contained: no external
-/// context is needed to define the CSV header or write values.
-impl CSVWritable<(), ()> for ShaInfo {
-    /// Returns the CSV header for [`ShaInfo`] columns.
-    /// Header: `"iteration"`
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("iteration")])
-    }
-
-    /// Serializes this [`ShaInfo`] to CSV fields.
-    /// Writes the `iteration` field as a string.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.iteration.to_string()])
-    }
-}
+impl<Smpl, Scp, PSol, Out, Fn> OptState for ShaState<Smpl, Scp, PSol, Out, Fn> 
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{}
 
 /// Successive Halving multi-fidelity optimizer.
 ///
@@ -210,6 +207,7 @@ impl CSVWritable<(), ()> for ShaInfo {
 /// # Type Parameters
 ///
 /// This optimizer is generic over:
+/// - **Sampler**: Must implement [`BatchSampler`] for generating new candidates when no computed solutions are available for promotion
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
 /// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
@@ -218,14 +216,34 @@ impl CSVWritable<(), ()> for ShaInfo {
 /// # Internal State
 ///
 /// - [`ShaState`]: Checkpointable state including budget, scaling factor, and iteration count
-/// - [`ThreadRng`]: Deterministic random number generator for reproducible sampling. Not in [`ShaState`] since RNG cannot be serialized nor deserialized.
-pub struct Sha(pub ShaState, ThreadRng);
+pub struct Sha<Smpl, Scp, PSol, Out, Fn> (pub ShaState<Smpl, Scp, PSol, Out, Fn>, PhantomData<Fn>)
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>;
 
-impl Sha {
+impl<Smpl, Scp, PSol, Out, Fn>  Sha<Smpl, Scp, PSol, Out, Fn>  
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
     /// Creates a new Successive Halving optimizer with the specified parameters.
     ///
     /// # Parameters
     ///
+    /// * `sampler` - A [`BatchSampler`] used to sample random configuration.
+    ///   This is stored in the state to allow resampling after each halving cycle.
     /// * `batch` - Initial batch size. Must be $\geq \log_{\eta}(b_{max}/b_{min})$
     ///   to ensure sufficient candidates for successive elimination rounds.
     /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
@@ -242,7 +260,7 @@ impl Sha {
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `batch` is too small relative to the number of halving rounds needed
-    pub fn new(batch: usize, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
+    pub fn new(sampler: Smpl, batch: usize, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
         assert!(
@@ -271,17 +289,21 @@ impl Sha {
         }
 
         let current_budget = budgets[0];
-        let rng = rand::rng();
         Sha(
             ShaState {
+                sampler,
                 batch,
                 budgets,
                 budget_idx: 0,
                 current_budget,
                 scaling,
                 iteration: 0,
+                _scp: PhantomData,
+                _out: PhantomData,
+                _psol: PhantomData,
+                _fn: PhantomData,
             },
-            rng,
+            PhantomData,
         )
     }
 }
@@ -289,15 +311,21 @@ impl Sha {
 /// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Sha
+impl<Smpl, Out, Scp, SInfo, Fn> Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Sha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
+    Smpl: BatchSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
-    type State = ShaState;
-    type Cod = SingleCodomain<Out>;
-    type SInfo = EmptyInfo;
+    type State = ShaState<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
+    type SInfo = Smpl::SInfo;
 
     /// Returns a reference to the current optimizer state.
     fn get_state(&self) -> &Self::State {
@@ -314,15 +342,22 @@ where
     /// Used for checkpointing and resuming optimization experiments.
     /// Creates a fresh random number generator for the reconstructed optimizer.
     fn from_state(state: Self::State) -> Self {
-        Sha(state, rand::rng())
+        Sha(state, PhantomData)
     }
 }
 
-impl<Out, Scp> BudgetPruner<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Sha
+impl<Smpl, Out, Scp, SInfo, Fn> BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    for Sha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
+    Smpl: BatchSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, Fn, SInfo = SInfo>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
+    Scp::SolShape: HasStep + HasFidelity,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
@@ -393,23 +428,27 @@ where
 ///
 /// Implements the core optimization logic: initial batch generation and successive halving
 /// with fidelity-based candidate elimination.
-impl<Out, Scp, FnState>
+impl<Smpl, Out, Scp, SInfo, FnState>
     BatchOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
+        FidelitySol<StepSId, Scp::Opt, SInfo>,
         StepSId,
         Scp::Opt,
         Out,
         Scp,
-        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-    > for Sha
+        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
+    > for Sha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>>
 where
+    Smpl: BatchSampler<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, LinkOpt<Scp>, Out, Scp, SimpleStepped<Scp::SolShape, SInfo, Out, FnState>, SInfo = SInfo>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
     Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo, Self::Cod>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    SInfo: SolInfo,
     FnState: FuncState,
 {
-    type Info = ShaInfo;
+    type Info = Smpl::Info;
 
     /// Generates the initial [`Batch`] of candidates at minimum [`Fidelity`](tantale_core::Fidelity).
     ///
@@ -423,20 +462,10 @@ where
     /// # Returns
     ///
     /// A [`Batch`] of sampled solutions with fidelity set to `budget_min`
-    fn first_step(&mut self, scp: &Scp) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+    fn first_step(&mut self, scp: &Scp, acc: &FCompAcc<Scp, Out, Self::SInfo>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         self.0.current_budget = self.0.budgets[0];
         self.0.budget_idx = 0;
-        let info = ShaInfo::new(self.0.iteration);
-        let pairs: Vec<_> = scp.vec_apply_pair(
-            |mut pair| {
-                pair.set_fidelity(self.0.current_budget);
-                pair
-            },
-            &mut self.1,
-            self.0.batch,
-            EmptyInfo.into(),
-        );
-        Batch::new(pairs, info.into())
+        self.0.sampler.sample(self.0.batch, scp, acc)
     }
 
     /// Executes one iteration of Successive Halving on computed candidates.
@@ -462,10 +491,11 @@ where
     /// - A fresh initial [`Batch`] from `first_step()`
     fn step(
         &mut self,
-        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo, Self::Cod>,
+        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo>,
         scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo, Self::Cod>,
+        acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
+        let info = x.info();
         let mut pairs: Vec<_> = x
             .into_iter()
             .filter_map(|comp| match comp.step() {
@@ -476,7 +506,7 @@ where
         self.0.iteration += 1;
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp)
+            <Sha<_,_,_, _ , _> as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
         } else {
             // Compute number of candidates to keep
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
@@ -505,11 +535,11 @@ where
 
             if new_pairs.is_empty() {
                 // Safety check: if no candidates remain, restart
-                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                    self, scp,
+                <Sha<_,_,_, _, _> as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                    self, scp, acc
                 )
             } else {
-                Batch::new(new_pairs, ShaInfo::new(self.0.iteration).into())
+                Batch::new(new_pairs, info)
             }
         }
     }
@@ -520,5 +550,303 @@ where
 
     fn get_batch_size(&self) -> usize {
         self.0.batch
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct ShaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    _scp: PhantomData<Scp>,
+    _psol: PhantomData<PSol>,
+    _smpl: PhantomData<Smpl>,
+    _out: PhantomData<Out>,
+    _fn: PhantomData<Fn>,
+}
+
+enum ShaField {
+    Sampler,
+    Batch,
+    Budgets,
+    CurrentBudget,
+    BudgetIdx,
+    Scaling,
+    Iteration,
+}
+
+struct ShaFieldVisitor;
+
+impl<Smpl, Scp, PSol, Out, Fn> Serialize for ShaState<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ShaState", 7)?;
+        state.serialize_field("sampler", &self.sampler.get_state())?;
+        state.serialize_field("batch", &self.batch)?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("current_budget", &self.current_budget)?;
+        state.serialize_field("budget_idx", &self.budget_idx)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("iteration", &self.iteration)?;
+        state.end()
+    }
+}
+
+impl<Smpl, Scp, PSol, Out, Fn> ShaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    fn new() -> Self {
+        ShaStateVisitor {
+            _scp: PhantomData,
+            _psol: PhantomData,
+            _smpl: PhantomData,
+            _out: PhantomData,
+            _fn: PhantomData,
+        }
+    }
+}
+
+impl<'de> Visitor<'de> for ShaFieldVisitor {
+    type Value = ShaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter
+            .write_str("`sampler`, `batch`, `budgets`, `current_budget`, `budget_idx`, `scaling` or `iteration`")
+        }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(ShaField::Sampler),
+            "batch" => Ok(ShaField::Batch),
+            "budgets" => Ok(ShaField::Budgets),
+            "current_budget" => Ok(ShaField::CurrentBudget),
+            "budget_idx" => Ok(ShaField::BudgetIdx),
+            "scaling" => Ok(ShaField::Scaling),
+            "iteration" => Ok(ShaField::Iteration),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "sampler",
+                    "batch",
+                    "budgets",
+                    "current_budget",
+                    "budget_idx",
+                    "scaling",
+                    "iteration",
+                ],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for ShaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(ShaFieldVisitor)
+    }
+}
+
+impl<'de, Scp, PSol, Smpl, Out, Fn> Visitor<'de> for ShaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    type Value = ShaState<Smpl, Scp, PSol, Out, Fn>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct ShaState")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let batch = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        let budgets = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        let current_budget = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        let budget_idx = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        let scaling = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        let iteration = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0,&self))?;
+        Ok(ShaState {
+            sampler: Smpl::from_state(sampler),
+            batch,
+            budgets,
+            current_budget,
+            budget_idx,
+            scaling,
+            iteration,
+            _scp: PhantomData,
+            _out: PhantomData,
+            _psol: PhantomData,
+            _fn: PhantomData,
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut batch = None;
+        let mut budgets = None;
+        let mut current_budget = None;
+        let mut budget_idx = None;
+        let mut scaling = None;
+        let mut iteration = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                ShaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                ShaField::Batch => {
+                    if batch.is_some() {
+                        return Err(de::Error::duplicate_field("batch"));
+                    }
+                    batch = Some(map.next_value()?);
+                }
+                ShaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                ShaField::CurrentBudget => {
+                    if current_budget.is_some() {
+                        return Err(de::Error::duplicate_field("current_budget"));
+                    }
+                    current_budget = Some(map.next_value()?);
+                }
+                ShaField::BudgetIdx => {
+                    if budget_idx.is_some() {
+                        return Err(de::Error::duplicate_field("budget_idx"));
+                    }
+                    budget_idx = Some(map.next_value()?);
+                }
+                ShaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                ShaField::Iteration => {
+                    if iteration.is_some() {
+                        return Err(de::Error::duplicate_field("iteration"));
+                    }
+                    iteration = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let batch = batch.ok_or_else(|| de::Error::missing_field("batch"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let iteration = iteration.ok_or_else(|| de::Error::missing_field("iteration"))?;
+
+        Ok(ShaState {
+            sampler: Smpl::from_state(sampler),
+            batch,
+            budgets,
+            current_budget,
+            budget_idx,
+            scaling,
+            iteration,
+            _scp: PhantomData,
+            _out: PhantomData,
+            _psol: PhantomData,
+            _fn: PhantomData,
+        })
+    }
+}
+
+impl<'de, Scp, PSol, Smpl, Out, Fn> Deserialize<'de> for ShaState<Smpl, Scp, PSol, Out, Fn>
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId,Scp::Obj,Smpl::SInfo,Twin<Scp::Opt> = PSol>,
+    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
+    Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Ord,
+    Out: FidOutcome,
+    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ShaStateVisitor::new())
     }
 }
