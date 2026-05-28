@@ -23,3 +23,7 @@ syn = {version="2.0.101", features=["full"]}
 [features]
 py = []
 mpi = []
+
+[dev-dependencies]
+tantale = { path = "..", package = "tantale" }
+serde = {version="1.0.219", features=["derive","rc"]}
