@@ -12,7 +12,7 @@ use crate::run_checker::run_reader;
 
 #[test]
 fn test_fid_batch_run() {
-    let _clean = Cleaner::new("tmp_test_sh_run");
+    let _clean = Cleaner::new("tmp_test_sh_seqrun");
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
@@ -20,19 +20,19 @@ fn test_fid_batch_run() {
     let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_sh_run").init();
+    let config = FolderConfig::new("tmp_test_sh_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
     let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_sh_run", 1000);
+    run_reader("tmp_test_sh_seqrun", 1000);
 
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
 
-    let config = FolderConfig::new("tmp_test_sh_run").init();
+    let config = FolderConfig::new("tmp_test_sh_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -60,7 +60,7 @@ fn test_fid_batch_run() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
 
-    let config = FolderConfig::new("tmp_test_sh_run").init();
+    let config = FolderConfig::new("tmp_test_sh_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -72,7 +72,7 @@ fn test_fid_batch_run() {
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_sh_run", 2000);
+    run_reader("tmp_test_sh_seqrun", 2000);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();
