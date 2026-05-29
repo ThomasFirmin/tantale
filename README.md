@@ -31,6 +31,7 @@ Tantale is a workspace of three crates, re-exported from this top-level crate:
 |---|---|
 | `mpi` | Enables MPI-based distributed execution across multiple machines. Requires a local MPI installation (e.g. OpenMPI). Propagates to `tantale_core` and `tantale_algos`. |
 | `py` | Enables Python bindings with [pyo3](https://pyo3.rs) allowing to optimize Python functions |
+| `bayes` | Enables Bayesian optimization using [statrs](https://docs.rs/statrs/latest/statrs/) and [rand_distr](https://docs.rs/rand_distr/latest/rand_distr/)|
 
 ---
 
@@ -46,21 +47,49 @@ Minimum supported Rust version: **1.91.1** (2024 edition).
 
 ## Algorithms
 
-| Algorithm | Module | Type | Multi-fidelity | Multi-objective | Description |
-|---|---|---|---|---|---|
-| Random Search | `tantale::algos::random_search` | Sequential | No |  No | Sequential Random sampling |
-| BatchRandomSearch | `tantale::algos::random_search` | Batched | No |  No | Random sampling in fixed-size batches |
-| GridSearch | `tantale::algos::grid_search` | Sequential | No |  No | Deterministic sequential sampling of a grid of solutions|
-| SHA | `tantale::algos::sha` | Batched | Yes |  No |[Successive Halving](https://arxiv.org/abs/1502.07943): bracket-based multi-fidelity pruning |
-| ASHA | `tantale::algos::asha` | Sequential | Yes |  No |[Asynchronous SHA](https://arxiv.org/abs/1810.05934): on-demand asynchronous pruning |
-| Hyperband | `tantale::algos::hyperband` | Batched / Sequential | Yes |  No |[Hyperband](https://arxiv.org/abs/1603.06212): ensemble of SHA/ASHA brackets |
-| MO-ASHA | `tantale::algos::moasha` | Sequential | Yes | Yes | [MO-ASHA](https://arxiv.org/pdf/2106.12639): Multi-objective ASHA |
+Algorithms are divided in three categories:
+- *Standalone optimizer*: an algorithm that can be used directly to optimize a function.
+  For example random search, Bayesian optimization...
+  Optimizers are divided into two subcategories
+  - Single optimizer: consumes a previously evaluated solution to generate a new one.
+    For example simulated annealing.
+  - Batch optimizer: consumes a batch of evaluted solution to generate a new batch.
+    For example evolutionnary algorithms.
+- *Sampler*: an algorithm able to generate points from an internal state; updated with computed solutions.
+  For example, random search, latin hypercube sampling...
+  A sampler can be a standalone optimizer.
+  - Single sampler: generates on-demand a single non-evaluated solution.
+    For example a gaussian process with single point acquisition function.
+  - Batch sampler: generates on-demand a batch of non-evaluated solutions.
+    For example random search. 
+- *Budget pruner*: a multi-fidelity algorithm relying on an internal sampler. It manages 
+  budget allocated to partially evaluated solution, deciding which one to discard or not.
+  For example, ASHA, Hyperband, SHA...
 
+Then these algorithms can be specialized for multi-fidelity, multi-objectives or constrained problems.
+
+| Algorithm | Feature | Type | Optimizer | Sampler  | Pruner | Multi-fidelity | Multi-objective | Constrained
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| [RandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Single | ✔️ | ✔️ | ❌ | ❌ |  ❌ | ❌ |
+| [BatchRandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Batched | ✔️ | ✔️ | ❌ | ❌ |  ❌ | ❌ |
+| [GridSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Single | ✔️ | ✔️ | ❌ |  ❌ | ❌ | ❌ |
+| [SHA](https://arxiv.org/abs/1502.07943) | Base | Batched | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| [ASHA](https://arxiv.org/abs/1810.05934) | Base | Single | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Single | ✔️ |  ❌ |  ✔️ | ✔️ | ❌ | ❌ |
+| [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Single | ✔️ | ❌  |  ✔️ | ✔️ | ✔️ | ❌ |
+| [TPE](https://arxiv.org/abs/2304.11127) | "bayes" | Single | ✔️ | ✔️  | ❌ |  ✔️ | ❌ | ❌ |
 ---
 
 ## Quick start
 
 ### 1 — Define the objective function
+
+The `Outcome` derive macro allows defining both the output of the function and the codomain to optimize via helper attribute:
+- `objectives: [maximize "accuracy", minimize "memory_size"]` for single- or multi-objectives optimization.
+- (Optional) `constraints: ["c1", "c2", "c3"]` for black-box constrained optimization.
+- (Optional) `cost: "computation_time" ` for cost-aware optimization.
+- (Optional) `step: "iteration"` for multi-fidelity optimization where functions are evaluated by step with intermediate results.
+
 
 The `objective!` macro extracts the search space from the function body and produces:
 - `example::get_searchspace()` — the typed `Searchspace`.
@@ -76,6 +105,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -106,7 +136,7 @@ Leaving the optimizer domain empty (`| !]`) means the optimizer searches directl
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{random_search, BatchRandomSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -115,17 +145,16 @@ use std::sync::Arc;
 let sp  = get_searchspace();
 let obj = get_function();
 let opt = BatchRandomSearch::new(7);                              // batch size = 7
-let cod = random_search::codomain(|o: &OutExample| o.obj);       // maximize o.obj
 
 let stop   = Calls::new(50);                                     // stop after 50 evaluations
 let config = Arc::new(FolderConfig::new("run_batch"));
 let rec    = CSVRecorder::new(config.clone(), true, true, true, true);
 let check  = MessagePack::new(config);
 
-let exp         = mono((sp, cod), obj, opt, stop, (rec, check)); // mono-threaded
+let exp         = mono(sp, obj, opt, stop, (rec, check)); // mono-threaded
 let accumulator = exp.run();
 let best        = accumulator.get().unwrap().get_sobj();
-println!("Best: f({:?}) = {}", best.get_x(), best.y().value);
+println!("Best: f({:?}) = {}", best.ref_x(), best.y().value);
 ```
 
 ## Experiment components
@@ -137,7 +166,7 @@ An experiment is composed of up to 7 components:
 | Search space | `Searchspace` | Defines the input domain |
 | Codomain | `Codomain` | Extracts metrics (objective, constraints, cost) from an `Outcome` |
 | Function | `FuncWrapper` | The function to optimize (`Objective` or `Stepped`) |
-| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SequentialOptimizer`) |
+| Optimizer | `Optimizer` | Generates candidate solutions (`BatchOptimizer` or `SingleOptimizer`) |
 | Stop | `Stop` | Defines when to terminate (`Calls`, `Evaluated`, …) |
 | Recorder *(optional)* | `Recorder` | Logs solutions to disk (CSV, …) |
 | Checkpointer *(optional)* | `Checkpointer` | Saves and restores experiment state (MessagePack) |
@@ -152,21 +181,21 @@ An experiment is composed of up to 7 components:
 
 ### Parallelization philosophy
 
-- **Synchronous** (`BatchOptimizer`): a full batch is evaluated in parallel before the next optimization step.
-- **Asynchronous** (`SequentialOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
+- **Synchronous** (`BatchOptimizer / BatchSampler`): a full batch is evaluated in parallel before the next optimization step.
+- **Asynchronous** (`SingleOptimizer / SingleSampler`): new solutions are generated on demand as soon as a thread/process becomes free.
 
 ---
 
 ---
 
-## Macros
+## Procedural Macros
 
 | Macro | Kind | Description |
 |---|---|---|
 | `objective!` | Declarative | Defines a search space and wraps a function into `Objective` / `Stepped` |
 | `hpo!` | Declarative | Concise search space definition (without a function body) |
 | `pyhpo!` | Declarative | Same as `hpo!` but for Python bindings (`py` feature) |
-| `Outcome` | Derive | Implements the `Outcome` trait for a result struct |
+| `Outcome` | Derive | Implements the `Outcome` trait for a struct |
 | `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
 | `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
 | `OptInfo` | Derive | Attaches metadata to solutions produced by an optimizer |

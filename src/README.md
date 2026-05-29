@@ -68,15 +68,16 @@ Algorithms are divided in three categories:
 
 Then these algorithms can be specialized for multi-fidelity, multi-objectives or constrained problems.
 
-| Algorithm | Feature | Type | Optimizer | Sampler  | Pruner | Multi-fidelity | Multi-objective |
-|---|---|---|---|---|---|---|---|
-| [RandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Sequential | ✔️ | ✔️ | ❌ | ❌ |  ❌ |
-| [BatchRandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Batched | ✔️ | ✔️ | ❌ | ❌ |  ❌ |
-| [GridSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Sequential | ❌ |  ❌ |
-| [SHA](https://arxiv.org/abs/1502.07943) | Base | Batched | ✔️ |  ❌ | 
-| [ASHA](https://arxiv.org/abs/1810.05934) | Base | Sequential | ✔️ |  ❌ |
-| [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Sequential | ✔️ |  ❌ |
-| [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Sequential | ✔️ | ✔️  |
+| Algorithm | Feature | Type | Optimizer | Sampler  | Pruner | Multi-fidelity | Multi-objective | Constrained
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| [RandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Single | ✔️ | ✔️ | ❌ | ❌ |  ❌ | ❌ |
+| [BatchRandomSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Batched | ✔️ | ✔️ | ❌ | ❌ |  ❌ | ❌ |
+| [GridSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Single | ✔️ | ✔️ | ❌ |  ❌ | ❌ | ❌ |
+| [SHA](https://arxiv.org/abs/1502.07943) | Base | Batched | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| [ASHA](https://arxiv.org/abs/1810.05934) | Base | Single | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Single | ✔️ |  ❌ |  ✔️ | ✔️ | ❌ | ❌ |
+| [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Single | ✔️ | ❌  |  ✔️ | ✔️ | ✔️ | ❌ |
+| [TPE](https://arxiv.org/abs/2304.11127) | "bayes" | Single | ✔️ | ✔️  | ❌ |  ✔️ | ❌ | ❌ |
 ---
 
 ## Quick start
@@ -180,8 +181,8 @@ An experiment is composed of up to 7 components:
 
 ### Parallelization philosophy
 
-- **Synchronous** (`BatchOptimizer`): a full batch is evaluated in parallel before the next optimization step.
-- **Asynchronous** (`SingleOptimizer`): new solutions are generated on demand as soon as a thread/process becomes free.
+- **Synchronous** (`BatchOptimizer / BatchSampler`): a full batch is evaluated in parallel before the next optimization step.
+- **Asynchronous** (`SingleOptimizer / SingleSampler`): new solutions are generated on demand as soon as a thread/process becomes free.
 
 ---
 
