@@ -5,6 +5,7 @@ use crate::{
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
         CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment,
+        ExpComponent,
         basics::{FuncStatePool, IdxMapPool, LoadPool, Pool},
         sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},
@@ -35,7 +36,7 @@ use crate::{
     DistSeqRecorder,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
-        DistEvaluate, ExpComponent, MPIExperiment, MPIRunable, MasterWorker,
+        DistEvaluate, MPIExperiment, MPIRunable, MasterWorker,
         mpi::{
             utils::{FXMessage, MPIProcess, SendRec, XMessage, stop_order},
             worker::{BaseWorker, FidWorker},
