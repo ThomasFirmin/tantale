@@ -156,7 +156,7 @@
 - *(mpi)* Added a bash script to run `mpi_*.rs` tests sequentially.
 - *(pytantale)* Added test for mono, threaded, and distributed for `Objective` and `Stepped` cases with Python functions.
 
-## Release 0.2.0 Advanced Outcome, Samplers and Tree Parzen structured Estimator
+## Release 0.2.0 : Advanced Outcome, Samplers and Tree Parzen structured Estimator
 
 ### 🚀 Features
 
@@ -170,6 +170,7 @@
   All examples, documentation, and tests were modified consequently.
 - *(codomain!)* Removed all `codomain!` macros as the codomain is now automatically defined by the `Outcome` derive macro, and because `Optimizer` and `Sampler` can be generic over codomains
 - *(sampler)* Add the `Sampler` trait allowing to define a new kind of algorithms where the update of internal state is decorrelated from the sampling phase.
+  An algorithm can be both an independent `Optimizer` and a `Sampler`.
   - `RandomSearch` is now a `Sampler` and a `SingleSampler`
   - `BatchRandomSearch` is now a `Sampler` and a `BatchSampler`
   - `GridSearch` is now a `Sampler` and a `SingleSampler`
@@ -207,6 +208,7 @@
   - `SimpleStepped`
 - *(Has)* Moved `Has`-like traits to a dedicated file.
 - *(IntoComputedShape)* Added the `IntoComputedShape` to replace `IntoComputed` implementation on `SolutionShape`. It simplifies most of the trait bounds.
+- *(DomainSampler)* Domain sampler were previously called `Sampler`. Now these are `DomainSampler`.
 
 ### 📚 Documentation
 
