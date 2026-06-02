@@ -14,7 +14,7 @@ keywords.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-tantale_core = { workspace = true , features = ["mpi"] }
+tantale_core = { workspace = true }
 num = { workspace = true}
 rand = { workspace = true}
 serde = { workspace = true, features=["derive","rc"]}
