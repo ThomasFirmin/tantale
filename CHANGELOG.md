@@ -223,3 +223,9 @@
 ### ⚙️ Miscellaneous Tasks
 
 - *(rand)* Update rand version from 0.9.0 to 0.10.0
+
+## Hotfix 0.2.1 :
+
+### 🐛 Bug Fixes
+
+- *(cargo)* "mpi" feature was always activated due to the algorithm module requiring tantale with mpi.
