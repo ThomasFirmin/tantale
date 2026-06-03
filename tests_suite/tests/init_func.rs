@@ -597,6 +597,30 @@ pub mod sp_evaluator {
     );
 }
 
+pub mod sp_evaluator_real {
+    use super::OutEvaluator;
+    use tantale::core::{
+        Real,
+        sampler::Uniform,
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Real(1000.0,2000.0, Uniform) | !];
+            let _b = [! b | Real(1000.0,2000.0, Uniform) | !];
+            let _c = [! c | Real(1000.0,2000.0, Uniform) | !];
+            let _d = [! d | Real(1000.0,2000.0, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !]
+            }
+        }
+    );
+}
+
 pub mod sp_grid_evaluator {
     use super::{Neuron, OutEvaluator};
     use tantale::core::{Cat, Int, Real, sampler::Uniform};

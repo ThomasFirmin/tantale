@@ -246,7 +246,7 @@ fn test_fid_batch_run_loadpool() {
     let config = FolderConfig::new("tmp_test_fidbatchrun_loadpool").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
-
+    
     let mut exp = load!(
         mono,
         PoolMode::Persistent,

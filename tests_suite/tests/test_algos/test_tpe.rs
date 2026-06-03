@@ -7,7 +7,7 @@ use tantale::core::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::sp_evaluator;
+use crate::init_func::{sp_evaluator, sp_evaluator_real};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
@@ -140,4 +140,173 @@ fn test_tpe_seqthr_run() {
         (rec, check)
     );
     run_reader_eps("tmp_test_tpe_seqthrrun", 100, num_cpus::get() * 4);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#[test]
+fn test_tpe_seq_run_real() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_real");
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        Univariate,
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_tpe_seqrun_real", 50);
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader("tmp_test_tpe_seqrun_real", 100);
+}
+
+#[test]
+fn test_tpe_seqthr_run_real() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqthrrun_real");
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        Univariate,
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = threaded(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader_eps("tmp_test_tpe_seqthrrun_real", 50, num_cpus::get() * 4);
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        threaded,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator_real::get_searchspace();
+    let func = sp_evaluator_real::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        threaded,
+        tpe!(Univariate, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader_eps("tmp_test_tpe_seqthrrun_real", 100, num_cpus::get() * 4);
 }
