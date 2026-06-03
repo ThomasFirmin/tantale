@@ -112,6 +112,41 @@ impl<Obj: Domain> Linked for Sp<Obj, NoDomain> {
     type TrueOpt = NoDomain;
 }
 
+
+
+impl<Obj, Opt> HasVariables for Sp<Obj, Opt>
+where
+    Obj: OntoDom<Opt>,
+    Opt: OntoDom<Obj>,
+{
+
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_opt.as_ref())
+    }
+    
+    fn size(&self) -> usize {
+        self.var.len()
+    }
+}
+
+impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
+    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
+        self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+    
+    fn size(&self) -> usize {
+        self.var.len()
+    }
+}
+
 /// [`Searchspace`] implementation for paired objective/optimizer domains.
 impl<SolOpt, SolId, Obj, Opt, SInfo> Searchspace<SolOpt, SolId, SInfo> for Sp<Obj, Opt>
 where
@@ -338,38 +373,6 @@ where
                 f(s)
             })
             .collect()
-    }
-}
-
-impl<Obj, Opt> HasVariables for Sp<Obj, Opt>
-where
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
-{
-    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
-        &self.var
-    }
-
-    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
-        self.var.get(index).map(|v| v.domain_obj.as_ref())
-    }
-
-    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
-        self.var.get(index).map(|v| v.domain_opt.as_ref())
-    }
-}
-
-impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
-    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
-        &self.var
-    }
-
-    fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
-        self.var.get(index).map(|v| v.domain_obj.as_ref())
-    }
-
-    fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
-        self.var.get(index).map(|v| v.domain_obj.as_ref())
     }
 }
 

@@ -180,6 +180,16 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
         }
     }
 
+    /// Gets a reference to the objective domain.
+    pub fn get_obj(&self) -> &Obj {
+        self.domain_obj.as_ref()
+    }
+
+    /// Gets a reference to the optimizer domain.
+    pub fn get_opt(&self) -> &Opt {
+        self.domain_opt.as_ref()
+    }
+
     /// Maps a value from the optimizer domain to the objective domain.
     ///
     /// This is the key transformation that allows optimizers to work in their preferred
@@ -466,6 +476,16 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
             domain_obj: Arc::new(domain_obj),
             domain_opt: Arc::new(domain_opt),
         }
+    }
+
+    /// Gets a reference to the objective domain.
+    pub fn get_obj(&self) -> &Obj {
+        self.domain_obj.as_ref()
+    }
+
+    /// Gets a reference to the optimizer domain.
+    pub fn get_opt(&self) -> &Obj {
+        self.domain_obj.as_ref()
     }
 
     /// Maps a value from optimizer domain to objective domain (identity operation).

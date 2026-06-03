@@ -113,10 +113,6 @@ impl<Obj: Domain> Linked for SpPar<Obj, NoDomain> {
 }
 
 impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> HasVariables for SpPar<Obj, Opt> {
-    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
-        &self.var
-    }
-
     fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
         self.var.get(index).map(|v| v.domain_obj.as_ref())
     }
@@ -124,19 +120,23 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> HasVariables for SpPar<Obj, Opt> {
     fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
         self.var.get(index).map(|v| v.domain_opt.as_ref())
     }
+    
+    fn size(&self) -> usize {
+        self.var.len()
+    }
 }
 
 impl<Obj: Domain> HasVariables for SpPar<Obj, NoDomain> {
-    fn variables(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
-        &self.var
-    }
-
     fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
         self.var.get(index).map(|v| v.domain_obj.as_ref())
     }
 
     fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
         self.var.get(index).map(|v| v.domain_obj.as_ref())
+    }
+
+    fn size(&self) -> usize {
+        self.var.len()
     }
 }
 
