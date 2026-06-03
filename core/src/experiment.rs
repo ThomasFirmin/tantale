@@ -1093,12 +1093,12 @@ macro_rules! load {
             $space, $objective, $saver,
         )
     };
-    (mono, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+    (mono, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::mono_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
     };
-    (threaded, pool_mode, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
+    (threaded, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
         $crate::experiment::threaded_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
             $space, $objective, $saver, $pool_mode,
         )
