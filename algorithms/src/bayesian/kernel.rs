@@ -1,6 +1,6 @@
 use tantale_core::{
-    Computed, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace,
-    SolInfo, SolutionShape, Uncomputed, Unit, Xy,
+    Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace,
+    SolInfo, Uncomputed, Unit, Xy,
     domain::{CategoricalDomain, NumericalDomain, TypeDom, codomain::TypeCodom, grid::GridBounds},
     has_trait::HasVariables,
 };
@@ -611,8 +611,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Real, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -631,11 +629,12 @@ where
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
                 let s2 = comp.ref_x();
                 let x2 = &s2[d];
-                sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
+                sum += GaussianKernel::compute(&GaussianKernel, x1, x2, bandwidth, dom) * weight;
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior =
+            <Univariate as Kernel<Real, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
 
@@ -687,8 +686,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Int, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -707,11 +704,12 @@ where
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
                 let s2 = comp.ref_x();
                 let x2 = &s2[d];
-                sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
+                sum += GaussianKernel::compute(&GaussianKernel, x1, x2, bandwidth, dom) * weight;
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior =
+            <Univariate as Kernel<Int, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
 
@@ -727,7 +725,7 @@ where
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 GaussianKernel.sample(rng, &x[d], bandwidth, dom)
             })
             .collect()
@@ -763,8 +761,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Nat, Out, SInfo>>,
 {
     type Context = Vec<f64>;
 
@@ -784,11 +780,12 @@ where
             for (comp, weight) in archive.iter().zip(weights.weights.iter()) {
                 let s2 = comp.ref_x();
                 let x2 = &s2[d];
-                sum += GaussianKernel.compute(x1, x2, bandwidth, dom) * weight;
+                sum += GaussianKernel::compute(&GaussianKernel, x1, x2, bandwidth, dom) * weight;
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior =
+            <Univariate as Kernel<Nat, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
 
@@ -804,7 +801,7 @@ where
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 GaussianKernel.sample(rng, &x[d], bandwidth, dom)
             })
             .collect()
@@ -840,8 +837,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Unit, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -864,7 +859,8 @@ where
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior =
+            <Univariate as Kernel<Unit, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
 
@@ -880,7 +876,7 @@ where
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 GaussianKernel.sample(rng, &x[d], bandwidth, dom)
             })
             .collect()
@@ -917,8 +913,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -941,7 +935,8 @@ where
             }
             product *= sum;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior =
+            <Univariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s1, searchspace);
         weights.prior_weight * prior + product
     }
 
@@ -957,7 +952,7 @@ where
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
                 let bandwidth = context[d];
-                let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+                let x = archive.choose(rng).unwrap().ref_x();
                 AitchisonAitkenKernel.sample(rng, &x[d], bandwidth, dom)
             })
             .collect()
@@ -1081,8 +1076,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Real, Out, SInfo>>,
 {
     type Context = Vec<f64>;
 
@@ -1106,7 +1099,11 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<Real, Scp, S, SolId, SInfo, Out>>::prior(
+            self,
+            s1,
+            searchspace,
+        );
         weights.prior_weight * prior + sum
     }
 
@@ -1118,7 +1115,7 @@ where
         context: &Self::Context,
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x = archive.choose(rng).unwrap().ref_x();
         (0..dim)
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1158,8 +1155,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Int, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -1182,7 +1177,11 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<Int, Scp, S, SolId, SInfo, Out>>::prior(
+            self,
+            s1,
+            searchspace,
+        );
         weights.prior_weight * prior + sum
     }
 
@@ -1194,7 +1193,7 @@ where
         context: &Self::Context,
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x = archive.choose(rng).unwrap().ref_x();
         (0..dim)
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1234,8 +1233,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Nat, Out, SInfo>>,
 {
     type Context = Vec<f64>;
     fn compute(
@@ -1258,7 +1255,11 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<Nat, Scp, S, SolId, SInfo, Out>>::prior(
+            self,
+            s1,
+            searchspace,
+        );
         weights.prior_weight * prior + sum
     }
 
@@ -1270,7 +1271,7 @@ where
         context: &Self::Context,
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x = archive.choose(rng).unwrap().ref_x();
         (0..dim)
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1310,8 +1311,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, Unit, Out, SInfo>>,
 {
     type Context = Vec<f64>;
 
@@ -1335,7 +1334,11 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<Unit, Scp, S, SolId, SInfo, Out>>::prior(
+            self,
+            s1,
+            searchspace,
+        );
         weights.prior_weight * prior + sum
     }
 
@@ -1347,7 +1350,7 @@ where
         context: &Self::Context,
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x = archive.choose(rng).unwrap().ref_x();
         (0..dim)
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
@@ -1388,8 +1391,6 @@ where
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
-    Xy<S::Raw, TypeCodom<Out>>:
-        SolutionShape<SolId, SInfo, SolOpt = Computed<S, SolId, GridDom<T>, Out, SInfo>>,
 {
     type Context = Vec<f64>;
 
@@ -1413,7 +1414,11 @@ where
             }
             sum += product * weight;
         }
-        let prior = self.prior(s1, searchspace);
+        let prior = <Multivariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(
+            self,
+            s1,
+            searchspace,
+        );
         weights.prior_weight * prior + sum
     }
 
@@ -1425,7 +1430,7 @@ where
         context: &Self::Context,
     ) -> S::Raw {
         let dim = searchspace.size();
-        let x = archive.choose(rng).unwrap().get_sopt().ref_x();
+        let x = archive.choose(rng).unwrap().ref_x();
         (0..dim)
             .map(|d| {
                 let dom = searchspace.opt_at(d).unwrap();
