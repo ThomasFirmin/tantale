@@ -871,6 +871,7 @@ where
                     let y = cod.get_elem(&out);
                     let computed = pair.into_computed(y.into());
                     let outputed = (id, out);
+                    acc.lock().unwrap().accumulate(&computed);
                     stop.lock()
                         .unwrap()
                         .update(ExpStep::Distribution(Step::Evaluated));
