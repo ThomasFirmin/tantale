@@ -113,11 +113,9 @@ where
     D: NumericalDomain,
     D::TypeDom: Num + AsPrimitive<f64>,
 {
-    let (low, up) = dom.get_bounds();
-    let low = low.as_();
-    let up = up.as_();
     let size = size as f64;
-    (up - low) / 5.0 * size.powf(-1.0 / ((dim + 4) as f64))
+    let (low, up) = dom.get_bounds();
+    (up.as_() - low.as_()) / 5.0 * size.powf(-1.0 / ((dim + 4) as f64))
 }
 
 /// Computes the bandwidth for a given point in the archive for [`CategoricalDomain`] using the method:
@@ -129,8 +127,8 @@ pub fn cat_bw<D>(size: usize, dom: &D) -> f64
 where
     D: CategoricalDomain,
 {
-    let c = dom.size() as f64;
     let n = size as f64;
+    let c = dom.size() as f64;
     (c - 1.) / (n + c)
 }
 
@@ -146,9 +144,7 @@ where
     D::TypeDom: Num + AsPrimitive<f64>,
 {
     let (low, up) = dom.get_bounds();
-    let low = low.as_();
-    let up = up.as_();
     let range = up - low;
     let size = size.min(100) as f64;
-    bandwidth.max(range / size)
+    bandwidth.max(range.as_()/ size)
 }
