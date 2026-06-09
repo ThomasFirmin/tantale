@@ -1,6 +1,5 @@
 use crate::{
-    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed,
-    domain::codomain::TypeCodom,
+    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed, domain::codomain::TypeCodom
 };
 use std::sync::Arc;
 
@@ -189,6 +188,17 @@ pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
 
 /// Trait for objects containing a slice of [`Var`]iables.
 pub trait HasVariables: Linked {
+
+    /// Returns an iterator over the `Opt` [`Domain`]s associated with this object.
+    fn iter_opt(&self) -> impl Iterator<Item=&Self::Opt> + '_ {
+        (0..self.size()).map(|idx| self.opt_at(idx).unwrap())
+    }
+
+    /// Returns an iterator over the `Obj` [`Domain`]s associated with this object.
+    fn iter_obj(&self) -> impl Iterator<Item=&Self::Obj> + '_ {
+        (0..self.size()).map(|idx| self.obj_at(idx).unwrap())
+    }
+
     /// Returns the `Obj` [`Domain`] at a specific index, if it exists.
     fn obj_at(&self, index: usize) -> Option<&Self::Obj>;
 
