@@ -391,7 +391,7 @@ let next_step = fidelity as usize;
 #### State recovery
 
 We destinguish 3 cases:
-- `state` contains a `ModelState`: We load the previous function state to the device a resume evaluation:
+- `state` contains a `ModelState`: We load the previous function state to resume evaluation:
 ```rust,ignore
 Some(s) => (s.config, s.model.to_device(&device)),
 ```
@@ -429,7 +429,7 @@ None => {
 
 #### Current state recovery
 
-We the retrieve the current epoch previously saved within the function state:
+We retrieve the current epoch previously saved within the function state:
 ```rust,ignore
 let step = config.current_epoch;
 ```
@@ -612,7 +612,6 @@ objective!{
 Now that the neural networks and searchspace are defined we can use these within a `main.rs` file.
 This file contains the definition of the experiment itself:
 
-#[allow(clippy::needless_doctest_main)]
 ```rust,ignore
 // Where we jointly defined the function to optimize
 // and searchspace
@@ -634,7 +633,7 @@ fn main() {
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.);
 
-    let stop = Calls::new(100000);
+    let stop = Calls::new(1000);
     let config = FolderConfig::new("moasha_example").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);

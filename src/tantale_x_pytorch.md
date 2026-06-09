@@ -135,7 +135,7 @@ import torch.optim as optim
 
 import pytantale as tnt # <- Main Tantale module exposed to Python
 from pytantale import indices as idx # <- Contains hyperparameter indices within the input solution
-from pytantale import extra # <- Contain extra function like mpi_rank() or mpi_size()
+from pytantale import extra # <- Contains extra function like mpi_rank() or mpi_size()
 ```
 
 ### Model: `model.py`
@@ -261,8 +261,8 @@ class State:
 ### Training loop: `mode.py`
 
 Conversely to a full Rust pipeline, the searchspace and training loop have to be defined separately for typing issues.
-But indices of hyperparameters within the input solution `x` can be accessed via there indices exposed within the `indices` submodule of the `pytantale` module.
-The searchspace is defined later within the Rust part. the name of the hyperparameter are capitalized / uppercased within `indices`.
+But indices of hyperparameters within the input solution `x` can be accessed via their indices exposed within the `indices` submodule of the `pytantale` module.
+The searchspace is defined later within the Rust part. The name of the hyperparameter are capitalized / uppercased within `indices`.
 For example `dropout | Unit(Uniform) |` > `indices.DROPOUT`.
 Moreover, Tantale consider two types of function:
 * [`Objective`](crate::core::Objective): With function like `f(x : Arc<[SOLUTION TYPE]>) -> Outcome`, for single step evaluations
@@ -499,7 +499,8 @@ use std::env;
 
 # Notes
 
-Notice that the codomain extracts information from a [`PyFidOutcome`](crate::python::PyFidOutcome), using the [`.getattr_f64`](crate::python::PyFidOutcome::getattr_f64) method.
+Note that we use the [`distributed_with_pool`](tantale::core::distributed_with_pool) function, with [`PoolMode::Persistent`](tantale::core::PoolMode).
+Only one function state is kept within the RAM of a worker, while unecessary states are saved in persitent memory, and reloaded later if necessary. Once a network has been discarded or fully evaluated, their checkpoint are removed.
 
 # Compilation and execution
 
