@@ -119,7 +119,6 @@ where
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
 {
-
     fn obj_at(&self, index: usize) -> Option<&Self::Obj> {
         self.var.get(index).map(|v| v.domain_obj.as_ref())
     }

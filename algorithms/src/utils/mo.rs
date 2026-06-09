@@ -2,6 +2,69 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use tantale_core::Dominate;
 
+/// Implements the Pareto front extraction algorithm, 
+/// which identifies the non-dominated solutions from a given set of solutions.
+/// 
+/// # Example
+///
+/// Consider the following set of solutions, where each solution is represented as a point in a 2D objective space:
+///
+/// ```text
+///  5.0 |  1  .  .  .  .  .  .  .  .  .  .
+///  4.5 |  .  .  .  .  2  .  .  .  .  .  .
+///  4.0 |  .  6  .  .  .  .  3  .  .  .  .
+///  3.5 | 11  .  .  .  7  .  .  .  .  .  .
+///  3.0 |  .  . 12  .  .  .  8  .  4  .  .
+///  2.5 |  .  .  .  .  .  .  .  .  .  .  .
+///  2.0 |  .  .  .  . 13  .  .  .  9  .  .
+///  1.5 |  .  .  .  .  .  .  .  .  .  .  .
+///  1.0 |  .  .  .  .  . 14  .  .  .  .  5
+///  0.5 |  .  .  .  .  .  .  .  .  .  .  .
+///  0.0 |  .  .  .  .  .  . 15  .  .  . 10
+///      +---------------------------------
+///       0.0   1.0   2.0   3.0   4.0   5.0
+/// ```
+///
+/// The fronts are as follows:
+///
+/// ```text
+/// Pareto front:
+///     [5, 4, 3, 2, 1]
+/// ```
+pub trait ParetoFront<T:Dominate> {
+        fn pareto_front(&self) -> Vec<&T>;
+        fn pareto_argfront(&self) -> Vec<usize>;
+}
+
+impl <T: Dominate> ParetoFront<T> for [T] 
+{
+    /// Returns the non-dominated solutions from the input set of solutions.
+    fn pareto_front(&self) -> Vec<&T> {
+        self.iter().filter(
+            |p1|
+            !self.iter().any(
+                |p2|
+                    p2.dominates(p1)
+            )
+        ).collect()
+    }
+
+    /// Return the non-dominated indexes of solutions from the input set of solutions.
+    fn pareto_argfront(&self) -> Vec<usize> {
+        self.iter().enumerate().filter_map(
+            |(idx, p1)|
+            {
+                let any_dominates = self.iter().any(|p2| p2.dominates(p1)); 
+                if any_dominates {
+                    None
+                } else {
+                    Some(idx)
+                }
+            }
+        ).collect()
+    }
+}
+
 /// Implements the binary search non-dominated sorting algorithm, described in [Zhang et al. (2012)](http://www.soft-computing.de/ENS.pdf).
 ///
 /// # Parameters
@@ -60,7 +123,7 @@ use tantale_core::Dominate;
 ///     [10, 9, 8, 7, 6]
 /// Front 3:
 ///     [15, 14, 13, 12, 11]
-/// ``````
+/// ```
 pub trait NonDominatedSorting<T>
 where
     T: Dominate,
