@@ -34,6 +34,7 @@ use std::{fmt, ops::RangeInclusive};
 /// assert_eq!(dom.mid, 0.5);
 /// assert_eq!(dom.width, 1.0);
 /// ```
+#[derive(Serialize, Deserialize)]
 pub struct Unit {
     pub bounds: RangeInclusive<f64>,
     pub mid: f64,

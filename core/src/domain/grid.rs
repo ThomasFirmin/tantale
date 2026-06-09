@@ -35,7 +35,8 @@ impl<T> GridBounds for T where
 /// let values = grid.values.to_vec();
 /// assert_eq!(values, vec![0.1, 0.5, 0.9])
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "T: GridBounds")]
 pub struct GridDom<T: GridBounds> {
     pub values: Box<[T]>,
     pub sampler: GridDomDistribution,
@@ -436,7 +437,7 @@ impl From<Mixed> for Cat {
 /// grid-based domains and [`Bool`], making it well-suited for exhaustive enumeration strategies
 /// such as Grid Search.
 /// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Grid {
     Real(GridReal),
     Int(GridInt),

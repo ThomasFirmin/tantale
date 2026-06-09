@@ -29,7 +29,7 @@ use std::fmt;
 /// let sample = dom.sample(&mut rng);
 /// assert!(dom.contains(&sample));
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Bool(pub BoolDistribution);
 impl Bool {
     /// Fabric for a [`Bool`].

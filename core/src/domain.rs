@@ -157,7 +157,7 @@ pub trait PreDomain: Debug {}
 /// - [`TypeDom`] - Type alias for extracting the value type from a domain
 /// - [`Var`] - Variables that use domains
 /// - [`Searchspace`](crate::Searchspace) - Collections of domains defining the optimization space
-pub trait Domain: PreDomain + Sized + PartialEq + Debug {
+pub trait Domain: PreDomain + Sized + PartialEq + Debug  + Serialize + for<'a> Deserialize<'a> {
     /// The type representing values from this domain.
     ///
     /// [`TypeDom`](Domain::TypeDom) is the associated type that defines what type

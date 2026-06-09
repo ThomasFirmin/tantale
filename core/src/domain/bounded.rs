@@ -101,7 +101,8 @@ impl<T> BoundedBounds for T where
 /// * `bounds` - A [`RangeInclusive`] object of type `<T>`.
 /// * `mid` - Middle point of the [`Bounded`] [`Domain`]. $\frac{\texttt{lower}+\texttt{upper}}{2}$
 /// * `width` - Width of the [`Bounded`] [`Domain`]. $\texttt{upper}-\texttt{lower}$
-///
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "T: BoundedBounds")]
 pub struct Bounded<T: BoundedBounds> {
     pub bounds: RangeInclusive<T>,
     pub mid: T,

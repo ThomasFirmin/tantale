@@ -22,14 +22,14 @@ use std::fmt::{Debug, Display};
 /// A mixed [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
 /// and [`Unit`]. And 4, discretized, grid versions of the basic domains: [`GridReal`], [`GridNat`], and [`GridInt`].
 /// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mixed {
     Real(Real),
     Nat(Nat),
     Int(Int),
+    Unit(Unit),
     Bool(Bool),
     Cat(Cat),
-    Unit(Unit),
     GridReal(GridReal),
     GridNat(GridNat),
     GridInt(GridInt),

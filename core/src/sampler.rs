@@ -58,6 +58,7 @@ use rand::{
     RngExt,
     prelude::{IteratorRandom, Rng},
 };
+use serde::{Deserialize, Serialize};
 
 /// Core trait for sampling strategies that generate random values from a domain.
 ///
@@ -121,7 +122,7 @@ pub trait DomainSampler<D: Domain> {
 ///
 /// let dist: BoundedDistribution = Uniform.into();
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum BoundedDistribution {
     Uniform(Uniform),
 }
@@ -157,7 +158,7 @@ where
 ///
 /// let dist: BoolDistribution = Bernoulli(0.5).into();
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum BoolDistribution {
     Bernoulli(Bernoulli),
 }
@@ -185,7 +186,7 @@ impl DomainSampler<Bool> for BoolDistribution {
 ///
 /// let dist: GridDomDistribution = Uniform.into();
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum GridDomDistribution {
     Uniform(Uniform),
 }
@@ -251,7 +252,7 @@ impl From<Bernoulli> for BoolDistribution {
 /// - [`Bernoulli`] - Alternative sampler for boolean domains
 /// - [`BoundedDistribution`] - Enum wrapper for bounded domain samplers
 /// - [`GridDomDistribution`] - Enum wrapper for grid domain samplers
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Uniform;
 impl<D: RangeDomain> DomainSampler<D> for Uniform
 where
@@ -297,7 +298,7 @@ impl<T: GridBounds> DomainSampler<GridDom<T>> for Uniform {
 /// // Sample from Bernoulli(0.7)
 /// let value = domain.sample(&mut rng);
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Bernoulli(pub f64);
 impl DomainSampler<Bool> for Bernoulli {
     fn sample<R: Rng>(&self, _dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
