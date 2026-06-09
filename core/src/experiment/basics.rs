@@ -172,7 +172,7 @@ where
     FnState: FuncState,
     FnStCheck: FuncStateCheckpointer,
 {
-    pub pool: IndexMap<SolId, Option<FnState>>,
+    pub pool: IndexMap<SolId, FnState>,
     pub check: Option<FnStCheck>,
 }
 
@@ -211,7 +211,6 @@ impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterat
     fn from_iter<T: IntoIterator<Item = (SolId, FnState)>>(iter: T) -> Self {
         let pool = iter
             .into_iter()
-            .map(|(id, state)| (id, Some(state)))
             .collect();
         Self { pool, check: None }
     }
@@ -229,23 +228,20 @@ where
         if let Some(c) = &self.check {
             c.save_func_state(&id, &state);
         }
-        self.pool.insert(id, Some(state));
+        self.pool.insert(id, state);
     }
     /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
     /// Returns `true` if the state was present and removed, `false` otherwise.
     fn remove(&mut self, id: &SolId) -> bool {
+        let mut check_rmv = true;
         if let Some(c) = &self.check {
-            let _ = c.remove_func_state(id);
+            check_rmv = c.remove_func_state(id).is_ok();
         }
-        self.pool.swap_remove(id).is_some()
+        self.pool.swap_remove(id).is_some() && check_rmv
     }
     /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
-        if let Some(state_opt) = self.pool.get_mut(id) {
-            state_opt.take()
-        } else {
-            None
-        }
+        self.pool.swap_remove(id)
     }
 }
 
