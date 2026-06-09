@@ -35,6 +35,13 @@ macro_rules! tpe {
 
 /// Computes the acquisition function value based on the best and worse KDE-PDF values.
 pub fn acquisition(good_pdf: f64, bad_pdf: f64) -> f64 {
+    // if bad_pdf is 0, we want to return a very high acquisition value, to encourage exploration
+    if bad_pdf == 0.0 {
+        return f64::INFINITY;
+    }
+    if good_pdf == 0.0 {
+        return 0.0;
+    }
     good_pdf / bad_pdf
 }
 
@@ -74,7 +81,7 @@ impl CSVWritable<(), ()> for TpeSInfo {
     }
 }
 
-type JointFidelityArchive<Raw, CodElem, KContext, SContext> = Vec<(f64, OrdArchive<Xy<Raw, CodElem>>, Vec<KContext>, Option<SContext>)>;
+type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrdArchive<Xy<Raw, CodElem>>)>;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
@@ -98,7 +105,7 @@ where
     pub kernel: Kern,
     pub weighter: Wght,
     pub splitter: Splt,
-    pub point_archive: JointFidelityArchive<S::Raw, TypeCodom<Out>, Kern::KContext, Kern::SContext>,
+    pub point_archive: JointFidelityArchive<S::Raw, TypeCodom<Out>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
 }
@@ -159,7 +166,7 @@ where
             kernel,
             weighter,
             splitter,
-            point_archive: vec![(0.0, OrdArchive::default(), Default::default(), None)],
+            point_archive: vec![(0.0, OrdArchive::default())],
             current_archive: 0,
             current_fidelity: 0.0,
         })
@@ -265,34 +272,25 @@ where
         if let Some(point) = x {
             let xy = point.get_sopt().xy();
             self.0.point_archive[0].1.add(xy);
-            self.0.point_archive[0].2.push(Kern::default_kcontext(scp));
         }
 
         let n_init = self.0.n_init;
         if self.0.point_archive[0].1.size() < n_init {
-            if self.0.point_archive[0].3.is_none() {
-                self.0.point_archive[0].3 = Some(Kern::default_scontext(scp));
-            }
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
-            // Update the context of the kernel with the new archive
-            let entry = &mut self.0.point_archive[0];
-            Kern::update_context(&entry.1.points, &mut entry.2, entry.3.as_mut().unwrap(), scp);
-            
             // Split the archive into good and bad, and compute the weights
             let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
             let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let entry = &self.0.point_archive[0];
-                    let kctx = &entry.2;
-                    let sctx = entry.3.as_ref().unwrap();
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, kctx, sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, kctx, sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, kctx, sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -350,10 +348,6 @@ where
                 Step::Evaluated => {
                     let xy = point.get_sopt().xy();
                     self.0.point_archive[0].1.add(xy);
-                    self.0.point_archive[0].2.push(Kern::default_kcontext(scp));
-                    if self.0.point_archive[0].3.is_none() {
-                        self.0.point_archive[0].3 = Some(Kern::default_scontext(scp));
-                    }
                     <Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out> as SingleOptimizer<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp, Stepped<Arc<[TypeDom<Scp::Obj>]>, Out, FnState>>>::step(self, None, scp, acc)
                 },
                 _ => <Tpe<Kern, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out> as SingleOptimizer<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp, Stepped<Arc<[TypeDom<Scp::Obj>]>, Out, FnState>>>::step(self, None, scp, acc)
@@ -364,23 +358,18 @@ where
                 let info = TpeSInfo::new(0.0, 0.0, 0.0);
                 self.with_rng(|rng| scp.sample_pair(rng, info))
             } else {
-                // Update the context of the kernel with the new archive
-                let entry = &mut self.0.point_archive[0];
-                Kern::update_context(&entry.1.points, &mut entry.2, entry.3.as_mut().unwrap(), scp);
-                
-                // Split the archive into good and bad, and compute the weights
+                 // Split the archive into good and bad, and compute the weights
                 let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
                 let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
+                let (good_sctx, good_kctx) = Kern::get_context(good, scp);
+                let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
 
                 let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                     .map(|_| {
-                        let entry = &self.0.point_archive[0];
-                        let kctx = &entry.2;
-                        let sctx = entry.3.as_ref().unwrap();
-                        let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, kctx, sctx, scp));
+                        let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
                         let kernel = &self.0.kernel;
-                        let good_pdf = kernel.compute(&s, good, kctx, sctx, &weights.good, scp);
-                        let bad_pdf = kernel.compute(&s, bad, kctx, sctx, &weights.bad, scp);
+                        let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
+                        let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                         let acq = acquisition(good_pdf, bad_pdf);
                         (s, acq, good_pdf, bad_pdf)
                     })
@@ -439,7 +428,7 @@ impl<Kern, Wght, Splt, Scp, Out>
 where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo> + Send + Sync,
     Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out> + Send + Sync,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
+    Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
     Splt: Splitter + Send + Sync,
     TypeCodom<Out>: Send + Sync + Ord,
     TypeDom<Scp::Opt>: Send + Sync,
@@ -457,19 +446,18 @@ where
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
-            // Split the archive into good and bad, and compute the weights
+             // Split the archive into good and bad, and compute the weights
             let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
             let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let entry = &self.0.point_archive[0];
-                    let kctx = &entry.2;
-                    let sctx = entry.3.as_ref().unwrap();
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, kctx, sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, kctx, sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, kctx, sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -484,16 +472,27 @@ where
     fn update(
         &mut self,
         x: &CompShape<Scp::SolShape, SId, Self::SInfo, Out>,
-        scp: &Scp,
+        _scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) {
         let xy = x.get_sopt().xy();
         self.0.point_archive[0].1.add(xy);
-        self.0.point_archive[0].2.push(Kern::default_kcontext(scp));
-        // Update the context of the kernel with the new archive
-        let entry = &mut self.0.point_archive[0];
-        Kern::update_context(&entry.1.points, &mut entry.2, entry.3.as_mut().unwrap(), scp);
     }
+    
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        scp: &Scp,
+        acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
+    ) -> Scp::SolShape
+    where
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync
+    {
+        let sol = self.sample(scp, acc);
+        f(sol)
+    }
+    
+    
 }
 
 impl<Kern, Wght, Splt, Scp, Out, FnState>
@@ -515,7 +514,7 @@ where
             TpeSInfo,
             Out,
         > + Send + Sync,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
+    Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
     Splt: Splitter + Send + Sync,
     TypeCodom<Out>: Send + Sync + Ord,
     TypeDom<Scp::Opt>: Send + Sync,
@@ -542,19 +541,18 @@ where
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
-            // Split the archive into good and bad, and compute the weights
-            let (good, bad) = self.0.splitter.split(&self.0.point_archive[self.0.current_archive].1);
+             // Split the archive into good and bad, and compute the weights
+            let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
             let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let entry = &self.0.point_archive[self.0.current_archive];
-                    let kctx = &entry.2;
-                    let sctx = entry.3.as_ref().unwrap();
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, kctx, sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, kctx, sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, kctx, sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -579,7 +577,7 @@ where
     fn update(
         &mut self,
         x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>,
-        scp: &Scp,
+        _scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) {
         let fidelity = x.fidelity().0;
@@ -587,17 +585,12 @@ where
         if fidelity == self.0.current_fidelity {
             let xy = x.get_sopt().xy();
             self.0.point_archive[self.0.current_archive].1.add(xy);
-            self.0.point_archive[self.0.current_archive].2.push(Kern::default_kcontext(scp));
-            // Update the context of the kernel with the new archive
-            let entry = &mut self.0.point_archive[self.0.current_archive];
-            Kern::update_context(&entry.1.points, &mut entry.2, entry.3.as_mut().unwrap(), scp);
         } else if fidelity > self.0.current_fidelity {
             let where_is = self.0.point_archive.iter().position(|f| f.0 == fidelity);
             // If the fidelity was already present in the archive.
             if let Some(idx) = where_is {
                 let xy = x.get_sopt().xy();
                 self.0.point_archive[idx].1.add(xy);
-                self.0.point_archive[idx].2.push(Kern::default_kcontext(scp));
 
                 // If the number of points at this fidelity exceeds the threshold, remove all previous fidelity points.
                 if self.0.point_archive[idx].1.size() >= self.0.n_init {
@@ -610,17 +603,24 @@ where
                         .unwrap();
                     self.0.current_archive = i;
                     self.0.current_fidelity = fidelity;
-                    // Update the context of the kernel with the new archive
-                    let entry = &mut self.0.point_archive[i];
-                    Kern::update_context(&entry.1.points, &mut entry.2, entry.3.as_mut().unwrap(), scp);
                 }
             } else {
                 let xy = x.get_sopt().xy();
-                let kctx = vec![Kern::default_kcontext(scp)];
-                let sctx = Some(Kern::default_scontext(scp));
-                self.0.point_archive.push((fidelity, OrdArchive::new(xy), kctx, sctx));
+                self.0.point_archive.push((fidelity, OrdArchive::new(xy)));
             }
         }
         // Else we ignore as an archive with higher accuracy has already reached the threshold
+    }
+    
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        scp: &Scp,
+        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
+    ) -> Scp::SolShape
+    where
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync {
+        let sol = <Tpe<_,_,_,_,_,_,_> as SingleSampler<_,_,_,Out,_,SimpleStepped<Scp::SolShape, _, Out, FnState>>>::sample(self, scp, acc);
+        f(sol)
     }
 }

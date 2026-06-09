@@ -62,11 +62,8 @@ pub trait KernelFunc<Dom: Domain>
     /// for efficient kernel computation.
     type KContext: Serialize + for<'a> Deserialize<'a>;
 
-    fn default_scontext(dom: &Dom) -> Self::SContext;
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, dom: &Dom);
-    
-    fn default_kcontext(dom: &Dom) -> Self::KContext;
-    fn update_kcontext(x: &Dom::TypeDom, kcontext: &mut Self::KContext, scontext: &Self::SContext, dom: &Dom);
+    fn get_scontext(bandwidth: f64, dom: &Dom) -> Self::SContext;
+    fn get_kcontext(x: &Dom::TypeDom, scontext: &Self::SContext, dom: &Dom) -> Self::KContext;
 
     /// Computes the kernel function between two [`SolutionShape`] instances of `Opt` type `Dom`.
     ///
@@ -157,28 +154,18 @@ pub struct GaussianKContext {
 impl KernelFunc<Real> for GaussianKernel {
     type SContext = GaussianSContext;
     type KContext = GaussianKContext;
-    
-    fn default_scontext(_dom: &Real) -> Self::SContext {
-        GaussianSContext::new(1.0, 0.0)
-    }
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &Real)
+
+    fn get_scontext(bandwidth: f64, _dom: &Real) -> Self::SContext
     {
-        scontext.lhs = 1. / (bandwidth * SQRT_2PI);
-        scontext.bandwidth = bandwidth;
-    }
-    
-    fn default_kcontext(_dom: &Real) -> Self::KContext {
-        GaussianKContext { cst : 0.0, p_low: 0.0, p_up: 0.0 }
+        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
     }
 
-    fn update_kcontext(x: &f64, kcontext: &mut Self::KContext, scontext: &Self::SContext, dom: &Real) {
+    fn get_kcontext(x: &f64, scontext: &Self::SContext, dom: &Real) -> Self::KContext {
         let (low, up) = dom.get_bounds();
         let cst = gaussian_interval(x, scontext.bandwidth, low, up);
         let p_low = gaussian_cdf(*x, scontext.bandwidth, &low);
         let p_up = gaussian_cdf(*x, scontext.bandwidth, &up);
-        kcontext.cst = cst;
-        kcontext.p_low = p_low;
-        kcontext.p_up = p_up;
+        GaussianKContext {cst ,p_low ,p_up}
     }
 
     fn compute(x1: &f64, x2: &f64, kcontext: &Self::KContext, scontext: &Self::SContext, _dom: &Real) -> f64 {
@@ -222,26 +209,16 @@ impl KernelFunc<Unit> for GaussianKernel
 {
     type SContext = GaussianSContext;
     type KContext = GaussianKContext;
-    
-    fn default_scontext(_dom: &Unit) -> Self::SContext {
-        GaussianSContext::new(1.0, 0.0)
-    }
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &Unit) {
-        scontext.lhs = 1. / (bandwidth * SQRT_2PI);
-        scontext.bandwidth = bandwidth;
-    }
-    
-    fn default_kcontext(_dom: &Unit) -> Self::KContext {
-        GaussianKContext { cst : 0.0, p_low: 0.0, p_up: 0.0 }
+
+    fn get_scontext(bandwidth: f64, _dom: &Unit) -> Self::SContext {
+        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
     }
 
-    fn update_kcontext(x: &f64, kcontext: &mut Self::KContext, scontext: &Self::SContext, _dom: &Unit) {
+    fn get_kcontext(x: &f64, scontext: &Self::SContext, _dom: &Unit) -> Self::KContext {
         let cst = gaussian_interval(x, scontext.bandwidth, 0.0, 1.0);
         let p_low = gaussian_cdf(*x, scontext.bandwidth, &0.0);
         let p_up = gaussian_cdf(*x, scontext.bandwidth, &1.0);
-        kcontext.cst = cst;
-        kcontext.p_low = p_low;
-        kcontext.p_up = p_up;
+        GaussianKContext {cst ,p_low ,p_up}
     }
 
     fn compute(x1: &f64, x2: &f64, kcontext: &Self::KContext, scontext: &Self::SContext, _dom: &Unit) -> f64 {
@@ -280,20 +257,12 @@ impl KernelFunc<Int> for GaussianKernel
 {
     type SContext = GaussianSContext;
     type KContext = GaussianKContext;
-    
-    fn default_scontext(_dom: &Int) -> Self::SContext {
-        GaussianSContext::new(1.0, 0.0)
-    }
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &Int) {
-        scontext.lhs = 1. / (bandwidth * SQRT_2PI);
-        scontext.bandwidth = bandwidth;
-    }
-    
-    fn default_kcontext(_dom: &Int) -> Self::KContext {
-        GaussianKContext { cst : 0.0, p_low: 0.0, p_up: 0.0 }
+
+    fn get_scontext(bandwidth: f64, _dom: &Int) -> Self::SContext {
+        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
     }
 
-    fn update_kcontext(x: &i64, kcontext: &mut Self::KContext, scontext: &Self::SContext, dom: &Int) {
+    fn get_kcontext(x: &i64, scontext: &Self::SContext, dom: &Int) -> Self::KContext {
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
         let up = up as f64 + 0.5;
@@ -301,9 +270,7 @@ impl KernelFunc<Int> for GaussianKernel
         let p_low = gaussian_cdf(x.as_(), scontext.bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), scontext.bandwidth, &up);
         let cst = gaussian_interval(x, scontext.bandwidth, low, up);
-        kcontext.cst = cst;
-        kcontext.p_low = p_low;
-        kcontext.p_up = p_up;
+        GaussianKContext { cst, p_low, p_up }
     }
 
     fn compute(x1: &i64, x2: &i64, kcontext: &Self::KContext, scontext: &Self::SContext, _dom: &Int) -> f64 {
@@ -351,20 +318,12 @@ impl KernelFunc<Nat> for GaussianKernel
 {
     type SContext = GaussianSContext;
     type KContext = GaussianKContext;
-    
-    fn default_scontext(_dom: &Nat) -> Self::SContext {
-        GaussianSContext::new(1.0, 0.0)
-    }
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &Nat) {
-        scontext.lhs = 1. / (bandwidth * SQRT_2PI);
-        scontext.bandwidth = bandwidth;
-    }
-    
-    fn default_kcontext(_dom: &Nat) -> Self::KContext {
-        GaussianKContext { cst : 0.0, p_low: 0.0, p_up: 0.0 }
+
+    fn get_scontext(bandwidth: f64, _dom: &Nat) -> Self::SContext {
+        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
     }
 
-    fn update_kcontext(x: &u64, kcontext: &mut Self::KContext, scontext: &Self::SContext, dom: &Nat) {
+    fn get_kcontext(x: &<Nat as Domain>::TypeDom, scontext: &Self::SContext, dom: &Nat) -> Self::KContext {
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
         let up = up as f64 + 0.5;
@@ -372,9 +331,7 @@ impl KernelFunc<Nat> for GaussianKernel
         let p_low = gaussian_cdf(x.as_(), scontext.bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), scontext.bandwidth, &up);
         let cst = gaussian_interval(x, scontext.bandwidth, low, up);
-        kcontext.cst = cst;
-        kcontext.p_low = p_low;
-        kcontext.p_up = p_up;
+        GaussianKContext { cst, p_low, p_up }
     }
 
     fn compute(x1: &u64, x2: &u64, kcontext: &Self::KContext, scontext: &Self::SContext, _dom: &Nat) -> f64 {
@@ -446,20 +403,12 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel
 
     type SContext = AitchisonAitkenSContext;
     type KContext = (); // No context needed for categorical kernel
-    
-    fn default_scontext(_dom: &GridDom<T>) -> Self::SContext {
-        AitchisonAitkenSContext {
-            bandwidth: 1.0, // Placeholder, should be set based on the data
-        }
+
+    fn get_scontext(bandwidth: f64, _dom: &GridDom<T>) -> Self::SContext {
+        AitchisonAitkenSContext::new(bandwidth)
     }
 
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &GridDom<T>) {
-        scontext.bandwidth = bandwidth;
-    }
-
-    fn default_kcontext(_dom: &GridDom<T>) -> Self::KContext { }
-
-    fn update_kcontext(_x: &T, _kcontext: &mut Self::KContext, _scontext: &Self::SContext, _dom: &GridDom<T>) { }
+    fn get_kcontext(_x: &<GridDom<T> as Domain>::TypeDom, _scontext: &Self::SContext, _dom: &GridDom<T>) -> Self::KContext { }
 
     fn compute(x1: &T, x2: &T, _kcontext: &Self::KContext, scontext: &Self::SContext, dom: &GridDom<T>) -> f64 {
         if x1 == x2 {
@@ -499,20 +448,12 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel
 {
     type SContext = AitchisonAitkenSContext;
     type KContext = (); // No context needed for categorical kernel
-    
-    fn default_scontext(_dom: &Bool) -> Self::SContext {
-        AitchisonAitkenSContext {
-            bandwidth: 1.0, // Placeholder, should be set based on the data
-        }
+
+    fn get_scontext(bandwidth: f64, _dom: &Bool) -> Self::SContext {
+        AitchisonAitkenSContext::new(bandwidth)
     }
 
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, _dom: &Bool) {
-        scontext.bandwidth = bandwidth;
-    }
-
-    fn default_kcontext(_dom: &Bool) -> Self::KContext { }
-
-    fn update_kcontext(_x: &bool, _kcontext: &mut Self::KContext, _scontext: &Self::SContext, _dom: &Bool) { }
+   fn get_kcontext(_x: &<Bool as Domain>::TypeDom, _scontext: &Self::SContext, _dom: &Bool) -> Self::KContext { }
 
     fn compute(x1: &bool, x2: &bool, _kcontext: &Self::KContext, scontext: &Self::SContext, dom: &Bool) -> f64 {
         if x1 == x2 {
@@ -565,61 +506,32 @@ impl KernelFunc<Mixed> for MixedKernel
 {
     type SContext = MixedSContext;
     type KContext = MixedKContext;
-    
-    fn default_scontext(dom: &Mixed) -> Self::SContext {
+
+    fn get_scontext(bandwidth: f64, dom: &Mixed) -> Self::SContext {
         match dom {
-            Mixed::Real(d) => MixedSContext::Gaussian(GaussianKernel::default_scontext(d)),
-            Mixed::Nat(d) => MixedSContext::Gaussian(GaussianKernel::default_scontext(d)),
-            Mixed::Int(d) => MixedSContext::Gaussian(GaussianKernel::default_scontext(d)),
-            Mixed::Unit(d) => MixedSContext::Gaussian(GaussianKernel::default_scontext(d)),
-            Mixed::Bool(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::default_scontext(d)),
-            Mixed::Cat(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::default_scontext(d)),
-            Mixed::GridReal(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::default_scontext(d)),
-            Mixed::GridNat(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::default_scontext(d)),
-            Mixed::GridInt(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::default_scontext(d)),
+            Mixed::Real(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
+            Mixed::Nat(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
+            Mixed::Int(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
+            Mixed::Unit(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
+            Mixed::Bool(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d)),
+            Mixed::Cat(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d)),
+            Mixed::GridReal(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d)),
+            Mixed::GridNat(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d)),
+            Mixed::GridInt(d) => MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d)),
         }
     }
-    
-    fn update_scontext(bandwidth: f64, scontext: &mut Self::SContext, dom: &Mixed) {
-        match (scontext, dom) {
-            (MixedSContext::Gaussian(ctx), Mixed::Real(d)) => GaussianKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::Gaussian(ctx), Mixed::Unit(d)) => GaussianKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::Gaussian(ctx), Mixed::Int(d)) => GaussianKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::Gaussian(ctx), Mixed::Nat(d)) => GaussianKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::AitchisonAitken(ctx), Mixed::Bool(d)) => AitchisonAitkenKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::AitchisonAitken(ctx), Mixed::Cat(d)) => AitchisonAitkenKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::AitchisonAitken(ctx), Mixed::GridReal(d)) => AitchisonAitkenKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::AitchisonAitken(ctx), Mixed::GridNat(d)) => AitchisonAitkenKernel::update_scontext(bandwidth, ctx, d),
-            (MixedSContext::AitchisonAitken(ctx), Mixed::GridInt(d)) => AitchisonAitkenKernel::update_scontext(bandwidth, ctx, d),
-            _ => panic!("Mismatched kernel context and input type"),
-        }
-    }
-    
-    fn default_kcontext(dom: &Mixed) -> Self::KContext {
-        match dom {
-            Mixed::Real(d) => MixedKContext::Gaussian(GaussianKernel::default_kcontext(d)),
-            Mixed::Nat(d) => MixedKContext::Gaussian(GaussianKernel::default_kcontext(d)),
-            Mixed::Int(d) => MixedKContext::Gaussian(GaussianKernel::default_kcontext(d)),
-            Mixed::Unit(d) => MixedKContext::Gaussian(GaussianKernel::default_kcontext(d)),
-            Mixed::Bool(_) => MixedKContext::AitchisonAitken(()),
-            Mixed::Cat(_) => MixedKContext::AitchisonAitken(()),
-            Mixed::GridReal(_) => MixedKContext::AitchisonAitken(()),
-            Mixed::GridNat(_) => MixedKContext::AitchisonAitken(()),
-            Mixed::GridInt(_) => MixedKContext::AitchisonAitken(()),
-        }
-    }
-    
-    fn update_kcontext(x: &MixedTypeDom, kcontext: &mut Self::KContext, scontext: &Self::SContext, dom: &Mixed) {
-        match (x, kcontext, scontext, dom) {
-            (MixedTypeDom::Real(x), MixedKContext::Gaussian(kctx), MixedSContext::Gaussian(sctx), Mixed::Real(d)) => GaussianKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::Unit(x), MixedKContext::Gaussian(kctx), MixedSContext::Gaussian(sctx), Mixed::Unit(d)) => GaussianKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::Int(x), MixedKContext::Gaussian(kctx), MixedSContext::Gaussian(sctx), Mixed::Int(d)) => GaussianKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::Nat(x), MixedKContext::Gaussian(kctx), MixedSContext::Gaussian(sctx), Mixed::Nat(d)) => GaussianKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::Bool(x), MixedKContext::AitchisonAitken(kctx), MixedSContext::AitchisonAitken(sctx), Mixed::Bool(d)) => AitchisonAitkenKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::Cat(x), MixedKContext::AitchisonAitken(kctx), MixedSContext::AitchisonAitken(sctx), Mixed::Cat(d)) => AitchisonAitkenKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::GridReal(x), MixedKContext::AitchisonAitken(kctx), MixedSContext::AitchisonAitken(sctx), Mixed::GridReal(d)) => AitchisonAitkenKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::GridNat(x), MixedKContext::AitchisonAitken(kctx), MixedSContext::AitchisonAitken(sctx), Mixed::GridNat(d)) => AitchisonAitkenKernel::update_kcontext(x, kctx, sctx, d),
-            (MixedTypeDom::GridInt(x), MixedKContext::AitchisonAitken(kctx), MixedSContext::AitchisonAitken(sctx), Mixed::GridInt(d)) => AitchisonAitkenKernel::update_kcontext(x, kctx, sctx, d),
+
+    fn get_kcontext(x: &MixedTypeDom, scontext: &Self::SContext, dom: &Mixed) -> Self::KContext {
+        match (x, scontext, dom) {
+            (MixedTypeDom::Real(x), MixedSContext::Gaussian(sctx), Mixed::Real(d)) => MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d)),
+            (MixedTypeDom::Unit(x), MixedSContext::Gaussian(sctx), Mixed::Unit(d)) => MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d)),
+            (MixedTypeDom::Int(x), MixedSContext::Gaussian(sctx), Mixed::Int(d)) => MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d)),
+            (MixedTypeDom::Nat(x), MixedSContext::Gaussian(sctx), Mixed::Nat(d)) => MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d)),
+            (MixedTypeDom::Bool(_), MixedSContext::AitchisonAitken(_), Mixed::Bool(_)) => MixedKContext::AitchisonAitken(()),
+            (MixedTypeDom::Cat(_), MixedSContext::AitchisonAitken(_), Mixed::Cat(_)) => MixedKContext::AitchisonAitken(()),
+            (MixedTypeDom::GridReal(_), MixedSContext::AitchisonAitken(_), Mixed::GridReal(_)) => MixedKContext::AitchisonAitken(()),
+            (MixedTypeDom::GridNat(_), MixedSContext::AitchisonAitken(_), Mixed::GridNat(_)) => MixedKContext::AitchisonAitken(()),
+            (MixedTypeDom::GridInt(_), MixedSContext::AitchisonAitken(_), Mixed::GridInt(_)) => MixedKContext::AitchisonAitken(()),
             _ => panic!("Mismatched kernel context and input type"),
         }
     }
@@ -704,15 +616,15 @@ where
     type KContext: Serialize + for<'a> Deserialize<'a>;
 
 
-    fn default_scontext(scp: &Scp) -> Self::SContext;
-    fn update_scontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp);
+    fn get_scontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext;
     
-    fn default_kcontext(scp: &Scp) -> Self::KContext;
-    fn update_kcontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp);
+    fn get_kcontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext>;
 
-    fn update_context(archive: &[Xy<S::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &mut Self::SContext, scp: &Scp) {
-        Self::update_scontext(archive, scontext, scp);
-        Self::update_kcontext(archive, kcontext, scontext, scp);
+    fn get_context(archive: &[Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> (Self::SContext, Vec<Self::KContext>)
+    {
+        let scontext = Self::get_scontext(archive, scp);
+        let kcontext = Self::get_kcontext(archive, &scontext, scp);
+        (scontext, kcontext)
     }
 
     fn compute(
@@ -833,37 +745,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            MixedKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = compute_bw(archive.len(), scp.size(), dom);
+                MixedKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = compute_bw(archive.len(), scp.size(), dom);
-            MixedKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            MixedKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    MixedKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    MixedKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -937,37 +836,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1041,37 +927,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1145,37 +1018,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1249,37 +1109,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1353,37 +1200,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            AitchisonAitkenKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = cat_bw(archive.len(), dom);
+                AitchisonAitkenKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = cat_bw(archive.len(), dom);
-            AitchisonAitkenKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            AitchisonAitkenKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], _kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().for_each(
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
             |p|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).for_each(
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
                 |((x, dom), sctx)|
-                    AitchisonAitkenKernel::update_kcontext(x, &mut (), sctx, dom)
-            )
-        );
+                    AitchisonAitkenKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1468,37 +1302,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            MixedKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = compute_bw(archive.len(), scp.size(), dom);
+                MixedKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = compute_bw(archive.len(), scp.size(), dom);
-            MixedKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            MixedKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    MixedKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    MixedKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1572,37 +1393,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1676,37 +1484,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1780,37 +1575,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1884,37 +1666,24 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            GaussianKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
+                GaussianKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-            GaussianKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            GaussianKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().zip(kcontext.iter_mut()).for_each(
-            |(p, kctx)|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(kctx.iter_mut()).zip(scontext.iter()).for_each(
-                |(((x, dom), ctx), sctx)|
-                    GaussianKernel::update_kcontext(x, ctx, sctx, dom)
-            )
-        );
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
+            |p|
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
+                |((x, dom), sctx)|
+                    GaussianKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
 
@@ -1988,36 +1757,23 @@ where
             .product()
     }
 
-    fn default_scontext(scp: &Scp) -> Self::SContext {
-        let dim = scp.size();
-        (0..dim).map(|d| {
-            let dom = scp.opt_at(d).unwrap();
-            AitchisonAitkenKernel::default_scontext(dom)
-        }).collect()
+    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+        scp.iter_opt().map(
+            |dom|
+            {
+                let bandwidth = cat_bw(archive.len(), dom);
+                AitchisonAitkenKernel::get_scontext(bandwidth, dom)
+            }
+        ).collect()
     }
 
-    fn update_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &mut Self::SContext, scp: &Scp) {
-        scp.iter_opt().zip(scontext.iter_mut()).for_each(|(dom, ctx)|
-        {
-            let bandwidth = cat_bw(archive.len(), dom);
-            AitchisonAitkenKernel::update_scontext(bandwidth, ctx, dom);
-        }
-    )
-    }
-
-    fn default_kcontext(scp: &Scp) -> Self::KContext {
-        scp.iter_opt().map(|dom| {
-            AitchisonAitkenKernel::default_kcontext(dom)
-        }).collect()
-    }
-
-    fn update_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], _kcontext: &mut[Self::KContext], scontext: &Self::SContext, scp: &Scp) {
-        archive.iter().for_each(
+    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+        archive.iter().map(
             |p|
-            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).for_each(
+            p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
                 |((x, dom), sctx)|
-                    AitchisonAitkenKernel::update_kcontext(x, &mut (), sctx, dom)
-            )
-        );
+                    AitchisonAitkenKernel::get_kcontext(x, sctx, dom)
+            ).collect()
+        ).collect()
     }
 }
