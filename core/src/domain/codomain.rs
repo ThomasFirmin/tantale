@@ -224,6 +224,29 @@ pub trait Dominate {
     fn get_max_objectives(&self) -> usize;
 }
 
+impl Dominate for [f64]
+{
+    fn dominates(&self, other: &Self) -> bool {
+        let mut strictly_better = false;
+        for (a, b) in self.iter().zip(other.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.len()
+    }
+}
+
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
 ///
 /// Since Tantale maximizes, [`update`](Accumulator::accumulate) keeps the element with the highest
