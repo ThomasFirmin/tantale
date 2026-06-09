@@ -323,6 +323,18 @@ where
         _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
     ) {
     }
+    
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        scp: &Sp<Grid, NoDomain>,
+        acc: &tantale_core::CompAcc<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, Self::SInfo, Out>,
+    ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>
+    where
+        F: Fn(Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
+        let sol = <GridSearch as SingleSampler<_,_,_,Out,_,_>>::sample(self, scp, acc);
+        f(sol)
+    }
 }
 
 impl<Out, FnState>
@@ -387,6 +399,18 @@ where
         Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
     }
 
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        scp: &Sp<Grid, NoDomain>,
+        acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
+    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>
+    where
+        F: Fn(Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
+        let sol = <GridSearch as SingleSampler<_,_,_,Out,_,Stepped<_,Out,FnState>>>::sample(self, scp, acc);
+        f(sol)
+    }
+    
     fn update(
         &mut self,
         _x: &FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>,

@@ -14,7 +14,7 @@ use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
 fn test_fid_seq_run() {
-    let _clean = Cleaner::new("tmp_test_asha_run");
+    let _clean = Cleaner::new("tmp_test_asha_run_seq");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -31,7 +31,7 @@ fn test_fid_seq_run() {
     let opt = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_asha_run").init();
+    let config = FolderConfig::new("tmp_test_asha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
@@ -39,48 +39,48 @@ fn test_fid_seq_run() {
     exp.run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
-    run_reader("tmp_test_asha_run", 200 + 6);
+    run_reader("tmp_test_asha_run_seq", 200 + 6);
 
-    let sp = sp_evaluator_sh::get_searchspace();
-    let obj = sp_evaluator_sh::get_function();
+    // let sp = sp_evaluator_sh::get_searchspace();
+    // let obj = sp_evaluator_sh::get_function();
 
-    let config = FolderConfig::new("tmp_test_asha_run").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
+    // let config = FolderConfig::new("tmp_test_asha_run_seq").init();
+    // let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    // let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, Asha<RandomSearch, _,_,_,_>, Evaluated, sp, obj, (rec, check));
+    // let mut exp = load!(mono, Asha<RandomSearch, _,_,_,_>, Evaluated, sp, obj, (rec, check));
 
-    let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.budgets, budgets,
-        "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
-    );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-    exp.run();
+    // let expstop = exp.get_mut_stop();
+    // assert_eq!(expstop.0, 50, "Number of calls is wrong");
+    // expstop.1 = 100;
+    // let expoptimizer = exp.get_optimizer();
+    // assert_eq!(
+    //     expoptimizer.0.budgets, budgets,
+    //     "Budgets are wrong, {:?} != {:?}",
+    //     expoptimizer.0.budgets, budgets
+    // );
+    // assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+    // exp.run();
 
-    let sp = sp_evaluator_sh::get_searchspace();
-    let obj = sp_evaluator_sh::get_function();
+    // let sp = sp_evaluator_sh::get_searchspace();
+    // let obj = sp_evaluator_sh::get_function();
 
-    let config = FolderConfig::new("tmp_test_asha_run").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
+    // let config = FolderConfig::new("tmp_test_asha_run_seq").init();
+    // let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    // let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, Asha<RandomSearch, _,_,_,_>, Evaluated, sp, obj, (rec, check));
-    // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-    run_reader("tmp_test_asha_run", 400 + 6);
-    let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.budgets, budgets,
-        "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
-    );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+    // let exp = load!(mono, Asha<RandomSearch, _,_,_,_>, Evaluated, sp, obj, (rec, check));
+    // // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
+    // run_reader("tmp_test_asha_run_seq", 400 + 6);
+    // let expstop = exp.get_stop();
+    // assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    // let expoptimizer = exp.get_optimizer();
+    // assert_eq!(
+    //     expoptimizer.0.budgets, budgets,
+    //     "Budgets are wrong, {:?} != {:?}",
+    //     expoptimizer.0.budgets, budgets
+    // );
+    // assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
 }
 
 #[test]

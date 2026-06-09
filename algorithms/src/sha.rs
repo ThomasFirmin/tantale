@@ -76,7 +76,7 @@ use serde::{
     ser::SerializeStruct,
 };
 
-use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
+use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped, fidelity_setter};
 
 /// A helper macro to simplify the type signature of [`Sha`].
 /// For example, to load a TPE optimizer with `Univariate`, `UniformWeighter` and `LinearSplit`, instead of writing:
@@ -515,7 +515,7 @@ where
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         self.0.current_budget = self.0.budgets[0];
         self.0.budget_idx = 0;
-        self.0.sampler.sample(self.0.batch, scp, acc)
+        self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]),self.0.batch, scp, acc)
     }
 
     /// Executes one iteration of Successive Halving on computed candidates.

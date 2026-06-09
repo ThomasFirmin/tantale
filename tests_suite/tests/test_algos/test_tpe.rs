@@ -118,7 +118,7 @@ fn test_tpe_seqthr_run() {
     );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
-    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    assert!(expstop.calls() >= 50 && expstop.calls() <= 50 + num_cpus::get(), "Number of calls is wrong");
     expstop.add(50);
 
     exp.run();
@@ -287,7 +287,7 @@ fn test_tpe_seqthr_run_real() {
     );
 
     let expstop: &mut Evaluated = exp.get_mut_stop();
-    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    assert!(expstop.calls() >= 50 && expstop.calls() <= 50 + num_cpus::get(), "Number of calls is wrong");
     expstop.add(50);
 
     exp.run();

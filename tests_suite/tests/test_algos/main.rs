@@ -1,4 +1,4 @@
-#[path = "../init_func.rs"]
+ #[path = "../init_func.rs"]
 pub mod init_func;
 
 #[path = "../cleaner.rs"]

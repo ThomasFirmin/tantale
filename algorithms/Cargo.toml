@@ -18,6 +18,7 @@ tantale_core = { workspace = true }
 num = { workspace = true}
 rand = { workspace = true}
 serde = { workspace = true, features=["derive","rc"]}
+rayon = {workspace = true}
 statrs = {version="0.18.0", optional = true}
 rand_distr = {version="0.6.0", optional = true}
 

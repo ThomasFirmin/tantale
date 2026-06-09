@@ -1119,7 +1119,7 @@ pub mod sp_evaluator_sh {
 
     objective!(
         pub fn example() -> (FidOutEvaluator, FnState) {
-
+            
             let fid = [! FIDELITY !];
 
             let _a = [! a | Int(0,100, Uniform) | !];
@@ -1141,6 +1141,19 @@ pub mod sp_evaluator_sh {
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
+
+            if fid == 1. && state.state != 0 {
+                panic!("Fidelity 1 should only be evaluated at state 0, but got state {} and fidelity {}", state.state, fid);
+            } else if fid == 1.61 && state.state != 1 {
+                panic!("Fidelity 1.61 should only be evaluated at state 1, but got state {} and fidelity {}", state.state, fid);
+            } else if fid == 2.5921 && state.state != 2 {
+                panic!("Fidelity 2.5921 should only be evaluated at state 2, but got state {} and fidelity {}", state.state, fid);
+            } else if fid == 5.0 && state.state != 3 {
+                panic!("Fidelity 5.0 should only be evaluated at state 3, but got state {} and fidelity {}", state.state, fid);
+            } else if !(1. ..=5.).contains(&fid) || state.state > 3 {
+                panic!("Unexpected fidelity value {} at state {}", fid, state.state);
+            }
+
             state.state += 1;
             let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
             (
@@ -1212,6 +1225,15 @@ pub mod sp_evaluator_mo {
                 Some(s) => s,
                 None => FnState { state: 0 },
             };
+
+            if fid == 1. && state.state != 0 {
+                panic!("Fidelity 1 should only be evaluated at state 0, but got state {} and fidelity {}", state.state, fid);
+            }
+
+            if fid != 1. && state.state == 0 {
+                panic!("Fidelity > 1 should not be evaluated at state 0, but got state {} and fidelity {}", state.state, fid);
+            }
+            
             state.state += 1;
             let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
             let obj = random_codom();

@@ -15,7 +15,7 @@ use crate::run_checker::run_reader_eps;
 
 #[test]
 fn test_fid_seq_run() {
-    let _clean = Cleaner::new("tmp_test_moasha_run");
+    let _clean = Cleaner::new("tmp_test_moasha_run_seq");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
@@ -32,7 +32,7 @@ fn test_fid_seq_run() {
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
 
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
@@ -40,12 +40,12 @@ fn test_fid_seq_run() {
     exp.run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
-    run_reader_eps("tmp_test_moasha_run", 200, 100); // 100 for randomness
+    run_reader_eps("tmp_test_moasha_run_seq", 200, 100); // 100 for randomness
 
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -73,7 +73,7 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_mo::get_searchspace();
     let obj = sp_evaluator_mo::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_run").init();
+    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -86,7 +86,7 @@ fn test_fid_seq_run() {
         (rec, check)
     );
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-    run_reader_eps("tmp_test_moasha_run", 400, 100); // 100 for randomness
+    run_reader_eps("tmp_test_moasha_run_seq", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.get_optimizer();

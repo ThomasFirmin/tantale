@@ -15,8 +15,8 @@ tantale = {workspace = true, features = ["bayes"]}
 num = {workspace = true}
 rand = {workspace = true}
 serde = {workspace = true}
+rayon = {workspace = true}
 paste = "1.0.15"
-rayon = {version = "1.10.0"}
 csv = "1.1"
 rmp-serde = "1.3.0"
 num_cpus = "1.17.0"

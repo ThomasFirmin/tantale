@@ -9,7 +9,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{ops::Fn, fmt::Debug};
 
 /// Per-iteration metadata produced by an [`Optimizer`].
 ///
@@ -92,7 +92,7 @@ pub type CompBatch<SolId, SInfo, Info, SolShape, Out> =
 /// Batch optimizer interface.
 ///
 /// At each iteration, the optimizer produces a whole [`Batch`] of new candidates.
-pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -101,7 +101,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     type Info: OptInfo + Send + Sync;
 
@@ -145,7 +145,7 @@ where
 /// Single optimizer interface.
 ///
 /// At each iteration, the optimizer produces a single [`Uncomputed`] candidate.
-pub trait SingleOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait SingleOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -154,7 +154,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Computes a single iteration of the [`Optimizer`].
     ///
@@ -183,7 +183,7 @@ where
 /// Multi-instance optimizer interface for parallel execution.
 ///
 /// Implementations define how optimizer instances interact and synchronize.
-pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
     Optimizer<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -192,7 +192,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Exchange information with peer instances.
     fn interact(&self);
@@ -256,7 +256,7 @@ where
 /// Single-solution sampler interface.
 /// A [`SingleSampler`] generates one candidate at a time by sampling from an internal state,
 /// and can update this state with newly computed solutions.
-pub trait SingleSampler<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait SingleSampler<PSol, SolId, Opt, Out, Scp, Fun>:
     Sampler<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -265,7 +265,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
     fn sample(
@@ -273,6 +273,15 @@ where
         scp: &Scp,
         acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Scp::SolShape;
+
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        scp: &Scp,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
+    ) -> Scp::SolShape
+    where
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync;
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
     fn update(
@@ -287,7 +296,7 @@ where
 /// A [`BatchSampler`] generates a batch of candidates at a time by sampling from an internal state,
 /// and can update this state with newly computed batches of solutions.
 /// The `Info` associated type allows the [`BatchSampler`] to produce per-batch metadata.
-pub trait BatchSampler<PSol, SolId, Opt, Out, Scp, Fn>:
+pub trait BatchSampler<PSol, SolId, Opt, Out, Scp, Fun>:
     Sampler<PSol, SolId, Opt, Out, Scp>
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
@@ -296,7 +305,7 @@ where
     Opt: Domain,
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
 {
     type Info: OptInfo + Send + Sync;
 
@@ -307,6 +316,16 @@ where
         scp: &Scp,
         acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+
+    fn sample_apply<F>(
+        &mut self,
+        f: F,
+        batch: usize,
+        scp: &Scp,
+        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
+    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>
+    where
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync;
 
     /// Update the internal state of the [`Sampler`] with a new batch of [`Computed`](crate::Computed) candidates.
     fn update(

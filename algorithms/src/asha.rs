@@ -83,7 +83,7 @@ use serde::{
     ser::SerializeStruct,
 };
 
-use crate::utils::{FCompAcc, FCompShape, SimpleStepped};
+use crate::utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -531,7 +531,8 @@ where
         scp: &Scp,
         acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Scp::SolShape {
-        let mut p = if let Some(comp) = x {
+        
+        if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {
                 self.0.sampler.update(&comp, scp, acc);
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
@@ -548,18 +549,17 @@ where
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
-                self.0.sampler.sample(scp, acc)
+                self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
                 self.0.rung[i].select_nth_unstable(k);
                 self.0.current_budget = self.0.budgets[i];
-                IntoComputedShape::extract(self.0.rung[i].pop().unwrap()).0
+                let sol = IntoComputedShape::extract(self.0.rung[i].pop().unwrap()).0;
+                fidelity_setter(sol, self.0.current_budget)
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.0.sampler.sample(scp, acc)
-        };
-        p.set_fidelity(self.0.current_budget);
-        p
+            self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+        }
     }
 }
 

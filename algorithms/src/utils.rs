@@ -2,8 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tantale_core::{
-    BaseSol, Batch, CompAcc, CompShape, FidelitySol, LinkOpt, Objective, RawObj, SId, StepSId,
-    Stepped, searchspace::SShape,
+    BaseSol, Batch, CompAcc, CompShape, FidelitySol, HasFidelity, LinkOpt, Objective, RawObj, SId, StepSId, Stepped, searchspace::SShape
 };
 
 /// A type alias for [`SolutionShape`](tantale_core::SolutionShape) made of [`Computed`](tantale_core::Computed) [`BaseSol`], identified with [`SId`].
@@ -82,6 +81,11 @@ where
     pub fn size(&self) -> usize {
         self.points.len()
     }
+}
+
+pub fn fidelity_setter<S:HasFidelity>(mut s: S, fidelity: f64) -> S{
+    s.set_fidelity(fidelity);
+    s
 }
 
 pub mod mo;
