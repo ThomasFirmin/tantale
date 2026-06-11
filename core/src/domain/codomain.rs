@@ -91,7 +91,7 @@
 //!   * By definition, in Tantale an [`Optimizer`](crate::Optimizer) maximimizes the [`Objective`](crate::Objective).
 //!
 
-use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
+use std::{cmp::Ordering, fmt::Debug, marker::PhantomData, sync::Arc};
 
 use crate::{
     EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome,
@@ -222,9 +222,121 @@ pub trait Dominate {
 
     /// Returns the number of objectives in this [`Codomain`].
     fn get_max_objectives(&self) -> usize;
+
+    /// Returns an iterator over the objective values of this [`Codomain`].
+    fn iter_obj(&self) -> impl Iterator<Item = f64> {
+        (0..self.get_max_objectives()).map(|idx| self.get_objective_by_index(idx))
+    }
+}
+
+impl<T:Dominate> Dominate for &T
+{
+    fn dominates(&self, other: &Self) -> bool {
+        (*self).dominates(*other)
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        (*self).get_objective_by_index(idx)
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        (*self).get_max_objectives()
+    }
 }
 
 impl Dominate for [f64]
+{
+    fn dominates(&self, other: &Self) -> bool {
+        let mut strictly_better = false;
+        for (a, b) in self.iter().zip(other.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<const N: usize> Dominate for [f64; N]
+{
+    fn dominates(&self, other: &Self) -> bool {
+        let mut strictly_better = false;
+        for (a, b) in self.iter().zip(other.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Dominate for Box<[f64]>
+{
+    fn dominates(&self, other: &Self) -> bool {
+        let mut strictly_better = false;
+        for (a, b) in self.iter().zip(other.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Dominate for Arc<[f64]>
+{
+    fn dominates(&self, other: &Self) -> bool {
+        let mut strictly_better = false;
+        for (a, b) in self.iter().zip(other.iter()) {
+            if a < b {
+                return false; // Not at least as good
+            } else if a > b {
+                strictly_better = true; // Found a strictly better objective
+            }
+        }
+        strictly_better
+    }
+
+    fn get_objective_by_index(&self, idx: usize) -> f64 {
+        self[idx]
+    }
+
+    fn get_max_objectives(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Dominate for Vec<f64>
 {
     fn dominates(&self, other: &Self) -> bool {
         let mut strictly_better = false;

@@ -1,6 +1,6 @@
 use tantale::{
     algos::{
-        mo::{CandidateSelector, NSGA2Selector},
+        mo::{CandidateSelector, NSGA2Selector, ParetoFront},
         utils::mo::{NonDominatedSorting, crowding_distance},
     },
     core::{Accumulator, HasId, Lone, ParetoAccumulator},
@@ -144,6 +144,100 @@ fn test_pareto_accumulator() {
     assert!(
         front_ids.iter().all(|id| ids.contains(id)),
         "Pareto accumulator is wrong."
+    );
+}
+
+#[test]
+fn test_pareto_trait_front(){
+    let solutions = front::generate_solutions();
+    let front = solutions.pareto_front();
+
+    let front_ids = front.iter().map(|s| s.id().id).collect::<Vec<_>>();
+    let ids = [5, 4, 3, 2, 1];
+    assert!(
+        front_ids.iter().all(|id| ids.contains(id)),
+        "Pareto front extraction is wrong."
+    );
+}
+
+#[test]
+fn test_pareto_trait_argfront(){
+    let ids  = [5, 4, 3, 2, 1];
+
+    let solutions = front::generate_solutions();
+    // retrive the indexes of the non-dominated kown solutions from ids
+    let args = solutions.iter().enumerate().filter_map(
+        |(idx,s)|
+        if ids.contains(&s.id().id) {
+            Some(idx)
+        } else {
+            None
+        }
+    ).collect::<Vec<_>>();
+
+    let front = solutions.pareto_argfront();
+    assert!(
+        front.iter().all(|a| args.contains(a)),
+        "Pareto arg front extraction is wrong."
+    );
+}
+
+#[test]
+fn test_pareto_trait_split(){
+    let solutions = front::generate_solutions();
+    let (dominated, front) = solutions.pareto_split();
+
+    let front_ids = front.iter().map(|s| s.id().id).collect::<Vec<_>>();
+    let dominated_ids = dominated.iter().map(|s| s.id().id).collect::<Vec<_>>();
+    
+    let ids = [5, 4, 3, 2, 1];
+    assert!(
+        front_ids.iter().all(|id| ids.contains(id)),
+        "Pareto split is wrong for the front."
+    );
+
+    let ids = [6,7,8,9,10,11,12,13,14,15];
+    assert!(
+        dominated_ids.iter().all(|id| ids.contains(id)),
+        "Pareto split is wrong for the dominated solutions."
+    );
+}
+
+#[test]
+fn test_pareto_trait_argsplit(){
+    let solutions = front::generate_solutions();
+
+    let ids = [5, 4, 3, 2, 1];
+    // retrive the indexes of the non-dominated kown solutions from ids
+    let args_front = solutions.iter().enumerate().filter_map(
+        |(idx,s)|
+        if ids.contains(&s.id().id) {
+            Some(idx)
+        } else {
+            None
+        }
+    ).collect::<Vec<_>>();
+    let ids = [6,7,8,9,10,11,12,13,14,15];
+    let args_dominated = solutions.iter().enumerate().filter_map(
+        |(idx,s)|
+        if ids.contains(&s.id().id) {
+            Some(idx)
+        } else {
+            None
+        }
+    ).collect::<Vec<_>>();
+
+    let (dominated, front) = solutions.pareto_argsplit();
+    
+    assert!(
+        front.iter().all(|id| args_front.contains(id)),
+        "Pareto split is wrong for the front."
+    );
+
+    
+    assert!(
+        dominated.iter().all(|id| args_dominated.contains(id)),
+        "Pareto split is wrong for the dominated solutions."
     );
 }
 

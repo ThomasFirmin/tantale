@@ -1,6 +1,50 @@
+use tantale_core::Dominate;
+
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use tantale_core::Dominate;
+
+/// [`FrontItem`] is a trait that abstracts over the items contained in the fronts of the non-dominated sorting algorithm.
+pub trait FrontItem<T:Dominate> {
+    fn as_dominate(&self) -> &T;
+}
+
+impl<T: Dominate> FrontItem<T> for T {
+    fn as_dominate(&self) -> &T {
+        self
+    }
+}
+
+impl<T: Dominate> FrontItem<T> for &T {
+    fn as_dominate(&self) -> &T {
+        self
+    }
+}
+
+/// The [`pareto_mask`] function computes a boolean mask indicating which elements in the input slice are dominated by at least one other element.
+fn pareto_mask<T: Dominate>(values: &[T]) -> Vec<bool> {
+    let n = values.len();
+    let mut mask = vec![true; n];
+    for i in 0..n {
+        if mask[i] {
+            continue;
+        }
+
+        for j in (i + 1)..n {
+            if mask[j] {
+                continue;
+            }
+
+            if values[i].dominates(&values[j]) {
+                mask[j] = true;
+            } else if values[j].dominates(&values[i]) {
+                mask[i] = true;
+                break;
+            }
+        }
+    }
+    mask
+}
 
 /// Implements the Pareto front extraction algorithm, 
 /// which identifies the non-dominated solutions from a given set of solutions.
@@ -32,36 +76,59 @@ use tantale_core::Dominate;
 ///     [5, 4, 3, 2, 1]
 /// ```
 pub trait ParetoFront<T:Dominate> {
+        // Returns the non-dominated solutions from the input set of solutions.
         fn pareto_front(&self) -> Vec<&T>;
+        // Return the non-dominated indexes of solutions from the input set of solutions.
         fn pareto_argfront(&self) -> Vec<usize>;
+        /// Returns a tuple of the dominated solutions and the non-dominated solutions from the input set of solutions.
+        fn pareto_split(&self) -> (Vec<&T>, Vec<&T>);
+        /// Return a tuple of the dominated indexes and the non-dominated indexes of solutions from the input set of solutions.
+        fn pareto_argsplit(&self) -> (Vec<usize>, Vec<usize>);
 }
 
-impl <T: Dominate> ParetoFront<T> for [T] 
+impl <T, U> ParetoFront<T> for U
+where
+    T: Dominate,
+    U: AsRef<[T]>,
 {
-    /// Returns the non-dominated solutions from the input set of solutions.
     fn pareto_front(&self) -> Vec<&T> {
-        self.iter().filter(
-            |p1|
-            !self.iter().any(
-                |p2|
-                    p2.dominates(p1)
-            )
-        ).collect()
+        let mask = pareto_mask(self.as_ref());
+        self.as_ref().iter().zip(mask).filter_map(|(x, m)| if m { None } else { Some(x) }).collect()
     }
 
-    /// Return the non-dominated indexes of solutions from the input set of solutions.
     fn pareto_argfront(&self) -> Vec<usize> {
-        self.iter().enumerate().filter_map(
-            |(idx, p1)|
-            {
-                let any_dominates = self.iter().any(|p2| p2.dominates(p1)); 
-                if any_dominates {
-                    None
-                } else {
-                    Some(idx)
-                }
-            }
-        ).collect()
+        let mask = pareto_mask(self.as_ref());
+        self.as_ref().iter().zip(mask).enumerate().filter_map(|(i, (_, m))| if m { None } else { Some(i) }).collect()
+    }
+    
+    fn pareto_split(&self) -> (Vec<&T>, Vec<&T>) {
+        let mask = pareto_mask(self.as_ref());
+        self.as_ref().iter().zip(mask).partition_map(|(x, m)| if m { itertools::Either::Left(x) } else { itertools::Either::Right(x) })
+    }
+    
+    fn pareto_argsplit(&self) -> (Vec<usize>, Vec<usize>) {
+        let mask = pareto_mask(self.as_ref());
+        (0..self.as_ref().len()).zip(mask).partition_map(|(x, m)| if m { itertools::Either::Left(x) } else { itertools::Either::Right(x) })
+    }
+}
+
+/// Similar to [`ParetoFront`] but consumes the input set of solutions instead of borrowing it.
+pub trait IntoParetoFront<T: Dominate> {
+        /// Returns the non-dominated solutions from the input set of solutions.
+        fn into_pareto_front(self) -> Vec<T>;
+        /// Returns the dominated and non-dominated solutions from the input set of solutions.
+        fn into_pareto_split(self) -> (Vec<T>, Vec<T>);
+}
+
+impl <T:Dominate> IntoParetoFront<T> for Vec<T> {
+    fn into_pareto_front(self) -> Vec<T> {
+        let mask = pareto_mask(&self);
+        self.into_iter().zip(mask).filter_map(|(x, m)| if m { None } else { Some(x) }).collect()
+    }
+
+    fn into_pareto_split(self) -> (Vec<T>, Vec<T>) {    
+        let mask = pareto_mask(&self);
+        self.into_iter().zip(mask).partition_map(|(x, m)| if m { itertools::Either::Left(x) } else { itertools::Either::Right(x) })
     }
 }
 
@@ -127,28 +194,51 @@ impl <T: Dominate> ParetoFront<T> for [T]
 pub trait NonDominatedSorting<T>
 where
     T: Dominate,
-{
+{   
     /// Sorts the input objects into non-dominated fronts using a binary search approach.
     fn non_dominated_sort(&mut self) -> Vec<Vec<&T>>;
     /// Returns the indices of the input objects sorted according to their non-dominated fronts.
     fn non_dominated_argsort(&self) -> Vec<Vec<usize>>;
 }
 
-impl<T: Dominate> NonDominatedSorting<T> for [T] {
-    fn non_dominated_sort(&mut self) -> Vec<Vec<&T>> {
-        self.sort_by(|a, b| {
-            let length: usize = a.get_max_objectives();
+pub fn sort_objectives<T: Dominate>(input: &mut [T]) {
+    input.sort_by(|a, b| {
+        let length: usize = a.get_max_objectives();
+        let mut i = 0;
+        let mut ord = a
+            .get_objective_by_index(0)
+            .total_cmp(&b.get_objective_by_index(0))
+            .reverse();
+        while let Ordering::Equal = ord {
+            i += 1;
+            if i < length {
+                ord = a
+                    .get_objective_by_index(i)
+                    .total_cmp(&b.get_objective_by_index(i))
+                    .reverse();
+            } else {
+                break;
+            }
+        }
+        ord
+    });
+}
+
+pub fn argsort_objectives<T: Dominate>(input: &[T]) -> Vec<usize> {
+        let mut indices: Vec<usize> = (0..input.len()).collect();
+        indices.sort_by(|&a, &b| {
+            let length: usize = input[a].get_max_objectives();
             let mut i = 0;
-            let mut ord = a
+            let mut ord = input[a]
                 .get_objective_by_index(0)
-                .total_cmp(&b.get_objective_by_index(0))
+                .total_cmp(&input[b].get_objective_by_index(0))
                 .reverse();
             while let Ordering::Equal = ord {
                 i += 1;
                 if i < length {
-                    ord = a
+                    ord = input[a]
                         .get_objective_by_index(i)
-                        .total_cmp(&b.get_objective_by_index(i))
+                        .total_cmp(&input[b].get_objective_by_index(i))
                         .reverse();
                 } else {
                     break;
@@ -156,6 +246,12 @@ impl<T: Dominate> NonDominatedSorting<T> for [T] {
             }
             ord
         });
+        indices
+    }
+
+impl<T: Dominate> NonDominatedSorting<T> for [T] {
+    fn non_dominated_sort(&mut self) -> Vec<Vec<&T>> {
+        sort_objectives(self);
         let mut fronts = vec![vec![&self[0]]];
         for item in self[1..].iter() {
             let idx_front = front_binary_search(item, &fronts);
@@ -167,28 +263,9 @@ impl<T: Dominate> NonDominatedSorting<T> for [T] {
         }
         fronts
     }
+
     fn non_dominated_argsort(&self) -> Vec<Vec<usize>> {
-        let mut indices: Vec<usize> = (0..self.len()).collect();
-        indices.sort_by(|&a, &b| {
-            let length: usize = self[a].get_max_objectives();
-            let mut i = 0;
-            let mut ord = self[a]
-                .get_objective_by_index(0)
-                .total_cmp(&self[b].get_objective_by_index(0))
-                .reverse();
-            while let Ordering::Equal = ord {
-                i += 1;
-                if i < length {
-                    ord = self[a]
-                        .get_objective_by_index(i)
-                        .total_cmp(&self[b].get_objective_by_index(i))
-                        .reverse();
-                } else {
-                    break;
-                }
-            }
-            ord
-        });
+        let indices = argsort_objectives(self);
         let mut fronts = vec![vec![indices[0]]];
         for idx in indices[1..].iter() {
             let idx_front = arg_front_binary_search(&self[*idx], self, &fronts);
@@ -196,6 +273,31 @@ impl<T: Dominate> NonDominatedSorting<T> for [T] {
                 fronts.push(vec![*idx]);
             } else {
                 fronts[idx_front - 1].push(*idx);
+            }
+        }
+        fronts
+    }
+}
+
+pub trait IntoNonDominatedSorting<T>
+where
+    Self: Sized,
+    T: Dominate,
+{
+    fn into_non_dominated_sort(self) -> Vec<Vec<T>>;
+}
+
+impl<T: Dominate> IntoNonDominatedSorting<T> for Vec<T> {
+    fn into_non_dominated_sort(mut self) -> Vec<Vec<T>> {
+        sort_objectives(&mut self);
+        self.reverse();
+        let mut fronts = vec![vec![self.pop().unwrap()]];
+        while let Some(item) = self.pop() {
+            let idx_front = front_binary_search(&item, &fronts);
+            if idx_front > fronts.len() {
+                fronts.push(vec![item]);
+            } else {
+                fronts[idx_front - 1].push(item);
             }
         }
         fronts
@@ -239,7 +341,7 @@ impl<T: Dominate> NonDominatedSorting<T> for [T] {
 /// 21. &emsp;&emsp;&emsp; $k_{max} \gets k$
 /// 22. &emsp;&emsp;&emsp; $k \gets \lceil (k_{min} + k_{max})/2 \rceil$
 /// ---
-pub fn front_binary_search<T: Dominate>(target: &T, fronts: &[Vec<&T>]) -> usize {
+pub fn front_binary_search<T: Dominate, F: FrontItem<T>>(target: &T, fronts: &[Vec<F>]) -> usize {
     let n_fronts = fronts.len();
     let mut k_min = 0;
     let mut k_max = n_fronts;
@@ -247,7 +349,7 @@ pub fn front_binary_search<T: Dominate>(target: &T, fronts: &[Vec<&T>]) -> usize
 
     loop {
         let current_front = &fronts[k - 1];
-        let one_dominates = current_front.iter().any(|x| x.dominates(target));
+        let one_dominates = current_front.iter().any(|x| x.as_dominate().dominates(target));
 
         if one_dominates {
             k_min = k;

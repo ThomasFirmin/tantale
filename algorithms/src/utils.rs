@@ -39,7 +39,7 @@ pub type SimpleObjective<Shape, SInfo, Out> = Objective<RawObj<Shape, SId, SInfo
 pub type SimpleStepped<Shape, SInfo, Out, State> =
     Stepped<RawObj<Shape, StepSId, SInfo>, Out, State>;
 
-/// Point archive for the TPE algorithm, which holds the observed points sorted in ascending order.
+/// Archive of points which holds the observed points sorted in ascending order.
 /// The points are sorted by their corresponding objective values, with the best points at the end of the vector.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: for<'a> Deserialize<'a>",))]
@@ -83,9 +83,12 @@ where
     }
 }
 
+/// A helper function to set the fidelity of a solution that implements the [`HasFidelity`] trait.
 pub fn fidelity_setter<S:HasFidelity>(mut s: S, fidelity: f64) -> S{
     s.set_fidelity(fidelity);
     s
 }
 
 pub mod mo;
+
+pub mod hypervolume;
