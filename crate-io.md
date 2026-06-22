@@ -8,12 +8,6 @@ In Tantale, we always consider by default a **maximization** problem.
 
 ### 1 — Define the objective function
 
-The `objective!` macro extracts the search space from the function body and produces:
-- `example::get_searchspace()` — the typed [`Searchspace`](tantale::core::Searchspace).
-- `example::get_function()` — the user function wrapped in an [`Objective`](tantale::core::Objective) or [`Stepped`](tantale::core::Stepped).
-
-It must be called inside a dedicated module or file.
-
 ```rust
 mod searchspace {
     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
@@ -22,6 +16,7 @@ mod searchspace {
 
     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
     pub struct OutExample {
+        #[maximize]
         pub obj: f64,
         pub info: f64,
     }
@@ -52,7 +47,7 @@ Leaving the optimizer domain empty (`!]`) means the optimizer searches directly 
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{Runable, mono}, stop::Calls,
-    HasY, Solution, SolutionShape,
+    HasX, HasY, SolutionShape,
 };
 use tantale::algos::{random_search, BatchRandomSearch};
 use searchspace::{get_searchspace, get_function, OutExample};
@@ -61,15 +56,14 @@ use std::sync::Arc;
 let sp  = get_searchspace();
 let obj = get_function();
 let opt = BatchRandomSearch::new(7);                              // batch size = 7
-let cod = random_search::codomain(|o: &OutExample| o.obj);       // maximize o.obj
 
 let stop   = Calls::new(50);                                     // stop after 50 evaluations
 let config = Arc::new(FolderConfig::new("run_batch"));
 let rec    = CSVRecorder::new(config.clone(), true, true, true, true);
 let check  = MessagePack::new(config);
 
-let exp         = mono((sp, cod), obj, opt, stop, (rec, check)); // mono-threaded
+let exp         = mono(sp, obj, opt, stop, (rec, check)); // mono-threaded
 let accumulator = exp.run();
 let best        = accumulator.get().unwrap().get_sobj();
-println!("Best: f({:?}) = {}", best.get_x(), best.y().value);
+println!("Best: f({:?}) = {}", best.ref_x(), best.y().value);
 ```
