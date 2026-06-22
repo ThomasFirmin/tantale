@@ -1,5 +1,5 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, Uncomputed, Unit, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, codomain::TypeCodom, grid::GridBounds}, has_trait::HasVariables
+    HasVariables, Bool, Domain, GridDom, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, Uncomputed, Unit, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, codomain::TypeCodom, grid::GridBounds},
 };
 
 use num::{Num, cast::AsPrimitive};
@@ -65,7 +65,7 @@ pub trait KernelFunc<Dom: Domain>
     fn get_scontext(bandwidth: f64, dom: &Dom) -> Self::SContext;
     fn get_kcontext(x: &Dom::TypeDom, scontext: &Self::SContext, dom: &Dom) -> Self::KContext;
 
-    /// Computes the kernel function between two [`SolutionShape`] instances of `Opt` type `Dom`.
+    /// Computes the kernel function between two [`SolutionShape`](tantale_core::SolutionShape) instances of `Opt` type `Dom`.
     ///
     /// # Arguments
     /// * `x1` - The first point.
@@ -74,7 +74,7 @@ pub trait KernelFunc<Dom: Domain>
     /// * `dom` - The domain of the solutions.
     ///
     /// # Returns
-    /// The kernel value between the two [`SolutionShape`].
+    /// The kernel value between the two [`Dom::TypeDom`](tantale_core::Domain::TypeDom).
     fn compute(x1: &Dom::TypeDom, x2: &Dom::TypeDom, kcontext: &Self::KContext, scontext: &Self::SContext, dom: &Dom) -> f64;
 
     /// Computes the prior probability for a given point `x` in the domain `dom`.
@@ -616,11 +616,11 @@ where
     type KContext: Serialize + for<'a> Deserialize<'a>;
 
 
-    fn get_scontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext;
+    fn get_scontext(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext;
     
-    fn get_kcontext(archive: &[Xy<S::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext>;
+    fn get_kcontext(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext>;
 
-    fn get_context(archive: &[Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> (Self::SContext, Vec<Self::KContext>)
+    fn get_context(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> (Self::SContext, Vec<Self::KContext>)
     {
         let scontext = Self::get_scontext(archive, scp);
         let kcontext = Self::get_kcontext(archive, &scontext, scp);
@@ -630,7 +630,7 @@ where
     fn compute(
         &self,
         s: &S::Raw,
-        archive: &[Xy<S::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<S::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -642,7 +642,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<S::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<S::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -690,7 +690,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -717,7 +717,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -745,7 +745,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -755,7 +755,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -781,7 +781,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -808,7 +808,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -836,7 +836,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -846,7 +846,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -872,7 +872,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -899,7 +899,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -927,7 +927,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -937,7 +937,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -963,7 +963,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -990,7 +990,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1018,7 +1018,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1028,7 +1028,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1054,7 +1054,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1081,7 +1081,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1109,7 +1109,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1119,7 +1119,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1146,7 +1146,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         _kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1173,7 +1173,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         _kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1200,7 +1200,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1210,7 +1210,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1247,7 +1247,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1274,7 +1274,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1302,7 +1302,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1312,7 +1312,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1338,7 +1338,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1365,7 +1365,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1393,7 +1393,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1403,7 +1403,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1429,7 +1429,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1456,7 +1456,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1484,7 +1484,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1494,7 +1494,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1520,7 +1520,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1547,7 +1547,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1575,7 +1575,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1585,7 +1585,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1611,7 +1611,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1638,7 +1638,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1666,7 +1666,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1676,7 +1676,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(
@@ -1703,7 +1703,7 @@ where
     fn compute(
         &self,
         s: &<S>::Raw,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         _kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         weights: &PointWeights,
@@ -1730,7 +1730,7 @@ where
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[Xy<<S>::Raw, TypeCodom<Out>>],
+        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
         _kcontext: &[Self::KContext],
         scontext: &Self::SContext,
         scp: &Scp,
@@ -1757,7 +1757,7 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
+    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
         scp.iter_opt().map(
             |dom|
             {
@@ -1767,7 +1767,7 @@ where
         ).collect()
     }
 
-    fn get_kcontext(archive: &[Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
+    fn get_kcontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scontext: &Self::SContext, scp: &Scp) -> Vec<Self::KContext> {
         archive.iter().map(
             |p|
             p.ref_x().iter().zip(scp.iter_opt()).zip(scontext.iter()).map(

@@ -1,11 +1,43 @@
+//! [Tree-structured Parzen Estimator (TPE)](https://arxiv.org/pdf/2304.11127) algorithms for black-box optimization.
+//!
+//! # Overview
+//!
+//! The objective of TPE is to generate on-demand new
+//! [`Solution`](tantale_core::Solution)s to evaluate from the history of
+//! previously evaluated configurations.
+//!
+//! This implementation is fully modular and supports both single-objective and
+//! multi-objective optimization through interchangeable components:
+//! - A [`Splitter`] partitions observations into *good* and *bad* sets.
+//! - A [`Kernel`] builds density estimators for each parameter.
+//! - A [`Weighter`] assigns importance weights to observations.
+//!
+//! When enough observations are available, the optimizer fits two density
+//! estimators, `l(x)` and `g(x)`, from the good and bad observations
+//! respectively. Candidate configurations are then sampled from `l(x)` and
+//! ranked according to the acquisition ratio `l(x) / g(x)`.
+//!
+//! If insufficient observations are available, the optimizer falls back to
+//! random sampling.
+//!
+//! Single-objective and multi-objective variants are obtained by choosing
+//! different [`Splitter`] implementations. In particular, multi-objective
+//! splitters may rely on Pareto dominance, hypervolume contributions, or
+//! other ranking criteria.
+//!
+//! # References
+//!
+//! - Watanabe, [*Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance*](https://arxiv.org/pdf/2304.11127).
+//! - Ozaki et al., [*Multiobjective Tree-Structured Parzen Estimator*](https://www.jair.org/index.php/jair/article/view/13188/26784)
+//! 
 use crate::{
     bayesian::{kernel::Kernel, splitter::Splitter, weighter::Weighter},
     utils::{
-        BCompAcc, BCompShape, FCompAcc, FCompShape, OrdArchive, SimpleObjective, SimpleStepped,
+        BCompAcc, BCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped,
     },
 };
 use tantale_core::{
-    BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Stepped, Uncomputed, domain::{TypeDom, codomain::TypeCodom}, solution::{computed::Xy, shape::RawOpt}
+    BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Orderable, OrderedArchive, Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape, Step, StepSId, Stepped, Uncomputed, Xy, domain::{TypeDom, codomain::TypeCodom}, solution::shape::RawOpt
 };
 
 use rand::rngs::StdRng;
@@ -64,7 +96,8 @@ impl TpeSInfo {
 
 impl SolInfo for TpeSInfo {}
 
-impl CSVWritable<(), ()> for TpeSInfo {
+impl CSVWritable<(), ()> for TpeSInfo 
+{
     fn header(_elem: &()) -> Vec<String> {
         vec![
             "acquisition".to_string(),
@@ -81,8 +114,12 @@ impl CSVWritable<(), ()> for TpeSInfo {
     }
 }
 
-type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrdArchive<Xy<Raw, CodElem>>)>;
+type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrderedArchive<Xy<Raw, CodElem>>)>;
 
+/// Internal state of the [`Tpe`] optimizer.
+///
+/// This structure maintains all essential information needed to resume an optimization
+/// across checkpoints. It encodes the core parameters of the algorithm.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Wght: Serialize, Splt: Serialize, Kern::KContext: Serialize, Kern::SContext: Serialize",
@@ -95,9 +132,9 @@ where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter,
+    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
     SolId: Id,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
     pub n_init: usize,
@@ -118,13 +155,100 @@ where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter,
+    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
     SolId: Id,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
 }
 
+/// [Tree-structured Parzen Estimator (TPE)](https://arxiv.org/pdf/2304.11127) optimizer for black-box optimization.
+///
+/// A [`SingleOptimizer`] implementing the TPE
+/// family of algorithms for sequential model-based optimization.
+///
+/// Depending on the chosen [`Splitter`], the optimizer can be used for both
+/// single-objective and multi-objective optimization.
+/// * Single-objective optimization* is achieved by using a [`LinearSplit`](crate::bayesian::splitter::LinearSplit) or [`SqrtSplit`](crate::bayesian::splitter::SqrtSplit) 
+///   splitter, which partitions the observations into good and bad sets based on a single objective value.
+/// * Multi-objective optimization* is achieved by using a [`MOSplit`](crate::bayesian::splitter::MOSplit) 
+///   splitter, which partitions the observations into good and bad sets based on Pareto dominance or hypervolume contributions.
+///
+/// # Overview
+///
+/// [`Tpe`] generates candidates on demand by fitting density estimators to the
+/// history of evaluated configurations.
+///
+/// The optimizer is composed of three interchangeable components:
+/// - A [`Splitter`] partitions the observations into *good* and *bad* sets.
+///   In the multi-objective setting, this partition may rely on Pareto
+///   dominance, hypervolume contributions, or other criteria.
+/// - A [`Kernel`] builds density estimators for each parameter from the good
+///   and bad observations.
+/// - A [`Weighter`] assigns importance weights to observations when fitting
+///   the densities.
+///
+/// When a worker requests a new candidate, the optimizer:
+/// 1. Splits the observations into good and bad sets.
+/// 2. Fits two density models, `l(x)` and `g(x)`, corresponding to the good
+///    and bad observations respectively.
+/// 3. Samples candidate configurations from `l(x)`.
+/// 4. Selects the candidate maximizing the acquisition ratio `l(x) / g(x)`.
+///
+/// If not enough observations are available, the optimizer falls back to
+/// random sampling.
+///
+/// # Workflow
+///
+/// ```text
+///  Worker requests solution
+///           |
+///           v
+///  +---------------------------+
+///  | Enough observations ?     |
+///  +---------------------------+
+///      Yes /       \ No
+///         /         \
+///        v           v
+/// +----------------+   +----------------+
+/// | Split history  |   | Random sample  |
+/// | into good/bad  |   | configuration  |
+/// +----------------+   +----------------+
+///         |
+///         v
+/// +----------------+
+/// | Fit kernels    |
+/// | l(x) and g(x)  |
+/// +----------------+
+///         |
+///         v
+/// +----------------+
+/// | Sample from    |
+/// | l(x)           |
+/// +----------------+
+///         |
+///         v
+/// +----------------+
+/// | Select x       |
+/// | maximizing     |
+/// | l(x) / g(x)    |
+/// +----------------+
+///         |
+///         v
+///   Return candidate
+/// ```
+///
+/// # Internal State
+///
+/// - [`TpeState`]: Checkpointable state including:
+///   * `n_init`: Number of initial random samples before fitting the model.
+///   * `n_sample`: Number of candidate samples to draw from the good density `l(x)` when optimizing the acquisition function.
+///   * `kernel`: The kernel used for density estimation.
+///   * `weighter`: The weighter used for assigning importance weights to observations.
+///   * `splitter`: The splitter used for partitioning observations into good and bad sets.
+///   * `point_archive`: A collection of archived points.
+///   * `current_fidelity`: The current fidelity level if applicable. Used for multi-fidelity optimization.
+///   * `current_archive`: The current archive of solutions if applicable. Used for multi-fidelity optimization.
 pub struct Tpe<Kern, Wght, Splt, Scp, S, SolId, Out>(
     pub TpeState<Kern, Wght, Splt, Scp, S, SolId, Out>,
 )
@@ -134,9 +258,9 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter,
+    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
     SolId: Id,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: Outcome;
 
 impl<Kern, Wght, Splt, Scp, S, SolId, Out> Tpe<Kern, Wght, Splt, Scp, S, SolId, Out>
@@ -146,11 +270,19 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter,
+    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
     SolId: Id,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
+    /// Creates a new TPE optimizer with the specified components and parameters.
+    /// 
+    /// # Parameters
+    /// - `n_init`: The number of initial random samples to generate before fitting the model. Must be greater than 0.
+    /// - `n_sample`: The number of candidate samples to draw from the good density `l(x)` when optimizing the acquisition function. Must be greater than 0.
+    /// - `kernel`: The kernel used for density estimation. For example, [`Univariate`](crate::bayesian::Univariate) or [`Multivariate`](crate::bayesian::Multivariate).
+    /// - `weighter`: The weighter used for assigning importance weights to observations. For example, [`UniformWeighter`](crate::bayesian::weighter::UniformWeighter).
+    /// - `splitter`: The splitter used for partitioning observations into good and bad sets. For example, [`LinearSplit`](crate::bayesian::splitter::LinearSplit) or [`MOSplit`](crate::bayesian::splitter::MOSplit).
     pub fn new(
         n_init: usize,
         n_sample: usize,
@@ -166,7 +298,7 @@ where
             kernel,
             weighter,
             splitter,
-            point_archive: vec![(0.0, OrdArchive::default())],
+            point_archive: vec![(0.0, OrderedArchive::default())],
             current_archive: 0,
             current_fidelity: 0.0,
         })
@@ -187,8 +319,8 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
     Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
-    Splt: Splitter,
-    TypeCodom<Out>: Ord,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
     type State = TpeState<Kern, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>;
@@ -221,8 +353,8 @@ where
             Out,
         >,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
-    Splt: Splitter,
-    TypeCodom<Out>: Ord,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
     type State =
@@ -256,9 +388,9 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo> + Send + Sync,
     Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out> + Send + Sync,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter + Send + Sync,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
     Out: Outcome,
-    TypeCodom<Out>: Send + Sync + Ord,
+    TypeCodom<Out>: Send + Sync + Orderable,
     TypeDom<Scp::Opt>: Send + Sync,
     Kern::KContext: Send + Sync,
     Kern::SContext: Send + Sync,
@@ -281,16 +413,16 @@ where
         } else {
             // Split the archive into good and bad, and compute the weights
             let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
-            let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
-            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
-            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
+            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(&good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(&bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, &good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, &good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, &bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -323,8 +455,8 @@ where
             Out,
         > + Send + Sync,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter + Send + Sync,
-    TypeCodom<Out>: Send + Sync + Ord,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
+    TypeCodom<Out>: Send + Sync + Orderable,
     TypeDom<Scp::Opt>: Send + Sync,
     Kern::KContext: Send + Sync,
     Kern::SContext: Send + Sync,
@@ -360,16 +492,16 @@ where
             } else {
                  // Split the archive into good and bad, and compute the weights
                 let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
-                let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
-                let (good_sctx, good_kctx) = Kern::get_context(good, scp);
-                let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
+                let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
+                let (good_sctx, good_kctx) = Kern::get_context(&good, scp);
+                let (bad_sctx, bad_kctx) = Kern::get_context(&bad, scp);
 
                 let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                     .map(|_| {
-                        let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
+                        let s = self.with_rng(|rng| self.0.kernel.sample(rng, &good, &good_kctx, &good_sctx, scp));
                         let kernel = &self.0.kernel;
-                        let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
-                        let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
+                        let good_pdf = kernel.compute(&s, &good, &good_kctx, &good_sctx, &weights.good, scp);
+                        let bad_pdf = kernel.compute(&s, &bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                         let acq = acquisition(good_pdf, bad_pdf);
                         (s, acq, good_pdf, bad_pdf)
                     })
@@ -389,8 +521,8 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
     Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
-    Splt: Splitter,
-    TypeCodom<Out>: Ord,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
 }
@@ -409,8 +541,8 @@ where
             Out,
         >,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
-    Splt: Splitter,
-    TypeCodom<Out>: Ord,
+    Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
+    TypeCodom<Out>: Orderable,
     Out: Outcome,
 {
 }
@@ -429,8 +561,8 @@ where
     Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo> + Send + Sync,
     Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out> + Send + Sync,
     Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter + Send + Sync,
-    TypeCodom<Out>: Send + Sync + Ord,
+    Splt: Splitter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    TypeCodom<Out>: Send + Sync + Orderable,
     TypeDom<Scp::Opt>: Send + Sync,
     Kern::KContext: Send + Sync,
     Kern::SContext: Send + Sync,
@@ -448,16 +580,16 @@ where
         } else {
              // Split the archive into good and bad, and compute the weights
             let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
-            let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
-            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
-            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
+            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(&good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(&bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, &good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, &good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, &bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -515,8 +647,8 @@ where
             Out,
         > + Send + Sync,
     Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter + Send + Sync,
-    TypeCodom<Out>: Send + Sync + Ord,
+    Splt: Splitter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    TypeCodom<Out>: Send + Sync + Orderable,
     TypeDom<Scp::Opt>: Send + Sync,
     Kern::KContext: Send + Sync,
     Kern::SContext: Send + Sync,
@@ -543,16 +675,16 @@ where
         } else {
              // Split the archive into good and bad, and compute the weights
             let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
-            let weights = self.0.weighter.weight(good, bad); // Weights for the good and bad points
-            let (good_sctx, good_kctx) = Kern::get_context(good, scp);
-            let (bad_sctx, bad_kctx) = Kern::get_context(bad, scp);
+            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
+            let (good_sctx, good_kctx) = Kern::get_context(&good, scp);
+            let (bad_sctx, bad_kctx) = Kern::get_context(&bad, scp);
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample).into_par_iter()
                 .map(|_| {
-                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, good, &good_kctx, &good_sctx, scp));
+                    let s = self.with_rng(|rng| self.0.kernel.sample(rng, &good, &good_kctx, &good_sctx, scp));
                     let kernel = &self.0.kernel;
-                    let good_pdf = kernel.compute(&s, good, &good_kctx, &good_sctx, &weights.good, scp);
-                    let bad_pdf = kernel.compute(&s, bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
+                    let good_pdf = kernel.compute(&s, &good, &good_kctx, &good_sctx, &weights.good, scp);
+                    let bad_pdf = kernel.compute(&s, &bad, &bad_kctx, &bad_sctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
                 })
@@ -606,7 +738,7 @@ where
                 }
             } else {
                 let xy = x.get_sopt().xy();
-                self.0.point_archive.push((fidelity, OrdArchive::new(xy)));
+                self.0.point_archive.push((fidelity, OrderedArchive::new(xy)));
             }
         }
         // Else we ignore as an archive with higher accuracy has already reached the threshold
