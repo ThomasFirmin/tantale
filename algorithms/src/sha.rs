@@ -64,10 +64,7 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper,
-    HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, RawObj, Searchspace, Single,
-    SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom,
-    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
 };
 
 use serde::{
@@ -111,11 +108,9 @@ where
     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
@@ -144,11 +139,9 @@ where
     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
 }
@@ -216,7 +209,7 @@ where
 /// This optimizer is generic over:
 /// - **Sampler**: Must implement [`BatchSampler`] for generating new candidates when no computed solutions are available for promotion
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
 ///   evaluation state across fidelity levels
 ///
@@ -230,7 +223,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>;
 
@@ -241,7 +234,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -337,12 +330,12 @@ where
             Fn,
             SInfo = SInfo,
         >,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -381,12 +374,12 @@ where
             Fn,
             SInfo = SInfo,
         >,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -485,12 +478,12 @@ where
             SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
         >,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
     FnState: FuncState,
 {
@@ -529,7 +522,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `x` - A [`Batch`] of [`Computed`](tantale_core::Computed) [`SolutionShape`]s that have been evaluated at the current fidelity level
+    /// * `x` - A [`Batch`] of [`Computed`](tantale_core::Computed) [`SolutionShape`](tantale_core::SolutionShape)s that have been evaluated at the current fidelity level
     /// * `scp` - The [`Searchspace`] for generating new candidates
     ///
     /// # Returns
@@ -566,7 +559,7 @@ where
             self.0.current_budget = self.0.budgets[self.0.budget_idx];
 
             // Partition candidates by performance: worst k candidates go before index k
-            pairs.select_nth_unstable(k);
+            pairs.select_nth_unstable_by(k, |a, b| Orderable::ord_cmp(a, b).unwrap());
             let new_pairs: Vec<_> = pairs
                 .into_iter()
                 .enumerate()
@@ -614,7 +607,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -644,7 +637,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -670,9 +663,9 @@ where
     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     fn new() -> Self {
@@ -736,7 +729,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -877,7 +870,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {

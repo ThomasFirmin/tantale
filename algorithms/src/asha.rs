@@ -70,10 +70,7 @@
 use std::{cell::RefCell, marker::PhantomData};
 
 use tantale_core::{
-    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt,
-    OptState, Optimizer, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo,
-    Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
-    solution::IntoComputedShape,
+    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
 };
 
 use rand::rngs::StdRng;
@@ -122,7 +119,7 @@ where
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
@@ -145,7 +142,7 @@ where
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
 {
 }
 
@@ -161,7 +158,7 @@ where
 /// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
 ///   selecting the top performers and promoting them to the next level of fidelity, if the rung has enough candidates.
 /// - If not, it continues down the rungs until it finds candidates to promote or defaults to generate a new candidate at the lowest budget level
-///   using a [`Sampler`].
+///   using a [`Sampler`](tantale_core::Sampler).
 ///
 /// # Workflow
 ///
@@ -210,7 +207,7 @@ where
 /// This optimizer is generic over:
 /// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
 ///   evaluation state across fidelity levels
 /// - [`Stepped`](tantale_core::Stepped) functions
@@ -226,7 +223,7 @@ where
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord;
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable;
 
 impl<Smpl, Scp, PSol, Out, Fn> Asha<Smpl, Scp, PSol, Out, Fn>
 where
@@ -234,11 +231,11 @@ where
     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -318,7 +315,7 @@ where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
 {
     type State = AshaState<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
@@ -359,7 +356,7 @@ where
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -476,12 +473,12 @@ where
             SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
         >,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
     Out: FidOutcome,
+    Out::Cod: Single<Out>,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
+    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
     SInfo: SolInfo,
     FnState: FuncState,
 {
@@ -551,7 +548,7 @@ where
                 self.0.current_budget = self.0.budgets[0];
                 self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
-                self.0.rung[i].select_nth_unstable(k);
+                self.0.rung[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
                 self.0.current_budget = self.0.budgets[i];
                 let sol = IntoComputedShape::extract(self.0.rung[i].pop().unwrap()).0;
                 fidelity_setter(sol, self.0.current_budget)
@@ -600,7 +597,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -624,7 +621,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     fn new() -> Self {
@@ -678,7 +675,7 @@ where
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
 {
     type Value = AshaState<Smpl, Scp, PSol, Out, Fn>;
 
@@ -785,7 +782,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
