@@ -24,6 +24,7 @@ rand = "0.10.0"
 serde = {version="1.0.219", features=["derive","rc"]}
 rayon = "1.10.0"
 itertools = "0.14.0"
+ndarray = "0.17.2"
 
 [package]
 name                    = "tantale"

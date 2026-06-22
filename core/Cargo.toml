@@ -18,13 +18,15 @@ num = { workspace = true}
 rand = { workspace = true}
 rayon = {workspace = true}
 serde = { workspace = true, features=["derive","rc"]}
+ndarray = { workspace = true}
+itertools = {workspace = true}
 csv = "1.1"
 rmp-serde = "1.3.0"
+num_cpus = "1.17.0"
+indexmap = "2.13.0"
 mpi = {version = "0.8.0", features=["derive"], optional=true}
 bincode = {version = "2.0.1", features=["serde"], optional=true}
 bitvec = { version = "1.0.1", features = ["serde"], optional=true }
-num_cpus = "1.17.0"
-indexmap = "2.13.0"
 
 [features]
 mpi = ["dep:mpi","dep:bincode","dep:bitvec"]
