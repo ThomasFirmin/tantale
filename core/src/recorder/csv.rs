@@ -10,7 +10,7 @@
 //!
 //! - [`CSVWritable`] - Base trait for writing individual types to CSV columns
 //! - [`CSVLeftRight`] - For types with Obj/Opt components (used by [`Searchspace`])
-//! - [`SolCSVWrite`] - Writing [`Solution`] components (obj.csv, opt.csv)
+//! - [`SolCSVWrite`] - Writing [`Solution`](crate::Solution) components (obj.csv, opt.csv)
 //! - [`CodCSVWrite`] - Writing [`Codomain`] values (cod.csv)
 //! - [`InfoCSVWrite`] - Writing [`SolInfo`] and [`OptInfo`] metadata (info.csv)
 //! - [`OutCSVWrite`] - Writing raw [`Outcome`] values (out.csv)
@@ -37,9 +37,8 @@
 use crate::{
     BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId,
     HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo,
-    StepId,
+    StepId, HasX,
     domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt},
-    has_trait::HasX,
     objective::{Outcome, Step},
     recorder::{BatchRecorder, Recorder, SeqRecorder},
     searchspace::{CompShape, Searchspace},
@@ -178,7 +177,7 @@ pub trait CSVLeftRight<H, L, R> {
     fn write_right(&self, comp: &R) -> Vec<String>;
 }
 
-/// CSV writer for [`Solution`] components (obj.csv and opt.csv).
+/// CSV writer for [`Solution`](crate::Solution) components (obj.csv and opt.csv).
 ///
 /// This trait enables a [`Searchspace`] to write solution components
 /// by decomposing them into objective-side (obj.csv) and optimizer-side (opt.csv) parts.
@@ -325,7 +324,7 @@ where
     );
 }
 
-/// Implementation for [`BaseSol`] [`Solution`]s, which writes the solution components within the CSV files.
+/// Implementation for [`BaseSol`] [`Solution`](crate::Solution)s, which writes the solution components within the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
@@ -407,7 +406,7 @@ where
     }
 }
 
-/// Implementation for [`FidelitySol`] [`Solution`]s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
+/// Implementation for [`FidelitySol`] [`Solution`](crate::Solution)s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
 impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>

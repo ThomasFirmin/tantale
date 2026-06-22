@@ -1,6 +1,6 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, SId, SeqRecorder,
-    Stepped,
+    Stepped, HasX,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
@@ -12,7 +12,6 @@ use crate::{
             seqfidevaluator::{FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator},
         },
     },
-    has_trait::HasX,
     objective::{Objective, Outcome, Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SingleOptimizer},
     searchspace::{CompShape, Searchspace},

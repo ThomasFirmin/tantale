@@ -1,8 +1,7 @@
 use crate::{
-    Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo,
+    HasX, Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo,
     domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
-    has_trait::HasX,
     objective::{Objective, Step},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,

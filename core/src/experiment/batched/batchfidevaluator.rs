@@ -1,12 +1,11 @@
-use crate::Accumulator;
 use crate::domain::codomain::TypeAcc;
 use crate::experiment::OutBatchEvaluate;
 use crate::experiment::basics::FuncStatePool;
-use crate::has_trait::HasX;
 use crate::solution::IntoComputedShape;
 use crate::solution::id::StepId;
 use crate::{
     Codomain, OptInfo, Searchspace, SolInfo,
+    Accumulator,HasX,
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
     objective::{FidOutcome, Step, Stepped, outcome::FuncState},
@@ -508,7 +507,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-/// Message type for fidelity-aware distributed evaluation, wrapping a solution [`Id`](crate::Id) and a [`Raw`](Solution::Raw) solution.
+/// Message type for fidelity-aware distributed evaluation, wrapping a solution [`Id`](crate::Id) and a [`Raw`](crate::Solution::Raw) solution.
 pub type FidMsg<SolId, SolShape, SInfo> = FXMessage<SolId, RawObj<SolShape, SolId, SInfo>>;
 
 #[cfg(feature = "mpi")]
@@ -517,7 +516,7 @@ pub type FidSendRec<'a, SolId, SolShape, SInfo, Out> =
     SendRec<'a, FidMsg<SolId, SolShape, SInfo>, SolShape, SolId, SInfo, Out>;
 
 #[cfg(feature = "mpi")]
-/// Recursive function to send a [`Raw`](Solution::Raw) to an available rank.
+/// Recursive function to send a [`Raw`](crate::Solution::Raw) to an available rank.
 /// It prioritizes discarding solutions first, then resuming partially evaluated solutions,
 /// and finally sending new pending solutions.
 /// If no solutions are available to send, it marks the rank of the [`Worker`](crate::Worker) as idle.

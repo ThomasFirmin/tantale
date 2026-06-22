@@ -16,12 +16,11 @@
 
 use crate::domain::Domain;
 use crate::domain::codomain::TypeCodom;
-use crate::has_trait::HasX;
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
 use crate::{Computed, EvalStep, Outcome, StepId};
-use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
+use crate::{HasX, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
 
 use serde::{Deserialize, Serialize};
 use std::{

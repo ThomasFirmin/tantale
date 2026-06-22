@@ -53,12 +53,11 @@
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
-    HasUncomputed, HasY, Multi, StepId,
-    domain::{Domain, codomain::TypeCodom},
-    has_trait::HasX,
-    objective::{Outcome, Step},
-    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed},
+    HasX, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, Xy, 
+    domain::{Domain, codomain::TypeCodom}, 
+    objective::{Outcome, Step}, 
+    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed}, 
+    utils::orderable::Orderable
 };
 
 use serde::{Deserialize, Serialize};
@@ -94,13 +93,6 @@ where
     _id: PhantomData<SolId>,
     _dom: PhantomData<Dom>,
     _info: PhantomData<Info>,
-}
-
-/// A helper struct to hold the raw solution and the computed codomain value together.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Xy<Raw, Y> {
-    pub x: Raw,
-    pub y: Arc<Y>,
 }
 
 impl<PSol, SolId, Dom, Out, Info> HasX<PSol::Raw> for Computed<PSol, SolId, Dom, Out, Info>
@@ -246,7 +238,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
+    /// Returns the computed [`TypeCodom`](crate::Codomain::TypeCodom) for this solution.
     fn y(&self) -> Arc<TypeCodom<Out>> {
         self.y.clone()
     }
@@ -303,7 +295,7 @@ where
     Dom: Domain,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.y() == other.y()
+        self.y == other.y
     }
 }
 
@@ -330,7 +322,7 @@ where
     Dom: Domain,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.y().partial_cmp(&other.y())
+        self.y.partial_cmp(&other.y())
     }
 }
 
@@ -345,7 +337,22 @@ where
     Dom: Domain,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.y().cmp(&other.y())
+        self.y.cmp(&other.y())
+    }
+}
+
+impl<PSol, SolId, Dom, SInfo, Out> Orderable for Computed<PSol, SolId, Dom, Out, SInfo>
+where
+    Self: HasY<Out>,
+    TypeCodom<Out>: Orderable,
+    Out: Outcome,
+    PSol: Uncomputed<SolId, Dom, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Dom: Domain,
+{
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.y.ord_cmp(&other.y())
     }
 }
 
@@ -361,15 +368,19 @@ where
     Dom: Domain,
 {
     fn dominates(&self, other: &Self) -> bool {
-        self.y().dominates(&other.y())
+        self.y.dominates(&other.y())
     }
 
     fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y().get_objective_by_index(idx)
+        self.y.get_objective_by_index(idx)
     }
 
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
+    fn len_objectives(&self) -> usize {
+        self.y.len_objectives()
+    }
+    
+    fn get_objectives(&self) -> &[f64] {
+        self.y.get_objectives()
     }
 }
 
@@ -381,7 +392,7 @@ where
     Out: Outcome,
     SolId: Id,
 {
-    /// Creates a new [`Computed`] from a [`BaseSol`](crate::solution::BaseSol) and a [`TypeCodom`](Codomain::TypeCodom).
+    /// Creates a new [`Computed`] from a [`BaseSol`](crate::solution::BaseSol) and a [`TypeCodom`](crate::Codomain::TypeCodom).
     pub fn new(sol: PSol, y: Arc<TypeCodom<Out>>) -> Self {
         Computed {
             sol,
@@ -393,7 +404,7 @@ where
     }
 
     /// Creates a vec of [`Computed`] from an iterator of [`BaseSol`](crate::solution::BaseSol)s,
-    /// and an iterator of [`Arc<`TypeCodom`>](Codomain::TypeCodom).
+    /// and an iterator of [`Arc<`TypeCodom`>](crate::Codomain::TypeCodom).
     pub fn new_vec<I, J>(sol: I, y: J) -> Vec<Self>
     where
         I: IntoIterator<Item = PSol>,
@@ -410,59 +421,5 @@ where
             x: self.clone_x(),
             y: self.y(),
         }
-    }
-}
-
-impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y> {
-    fn ref_x(&self) -> &Raw {
-        &self.x
-    }
-
-    fn clone_x(&self) -> Raw {
-        self.x.clone()
-    }
-}
-
-impl<Raw, Out> HasY<Out> for Xy<Raw, TypeCodom<Out>>
-where
-    Out: Outcome,
-{
-    /// Returns the computed [`TypeCodom`](Codomain::TypeCodom) for this solution.
-    fn y(&self) -> Arc<TypeCodom<Out>> {
-        self.y.clone()
-    }
-}
-
-impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y> {
-    fn eq(&self, other: &Self) -> bool {
-        self.y == other.y
-    }
-}
-
-impl<Raw, Y: Eq> Eq for Xy<Raw, Y> {}
-
-impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw, Y> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.y.partial_cmp(&other.y)
-    }
-}
-
-impl<Raw, Y: Ord> Ord for Xy<Raw, Y> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.y.cmp(&other.y)
-    }
-}
-
-impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y> {
-    fn dominates(&self, other: &Self) -> bool {
-        self.y.dominates(&other.y)
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y.get_objective_by_index(idx)
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.y.get_max_objectives()
     }
 }

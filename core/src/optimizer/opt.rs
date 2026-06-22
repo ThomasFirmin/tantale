@@ -85,7 +85,7 @@ where
     fn from_state(state: Self::State) -> Self;
 }
 
-/// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`].
+/// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`](crate::Codomain).
 pub type CompBatch<SolId, SInfo, Info, SolShape, Out> =
     Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Out>>;
 
@@ -119,9 +119,9 @@ where
     ///
     /// The `acc` parameter provides a view of the best solutions
     /// accumulated since the start of the experiment:
-    /// - For single-objective [`Codomain`]s, `acc` is a
+    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
     ///   [`BestAccumulator`](crate::domain::codomain::BestAccumulator) holding the single best solution seen so far.
-    /// - For multi-objective [`Codomain`]s, `acc` is a
+    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
     ///   [`ParetoAccumulator`](crate::domain::codomain::ParetoAccumulator) holding the current Pareto front.
     ///
     /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
@@ -163,9 +163,9 @@ where
     ///
     /// The `acc` parameter provides a read-only view of the best solutions
     /// accumulated since the start of the experiment:
-    /// - For single-objective [`Codomain`]s, `acc` is a
+    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
     ///   [`BestAccumulator`](crate::BestAccumulator) holding the single best solution seen so far.
-    /// - For multi-objective [`Codomain`]s, `acc` is a
+    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
     ///   [`ParetoAccumulator`](crate::ParetoAccumulator) holding the current Pareto front.
     ///
     /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and

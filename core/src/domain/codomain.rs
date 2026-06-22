@@ -91,11 +91,10 @@
 //!   * By definition, in Tantale an [`Optimizer`](crate::Optimizer) maximimizes the [`Objective`](crate::Objective).
 //!
 
-use std::{cmp::Ordering, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
 use crate::{
-    EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome,
-    recorder::csv::CSVWritable,
+    Dominate, EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome, recorder::csv::CSVWritable, utils::orderable::Orderable
 };
 use serde::{Deserialize, Serialize};
 
@@ -158,7 +157,7 @@ where
 /// Defines a mono-objective [`Codomain`], i.e. $f(x)=y$
 pub trait Single<Out: Outcome>: Codomain<Out>
 where
-    Self::TypeCodom: Ord,
+    Self::TypeCodom: Orderable,
 {
     fn get_criteria(&self) -> Criteria<Out>;
     fn get_y(&self, o: &Out) -> f64 {
@@ -198,167 +197,6 @@ pub trait Cost<Out: Outcome>: Codomain<Out> {
     }
 }
 
-/// Defines the Pareto domination relationship between two elements of a [`Multi`]-objective [`Codomain`].
-///
-/// Since Tantale maximizes, `self` dominates `other` if:
-/// - `self` is at least as good as `other` on every objective ($\forall i, y_i(self) \geq y_i(other)$), and
-/// - `self` is strictly better than `other` on at least one objective ($\exists i, y_i(self) > y_i(other)$).
-///
-/// For [`Constrained`] variants, constraint feasibility takes priority:
-/// - A solution with strictly lower total constraint violation always dominates the other,
-///   regardless of objective values.
-/// - When both solutions share the same total violation (including the fully feasible case),
-///   standard Pareto dominance on objectives applies.
-///
-/// # Note
-/// The [`Cost`] dimension is intentionally excluded from dominance: it is used by
-/// cost-aware algorithms (e.g. for budget allocation), not as a Pareto objective.
-pub trait Dominate {
-    /// Returns `true` if `self` Pareto-dominates `other`.
-    fn dominates(&self, other: &Self) -> bool;
-
-    /// Returns the value of the objective at the specified index.
-    fn get_objective_by_index(&self, idx: usize) -> f64;
-
-    /// Returns the number of objectives in this [`Codomain`].
-    fn get_max_objectives(&self) -> usize;
-
-    /// Returns an iterator over the objective values of this [`Codomain`].
-    fn iter_obj(&self) -> impl Iterator<Item = f64> {
-        (0..self.get_max_objectives()).map(|idx| self.get_objective_by_index(idx))
-    }
-}
-
-impl<T:Dominate> Dominate for &T
-{
-    fn dominates(&self, other: &Self) -> bool {
-        (*self).dominates(*other)
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        (*self).get_objective_by_index(idx)
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        (*self).get_max_objectives()
-    }
-}
-
-impl Dominate for [f64]
-{
-    fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-        for (a, b) in self.iter().zip(other.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self[idx]
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.len()
-    }
-}
-
-impl<const N: usize> Dominate for [f64; N]
-{
-    fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-        for (a, b) in self.iter().zip(other.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self[idx]
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.len()
-    }
-}
-
-impl Dominate for Box<[f64]>
-{
-    fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-        for (a, b) in self.iter().zip(other.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self[idx]
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.len()
-    }
-}
-
-impl Dominate for Arc<[f64]>
-{
-    fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-        for (a, b) in self.iter().zip(other.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self[idx]
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.len()
-    }
-}
-
-impl Dominate for Vec<f64>
-{
-    fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-        for (a, b) in self.iter().zip(other.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
-    }
-
-    fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self[idx]
-    }
-
-    fn get_max_objectives(&self) -> usize {
-        self.len()
-    }
-}
-
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
 ///
 /// Since Tantale maximizes, [`update`](Accumulator::accumulate) keeps the element with the highest
@@ -371,7 +209,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable + Ord,
     Out: Outcome,
 {
     /// The best element seen so far, or [`None`] if no element has been added yet.
@@ -387,7 +225,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable + Ord,
     Out: Outcome,
 {
     /// Creates an empty [`BestAccumulator`].
@@ -412,7 +250,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable + Ord,
     Out: Outcome,
 {
     fn default() -> Self {
@@ -427,7 +265,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable + Ord,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C) {
@@ -568,15 +406,28 @@ impl PartialEq for ElemSingleCodomain {
 
 impl Eq for ElemSingleCodomain {}
 
+
 impl Ord for ElemSingleCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`:
+    /// $$ A \succ B \iff A > B$$
     fn cmp(&self, other: &Self) -> Ordering {
         self.value.total_cmp(&other.value)
     }
 }
 
 impl PartialOrd for ElemSingleCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`:
+    /// $$ A \succ B \iff A > B$$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl Orderable for ElemSingleCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`:
+    /// $$ A \succ B \iff A > B$$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.partial_cmp(other)
     }
 }
 
@@ -652,6 +503,15 @@ impl PartialEq for ElemCostCodomain {
 impl Eq for ElemCostCodomain {}
 
 impl Ord for ElemCostCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`
+    /// If the values are equal, the one with lower cost is considered better::
+    /// $$ 
+    ///     A \succ B \iff
+    ///     \begin{cases} 
+    ///         A > B & \lor \\ 
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \end{cases}
+    /// $$
     fn cmp(&self, other: &Self) -> Ordering {
         match self.value.total_cmp(&other.value) {
             Ordering::Equal => self.cost.total_cmp(&other.cost).reverse(),
@@ -661,8 +521,32 @@ impl Ord for ElemCostCodomain {
 }
 
 impl PartialOrd for ElemCostCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`
+    /// If the values are equal, the one with lower cost is considered better::
+    /// $$ 
+    ///     A \succ B \iff
+    ///     \begin{cases} 
+    ///         A > B & \lor \\ 
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \end{cases}
+    /// $$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl Orderable for ElemCostCodomain {
+    /// `Self` is considered better than other if `self.value > other.value`
+    /// If the values are equal, the one with lower cost is considered better::
+    /// $$ 
+    ///     A \succ B \iff
+    ///     \begin{cases} 
+    ///         A > B & \lor \\ 
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.partial_cmp(other)
     }
 }
 
@@ -756,22 +640,53 @@ impl PartialEq for ElemConstCodomain {
 impl Eq for ElemConstCodomain {}
 
 impl Ord for ElemConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///     \end{cases}
+    /// $$
     fn cmp(&self, other: &Self) -> Ordering {
         let const_sum: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
         let other_const_sum: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
 
         match const_sum.total_cmp(&other_const_sum) {
             Ordering::Equal => self.value.total_cmp(&other.value),
-            ord => ord.reverse(),
+            ord => ord,
         }
     }
 }
 
 impl PartialOrd for ElemConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///     \end{cases}
+    /// $$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
+
+impl Orderable for ElemConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.partial_cmp(other)
+    }
+}
+
 
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
@@ -870,6 +785,18 @@ impl PartialEq for ElemCostConstCodomain {
 impl Eq for ElemCostConstCodomain {}
 
 impl Ord for ElemCostConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
+    ///         \begin{cases}
+    ///             A > B & \lor \\
+    ///             A = B & \land A_\text{cost} < B_\text{cost} \\
+    ///         \end{cases} &
+    ///     \end{cases}
+    /// $$
     fn cmp(&self, other: &Self) -> Ordering {
         let const_sum: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
         let other_const_sum: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
@@ -885,8 +812,38 @@ impl Ord for ElemCostConstCodomain {
 }
 
 impl PartialOrd for ElemCostConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
+    ///         \begin{cases}
+    ///             A > B & \lor \\
+    ///             A = B & \land A_\text{cost} < B_\text{cost} \\
+    ///         \end{cases} &
+    ///     \end{cases}
+    /// $$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl Orderable for ElemCostConstCodomain {
+    /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
+    /// $$ 
+    ///     A \succ B \iff 
+    ///     \begin{cases} 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
+    ///         \begin{cases}
+    ///             A > B & \lor \\
+    ///             A = B & \land A_\text{cost} < B_\text{cost} \\
+    ///         \end{cases} &
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.partial_cmp(other)
     }
 }
 
@@ -975,26 +932,29 @@ impl PartialEq for ElemMultiCodomain {
     }
 }
 
+impl Orderable for ElemMultiCodomain{
+    /// `Self` is considered better than other it is lexicographically better than `other.value`:
+    /// $ A \succ B \iff A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.value.ord_cmp(&other.value)
+    }
+}
+
 impl Dominate for ElemMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-
-        for (a, b) in self.value.iter().zip(other.value.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
+        self.value.dominates(&other.value)
     }
 
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
 
-    fn get_max_objectives(&self) -> usize {
+    fn len_objectives(&self) -> usize {
         self.value.len()
+    }
+
+    fn get_objectives(&self) -> &[f64] {
+        &self.value
     }
 }
 
@@ -1079,26 +1039,38 @@ impl PartialEq for ElemCostMultiCodomain {
     }
 }
 
+impl Orderable for ElemCostMultiCodomain {
+    /// `Self` is considered better than other if it is lexicographically better than `other`. Ties are broken by the cost, with lower cost being better:
+    /// $$
+    ///     A \succ B \iff 
+    ///     \begin{cases}
+    ///         \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) & \lor \\
+    ///         \left( A_{y_i} = B_{y_i} \forall i \land A_\text{cost} < B_\text{cost} \right) \\
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.value.ord_cmp(&other.value) {
+            Some(Ordering::Equal) => self.cost.partial_cmp(&other.cost).map(|ord| ord.reverse()),
+            ord => ord,
+        }
+    }
+}
+
 impl Dominate for ElemCostMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
-        let mut strictly_better = false;
-
-        for (a, b) in self.value.iter().zip(other.value.iter()) {
-            if a < b {
-                return false; // Not at least as good
-            } else if a > b {
-                strictly_better = true; // Found a strictly better objective
-            }
-        }
-        strictly_better
+        self.value.dominates(&other.value)
     }
 
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.value[idx]
     }
 
-    fn get_max_objectives(&self) -> usize {
+    fn len_objectives(&self) -> usize {
         self.value.len()
+    }
+
+    fn get_objectives(&self) -> &[f64] {
+        &self.value
     }
 }
 
@@ -1195,6 +1167,26 @@ impl PartialEq for ElemConstMultiCodomain {
     }
 }
 
+impl Orderable for ElemConstMultiCodomain {
+    /// `Self` is considered better than other if it has lower total violation than `other.constraints`, if violations are equal, and if `self.value` is lexicographically better than `other.value`:
+    /// $$
+    ///     A \succ B \iff 
+    ///     \begin{cases}
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land 
+    ///         \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) \\
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        let self_viol: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
+        let other_viol: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
+        match self_viol.partial_cmp(&other_viol) {
+            Some(Ordering::Equal) => self.value.ord_cmp(&other.value),
+            ord => ord,
+        }
+    }
+}
+
 impl Dominate for ElemConstMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
         let self_viol: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
@@ -1202,17 +1194,7 @@ impl Dominate for ElemConstMultiCodomain {
         match self_viol.total_cmp(&other_viol) {
             Ordering::Greater => false,
             Ordering::Less => true,
-            Ordering::Equal => {
-                let mut strictly_better = false;
-                for (a, b) in self.value.iter().zip(other.value.iter()) {
-                    if a < b {
-                        return false; // Not at least as good
-                    } else if a > b {
-                        strictly_better = true; // Found a strictly better objective
-                    }
-                }
-                strictly_better
-            }
+            Ordering::Equal => self.value.dominates(&other.value),
         }
     }
 
@@ -1220,8 +1202,12 @@ impl Dominate for ElemConstMultiCodomain {
         self.value[idx]
     }
 
-    fn get_max_objectives(&self) -> usize {
+    fn len_objectives(&self) -> usize {
         self.value.len()
+    }
+
+    fn get_objectives(&self) -> &[f64] {
+        &self.value
     }
 }
 
@@ -1331,6 +1317,32 @@ impl PartialEq for ElemCostConstMultiCodomain {
     }
 }
 
+impl Orderable for ElemCostConstMultiCodomain {
+    /// `Self` is considered better than other if it has lower total violation than `other.constraints`, if violations are equal, and if `self.value` is lexicographically better than `other.value`. Ties are broken by the cost, with lower cost being better:
+    /// $$
+    ///     A \succ B \iff 
+    ///     \begin{cases}
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land 
+    ///         \begin{cases}
+    ///             \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) & \lor \\
+    ///             A_{y_i} = B_{y_i} \forall i & \land A_\text{cost} < B_\text{cost} \\
+    ///         \end{cases} \\
+    ///     \end{cases}
+    /// $$
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        let self_viol: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
+        let other_viol: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
+        match self_viol.partial_cmp(&other_viol) {
+            Some(Ordering::Equal) => match self.value.ord_cmp(&other.value) {
+                Some(Ordering::Equal) => self.cost.partial_cmp(&other.cost).map(|ord| ord.reverse()),
+                ord => ord,
+            },
+            ord => ord,
+        }
+    }
+}
+
 impl Dominate for ElemCostConstMultiCodomain {
     fn dominates(&self, other: &Self) -> bool {
         let self_viol: f64 = self.constraints.iter().filter(|c| **c > 0.0).sum();
@@ -1338,17 +1350,7 @@ impl Dominate for ElemCostConstMultiCodomain {
         match self_viol.total_cmp(&other_viol) {
             Ordering::Greater => false,
             Ordering::Less => true,
-            Ordering::Equal => {
-                let mut strictly_better = false;
-                for (a, b) in self.value.iter().zip(other.value.iter()) {
-                    if a < b {
-                        return false; // Not at least as good
-                    } else if a > b {
-                        strictly_better = true; // Found a strictly better objective
-                    }
-                }
-                strictly_better
-            }
+            Ordering::Equal => self.value.dominates(&other.value),
         }
     }
 
@@ -1356,8 +1358,12 @@ impl Dominate for ElemCostConstMultiCodomain {
         self.value[idx]
     }
 
-    fn get_max_objectives(&self) -> usize {
+    fn len_objectives(&self) -> usize {
         self.value.len()
+    }
+
+    fn get_objectives(&self) -> &[f64] {
+        &self.value
     }
 }
 

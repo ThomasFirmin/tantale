@@ -5,9 +5,9 @@ use crate::experiment::{
 };
 use crate::{
     Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop,
+    HasX,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
-    has_trait::HasX,
     objective::Step,
     optimizer::opt::{OpSInfType, SingleOptimizer},
     searchspace::CompShape,

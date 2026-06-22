@@ -28,7 +28,7 @@ use crate::{
         onto::{LinkObj, LinkOpt, Linked},
     },
     objective::Step,
-    solution::{IntoComputedShape, Uncomputed},
+    solution::{IntoComputedShape, Uncomputed}, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -473,6 +473,24 @@ where
     }
 }
 
+impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Orderable
+    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+where
+    Self: HasY<Out>,
+    TypeCodom<Out>: Orderable,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+    Opt: Domain,
+{
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.y().ord_cmp(&other.y())
+    }
+}
+
 impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Dominate
     for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
 where
@@ -495,9 +513,14 @@ where
         self.y().get_objective_by_index(idx)
     }
 
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
+    fn len_objectives(&self) -> usize {
+        self.y().len_objectives()
     }
+    
+    fn get_objectives(&self) -> &[f64] {
+        self.1.y.get_objectives()
+    }
+
 }
 
 //---------------------//
@@ -812,6 +835,21 @@ where
     }
 }
 
+impl<SolObj, SolId, Obj, SInfo, Out> Orderable for CompLone<SolObj, SolId, Obj, SInfo, Out>
+where
+    Self: HasY<Out>,
+    TypeCodom<Out>: Orderable,
+    Out: Outcome,
+    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    SolId: Id,
+    SInfo: SolInfo,
+    Obj: Domain,
+{
+    fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.y().ord_cmp(&other.y())
+    }
+}
+
 impl<SolObj, SolId, Obj, SInfo, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Out>
 where
     Self: HasY<Out>,
@@ -831,7 +869,11 @@ where
         self.y().get_objective_by_index(idx)
     }
 
-    fn get_max_objectives(&self) -> usize {
-        self.y().get_max_objectives()
+    fn len_objectives(&self) -> usize {
+        self.y().len_objectives()
+    }
+    
+    fn get_objectives(&self) -> &[f64] {
+        self.0.y.get_objectives()
     }
 }

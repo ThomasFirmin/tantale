@@ -1,9 +1,8 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace,
-    SolInfo, Stepped, Stop,
+    SolInfo, Stepped, Stop, HasX,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
-    has_trait::HasX,
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SingleOptimizer},
     searchspace::CompShape,

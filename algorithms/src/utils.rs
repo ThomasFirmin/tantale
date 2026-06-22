@@ -1,6 +1,6 @@
 //! Utilities for basic algorithms implemented in Tantale algorithms
 
-use serde::{Deserialize, Serialize};
+
 use tantale_core::{
     BaseSol, Batch, CompAcc, CompShape, FidelitySol, HasFidelity, LinkOpt, Objective, RawObj, SId, StepSId, Stepped, searchspace::SShape
 };
@@ -39,50 +39,6 @@ pub type SimpleObjective<Shape, SInfo, Out> = Objective<RawObj<Shape, SId, SInfo
 pub type SimpleStepped<Shape, SInfo, Out, State> =
     Stepped<RawObj<Shape, StepSId, SInfo>, Out, State>;
 
-/// Archive of points which holds the observed points sorted in ascending order.
-/// The points are sorted by their corresponding objective values, with the best points at the end of the vector.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(serialize = "T: Serialize", deserialize = "T: for<'a> Deserialize<'a>",))]
-pub struct OrdArchive<T>
-where
-    T: Ord + Serialize + for<'a> Deserialize<'a>,
-{
-    /// A vector of points observed in the optimization process, sorted in ascending order by their objective values.
-    /// The best points are located at the end of the vector, while the worst points are at the beginning.
-    pub points: Vec<T>, // sorted ascending by point
-}
-
-impl<T> OrdArchive<T>
-where
-    T: Ord + Serialize + for<'a> Deserialize<'a>,
-{
-    pub fn new(elem: T) -> Self {
-        OrdArchive { points: vec![elem] }
-    }
-}
-
-impl<T> Default for OrdArchive<T>
-where
-    T: Ord + Serialize + for<'a> Deserialize<'a>,
-{
-    fn default() -> Self {
-        OrdArchive { points: Vec::new() }
-    }
-}
-
-impl<T> OrdArchive<T>
-where
-    T: Ord + Serialize + for<'a> Deserialize<'a>,
-{
-    pub fn add(&mut self, point: T) {
-        let pos = self.points.binary_search(&point).unwrap_or_else(|e| e);
-        self.points.insert(pos, point);
-    }
-    pub fn size(&self) -> usize {
-        self.points.len()
-    }
-}
-
 /// A helper function to set the fidelity of a solution that implements the [`HasFidelity`] trait.
 pub fn fidelity_setter<S:HasFidelity>(mut s: S, fidelity: f64) -> S{
     s.set_fidelity(fidelity);
@@ -90,5 +46,3 @@ pub fn fidelity_setter<S:HasFidelity>(mut s: S, fidelity: f64) -> S{
 }
 
 pub mod mo;
-
-pub mod hypervolume;

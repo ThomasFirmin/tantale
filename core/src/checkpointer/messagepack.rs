@@ -564,7 +564,7 @@ impl ThrCheckpointer for MessagePack {
     ///
     /// # Note
     ///
-    /// In asynchronous experiments (with [`SequentialOptimizer`](crate::SequentialOptimizer)), each thread saves its own [`Evaluate`] checkpoint.
+    /// In asynchronous experiments (with [`SingleOptimizer`](crate::SingleOptimizer)), each thread saves its own [`Evaluate`] checkpoint.
     /// The [`OptState`] and [`Stop`] checkpoints are shared among threads.
     /// In synchronous experiments (with [`BatchOptimizer`](crate::BatchOptimizer)), only one thread
     /// saves a single [`Evaluate`], [`OptState`] and [`Stop`] checkpoint, once a [`Batch`](crate::Batch) have been evaluated.

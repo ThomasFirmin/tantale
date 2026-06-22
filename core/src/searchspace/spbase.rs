@@ -68,11 +68,11 @@
 //! ```
 
 use crate::{
+    HasVariables, HasX,
     domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
     },
-    has_trait::{HasVariables, HasX},
     recorder::csv::{CSVLeftRight, CSVWritable},
     searchspace::{Searchspace, SolInfo, SpPar},
     solution::{
