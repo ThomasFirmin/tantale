@@ -53,7 +53,7 @@ Algorithms are divided in three categories:
   Optimizers are divided into two subcategories
   - Single optimizer: consumes a previously evaluated solution to generate a new one.
     For example simulated annealing.
-  - Batch optimizer: consumes a batch of evaluted solution to generate a new batch.
+  - Batch optimizer: consumes a batch of evaluted solutions to generate a new batch.
     For example evolutionnary algorithms.
 - *Sampler*: an algorithm able to generate points from an internal state; updated with computed solutions.
   For example, random search, latin hypercube sampling...
@@ -63,7 +63,7 @@ Algorithms are divided in three categories:
   - Batch sampler: generates on-demand a batch of non-evaluated solutions.
     For example random search. 
 - *Budget pruner*: a multi-fidelity algorithm relying on an internal sampler. It manages 
-  budget allocated to partially evaluated solution, deciding which one to discard or not.
+  budget allocated to partially evaluated solutions, deciding which one to discard or not.
   For example, ASHA, Hyperband, SHA...
 
 Then these algorithms can be specialized for multi-fidelity, multi-objectives or constrained problems.
@@ -77,7 +77,7 @@ Then these algorithms can be specialized for multi-fidelity, multi-objectives or
 | [ASHA](https://arxiv.org/abs/1810.05934) | Base | Single | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
 | [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Single | ✔️ |  ❌ |  ✔️ | ✔️ | ❌ | ❌ |
 | [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Single | ✔️ | ❌  |  ✔️ | ✔️ | ✔️ | ❌ |
-| [TPE](https://arxiv.org/abs/2304.11127) | "bayes" | Single | ✔️ | ✔️  | ❌ |  ✔️ | ❌ | ❌ |
+| [TPE](https://arxiv.org/abs/2304.11127) | "bayes" | Single | ✔️ | ✔️  | ❌ |  ✔️ | ✔️ | ❌ |
 ---
 
 ## Quick start

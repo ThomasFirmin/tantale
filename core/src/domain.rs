@@ -188,7 +188,7 @@ pub trait Domain: PreDomain + Sized + PartialEq + Debug  + Serialize + for<'a> D
     ///
     /// This method samples a value from
     /// the domain using the provided random number generator.
-    /// See [`Sampler`](crate::sampler::Sampler) for more advanced sampling strategies.
+    /// See [`DomainSampler`](crate::sampler::DomainSampler) for more advanced sampling strategies.
     ///
     /// # Parameters
     ///
@@ -272,7 +272,7 @@ pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Onto, OntoDom};
 pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
-    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria, Dominate,
+    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
     FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeAcc,
     TypeCodom,
 };

@@ -29,3 +29,5 @@ pub mod test_tpe_error;
 pub mod test_tpe_kernel;
 pub mod test_tpe_splitter;
 pub mod test_tpe_weighter;
+
+pub mod test_motpe;

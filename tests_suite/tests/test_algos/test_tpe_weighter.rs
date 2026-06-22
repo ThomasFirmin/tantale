@@ -9,8 +9,8 @@ fn test_uniform_weighter_default_prior() {
     let w = UniformWeighter::default();
     // Default prior should be 1.0 (internal field)
     // We verify indirectly through weight computation
-    let good = vec![1, 2, 3];
-    let bad = vec![4, 5, 6, 7];
+    let good = vec![&1, &2, &3];
+    let bad = vec![&4, &5, &6, &7];
     let weights = w.weight(&good, &bad);
     // prior=1.0, n_good=3: normalize_cst_good = 3+1=4, good_prior_weight = 1.0/4 = 0.25
     assert!(
@@ -25,8 +25,8 @@ fn test_uniform_weighter_default_prior() {
 #[test]
 fn test_uniform_weighter_good_weights() {
     let w = UniformWeighter::default(); // prior = 1.0
-    let good = vec![1, 2, 3]; // n_good = 3
-    let bad = vec![4, 5, 6, 7, 8]; // n_bad = 5
+    let good = vec![&1, &2, &3]; // n_good = 3
+    let bad = vec![&4, &5, &6, &7, &8]; // n_bad = 5
     let weights = w.weight(&good, &bad);
 
     // normalize_cst_good = 3 + 1 = 4; good_weight = 1/4 = 0.25
@@ -47,8 +47,8 @@ fn test_uniform_weighter_good_weights() {
 #[test]
 fn test_uniform_weighter_bad_weights() {
     let w = UniformWeighter::default(); // prior = 1.0
-    let good = vec![1, 2, 3];
-    let bad = vec![4, 5, 6, 7, 8]; // n_bad = 5
+    let good = vec![&1, &2, &3];
+    let bad = vec![&4, &5, &6, &7, &8]; // n_bad = 5
     let weights = w.weight(&good, &bad);
 
     // normalize_cst_bad = 5 + 1 = 6; bad_weight = 1/6
@@ -69,8 +69,8 @@ fn test_uniform_weighter_bad_weights() {
 #[test]
 fn test_uniform_weighter_weights_sum_to_one() {
     let w = UniformWeighter::default();
-    let good = vec![1, 2, 3, 4, 5];
-    let bad = vec![6, 7, 8, 9];
+    let good = vec![&1, &2, &3, &4, &5];
+    let bad = vec![&6, &7, &8, &9];
     let weights = w.weight(&good, &bad);
 
     // sum(good_weights) + good_prior_weight = 1.0
@@ -92,8 +92,8 @@ fn test_uniform_weighter_weights_sum_to_one() {
 #[test]
 fn test_uniform_weighter_prior_weight_formula() {
     let w = UniformWeighter::default(); // prior = 1.0
-    let good = vec![1, 2, 3, 4]; // n_good = 4
-    let bad = vec![5, 6]; // n_bad = 2
+    let good = vec![&1, &2, &3, &4]; // n_good = 4
+    let bad = vec![&5, &6]; // n_bad = 2
     let weights = w.weight(&good, &bad);
 
     // good_prior_weight = prior / (n_good + prior) = 1/(4+1) = 0.2
@@ -118,8 +118,8 @@ fn test_uniform_weighter_prior_weight_formula() {
 #[test]
 fn test_uniform_weighter_with_prior_good_weights() {
     let w = UniformWeighter::default(); // prior = 1.0
-    let good = vec![1, 2, 3]; // n_good = 3
-    let bad = vec![4, 5, 6, 7, 8]; // n_bad = 5
+    let good = vec![&1, &2, &3]; // n_good = 3
+    let bad = vec![&4, &5, &6, &7, &8]; // n_bad = 5
     let weights = w.weight(&good, &bad);
 
     // normalize_cst_good = 3 + 2 = 5; good_weight = 1/5 = 0.2
@@ -140,8 +140,8 @@ fn test_uniform_weighter_with_prior_good_weights() {
 #[test]
 fn test_uniform_weighter_with_prior_bad_weights() {
     let w = UniformWeighter::default(); // prior = 1.0
-    let good = vec![1, 2, 3];
-    let bad = vec![4, 5, 6, 7, 8]; // n_bad = 5
+    let good = vec![&1, &2, &3];
+    let bad = vec![&4, &5, &6, &7, &8]; // n_bad = 5
     let weights = w.weight(&good, &bad);
 
     // normalize_cst_bad = 5 + 2 = 6; bad_weight = 1/6
@@ -163,8 +163,8 @@ fn test_uniform_weighter_with_prior_bad_weights() {
 fn test_uniform_weighter_with_prior_weights_sum_to_one() {
     let w_custom = UniformWeighter::new(2.0);
 
-    let good = vec![1, 2, 3]; // n_good = 3
-    let bad = vec![4, 5, 6, 7]; // n_bad = 4
+    let good = vec![&1, &2, &3]; // n_good = 3
+    let bad = vec![&4, &5, &6, &7]; // n_bad = 4
 
     let weights = w_custom.weight(&good, &bad);
 
@@ -188,8 +188,8 @@ fn test_uniform_weighter_with_prior_weights_sum_to_one() {
 fn test_uniform_weighter_with_prior_weights_formula() {
     let w_custom = UniformWeighter::new(2.0);
 
-    let good = vec![1, 2, 3]; // n_good = 3
-    let bad = vec![4, 5, 6, 7]; // n_bad = 4
+    let good = vec![&1, &2, &3]; // n_good = 3
+    let bad = vec![&4, &5, &6, &7]; // n_bad = 4
 
     let weights = w_custom.weight(&good, &bad);
 
@@ -212,8 +212,8 @@ fn test_uniform_weighter_with_prior_weights_formula() {
 #[test]
 fn test_uniform_weighter_single_good() {
     let w = UniformWeighter::default();
-    let good = vec![1];
-    let bad = vec![2, 3, 4];
+    let good = vec![&1];
+    let bad = vec![&2, &3, &4];
     let weights = w.weight(&good, &bad);
     // normalize_cst_good = 1 + 1 = 2; good_weight = 0.5; good_prior_weight = 0.5
     assert!((weights.good.weights[0] - 0.5).abs() < EPS);
@@ -225,8 +225,8 @@ fn test_uniform_weighter_single_good() {
 #[test]
 fn test_uniform_weighter_empty_sets_returns_correct_structure_good() {
     let w = UniformWeighter::default();
-    let empty: Vec<i32> = vec![];
-    let non_empty = vec![1, 2, 3];
+    let empty: Vec<&i32> = vec![];
+    let non_empty = vec![&1, &2, &3];
     let weights = w.weight(&empty, &non_empty);
     // Empty good set: good weight vec is empty, prior_weight = prior / (0 + prior) = 1.0
     assert!(
@@ -243,8 +243,8 @@ fn test_uniform_weighter_empty_sets_returns_correct_structure_good() {
 #[test]
 fn test_uniform_weighter_single_bad() {
     let w = UniformWeighter::default();
-    let good = vec![2, 3, 4];
-    let bad = vec![1];
+    let good = vec![&2, &3, &4];
+    let bad = vec![&1];
     let weights = w.weight(&good, &bad);
     // normalize_cst_bad = 1 + 1 = 2; bad_weight = 0.5; bad_prior_weight = 0.5
     assert!((weights.bad.weights[0] - 0.5).abs() < EPS);
@@ -256,7 +256,7 @@ fn test_uniform_weighter_single_bad() {
 #[test]
 fn test_uniform_weighter_empty_sets_returns_correct_structure_bad() {
     let w = UniformWeighter::default();
-    let empty: Vec<i32> = vec![1, 2, 3];
+    let empty: Vec<&i32> = vec![&1, &2, &3];
     let non_empty = vec![];
     let weights = w.weight(&empty, &non_empty);
     // Empty bad set: bad weight vec is empty, prior_weight = prior / (0 + prior) = 1.0

@@ -19,7 +19,7 @@ pub struct ShaInfo {
 }
 
 use rand::prelude::ThreadRng;
-use tantale::core::{Codomain, CompShape, Criteria, FidOutcome, SingleCodomain, StepSId};
+use tantale::core::{Codomain, CompShape, Criteria, FidOutcome, Orderable, SingleCodomain, StepSId};
 
 pub struct Sha(pub ShaState, ThreadRng);
 
@@ -70,7 +70,7 @@ impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
@@ -106,10 +106,10 @@ impl<Out, Scp, FnState>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Orderable,
     FnState: FuncState,
 {
     type Info = ShaInfo;
@@ -163,7 +163,7 @@ where
             self.0.iteration += 1;
 
             // worst solutions before index k, top k  solution at index k and after
-            pairs.select_nth_unstable(k);
+            pairs.select_nth_unstable_by(k, |a,b| a.ord_cmp(b).unwrap());
             // Extract Uncomputed solution from Computed
             let new_pairs: Vec<_> = pairs
                 .into_iter()

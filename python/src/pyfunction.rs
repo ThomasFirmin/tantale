@@ -108,7 +108,7 @@ impl Display for PyFuncState {
 ///
 /// Converts `x` to a Python `list` via [`ElementIntoPyObject::to_pyany`],
 /// calls the callable stored in [`PY_OBJECTIVE_FUNC`],
-/// and wraps the return value in a [`PyOutcome`].
+/// and wraps the return value in a [`PyOutcome`](crate::PyOutcome).
 ///
 /// # Panics
 /// Panics if no callable has been registered via [`PyObjective::register`].
@@ -179,7 +179,7 @@ impl PyObjective {
 
 impl PyObjective {
     /// Registers this callable as the active thread-local objective and returns
-    /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`]`>`.
+    /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
     pub fn register<E: ElementIntoPyObject, Out: PyOutWrap>(&self) -> Objective<Arc<[E]>, Out> {
@@ -202,12 +202,12 @@ impl PyObjective {
 ///
 /// - `x` – Python list of `float | int | bool | str` inputs.
 /// - `fidelity` – Current fidelity budget as a `float`.
-/// - `state` – Previous function state (any object with `save`/`load` methods),
+/// - `state` – Previous function state (any object with `save`/`load` methods),²
 ///   or `None` on the first call.
 /// - Returns a 2-tuple `(outcome, new_state)`.
 ///
-/// Call [`register`](PyStepped::register) (from Rust) to register the callable and
-/// obtain a typed [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`]`, `[`PyFuncState`]`>`.
+/// Call [`register`](crate::PyStepped::register) (from Rust) to register the callable and
+/// obtain a typed [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
 #[pyclass]
 pub struct PyStepped(pub Py<PyAny>);
 
@@ -221,7 +221,7 @@ impl PyStepped {
 
 impl PyStepped {
     /// Registers this callable as the active thread-local stepped objective and
-    /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`]`, `[`PyFuncState`]`>`.
+    /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
     ///
     /// Only one `PyStepped` may be active per thread at a time.
     pub fn register<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(

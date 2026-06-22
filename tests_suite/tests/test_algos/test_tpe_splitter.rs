@@ -1,10 +1,11 @@
 use tantale::algos::bayesian::splitter::{LinearSplit, Splitter, SqrtSplit};
-use tantale::algos::utils::OrdArchive;
+use tantale::core::utils::orderable::{IntoOrdView, OrdView};
+use tantale::core::OrderedArchive;
 
-fn make_archive<I: IntoIterator<Item = i32>>(values: I) -> OrdArchive<i32> {
-    let mut archive = OrdArchive::default();
+fn make_archive<I: IntoIterator<Item = i32>>(values: I) -> OrderedArchive<OrdView<i32>> {
+    let mut archive = OrderedArchive::default();
     for v in values {
-        archive.add(v);
+        archive.add(v.into_ord_view());
     }
     archive
 }
@@ -89,8 +90,8 @@ fn test_linear_split_values_are_sorted() {
     let (top, bottom) = splitter.split(&archive);
     // Archive is stored in sorted ascending order: [1, 2, 3, 5, 8, 9]
     // quantile = 3; top = [5, 8, 9], bottom = [1, 2, 3]
-    assert_eq!(top, &[5, 8, 9]);
-    assert_eq!(bottom, &[1, 2, 3]);
+    assert_eq!(top, &[&5, &8, &9]);
+    assert_eq!(bottom, &[&1, &2, &3]);
 }
 
 #[test]
@@ -166,8 +167,8 @@ fn test_sqrt_split_values_are_sorted() {
     let archive = make_archive(vec![7_i32, 2, 8, 1, 9, 3, 6, 0, 4, 5]);
     let splitter = SqrtSplit::new(4.0).unwrap();
     let (top, bottom) = splitter.split(&archive);
-    assert_eq!(top, &[9]);
-    assert_eq!(bottom, &[0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    assert_eq!(top, &[&9]);
+    assert_eq!(bottom, &[&0, &1, &2, &3, &4, &5, &6, &7, &8]);
 }
 
 #[test]

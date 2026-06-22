@@ -38,12 +38,12 @@
 //! Interfacing Tantale with a Python API is currently under study.
 //!
 //! Six algorithms are currently implemented:
-//! - [`random_search`](crate::algos::random_search) - A simple random search algorithm that can be used in sequential or batch mode.
-//! - [`grid_search`](crate::algos::grid_search) - A simple grid search algorithm that can be used in sequential.
-//! - [`sha`](crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization.
-//! - [`asha`](crate::algos::asha) - A simple sequential implementation of the ASHA algorithm for multi-fidelity optimization.
-//! - [`moasha`](crate::algos::moasha) - The multi-objective version of the ASHA algorithm.
-//! - [`hyperband`](crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization.
+//! - [`random_search`](mod@crate::algos::random_search) - A simple random search algorithm that can be used in sequential or batch mode.
+//! - [`grid_search`](mod@crate::algos::grid_search) - A simple grid search algorithm that can be used in sequential.
+//! - [`sha`](mod@crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization.
+//! - [`asha`](mod@crate::algos::asha) - A simple sequential implementation of the ASHA algorithm for multi-fidelity optimization.
+//! - [`moasha`](mod@crate::algos::moasha) - The multi-objective version of the ASHA algorithm.
+//! - [`hyperband`](mod@crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization.
 //!   It can be combined combined with the SHA or ASHA algorithms.
 //! - More algorithms and extensions of the core library are coming soon.
 //!

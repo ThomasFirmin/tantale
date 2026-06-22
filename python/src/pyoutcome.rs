@@ -44,8 +44,8 @@ use tantale_core::{CSVWritable, Outcome, Step};
 pub trait PyOutWrap: Outcome {
     /// Wraps a Python return value in the appropriate Rust wrapper type.
     ///
-    /// The Python callable registered via [`PyObjective::register`] or
-    /// [`PyStepped::register`] must return a value that can be wrapped by this
+    /// The Python callable registered via [`PyObjective::register`](crate::PyObjective::register) or
+    /// [`PyStepped::register`](crate::PyStepped::register) must return a value that can be wrapped by this
     /// method, or the optimizer will panic at runtime.
     fn wrap(py: Python, obj: Py<PyAny>) -> Self;
 }
@@ -209,11 +209,11 @@ impl PyOutcome {
 
 /// Rust bridge for a Python outcome in a multi-fidelity objective.
 ///
-/// Extends [`PyOutcome`] with [`FidOutcome`] by delegating `get_step()` to the
+/// Extends [`PyOutcome`] with [`FidOutcome`](tantale_core::FidOutcome) by delegating `get_step()` to the
 /// wrapped Python object.  The Python class must expose a `get_step()` method
 /// that returns a [`PyStep`] instance.
 ///
-/// Implements [`Outcome`] and [`FidOutcome`], making it usable as the `Out` type
+/// Implements [`Outcome`] and [`FidOutcome`](tantale_core::FidOutcome), making it usable as the `Out` type
 /// parameter of [`Stepped`](tantale_core::Stepped)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
 pub struct PyFidOutcome(pub Py<PyAny>);
 

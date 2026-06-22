@@ -130,9 +130,8 @@
 //! ```
 
 use crate::{
-    Uncomputed,
+    HasX, Uncomputed,
     domain::onto::Linked,
-    has_trait::HasX,
     solution::{
         Id, IntoComputedShape, SolInfo, SolutionShape,
         shape::{RawObj, RawOpt},
@@ -535,7 +534,7 @@ where
     fn contains_opt<S>(&self, inp: &S) -> bool
     where
         S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync;
-    /// Maps a [`Solution`] of type `Opt` onto an [`Solution`] of type `Obj`.
+    /// Maps a [`Solution`](crate::Solution) of type `Opt` onto an [`Solution`](crate::Solution) of type `Obj`.
     ///
     /// # Example
     /// ```

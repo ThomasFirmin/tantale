@@ -1095,6 +1095,16 @@ pub mod sp_sm_samp_noright_fid {
     );
 }
 
+
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+pub struct MoOutEvaluator {
+    #[maximize]
+    pub obj1: f64,
+    #[maximize]
+    pub obj2: f64,
+    info: f64,
+}
+
 #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct MoFidOutEvaluator {
     #[maximize]
@@ -1169,6 +1179,68 @@ pub mod sp_evaluator_sh {
 }
 
 pub mod sp_evaluator_mo {
+    use super::{MoOutEvaluator, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Real,
+        sampler::{Bernoulli, Uniform},
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
+        let idx: usize = rand::random_range(0..15) % 15;
+        match idx {
+            0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 5.0]),
+            1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 4.5]),
+            2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 4.0]),
+            3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 3.0]),
+            4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 1.0]),
+            5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5, 4.0]),
+            6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 3.5]),
+            7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 3.0]),
+            8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 2.0]),
+            9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 0.0]),
+            10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 3.5]),
+            11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0, 3.0]),
+            12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 2.0]),
+            13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5, 1.0]),
+            14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 0.0]),
+            _ => unreachable!("Index out of bounds for random codomain generation"),
+        }
+    }
+
+    objective!(
+        pub fn example() -> MoOutEvaluator {
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+
+            let obj = random_codom();
+
+            MoOutEvaluator{
+                obj1: obj.value[0],
+                obj2: obj.value[1],
+                info: [!j | Real(0.0,2000.0, Uniform) | !],
+            }
+
+        }
+    );
+}
+
+
+pub mod sp_evaluator_mo_fid {
     use super::{FnState, MoFidOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,

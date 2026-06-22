@@ -1209,7 +1209,7 @@ pub type ExpComponent<Out, Scp, Op, Fn, St, Rec, Check> = (
 ///   [`TypeCodom`](crate::Codomain::TypeCodom) value (via [`Ord`]) is retained.
 /// - **Multi-objective** codomains (implementing [`Multi`](crate::Multi)) use
 ///   [`ParetoAccumulator`](crate::ParetoAccumulator): the current Pareto front is maintained
-///   using the [`Dominate`](crate::domain::codomain::Dominate) relation.
+///   using the [`Dominate`](crate::Dominate) relation.
 ///
 /// # Design Philosophy
 ///

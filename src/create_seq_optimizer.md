@@ -64,7 +64,8 @@ According to the previous pseudo-code ASHA requires:
 - $\mathcal{R}$, the different rungs made of [`Computed`](crate::core::Computed)s.
 
 AshaState is generic over all [`SolutionShape`](crate::core::SolutionShape), i.e. pairs of `Obj` and `Opt` [`Solution`](crate::core::Solution).
-But, these are constrained by [`HasStep`](crate::core::HasStep) and [`HasFidelity`](crate::core::HasFidelity) because we are within the multi-fidelity optimization framework. To simplify things, it must also implements [`Ord`](std::cmp::Ord) (based on [`HasY`](crate::core::HasY) of [`Computed`](crate::core::Computed)) to simplify the Top k selection of the best [`Computed`](crate::core::Computed).
+But, these are constrained by [`HasStep`](crate::core::HasStep) and [`HasFidelity`](crate::core::HasFidelity) because we are within the multi-fidelity optimization framework. To simplify things, it must also implements [`Orderable`](crate::core::Orderable) to simplify the Top k selection of the best [`Computed`](crate::core::Computed).
+The [`Orderable`](crate::core::Orderable) is a generalization of [`PartialOrd`](std::cmp::PartialOrd). For instance, it allows implementing [lexicographic order](https://en.wikipedia.org/wiki/Lexicographic_order).
 
 A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` and `Deserializable`, which explains this:
 ```rust,ignore
@@ -74,9 +75,8 @@ A [`SolutionShape`](crate::core::SolutionShape) also implements `Serializable` a
 Then, the [`OptState`](crate::core::OptState) is given by:
 
 ```rust
-use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity};
+use tantale::core::{SolutionShape, StepSId, EmptyInfo, HasStep, HasFidelity, Orderable};
 use tantale::macros::OptState;
-use std::cmp::Ord;
 use serde::{Serialize,Deserialize};
 
 #[derive(OptState, Serialize, Deserialize)]
@@ -86,7 +86,7 @@ use serde::{Serialize,Deserialize};
 ))]
 pub struct AshaState<SShape>
 where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 {
     // A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
@@ -136,8 +136,8 @@ i.e. solutions that can be ordered, so to select the Top k.
 ``` rust
 # use rand::{prelude::ThreadRng, rngs::StdRng};
 # use serde::{Deserialize, Serialize};
-# use std::{cell::RefCell, cmp::Ord};
-# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
+# use std::cell::RefCell;
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId, Orderable};
 # use tantale::macros::OptState;
 # 
 # thread_local! {
@@ -150,7 +150,7 @@ i.e. solutions that can be ordered, so to select the Top k.
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -164,11 +164,11 @@ i.e. solutions that can be ordered, so to select the Top k.
 
 pub struct Asha<SShape>(pub AshaState<SShape>)
 where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable;
 
 impl<SShape> Asha<SShape>
 where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 {
     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -214,14 +214,14 @@ This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means t
 the `Opt` [`Domain`](crate::core::Domain) is. ASHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
 The [`Codomain`](crate::core::Codomain) and its associated [`TypeCodom`](crate::core::Codomain::TypeCodom) can be constrained to specialize the optimizer.
-For the ASHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`Ord`](std::cmp::Ord) to b able to compare solutions between each others.
+For the ASHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`Orderable`](crate::core::Orderable) to compare solutions between each others.
 Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-objective optimizer.
 
 ```rust
 # use rand::{prelude::ThreadRng, rngs::StdRng};
 # use serde::{Deserialize, Serialize};
-# use std::{cell::RefCell, cmp::Ord};
-# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
+# use std::cell::RefCell;
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId, Orderable};
 # use tantale::macros::OptState;
 # 
 # thread_local! {
@@ -234,7 +234,7 @@ Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -248,11 +248,11 @@ Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable;
 # 
 # impl<SShape> Asha<SShape>
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 # {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -294,10 +294,10 @@ impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
+    TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
 {
     type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
     type SInfo = EmptyInfo; // No metadata

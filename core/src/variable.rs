@@ -4,7 +4,7 @@
 //! (`Obj`), and the other describes the search space explored by the
 //! [`Optimizer`](crate::optimizer::Optimizer) (`Opt`). A [`Var`] captures how
 //! those domains relate and allows customization of sampling and mapping:
-//! - Attach a custom [`Sampler`](crate::sampler::Sampler) to a [`Domain`](crate::domain::Domain).
+//! - Attach a custom [`DomainSampler`](crate::sampler::DomainSampler) to a [`Domain`](crate::domain::Domain).
 //! - Define [`Onto`](crate::domain::Onto) mappings from `Opt` to `Obj` and back.
 //!
 //! A [`Var`] is named by a tuple `(&'static str, usize)`, where the string

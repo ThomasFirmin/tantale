@@ -28,13 +28,13 @@ use std::sync::OnceLock;
 /// The Python callable registered as the current single-step objective.
 ///
 /// Set by [`PyObjective::register`](crate::pyfunction::PyObjective::register).
-/// Consumed inside [`py_objective`](crate::pyfunction::py_objective).
+/// Consumed inside [`py_objective`].
 pub static PY_OBJECTIVE_FUNC: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
 /// The Python callable registered as the current multi-fidelity stepped objective.
 ///
 /// Set by [`PyStepped::register`](crate::pyfunction::PyStepped::register).
-/// Consumed inside [`py_stepped`](crate::pyfunction::py_stepped).
+/// Consumed inside [`py_stepped`].
 pub static PY_STEPPED_FUNC: OnceLock<Py<PyAny>> = const { OnceLock::new() };
 
 /// The Python outcome *class* (not an instance) used to derive CSV headers.

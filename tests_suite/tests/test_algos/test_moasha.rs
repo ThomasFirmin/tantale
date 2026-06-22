@@ -10,7 +10,7 @@ use tantale::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::sp_evaluator_mo;
+use crate::init_func::sp_evaluator_mo_fid;
 use crate::run_checker::run_reader_eps;
 
 #[test]
@@ -26,8 +26,8 @@ fn test_fid_seq_run() {
         *last = 5.;
     }
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
 
@@ -42,8 +42,8 @@ fn test_fid_seq_run() {
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_run_seq", 200, 100); // 100 for randomness
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
 
     let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -70,8 +70,8 @@ fn test_fid_seq_run() {
     assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
     exp.run();
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
 
     let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -111,8 +111,8 @@ fn test_fid_seq_parrun() {
         *last = 5.;
     }
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61);
 
@@ -127,8 +127,8 @@ fn test_fid_seq_parrun() {
     // 200 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_parrun", 200, 100);
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -161,8 +161,8 @@ fn test_fid_seq_parrun() {
 
     exp.run();
 
-    let sp = sp_evaluator_mo::get_searchspace();
-    let obj = sp_evaluator_mo::get_function();
+    let sp = sp_evaluator_mo_fid::get_searchspace();
+    let obj = sp_evaluator_mo_fid::get_function();
 
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

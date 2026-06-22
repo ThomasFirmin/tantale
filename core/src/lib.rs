@@ -228,7 +228,7 @@
 //! use tantale::core::{
 //!     CSVRecorder, FolderConfig, MessagePack, experiment::{Runable, mono}, stop::Calls,
 //! };
-//! use tantale::algos::{random_searcatchRandomSearch;
+//! use tantale::algos::{random_search::RandomSearch};
 //!
 //! let sp = my_module::get_searchspace();
 //! let obj = my_module::get_function();
@@ -279,7 +279,7 @@ pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Criteria, Domain, Dominate, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int,
+    Criteria, Domain, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int,
     LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
     NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, TypeAcc, TypeCodom,
     Unit,
@@ -296,7 +296,7 @@ pub use variable::var::Var;
 pub mod solution;
 pub use solution::{
     BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, IntoComputed, IntoComputedShape, Lone,
-    OutBatch, Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed, Xy,
+    OutBatch, Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed,
     shape::RawObj,
 };
 
@@ -340,8 +340,6 @@ pub mod checkpointer;
 pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
 
-pub mod has_trait;
-pub use has_trait::{
-    HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
-    HasY,
-};
+pub mod utils;
+pub use utils::{Dominate, NdArrayDominate, Orderable, OrderedArchive, ParetoFront, IntoParetoFront, NonDominatedSorting, IntoNonDominatedSorting, Xy, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
+    HasY, XToNdArray, YToNdArray};

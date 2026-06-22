@@ -19,7 +19,7 @@ We consider the number of epochs a network is trained on as our budget.
 - The minimum budget of a single evaluation is **1 epoch**.
 - The maximum budget of a single evaluation is **20 epochs**.
 
-We use the [`MoAsha`](crate::algos::moasha) algorithm, with a **scaling factor** of 2.
+We use the [`MoAsha`](mod@crate::algos::moasha) algorithm, with a **scaling factor** of 2.
 Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdots 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
 
 ### MPI-distributed computing
@@ -499,7 +499,7 @@ use std::env;
 
 # Notes
 
-Note that we use the [`distributed_with_pool`](tantale::core::distributed_with_pool) function, with [`PoolMode::Persistent`](tantale::core::PoolMode).
+Note that we use the [`distributed_with_pool`](crate::core::distributed_with_pool) function, with [`PoolMode::Persistent`](crate::core::PoolMode).
 Only one function state is kept within the RAM of a worker, while unecessary states are saved in persitent memory, and reloaded later if necessary. Once a network has been discarded or fully evaluated, their checkpoint are removed.
 
 # Compilation and execution
