@@ -24,8 +24,8 @@ pub struct TPEWeights {
 /// The [`Weighter`] trait defines a method for weighting the good and bad sets within the TPE algorithm.
 pub trait Weighter<T>
 where
-    Self: Sized + Serialize + for<'de> Deserialize<'de>,
-    T: Sized + Serialize + for<'de> Deserialize<'de>,
+    Self: Serialize + for<'de> Deserialize<'de>,
+    T: Serialize + for<'de> Deserialize<'de>,
 {
     /// Computes the weights for the good and bad sets.
     ///
@@ -35,7 +35,7 @@ where
     ///
     /// # Returns
     /// A [`TPEWeights`] struct containing the weights for the good and bad sets, as well as the prior weights for both sets.
-    fn weight(&self, good: &[T], bad: &[T]) -> TPEWeights;
+    fn weight(&self, good: &[&T], bad: &[&T]) -> TPEWeights;
 }
 
 /// A simple uniform [`Weighter`].
@@ -72,9 +72,9 @@ impl Default for UniformWeighter {
 
 impl<T> Weighter<T> for UniformWeighter
 where
-    T: Sized + Serialize + for<'de> Deserialize<'de>,
+    T: Serialize + for<'de> Deserialize<'de>,
 {
-    fn weight(&self, good: &[T], bad: &[T]) -> TPEWeights {
+    fn weight(&self, good: &[&T], bad: &[&T]) -> TPEWeights {
         let n_good = good.len() as f64;
         let n_bad = bad.len() as f64;
 
