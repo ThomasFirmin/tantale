@@ -229,3 +229,51 @@
 ### 🐛 Bug Fixes
 
 - *(cargo)* "mpi" feature was always activated due to the algorithm module requiring tantale with mpi.
+
+
+## Release 0.3.0: Multi-objective TPE
+
+### ⚡ Performance
+- *(Kernel)* [**breaking**] Accelerate kernel computations by including a context shared accross dimension, and a context shared accross solutions and individual elements of solutions.
+- *(TPE)* [**breaking**] TPE now uses `rayon` to accelerate sampling.
+
+### 🚀 Features
+
+- *(TPE-Splitter)* [**breaking**] Added a multi-objective splitter. Now a splitter return two vector of references instead of slices.
+- *(domain)* Domains are now serializable.
+- *(TPE-bandwidth)* [**breaking**] Change input to accept f64 primitives
+- *(HasVariables)* [**breaking**] Removed the `variables` method returning a slice of variables.
+- *(HasVariables)* Add iter_opt and iter_obj allowing to create an iterator over `Obj` or `Opt` domains of object having a list of variables
+- *(NonDominatingSorting)* Added `IntoNonDominatingSorting` that consumes an object to create non-dominated fronts. An `OrderedArchive` impl `NonDominatingSorting`.
+- *(Pareto)* Added the ParetoFront trait allowing to extract in different ways paretor front from a list of `Dominate`. Added IntoParetoFront same as ParetoFront but consuming Self. The trait `Dominate` is now automatically implemented for `&T` with `T:Dominate` and `[f64]`. `Dominate` is now implemented for `[f64]`.
+- *(DominateView)* A helper trait for types that can be viewed as a `Dominate` object, allowing for flexible handling of references and owned values.
+- *(NdArrayDominate)* Added `NdArrayDominate` trait allowing to extract objectives from a `Dominate` object as an `Array2`. 
+- *(Orderable)* Added the `Orderable` trait to specify objects that can be ordered. For examples, somes vectors can be lexicographically ordered. 
+- *(Codomain)* Most codomains are now `Orderable`. 
+- *(OrderedArchive)* Added an archive of `Orderable` objects. 
+- *(Solution)* `BaseSol`, `FidelitySol`, `Pair`, `Lone` and codomains are now `Orderable` under bounds constraints. Also implement the `XToNdarray` and `YToNdarry` traits.
+- *(Orderable)* [**breaking**] `Sha` and `Asha` are now generic over `Orderable` codomains instead of `Ord`
+- *(Searchspace)* Add a `sample_apply` trait method. It allows sampling solutions while applying a user-defined function to samples. 
+- *(ndarray)* Added ndarray dependency
+
+
+### 🐛 Bug Fixes
+
+- *(Non-Mixed kernels)* Solved an issue where extra impossible bounds were required by non-Mixed kernels.
+- *(threaded)* Solved an issue where threaded Objective-based experiments were not updating the accumulator.
+- *(load!)* Fix an issue when loading with pool mode, with mpi feature off. The pool mode was not taken into account
+- *(pool)* Fix an issue where an `Id` was still existing within the pool while the `FuncState` was `None`. Now when retrieving a `FuncState` from the pool, it is replaced by `None`.
+- *(Fidelity solutions)* Fixes an issue for which newly sampled fidelity solutions got 0.0 defaut fidelity.
+
+### 🚜 Refactor
+
+- *(wfg)* [**breaking**] Removed the hypervolume computation. Created the `wfg_rs` crate, and import it instead.
+- *(utils)* [**breaking**] Moved multi-objective related utils to the core module.
+
+### 📚 Documentation
+
+- *(all)* Update a lot of documentations.
+
+### 🧪 Testing
+
+- *(Real TPE-Kernel)* Added a test for Real-only domain

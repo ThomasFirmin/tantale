@@ -237,6 +237,8 @@ impl<T: Dominate> Dominate for &T {
     }
 }
 
+/// A helper trait for types that can be viewed as a [`Dominate`] object, 
+/// allowing for flexible handling of references and owned values.
 pub trait DominateView<T:Dominate> {
     fn view(&self) -> &T;
 }
