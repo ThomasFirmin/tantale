@@ -8,7 +8,7 @@
 //! strategy of eliminating poor performers at increasing fidelity levels.
 //!
 //! [`Computed`](tantale_core::Computed) solutions implements the [`Dominate`] trait,
-//! allowing [non-dominating sorting](crate::mo::NonDominatedSorting).
+//! allowing [non-dominating sorting](tantale_core::NonDominatedSorting).
 //!
 //! # Note
 //!
@@ -168,7 +168,7 @@ where
 /// This optimizer is generic over:
 /// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion.
 /// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
 /// - **Function State**: Must implement [`FuncState`] for managing
 ///   evaluation state across fidelity levels
 /// - [`Stepped`](tantale_core::Stepped) functions

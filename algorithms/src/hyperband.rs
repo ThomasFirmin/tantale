@@ -35,7 +35,7 @@
 //! - **Inner Optimizer**: Must satisfy both [`Optimizer`] and [`BudgetPruner`]
 //!   traits. Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
 //! - **Output Type**: Must satisfy [`FidOutcome`] for multi-fidelity support
-//! - **Searchspace**: Must generate [`SolutionShape`] with [`HasFidelity`] and [`HasStep`]
+//! - **Searchspace**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
 //! - **Solution Info**: Must satisfy [`SolInfo`] constraint for the inner optimizer
 //!
 //! # Example

@@ -2,21 +2,21 @@
 //! using the core library.
 //!
 //! The following algorithms are implemented:
-//! - [Grid Search](grid_search) :
+//! - [Grid Search](mod@grid_search) :
 //!   * [`GridSearch`] : the usual [Grid Search](https://en.wikipedia.org/wiki/Hyperparameter_optimization#Grid_search) algorithm.
-//! - [Random Search](random_search) :
+//! - [Random Search](mod@random_search) :
 //!   * [`RandomSearch`] : the usual sequential [Random Search](https://en.wikipedia.org/wiki/Random_search) algorithm. Generating points on demand.
 //!   * [`BatchRandomSearch`] : a batch version of random search. Generating points in batches.
-//! - [Successive Halving](sha) :
+//! - [Successive Halving](mod@sha) :
 //!   * [`Sha`] : the original [Successive Halving](https://arxiv.org/pdf/1502.07943) algorithm for multi-fidelity hyperparameter optimization.
-//! - [Asynchronous Successive Halving](asha) :
+//! - [Asynchronous Successive Halving](mod@asha) :
 //!   * [`Asha`] : the asynchronous version of [Successive Halving](https://arxiv.org/pdf/1810.05934) algorithm for multi-fidelity hyperparameter optimization.
-//! - [Hyperband](hyperband) :
+//! - [Hyperband](mod@hyperband) :
 //!   * [`Hyperband`] : the original [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
-//! - [MO-ASHA](moasha) :
+//! - [MO-ASHA](mod@moasha) :
 //!   * [`MoAsha`] : the multi-objective version of ASHA, based on the [MO-ASHA](https://arxiv.org/pdf/2106.12639) algorithm for multi-fidelity
 //!     and multi-objective hyperparameter optimization.
-//! - [Tree-structured Parzen Estimator](bayesian::tpe) :
+//! - [Tree-structured Parzen Estimator](mod@bayesian::tpe) :
 //!   * [`tpe::Tpe`] : the original [Tree-structured Parzen Estimator](https://arxiv.org/pdf/2304.11127) algorithm for sequential model-based optimization.
 //!
 
