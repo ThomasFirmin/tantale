@@ -172,7 +172,7 @@ where
 ///
 /// The algorithm fills selected points using points of non-domination rank ($\texttt{rank}(1), \dots ,\texttt{rank}(J)$) until the
 /// $\lvert D_\text{good} \rvert + \lvert D_{\texttt{rank}(j)} \rvert \leq \lceil \beta \lvert D \rvert \rceil$.
-/// The sets of $\texttt{rank}(j)$ are obtained via [`NonDominatedSorting`](tantale_core::NonDominatedSorting).
+/// The sets of $\texttt{rank}(j)$ are obtained via [`NonDominatedSorting`].
 /// Then if the set of $\texttt{rank}(j)$ is not sufficient to fill the remaining solutions, a greedy approach on set of rank $\texttt{rank}(j+1)$
 /// is used to select the points that contribute the most to the hypervolume of the front, ensuring that the best set is diverse and representative of the Pareto front.
 ///
