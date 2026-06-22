@@ -64,7 +64,10 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper,
+    HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace,
+    Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom,
+    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use serde::{
@@ -508,7 +511,12 @@ where
     ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
         self.0.current_budget = self.0.budgets[0];
         self.0.budget_idx = 0;
-        self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]),self.0.batch, scp, acc)
+        self.0.sampler.sample_apply(
+            |s| fidelity_setter(s, self.0.budgets[0]),
+            self.0.batch,
+            scp,
+            acc,
+        )
     }
 
     /// Executes one iteration of Successive Halving on computed candidates.

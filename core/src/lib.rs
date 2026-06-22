@@ -279,8 +279,8 @@ pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Criteria, Domain, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int,
-    LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
+    Criteria, Domain, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int, LinkObj,
+    LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
     NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, TypeAcc, TypeCodom,
     Unit,
 };
@@ -341,5 +341,8 @@ pub use checkpointer::DistCheckpointer;
 pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
 
 pub mod utils;
-pub use utils::{Dominate, NdArrayDominate, Orderable, OrderedArchive, ParetoFront, IntoParetoFront, NonDominatedSorting, IntoNonDominatedSorting, Xy, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
-    HasY, XToNdArray, YToNdArray};
+pub use utils::{
+    Dominate, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed,
+    HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
+    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray,
+};

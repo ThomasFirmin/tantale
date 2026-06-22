@@ -1,6 +1,9 @@
 //! This module defines the Pareto domination relationship between two [`Dominate`] elements.
 
-use crate::{OrderedArchive, utils::orderable::{Orderable, arg_lexsort, lexsort}};
+use crate::{
+    OrderedArchive,
+    utils::orderable::{Orderable, arg_lexsort, lexsort},
+};
 
 use itertools::Itertools;
 use ndarray::{Array2, Zip};
@@ -12,11 +15,11 @@ pub fn pareto_mask<T: Dominate>(values: &[T]) -> Vec<bool> {
     let mut mask = vec![true; n];
     for i in 0..n {
         if !mask[i] {
-            continue;  // skip already-dominated points
+            continue; // skip already-dominated points
         }
         for j in (i + 1)..n {
             if !mask[j] {
-                continue;  // skip already-dominated points
+                continue; // skip already-dominated points
             }
             if values[i].dominates(&values[j]) {
                 mask[j] = false;
@@ -29,7 +32,7 @@ pub fn pareto_mask<T: Dominate>(values: &[T]) -> Vec<bool> {
     mask
 }
 
-/// The [`pareto_mask_lexsorted`] function computes a boolean mask indicating which elements in the input slice 
+/// The [`pareto_mask_lexsorted`] function computes a boolean mask indicating which elements in the input slice
 /// are non-dominated, assuming that the input is sorted in lexicographical order of objectives.
 pub fn pareto_mask_lexsorted<T: Dominate>(values: &[T]) -> Vec<bool> {
     let n = values.len();
@@ -37,7 +40,7 @@ pub fn pareto_mask_lexsorted<T: Dominate>(values: &[T]) -> Vec<bool> {
     let mut mask = vec![true; n];
     // Track best seen so far per objective (we're maximizing)
     let mut best = vec![f64::NEG_INFINITY; d];
-    
+
     // Scan in reverse: last point (best on obj[0]) sets the bar
     for i in (0..n).rev() {
         // A point is dominated if any previously seen point beats it on all objectives
@@ -91,7 +94,10 @@ pub fn pareto_mask_lexsorted<T: Dominate>(values: &[T]) -> Vec<bool> {
 /// 21. &emsp;&emsp;&emsp; $k_{max} \gets k$
 /// 22. &emsp;&emsp;&emsp; $k \gets \lceil (k_{min} + k_{max})/2 \rceil$
 /// ---
-pub fn front_binary_search<T: Dominate, F: DominateView<T>>(target: &T, fronts: &[Vec<F>]) -> usize {
+pub fn front_binary_search<T: Dominate, F: DominateView<T>>(
+    target: &T,
+    fronts: &[Vec<F>],
+) -> usize {
     let n_fronts = fronts.len();
     let mut k_min = 0;
     let mut k_max = n_fronts;
@@ -191,8 +197,7 @@ pub trait Dominate: Orderable {
     }
 }
 
-impl Dominate for [f64]
-{
+impl Dominate for [f64] {
     fn dominates(&self, other: &Self) -> bool {
         let mut strictly_better = false;
         for (a, b) in self.iter().zip(other.iter()) {
@@ -212,12 +217,11 @@ impl Dominate for [f64]
     fn len_objectives(&self) -> usize {
         self.len()
     }
-    
+
     fn get_objectives(&self) -> &[f64] {
         self
     }
 }
-
 
 impl<T: Dominate> Dominate for &T {
     fn dominates(&self, other: &Self) -> bool {
@@ -237,9 +241,9 @@ impl<T: Dominate> Dominate for &T {
     }
 }
 
-/// A helper trait for types that can be viewed as a [`Dominate`] object, 
+/// A helper trait for types that can be viewed as a [`Dominate`] object,
 /// allowing for flexible handling of references and owned values.
-pub trait DominateView<T:Dominate> {
+pub trait DominateView<T: Dominate> {
     fn view(&self) -> &T;
 }
 
@@ -257,38 +261,32 @@ impl<T: Dominate> DominateView<T> for &T {
 
 /// A helper trait for converting  objects made of [`Dominate`] into an [`ndarray::Array2<f64>`] representation.
 pub trait NdArrayDominate {
-    /// Returns a 2D array representation of the object, 
+    /// Returns a 2D array representation of the object,
     /// where each row corresponds to an individual and each column corresponds to an objective.
     fn dom_array(&self) -> Array2<f64>;
 }
 
-impl<T:Dominate> NdArrayDominate for [T] {
+impl<T: Dominate> NdArrayDominate for [T] {
     fn dom_array(&self) -> Array2<f64> {
         let n_rows = self.len();
         let n_cols = self[0].len_objectives();
         let mut array = Array2::<f64>::uninit((n_rows, n_cols));
         Zip::from(array.rows_mut())
-        .and(self)
-        .for_each(
-            |mut row, d|
-            {
+            .and(self)
+            .for_each(|mut row, d| {
                 Zip::from(&mut row)
-                .and(d.get_objectives())
-                .for_each(
-                    |r, o|
-                    {
+                    .and(d.get_objectives())
+                    .for_each(|r, o| {
                         r.write(*o);
-                    }
-                );
-            }
-        );
-        unsafe {array.assume_init()}
+                    });
+            });
+        unsafe { array.assume_init() }
     }
 }
 
-/// Implements the Pareto front extraction algorithm, 
+/// Implements the Pareto front extraction algorithm,
 /// which identifies the non-dominated solutions from a given set of solutions.
-/// 
+///
 /// # Example
 ///
 /// Consider the following set of solutions, where each solution is represented as a point in a 2D objective space:
@@ -315,54 +313,102 @@ impl<T:Dominate> NdArrayDominate for [T] {
 /// Pareto front:
 ///     [5, 4, 3, 2, 1]
 /// ```
-pub trait ParetoFront<T:Dominate> {
-        // Returns the non-dominated solutions from the input set of solutions.
-        fn pareto(&self, lexsorted: bool) -> Vec<&T>;
-        // Returns a boolean mask indicating which elements in the input set of solutions are non-dominated.
-        fn is_pareto(&self, lexsorted: bool) -> Vec<bool>;
-        /// Returns a clone of the non-dominated solutions from the input set of solutions.
-        fn pareto_clone(&self, lexsorted: bool) -> Vec<T> where T: Clone;
-        // Return the non-dominated indexes of solutions from the input set of solutions.
-        fn pareto_arg(&self, lexsorted: bool) -> Vec<usize>;
-        /// Returns a tuple of the dominated solutions and the non-dominated solutions from the input set of solutions.
-        fn pareto_split(&self, lexsorted: bool) -> (Vec<&T>, Vec<&T>);
-        /// Return a tuple of the dominated indexes and the non-dominated indexes of solutions from the input set of solutions.
-        fn pareto_argsplit(&self, lexsorted: bool) -> (Vec<usize>, Vec<usize>);
+pub trait ParetoFront<T: Dominate> {
+    // Returns the non-dominated solutions from the input set of solutions.
+    fn pareto(&self, lexsorted: bool) -> Vec<&T>;
+    // Returns a boolean mask indicating which elements in the input set of solutions are non-dominated.
+    fn is_pareto(&self, lexsorted: bool) -> Vec<bool>;
+    /// Returns a clone of the non-dominated solutions from the input set of solutions.
+    fn pareto_clone(&self, lexsorted: bool) -> Vec<T>
+    where
+        T: Clone;
+    // Return the non-dominated indexes of solutions from the input set of solutions.
+    fn pareto_arg(&self, lexsorted: bool) -> Vec<usize>;
+    /// Returns a tuple of the dominated solutions and the non-dominated solutions from the input set of solutions.
+    fn pareto_split(&self, lexsorted: bool) -> (Vec<&T>, Vec<&T>);
+    /// Return a tuple of the dominated indexes and the non-dominated indexes of solutions from the input set of solutions.
+    fn pareto_argsplit(&self, lexsorted: bool) -> (Vec<usize>, Vec<usize>);
 }
 
-impl <T, U> ParetoFront<T> for U
+impl<T, U> ParetoFront<T> for U
 where
     T: Dominate,
     U: ?Sized + AsRef<[T]>,
 {
     fn pareto(&self, lexsorted: bool) -> Vec<&T> {
-        let mask = if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())};
-        self.as_ref().iter().zip(mask).filter_map(|(x, m)| if m { Some(x) } else { None }).collect()
+        let mask = if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        };
+        self.as_ref()
+            .iter()
+            .zip(mask)
+            .filter_map(|(x, m)| if m { Some(x) } else { None })
+            .collect()
     }
 
     fn is_pareto(&self, lexsorted: bool) -> Vec<bool> {
-        if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())}
+        if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        }
     }
 
     fn pareto_arg(&self, lexsorted: bool) -> Vec<usize> {
-        let mask = if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())};
-        self.as_ref().iter().zip(mask).enumerate().filter_map(|(i, (_, m))| if m { Some(i) } else { None }).collect()
-    }
-    
-    fn pareto_split(&self, lexsorted: bool) -> (Vec<&T>, Vec<&T>) {
-        let mask = if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())};
-        self.as_ref().iter().zip(mask).partition_map(|(x, m)| if m { itertools::Either::Right(x) } else { itertools::Either::Left(x) })
-    }
-    
-    fn pareto_argsplit(&self, lexsorted: bool) -> (Vec<usize>, Vec<usize>) {
-        let mask = if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())};
-        (0..self.as_ref().len()).zip(mask).partition_map(|(x, m)| if m { itertools::Either::Right(x) } else { itertools::Either::Left(x) })
+        let mask = if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        };
+        self.as_ref()
+            .iter()
+            .zip(mask)
+            .enumerate()
+            .filter_map(|(i, (_, m))| if m { Some(i) } else { None })
+            .collect()
     }
 
-    fn pareto_clone(&self, lexsorted: bool) -> Vec<T> 
-    where T: Clone 
+    fn pareto_split(&self, lexsorted: bool) -> (Vec<&T>, Vec<&T>) {
+        let mask = if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        };
+        self.as_ref().iter().zip(mask).partition_map(|(x, m)| {
+            if m {
+                itertools::Either::Right(x)
+            } else {
+                itertools::Either::Left(x)
+            }
+        })
+    }
+
+    fn pareto_argsplit(&self, lexsorted: bool) -> (Vec<usize>, Vec<usize>) {
+        let mask = if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        };
+        (0..self.as_ref().len()).zip(mask).partition_map(|(x, m)| {
+            if m {
+                itertools::Either::Right(x)
+            } else {
+                itertools::Either::Left(x)
+            }
+        })
+    }
+
+    fn pareto_clone(&self, lexsorted: bool) -> Vec<T>
+    where
+        T: Clone,
     {
-        let mask = if lexsorted {pareto_mask_lexsorted(self.as_ref())} else {pareto_mask(self.as_ref())};
+        let mask = if lexsorted {
+            pareto_mask_lexsorted(self.as_ref())
+        } else {
+            pareto_mask(self.as_ref())
+        };
         self.as_ref()
             .iter()
             .zip(mask.iter())
@@ -374,21 +420,30 @@ where
 
 /// Similar to [`ParetoFront`] but consumes the input set of solutions instead of borrowing it.
 pub trait IntoParetoFront<T: Dominate> {
-        /// Returns the non-dominated solutions from the input set of solutions.
-        fn into_pareto_front(self) -> Vec<T>;
-        /// Returns the dominated and non-dominated solutions from the input set of solutions.
-        fn into_pareto_split(self) -> (Vec<T>, Vec<T>);
+    /// Returns the non-dominated solutions from the input set of solutions.
+    fn into_pareto_front(self) -> Vec<T>;
+    /// Returns the dominated and non-dominated solutions from the input set of solutions.
+    fn into_pareto_split(self) -> (Vec<T>, Vec<T>);
 }
 
-impl <T:Dominate> IntoParetoFront<T> for Vec<T> {
+impl<T: Dominate> IntoParetoFront<T> for Vec<T> {
     fn into_pareto_front(self) -> Vec<T> {
         let mask = pareto_mask(&self);
-        self.into_iter().zip(mask).filter_map(|(x, m)| if m { Some(x) } else { None }).collect()
+        self.into_iter()
+            .zip(mask)
+            .filter_map(|(x, m)| if m { Some(x) } else { None })
+            .collect()
     }
 
-    fn into_pareto_split(self) -> (Vec<T>, Vec<T>) {    
+    fn into_pareto_split(self) -> (Vec<T>, Vec<T>) {
         let mask = pareto_mask(&self);
-        self.into_iter().zip(mask).partition_map(|(x, m)| if m { itertools::Either::Right(x) } else { itertools::Either::Left(x) })
+        self.into_iter().zip(mask).partition_map(|(x, m)| {
+            if m {
+                itertools::Either::Right(x)
+            } else {
+                itertools::Either::Left(x)
+            }
+        })
     }
 }
 
@@ -454,7 +509,7 @@ impl <T:Dominate> IntoParetoFront<T> for Vec<T> {
 pub trait NonDominatedSorting<T>
 where
     T: Dominate,
-{   
+{
     /// Sorts the input objects into non-dominated fronts using a binary search approach.
     fn non_dominated_sort(&mut self) -> Vec<Vec<&T>>;
     /// Sorts the input objects into non-dominated fronts using a binary search approach.
@@ -522,7 +577,7 @@ impl<T: Dominate> IntoNonDominatedSorting<T> for Vec<T> {
     }
 }
 
-impl<T> NonDominatedSorting<T> for OrderedArchive<T> 
+impl<T> NonDominatedSorting<T> for OrderedArchive<T>
 where
     T: Dominate + Serialize + for<'de> Deserialize<'de>,
 {

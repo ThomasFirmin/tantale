@@ -1,6 +1,6 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, Searchspace,
-    SolInfo, Stepped, Stop, HasX,
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, HasX, Searchspace,
+    SolInfo, Stepped, Stop,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
     objective::{Step, outcome::FuncState},

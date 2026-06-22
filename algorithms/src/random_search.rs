@@ -285,16 +285,17 @@ where
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) {
     }
-    
+
     fn sample_apply<F>(
         &mut self,
         f: F,
         scp: &Scp,
         acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Scp::SolShape 
+    ) -> Scp::SolShape
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape {
-        let sol = <RandomSearch as SingleSampler<_,_,_,Out,_,_>>::sample(self, scp, acc);
+        F: Fn(Scp::SolShape) -> Scp::SolShape,
+    {
+        let sol = <RandomSearch as SingleSampler<_, _, _, Out, _, _>>::sample(self, scp, acc);
         f(sol)
     }
 }
@@ -332,7 +333,7 @@ where
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) {
     }
-    
+
     fn sample_apply<F>(
         &mut self,
         f: F,
@@ -340,9 +341,16 @@ where
         acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) -> Scp::SolShape
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape
+        F: Fn(Scp::SolShape) -> Scp::SolShape,
     {
-        let sol = <RandomSearch as SingleSampler<_,_,_,Out,_,SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>>>::sample(self, scp, acc);
+        let sol = <RandomSearch as SingleSampler<
+            _,
+            _,
+            _,
+            Out,
+            _,
+            SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
+        >>::sample(self, scp, acc);
         f(sol)
     }
 }
@@ -455,7 +463,7 @@ fn rs_iter_apply<Scp, PSol, SolId, F>(
     bsize: usize,
 ) -> Batch<SolId, EmptyInfo, RSInfo, Scp::SolShape>
 where
-    F:  Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
+    F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
     PSol: Uncomputed<SolId, Scp::Opt, EmptyInfo>,
     PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, EmptyInfo>,
     Scp: Searchspace<PSol, SolId, EmptyInfo>,
@@ -684,7 +692,7 @@ where
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) {
     }
-    
+
     fn sample_apply<F>(
         &mut self,
         f: F,
@@ -693,7 +701,8 @@ where
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape>
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync {
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
+    {
         rs_iter_apply(f, self, scp, batch)
     }
 }
@@ -732,16 +741,17 @@ where
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) {
     }
-    
+
     fn sample_apply<F>(
         &mut self,
         f: F,
         batch: usize,
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> 
+    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape>
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync {
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
+    {
         rs_iter_apply(f, self, scp, batch)
     }
 }

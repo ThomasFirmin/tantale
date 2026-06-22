@@ -20,7 +20,7 @@ use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
 use crate::{Computed, EvalStep, Outcome, StepId};
-use crate::{HasX, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId};
+use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasX};
 
 use serde::{Deserialize, Serialize};
 use std::{

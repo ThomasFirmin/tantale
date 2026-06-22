@@ -6,8 +6,7 @@ use paste::paste;
 use std::sync::Arc;
 use tantale::core::Mixed;
 use tantale::core::{
-    BaseSol, Computed, EmptyInfo, SId, searchspace::Searchspace,
-    XToNdArray, YToNdArray,
+    BaseSol, Computed, EmptyInfo, SId, XToNdArray, YToNdArray, searchspace::Searchspace,
 };
 
 macro_rules! get_test {

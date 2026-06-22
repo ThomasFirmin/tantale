@@ -4,8 +4,7 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, HasId, Id, Objective, Outcome, Searchspace, SolInfo, Stop,
-    HasX,
+    Accumulator, Codomain, HasId, HasX, Id, Objective, Outcome, Searchspace, SolInfo, Stop,
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
     objective::Step,

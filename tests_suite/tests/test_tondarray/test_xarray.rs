@@ -1,10 +1,7 @@
 use paste::paste;
 
-use tantale::core::{
-    BaseSol, EmptyInfo, SId, Searchspace, Sp,
-    solution::shape::SolutionShape,
-};
 use tantale::core::utils::xy::XToNdArray;
+use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, Sp, solution::shape::SolutionShape};
 
 use super::init_sp::*;
 use super::init_sp_grid::*;
@@ -27,7 +24,7 @@ macro_rules! get_test {
                 for (x1, x2) in array.row(0).iter().zip(sample_obj.x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
                 }
-                
+
                 let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_opt(&sp, sample_obj);
                 let array = converted_opt.get_sopt().x_array();
                 for (x1, x2) in array.row(0).iter().zip(converted_opt.get_sopt().x.iter()) {

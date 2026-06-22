@@ -1,11 +1,11 @@
 use crate::{
-    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, SId, SeqRecorder,
-    Stepped, HasX,
+    Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, HasX, SId,
+    SeqRecorder, Stepped,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
     experiment::{
-        CompAcc, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable, ThrExperiment,
-        ExpComponent,
+        CompAcc, ExpComponent, MonoEvaluate, MonoExperiment, OutShapeEvaluate, PoolMode, Runable,
+        ThrExperiment,
         basics::{FuncStatePool, IdxMapPool, LoadPool, Pool},
         sequential::{
             seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator},

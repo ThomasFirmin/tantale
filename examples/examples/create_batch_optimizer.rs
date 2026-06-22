@@ -19,7 +19,9 @@ pub struct ShaInfo {
 }
 
 use rand::prelude::ThreadRng;
-use tantale::core::{Codomain, CompShape, Criteria, FidOutcome, Orderable, SingleCodomain, StepSId};
+use tantale::core::{
+    Codomain, CompShape, Criteria, FidOutcome, Orderable, SingleCodomain, StepSId,
+};
 
 pub struct Sha(pub ShaState, ThreadRng);
 
@@ -163,7 +165,7 @@ where
             self.0.iteration += 1;
 
             // worst solutions before index k, top k  solution at index k and after
-            pairs.select_nth_unstable_by(k, |a,b| a.ord_cmp(b).unwrap());
+            pairs.select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
             // Extract Uncomputed solution from Computed
             let new_pairs: Vec<_> = pairs
                 .into_iter()

@@ -4,8 +4,7 @@ use crate::experiment::basics::FuncStatePool;
 use crate::solution::IntoComputedShape;
 use crate::solution::id::StepId;
 use crate::{
-    Codomain, OptInfo, Searchspace, SolInfo,
-    Accumulator,HasX,
+    Accumulator, Codomain, HasX, OptInfo, Searchspace, SolInfo,
     domain::onto::LinkOpt,
     experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
     objective::{FidOutcome, Step, Stepped, outcome::FuncState},

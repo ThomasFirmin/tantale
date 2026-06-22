@@ -80,7 +80,7 @@
 //!
 
 use crate::{
-    HasX, HasId, HasSolInfo, HasY, Outcome,
+    HasId, HasSolInfo, HasX, HasY, Outcome,
     domain::{Domain, codomain::TypeCodom},
 };
 

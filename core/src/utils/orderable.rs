@@ -1,12 +1,11 @@
 //! Utilities for ordering and sorting objects based on their objectives, including lexicographic sorting and comparison traits.
-//! The [`Orderable`] trait provides a unified interface for comparing objects, 
-//! allowing for flexible sorting and ordering based on custom criteria. 
+//! The [`Orderable`] trait provides a unified interface for comparing objects,
+//! allowing for flexible sorting and ordering based on custom criteria.
 
 use crate::Dominate;
 
-use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
-
+use std::cmp::Ordering;
 
 /// Lexicographically sorts the input objects in descending order of their objectives.
 pub fn lexsort<T: Dominate>(input: &mut [T]) {
@@ -38,7 +37,7 @@ pub fn arg_lexsort<T: Dominate>(input: &[T]) -> Vec<usize> {
 }
 
 /// A trait for types that can be ordered based on a custom comparison function.
-/// 
+///
 /// # Example
 /// ```rust
 /// use tantale_core::utils::Orderable;
@@ -48,32 +47,31 @@ pub fn arg_lexsort<T: Dominate>(input: &[T]) -> Vec<usize> {
 /// assert!(a.ord_lt(&b));
 /// assert_eq!(a.ord_cmp(&b), Some(std::cmp::Ordering::Less));
 /// ```
-pub trait Orderable
-{
+pub trait Orderable {
     fn ord_cmp(&self, other: &Self) -> Option<Ordering>;
 
     /// Returns `true` if `self` is lexicographically less than `other`.
-    fn ord_lt(&self, other: &Self) -> bool{
+    fn ord_lt(&self, other: &Self) -> bool {
         self.ord_cmp(other).is_some_and(Ordering::is_lt)
     }
 
     /// Returns `true` if `self` is lexicographically less than or equal to `other`.
-    fn ord_le(&self, other: &Self) -> bool{
+    fn ord_le(&self, other: &Self) -> bool {
         self.ord_cmp(other).is_some_and(Ordering::is_le)
     }
 
     /// Returns `true` if `self` is lexicographically greater than `other`.
-    fn ord_gt(&self, other: &Self) -> bool{
+    fn ord_gt(&self, other: &Self) -> bool {
         self.ord_cmp(other).is_some_and(Ordering::is_gt)
     }
 
     /// Returns `true` if `self` is lexicographically greater than or equal to `other`.
-    fn ord_ge(&self, other: &Self) -> bool{
+    fn ord_ge(&self, other: &Self) -> bool {
         self.ord_cmp(other).is_some_and(Ordering::is_ge)
     }
 }
 
-impl<T: PartialOrd> Orderable for [T]{
+impl<T: PartialOrd> Orderable for [T] {
     /// Compares two slices lexicographically.
     /// Returns `Some(Ordering)` if the slices have the same length, otherwise returns `None`.
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -94,7 +92,7 @@ impl<T: PartialOrd> Orderable for [T]{
     }
 }
 
-impl<T: PartialOrd> Orderable for &[T]{
+impl<T: PartialOrd> Orderable for &[T] {
     /// Compares two slices lexicographically.
     /// Returns `Some(Ordering)` if the slices have the same length, otherwise returns `None`.
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -141,7 +139,7 @@ pub trait IntoOrdView {
     fn into_ord_view(self) -> OrdView<Self::Output>;
 }
 
-impl <T: PartialOrd> IntoOrdView for T {
+impl<T: PartialOrd> IntoOrdView for T {
     type Output = T;
     fn into_ord_view(self) -> OrdView<Self::Output> {
         OrdView(self)

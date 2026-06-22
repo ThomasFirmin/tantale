@@ -535,7 +535,9 @@ where
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
-                self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+                self.0
+                    .sampler
+                    .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
                 let idx = self.select(i, k)[0];
                 self.0.current_budget = self.0.budgets[i];
@@ -544,7 +546,9 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+            self.0
+                .sampler
+                .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
         }
     }
 }

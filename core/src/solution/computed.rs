@@ -53,11 +53,12 @@
 //! ```
 
 use crate::{
-    HasX, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasY, Multi, StepId, Xy, 
-    domain::{Domain, codomain::TypeCodom}, 
-    objective::{Outcome, Step}, 
-    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed}, 
-    utils::orderable::Orderable
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
+    HasUncomputed, HasX, HasY, Multi, StepId, Xy,
+    domain::{Domain, codomain::TypeCodom},
+    objective::{Outcome, Step},
+    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed},
+    utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -378,7 +379,7 @@ where
     fn len_objectives(&self) -> usize {
         self.y.len_objectives()
     }
-    
+
     fn get_objectives(&self) -> &[f64] {
         self.y.get_objectives()
     }

@@ -28,7 +28,8 @@ use crate::{
         onto::{LinkObj, LinkOpt, Linked},
     },
     objective::Step,
-    solution::{IntoComputedShape, Uncomputed}, utils::orderable::Orderable,
+    solution::{IntoComputedShape, Uncomputed},
+    utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -516,11 +517,10 @@ where
     fn len_objectives(&self) -> usize {
         self.y().len_objectives()
     }
-    
+
     fn get_objectives(&self) -> &[f64] {
         self.1.y.get_objectives()
     }
-
 }
 
 //---------------------//
@@ -872,7 +872,7 @@ where
     fn len_objectives(&self) -> usize {
         self.y().len_objectives()
     }
-    
+
     fn get_objectives(&self) -> &[f64] {
         self.0.y.get_objectives()
     }

@@ -70,7 +70,10 @@
 use std::{cell::RefCell, marker::PhantomData};
 
 use tantale_core::{
-    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner, solution::IntoComputedShape
+    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt,
+    OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler,
+    SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
+    solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -528,7 +531,6 @@ where
         scp: &Scp,
         acc: &FCompAcc<Scp, Out, Self::SInfo>,
     ) -> Scp::SolShape {
-        
         if let Some(comp) = x {
             if let Step::Partially(_s) = comp.step() {
                 self.0.sampler.update(&comp, scp, acc);
@@ -546,7 +548,9 @@ where
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
-                self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+                self.0
+                    .sampler
+                    .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
                 self.0.rung[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
                 self.0.current_budget = self.0.budgets[i];
@@ -555,7 +559,9 @@ where
             }
         } else {
             self.0.current_budget = self.0.budgets[0];
-            self.0.sampler.sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+            self.0
+                .sampler
+                .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
         }
     }
 }

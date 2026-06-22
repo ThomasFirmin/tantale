@@ -209,9 +209,7 @@ impl<SolId: Id, FnState: FuncState, FnStCheck: FuncStateCheckpointer> FromIterat
     for IdxMapPool<FnStCheck, FnState, SolId>
 {
     fn from_iter<T: IntoIterator<Item = (SolId, FnState)>>(iter: T) -> Self {
-        let pool = iter
-            .into_iter()
-            .collect();
+        let pool = iter.into_iter().collect();
         Self { pool, check: None }
     }
 }

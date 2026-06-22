@@ -3,10 +3,9 @@ use std::ops::Neg;
 use crate::bayesian::error::SplitError;
 use tantale_core::{Dominate, NdArrayDominate, NonDominatedSorting, Orderable, OrderedArchive};
 
-
 use ndarray::{Array2, Axis, Zip, concatenate, s};
 use serde::{Deserialize, Serialize};
-use wfg_rs::wfg::{inclusive_wfg, wfg, reference_point};
+use wfg_rs::wfg::{inclusive_wfg, reference_point, wfg};
 
 /// The [`Splitter`] trait defines a method for splitting a vector into two parts within the TPE algorithm.
 /// The element to be split must implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
@@ -23,10 +22,7 @@ where
     ///
     /// # Returns
     /// A tuple containing two slices: the first slice corresponds to the "good" set (the best points), and the second slice corresponds to the "bad" set (the worst points).
-    fn split<'a>(
-        &self,
-        archive: &'a OrderedArchive<T>,
-    ) -> (Vec<&'a T>, Vec<&'a T>);
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>);
 }
 
 /// A simple linear [`Splitter`].
@@ -53,10 +49,7 @@ impl<T> Splitter<T> for LinearSplit
 where
     T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(
-        &self,
-        archive: &'a OrderedArchive<T>,
-    ) -> (Vec<&'a T>, Vec<&'a T>){
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
         let quantile = (archive.size() as f64 * (1.0 - self.0)).ceil() as usize;
         let (bad, good) = archive.points.split_at(quantile);
         (good.iter().collect(), bad.iter().collect())
@@ -88,14 +81,11 @@ impl SqrtSplit {
         Ok(SqrtSplit(beta))
     }
 }
-impl<T> Splitter<T> for SqrtSplit 
+impl<T> Splitter<T> for SqrtSplit
 where
     T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(
-        &self,
-        archive: &'a OrderedArchive<T>,
-    ) -> (Vec<&'a T>, Vec<&'a T>) {
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
         let size = archive.size() as f64;
         let quantile = (size - (self.0 / size.sqrt())).ceil();
         if quantile < 0.0 {
@@ -107,7 +97,7 @@ where
     }
 }
 
-pub fn greedy_hss<'a, T>(front: &mut Vec<&'a T>, n:usize) -> Vec<&'a T>
+pub fn greedy_hss<'a, T>(front: &mut Vec<&'a T>, n: usize) -> Vec<&'a T>
 where
     T: Dominate,
 {
@@ -119,7 +109,7 @@ where
     }
 
     // Create a 2D array from the front points / negate because WFG consider a minimization problem
-    let mut  nd_front = front.as_slice().dom_array().neg();
+    let mut nd_front = front.as_slice().dom_array().neg();
     // Get the reference point for hypervolume calculation
     let ref_point = reference_point(nd_front.view());
     // Initialize an empty array to store the extracted points
@@ -130,35 +120,46 @@ where
     // Calculate the inclusive hypervolume contributions of the points in the front
     let inclusive = inclusive_wfg(nd_front.view(), ref_point.view());
 
-    let mut best_contrib = inclusive.iter().enumerate().max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|m| (m.0, *m.1));
-    
+    let mut best_contrib = inclusive
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
+        .map(|m| (m.0, *m.1));
+
     let mut i = 0;
-    while let Some((idx, _)) = best_contrib && i < n {
+    while let Some((idx, _)) = best_contrib
+        && i < n
+    {
         extracted.row_mut(i).assign(&nd_front.row(idx));
         let last = nd_front.nrows() - 1;
         if idx != last {
-            let (mut a, b) = nd_front.multi_slice_mut((s![idx..idx+1, ..], s![last..last+1, ..]));
+            let (mut a, b) =
+                nd_front.multi_slice_mut((s![idx..idx + 1, ..], s![last..last + 1, ..]));
             a.assign(&b);
         }
         nd_front.slice_axis_inplace(Axis(0), ndarray::Slice::from(..last));
 
-        let hv_indic_extracted = wfg(extracted.slice(s![..i,..]), ref_point.view(), true, false);
+        let hv_indic_extracted = wfg(extracted.slice(s![..i, ..]), ref_point.view(), true, false);
 
         let nd_worses = Zip::from(&nd_front)
             .and_broadcast(extracted.row(i))
             .map_collect(|&x, &y| x.max(y));
 
-        best_contrib = nd_worses.rows().into_iter().enumerate()
-        .map(
-            |(idx, row)|
-            {
-                let union = concatenate(Axis(0), &[extracted.slice(s![..i,..]), row.insert_axis(Axis(0))]).unwrap();
+        best_contrib = nd_worses
+            .rows()
+            .into_iter()
+            .enumerate()
+            .map(|(idx, row)| {
+                let union = concatenate(
+                    Axis(0),
+                    &[extracted.slice(s![..i, ..]), row.insert_axis(Axis(0))],
+                )
+                .unwrap();
                 let hv = wfg(union.view(), ref_point.view(), false, false) - hv_indic_extracted;
                 (idx, hv)
-            }
-        )
-        .max_by(|a, b| a.1.total_cmp(&b.1));
-    
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1));
+
         selected.push(front.remove(idx));
         i += 1;
     }
@@ -168,15 +169,15 @@ where
 /// A hypervolume-based [`Splitter`].
 /// The quantile is determined by a parameter $\beta$,
 /// where the best set contains the top $\beta$ fraction of the values.
-/// 
-/// The algorithm fills selected points using points of non-domination rank ($\texttt{rank}(1), \dots ,\texttt{rank}(J)$) until the 
+///
+/// The algorithm fills selected points using points of non-domination rank ($\texttt{rank}(1), \dots ,\texttt{rank}(J)$) until the
 /// $\lvert D_\text{good} \rvert + \lvert D_{\texttt{rank}(j)} \rvert \leq \lceil \beta \lvert D \rvert \rceil$.
 /// The sets of $\texttt{rank}(j)$ are obtained via [`NonDominatedSorting`](tantale::core::NonDominatedSorting).
-/// Then if the set of $\texttt{rank}(j)$ is not sufficient to fill the remaining solutions, a greedy approach on set of rank $\texttt{rank}(j+1)$ 
+/// Then if the set of $\texttt{rank}(j)$ is not sufficient to fill the remaining solutions, a greedy approach on set of rank $\texttt{rank}(j+1)$
 /// is used to select the points that contribute the most to the hypervolume of the front, ensuring that the best set is diverse and representative of the Pareto front.
-/// 
+///
 /// # Note
-/// 
+///
 /// See [Ozaki et al.](https://www.jair.org/index.php/jair/article/view/13188/26784) for more details.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MOSplit(pub f64);
@@ -190,14 +191,11 @@ impl MOSplit {
     }
 }
 
-impl<T> Splitter<T> for MOSplit 
+impl<T> Splitter<T> for MOSplit
 where
     T: Dominate + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(
-        &self,
-        archive: &'a OrderedArchive<T>,
-    ) -> (Vec<&'a T>, Vec<&'a T>) {
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
         let quantile = (archive.size() as f64 * self.0).ceil() as usize;
 
         let mut fronts = archive.lex_non_dominated_sort();

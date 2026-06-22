@@ -146,5 +146,5 @@ where
     let (low, up) = dom.get_bounds();
     let range = up - low;
     let size = size.min(100) as f64;
-    bandwidth.max(range.as_()/ size)
+    bandwidth.max(range.as_() / size)
 }

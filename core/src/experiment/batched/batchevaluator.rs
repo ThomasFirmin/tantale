@@ -1,5 +1,5 @@
 use crate::{
-    HasX, Accumulator, HasId, HasInfo, Id, OptInfo, Outcome, Searchspace, SolInfo,
+    Accumulator, HasId, HasInfo, HasX, Id, OptInfo, Outcome, Searchspace, SolInfo,
     domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
     experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
     objective::{Objective, Step},

@@ -9,7 +9,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{ops::Fn, fmt::Debug};
+use std::{fmt::Debug, ops::Fn};
 
 /// Per-iteration metadata produced by an [`Optimizer`].
 ///

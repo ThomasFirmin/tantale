@@ -36,8 +36,8 @@
 
 use crate::{
     BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId,
-    HasInfo, HasSolInfo, HasStep, HasUncomputed, HasY, OptInfo, RawObj, SingleOptimizer, SolInfo,
-    StepId, HasX,
+    HasInfo, HasSolInfo, HasStep, HasUncomputed, HasX, HasY, OptInfo, RawObj, SingleOptimizer,
+    SolInfo, StepId,
     domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt},
     objective::{Outcome, Step},
     recorder::{BatchRecorder, Recorder, SeqRecorder},

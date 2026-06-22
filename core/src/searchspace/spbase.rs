@@ -112,8 +112,6 @@ impl<Obj: Domain> Linked for Sp<Obj, NoDomain> {
     type TrueOpt = NoDomain;
 }
 
-
-
 impl<Obj, Opt> HasVariables for Sp<Obj, Opt>
 where
     Obj: OntoDom<Opt>,
@@ -126,7 +124,7 @@ where
     fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
         self.var.get(index).map(|v| v.domain_opt.as_ref())
     }
-    
+
     fn size(&self) -> usize {
         self.var.len()
     }
@@ -140,7 +138,7 @@ impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
     fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
         self.var.get(index).map(|v| v.domain_obj.as_ref())
     }
-    
+
     fn size(&self) -> usize {
         self.var.len()
     }

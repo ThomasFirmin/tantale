@@ -1,7 +1,9 @@
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, Orderable, SolutionShape, StepSId};
+use tantale::core::{
+    CompShape, EmptyInfo, HasFidelity, HasStep, Orderable, SolutionShape, StepSId,
+};
 use tantale::macros::OptState;
 
 thread_local! {

@@ -67,7 +67,7 @@
 //! ```
 
 use crate::{
-    RawObj, Sp, HasVariables, HasX,
+    HasVariables, HasX, RawObj, Sp,
     domain::{
         Domain, NoDomain, PreDomain,
         onto::{LinkTyObj, LinkTyOpt, Linked, OntoDom},
@@ -119,7 +119,7 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> HasVariables for SpPar<Obj, Opt> {
     fn opt_at(&self, index: usize) -> Option<&Self::Opt> {
         self.var.get(index).map(|v| v.domain_opt.as_ref())
     }
-    
+
     fn size(&self) -> usize {
         self.var.len()
     }

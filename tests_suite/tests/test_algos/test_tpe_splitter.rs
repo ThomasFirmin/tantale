@@ -1,6 +1,6 @@
 use tantale::algos::bayesian::splitter::{LinearSplit, Splitter, SqrtSplit};
-use tantale::core::utils::orderable::{IntoOrdView, OrdView};
 use tantale::core::OrderedArchive;
+use tantale::core::utils::orderable::{IntoOrdView, OrdView};
 
 fn make_archive<I: IntoIterator<Item = i32>>(values: I) -> OrderedArchive<OrdView<i32>> {
     let mut archive = OrderedArchive::default();

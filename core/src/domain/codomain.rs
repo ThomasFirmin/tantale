@@ -94,7 +94,8 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
 use crate::{
-    Dominate, EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome, recorder::csv::CSVWritable, utils::orderable::Orderable
+    Dominate, EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome,
+    recorder::csv::CSVWritable, utils::orderable::Orderable,
 };
 use serde::{Deserialize, Serialize};
 
@@ -406,7 +407,6 @@ impl PartialEq for ElemSingleCodomain {
 
 impl Eq for ElemSingleCodomain {}
 
-
 impl Ord for ElemSingleCodomain {
     /// `Self` is considered better than other if `self.value > other.value`:
     /// $$ A \succ B \iff A > B$$
@@ -505,11 +505,11 @@ impl Eq for ElemCostCodomain {}
 impl Ord for ElemCostCodomain {
     /// `Self` is considered better than other if `self.value > other.value`
     /// If the values are equal, the one with lower cost is considered better::
-    /// $$ 
+    /// $$
     ///     A \succ B \iff
-    ///     \begin{cases} 
-    ///         A > B & \lor \\ 
-    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \begin{cases}
+    ///         A > B & \lor \\
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\
     ///     \end{cases}
     /// $$
     fn cmp(&self, other: &Self) -> Ordering {
@@ -523,11 +523,11 @@ impl Ord for ElemCostCodomain {
 impl PartialOrd for ElemCostCodomain {
     /// `Self` is considered better than other if `self.value > other.value`
     /// If the values are equal, the one with lower cost is considered better::
-    /// $$ 
+    /// $$
     ///     A \succ B \iff
-    ///     \begin{cases} 
-    ///         A > B & \lor \\ 
-    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \begin{cases}
+    ///         A > B & \lor \\
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\
     ///     \end{cases}
     /// $$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -538,11 +538,11 @@ impl PartialOrd for ElemCostCodomain {
 impl Orderable for ElemCostCodomain {
     /// `Self` is considered better than other if `self.value > other.value`
     /// If the values are equal, the one with lower cost is considered better::
-    /// $$ 
+    /// $$
     ///     A \succ B \iff
-    ///     \begin{cases} 
-    ///         A > B & \lor \\ 
-    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\ 
+    ///     \begin{cases}
+    ///         A > B & \lor \\
+    ///         A = B & \land A_\text{cost} \neq B_\text{cost} \\
     ///     \end{cases}
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -641,11 +641,11 @@ impl Eq for ElemConstCodomain {}
 
 impl Ord for ElemConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
-    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\
     ///     \end{cases}
     /// $$
     fn cmp(&self, other: &Self) -> Ordering {
@@ -661,11 +661,11 @@ impl Ord for ElemConstCodomain {
 
 impl PartialOrd for ElemConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
-    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\
     ///     \end{cases}
     /// $$
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -675,18 +675,17 @@ impl PartialOrd for ElemConstCodomain {
 
 impl Orderable for ElemConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
-    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\ 
+    ///          \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i})& \land A > B \\
     ///     \end{cases}
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
     }
 }
-
 
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
@@ -786,9 +785,9 @@ impl Eq for ElemCostConstCodomain {}
 
 impl Ord for ElemCostConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
     ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
     ///         \begin{cases}
@@ -813,9 +812,9 @@ impl Ord for ElemCostConstCodomain {
 
 impl PartialOrd for ElemCostConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
     ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
     ///         \begin{cases}
@@ -831,9 +830,9 @@ impl PartialOrd for ElemCostConstCodomain {
 
 impl Orderable for ElemCostConstCodomain {
     /// `Self` is considered better than other if `self.value > other.value` and `self.constraints` has lower total violation than `other.constraints`:
-    /// $$ 
-    ///     A \succ B \iff 
-    ///     \begin{cases} 
+    /// $$
+    ///     A \succ B \iff
+    ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
     ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) \land
     ///         \begin{cases}
@@ -932,7 +931,7 @@ impl PartialEq for ElemMultiCodomain {
     }
 }
 
-impl Orderable for ElemMultiCodomain{
+impl Orderable for ElemMultiCodomain {
     /// `Self` is considered better than other it is lexicographically better than `other.value`:
     /// $ A \succ B \iff A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -1042,7 +1041,7 @@ impl PartialEq for ElemCostMultiCodomain {
 impl Orderable for ElemCostMultiCodomain {
     /// `Self` is considered better than other if it is lexicographically better than `other`. Ties are broken by the cost, with lower cost being better:
     /// $$
-    ///     A \succ B \iff 
+    ///     A \succ B \iff
     ///     \begin{cases}
     ///         \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) & \lor \\
     ///         \left( A_{y_i} = B_{y_i} \forall i \land A_\text{cost} < B_\text{cost} \right) \\
@@ -1170,10 +1169,10 @@ impl PartialEq for ElemConstMultiCodomain {
 impl Orderable for ElemConstMultiCodomain {
     /// `Self` is considered better than other if it has lower total violation than `other.constraints`, if violations are equal, and if `self.value` is lexicographically better than `other.value`:
     /// $$
-    ///     A \succ B \iff 
+    ///     A \succ B \iff
     ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
-    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land
     ///         \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) \\
     ///     \end{cases}
     /// $$
@@ -1320,10 +1319,10 @@ impl PartialEq for ElemCostConstMultiCodomain {
 impl Orderable for ElemCostConstMultiCodomain {
     /// `Self` is considered better than other if it has lower total violation than `other.constraints`, if violations are equal, and if `self.value` is lexicographically better than `other.value`. Ties are broken by the cost, with lower cost being better:
     /// $$
-    ///     A \succ B \iff 
+    ///     A \succ B \iff
     ///     \begin{cases}
     ///         \sum_{i=1}^n \max(0, A_{c_i}) < \sum_{i=1}^n \max(0, B_{c_i}) & \lor \\
-    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land 
+    ///         \sum_{i=1}^n \max(0, A_{c_i}) = \sum_{i=1}^n \max(0, B_{c_i}) & \land
     ///         \begin{cases}
     ///             \left( A_{y_1} > B_{y_1} \lor (A_{y_1} = B_{y_1} \land A_{y_2} > B_{y_2}) \lor \dots \right) & \lor \\
     ///             A_{y_i} = B_{y_i} \forall i & \land A_\text{cost} < B_\text{cost} \\
@@ -1335,7 +1334,9 @@ impl Orderable for ElemCostConstMultiCodomain {
         let other_viol: f64 = other.constraints.iter().filter(|c| **c > 0.0).sum();
         match self_viol.partial_cmp(&other_viol) {
             Some(Ordering::Equal) => match self.value.ord_cmp(&other.value) {
-                Some(Ordering::Equal) => self.cost.partial_cmp(&other.cost).map(|ord| ord.reverse()),
+                Some(Ordering::Equal) => {
+                    self.cost.partial_cmp(&other.cost).map(|ord| ord.reverse())
+                }
                 ord => ord,
             },
             ord => ord,

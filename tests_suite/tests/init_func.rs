@@ -599,10 +599,7 @@ pub mod sp_evaluator {
 
 pub mod sp_evaluator_real {
     use super::OutEvaluator;
-    use tantale::core::{
-        Real,
-        sampler::Uniform,
-    };
+    use tantale::core::{Real, sampler::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 5;
@@ -1095,7 +1092,6 @@ pub mod sp_sm_samp_noright_fid {
     );
 }
 
-
 #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
 pub struct MoOutEvaluator {
     #[maximize]
@@ -1129,7 +1125,7 @@ pub mod sp_evaluator_sh {
 
     objective!(
         pub fn example() -> (FidOutEvaluator, FnState) {
-            
+
             let fid = [! FIDELITY !];
 
             let _a = [! a | Int(0,100, Uniform) | !];
@@ -1239,7 +1235,6 @@ pub mod sp_evaluator_mo {
     );
 }
 
-
 pub mod sp_evaluator_mo_fid {
     use super::{FnState, MoFidOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
@@ -1305,7 +1300,7 @@ pub mod sp_evaluator_mo_fid {
             if fid != 1. && state.state == 0 {
                 panic!("Fidelity > 1 should not be evaluated at state 0, but got state {} and fidelity {}", state.state, fid);
             }
-            
+
             state.state += 1;
             let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
             let obj = random_codom();

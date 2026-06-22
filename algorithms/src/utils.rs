@@ -1,8 +1,8 @@
 //! Utilities for basic algorithms implemented in Tantale algorithms
 
-
 use tantale_core::{
-    BaseSol, Batch, CompAcc, CompShape, FidelitySol, HasFidelity, LinkOpt, Objective, RawObj, SId, StepSId, Stepped, searchspace::SShape
+    BaseSol, Batch, CompAcc, CompShape, FidelitySol, HasFidelity, LinkOpt, Objective, RawObj, SId,
+    StepSId, Stepped, searchspace::SShape,
 };
 
 /// A type alias for [`SolutionShape`](tantale_core::SolutionShape) made of [`Computed`](tantale_core::Computed) [`BaseSol`], identified with [`SId`].
@@ -40,7 +40,7 @@ pub type SimpleStepped<Shape, SInfo, Out, State> =
     Stepped<RawObj<Shape, StepSId, SInfo>, Out, State>;
 
 /// A helper function to set the fidelity of a solution that implements the [`HasFidelity`] trait.
-pub fn fidelity_setter<S:HasFidelity>(mut s: S, fidelity: f64) -> S{
+pub fn fidelity_setter<S: HasFidelity>(mut s: S, fidelity: f64) -> S {
     s.set_fidelity(fidelity);
     s
 }
