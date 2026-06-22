@@ -342,7 +342,7 @@ We have to define one functions:
 # ))]
 # pub struct AshaState<SShape>
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 # {
 #     // A vector of budget levels corresponding to the halving rounds.
 #     pub budgets: Vec<f64>,
@@ -356,11 +356,11 @@ We have to define one functions:
 # 
 # pub struct Asha<SShape>(pub AshaState<SShape>)
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord;
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable;
 # 
 # impl<SShape> Asha<SShape>
 # where
-#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Ord,
+#     SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
 # {
 #     pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
 #         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
@@ -395,17 +395,17 @@ We have to define one functions:
 #         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
-# use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
+# use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace, Orderable};
 # 
 # impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
 #     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 # where
 #     Out: FidOutcome,
 #     Out::Cod: Single<Out>,
-#     TypeCodom<Out>: Ord, // Use an helper type alias to access Out::Cod::TypeCodom
+#     TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 #     Scp::SolShape: HasStep + HasFidelity,
-#     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
+#     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
 # {
 #     type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
 #     type SInfo = EmptyInfo; // No metadata
@@ -437,10 +437,10 @@ impl<Out, Scp, FnState>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Ord,
+    TypeCodom<Out>: Orderable,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Ord,
+    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
     FnState: FuncState,
 {
     fn step(
@@ -488,7 +488,7 @@ where
                 p // return p
             } else {
                 // Select the top k (modify in place rung[i]), last elements are the top k
-                self.0.rung[i].select_nth_unstable(k);
+                self.0.rung[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
                 // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
                 let (mut p, _): (Scp::SolShape, _) =
                     IntoComputedShape::extract(self.0.rung[i].pop().unwrap());

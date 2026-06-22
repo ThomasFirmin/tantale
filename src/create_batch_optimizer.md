@@ -256,7 +256,7 @@ Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-
 #     }
 # }
 
-use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom};
+use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, Orderable};
 
 impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 where
@@ -338,7 +338,7 @@ We have to define two functions:
 #     }
 # }
 # 
-# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom};
+# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, Orderable};
 # 
 # impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 # where
@@ -444,7 +444,7 @@ where
             self.0.iteration += 1;
 
             // worst solutions before index k, top k  solution at index k and after
-            pairs.select_nth_unstable(k);
+            pairs.select_nth_unstable_by(k, |a,b| a.ord_cmp(b).unwrap());
             // Extract Uncomputed solution from Computed
             let new_pairs: Vec<_> = pairs
                 .into_iter()
