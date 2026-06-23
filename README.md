@@ -75,7 +75,7 @@ Then these algorithms can be specialized for multi-fidelity, multi-objectives or
 | [GridSearch](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf) | Base | Single | ✔️ | ✔️ | ❌ |  ❌ | ❌ | ❌ |
 | [SHA](https://arxiv.org/abs/1502.07943) | Base | Batched | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
 | [ASHA](https://arxiv.org/abs/1810.05934) | Base | Single | ✔️ |  ❌ | ✔️ | ✔️ | ❌ | ❌ |
-| [Hyperband](https://arxiv.org/abs/1603.06212) | Base | Batched / Single | ✔️ |  ❌ |  ✔️ | ✔️ | ❌ | ❌ |
+| [Hyperband](https://arxiv.org/abs/1603.06560) | Base | Batched / Single | ✔️ |  ❌ |  ✔️ | ✔️ | ❌ | ❌ |
 | [MO-ASHA](https://arxiv.org/pdf/2106.12639) | Base | Single | ✔️ | ❌  |  ✔️ | ✔️ | ✔️ | ❌ |
 | [TPE](https://arxiv.org/abs/2304.11127) | "bayes" | Single | ✔️ | ✔️  | ❌ |  ✔️ | ✔️ | ❌ |
 ---

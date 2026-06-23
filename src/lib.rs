@@ -45,7 +45,7 @@
 //! - [`moasha`](mod@crate::algos::moasha) - The multi-objective version of the ASHA algorithm.
 //! - [`hyperband`](mod@crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization.
 //!   It can be combined combined with the SHA or ASHA algorithms.
-//! - More algorithms and extensions of the core library are coming soon.
+//! - [`tpe`](mod@crate::algos::tpe) - A simple implementation of the TPE algorithm for single- and multi- objective optimization.
 //!
 //! Tantale handle simple [`Objective`](crate::core::Objective) functions, but also [`Stepped`](crate::core::Stepped) functions,
 //! which are functions that can be evaluated at different fidelity levels. This is useful for multi-fidelity optimization algorithms such as ASHA and SHA.
@@ -53,9 +53,6 @@
 //! For now Tantale mostly handles HyperParameter Optimization (HPO) problems,
 //! but it is designed to be flexible and extensible enough to also handle Neural Architecture Search (NAS) problems.
 //! **NAS is planned for a future release.**
-//!
-//! This first version of the core has all the necessary building blocks to create multi-objective optimizers.
-//! **Multi-objective optimization is planned for a future release.**
 //!
 //! For now recording results is only possible in CSV format, but the library is designed to be flexible and extensible enough to also handle other formats or strategies such as JSON or SQLite.
 //! **More recording strategies are planned for a future release.**
