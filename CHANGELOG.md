@@ -277,3 +277,9 @@
 ### 🧪 Testing
 
 - *(Real TPE-Kernel)* Added a test for Real-only domain
+
+## Hotfix 0.3.1 :
+
+### 📚 Documentation
+
+- *(Cargo)* Added `all-features = true` for doc.rs
