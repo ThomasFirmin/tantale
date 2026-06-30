@@ -37,7 +37,7 @@
 //!
 //! Interfacing Tantale with a Python API is currently under study.
 //!
-//! Six algorithms are currently implemented:
+//! Seven algorithms are currently implemented:
 //! - [`random_search`](mod@crate::algos::random_search) - A simple random search algorithm that can be used in sequential or batch mode.
 //! - [`grid_search`](mod@crate::algos::grid_search) - A simple grid search algorithm that can be used in sequential.
 //! - [`sha`](mod@crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization.

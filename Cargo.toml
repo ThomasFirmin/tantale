@@ -40,6 +40,7 @@ description.workspace   = true
 keywords.workspace      = true
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 [badges]

@@ -20,4 +20,5 @@ pyo3 = {version = "0.28.2", features = ["auto-initialize"]}
 serde = { workspace = true, features=["derive","rc"]}
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--html-in-header", "katex-header.html"]

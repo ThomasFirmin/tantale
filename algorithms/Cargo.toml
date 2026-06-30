@@ -31,4 +31,5 @@ bayes = ["statrs"]
 tantale = { path = "..", package = "tantale" }
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--html-in-header", "katex-header.html"]
