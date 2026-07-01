@@ -205,6 +205,22 @@ impl PyOutcome {
                 .unwrap_or(f64::NAN)
         })
     }
+
+    /// Extracts a named attribute from the Python outcome as a `usize`.
+    ///
+    /// ```rust,no_run
+    /// |o: &PyOutcome| o.getattr_usize("spikes")
+    /// ```
+    /// Returns `usize::MAX` if the attribute is missing or not numeric.
+    pub fn getattr_usize(&self, attr: &str) -> usize {
+        Python::attach(|py| {
+            self.0
+                .bind(py)
+                .getattr(attr)
+                .and_then(|v| v.extract::<usize>())
+                .unwrap_or(usize::MAX)
+        })
+    }
 }
 
 /// Rust bridge for a Python outcome in a multi-fidelity objective.
@@ -285,6 +301,22 @@ impl PyFidOutcome {
                 .getattr(attr)
                 .and_then(|v| v.extract::<f64>())
                 .unwrap_or(f64::NAN)
+        })
+    }
+
+    /// Extracts a named attribute from the Python outcome as a `usize`.
+    ///
+    /// ```rust,no_run
+    /// |o: &PyFidOutcome| o.getattr_usize("spikes")
+    /// ```
+    /// Returns `usize::MAX` if the attribute is missing or not numeric.
+    pub fn getattr_usize(&self, attr: &str) -> usize {
+        Python::attach(|py| {
+            self.0
+                .bind(py)
+                .getattr(attr)
+                .and_then(|v| v.extract::<usize>())
+                .unwrap_or(usize::MAX)
         })
     }
 }

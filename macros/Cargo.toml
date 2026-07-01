@@ -23,6 +23,7 @@ syn = {version="2.0.101", features=["full"]}
 [features]
 py = []
 mpi = []
+spikes = []
 
 [dev-dependencies]
 tantale = { path = "..", package = "tantale" }

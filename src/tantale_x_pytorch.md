@@ -20,7 +20,7 @@ We consider the number of epochs a network is trained on as our budget.
 - The maximum budget of a single evaluation is **20 epochs**.
 
 We use the [`MoAsha`](mod@crate::algos::moasha) algorithm, with a **scaling factor** of 2.
-Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdots 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
+Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdot 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
 
 ### MPI-distributed computing
 
@@ -258,7 +258,7 @@ class State:
         return f"State(epoch={self.current_epoch})"
 ```
 
-### Training loop: `mode.py`
+### Training loop: `model.py`
 
 Conversely to a full Rust pipeline, the searchspace and training loop have to be defined separately for typing issues.
 But indices of hyperparameters within the input solution `x` can be accessed via their indices exposed within the `indices` submodule of the `pytantale` module.
@@ -370,7 +370,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
 
 ## Tantale part: `searchspace.rs`
 
-To expose the indices of the hyperparameters to python we'll use the [`pyhpo!`](crate::macros::pyhpo).
+To expose the indices of the hyperparameters to Python we'll use the [`pyhpo!`](crate::macros::pyhpo) macro.
 We want to optimize 8 hyperparameters:
 
 - The number of neurons in layer 1

@@ -11,7 +11,7 @@ description.workspace = true
 keywords.workspace = true
 
 [dependencies]
-tantale = {workspace = true, features = ["py"]}
+tantale = {workspace = true, features = ["pyspikes"]}
 num = {workspace = true}
 rand = {workspace = true}
 serde = {workspace = true}

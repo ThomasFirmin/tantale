@@ -277,4 +277,12 @@ pub use codomain::{
     CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
     FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeAcc,
     TypeCodom,
+    ElemSingleCodomain,
+    ElemCostCodomain,
+    ElemConstCodomain,
+    ElemCostConstCodomain,
+    ElemMultiCodomain,
+    ElemCostMultiCodomain,
+    ElemConstMultiCodomain,
+    ElemCostConstMultiCodomain,
 };

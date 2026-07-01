@@ -21,6 +21,8 @@ macro_rules! test_const {
                         fid10: tantale::core::Step::Evaluated,
                         more: 10.0,
                         info: 11.0,
+                        samples: 12,
+                        spiking: 13,
                     };
                     let codom = <$out as tantale::core::Outcome>::codomain();
                     let elem = codom.get_elem(&out);
@@ -38,7 +40,11 @@ test_const!(
     outcodconst, OutCodConst;
     outcodcostconst, OutCodCostConst;
     outcodconstmulti, OutCodConstMulti;
-    outcodcostconstmulti, OutCodCostConstMulti
+    outcodcostconstmulti, OutCodCostConstMulti;
+    outspikecodconst, OutSpikeCodConst;
+    outspikecodcostconst, OutSpikeCodCostConst;
+    outspikecodconstmulti, OutSpikeCodConstMulti;
+    outspikecodcostconstmulti, OutSpikeCodCostConstMulti
 );
 
 macro_rules! test_cost {
@@ -60,6 +66,8 @@ macro_rules! test_cost {
                         fid10: tantale::core::Step::Evaluated,
                         more: 10.0,
                         info: 11.0,
+                        samples: 12,
+                        spiking: 13,
                     };
                     let codom = <$out as tantale::core::Outcome>::codomain();
                     let elem = codom.get_elem(&out);
@@ -75,7 +83,11 @@ test_cost!(
     outcodcost, OutCodCost;
     outcodcostconst, OutCodCostConst;
     outcodcostmulti, OutCodCostMulti;
-    outcodcostconstmulti, OutCodCostConstMulti
+    outcodcostconstmulti, OutCodCostConstMulti;
+    outspikecodcost, OutSpikeCodCost;
+    outspikecodcostconst, OutSpikeCodCostConst;
+    outspikecodcostmulti, OutSpikeCodCostMulti;
+    outspikecodcostconstmulti, OutSpikeCodCostConstMulti
 );
 
 macro_rules! test_single {
@@ -97,6 +109,8 @@ macro_rules! test_single {
                         fid10: tantale::core::Step::Evaluated,
                         more: 10.0,
                         info: 11.0,
+                        samples: 12,
+                        spiking: 13,
                     };
                     let codom = <$out as tantale::core::Outcome>::codomain();
                     let elem = codom.get_elem(&out);
@@ -112,7 +126,11 @@ test_single!(
     outcodsingle , OutCodSingle;
     outcodcost , OutCodCost;
     outcodconst , OutCodConst;
-    outcodcostconst , OutCodCostConst
+    outcodcostconst , OutCodCostConst;
+    outspikecodsingle , OutSpikeCodSingle;
+    outspikecodcost , OutSpikeCodCost;
+    outspikecodconst , OutSpikeCodConst;
+    outspikecodcostconst , OutSpikeCodCostConst
 );
 
 macro_rules! test_multi {
@@ -134,6 +152,8 @@ macro_rules! test_multi {
                         fid10: tantale::core::Step::Evaluated,
                         more: 10.0,
                         info: 11.0,
+                        samples: 12,
+                        spiking: 13,
                     };
                     let codom = <$out as tantale::core::Outcome>::codomain();
                     let elem = codom.get_elem(&out);
@@ -152,5 +172,9 @@ test_multi!(
     outcodmulti , OutCodMulti;
     outcodcostmulti , OutCodCostMulti;
     outcodconstmulti , OutCodConstMulti;
-    outcodcostconstmulti , OutCodCostConstMulti
+    outcodcostconstmulti , OutCodCostConstMulti;
+    outspikecodmulti , OutSpikeCodMulti;
+    outspikecodcostmulti , OutSpikeCodCostMulti;
+    outspikecodconstmulti , OutSpikeCodConstMulti;
+    outspikecodcostconstmulti , OutSpikeCodCostConstMulti
 );

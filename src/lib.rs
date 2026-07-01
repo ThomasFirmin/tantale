@@ -121,6 +121,6 @@ pub use tantale_algos as algos;
 pub use tantale_core as core;
 #[doc(inline)]
 pub use tantale_macros as macros;
-#[cfg(feature = "py")]
+#[cfg(any(feature = "py", feature = "pyspikes"))]
 #[doc(inline)]
 pub use tantale_python as python;

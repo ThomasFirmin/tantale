@@ -56,6 +56,8 @@ tantale_python = {workspace = true, optional = true}
 mpi = ["tantale_core/mpi", "tantale_algos/mpi", "tantale_macros/mpi"]
 py = ["tantale_python", "tantale_macros/py"]
 bayes = ["tantale_algos/bayes"]
+spikes = ["tantale_core/spikes", "tantale_algos/spikes", "tantale_macros/spikes"]
+pyspikes = ["tantale_python", "tantale_macros/py", "tantale_core/spikes", "tantale_algos/spikes", "tantale_macros/spikes", "tantale_python/pyspikes"]
 
 [dev-dependencies]
 tantale_core.workspace   = true

@@ -283,6 +283,14 @@ pub use domain::{
     LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
     NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, TypeAcc, TypeCodom,
     Unit,
+    ElemSingleCodomain,
+    ElemCostCodomain,
+    ElemConstCodomain,
+    ElemCostConstCodomain,
+    ElemMultiCodomain,
+    ElemCostMultiCodomain,
+    ElemConstMultiCodomain,
+    ElemCostConstMultiCodomain,
 };
 
 pub mod sampler;
@@ -346,3 +354,8 @@ pub use utils::{
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
     NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray,
 };
+
+#[cfg(feature = "spikes")]
+pub mod spikes;
+#[cfg(feature = "spikes")]
+pub use spikes::*;

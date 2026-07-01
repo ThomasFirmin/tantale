@@ -15,6 +15,7 @@ mod outcome;
 mod pyhpo;
 mod solinfo;
 
+#[cfg(not(feature = "spikes"))]
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
 /// functions. It derives traits that enable logging, serialization,
 /// and multi-fidelity evaluation tracking for optimization results.
@@ -62,6 +63,64 @@ mod solinfo;
 /// }
 /// ```
 #[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step))]
+pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    outcome::proc_outcome(input)
+}
+
+
+#[cfg(feature = "spikes")]
+/// The `Outcome` derive macro automates the implementation of result/output types for objective
+/// functions. It derives traits that enable logging, serialization,
+/// and multi-fidelity evaluation tracking for optimization results.
+///
+/// ## Purpose
+///
+/// Objective functions in Tantale must return an `Outcome` - a structured type describing
+/// the evaluation result. The `Outcome` macro:
+/// 1. Implements the `Outcome` trait marker
+/// 2. Optionally tracks multi-fidelity evaluation state via `Step` fields
+///
+/// ## Quick Example
+///
+/// ```
+/// use tantale::macros::Outcome;
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Outcome, Debug, Serialize, Deserialize)]
+/// pub struct ModelResult {
+///     pub train_loss: f64,
+///     pub val_loss: f64,
+///     #[maximize]
+///     pub accuracy: f64,
+/// }
+/// ```
+///
+/// Generated:
+/// - `impl Outcome for ModelResult` - Marks type as objective output
+///
+/// ## Multi-Fidelity with `Step`
+///
+/// For multi-fidelity optimization, a field of type `Step` tracks evaluation progress:
+///
+/// ```
+/// use tantale::macros::{Outcome};
+/// use tantale::core::Step;
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Outcome, Debug, Serialize, Deserialize)]
+/// pub struct ProgressiveResult {
+///     #[maximize]
+///     pub loss: f64,
+///     #[step]
+///     pub epoch: Step,  // Tracks evaluation stage
+/// }
+/// ```
+/// 
+/// ## Spiking Neural Network Support
+/// 
+/// - The number of samples within the dataset can be tracked using the `#[samples]` attribute.
+/// - The number of spiking samples can be tracked using the `#[spiking]` attribute.
+#[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step, samples, spiking))]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }
