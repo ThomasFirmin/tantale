@@ -35,9 +35,10 @@ fn test_python_function() {
 
     let obj = init_python!(
         Objective, sp_ms_nosamp,
-        "/tests/test_pytantale_objective_spikes_single/function_spikes_single.py", "function_spikes_single", "objective",
-        "/tests/test_pytantale_objective_spikes_single/function_spikes_single.py", "function_spikes_single", "MyOutcome",
+        "/tests/test_pytantale_objective_spikes_const/function_spikes_const.py", "function_spikes_const", "objective",
+        "/tests/test_pytantale_objective_spikes_const/function_spikes_const.py", "function_spikes_const", "MyOutcome",
         objectives: [maximize "obj1"],
+        constraints: [ "const1", "const2" ],
         samples: "samples",
         spiking: "spiking"
     );
@@ -51,6 +52,8 @@ fn test_python_function() {
     let elem = get_elem(&obj, x);
 
     assert_eq!(elem.value, 84.0, "Expected value to be 84.0, but got {}", elem.value);
+    assert_eq!(elem.constraints[0], 12.0, "Expected const1 to be 12.0, but got {}", elem.constraints[0]);
+    assert_eq!(elem.constraints[1], 24.0, "Expected const2 to be 24.0, but got {}", elem.constraints[1]);
     assert_eq!(elem.samples, 100, "Expected samples to be 100, but got {}", elem.samples);
     assert_eq!(elem.spiking, 50, "Expected spiking to be 50, but got {}", elem.spiking);
 }
