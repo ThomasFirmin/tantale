@@ -667,7 +667,7 @@ where
     /// for efficient kernel computation for each point within the archive.
     type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>;
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>;
 
     fn compute(
         &self,
@@ -767,13 +767,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -855,13 +855,13 @@ where
             .product()
     }
     
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -943,13 +943,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1031,13 +1031,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1119,13 +1119,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1139,11 +1139,11 @@ where
     }
 }
 
-impl<T, Scp, S, SolId, SInfo, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out> for Univariate
+impl<G, Scp, S, SolId, SInfo, Out> Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out> for Univariate
 where
-    T: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<T>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<T>, SInfo, Raw = Arc<[TypeDom<GridDom<T>>]>>,
+    G: GridBounds,
+    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
+    S: Uncomputed<SolId, GridDom<G>, SInfo, Raw = Arc<[TypeDom<GridDom<G>>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -1175,7 +1175,7 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = <Univariate as Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
@@ -1208,13 +1208,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1307,13 +1307,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1395,13 +1395,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1483,13 +1483,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1571,13 +1571,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1659,13 +1659,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
@@ -1679,11 +1679,11 @@ where
     }
 }
 
-impl<T, Scp, S, SolId, SInfo, Out> Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<G, Scp, S, SolId, SInfo, Out> Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out> for Multivariate
 where
-    T: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<T>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<T>, SInfo, Raw = Arc<[TypeDom<GridDom<T>>]>>,
+    G: GridBounds,
+    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
+    S: Uncomputed<SolId, GridDom<G>, SInfo, Raw = Arc<[TypeDom<GridDom<G>>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -1715,7 +1715,7 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = <Multivariate as Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
@@ -1748,13 +1748,13 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
     {
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.ref_x()
+                p.as_ref().ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
