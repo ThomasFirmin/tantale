@@ -91,6 +91,13 @@ pub struct Sp<Obj: Domain, Opt: PreDomain> {
     pub var: Box<[Var<Obj, Opt>]>,
 }
 
+impl <Obj: Domain, Opt: PreDomain> Sp<Obj, Opt> {
+    /// Create a new [`Sp`] from a boxed slice of [`Var`].
+    pub fn new(var: Box<[Var<Obj, Opt>]>) -> Self {
+        Self { var }
+    }
+}
+
 impl<Obj: Domain, Opt: PreDomain> Sp<Obj, Opt> {
     /// Get the number of variables in the searchspace.
     pub fn size(&self) -> usize {

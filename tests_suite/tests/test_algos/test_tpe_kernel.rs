@@ -13,10 +13,9 @@ const EPS: f64 = 1e-9;
 fn test_gaussian_kernel_real() {
     let dom = Real::new(0.0, 1.0, Uniform);
 
-    let sctx = GaussianKernel::get_scontext(1.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&0.4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&0.5,1.0, &dom);
 
-    let k = GaussianKernel::compute(&0.5, &0.4, &kctx, &sctx, &dom);
+    let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
     let g =
         1.0 / (2.0 * PI * 1.0_f64.powi(2)).sqrt() * (-0.5 * ((0.5 - 0.4) / 1.0_f64).powi(2)).exp();
     let norm_cst = 0.38116862386025063;
@@ -34,11 +33,10 @@ fn test_gaussian_kernel_real_sample_in_bounds() {
     let dom = Real::new(10.0, 20.0, Uniform);
     let mut rng = rand::rng();
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&15.0, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&15.0, 5.0, &dom);
 
     for _ in 0..20 {
-        let sample = GaussianKernel::sample(&mut rng, &15.0, &kctx, &sctx, &dom);
+        let sample = GaussianKernel::sample(&mut rng, &15.0, &ctx, &dom);
         assert!(
             dom.contains(&sample),
             "Sample from Real kernel must be in [10,20]: {}",
@@ -66,10 +64,9 @@ fn test_gaussian_kernel_real_prior_positive() {
 fn test_gaussian_kernel_unit_positive() {
     let dom = Unit::new(Uniform);
 
-    let sctx = GaussianKernel::get_scontext(1.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&0.4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom);
 
-    let k = GaussianKernel::compute(&0.5, &0.4, &kctx, &sctx, &dom);
+    let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
 
     let g =
         1.0 / (2.0 * PI * 1.0_f64.powi(2)).sqrt() * (-0.5 * ((0.5 - 0.4) / 1.0_f64).powi(2)).exp();
@@ -87,11 +84,10 @@ fn test_gaussian_kernel_unit_positive() {
 fn test_gaussian_kernel_unit_sample_in_bounds() {
     let dom = Unit::new(Uniform);
     let mut rng = rand::rng();
-    let sctx = GaussianKernel::get_scontext(0.9, &dom);
-    let kctx = GaussianKernel::get_kcontext(&0.4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom);
 
     for _ in 0..20 {
-        let sample = GaussianKernel::sample(&mut rng, &0.4, &kctx, &sctx, &dom);
+        let sample = GaussianKernel::sample(&mut rng, &0.4, &ctx, &dom);
         assert!(
             dom.contains(&sample),
             "Sample from Unit kernel must be in [0,1]: {}",
@@ -106,10 +102,8 @@ fn test_gaussian_kernel_unit_sample_in_bounds() {
 fn test_gaussian_kernel_int_positive() {
     let dom = Int::new(0, 10, Uniform);
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
-
-    let k = GaussianKernel::compute(&5, &4, &kctx, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5., &dom);
+    let k = GaussianKernel::compute(&5, &4, &ctx, &dom);
     let g = 0.07808358491192358;
     let norm_cst = 0.7191393900676302;
     let expected = g / norm_cst;
@@ -126,15 +120,13 @@ fn test_gaussian_kernel_int_same_point_higher() {
     // Kernel at the same point should be >= kernel at a distant point
     let dom = Int::new(0, 10, Uniform);
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
 
-    let k_same = GaussianKernel::compute(&4, &4, &kctx, &sctx, &dom);
+    let k_same = GaussianKernel::compute(&4, &4, &ctx, &dom);
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
 
-    let k_far = GaussianKernel::compute(&0, &4, &kctx, &sctx, &dom);
+    let k_far = GaussianKernel::compute(&0, &4, &ctx, &dom);
     assert!(
         k_same >= k_far,
         "Kernel at same point k(x1,x1) should be >= distant point k(x1,x2): {} < {}",
@@ -148,11 +140,10 @@ fn test_gaussian_kernel_int_sample_in_bounds() {
     let dom = Int::new(0, 10, Uniform);
     let mut rng = rand::rng();
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
 
     for _ in 0..20 {
-        let sample = GaussianKernel::sample(&mut rng, &5, &kctx, &sctx, &dom);
+        let sample = GaussianKernel::sample(&mut rng, &5, &ctx, &dom);
         assert!(
             dom.contains(&sample),
             "Sample from Int kernel must be in [0,10]: {}",
@@ -167,10 +158,8 @@ fn test_gaussian_kernel_int_sample_in_bounds() {
 fn test_gaussian_kernel_nat_positive() {
     let dom = Nat::new(0_u64, 10_u64, Uniform);
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
-
-    let k = GaussianKernel::compute(&5, &4, &kctx, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let k = GaussianKernel::compute(&5, &4, &ctx, &dom);
 
     let g = 0.07808358491192358;
     let norm_cst = 0.7191393900676302;
@@ -187,15 +176,13 @@ fn test_gaussian_kernel_nat_positive() {
 fn test_gaussian_kernel_nat_same_point_higher() {
     // Kernel at the same point should be >= kernel at a distant point
     let dom = Nat::new(0_u64, 10_u64, Uniform);
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
+    
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let k_same = GaussianKernel::compute(&4, &4, &ctx, &dom);
 
-    let k_same = GaussianKernel::compute(&4, &4, &kctx, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let k_far = GaussianKernel::compute(&0, &4, &ctx, &dom);
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
-
-    let k_far = GaussianKernel::compute(&0, &4, &kctx, &sctx, &dom);
     assert!(
         k_same >= k_far,
         "Kernel at same point k(x1,x1) should be >= distant point k(x1,x2): {} < {}",
@@ -209,11 +196,10 @@ fn test_gaussian_kernel_nat_sample_in_bounds() {
     let dom = Nat::new(0_u64, 10_u64, Uniform);
     let mut rng = rand::rng();
 
-    let sctx = GaussianKernel::get_scontext(5.0, &dom);
-    let kctx = GaussianKernel::get_kcontext(&4, &sctx, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
 
     for _ in 0..20 {
-        let sample = GaussianKernel::sample(&mut rng, &5, &kctx, &sctx, &dom);
+        let sample = GaussianKernel::sample(&mut rng, &5, &ctx, &dom);
         assert!(
             dom.contains(&sample),
             "Sample from Nat kernel must be in [0,10]: {}",
@@ -228,9 +214,9 @@ fn test_gaussian_kernel_nat_sample_in_bounds() {
 fn test_aitchison_aitken_same_category() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
 
-    let sctx = AitchisonAitkenKernel::get_scontext(0.1, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom);
 
-    let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"a".to_string(), &(), &sctx, &dom);
+    let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"a".to_string(), &ctx, &dom);
 
     // Formula: 1 - bw = 1 - 0.1 = 0.9
     assert!(
@@ -245,9 +231,9 @@ fn test_aitchison_aitken_same_category() {
 fn test_aitchison_aitken_different_category() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
 
-    let sctx = AitchisonAitkenKernel::get_scontext(0.1, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom);
 
-    let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"b".to_string(), &(), &sctx, &dom);
+    let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"b".to_string(), &ctx, &dom);
     // Formula: bw / (|D| - 1) = 0.1 / 2 = 0.05
     let expected = 0.1 / 2.0;
     assert!(
@@ -277,10 +263,10 @@ fn test_aitchison_aitken_sample_stays_in_domain() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
     let mut rng = rand::rng();
 
-    let sctx = AitchisonAitkenKernel::get_scontext(1.0, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 1.0, &dom);
 
     for _ in 0..30 {
-        let sample = AitchisonAitkenKernel::sample(&mut rng, &"a".to_string(), &(), &sctx, &dom);
+        let sample = AitchisonAitkenKernel::sample(&mut rng, &"a".to_string(), &ctx, &dom);
         assert!(
             dom.contains(&sample),
             "Sample must be a valid category: {}",
@@ -295,12 +281,12 @@ fn test_aitchison_aitken_sums_to_one() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
     let x2 = "a".to_string();
 
-    let sctx = AitchisonAitkenKernel::get_scontext(0.2, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&x2, 0.2, &dom);
 
     let total: f64 = dom
         .values
         .iter()
-        .map(|x1| AitchisonAitkenKernel::compute(x1, &x2, &(), &sctx, &dom))
+        .map(|x1| AitchisonAitkenKernel::compute(x1, &x2, &ctx, &dom))
         .sum();
     assert!(
         (total - 1.0).abs() < EPS,

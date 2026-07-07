@@ -15,7 +15,7 @@
 //! ```
 
 use crate::domain::Domain;
-use crate::domain::codomain::TypeCodom;
+use crate::domain::codomain::TypeCodom; 
 use crate::objective::Step;
 use crate::recorder::csv::CSVWritable;
 use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};

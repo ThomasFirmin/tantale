@@ -12,8 +12,7 @@ use statrs::function::erf;
 use std::sync::Arc;
 
 use crate::bayesian::{
-    bandwidth::{cat_bw, optuna_bw},
-    weighter::PointWeights,
+    bandwidth::BandwidthType, weighter::PointWeights,
 };
 
 const SQRT_2PI: f64 = 2.5066282746310002;
@@ -53,33 +52,27 @@ fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: f64,
 }
 
 pub trait KernelFunc<Dom: Domain> {
-    /// The shared context type for the kernel,
-    /// which can hold precomputed values or parameters needed for efficient kernel computation across multiple calls.
-    /// This is useful for kernels that require expensive computations that can be reused, such as normalization constants or bandwidth parameters.
-    type SContext: Serialize + for<'a> Deserialize<'a>;
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
-    /// for efficient kernel computation.
-    type KContext: Serialize + for<'a> Deserialize<'a>;
+    /// for efficient kernel computation for each point within the archive.
+    type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_scontext(bandwidth: f64, dom: &Dom) -> Self::SContext;
-    fn get_kcontext(x: &Dom::TypeDom, scontext: &Self::SContext, dom: &Dom) -> Self::KContext;
+    fn get_context(x: &Dom::TypeDom, bandwidth: f64, dom: &Dom) -> Self::Context;
 
     /// Computes the kernel function between two [`SolutionShape`](tantale_core::SolutionShape) instances of `Opt` type `Dom`.
     ///
     /// # Arguments
     /// * `x1` - The first point.
     /// * `x2` - The second point.
-    /// * `bandwidth` - The bandwidth parameter of the kernel.
-    /// * `dom` - The domain of the solutions.
+    /// * `context` - The context for the kernel computation.
+    /// * `dom` - The domain of the input point.
     ///
     /// # Returns
     /// The kernel value between the two [`Dom::TypeDom`](tantale_core::Domain::TypeDom).
     fn compute(
         x1: &Dom::TypeDom,
         x2: &Dom::TypeDom,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Dom,
     ) -> f64;
 
@@ -90,8 +83,7 @@ pub trait KernelFunc<Dom: Domain> {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &Dom::TypeDom,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Dom,
     ) -> Dom::TypeDom;
 }
@@ -135,48 +127,34 @@ pub trait KernelFunc<Dom: Domain> {
 pub struct GaussianKernel;
 
 #[derive(Serialize, Deserialize)]
-pub struct GaussianSContext {
+pub struct GaussianContext {
     pub bandwidth: f64,
     pub lhs: f64,
-}
-
-impl GaussianSContext {
-    pub fn new(bandwidth: f64, lhs: f64) -> Self {
-        GaussianSContext { bandwidth, lhs }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct GaussianKContext {
     pub cst: f64,
     pub p_low: f64,
     pub p_up: f64,
 }
 
 impl KernelFunc<Real> for GaussianKernel {
-    type SContext = GaussianSContext;
-    type KContext = GaussianKContext;
+    
+    type Context = GaussianContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &Real) -> Self::SContext {
-        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
-    }
-
-    fn get_kcontext(x: &f64, scontext: &Self::SContext, dom: &Real) -> Self::KContext {
+    fn get_context(x: &f64, bandwidth: f64, dom: &Real) -> Self::Context {
+        let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
-        let cst = gaussian_interval(x, scontext.bandwidth, low, up);
-        let p_low = gaussian_cdf(*x, scontext.bandwidth, &low);
-        let p_up = gaussian_cdf(*x, scontext.bandwidth, &up);
-        GaussianKContext { cst, p_low, p_up }
+        let cst = gaussian_interval(x, bandwidth, low, up);
+        let p_low = gaussian_cdf(*x, bandwidth, &low);
+        let p_up = gaussian_cdf(*x, bandwidth, &up);
+        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
     }
 
     fn compute(
         x1: &f64,
         x2: &f64,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Real,
     ) -> f64 {
-        scontext.lhs * (-0.5 * ((x1 - x2) / scontext.bandwidth).powi(2)).exp() / kcontext.cst
+        context.lhs * (-0.5 * ((x1 - x2) / context.bandwidth).powi(2)).exp() / context.cst
     }
 
     fn prior(x: &f64, dom: &Real) -> f64 {
@@ -198,8 +176,7 @@ impl KernelFunc<Real> for GaussianKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &f64,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Real,
     ) -> f64 {
         let (low, up) = dom.get_bounds();
@@ -207,33 +184,28 @@ impl KernelFunc<Real> for GaussianKernel {
             return *x;
         }
         let u: f64 = rng.random_range(context.p_low..context.p_up);
-        gaussian_icdf(*x, scontext.bandwidth, &u).clamp(low, up)
+        gaussian_icdf(*x, context.bandwidth, &u).clamp(low, up)
     }
 }
 
 impl KernelFunc<Unit> for GaussianKernel {
-    type SContext = GaussianSContext;
-    type KContext = GaussianKContext;
+    type Context = GaussianContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &Unit) -> Self::SContext {
-        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
-    }
-
-    fn get_kcontext(x: &f64, scontext: &Self::SContext, _dom: &Unit) -> Self::KContext {
-        let cst = gaussian_interval(x, scontext.bandwidth, 0.0, 1.0);
-        let p_low = gaussian_cdf(*x, scontext.bandwidth, &0.0);
-        let p_up = gaussian_cdf(*x, scontext.bandwidth, &1.0);
-        GaussianKContext { cst, p_low, p_up }
+    fn get_context(x: &f64, bandwidth: f64, _dom: &Unit) -> Self::Context {
+        let lhs = 1. / (bandwidth * SQRT_2PI);
+        let cst = gaussian_interval(x, bandwidth, 0.0, 1.0);
+        let p_low = gaussian_cdf(*x, bandwidth, &0.0);
+        let p_up = gaussian_cdf(*x, bandwidth, &1.0);
+        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
     }
 
     fn compute(
         x1: &f64,
         x2: &f64,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Unit,
     ) -> f64 {
-        scontext.lhs * (-0.5 * ((x1 - x2) / scontext.bandwidth).powi(2)).exp() / kcontext.cst
+        context.lhs * (-0.5 * ((x1 - x2) / context.bandwidth).powi(2)).exp() / context.cst
     }
 
     fn prior(x: &f64, _dom: &Unit) -> f64 {
@@ -251,48 +223,42 @@ impl KernelFunc<Unit> for GaussianKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &f64,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Unit,
     ) -> f64 {
         if (context.p_up - context.p_low).abs() < f64::EPSILON {
             return *x;
         }
         let u: f64 = rng.random_range(context.p_low..context.p_up);
-        gaussian_icdf(*x, scontext.bandwidth, &u).clamp(0.0, 1.0)
+        gaussian_icdf(*x, context.bandwidth, &u).clamp(0.0, 1.0)
     }
 }
 
 impl KernelFunc<Int> for GaussianKernel {
-    type SContext = GaussianSContext;
-    type KContext = GaussianKContext;
+    type Context = GaussianContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &Int) -> Self::SContext {
-        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
-    }
-
-    fn get_kcontext(x: &i64, scontext: &Self::SContext, dom: &Int) -> Self::KContext {
+    fn get_context(x: &i64, bandwidth: f64, dom: &Int) -> Self::Context {
+        let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
         let up = up as f64 + 0.5;
 
-        let p_low = gaussian_cdf(x.as_(), scontext.bandwidth, &low);
-        let p_up = gaussian_cdf(x.as_(), scontext.bandwidth, &up);
-        let cst = gaussian_interval(x, scontext.bandwidth, low, up);
-        GaussianKContext { cst, p_low, p_up }
+        let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
+        let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
+        let cst = gaussian_interval(x, bandwidth, low, up);
+        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
     }
 
     fn compute(
         x1: &i64,
         x2: &i64,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Int,
     ) -> f64 {
         let x = *x1 as f64;
         let (low, up) = (x - 0.5, x + 0.5);
-        let cdf = gaussian_interval(x2, scontext.bandwidth, low, up);
-        cdf / kcontext.cst
+        let cdf = gaussian_interval(x2, context.bandwidth, low, up);
+        cdf / context.cst
     }
 
     fn prior(x: &i64, dom: &Int) -> f64 {
@@ -315,8 +281,7 @@ impl KernelFunc<Int> for GaussianKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &i64,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Int,
     ) -> i64 {
         let (low, up) = dom.get_bounds();
@@ -324,44 +289,36 @@ impl KernelFunc<Int> for GaussianKernel {
             return *x;
         }
         let u: f64 = rng.random_range(context.p_low..context.p_up);
-        (gaussian_icdf(x.as_(), scontext.bandwidth, &u).round() as i64).clamp(low, up)
+        (gaussian_icdf(x.as_(), context.bandwidth, &u).round() as i64).clamp(low, up)
     }
 }
 
 impl KernelFunc<Nat> for GaussianKernel {
-    type SContext = GaussianSContext;
-    type KContext = GaussianKContext;
+    type Context = GaussianContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &Nat) -> Self::SContext {
-        GaussianSContext::new(bandwidth, 1. / (bandwidth * SQRT_2PI))
-    }
+    fn get_context(x: &u64, bandwidth: f64, dom: &Nat) -> Self::Context {
 
-    fn get_kcontext(
-        x: &<Nat as Domain>::TypeDom,
-        scontext: &Self::SContext,
-        dom: &Nat,
-    ) -> Self::KContext {
+        let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
         let up = up as f64 + 0.5;
 
-        let p_low = gaussian_cdf(x.as_(), scontext.bandwidth, &low);
-        let p_up = gaussian_cdf(x.as_(), scontext.bandwidth, &up);
-        let cst = gaussian_interval(x, scontext.bandwidth, low, up);
-        GaussianKContext { cst, p_low, p_up }
+        let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
+        let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
+        let cst = gaussian_interval(x, bandwidth, low, up);
+        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
     }
 
     fn compute(
         x1: &u64,
         x2: &u64,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Nat,
     ) -> f64 {
         let x = *x1 as f64;
         let (low, up) = (x - 0.5, x + 0.5);
-        let cdf = gaussian_interval(x2, scontext.bandwidth, low, up);
-        cdf / kcontext.cst
+        let cdf = gaussian_interval(x2, context.bandwidth, low, up);
+        cdf / context.cst
     }
 
     fn prior(x: &u64, dom: &Nat) -> f64 {
@@ -384,8 +341,7 @@ impl KernelFunc<Nat> for GaussianKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &u64,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Nat,
     ) -> u64 {
         let (low, up) = dom.get_bounds();
@@ -393,7 +349,7 @@ impl KernelFunc<Nat> for GaussianKernel {
             return *x;
         }
         let u: f64 = rng.random_range(context.p_low..context.p_up);
-        (gaussian_icdf(x.as_(), scontext.bandwidth, &u).round() as u64).clamp(low, up)
+        (gaussian_icdf(x.as_(), context.bandwidth, &u).round() as u64).clamp(low, up)
     }
 }
 
@@ -408,42 +364,37 @@ impl KernelFunc<Nat> for GaussianKernel {
 pub struct AitchisonAitkenKernel;
 
 #[derive(Serialize, Deserialize)]
-pub struct AitchisonAitkenSContext {
+pub struct AitchisonAitkenContext {
     pub bandwidth: f64,
 }
 
-impl AitchisonAitkenSContext {
+impl AitchisonAitkenContext {
     pub fn new(bandwidth: f64) -> Self {
-        AitchisonAitkenSContext { bandwidth }
+        AitchisonAitkenContext { bandwidth }
     }
 }
 
 impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
-    type SContext = AitchisonAitkenSContext;
-    type KContext = (); // No context needed for categorical kernel
+    type Context = AitchisonAitkenContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &GridDom<T>) -> Self::SContext {
-        AitchisonAitkenSContext::new(bandwidth)
-    }
-
-    fn get_kcontext(
+    fn get_context(
         _x: &<GridDom<T> as Domain>::TypeDom,
-        _scontext: &Self::SContext,
+        bandwidth: f64,
         _dom: &GridDom<T>,
-    ) -> Self::KContext {
+    ) -> Self::Context {
+        AitchisonAitkenContext::new(bandwidth)
     }
 
     fn compute(
         x1: &T,
         x2: &T,
-        _kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &GridDom<T>,
     ) -> f64 {
         if x1 == x2 {
-            1.0 - scontext.bandwidth
+            1.0 - context.bandwidth
         } else {
-            scontext.bandwidth / (dom.size() as f64 - 1.0)
+            context.bandwidth / (dom.size() as f64 - 1.0)
         }
     }
 
@@ -454,12 +405,11 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &T,
-        _context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &GridDom<T>,
     ) -> T {
         let u: f64 = rng.random();
-        let threshold = 1.0 - scontext.bandwidth;
+        let threshold = 1.0 - context.bandwidth;
         if u < threshold {
             x.clone()
         } else {
@@ -472,31 +422,26 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
 }
 
 impl KernelFunc<Bool> for AitchisonAitkenKernel {
-    type SContext = AitchisonAitkenSContext;
-    type KContext = (); // No context needed for categorical kernel
+    type Context = AitchisonAitkenContext;
 
-    fn get_scontext(bandwidth: f64, _dom: &Bool) -> Self::SContext {
-        AitchisonAitkenSContext::new(bandwidth)
-    }
-
-    fn get_kcontext(
+    fn get_context(
         _x: &<Bool as Domain>::TypeDom,
-        _scontext: &Self::SContext,
+        bandwidth: f64,
         _dom: &Bool,
-    ) -> Self::KContext {
+    ) -> Self::Context {
+        AitchisonAitkenContext::new(bandwidth)
     }
 
     fn compute(
         x1: &bool,
         x2: &bool,
-        _kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Bool,
     ) -> f64 {
         if x1 == x2 {
-            1.0 - scontext.bandwidth
+            1.0 - context.bandwidth
         } else {
-            scontext.bandwidth / (dom.size() as f64 - 1.0)
+            context.bandwidth / (dom.size() as f64 - 1.0)
         }
     }
 
@@ -507,12 +452,11 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &bool,
-        _context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         _dom: &Bool,
     ) -> bool {
         let u: f64 = rng.random();
-        let threshold = 1.0 - scontext.bandwidth;
+        let threshold = 1.0 - context.bandwidth;
         if u < threshold { *x } else { !*x }
     }
 }
@@ -523,73 +467,42 @@ pub enum MixedKernel {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum MixedSContext {
-    Gaussian(GaussianSContext),
-    AitchisonAitken(AitchisonAitkenSContext),
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum MixedKContext {
-    Gaussian(GaussianKContext),
-    AitchisonAitken(()),
+pub enum MixedContext {
+    Gaussian(GaussianContext),
+    AitchisonAitken(AitchisonAitkenContext),
 }
 
 impl KernelFunc<Mixed> for MixedKernel {
-    type SContext = MixedSContext;
-    type KContext = MixedKContext;
+    type Context = MixedContext;
 
-    fn get_scontext(bandwidth: f64, dom: &Mixed) -> Self::SContext {
-        match dom {
-            Mixed::Real(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
-            Mixed::Nat(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
-            Mixed::Int(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
-            Mixed::Unit(d) => MixedSContext::Gaussian(GaussianKernel::get_scontext(bandwidth, d)),
-            Mixed::Bool(d) => {
-                MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d))
+    fn get_context(x: &MixedTypeDom, bandwidth: f64, dom: &Mixed) -> Self::Context {
+        match (x, dom) {
+            (MixedTypeDom::Real(x), Mixed::Real(d)) => {
+                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
             }
-            Mixed::Cat(d) => {
-                MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d))
+            (MixedTypeDom::Unit(x), Mixed::Unit(d)) => {
+                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
             }
-            Mixed::GridReal(d) => {
-                MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d))
+            (MixedTypeDom::Int(x), Mixed::Int(d)) => {
+                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
             }
-            Mixed::GridNat(d) => {
-                MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d))
+            (MixedTypeDom::Nat(x), Mixed::Nat(d)) => {
+                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
             }
-            Mixed::GridInt(d) => {
-                MixedSContext::AitchisonAitken(AitchisonAitkenKernel::get_scontext(bandwidth, d))
+            (MixedTypeDom::Bool(x), Mixed::Bool(d)) => {
+                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
             }
-        }
-    }
-
-    fn get_kcontext(x: &MixedTypeDom, scontext: &Self::SContext, dom: &Mixed) -> Self::KContext {
-        match (x, scontext, dom) {
-            (MixedTypeDom::Real(x), MixedSContext::Gaussian(sctx), Mixed::Real(d)) => {
-                MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d))
+            (MixedTypeDom::Cat(x), Mixed::Cat(d)) => {
+                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
             }
-            (MixedTypeDom::Unit(x), MixedSContext::Gaussian(sctx), Mixed::Unit(d)) => {
-                MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d))
+            (MixedTypeDom::GridReal(x), Mixed::GridReal(d)) => {
+                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
             }
-            (MixedTypeDom::Int(x), MixedSContext::Gaussian(sctx), Mixed::Int(d)) => {
-                MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d))
+            (MixedTypeDom::GridNat(x), Mixed::GridNat(d)) => {
+                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
             }
-            (MixedTypeDom::Nat(x), MixedSContext::Gaussian(sctx), Mixed::Nat(d)) => {
-                MixedKContext::Gaussian(GaussianKernel::get_kcontext(x, sctx, d))
-            }
-            (MixedTypeDom::Bool(_), MixedSContext::AitchisonAitken(_), Mixed::Bool(_)) => {
-                MixedKContext::AitchisonAitken(())
-            }
-            (MixedTypeDom::Cat(_), MixedSContext::AitchisonAitken(_), Mixed::Cat(_)) => {
-                MixedKContext::AitchisonAitken(())
-            }
-            (MixedTypeDom::GridReal(_), MixedSContext::AitchisonAitken(_), Mixed::GridReal(_)) => {
-                MixedKContext::AitchisonAitken(())
-            }
-            (MixedTypeDom::GridNat(_), MixedSContext::AitchisonAitken(_), Mixed::GridNat(_)) => {
-                MixedKContext::AitchisonAitken(())
-            }
-            (MixedTypeDom::GridInt(_), MixedSContext::AitchisonAitken(_), Mixed::GridInt(_)) => {
-                MixedKContext::AitchisonAitken(())
+            (MixedTypeDom::GridInt(x), Mixed::GridInt(d)) => {
+                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
             }
             _ => panic!("Mismatched kernel context and input type"),
         }
@@ -598,74 +511,64 @@ impl KernelFunc<Mixed> for MixedKernel {
     fn compute(
         x1: &MixedTypeDom,
         x2: &MixedTypeDom,
-        kcontext: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Mixed,
     ) -> f64 {
-        match (x1, x2, kcontext, scontext, dom) {
+        match (x1, x2, context, dom) {
             (
                 MixedTypeDom::Real(x),
                 MixedTypeDom::Real(y),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Real(d),
-            ) => GaussianKernel::compute(x, y, kctx, sctx, d),
+            ) => GaussianKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::Unit(x),
                 MixedTypeDom::Unit(y),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Unit(d),
-            ) => GaussianKernel::compute(x, y, kctx, sctx, d),
+            ) => GaussianKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::Int(x),
                 MixedTypeDom::Int(y),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Int(d),
-            ) => GaussianKernel::compute(x, y, kctx, sctx, d),
+            ) => GaussianKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::Nat(x),
                 MixedTypeDom::Nat(y),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Nat(d),
-            ) => GaussianKernel::compute(x, y, kctx, sctx, d),
+            ) => GaussianKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::Bool(x),
                 MixedTypeDom::Bool(y),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::Bool(d),
-            ) => AitchisonAitkenKernel::compute(x, y, kctx, sctx, d),
+            ) => AitchisonAitkenKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::Cat(x),
                 MixedTypeDom::Cat(y),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::Cat(d),
-            ) => AitchisonAitkenKernel::compute(x, y, kctx, sctx, d),
+            ) => AitchisonAitkenKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::GridReal(x),
                 MixedTypeDom::GridReal(y),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridReal(d),
-            ) => AitchisonAitkenKernel::compute(x, y, kctx, sctx, d),
+            ) => AitchisonAitkenKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::GridNat(x),
                 MixedTypeDom::GridNat(y),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridNat(d),
-            ) => AitchisonAitkenKernel::compute(x, y, kctx, sctx, d),
+            ) => AitchisonAitkenKernel::compute(x, y, ctx, d),
             (
                 MixedTypeDom::GridInt(x),
                 MixedTypeDom::GridInt(y),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridInt(d),
-            ) => AitchisonAitkenKernel::compute(x, y, kctx, sctx, d),
+            ) => AitchisonAitkenKernel::compute(x, y, ctx, d),
             _ => panic!("Mismatched kernel context and input type"),
         }
     }
@@ -688,65 +591,55 @@ impl KernelFunc<Mixed> for MixedKernel {
     fn sample<R: Rng>(
         rng: &mut R,
         x: &MixedTypeDom,
-        context: &Self::KContext,
-        scontext: &Self::SContext,
+        context: &Self::Context,
         dom: &Mixed,
     ) -> MixedTypeDom {
-        match (x, context, scontext, dom) {
+        match (x, context, dom) {
             (
                 MixedTypeDom::Real(x),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Real(d),
-            ) => MixedTypeDom::Real(GaussianKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Real(GaussianKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::Unit(x),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Unit(d),
-            ) => MixedTypeDom::Unit(GaussianKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Unit(GaussianKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::Int(x),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Int(d),
-            ) => MixedTypeDom::Int(GaussianKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Int(GaussianKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::Nat(x),
-                MixedKContext::Gaussian(kctx),
-                MixedSContext::Gaussian(sctx),
+                MixedContext::Gaussian(ctx),
                 Mixed::Nat(d),
-            ) => MixedTypeDom::Nat(GaussianKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Nat(GaussianKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::Bool(x),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::Bool(d),
-            ) => MixedTypeDom::Bool(AitchisonAitkenKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Bool(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::Cat(x),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::Cat(d),
-            ) => MixedTypeDom::Cat(AitchisonAitkenKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::Cat(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::GridReal(x),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridReal(d),
-            ) => MixedTypeDom::GridReal(AitchisonAitkenKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::GridReal(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::GridNat(x),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridNat(d),
-            ) => MixedTypeDom::GridNat(AitchisonAitkenKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::GridNat(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
             (
                 MixedTypeDom::GridInt(x),
-                MixedKContext::AitchisonAitken(kctx),
-                MixedSContext::AitchisonAitken(sctx),
+                MixedContext::AitchisonAitken(ctx),
                 Mixed::GridInt(d),
-            ) => MixedTypeDom::GridInt(AitchisonAitkenKernel::sample(rng, x, kctx, sctx, d)),
+            ) => MixedTypeDom::GridInt(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
             _ => panic!("Mismatched kernel context and input type"),
         }
     }
@@ -769,38 +662,18 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    /// The shared context type for the kernel,
-    /// which can hold precomputed values or parameters needed for efficient kernel computation across multiple calls.
-    /// This is useful for kernels that require expensive computations that can be reused, such as normalization constants or bandwidth parameters.
-    type SContext: Serialize + for<'a> Deserialize<'a>;
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
-    /// for efficient kernel computation.
-    type KContext: Serialize + for<'a> Deserialize<'a>;
+    /// for efficient kernel computation for each point within the archive.
+    type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_scontext(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext;
-
-    fn get_kcontext(
-        archive: &[&Xy<S::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext>;
-
-    fn get_context(
-        archive: &[&Xy<S::Raw, TypeCodom<Out>>],
-        scp: &Scp,
-    ) -> (Self::SContext, Vec<Self::KContext>) {
-        let scontext = Self::get_scontext(archive, scp);
-        let kcontext = Self::get_kcontext(archive, &scontext, scp);
-        (scontext, kcontext)
-    }
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>;
 
     fn compute(
         &self,
         s: &S::Raw,
         archive: &[&Xy<S::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64;
@@ -811,26 +684,9 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<S::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> S::Raw;
-}
-
-pub fn compute_bw(size: usize, dim: usize, dom: &Mixed) -> f64 {
-    match dom {
-        // Numerical
-        Mixed::Real(d) => optuna_bw(size, dim, d),
-        Mixed::Nat(d) => optuna_bw(size, dim, d),
-        Mixed::Int(d) => optuna_bw(size, dim, d),
-        Mixed::Unit(d) => optuna_bw(size, dim, d),
-        // Categorical
-        Mixed::Cat(d) => cat_bw(size, d),
-        Mixed::GridReal(d) => cat_bw(size, d),
-        Mixed::GridNat(d) => cat_bw(size, d),
-        Mixed::GridInt(d) => cat_bw(size, d),
-        Mixed::Bool(d) => cat_bw(size, d),
-    }
 }
 
 /// The univariate kernel computes the product of the kernel values for each dimension of the solution, assuming independence between dimensions.
@@ -852,15 +708,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<MixedKContext>;
-    type SContext = Vec<MixedSContext>;
+    type Context = Vec<MixedContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -872,9 +726,9 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .zip(kcontext.iter())
-                    .map(|((comp, weight), kctx)| {
-                        MixedKernel::compute(x1, &comp.ref_x()[d], &kctx[d], &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        MixedKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -888,8 +742,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -898,8 +751,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                MixedKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                MixedKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -914,28 +767,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = compute_bw(archive.len(), scp.size(), dom);
-                MixedKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| MixedKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        MixedKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -951,15 +796,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -971,9 +814,9 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .zip(kcontext.iter())
-                    .map(|((comp, weight), kctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &kctx[d], &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -987,8 +830,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -997,8 +839,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1012,29 +854,21 @@ where
             })
             .product()
     }
-
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1050,15 +884,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -1070,9 +902,9 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .zip(kcontext.iter())
-                    .map(|((comp, weight), kctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &kctx[d], &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1086,8 +918,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1096,8 +927,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1112,28 +943,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1149,15 +972,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -1169,9 +990,9 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .zip(kcontext.iter())
-                    .map(|((comp, weight), kctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &kctx[d], &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1185,8 +1006,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1195,8 +1015,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1211,28 +1031,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1248,15 +1060,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -1268,9 +1078,9 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .zip(kcontext.iter())
-                    .map(|((comp, weight), kctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &kctx[d], &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1284,8 +1094,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1294,8 +1103,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1310,28 +1119,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1348,15 +1149,13 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = ();
-    type SContext = Vec<AitchisonAitkenSContext>;
+    type Context = Vec<AitchisonAitkenContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        _kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
@@ -1368,15 +1167,15 @@ where
                 archive
                     .iter()
                     .zip(weights.weights.iter())
-                    .map(|(comp, weight)| {
-                        AitchisonAitkenKernel::compute(x1, &comp.ref_x()[d], &(), &scontext[d], dom)
+                    .zip(context.iter())
+                    .map(|((comp, weight), ctx)| {
+                        AitchisonAitkenKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
             })
             .product();
-        let prior =
-            <Univariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = <Univariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
@@ -1384,8 +1183,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        _kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1394,7 +1192,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                AitchisonAitkenKernel::sample(rng, &x[d], &(), &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                AitchisonAitkenKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1409,28 +1208,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = cat_bw(archive.len(), dom);
-                AitchisonAitkenKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| AitchisonAitkenKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        AitchisonAitkenKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1457,30 +1248,27 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<MixedKContext>;
-    type SContext = Vec<MixedSContext>;
+    type Context = Vec<MixedContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .zip(kcontext.iter())
+            .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .zip(scontext.iter())
-                    .map(|((((x1, x2), dom), kctx), sctx)| {
-                        MixedKernel::compute(x1, x2, kctx, sctx, dom)
+                    .map(|(((x1, x2), dom), dctx)| {
+                        MixedKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
@@ -1494,8 +1282,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1504,8 +1291,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                MixedKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                MixedKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1520,28 +1307,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = compute_bw(archive.len(), scp.size(), dom);
-                MixedKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| MixedKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        MixedKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1557,30 +1336,27 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .zip(kcontext.iter())
+            .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .zip(scontext.iter())
-                    .map(|((((x1, x2), dom), kctx), sctx)| {
-                        GaussianKernel::compute(x1, x2, kctx, sctx, dom)
+                    .map(|(((x1, x2), dom), dctx)| {
+                        GaussianKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
@@ -1594,8 +1370,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1604,8 +1379,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1620,28 +1395,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1657,30 +1424,27 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .zip(kcontext.iter())
+            .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .zip(scontext.iter())
-                    .map(|((((x1, x2), dom), kctx), sctx)| {
-                        GaussianKernel::compute(x1, x2, kctx, sctx, dom)
+                    .map(|(((x1, x2), dom), dctx)| {
+                        GaussianKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
@@ -1694,8 +1458,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1704,8 +1467,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1720,28 +1483,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1757,30 +1512,27 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .zip(kcontext.iter())
+            .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .zip(scontext.iter())
-                    .map(|((((x1, x2), dom), kctx), sctx)| {
-                        GaussianKernel::compute(x1, x2, kctx, sctx, dom)
+                    .map(|(((x1, x2), dom), dctx)| {
+                        GaussianKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
@@ -1794,8 +1546,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1804,8 +1555,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1820,28 +1571,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1857,30 +1600,27 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = Vec<GaussianKContext>;
-    type SContext = Vec<GaussianSContext>;
+    type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .zip(kcontext.iter())
+            .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .zip(scontext.iter())
-                    .map(|((((x1, x2), dom), kctx), sctx)| {
-                        GaussianKernel::compute(x1, x2, kctx, sctx, dom)
+                    .map(|(((x1, x2), dom), dctx)| {
+                        GaussianKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
@@ -1894,8 +1634,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -1904,8 +1643,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                let ctx = &kcontext[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -1920,28 +1659,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = optuna_bw(archive.len(), scp.size(), dom);
-                GaussianKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| GaussianKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()
@@ -1958,35 +1689,33 @@ where
     SInfo: SolInfo,
     Out: Outcome,
 {
-    type KContext = ();
-    type SContext = Vec<AitchisonAitkenSContext>;
+    type Context = Vec<AitchisonAitkenContext>;
 
     fn compute(
         &self,
         s: &<S>::Raw,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        _kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         weights: &PointWeights,
         scp: &Scp,
     ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
-            .map(|(comp, weight)| {
+            .zip(context.iter())
+            .map(|((comp, weight), ctx)| {
                 s.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|(((x1, x2), dom), sctx)| {
-                        AitchisonAitkenKernel::compute(x1, x2, &(), sctx, dom)
+                    .zip(ctx.iter())
+                    .map(|(((x1, x2), dom), dctx)| {
+                        AitchisonAitkenKernel::compute(x1, x2, dctx, dom)
                     })
                     .product::<f64>()
                     * weight
             })
             .sum();
-        let prior =
-            <Multivariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = <Multivariate as Kernel<GridDom<T>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
@@ -1994,8 +1723,7 @@ where
         &self,
         rng: &mut R,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        _kcontext: &[Self::KContext],
-        scontext: &Self::SContext,
+        context: &[Self::Context],
         scp: &Scp,
     ) -> <S>::Raw {
         let dim = scp.size();
@@ -2004,7 +1732,8 @@ where
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
                 let x = archive[rng_idx].ref_x();
-                AitchisonAitkenKernel::sample(rng, &x[d], &(), &scontext[d], dom)
+                let ctx = &context[rng_idx];
+                AitchisonAitkenKernel::sample(rng, &x[d], &ctx[d], dom)
             })
             .collect()
     }
@@ -2019,28 +1748,20 @@ where
             .product()
     }
 
-    fn get_scontext(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::SContext {
-        scp.iter_opt()
-            .map(|dom| {
-                let bandwidth = cat_bw(archive.len(), dom);
-                AitchisonAitkenKernel::get_scontext(bandwidth, dom)
-            })
-            .collect()
-    }
-
-    fn get_kcontext(
-        archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        scontext: &Self::SContext,
-        scp: &Scp,
-    ) -> Vec<Self::KContext> {
+    fn get_context<Bw: BandwidthType>(archive: &[&Xy<<S>::Raw, TypeCodom<Out>>], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    {
         archive
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 p.ref_x()
                     .iter()
                     .zip(scp.iter_opt())
-                    .zip(scontext.iter())
-                    .map(|((x, dom), sctx)| AitchisonAitkenKernel::get_kcontext(x, sctx, dom))
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        AitchisonAitkenKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
                     .collect()
             })
             .collect()

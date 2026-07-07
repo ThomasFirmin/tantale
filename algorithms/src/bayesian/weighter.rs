@@ -57,7 +57,7 @@ where
 pub struct UniformWeighter(f64);
 
 impl UniformWeighter {
-    /// Creates a new [`UniformWeighter`] with a default prior weight of 1.0.
+    /// Creates a new [`UniformWeighter`].
     pub fn new(prior: f64) -> Self {
         UniformWeighter(prior)
     }

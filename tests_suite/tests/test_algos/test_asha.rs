@@ -1,3 +1,4 @@
+use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{
     Asha, LinearSplit, RandomSearch, Tpe, UniformWeighter, Univariate, asha, tpe,
 };
@@ -198,6 +199,7 @@ fn test_fid_seq_run_tpe() {
         5,
         30,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -223,7 +225,7 @@ fn test_fid_seq_run_tpe() {
 
     let mut exp = load!(
         mono,
-        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
         Evaluated,
         sp,
         obj,
@@ -251,7 +253,7 @@ fn test_fid_seq_run_tpe() {
 
     let exp = load!(
         mono,
-        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
         Evaluated,
         sp,
         obj,
@@ -289,6 +291,7 @@ fn test_fid_seq_parrun_tpe() {
         5,
         30,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -314,7 +317,7 @@ fn test_fid_seq_parrun_tpe() {
 
     let mut exp = load!(
         threaded,
-        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
         Evaluated,
         sp,
         obj,
@@ -348,7 +351,7 @@ fn test_fid_seq_parrun_tpe() {
 
     let exp = load!(
         threaded,
-        asha!(tpe!(Univariate, UniformWeighter, LinearSplit)),
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
         Evaluated,
         sp,
         obj,

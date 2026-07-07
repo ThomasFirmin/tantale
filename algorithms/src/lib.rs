@@ -50,4 +50,8 @@ pub use bayesian::{
     tpe,
     tpe::Tpe,
     weighter::UniformWeighter,
+    bandwidth::{Bandwidth, BandwidthType, Optuna, Scott, Hyperopt, CategoricalBw},
 };
+
+#[cfg(feature = "spikes")]
+pub mod spikes;

@@ -1,3 +1,4 @@
+use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::bayesian::splitter::MOSplit;
 use tantale::algos::{Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
@@ -21,6 +22,7 @@ fn test_mo_tpe_seq_run() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );
@@ -45,7 +47,7 @@ fn test_mo_tpe_seq_run() {
 
     let mut exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, MOSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
         Evaluated,
         sp,
         obj,
@@ -68,7 +70,7 @@ fn test_mo_tpe_seq_run() {
 
     let _exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, MOSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
         Evaluated,
         sp,
         obj,
@@ -87,6 +89,7 @@ fn test_mo_tpe_seqthr_run() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );
@@ -111,7 +114,7 @@ fn test_mo_tpe_seqthr_run() {
 
     let mut exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, MOSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
         Evaluated,
         sp,
         obj,
@@ -137,7 +140,7 @@ fn test_mo_tpe_seqthr_run() {
 
     let _exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, MOSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
         Evaluated,
         sp,
         obj,

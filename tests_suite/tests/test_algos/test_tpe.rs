@@ -1,3 +1,4 @@
+use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{LinearSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
@@ -20,6 +21,7 @@ fn test_tpe_seq_run() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -44,7 +46,7 @@ fn test_tpe_seq_run() {
 
     let mut exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -67,7 +69,7 @@ fn test_tpe_seq_run() {
 
     let _exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -86,6 +88,7 @@ fn test_tpe_seqthr_run() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -110,7 +113,7 @@ fn test_tpe_seqthr_run() {
 
     let mut exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -136,7 +139,7 @@ fn test_tpe_seqthr_run() {
 
     let _exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -155,6 +158,7 @@ fn test_tpe_seq_run_real() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -179,7 +183,7 @@ fn test_tpe_seq_run_real() {
 
     let mut exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -202,7 +206,7 @@ fn test_tpe_seq_run_real() {
 
     let _exp = load!(
         mono,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -221,6 +225,7 @@ fn test_tpe_seqthr_run_real() {
         5,
         10,
         Univariate,
+        Optuna::new(false),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -245,7 +250,7 @@ fn test_tpe_seqthr_run_real() {
 
     let mut exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
@@ -271,7 +276,7 @@ fn test_tpe_seqthr_run_real() {
 
     let _exp = load!(
         threaded,
-        tpe!(Univariate, UniformWeighter, LinearSplit),
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
         Evaluated,
         sp,
         obj,
