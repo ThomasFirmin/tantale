@@ -21,7 +21,9 @@ where
     Out: Outcome,
 {
     type BwType: BandwidthType;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType;
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>;
 }
 
 /// A struct representing the Optuna bandwidth method for Gaussian kernels.
@@ -102,7 +104,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T: AsRef<Xy<<S>::Raw, TypeCodom<Out>>>>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType {
         let n_size = archive.len() as f64;
         
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
@@ -125,7 +127,10 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         let n_size = archive.len() as f64;
         
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
@@ -148,7 +153,10 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         let n_size = archive.len() as f64;
         
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
@@ -171,7 +179,10 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         let n_size = archive.len() as f64;
         
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
@@ -194,7 +205,10 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         let size = archive.len() as f64;
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
@@ -218,8 +232,9 @@ where
     }
 }
 
-fn hyperopt<'a, Raw, Y, I, D>(archive: &[&Xy<Raw, Y>], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Array2<f64>
+fn hyperopt<'a, T, Raw, Y, I, D>(archive: &[T], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Array2<f64>
 where
+    T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     I: Iterator<Item = &'a D>,
     D: NumericalDomain + 'a,
     D::TypeDom: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
@@ -305,18 +320,9 @@ where
     }
 }
 
-fn hyperopt_mixed<
-    'a,
-    Y,
-    DomIter,
->(
-    archive: &[&Xy<Arc<[MixedTypeDom]>, Y>],
-    doms: DomIter,
-    consider_endpoint: bool,
-    dim: usize,
-    clip:bool,
-) -> Array2<f64>
+fn hyperopt_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, consider_endpoint: bool, dim: usize, clip:bool) -> Array2<f64>
 where
+    T : AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
     DomIter: IntoIterator<Item = &'a Mixed>,
 {
     let n = archive.len();
@@ -334,7 +340,7 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                 .map(|x| {
-                    match x.x[colindex] {
+                    match x.as_ref().x[colindex] {
                             MixedTypeDom::Real(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -347,7 +353,7 @@ where
                 let col: Vec<i64> = archive
                     .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Int(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -360,7 +366,7 @@ where
                 let col: Vec<u64> = archive
                     .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Nat(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -373,7 +379,7 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Unit(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -464,7 +470,10 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
@@ -480,7 +489,10 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
@@ -496,7 +508,10 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
@@ -512,7 +527,10 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
@@ -530,7 +548,10 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         hyperopt_mixed(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
@@ -544,19 +565,22 @@ where
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CategoricalBw;
 
-impl<T, Scp, S, SolId, SInfo, Out> Bandwidth<GridDom<T>, Scp, S, SolId, SInfo, Out> for Hyperopt
+impl<G, Scp, S, SolId, SInfo, Out> Bandwidth<GridDom<G>, Scp, S, SolId, SInfo, Out> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    T: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<T>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<T>, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    G: GridBounds,
+    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
+    S: Uncomputed<SolId, GridDom<G>, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         scp.iter_opt().map(
             |dom| cat_bw(archive.len().as_(), dom)
         )
@@ -575,14 +599,18 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         let n: f64 = archive.len().as_();
         vec![(n +1.) / (n + 2.) ; scp.size()]
     }
 }
 
-fn scott<'a, Raw, D, Y, I>(archive: &[&Xy<Raw, Y>], doms: I, clip: bool) -> Vec<f64>
+fn scott<'a, T, Raw, D, Y, I>(archive: &[T], doms: I, clip: bool) -> Vec<f64>
 where
+    T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     D: NumericalDomain + 'a,
     D::TypeDom: Num + AsPrimitive<f64>,
     Raw: XToNdArray<D>,
@@ -648,13 +676,9 @@ where
     bw
 }
 
-fn scott_mixed<'a,Y,DomIter>(
-    archive: &[&Xy<Arc<[MixedTypeDom]>, Y>],
-    doms: DomIter,
-    dim: usize,
-    clip: bool
-) -> Vec<f64>
+fn scott_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, dim: usize, clip: bool) -> Vec<f64>
 where
+    T: AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
     DomIter: IntoIterator<Item = &'a Mixed>,
 {
     let n = archive.len();
@@ -672,7 +696,7 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                 .map(|x| {
-                    match x.x[colindex] {
+                    match x.as_ref().x[colindex] {
                             MixedTypeDom::Real(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -685,7 +709,7 @@ where
                 let col: Vec<i64> = archive
                     .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Int(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -698,7 +722,7 @@ where
                 let col: Vec<u64> = archive
                     .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Nat(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -711,7 +735,7 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                     .map(|x| {
-                        match x.x[colindex] {
+                        match x.as_ref().x[colindex] {
                             MixedTypeDom::Unit(e) => e,
                             _ => panic!("Unexpected non-numeric type in numeric column"),
                         }
@@ -777,8 +801,11 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
-        scott::<S::Raw, Real, _, _>(archive, scp.iter_opt(), self.0)
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
+        scott::<_, S::Raw, Real, _, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -793,8 +820,11 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
-        scott::<S::Raw, Int, _, _>(archive, scp.iter_opt(), self.0)
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
+        scott(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -809,8 +839,11 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
-        scott::<S::Raw, Nat, _, _>(archive, scp.iter_opt(), self.0)
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
+        scott(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -825,8 +858,11 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
-        scott::<S::Raw, Unit, _, _>(archive, scp.iter_opt(), self.0)
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
+        scott(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -841,7 +877,10 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute(&mut self, archive: &[&Xy<S::Raw, TypeCodom<Out>>], scp: &Scp) -> Self::BwType{
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    where
+        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+    {
         scott_mixed(archive, scp.iter_opt(), scp.size(), self.0)
     }
 }
