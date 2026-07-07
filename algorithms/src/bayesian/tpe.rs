@@ -108,10 +108,11 @@ impl CSVWritable<(), ()> for TpeSInfo {
     }
 
     fn write(&self, _comp: &()) -> Vec<String> {
-        vec![format!(
-            "{},{},{}",
-            self.acquisition, self.good_bdf, self.bad_pdf
-        )]
+        vec![
+            self.acquisition.to_string(),
+            self.good_bdf.to_string(),
+            self.bad_pdf.to_string()
+        ]
     }
 }
 
@@ -293,8 +294,7 @@ where
     pub fn new(
         n_init: usize,
         n_sample: usize,
-        kernel: Kern,
-        bandwidth: Bw,
+        kernel: (Kern, Bw),
         weighter: Wght,
         splitter: Splt,
     ) -> Self {
@@ -303,8 +303,8 @@ where
         Tpe(TpeState {
             n_init,
             n_sample,
-            kernel,
-            bandwidth,
+            kernel: kernel.0,
+            bandwidth: kernel.1,
             weighter,
             splitter,
             point_archive: vec![(0.0, OrderedArchive::default())],
