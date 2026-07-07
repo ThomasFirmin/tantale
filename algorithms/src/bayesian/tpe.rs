@@ -778,7 +778,7 @@ where
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
             // Split the archive into good and bad, and compute the weights
-            let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
+            let (good, bad) = self.0.splitter.split(&self.0.point_archive[self.0.current_archive].1);
             
             let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
             let good_bw =  self.0.bandwidth.compute(&good, scp);
