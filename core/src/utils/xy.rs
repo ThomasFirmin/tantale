@@ -31,6 +31,12 @@ impl <Raw, Y> Xy<Raw, Y> {
     }
 }
 
+impl<Raw, Y> AsRef<Xy<Raw, Y>> for Xy<Raw, Y> {
+    fn as_ref(&self) -> &Xy<Raw, Y> {
+        self
+    }
+}
+
 impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y> {
     fn ref_x(&self) -> &Raw {
         &self.x
