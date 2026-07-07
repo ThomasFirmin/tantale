@@ -22,9 +22,9 @@ where
 {
     fn predict(
         &self,
-        s: &S::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<S::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64;
@@ -42,25 +42,25 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        // Compute the kernel and the kernel-weighted sum for each dimension, then take the product across dimensions.
-        let product= s
+        // Compute the kernel and the kernel-yed sum for each dimension, then take the product across dimensions.
+        let product= x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = MixedKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -82,24 +82,24 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        let product: (f64, f64) = s
+        let product: (f64, f64) = x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -121,24 +121,24 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        let product: (f64,f64) = s
+        let product: (f64,f64) = x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -160,24 +160,24 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        let product: (f64,f64) = s
+        let product: (f64,f64) = x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -199,24 +199,24 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        let product: (f64,f64) = s
+        let product: (f64,f64) = x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -239,24 +239,24 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
-        let product: (f64,f64) = s
+        let product: (f64,f64) = x
             .iter()
             .zip(scp.iter_opt())
             .enumerate()
             .map(|(d, (x1, dom))| {
                 archive
                     .iter()
-                    .zip(predictor.iter())
+                    .zip(y.iter())
                     .zip(context.iter())
-                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, weight), ctx)| {
+                    .fold((0.0, 0.0), |(sum_kw, sum_k), ((comp, pred), ctx)| {
                         let k = AitchisonAitkenKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom);
-                        (sum_kw + k * weight, sum_k + k)
+                        (sum_kw + k * pred, sum_k + k)
                     })
             })
             .fold((1.0, 1.0), |(prod_kw, prod_k), (sum_kw, sum_k)| {
@@ -278,18 +278,18 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -297,7 +297,7 @@ where
                         MixedKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
@@ -317,18 +317,18 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -336,7 +336,7 @@ where
                         GaussianKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
@@ -356,18 +356,18 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -375,7 +375,7 @@ where
                         GaussianKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
@@ -395,18 +395,18 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -414,7 +414,7 @@ where
                         GaussianKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
@@ -434,18 +434,18 @@ where
 {
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -453,7 +453,7 @@ where
                         GaussianKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
@@ -475,18 +475,18 @@ where
 
     fn predict(
         &self,
-        s: &<S>::Raw,
+        x: &S::Raw,
+        y: &Predictor,
         archive: &[&Xy<<S>::Raw, TypeCodom<Out>>],
-        predictor: &Predictor,
         context: &[Self::Context],
         scp: &Scp,
     ) -> f64 {
         let sum: (f64, f64) = archive
             .iter()
-            .zip(predictor.iter())
+            .zip(y.iter())
             .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                let product: f64 = s.iter()
+            .map(|((comp, pred), ctx)| {
+                let product: f64 = x.iter()
                     .zip(comp.ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
@@ -494,7 +494,7 @@ where
                         AitchisonAitkenKernel::compute(x1, x2, ctx, dom)
                     })
                     .product();
-                (product * weight, product)
+                (product * pred, product)
             })
             .fold((0.0, 0.0), |(sum_kw, sum_k), (prod_w, prod)| {
                 (sum_kw + prod_w, sum_k + prod)
