@@ -368,6 +368,44 @@ where
     /// }
     /// ```
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
+    /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
+    ///
+    /// Samples each variable using its Obj domain sampler.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Example
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{HasX, Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
+    /// use std::sync::Arc;
+    ///
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
+    ///
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
+    ///
+    /// let obj: Arc<[Mixed]> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_raw_obj(&sp, &mut rng);
+    ///
+    /// for i in obj.iter(){
+    ///     println!("{:?}", i);
+    /// }
+    /// ```
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo>;
     /// Generates a random solution in the Opt (optimizer) domain.
     ///
     /// Samples each variable using its Opt domain sampler.
@@ -375,7 +413,6 @@ where
     /// # Parameters
     ///
     /// * `rng` - Random number generator
-    /// * `info` - Shared solution metadata
     ///
     /// # Example
     /// ```
@@ -407,6 +444,44 @@ where
     /// }
     /// ```
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
+    /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
+    ///
+    /// Samples each variable using its Opt domain sampler.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `info` - Shared solution metadata
+    ///
+    /// # Example
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{HasX, Sp, BaseSol, Mixed, Real, Solution, EmptyInfo, SId, Searchspace};
+    /// use std::sync::Arc;
+    ///
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
+    ///
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
+    ///
+    /// let opt: Arc<[Real]> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::sample_raw_opt(&sp, &mut rng);
+    ///
+    /// for i in opt.iter(){
+    ///     println!("{:?}", i);
+    /// }
+    /// ```
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo>;
     /// Generates a random paired solution containing both Obj and Opt representations.
     ///
     /// Samples in the Obj domain and automatically creates the paired Opt representation
@@ -415,7 +490,6 @@ where
     /// # Parameters
     ///
     /// * `rng` - Random number generator
-    /// * `info` - Shared solution metadata
     ///
     /// # Example
     /// ```
@@ -666,6 +740,50 @@ where
         size: usize,
         info: Arc<SInfo>,
     ) -> Vec<SolOpt::Twin<Self::Obj>>;
+    /// Generates multiple random raw solutions in the Obj domain.
+    ///
+    /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
+    /// of multiple solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `size` - Number of solutions to generate
+    ///
+    /// # Returns
+    ///
+    /// Vector of randomly sampled solutions in the Obj domain, each with a unique [`Id`].
+    ///
+    /// # Example
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{HasX, Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
+    /// use std::{fmt::Debug, sync::Arc};
+    ///
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
+    ///
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
+    ///
+    /// let vec_obj: Vec<Arc<[Mixed]>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_raw_obj(&sp, &mut rng, 10);
+    ///
+    /// for obj in vec_obj.into_iter(){
+    ///     println!("Obj: {:?}", obj);
+    /// }
+    /// ```
+    ///
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>>;
     /// Generates multiple random solutions in the Opt domain.
     ///
     /// Batch version of [`sample_opt`](Searchspace::sample_opt) for efficient generation
@@ -711,6 +829,50 @@ where
     /// }
     /// ```
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>;
+    /// Generates multiple random raw solutions in the Opt domain.
+    ///
+    /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
+    /// of multiple solutions.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng` - Random number generator
+    /// * `size` - Number of solutions to generate
+    ///
+    /// # Returns
+    ///
+    /// Vector of randomly sampled solutions in the Opt domain, each with a unique [`Id`].
+    ///
+    /// # Example
+    /// ```
+    /// # mod sp{
+    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
+    /// #        use tantale::macros::hpo;
+    /// #
+    /// #
+    /// #        hpo!(
+    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
+    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
+    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
+    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
+    /// #        );
+    /// #    }
+    ///
+    /// use tantale::core::{HasX, Sp, BaseSol, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
+    /// use std::{fmt::Debug, sync::Arc};
+    ///
+    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
+    ///
+    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
+    ///
+    /// let vec_opt: Vec<Arc<[Real]>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_raw_opt(&sp, &mut rng);
+    ///
+    /// for opt in vec_opt.into_iter(){
+    ///     println!("Opt: {:?}", opt);
+    /// }
+    /// ```
+    ///
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>>;
     /// Generates multiple random [`SolutionShape`] with both Obj and Opt representations.
     ///
     /// Batch version of [`sample_pair`](Searchspace::sample_pair) for efficient generation
@@ -826,7 +988,6 @@ where
     where
         F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj> + Send + Sync,
         R: Rng;
-
     /// Generates multiple `Opt` solutions and applies a transformation to each.
     ///
     /// This is similar to [`vec_sample_opt`](Searchspace::vec_sample_opt), but allows a

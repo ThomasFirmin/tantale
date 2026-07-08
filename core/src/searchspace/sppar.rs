@@ -187,11 +187,15 @@ where
     /// Sample a new objective-side solution using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let outx = <SpPar<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj::<R>(self, rng);
+        Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo> {
         let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
         // Generate seeds for each thread
-        let outx: Vec<_> = seeds
-            .into_par_iter()
+        seeds.into_par_iter()
             .zip(variter)
             .map_init(
                 rand::make_rng, // Each thread gets its own StdRng
@@ -201,18 +205,21 @@ where
                     var.sample_obj(thread_rng)
                 },
             )
-            .collect();
-        Uncomputed::new(SolId::generate(), outx, info)
+            .collect()
     }
-
+    
     /// Sample a new optimizer-side solution using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt {
+        let outx = <SpPar<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt::<R>(self, rng);
+        Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo> {
         let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
         // Generate seeds for each thread
-        let outx: Vec<_> = seeds
-            .into_par_iter()
+        seeds.into_par_iter()
             .zip(variter)
             .map_init(
                 rand::make_rng, // Each thread gets its own StdRng
@@ -222,8 +229,7 @@ where
                     var.sample_opt(thread_rng)
                 },
             )
-            .collect();
-        Uncomputed::new(SolId::generate(), outx, info)
+            .collect()
     }
 
     /// Check whether a solution belongs to the objective domain.
@@ -291,6 +297,25 @@ where
             .collect()
     }
 
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>> {
+        // Generate seeds for each thread
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                rand::make_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj(
+                        self,
+                        thread_rng,
+                    )
+                },
+            )
+            .collect()
+    }
+
     /// Sample multiple optimizer-side solutions using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt> {
@@ -307,6 +332,25 @@ where
                         self,
                         thread_rng,
                         info.clone(),
+                    )
+                },
+            )
+            .collect()
+    }
+
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>> {
+        // Generate seeds for each thread
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                rand::make_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt(
+                        self,
+                        thread_rng,
                     )
                 },
             )
@@ -486,11 +530,15 @@ where
     /// Sample a new objective-side solution using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
+        let outx = <SpPar<Obj, NoDomain> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj::<R>(self, rng);
+        Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo> {
         let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
         let variter = self.var.par_iter();
         // Generate seeds for each thread
-        let outx: Vec<_> = seeds
-            .into_par_iter()
+        seeds.into_par_iter()
             .zip(variter)
             .map_init(
                 rand::make_rng, // Each thread gets its own StdRng
@@ -500,8 +548,7 @@ where
                     var.sample_obj(thread_rng)
                 },
             )
-            .collect();
-        Uncomputed::new(SolId::generate(), outx, info)
+            .collect()
     }
 
     /// Sample a new optimizer-side solution using per-thread RNGs.
@@ -523,6 +570,23 @@ where
             )
             .collect();
         Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo> {
+        let seeds: Vec<u64> = self.var.iter().map(|_| rng.random()).collect();
+        let variter = self.var.par_iter();
+        // Generate seeds for each thread
+        seeds.into_par_iter()
+            .zip(variter)
+            .map_init(
+                rand::make_rng, // Each thread gets its own StdRng
+                |thread_rng, (seed, var)| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    var.sample_opt(thread_rng)
+                },
+            )
+            .collect()
     }
 
     /// Check whether a solution belongs to the objective domain.
@@ -589,6 +653,24 @@ where
             .collect()
     }
 
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>> {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                rand::make_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj(
+                        self,
+                        thread_rng,
+                    )
+                },
+            )
+            .collect()
+    }
+
     /// Sample multiple optimizer-side solutions using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(
@@ -609,6 +691,24 @@ where
                         self,
                         thread_rng,
                         info.clone(),
+                    )
+                },
+            )
+            .collect()
+    }
+
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>> {
+        let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
+        seeds
+            .into_par_iter()
+            .map_init(
+                rand::make_rng, // Each thread gets its own StdRng
+                |thread_rng, seed| {
+                    // Optionally re-seed for reproducibility
+                    *thread_rng = StdRng::seed_from_u64(seed);
+                    <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt(
+                        self,
+                        thread_rng,
                     )
                 },
             )

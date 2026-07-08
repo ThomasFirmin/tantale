@@ -192,15 +192,23 @@ where
     /// Sample a new objective-side solution.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rng)).collect();
+        let outx = <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj::<R>(self, rng);
         Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo> {
+        self.var.iter().map(|v| v.sample_obj(rng)).collect()
     }
 
     /// Sample a new optimizer-side solution.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt {
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rng)).collect();
+        let outx = <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt::<R>(self, rng);
         Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo> {
+        self.var.iter().map(|v| v.sample_opt(rng)).collect()
     }
 
     /// Check whether a solution belongs to the objective domain.
@@ -254,11 +262,25 @@ where
             .collect()
     }
 
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>> {
+        (0..size)
+            .map(|_| {
+                <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj(self, rng)
+            })
+            .collect()
+    }
+
     /// Sample multiple optimizer-side solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt> {
         (0..size)
             .map(|_| self.sample_opt(rng, info.clone()))
+            .collect()
+    }
+
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>> {
+        (0..size)
+            .map(|_| <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt(self, rng))
             .collect()
     }
 
@@ -283,7 +305,7 @@ where
             <Sp<Obj, Opt> as Searchspace<SolOpt, SolId, SInfo>>::contains_opt::<S>(self, sol)
         })
     }
-
+    
     /// Sample an objective-side solution and map it to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape {
@@ -406,15 +428,23 @@ where
     /// Sample a new objective-side solution.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_obj(rng)).collect();
+        let outx = <Sp<Obj, NoDomain> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj::<R>(self, rng);
         Uncomputed::new(SolId::generate(), outx, info)
     }
 
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo> {
+        self.var.iter().map(|v| v.sample_obj(rng)).collect()
+    }
+    
     /// Sample a new optimizer-side solution (identical to objective-side when using [`NoDomain`]).
     /// See module-level examples in [`crate::searchspace`].
     fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Obj> {
-        let outx: Vec<_> = self.var.iter().map(|v| v.sample_opt(rng)).collect();
+        let outx = <Sp<Obj, NoDomain> as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt::<R>(self, rng);
         Uncomputed::new(SolId::generate(), outx, info)
+    }
+
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo> {
+        self.var.iter().map(|v| v.sample_opt(rng)).collect()
     }
 
     /// Check whether a solution belongs to the objective domain.
@@ -468,6 +498,14 @@ where
             .collect()
     }
 
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>> {
+        (0..size)
+            .map(|_| {
+                <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_obj(self, rng)
+            })
+            .collect()
+    }
+
     /// Sample multiple optimizer-side solutions (same as objective-side in this mode).
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(
@@ -478,6 +516,12 @@ where
     ) -> Vec<SolOpt::Twin<Obj>> {
         (0..size)
             .map(|_| self.sample_opt(rng, info.clone()))
+            .collect()
+    }
+    
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>> {
+        (0..size)
+            .map(|_| <Self as Searchspace<SolOpt, SolId, SInfo>>::sample_raw_opt(self, rng))
             .collect()
     }
 
