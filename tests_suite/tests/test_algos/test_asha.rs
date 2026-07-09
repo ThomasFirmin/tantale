@@ -198,8 +198,7 @@ fn test_fid_seq_run_tpe() {
     let sampler = Tpe::new(
         5,
         30,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -290,8 +289,7 @@ fn test_fid_seq_parrun_tpe() {
     let sampler = Tpe::new(
         5,
         30,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );

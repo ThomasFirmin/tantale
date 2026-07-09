@@ -21,8 +21,7 @@ fn test_mo_tpe_seq_run() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );
@@ -88,8 +87,7 @@ fn test_mo_tpe_seqthr_run() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );

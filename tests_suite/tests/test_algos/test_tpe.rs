@@ -20,8 +20,7 @@ fn test_tpe_seq_run() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -87,8 +86,7 @@ fn test_tpe_seqthr_run() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -157,8 +155,7 @@ fn test_tpe_seq_run_real() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
@@ -224,8 +221,7 @@ fn test_tpe_seqthr_run_real() {
     let opt = Tpe::new(
         5,
         10,
-        Univariate,
-        Optuna::new(false),
+        (Univariate, Optuna::new(false)),
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
