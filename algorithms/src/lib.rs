@@ -51,6 +51,7 @@ pub use bayesian::{
     tpe::Tpe,
     weighter::UniformWeighter,
     bandwidth::{Bandwidth, BandwidthType, Optuna, Scott, Hyperopt, CategoricalBw},
+    prior::BetaPrior,
 };
 
 #[cfg(feature = "spikes")]
