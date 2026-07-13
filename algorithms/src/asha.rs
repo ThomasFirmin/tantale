@@ -108,6 +108,29 @@ macro_rules! asha {
     };
 }
 
+pub fn build_asha_budget(min:f64, max:f64, scaling:f64) -> Vec<f64> {
+    assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+    assert!(min > 0.0, "Minimum budget must be > 0.0");
+    assert!(
+        max > min,
+        "Maximum budget must be > minimum budget"
+    );
+    let mut budgets: Vec<f64> = (0..)
+        .map(|i| min * scaling.powi(i))
+        .take_while(|&b| b <= max)
+        .collect();
+    // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
+    if budgets.len() == 1 {
+        budgets.push(max);
+    }
+    //If final budget is not budget_max, modify final budget to be budget_max
+    if *budgets.last().unwrap() != max {
+        let last = budgets.last_mut().unwrap();
+        *last = max;
+    }
+    budgets
+}
+
 type AshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
 
 /// Internal state of the [`Asha`] optimizer.
@@ -131,7 +154,7 @@ where
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: AshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
+    pub rungs: AshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
     _fn: PhantomData<Fn>,
@@ -259,33 +282,14 @@ where
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
     pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-        let mut budgets: Vec<f64> = (0..)
-            .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-        if budgets.len() == 1 {
-            budgets.push(budget_max);
-        }
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *budgets.last().unwrap() != budget_max {
-            let last = budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
-
-        let length = budgets.len();
+        let budgets = build_asha_budget(budget_min, budget_max, scaling);
+        let rungs = (0..budgets.len()).map(|_| Vec::new()).collect();
         let current_budget = budgets[0];
         Asha(AshaState {
             sampler,
             budgets,
             scaling,
-            rung: (0..length).map(|_| Vec::new()).collect(),
+            rungs,
             current_budget,
             _fn: PhantomData,
         })
@@ -367,19 +371,7 @@ where
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
     /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budgets = (0..)
-            .map(|i| budget_min * self.0.scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-        if self.0.budgets.len() == 1 {
-            self.0.budgets.push(budget_max);
-        }
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *self.0.budgets.last().unwrap() != budget_max {
-            let last = self.0.budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+        self.0.budgets = build_asha_budget(budget_min, budget_max, self.0.scaling);
         self.0.current_budget = self.0.budgets[0];
     }
 
@@ -421,7 +413,7 @@ where
     fn drain(&mut self) -> Vec<Scp::SolShape> {
         let clear = self
             .0
-            .rung
+            .rungs
             .drain(..)
             .flatten()
             .map(|comp| {
@@ -430,12 +422,12 @@ where
                 sol
             })
             .collect();
-        self.0.rung = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
+        self.0.rungs = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
         clear
     }
 
     fn drain_one(&mut self) -> Option<Scp::SolShape> {
-        for rung in self.0.rung.iter_mut() {
+        for rung in self.0.rungs.iter_mut() {
             if let Some(comp) = rung.pop() {
                 let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
                 sol.discard();
@@ -536,15 +528,25 @@ where
                 self.0.sampler.update(&comp, scp, acc);
                 let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
                 if let Some(i) = idx {
-                    self.0.rung[i + 1].push(comp);
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.0.rungs.len() {
+                        // Emit a warning
+                        eprintln!("
+                        Warning: Rung index out of bounds due to wrong Step. 
+                        Most probably within user-defined objective function.
+                        Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.0.rungs[rung_idx].push(comp);
+                    }
                 }
             }
 
             let mut i = self.0.budgets.len() - 1;
-            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+            let mut k = (self.0.rungs[i].len() as f64 / self.0.scaling) as usize;
             while k == 0 && i > 0 {
                 i -= 1;
-                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+                k = (self.0.rungs[i].len() as f64 / self.0.scaling) as usize;
             }
             if k == 0 {
                 self.0.current_budget = self.0.budgets[0];
@@ -552,9 +554,9 @@ where
                     .sampler
                     .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
-                self.0.rung[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
+                self.0.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
                 self.0.current_budget = self.0.budgets[i];
-                let sol = IntoComputedShape::extract(self.0.rung[i].pop().unwrap()).0;
+                let sol = IntoComputedShape::extract(self.0.rungs[i].pop().unwrap()).0;
                 fidelity_setter(sol, self.0.current_budget)
             }
         } else {
@@ -614,7 +616,7 @@ where
         state.serialize_field("sampler", &self.sampler.get_state())?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
-        state.serialize_field("rung", &self.rung)?;
+        state.serialize_field("rung", &self.rungs)?;
         state.serialize_field("current_budget", &self.current_budget)?;
         state.end()
     }
@@ -712,7 +714,7 @@ where
             sampler: Smpl::from_state(sampler),
             budgets,
             scaling,
-            rung,
+            rungs: rung,
             current_budget,
             _fn: PhantomData,
         })
@@ -774,7 +776,7 @@ where
             sampler: Smpl::from_state(sampler),
             budgets,
             scaling,
-            rung,
+            rungs: rung,
             current_budget,
             _fn: PhantomData,
         })
