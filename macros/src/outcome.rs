@@ -13,9 +13,6 @@ pub struct Attributes {
     pub step: Option<TokenStream>,
     pub is_multi: bool,
     pub is_constrained: bool,
-    pub samples: Option<TokenStream>,
-    pub spiking: Option<TokenStream>,
-    pub is_spike: bool,
 }
 
 #[cfg(not(feature = "spikes"))]
