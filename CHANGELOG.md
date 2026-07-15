@@ -283,3 +283,34 @@
 ### 📚 Documentation
 
 - *(Cargo)* Added `all-features = true` for doc.rs
+
+## Version 0.3.2
+
+### 🚀 Features
+
+- *(Searchspace)* [**breaking**] Added `sample_raw_obj`, `sample_raw_opt`, `vec_sample_raw_obj`, `vec_sample_raw_opt`. Allowing to sample Raw solutions from Obj and Opt domains.
+- *(Bandwidth)* [**breaking**] Added the Bandwidth and BandwidthType traits. Added Optuna, Hyperopt, Scott and CategoricalBw bandwidths object. Removed KContect and SContext within Kernels and KernelFunc trait. These being replaced by a single Context, allowing per point and per kernel bandwidth. Bandwidth now handle &[T] and &[&T] archives.
+- *(Kernel)* [**breaking**] Kernels now handle &[T] and &[&T] archives.
+- *(XToNdArray)* Added `x_array_type` to `XToNdArray` trait, allowing to to convert the object into an array of the desired type, if the `TypeDom` is `AsPrimitive<T>`.
+- *(OrderedCtxArchive)* Added an ordered archive where points can be linked to a context (a serialize/deserialize object)
+- *(Xy)* Xy now implements AsRef
+- *(Asha)* Added a warning message when the Rung index becomes out of bounds. probably due to wrong user-defined Step::Evaluated within Objective function.
+- *(Nadaraya-Watson)* Added NwRegressor based on Kernel to perform Nadaraya-Watson kernel regresssion based on `Multivariate` kernel.
+
+### 🐛 Bug Fixes
+
+- *(doc)* Added all-features=true to Cargo.toml for doc.rs compilation
+- *(Tpe)* Fixed an issue, where Fidelity-based TPE sampler would sample using only the first archive that might not be full. Added stronger bounds to fidelity implementations.
+- *(TpeSInfo)* Fix Tpe write, where component were written within a single string
+
+### 🧪 Testing
+- *(Bandwidth)* Modified and added test for Bandwidth selection.
+
+### 🔮 For future release
+
+- *(spikes)* Added the `spikes` and `pyspikes` features. 
+- *(Spikes)* Added the `Spikes` trait, to qualify codomains containing info about spiking activity.
+- *(init_python!)* Added `samples` and `spiking` keyword to the `init_python!` macros, allowing to build corresponding `Spikes` codomains. 
+- *(HasSpikes)* Added the `HasSpikes` trait to qualify objects that contains total number of `samples` and `spiking` samples. Implemented `HasSpike` for all spike codomains, `Computed` for which the `TypeCodom` is `HasSpike`, same for `CompPair`, and `CompLone`
+- *(Outcome)* Added #[samples] and #[spiking] to the `Outcome` macro. This allows to build dedicated `Spikes` Codomain. 
+- *(tests)* Added tests for Spikes codomains
