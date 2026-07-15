@@ -13,7 +13,7 @@ const EPS: f64 = 1e-9;
 fn test_gaussian_kernel_real() {
     let dom = Real::new(0.0, 1.0, Uniform);
 
-    let ctx = GaussianKernel::get_context(&0.5,1.0, &dom);
+    let ctx = GaussianKernel::get_context(&0.4,1.0, &dom);
 
     let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
     let g =
