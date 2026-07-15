@@ -537,6 +537,9 @@ where
                         Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                         ");
                     } else {
+                        // Invariant:
+                        // rungs[i] contains configurations waiting to be evaluated at budgets[i].
+                        // A completed evaluation at budgets[i] is inserted into rungs[i + 1].
                         self.0.rungs[rung_idx].push(comp);
                     }
                 }

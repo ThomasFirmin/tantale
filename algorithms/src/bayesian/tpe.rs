@@ -366,7 +366,7 @@ where
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     TypeCodom<Out>: Orderable,
-    Out: Outcome,
+    Out: FidOutcome,
 {
     type State =
         TpeState<Kern, Bw, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out>;
@@ -598,8 +598,8 @@ where
     Bw: Bandwidth<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
-    TypeCodom<Out>: Orderable,
     Out: Outcome,
+    TypeCodom<Out>: Orderable,
 {
 }
 
@@ -626,8 +626,8 @@ where
         >,
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
     Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>>,
+    Out: FidOutcome,
     TypeCodom<Out>: Orderable,
-    Out: Outcome,
 {
 }
 
