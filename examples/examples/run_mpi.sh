@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BINARY_DIR="$(cd "$(dirname "$0")/../../target/debug/examples" && pwd)"
+BINARY_DIR="$(cd "$(dirname "$0")/../../target/release/examples" && pwd)"
 NP=4
 
 examples=(
