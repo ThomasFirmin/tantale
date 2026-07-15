@@ -17,9 +17,9 @@ use crate::bayesian::{
 
 const SQRT_2PI: f64 = 2.5066282746310002;
 
-/// Computes :
+/// Computes the probability density function (PDF) of a Gaussian distribution with a given mean and standard deviation.
 /// $$
-/// g(x, mean \\,\\lvert\\, std) = \\frac{1}{\\sqrt{2 \\pi std^2}}\\exp\\left( -\\left(\\frac{(x - mean)^2}{2 std^2}\\right) \\right)\\enspace\\text{,}
+/// pdf(x\\,\\lvert\\, mean, std) = \\frac{1}{\\sqrt{2 \\pi std^2}}\\exp\\left( -\\left(\\frac{(x - mean)^2}{2 std^2}\\right) \\right)\\enspace\\text{,}
 /// $$
 /// where $x$ is the point at which to evaluate the PDF, `mean` is the mean of the Gaussian distribution, and `std` is the standard deviation of the Gaussian distribution.
 pub fn gaussian_pdf(mean: f64, std: f64, x: f64) -> f64 {
@@ -28,22 +28,30 @@ pub fn gaussian_pdf(mean: f64, std: f64, x: f64) -> f64 {
     coeff * exponent.exp()
 }
 
+/// Computes the cumulative distribution function (CDF) of a Gaussian distribution with a given mean and standard deviation.
+/// $$
+/// cdf(x\\,\\lvert\\, mean, std) = \\frac{1}{2}\\left(1 + \\text{erf}\\left(\\frac{x - mean}{std \\sqrt{2}}\\right)\\right)\\enspace\\text{,}
+/// $$
 pub fn gaussian_cdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f64 {
     0.5 * erf::erfc((mean - x.as_()) / (std * f64::consts::SQRT_2))
 }
 
+/// Computes the inverse of the cumulative distribution function (CDF) of a Gaussian distribution with a given mean and standard deviation.
+/// $$
+/// \\text{cdf}(x\\,\\lvert\\, mean, std)^{-1} = mean - (std \\sqrt{2} \\text{erfc}^{-1}(2x))\\enspace\\text{,}
+/// $$
 pub fn gaussian_icdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f64 {
     mean - (std * f64::consts::SQRT_2 * erf::erfc_inv(2.0 * x.as_()))
 }
 
-/// Computes :
+/// For Gaussian kernel, computes the probability of a point `x` being in the interval `[low, up]` given the bandwidth `b`.
 /// $$
-/// \\begin{split}
-///     \\mathbb{P}\\left( L < X = x_2 < U \\right) &= \\int_{L}^{U} K(x,x_2\\,|\\,b)dx \\\\
-///                 &= \\frac{1}{2}\\left(\\text{erf}(\\frac{(R - x_2)}{(\\sqrt{2} b)}) -\\text{erf}(\\frac{(L - x_2)}{(\\sqrt{2} b)}) \\right)
-/// \\end{split}
+/// \\begin{aligned}
+/// \\mathbb{P}(L < x_2 < U) &= \\int_L^U K(x, x_2 \\mid b)\\,dx \\\\
+/// &= \\frac{1}{2}\\left(\\text{erf}\\!\\left(\\frac{U - x_2}{\\sqrt{2}\\,b}\\right) - \\text{erf}\\!\\left(\\frac{L - x_2}{\\sqrt{2}\\,b}\\right)\\right).
+/// \\end{aligned}
 /// $$
-fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: f64, up: f64) -> f64 {
+pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: f64, up: f64) -> f64 {
     let x_f = x.as_();
     let denom = f64::consts::SQRT_2 * bandwidth;
     let low_erf = erf::erf((low - x_f) / denom);
@@ -51,6 +59,14 @@ fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: f64,
     (up_erf - low_erf) / 2.0
 }
 
+/// A trait for per-dimension kernel functions used in Bayesian optimization. 
+/// A kernel function is a measure of similarity between two points in the input space, and is used to build density estimators for each parameter.
+/// 
+/// # See also
+/// - [`GaussianKernel`] for the Gaussian kernel function.
+/// - [`AitchisonAitkenKernel`] for the Aitchison-Aitken kernel function.
+/// - [`MixedKernel`] for the mixed kernel function that combines Gaussian and Aitchison-Aitken kernels.
+/// - [`Kernel`] for object computing the kernel accross all input dimensions.
 pub trait KernelFunc<Dom: Domain> {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
@@ -98,7 +114,7 @@ pub trait KernelFunc<Dom: Domain> {
 /// $$
 /// where $b$ is the bandwidth parameter that controls the smoothness of the kernel.
 /// A smaller $b$ results in a more localized kernel, while a larger $b$ results in a smoother kernel.
-/// The normalization is constant computed as:
+/// The normalization is a constant given by:
 /// $$
 /// \\begin{aligned}
 ///     Z(x_2 \\,\\lvert\\, b) &= \\int_{L}^{U} K(x,x_2\\,|\\,b)\\,dx \\\\
@@ -119,19 +135,25 @@ pub trait KernelFunc<Dom: Domain> {
 /// $$
 /// with $Z^\\prime(x_2 \\,\\lvert\\, b) = \\int_{L-\frac{1}{2}}^{U+\frac{1}{2}} g(x,x_2 \\,\\lvert\\, b)dx$.
 /// Conversely to the [`Real`] case, a continuity correction is applied to for $Z^\\prime$, which explains $\\int_{L-\frac{1}{2}}^{U+\frac{1}{2}}$.
-///
-/// # Arguments
-///
-/// * `bandwidth` - The bandwidth parameter of the Gaussian kernel.
-/// * `lhs` - (private) Save the left-hand side constant for efficiency, computed as $\frac{1}{\sqrt{2\pi b^2}}$.
 pub struct GaussianKernel;
 
+/// The context for the Gaussian kernel, which holds precomputed values needed for efficient kernel computation.
+/// For a given point `x`, the context includes the bandwidth parameter, the left-hand side of the Gaussian kernel function, 
+/// the normalization constant, and the cumulative distribution function (CDF) values at the lower and upper bounds of the domain.
 #[derive(Serialize, Deserialize)]
 pub struct GaussianContext {
+    /// The bandwidth parameter for the Gaussian kernel.
     pub bandwidth: f64,
+    /// The left-hand side of the Gaussian kernel function, which is a constant factor that depends on the bandwidth.
+    /// $$
+    /// \frac{1}{\\sqrt{2 \\pi b^2}}
+    /// $$
     pub lhs: f64,
+    /// The normalization constant for the Gaussian kernel, which is computed as the integral of the Gaussian kernel over the domain.
     pub cst: f64,
+    /// The cumulative distribution function (CDF) of the Gaussian kernel at the lower bound of the domain.
     pub p_low: f64,
+    /// The cumulative distribution function (CDF) of the Gaussian kernel at the upper bound of the domain.
     pub p_up: f64,
 }
 
@@ -358,11 +380,13 @@ impl KernelFunc<Nat> for GaussianKernel {
 /// K(x_1, x_2 \\,\\lvert\\, b) = \\begin{cases}
 ///     1 - b & \\text{if } x_1 = x_2 \\\\
 ///     \\frac{b}{|\mathcal{D}| - 1} & \\text{if } x_1 \\neq x_2
-/// \\end{cases}\enspace\\\text{,}
+/// \\end{cases}\\enspace\\text{,}
 /// $$
-/// where $b$ is the bandwidth parameter.
+/// where $b$ is the bandwidth parameter, and $|\mathcal{D}|$ is the size of the domain (e.g. number of features).
 pub struct AitchisonAitkenKernel;
 
+/// The context for the Aitchison-Aitken kernel, which holds the bandwidth parameter needed for efficient kernel computation.
+/// For a given point `x`, the context includes the bandwidth parameter, which controls the smoothness of the kernel.
 #[derive(Serialize, Deserialize)]
 pub struct AitchisonAitkenContext {
     pub bandwidth: f64,
@@ -461,11 +485,13 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
     }
 }
 
+/// The mixed kernel combines the Gaussian and Aitchison-Aitken kernels for mixed-type domains.
 pub enum MixedKernel {
     Gaussian(GaussianKernel),
     AitchisonAitken(AitchisonAitkenKernel),
 }
 
+/// The context for the mixed kernel, which holds the contexts for both the Gaussian and Aitchison-Aitken kernels.
 #[derive(Serialize, Deserialize)]
 pub enum MixedContext {
     Gaussian(GaussianContext),
@@ -692,10 +718,12 @@ where
 /// The univariate kernel computes the product of the kernel values for each dimension of the solution, assuming independence between dimensions.
 /// For a solution of dimension $D$, the kernel value is computed as:
 /// $$
-/// K(\\mathbb{s}, \\{\\mathbb{s}\\}_{n=1}^N) = \\prod_{d=1}^{D} \\sum_{n=1}^N w_n K_d(\mathbb{s}_{d}, \\mathbb{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
+/// K(\\mathbf{s}, \\{\\mathbf{s}\\}_{n=1}^N) = \\prod_{d=1}^{D} \\sum_{n=1}^N w_n K_d(\\mathbf{s}_{d}, \\mathbf{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
 /// $$
 /// where $K_d$ is the kernel function ([`KernelFunc`]) for the $d$-th dimension, and $b_d$ is the bandwidth parameter for that dimension.
-/// The bandwidth is computed using the Optuna rule [`optuna_bw`] for numerical dimensions, and [`cat_bw`] for categorical dimensions.
+/// 
+/// # See also
+/// - [`Bandwidth`](crate::Bandwidth) for the bandwidth parameter used in the kernel computation.
 #[derive(Serialize, Deserialize)]
 pub struct Univariate;
 
@@ -1232,10 +1260,12 @@ where
 /// The kernel value is computed as:
 /// For a solution of dimension $D$, the kernel value is computed as:
 /// $$
-/// K(\\mathbb{s}, \\{\\mathbb{s}\\}_{n=1}^N) = \\sum_{n=1}^N w_n \\prod_{d=1}^{D} K_d(\mathbb{s}_{d}, \\mathbb{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
+/// K(\\mathbf{s}, \\{\\mathbf{s}\\}_{n=1}^N) = \\sum_{n=1}^N w_n \\prod_{d=1}^{D} K_d(\\mathbf{s}_{d}, \\mathbf{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
 /// $$
 /// where $K_d$ is the kernel function ([`KernelFunc`]) for the $d$-th dimension, and $b_d$ is the bandwidth parameter for that dimension.
-/// The bandwidth is computed using the Optuna rule [`optuna_bw`] for numerical dimensions, and [`cat_bw`] for categorical dimensions.
+/// 
+/// # See also
+/// - [`Bandwidth`](crate::Bandwidth) for the bandwidth parameter used in the kernel computation.
 #[derive(Serialize, Deserialize)]
 pub struct Multivariate;
 

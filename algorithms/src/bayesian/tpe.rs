@@ -10,6 +10,7 @@
 //! multi-objective optimization through interchangeable components:
 //! - A [`Splitter`] partitions observations into *good* and *bad* sets.
 //! - A [`Kernel`] builds density estimators for each parameter.
+//! - A [`Bandwidth`] computes the bandwidth for the kernel density estimators.
 //! - A [`Weighter`] assigns importance weights to observations.
 //!
 //! When enough observations are available, the optimizer fits two density

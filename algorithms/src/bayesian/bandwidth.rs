@@ -9,6 +9,14 @@ pub trait BandwidthType {
     fn get(&self, idx: usize, dim: usize) -> f64;
 }
 
+/// A trait for computing the bandwidth for kernel density estimation in Bayesian optimization.
+/// The bandwidth is a crucial parameter that controls the smoothness of the kernel density estimate. 
+/// 
+/// # See also
+/// - [`Optuna`] for the Optuna bandwidth method.
+/// - [`Hyperopt`] for the Hyperopt bandwidth method.
+/// - [`Scott`] for the Scott's rule bandwidth method.
+/// - [`CategoricalBw`] for the categorical bandwidth method.
 pub trait Bandwidth<Dom, Scp, S, SolId, SInfo, Out>
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
