@@ -46,7 +46,7 @@ use tantale_core::{
 use rand::rngs::StdRng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, sync::Arc};
+use std::{cell::RefCell, sync::Arc, vec};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -112,7 +112,7 @@ impl CSVWritable<(), ()> for TpeSInfo {
         vec![
             self.acquisition.to_string(),
             self.good_bdf.to_string(),
-            self.bad_pdf.to_string()
+            self.bad_pdf.to_string(),
         ]
     }
 }
@@ -708,19 +708,6 @@ where
         let xy = x.get_sopt().xy();
         self.0.point_archive[0].1.add(xy);
     }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
-    {
-        let sol = self.sample(scp, acc);
-        f(sol)
-    }
 }
 
 impl<Kern, Bw, Wght, Splt, Scp, Out, FnState>
@@ -858,25 +845,5 @@ where
             }
         }
         // Else we ignore as an archive with higher accuracy has already reached the threshold
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
-    {
-        let sol = <Tpe<_,_ , _, _, _, _, _, _> as SingleSampler<
-            _,
-            _,
-            _,
-            Out,
-            _,
-            SimpleStepped<Scp::SolShape, _, Out, FnState>,
-        >>::sample(self, scp, acc);
-        f(sol)
     }
 }

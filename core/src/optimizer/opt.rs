@@ -281,7 +281,10 @@ where
         acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
     ) -> Scp::SolShape
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync;
+        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync
+    {
+        f(self.sample(scp, acc))
+    }
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
     fn update(

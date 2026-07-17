@@ -285,19 +285,6 @@ where
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) {
     }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape,
-    {
-        let sol = <RandomSearch as SingleSampler<_, _, _, Out, _, _>>::sample(self, scp, acc);
-        f(sol)
-    }
 }
 
 impl<Out, Scp, FnState>
@@ -332,26 +319,6 @@ where
         _scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape,
-    {
-        let sol = <RandomSearch as SingleSampler<
-            _,
-            _,
-            _,
-            Out,
-            _,
-            SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-        >>::sample(self, scp, acc);
-        f(sol)
     }
 }
 
