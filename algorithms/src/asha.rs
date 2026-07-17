@@ -70,10 +70,7 @@
 use std::{cell::RefCell, marker::PhantomData};
 
 use tantale_core::{
-    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt,
-    OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler,
-    SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
-    solution::IntoComputedShape,
+    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -259,7 +256,7 @@ where
     Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
     CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
 {
@@ -470,7 +467,7 @@ where
         >,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,

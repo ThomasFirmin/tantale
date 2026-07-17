@@ -158,7 +158,7 @@ where
 /// Defines a mono-objective [`Codomain`], i.e. $f(x)=y$
 pub trait Single<Out: Outcome>: Codomain<Out>
 where
-    Self::TypeCodom: Orderable,
+    Self::TypeCodom: ElemSingle,
 {
     fn get_criteria(&self) -> Criteria<Out>;
     fn get_y(&self, o: &Out) -> f64 {
@@ -166,10 +166,15 @@ where
     }
 }
 
+/// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Single`] [`Codomain`].
+pub trait ElemSingle : Orderable {
+    fn value(&self) -> f64;
+}
+
 /// Defines a multi-objective [`Codomain`], i.e. $F(x)=f_1(x),f_2(x),\dots,f_k(x)$
 pub trait Multi<Out: Outcome>: Codomain<Out>
 where
-    Self::TypeCodom: Dominate,
+    Self::TypeCodom: ElemMulti,
 {
     fn get_criteria(&self) -> &[Criteria<Out>];
     fn get_y(&self, o: &Out) -> Box<[f64]> {
@@ -178,24 +183,45 @@ where
     }
 }
 
+/// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Multi`] [`Codomain`].
+pub trait ElemMulti : Dominate {
+    fn value(&self) -> &[f64];
+}
+
 /// Defines a black-box constrained [`Codomain`].
 /// Black-box constraints are constraints that are not known a priori, but are only
 /// revealed through the evaluation of the objective function.
 /// The [`Optimizer`](crate::Optimizer) defines how to handle these constraints, by defining
 /// when a constraint is satisfied or not.
-pub trait Constrained<Out: Outcome>: Codomain<Out> {
+pub trait Constrained<Out: Outcome>: Codomain<Out> 
+where
+    Self::TypeCodom: ElemConstrained,
+{
     fn get_criteria(&self) -> &[Criteria<Out>];
     fn get_constraints(&self, o: &Out) -> Box<[f64]> {
         self.get_criteria().iter().map(|c| c(o)).collect()
     }
 }
 
+/// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Constrained`] [`Codomain`].
+pub trait ElemConstrained {
+    fn constraints(&self) -> &[f64];
+}
+
 /// Defines a [`Codomain`] containing the cost (e.g. time) of an evaluation.
-pub trait Cost<Out: Outcome>: Codomain<Out> {
+pub trait Cost<Out: Outcome>: Codomain<Out> 
+where
+    Self::TypeCodom: ElemCost,
+{
     fn get_criteria(&self) -> Criteria<Out>;
     fn get_cost(&self, o: &Out) -> f64 {
         (self.get_criteria())(o)
     }
+}
+
+/// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Cost`] [`Codomain`].
+pub trait ElemCost {
+    fn cost(&self) -> f64;
 }
 
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
@@ -210,7 +236,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable + Ord,
+    TypeCodom<Out>: ElemSingle + Ord,
     Out: Outcome,
 {
     /// The best element seen so far, or [`None`] if no element has been added yet.
@@ -226,7 +252,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable + Ord,
+    TypeCodom<Out>: ElemSingle + Ord,
     Out: Outcome,
 {
     /// Creates an empty [`BestAccumulator`].
@@ -251,7 +277,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable + Ord,
+    TypeCodom<Out>: ElemSingle + Ord,
     Out: Outcome,
 {
     fn default() -> Self {
@@ -266,7 +292,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable + Ord,
+    TypeCodom<Out>: ElemSingle + Ord,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C) {
@@ -293,7 +319,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
 {
     /// The current Pareto front (non-dominated set).
@@ -309,7 +335,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
 {
     /// Creates an empty [`ParetoAccumulator`].
@@ -334,7 +360,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
 {
     fn default() -> Self {
@@ -349,7 +375,7 @@ where
     SolId: Id,
     Sinfo: SolInfo,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
 {
     fn accumulate(&mut self, computed: &C) {
@@ -428,6 +454,12 @@ impl Orderable for ElemSingleCodomain {
     /// $$ A \succ B \iff A > B$$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
+    }
+}
+
+impl ElemSingle for ElemSingleCodomain {
+    fn value(&self) -> f64 {
+        self.value
     }
 }
 
@@ -547,6 +579,18 @@ impl Orderable for ElemCostCodomain {
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
+    }
+}
+
+impl ElemSingle for ElemCostCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemCost for ElemCostCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
     }
 }
 
@@ -684,6 +728,18 @@ impl Orderable for ElemConstCodomain {
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
+    }
+}
+
+impl ElemSingle for ElemConstCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemConstrained for ElemConstCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 
@@ -846,6 +902,24 @@ impl Orderable for ElemCostConstCodomain {
     }
 }
 
+impl ElemSingle for ElemCostConstCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemCost for ElemCostConstCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl ElemConstrained for ElemCostConstCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
+    }
+}
+
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
     type Acc<C, SolId, SInfo>
@@ -953,6 +1027,12 @@ impl Dominate for ElemMultiCodomain {
     }
 
     fn get_objectives(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemMulti for ElemMultiCodomain {
+    fn value(&self) -> &[f64] {
         &self.value
     }
 }
@@ -1070,6 +1150,18 @@ impl Dominate for ElemCostMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemCostMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemCost for ElemCostMultiCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
     }
 }
 
@@ -1207,6 +1299,18 @@ impl Dominate for ElemConstMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemConstMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemConstrained for ElemConstMultiCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 
@@ -1365,6 +1469,24 @@ impl Dominate for ElemCostConstMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemCostConstMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemCost for ElemCostConstMultiCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl ElemConstrained for ElemCostConstMultiCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 

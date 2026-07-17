@@ -20,16 +20,9 @@
 //! ```
 
 use crate::{
-    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
-    HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId,
-    domain::{
-        Domain,
-        codomain::TypeCodom,
-        onto::{LinkObj, LinkOpt, Linked},
-    },
-    objective::Step,
-    solution::{IntoComputedShape, Uncomputed},
-    utils::orderable::Orderable,
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
+        Domain, codomain::{ElemMulti, TypeCodom}, onto::{LinkObj, LinkOpt, Linked},
+    }, objective::Step, solution::{IntoComputedShape, Uncomputed}, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -497,7 +490,7 @@ impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Dominate
 where
     Self: HasY<Out>,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolOpt: Uncomputed<SolId, Opt, SInfo>,
@@ -854,7 +847,7 @@ impl<SolObj, SolId, Obj, SInfo, Out> Dominate for CompLone<SolObj, SolId, Obj, S
 where
     Self: HasY<Out>,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
     SolObj: Uncomputed<SolId, Obj, SInfo>,
     SolId: Id,

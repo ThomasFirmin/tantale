@@ -287,14 +287,14 @@ Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-
 #         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
-use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace};
+use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace, ElemSingle};
 
 impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
+    TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
@@ -329,7 +329,7 @@ We have to define one functions:
 # use rand::{prelude::ThreadRng, rngs::StdRng};
 # use serde::{Deserialize, Serialize};
 # use std::{cell::RefCell, cmp::Ord};
-# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId};
+# use tantale::core::{CompShape, EmptyInfo, HasFidelity, HasStep, SolutionShape, StepSId, Orderiable};
 # use tantale::macros::OptState;
 # 
 # thread_local! {
@@ -395,14 +395,14 @@ We have to define one functions:
 #         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 #     }
 # }
-# use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace, Orderable};
+# use tantale::core::{FidOutcome, FidelitySol, IntoComputedShape, Single, TypeCodom, LinkOpt, Optimizer, Searchspace, ElemSingle};
 # 
 # impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
 #     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 # where
 #     Out: FidOutcome,
 #     Out::Cod: Single<Out>,
-#     TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
+#     TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 #     Scp::SolShape: HasStep + HasFidelity,
 #     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,

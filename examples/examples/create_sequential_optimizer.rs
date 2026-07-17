@@ -1,5 +1,6 @@
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
+use tantale::core::domain::codomain::ElemSingle;
 use std::cell::RefCell;
 use tantale::core::{
     CompShape, EmptyInfo, HasFidelity, HasStep, Orderable, SolutionShape, StepSId,
@@ -79,7 +80,7 @@ impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
+    TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
@@ -114,7 +115,7 @@ impl<Out, Scp, FnState>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,

@@ -53,12 +53,7 @@
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId,
-    HasUncomputed, HasX, HasY, Multi, StepId, Xy,
-    domain::{Domain, codomain::TypeCodom},
-    objective::{Outcome, Step},
-    solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed},
-    utils::orderable::Orderable,
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasX, HasY, Multi, StepId, Xy, domain::{Domain, codomain::{ElemMulti, TypeCodom}}, objective::{Outcome, Step}, solution::{Id, IntoComputed, SolInfo, Solution, Uncomputed}, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -361,7 +356,7 @@ impl<PSol, SolId, Dom, SInfo, Out> Dominate for Computed<PSol, SolId, Dom, Out, 
 where
     Self: HasY<Out>,
     Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
+    TypeCodom<Out>: ElemMulti,
     Out: Outcome,
     PSol: Uncomputed<SolId, Dom, SInfo>,
     SolId: Id,

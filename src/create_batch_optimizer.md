@@ -206,7 +206,7 @@ This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means t
 the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
 
 The [`Codomain`](crate::core::Codomain) and its associated [`TypeCodom`](crate::core::Codomain::TypeCodom) can be constrained to specialize the optimizer.
-For the SHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`Orderable`](crate::core::Orderable) to compare solutions between each others.
+For the SHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`ElemSingle`](crate::core::ElemSingle), an [`Orderable`](crate::core::Orderable) to compare solutions between each others.
 Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-objective optimizer.
 
 ```rust
@@ -256,13 +256,13 @@ Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-
 #     }
 # }
 
-use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, Orderable};
+use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, ElemSingle};
 
 impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
+    TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
@@ -338,13 +338,13 @@ We have to define two functions:
 #     }
 # }
 # 
-# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, Orderable};
+# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, ElemSingle};
 # 
 # impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
 # where
 #     Out: FidOutcome,
 #     Out::Cod: Single<Out>,
-#     TypeCodom<Out>: Orderable, // Use an helper type alias to access Out::Cod::TypeCodom
+#     TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
 #     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 # {
 #     type State = ShaState;
@@ -365,7 +365,8 @@ We have to define two functions:
 
 use tantale::core::{
     CompShape, Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, 
-    HasFidelity, HasStep, RawObj, Step, Stepped, IntoComputedShape
+    HasFidelity, HasStep, RawObj, Step, Stepped, IntoComputedShape,
+    Orderable,
 };
 
 impl<Out, Scp, FnState>
@@ -380,7 +381,7 @@ impl<Out, Scp, FnState>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Orderable,

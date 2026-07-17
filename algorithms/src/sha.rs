@@ -64,10 +64,7 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper,
-    HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace,
-    Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::TypeCodom,
-    optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use serde::{
@@ -113,7 +110,7 @@ where
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
@@ -144,7 +141,7 @@ where
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
 }
@@ -226,7 +223,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>;
 
@@ -237,7 +234,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -335,7 +332,7 @@ where
         >,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
@@ -379,7 +376,7 @@ where
         >,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
@@ -483,7 +480,7 @@ where
         >,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
@@ -615,7 +612,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -645,7 +642,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -673,7 +670,7 @@ where
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
     fn new() -> Self {
@@ -737,7 +734,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {
@@ -878,7 +875,7 @@ where
     Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
     Smpl: BatchSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Out: FidOutcome,
     Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
 {

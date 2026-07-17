@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::domain::codomain::TypeCodom;
+use tantale::core::domain::codomain::{ElemSingle, TypeCodom};
 use tantale::macros::OptState;
 
 #[derive(OptState, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
 {
     type State = ShaState;
@@ -108,7 +108,7 @@ impl<Out, Scp, FnState>
 where
     Out: FidOutcome,
     Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
+    TypeCodom<Out>: ElemSingle,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
     Scp::SolShape: HasStep + HasFidelity,
     CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Orderable,
