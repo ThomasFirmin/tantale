@@ -86,10 +86,16 @@ where
     T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
 {
     fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
+        assert!(archive.size() > 1, "Archive must have more than one point");
+
         let size = archive.size() as f64;
         let quantile = (size - (self.0 / size.sqrt())).ceil();
-        if quantile < 0.0 {
-            return (Vec::new(), archive.points.iter().collect());
+        if quantile <= 0.0 {
+            // last is put in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
+            return (archive.points.iter().take(archive.size() - 2).collect(), vec![archive.points.iter().last().unwrap()]);
+        } else if quantile >= size {
+            // last is put in the good set to avoid empty bad set, which would cause an error in the TPE algorithm
+            return (vec![archive.points.iter().last().unwrap()], archive.points.iter().take(archive.size() - 2).collect());
         }
         let quantile = quantile as usize;
         let (bad, good) = archive.points.split_at(quantile);
