@@ -14,7 +14,7 @@
 //! * **`init_python!` macro** – the public entry point that users call once in
 //!   `main.rs` to wire a Python function into a Tantale experiment.
 
-use std::{io::Error, path::Path};
+use std::{ffi::OsStr, io::Error, path::{Path, PathBuf}};
 
 use pyo3::{
     Py, PyAny, PyErr, PyResult, Python,
@@ -75,6 +75,81 @@ pub fn register_outcome(cls: Py<PyAny>) {
     PY_OUTCOME_CLASS
         .set(cls)
         .expect("Failed to register Python outcome class: a class has already been registered");
+}
+
+fn python_module_file(manifest_dir: &str, file: &str) -> PathBuf {
+    let relative = file.strip_prefix('/').unwrap_or(file);
+    Path::new(manifest_dir).join(relative)
+}
+
+fn python_module_rel_path(file: &Path, module: &str) -> PathBuf {
+    let mut rel_path = PathBuf::new();
+    let mut parts = module.split('.').peekable();
+    let package_init = file.file_name() == Some(OsStr::new("__init__.py"));
+
+    while let Some(part) = parts.next() {
+        if parts.peek().is_some() || package_init {
+            rel_path.push(part);
+        } else {
+            rel_path.push(format!("{part}.py"));
+        }
+    }
+
+    if package_init {
+        rel_path.push("__init__.py");
+    }
+
+    rel_path
+}
+
+fn python_module_root(manifest_dir: &str, file: &str, module: &str) -> PyResult<String> {
+    let full_path = python_module_file(manifest_dir, file);
+    let rel_path = python_module_rel_path(&full_path, module);
+
+    if !full_path.ends_with(&rel_path) {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Python module '{module}' does not match file '{}'",
+            full_path.display()
+        )));
+    }
+
+    let mut root = full_path;
+    for _ in rel_path.components() {
+        root.pop();
+    }
+
+    path_to_str(&root).map_err(|err| pyo3::exceptions::PyValueError::new_err(err.to_string()))
+}
+
+fn add_python_module_root(py: Python<'_>, root: &str) -> PyResult<()> {
+    let sys = py.import("sys")?;
+    let sys_path = sys.getattr("path")?;
+    let present = sys_path.call_method1("__contains__", (root,))?.extract::<bool>()?;
+
+    if !present {
+        sys_path.call_method1("insert", (0, root))?;
+    }
+
+    Ok(())
+}
+
+#[doc(hidden)]
+pub fn load_python_attr(
+    py: Python<'_>,
+    manifest_dir: &str,
+    file: &str,
+    module: &str,
+    attr: &str,
+) -> PyResult<Py<PyAny>> {
+    let root = python_module_root(manifest_dir, file, module)?;
+    add_python_module_root(py, &root)?;
+
+    let importlib = py.import("importlib")?;
+    importlib.call_method0("invalidate_caches")?;
+    importlib
+        .call_method1("import_module", (module,))?
+        .getattr(attr)
+        .map(|value| value.unbind())
 }
 
 #[cfg(not(feature = "pyspikes"))]
@@ -172,38 +247,50 @@ macro_rules! init_python {
 
     // Load Python files, register outcome class and Objective callable.
     (@load_obj $ss:path, $ff:expr, $fm:expr, $fn_:expr, $of:expr, $om:expr, $on:expr) => {
-        {use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
+        {use tantale::python::pyo3::types::PyAnyMethods;
         use $ss::{pytantale};
         tantale::python::pyo3::append_to_inittab!(pytantale);
         tantale::python::pyo3::Python::attach(|py| {
-            let out_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $of)));
-            let cls = tantale::python::pyo3::types::PyModule::from_code(
-                py, out_src, c_str!($of), c_str!($om),
-            )?.getattr($on)?.unbind();
+            let cls = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $of,
+                $om,
+                $on,
+            )?;
             tantale::python::register_outcome(cls);
-            let func_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $ff)));
-            let callable = tantale::python::pyo3::types::PyModule::from_code(
-                py, func_src, c_str!($ff), c_str!($fm),
-            )?.getattr($fn_)?.unbind();
+            let callable = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $ff,
+                $fm,
+                $fn_,
+            )?;
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyObjective::new(callable))
         }).unwrap()}
     };
 
     // Load Python files, register outcome class and Stepped callable.
     (@load_stepped $ss:path, $ff:expr, $fm:expr, $fn_:expr, $of:expr, $om:expr, $on:expr) => {
-        {use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
+        {use tantale::python::pyo3::types::PyAnyMethods;
         use $ss::{pytantale};
         tantale::python::pyo3::append_to_inittab!(pytantale);
         tantale::python::pyo3::Python::attach(|py| {
-            let out_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $of)));
-            let cls = tantale::python::pyo3::types::PyModule::from_code(
-                py, out_src, c_str!($of), c_str!($om),
-            )?.getattr($on)?.unbind();
+            let cls = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $of,
+                $om,
+                $on,
+            )?;
             tantale::python::register_outcome(cls);
-            let func_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $ff)));
-            let callable = tantale::python::pyo3::types::PyModule::from_code(
-                py, func_src, c_str!($ff), c_str!($fm),
-            )?.getattr($fn_)?.unbind();
+            let callable = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $ff,
+                $fm,
+                $fn_,
+            )?;
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyStepped::new(callable))
         }).unwrap()}
     };
@@ -949,38 +1036,50 @@ macro_rules! init_python {
 
     // Load Python files, register outcome class and Objective callable.
     (@load_obj $ss:path, $ff:expr, $fm:expr, $fn_:expr, $of:expr, $om:expr, $on:expr) => {
-        {use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
+        {use tantale::python::pyo3::types::PyAnyMethods;
         use $ss::{pytantale};
         tantale::python::pyo3::append_to_inittab!(pytantale);
         tantale::python::pyo3::Python::attach(|py| {
-            let out_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $of)));
-            let cls = tantale::python::pyo3::types::PyModule::from_code(
-                py, out_src, c_str!($of), c_str!($om),
-            )?.getattr($on)?.unbind();
+            let cls = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $of,
+                $om,
+                $on,
+            )?;
             tantale::python::register_outcome(cls);
-            let func_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $ff)));
-            let callable = tantale::python::pyo3::types::PyModule::from_code(
-                py, func_src, c_str!($ff), c_str!($fm),
-            )?.getattr($fn_)?.unbind();
+            let callable = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $ff,
+                $fm,
+                $fn_,
+            )?;
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyObjective::new(callable))
         }).unwrap()}
     };
 
     // Load Python files, register outcome class and Stepped callable.
     (@load_stepped $ss:path, $ff:expr, $fm:expr, $fn_:expr, $of:expr, $om:expr, $on:expr) => {
-        {use tantale::python::pyo3::{ffi::c_str, types::PyAnyMethods};
+        {use tantale::python::pyo3::types::PyAnyMethods;
         use $ss::{pytantale};
         tantale::python::pyo3::append_to_inittab!(pytantale);
         tantale::python::pyo3::Python::attach(|py| {
-            let out_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $of)));
-            let cls = tantale::python::pyo3::types::PyModule::from_code(
-                py, out_src, c_str!($of), c_str!($om),
-            )?.getattr($on)?.unbind();
+            let cls = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $of,
+                $om,
+                $on,
+            )?;
             tantale::python::register_outcome(cls);
-            let func_src = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $ff)));
-            let callable = tantale::python::pyo3::types::PyModule::from_code(
-                py, func_src, c_str!($ff), c_str!($fm),
-            )?.getattr($fn_)?.unbind();
+            let callable = tantale::python::pyutils::load_python_attr(
+                py,
+                env!("CARGO_MANIFEST_DIR"),
+                $ff,
+                $fm,
+                $fn_,
+            )?;
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyStepped::new(callable))
         }).unwrap()}
     };
