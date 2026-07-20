@@ -294,7 +294,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
     model = state.model
     model = model.to(device)
     
-    optimizer = optim.Adam(model.parameters(), lr= x[idx.LR])
+    optimizer = optim.SGD(model.parameters(), lr= x[idx.LR])
     criterion = nn.CrossEntropyLoss()
     train_loader, test_loader = get_dataloaders(x[idx.BATCH_SIZE])
 
