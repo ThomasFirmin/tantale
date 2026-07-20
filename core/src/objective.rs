@@ -61,6 +61,8 @@
 //! - [`Stepped`] - Multi-fidelity wrapper
 //! - [`FuncWrapper`] - Internal function wrapper
 
+use std::write;
+
 use crate::recorder::csv::CSVWritable;
 use serde::{Deserialize, Serialize};
 

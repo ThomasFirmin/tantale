@@ -31,7 +31,7 @@
 //!     ...
 //! ```
 
-use std::fmt::{self};
+use std::{fmt::{self}, format, write};
 
 use crate::{
     PY_OUTCOME_CLASS,
@@ -135,15 +135,13 @@ pub struct PyOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Python::attach(|py| {
-            let r = self
-                .0
-                .bind(py)
-                .repr()
-                .map(|r| r.to_string())
-                .unwrap_or_default();
-            write!(f, "PyOutcome({r})")
-        })
+        Python::attach(
+            |py|
+            {
+                let r = self.0.bind(py).repr().map(|r| r.to_string()).unwrap_or_default();
+                write!(f, "PyOutcome({r})")
+            }
+        )
     }
 }
 

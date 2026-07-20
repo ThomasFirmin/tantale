@@ -28,6 +28,7 @@ use std::{
     fmt::{self, Display},
     path::PathBuf,
     sync::Arc,
+    write
 };
 
 use pyo3::prelude::*;
