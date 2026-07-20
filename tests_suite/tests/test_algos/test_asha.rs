@@ -15,7 +15,7 @@ use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
 fn test_fid_seq_run() {
-    // let _clean = Cleaner::new("tmp_test_asha_run_seq");
+    let _clean = Cleaner::new("tmp_test_asha_run_seq");
 
     let mut budgets: Vec<f64> = (0..)
         .map(|i| 1.61_f64.powi(i))
