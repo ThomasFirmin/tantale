@@ -2,6 +2,7 @@ use crate::Orderable;
 use serde::{Deserialize, Serialize};
 
 /// Archive of points which holds the observed points sorted in ascending order.
+/// The best point is the last point in the archive, and the worst point is the first point in the archive.
 /// The sorted objects should implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: for<'a> Deserialize<'a>"))]
