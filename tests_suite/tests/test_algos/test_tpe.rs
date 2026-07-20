@@ -1,5 +1,5 @@
 use tantale::algos::bayesian::bandwidth::Optuna;
-use tantale::algos::{LinearSplit, Tpe, UniformWeighter, Univariate, tpe};
+use tantale::algos::{Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -279,4 +279,269 @@ fn test_tpe_seqthr_run_real() {
         (rec, check)
     );
     run_reader_eps("tmp_test_tpe_seqthrrun_real", 100, num_cpus::get() * 4);
+}
+
+
+#[test]
+fn test_tpe_seq_run_sqrt_splitter() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_sqrt");
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Optuna::new(false)),
+        UniformWeighter::default(),
+        SqrtSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_tpe_seqrun_sqrt", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, Optuna, UniformWeighter, SqrtSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, Optuna, UniformWeighter, SqrtSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader("tmp_test_tpe_seqrun_sqrt", 100);
+}
+
+#[test]
+fn test_tpe_seq_run_scott() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_scott");
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Scott::new(false)),
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_tpe_seqrun_scott", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, Scott, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, Scott, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader("tmp_test_tpe_seqrun_scott", 100);
+}
+
+#[test]
+fn test_tpe_seq_run_hyperopt() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_hyperopt");
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Hyperopt::new(false, false)),
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_tpe_seqrun_hyperopt", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader("tmp_test_tpe_seqrun_hyperopt", 100);
+}
+
+#[test]
+fn test_tpe_seq_run_hyperopt_consider_endpoints() {
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_hyperopt");
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Hyperopt::new(true, false)),
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let obj = Objective::new(func);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono(sp, obj, opt, stop, (rec, check));
+    exp.run();
+
+    run_reader("tmp_test_tpe_seqrun_hyperopt", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = load!(
+        mono,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+
+    let expstop: &mut Evaluated = exp.get_mut_stop();
+    assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+    expstop.add(50);
+
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::example;
+    let obj = Objective::new(func);
+
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config).unwrap();
+
+    let _exp = load!(
+        mono,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        sp,
+        obj,
+        (rec, check)
+    );
+    run_reader("tmp_test_tpe_seqrun_hyperopt", 100);
 }
