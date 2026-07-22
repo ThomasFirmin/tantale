@@ -69,6 +69,7 @@
 
 use std::{cell::RefCell, marker::PhantomData};
 
+use log::warn;
 use tantale_core::{
     CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
@@ -80,7 +81,7 @@ use serde::{
     ser::SerializeStruct,
 };
 
-use crate::utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter};
+use crate::utils::{FCompAcc, FCompShape, PrunerError, SimpleStepped, build_halving_budgets, fidelity_setter};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -103,29 +104,6 @@ macro_rules! asha {
     ($sampler : ty) => {
         Asha<$sampler, _, _, _, _>
     };
-}
-
-pub fn build_asha_budget(min:f64, max:f64, scaling:f64) -> Vec<f64> {
-    assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-    assert!(min > 0.0, "Minimum budget must be > 0.0");
-    assert!(
-        max > min,
-        "Maximum budget must be > minimum budget"
-    );
-    let mut budgets: Vec<f64> = (0..)
-        .map(|i| min * scaling.powi(i))
-        .take_while(|&b| b <= max)
-        .collect();
-    // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-    if budgets.len() == 1 {
-        budgets.push(max);
-    }
-    //If final budget is not budget_max, modify final budget to be budget_max
-    if *budgets.last().unwrap() != max {
-        let last = budgets.last_mut().unwrap();
-        *last = max;
-    }
-    budgets
 }
 
 type AshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
@@ -272,24 +250,24 @@ where
     /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
     ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if:
+    /// Returns an error if:
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
-        let budgets = build_asha_budget(budget_min, budget_max, scaling);
+    pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Result<Self, PrunerError> {
+        let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
         let rungs = (0..budgets.len()).map(|_| Vec::new()).collect();
         let current_budget = budgets[0];
-        Asha(AshaState {
+        Ok(Asha(AshaState {
             sampler,
             budgets,
             scaling,
             rungs,
             current_budget,
             _fn: PhantomData,
-        })
+        }))
     }
     pub fn with_rng<F, T>(&self, f: F) -> T
     where
@@ -368,7 +346,7 @@ where
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
     /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budgets = build_asha_budget(budget_min, budget_max, self.0.scaling);
+        self.0.budgets = build_halving_budgets(budget_min, budget_max, self.0.scaling).unwrap();
         self.0.current_budget = self.0.budgets[0];
     }
 
@@ -528,10 +506,10 @@ where
                     let rung_idx = i + 1;
                     if rung_idx >= self.0.rungs.len() {
                         // Emit a warning
-                        eprintln!("
-                        Warning: Rung index out of bounds due to wrong Step. 
-                        Most probably within user-defined objective function.
-                        Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                         ");
                     } else {
                         // Invariant:

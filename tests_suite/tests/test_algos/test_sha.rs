@@ -17,7 +17,7 @@ fn test_fid_batch_run() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = BatchRandomSearch::new(10);
-    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_sh_seqrun").init();
@@ -90,7 +90,7 @@ fn test_fid_batch_parrun() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = BatchRandomSearch::new(10);
-    let opt = Sha::new(sampler, 10, 1., 5., 1.61);
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61).unwrap();
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_sh_parrun").init();

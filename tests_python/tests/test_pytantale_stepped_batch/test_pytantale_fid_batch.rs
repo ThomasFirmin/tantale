@@ -38,7 +38,7 @@ fn test_python_function() {
     let obj2 = obj.clone();
     let obj3 = obj.clone();
     let sampler = BatchRandomSearch::new(10);
-    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
+    let opt = Sha::new(sampler, 10, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_python_sha").init();

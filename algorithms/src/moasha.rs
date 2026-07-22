@@ -31,9 +31,7 @@ use serde::{
 };
 use std::{cell::RefCell, marker::PhantomData};
 
-use crate::{
-    mo::{CandidateSelector, SelectorError}, utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter},
-};
+use crate::{mo::{CandidateSelector, SelectorError}, utils::{FCompAcc, FCompShape, PrunerError, SimpleStepped, build_halving_budgets, fidelity_setter}};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -217,9 +215,9 @@ where
     /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
     ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if:
+    /// Returns an error if:
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
@@ -229,26 +227,12 @@ where
         budget_min: f64,
         budget_max: f64,
         scaling: f64,
-    ) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-        let mut budgets: Vec<f64> = (0..)
-            .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *budgets.last().unwrap() != budget_max {
-            let last = budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+    ) -> Result<Self, PrunerError> {
+        let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
 
         let length = budgets.len();
         let current_budget = budgets[0];
-        MoAsha(MoAshaState {
+        Ok(MoAsha(MoAshaState {
             sampler,
             selector,
             budgets,
@@ -256,7 +240,7 @@ where
             rung: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
             _fn: PhantomData,
-        })
+        }))
     }
 
     /// Selects candidates for promotion based on the index of the rung and budget levels.

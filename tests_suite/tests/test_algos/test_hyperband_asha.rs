@@ -27,7 +27,7 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = RandomSearch::new();
-    let asha = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
+    let asha = Asha::new(sampler, 1., 5., 1.61).unwrap(); // log(max/min)
     let opt = Hyperband::new(asha);
 
     let stop = Evaluated::new(50);
@@ -169,7 +169,7 @@ fn test_fid_seq_parrun() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = RandomSearch::new();
-    let asha = Asha::new(sampler, 1., 5., 1.61);
+    let asha = Asha::new(sampler, 1., 5., 1.61).unwrap();
     let opt = Hyperband::new(asha);
 
     let stop = Evaluated::new(50);

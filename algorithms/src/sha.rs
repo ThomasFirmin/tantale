@@ -73,7 +73,7 @@ use serde::{
     ser::SerializeStruct,
 };
 
-use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped, fidelity_setter};
+use crate::{utils::{BatchFCompShape, FCompAcc, FCompShape, PrunerError, SimpleStepped, build_halving_budgets, fidelity_setter}};
 
 /// A helper macro to simplify the type signature of [`Sha`].
 /// For example, to load a TPE optimizer with `Univariate`, `UniformWeighter` and `LinearSplit`, instead of writing:
@@ -253,9 +253,9 @@ where
     /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
     ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if:
+    /// Returns an error if:
     /// - `scaling < 1.0`
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
@@ -266,36 +266,11 @@ where
         budget_min: f64,
         budget_max: f64,
         scaling: f64,
-    ) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-
-        let i_max = scaling.powf((budget_max / budget_min).log(scaling));
-        assert!(
-            batch as f64 >= i_max,
-            "Batch size should be greater or equal than {i_max}"
-        );
-
-        let mut budgets: Vec<f64> = (0..)
-            .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-        if budgets.len() == 1 {
-            budgets.push(budget_max);
-        }
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *budgets.last().unwrap() != budget_max {
-            let last = budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+    ) -> Result<Self, PrunerError> {
+        let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
 
         let current_budget = budgets[0];
-        Sha(
+        Ok(Sha(
             ShaState {
                 sampler,
                 batch,
@@ -310,7 +285,7 @@ where
                 _fn: PhantomData,
             },
             PhantomData,
-        )
+        ))
     }
 }
 

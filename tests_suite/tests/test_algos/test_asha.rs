@@ -29,7 +29,7 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = RandomSearch::new();
-    let opt = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
+    let opt = Asha::new(sampler, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_asha_run_seq").init();
@@ -100,7 +100,7 @@ fn test_fid_seq_parrun() {
     let sp = sp_evaluator_sh::get_searchspace();
     let obj = sp_evaluator_sh::get_function();
     let sampler = RandomSearch::new();
-    let opt = Asha::new(sampler, 1., 5., 1.61);
+    let opt = Asha::new(sampler, 1., 5., 1.61).unwrap();
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_asha_parrun").init();
@@ -202,7 +202,7 @@ fn test_fid_seq_run_tpe() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let opt = Asha::new(sampler, 1., 5., 1.61); // log(max/min)
+    let opt = Asha::new(sampler, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_asha_run_tpe").init();
@@ -293,7 +293,7 @@ fn test_fid_seq_parrun_tpe() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let opt = Asha::new(sampler, 1., 5., 1.61);
+    let opt = Asha::new(sampler, 1., 5., 1.61).unwrap();
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_asha_parrun_tpe").init();

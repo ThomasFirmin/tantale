@@ -29,7 +29,7 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_mo_fid::get_searchspace();
     let obj = sp_evaluator_mo_fid::get_function();
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
@@ -114,7 +114,7 @@ fn test_fid_seq_parrun() {
     let sp = sp_evaluator_mo_fid::get_searchspace();
     let obj = sp_evaluator_mo_fid::get_function();
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61);
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap();
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_moasha_parrun").init();

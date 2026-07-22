@@ -125,7 +125,7 @@ fn main() {
     let obj = get_function();
     // Selector, budget min and max per solution, scaling factor
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61);
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61).unwrap();
 
     let stop = Calls::new(25);
     let config = FolderConfig::new("tmp_moasha_example").init();

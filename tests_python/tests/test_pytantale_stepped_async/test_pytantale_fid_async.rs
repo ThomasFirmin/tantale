@@ -40,7 +40,7 @@ fn test_python_function() {
     let obj3 = obj.clone();
 
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61); // log(max/min)
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_python_fid").init();
