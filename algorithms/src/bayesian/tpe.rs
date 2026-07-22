@@ -435,7 +435,7 @@ where
                 Ok((good, bad)) => (good, bad),
                 Err(err) => {
                     match err {
-                        SplitError::ConfigError(msg) => {
+                        SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                             let info = TpeSInfo::new(0.0, 0.0, 0.0);
                             return self.with_rng(|rng| scp.sample_pair(rng, info));
@@ -703,7 +703,7 @@ where
                 Ok((good, bad)) => (good, bad),
                 Err(err) => {
                     match err {
-                        SplitError::ConfigError(msg) => {
+                        SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                             let info = TpeSInfo::new(0.0, 0.0, 0.0);
                             return self.with_rng(|rng| scp.sample_pair(rng, info));
@@ -815,7 +815,7 @@ where
                 Ok((good, bad)) => (good, bad),
                 Err(err) => {
                     match err {
-                        SplitError::ConfigError(msg) => {
+                        SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                             let info = TpeSInfo::new(0.0, 0.0, 0.0);
                             return self.with_rng(|rng| scp.sample_pair(rng, info));
