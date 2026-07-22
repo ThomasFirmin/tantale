@@ -20,13 +20,14 @@ rand = { workspace = true}
 serde = { workspace = true, features=["derive","rc"]}
 rayon = {workspace = true}
 ndarray = {workspace = true}
+log = {workspace = true}
 statrs = {version="0.18.0", optional = true}
 wfg_rs = "1.0.2"
 
 [features]
 mpi = ["tantale_core/mpi"]
-bayes = ["statrs"]
-spikes = []
+bayes = ["dep:statrs"]
+spikes = ["bayes"]
 
 [dev-dependencies]
 tantale = { path = "..", package = "tantale" }

@@ -154,7 +154,7 @@
 //!         let _b = [! b | Nat(0,100, Uniform) | !];
 //!         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 //!         let _d = [! d | Bool(Bernoulli(0.5)) | !];
-//!         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+//!         let e = [! e | Real(1e-4, 1e-1, Uniform) | Log !];
 //!         // ... more variables and computation ...
 //!         
 //!         // Manage the internal state

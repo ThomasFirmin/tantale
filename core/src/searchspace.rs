@@ -44,7 +44,7 @@
 //!
 //!     
 //!     hpo!(
-//!         a | Real(0.0,1.0,Uniform)         |                       ;
+//!         a | Real(1e-4, 1.0,Uniform)       | Log                   ;
 //!         b | Nat(0,100,Uniform)            | Real(0.0,1.0,Uniform) ;
 //!         c | Cat(["a", "b", "c"], Uniform) | Real(0.0,1.0,Uniform) ;
 //!         d | Bool(Bernoulli(0.5))          | Real(0.0,1.0,Uniform) ;
@@ -104,7 +104,7 @@
 //!
 //!     objective!(
 //!         pub fn example() -> OutStruct {
-//!             let a = [! a | Real(0.0,1.0,Uniform)    |                       !];
+//!             let a = [! a | Real(1e-4, 1.0,Uniform)  | Log                   !];
 //!             let b = [! b | Nat(0,100,Uniform)       | Real(0.0,1.0,Uniform) !];
 //!             let c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform)         | Real(0.0,1.0,Uniform) !];
 //!             let d = [! d | Bool(Bernoulli(0.5))                   | Real(0.0,1.0,Uniform) !];

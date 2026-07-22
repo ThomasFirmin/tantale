@@ -67,6 +67,7 @@ mod searchspace {
             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
             let _d = [! d | Bool(Bernoulli(0.5)) | !];
             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+            let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
 
             // ... more variables and computation ...
 
@@ -131,6 +132,7 @@ The parallelization philosophy is defined by the optimizer and by the user via [
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 #             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
 # 
 #             // ... more variables and computation ...
 # 
@@ -214,6 +216,7 @@ println!(
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 #             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
 # 
 #             // ... more variables and computation ...
 # 
@@ -300,6 +303,7 @@ foo@bar:~$ cargo add tantale --features mpi
 #             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
 #             let _d = [! d | Bool(Bernoulli(0.5)) | !];
 #             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
+#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
 # 
 #             // ... more variables and computation ...
 # 

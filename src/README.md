@@ -117,6 +117,7 @@ mod searchspace {
             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | !];
             let _d = [! d | Bool(Bernoulli(0.5))                       | !];
             let e  = [! e | Real(1000.0, 2000.0, Uniform)              | !];
+            let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !];
 
             OutExample {
                 obj:  e,

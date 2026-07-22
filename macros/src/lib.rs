@@ -359,6 +359,9 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// | `Bool` | `bool` | Binary choices | `Bool(Bernoulli(0.5))` |
 /// | `Cat` | `&'static str` | Categorical | `Cat(["a", "b"], Uniform)` |
 /// | `Unit` | `f64` | Unit hypercube domain | `Unit(Uniform)` |
+/// | `GridReal` | `i32` | Grid domain over reals | `GridReal([-2, -1, 0, 1, 2], Uniform)` |
+/// | `GridNat` | `i32` | Grid domain over naturals | `GridNat([-2, -1, 0, 1, 2], Uniform)` |
+/// | `GridInt` | `i32` | Grid domain over integers | `GridInt([-2, -1, 0, 1, 2], Uniform)` |
 ///
 /// ## Dual Domain Architecture
 ///
@@ -396,12 +399,14 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// // ObjType = Real (not Mixed)
 /// ```
 ///
-/// ## Alternative mode
+/// ## Alternative modes
+/// 
+/// ### Grid Search
 ///
 /// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
 /// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
 ///
-/// ### Example
+/// #### Example
 ///
 /// ```ignore
 /// use tantale::core::domain::{Bool, Cat, Int, Nat};
@@ -414,7 +419,19 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///         d | Grid<Bool(Bernoulli(0.5))>                         | ;
 ///     );
 /// ```
-///
+/// 
+/// ### Log-Scale Optimizer Domain
+/// 
+/// A Bounded domain (Real, Nat, Int) can be defined with a log-scale optimizer domain by adding the `Log` keyword after the objective domain.
+/// 
+/// ```ignore
+/// hpo!(
+///     learning_rate | Real(1e-4, 1e-2, Uniform) | Log ;
+///     momentum      | Real(0.7, 0.99, Uniform)  |     ;
+///     weight_decay  | Real(0.0, 0.01, Uniform)  |     ;
+/// );
+/// ```
+/// 
 /// ## Variable Replication
 ///
 /// Create multiple similar variables using `{count}` syntax:
@@ -438,7 +455,7 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     weight_decay  | Real(0.0, 0.01, Uniform)  | ;
 /// );
 /// ```
-///
+/// 
 /// ### Example 2: Mixed/Heterogeneous Objective Domains
 /// ```ignore
 /// hpo!(
