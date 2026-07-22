@@ -1,5 +1,5 @@
-use std::{error::Error, fmt};
-use tantale_core::errors::ErrMsg;
+use std::fmt;
+use tantale_core::{err_msg, errors::ErrMsg};
 
 /// Error type for splitting operations from a [`Splitter`](crate::bayesian::splitter::Splitter).
 pub enum SplitError{
@@ -9,7 +9,6 @@ pub enum SplitError{
     ConfigError(&'static str),
 }
 
-impl Error for SplitError {}
 impl ErrMsg for SplitError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -18,16 +17,7 @@ impl ErrMsg for SplitError {
         }
     }
 }
-impl fmt::Display for SplitError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-impl fmt::Debug for SplitError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
+err_msg!(SplitError);
 
 /// Error type for bayesian prior operations.
 pub enum PriorError{
@@ -35,7 +25,6 @@ pub enum PriorError{
     ConfigError(&'static str),
 }
 
-impl Error for PriorError {}
 impl ErrMsg for PriorError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -43,16 +32,7 @@ impl ErrMsg for PriorError {
         }
     }
 }
-impl fmt::Display for PriorError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-impl fmt::Debug for PriorError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
+err_msg!(PriorError);
 
 pub enum KernelError{
     /// Error indicating that the configuration of the kernel is invalid.
@@ -61,7 +41,6 @@ pub enum KernelError{
     NotEnoughPoints(&'static str),
 }
 
-impl Error for KernelError {}
 impl ErrMsg for KernelError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -70,17 +49,7 @@ impl ErrMsg for KernelError {
         }
     }
 }
-impl fmt::Display for KernelError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-impl fmt::Debug for KernelError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-
+err_msg!(KernelError);
 pub enum BandwidthError{
     /// Error indicating that the configuration of the bandwidth is invalid.
     ConfigError(&'static str),
@@ -90,7 +59,6 @@ pub enum BandwidthError{
     NotEnoughPoints(&'static str),
 }
 
-impl Error for BandwidthError {}
 impl ErrMsg for BandwidthError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -100,16 +68,7 @@ impl ErrMsg for BandwidthError {
         }
     }
 }
-impl fmt::Display for BandwidthError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-impl fmt::Debug for BandwidthError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
+err_msg!(BandwidthError);
 
 pub enum WeighterError{
     /// Error indicating that the configuration of the weighter is invalid.
@@ -118,7 +77,6 @@ pub enum WeighterError{
     NotEnoughPoints(&'static str),
 }
 
-impl Error for WeighterError {}
 impl ErrMsg for WeighterError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -127,13 +85,4 @@ impl ErrMsg for WeighterError {
         }
     }
 }
-impl fmt::Display for WeighterError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
-impl fmt::Debug for WeighterError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._err_msg(f)
-    }
-}
+err_msg!(WeighterError);
