@@ -32,7 +32,7 @@
 //! - Ozaki et al., [*Multiobjective Tree-Structured Parzen Estimator*](https://www.jair.org/index.php/jair/article/view/13188/26784)
 //!
 use crate::{
-    bayesian::{bandwidth::Bandwidth, kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped},
+    bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped},
 };
 use tantale_core::{
     BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity,
@@ -46,7 +46,9 @@ use tantale_core::{
 use rand::rngs::StdRng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use core::panic;
 use std::{cell::RefCell, sync::Arc, vec};
+use log::warn;
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -428,13 +430,27 @@ where
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
             // Split the archive into good and bad, and compute the weights
-            let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
+            let split = self.0.splitter.split(&self.0.point_archive[0].1);
+            let (good, bad) = match split {
+                Ok((good, bad)) => (good, bad),
+                Err(err) => {
+                    match err {
+                        SplitError::ConfigError(msg) => {
+                            warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
+                            let info = TpeSInfo::new(0.0, 0.0, 0.0);
+                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                        },
+                        _ => panic!("Unexpected error: {err:?}"),
+                    }
+                }
+            };
             
-            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
-            let good_bw =  self.0.bandwidth.compute(&good, scp);
-            let good_ctx = Kern::get_context(&good, scp, &good_bw);
-            let bad_bw =  self.0.bandwidth.compute(&bad, scp);
-            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw);
+            // Now bad and good set should not be empty
+            let weights = self.0.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
+            let good_bw =  self.0.bandwidth.compute(&good, scp).unwrap();
+            let good_ctx = Kern::get_context(&good, scp, &good_bw).unwrap();
+            let bad_bw =  self.0.bandwidth.compute(&bad, scp).unwrap();
+            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw).unwrap();
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample)
                 .into_par_iter()
@@ -557,13 +573,27 @@ where
                 self.with_rng(|rng| scp.sample_pair(rng, info))
             } else {
                 // Split the archive into good and bad, and compute the weights
-                let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
+                let split = self.0.splitter.split(&self.0.point_archive[0].1);
+                let (good, bad) = match split {
+                    Ok((good, bad)) => (good, bad),
+                    Err(err) => {
+                        match err {
+                            SplitError::ConfigError(msg) => {
+                                warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
+                                let info = TpeSInfo::new(0.0, 0.0, 0.0);
+                                return self.with_rng(|rng| scp.sample_pair(rng, info));
+                            },
+                            _ => panic!("Unexpected error: {err:?}"),
+                        }
+                    }
+                };
                 
-                let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
-                let good_bw =  self.0.bandwidth.compute(&good, scp);
-                let good_ctx = Kern::get_context(&good, scp, &good_bw);
-                let bad_bw =  self.0.bandwidth.compute(&bad, scp);
-                let bad_ctx = Kern::get_context(&bad, scp, &bad_bw);
+                // Now bad and good set should not be empty
+                let weights = self.0.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
+                let good_bw =  self.0.bandwidth.compute(&good, scp).unwrap();
+                let good_ctx = Kern::get_context(&good, scp, &good_bw).unwrap();
+                let bad_bw =  self.0.bandwidth.compute(&bad, scp).unwrap();
+                let bad_ctx = Kern::get_context(&bad, scp, &bad_bw).unwrap();
 
                 let (s, acq, gpdf, bpdf) = (0..self.0.n_sample)
                     .into_par_iter()
@@ -668,13 +698,27 @@ where
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
             // Split the archive into good and bad, and compute the weights
-            let (good, bad) = self.0.splitter.split(&self.0.point_archive[0].1);
+            let split = self.0.splitter.split(&self.0.point_archive[0].1);
+            let (good, bad) = match split {
+                Ok((good, bad)) => (good, bad),
+                Err(err) => {
+                    match err {
+                        SplitError::ConfigError(msg) => {
+                            warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
+                            let info = TpeSInfo::new(0.0, 0.0, 0.0);
+                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                        },
+                        _ => panic!("Unexpected error: {err:?}"),
+                    }
+                }
+            };
             
-            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
-            let good_bw =  self.0.bandwidth.compute(&good, scp);
-            let good_ctx = Kern::get_context(&good, scp, &good_bw);
-            let bad_bw =  self.0.bandwidth.compute(&bad, scp);
-            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw);
+            // Now bad and good set should not be empty
+            let weights = self.0.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
+            let good_bw =  self.0.bandwidth.compute(&good, scp).unwrap();
+            let good_ctx = Kern::get_context(&good, scp, &good_bw).unwrap();
+            let bad_bw =  self.0.bandwidth.compute(&bad, scp).unwrap();
+            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw).unwrap();
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample)
                 .into_par_iter()
@@ -766,13 +810,27 @@ where
             self.with_rng(|rng| scp.sample_pair(rng, info))
         } else {
             // Split the archive into good and bad, and compute the weights
-            let (good, bad) = self.0.splitter.split(&self.0.point_archive[self.0.current_archive].1);
-            
-            let weights = self.0.weighter.weight(&good, &bad); // Weights for the good and bad points
-            let good_bw =  self.0.bandwidth.compute(&good, scp);
-            let good_ctx = Kern::get_context(&good, scp, &good_bw);
-            let bad_bw =  self.0.bandwidth.compute(&bad, scp);
-            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw);
+            let split = self.0.splitter.split(&self.0.point_archive[self.0.current_archive].1);
+            let (good, bad) = match split {
+                Ok((good, bad)) => (good, bad),
+                Err(err) => {
+                    match err {
+                        SplitError::ConfigError(msg) => {
+                            warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
+                            let info = TpeSInfo::new(0.0, 0.0, 0.0);
+                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                        },
+                        _ => panic!("Unexpected error: {err:?}"),
+                    }
+                }
+            };
+
+            // Now bad and good set should not be empty
+            let weights = self.0.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
+            let good_bw =  self.0.bandwidth.compute(&good, scp).unwrap();
+            let good_ctx = Kern::get_context(&good, scp, &good_bw).unwrap();
+            let bad_bw =  self.0.bandwidth.compute(&bad, scp).unwrap();
+            let bad_ctx = Kern::get_context(&bad, scp, &bad_bw).unwrap();
 
             let (s, acq, gpdf, bpdf) = (0..self.0.n_sample)
                 .into_par_iter()

@@ -5,6 +5,8 @@ use num::{FromPrimitive, Num, cast::AsPrimitive};
 use ndarray::{Array2, Axis, s};
 use serde::{Deserialize, Serialize};
 
+use crate::bayesian::error::BandwidthError;
+
 pub trait BandwidthType {
     fn get(&self, idx: usize, dim: usize) -> f64;
 }
@@ -29,7 +31,7 @@ where
     Out: Outcome,
 {
     type BwType: BandwidthType;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>;
 }
@@ -71,7 +73,7 @@ impl Optuna {
     }
 }
 
-pub fn optuna_bw<D>(size: f64, neg_div_dim_p_four: f64, dom: &D, clip: bool) -> f64
+pub fn optuna_bw<D>(size: f64, neg_div_dim_p_four: f64, dom: &D, clip: bool) -> Result<f64, BandwidthError>
 where
     D: NumericalDomain,
     D::TypeDom: Num + AsPrimitive<f64> + FromPrimitive,
@@ -81,18 +83,18 @@ where
     let bw = uml * size.powf(neg_div_dim_p_four);
 
     if clip {
-        magic_clip(bw, size, uml)
+        Ok(magic_clip(bw, size, uml))
     } else {
-        bw
+        Ok(bw)
     }
 }
 
-pub fn cat_bw<D>(size: f64, dom: &D) -> f64
+pub fn cat_bw<D>(size: f64, dom: &D) -> Result<f64, BandwidthError>
 where
     D: CategoricalDomain,
 {
     let c = dom.size() as f64;
-    (size + 1.) / (size + c)
+    Ok((size + 1.) / (size + c))
 }
 
 impl BandwidthType for Vec<f64> {
@@ -112,15 +114,18 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T: AsRef<Xy<<S>::Raw, TypeCodom<Out>>>>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType {
+    fn compute<T: AsRef<Xy<<S>::Raw, TypeCodom<Out>>>>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError> {
+        if archive.is_empty() {
+            return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+        }
+
         let n_size = archive.len() as f64;
-        
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
         scp.iter_opt().map(
             |dom| optuna_bw(n_size, neg_div_dim_p_four, dom, self.0)
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -135,18 +140,20 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
+        if archive.is_empty() {
+            return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+        }
         let n_size = archive.len() as f64;
-        
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
         scp.iter_opt().map(
             |dom| optuna_bw(n_size, neg_div_dim_p_four, dom, self.0)
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -161,18 +168,21 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
-        let n_size = archive.len() as f64;
-        
+        if archive.is_empty() {
+            return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+        }
+
+        let n_size = archive.len() as f64;   
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
         scp.iter_opt().map(
             |dom| optuna_bw(n_size, neg_div_dim_p_four, dom, self.0)
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -187,18 +197,21 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
+        if archive.is_empty() {
+            return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+        }
+
         let n_size = archive.len() as f64;
-        
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
         scp.iter_opt().map(
             |dom| optuna_bw(n_size, neg_div_dim_p_four, dom, self.0)
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -213,10 +226,14 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
+        if archive.is_empty() {
+            return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+        }
+
         let size = archive.len() as f64;
         let neg_div_dim_p_four = -1.0/(scp.size() + 4) as f64;
 
@@ -236,11 +253,11 @@ where
                 }
              }
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
-fn hyperopt<'a, T, Raw, Y, I, D>(archive: &[T], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Array2<f64>
+fn hyperopt<'a, T, Raw, Y, I, D>(archive: &[T], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
 where
     T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     I: Iterator<Item = &'a D>,
@@ -284,7 +301,7 @@ where
             res[[idx, colindex]].write(bw);
         });
     }
-    unsafe { res.assume_init() }
+    Ok(unsafe { res.assume_init() })
 }
 
 pub fn hyperopt_assign_col<D>(col: Vec<D::TypeDom>, colindex:usize, d: &D, res: &mut Array2<MaybeUninit<f64>>, consider_endpoint: bool, clip: bool)
@@ -328,7 +345,7 @@ where
     }
 }
 
-fn hyperopt_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, consider_endpoint: bool, dim: usize, clip:bool) -> Array2<f64>
+fn hyperopt_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, consider_endpoint: bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
 where
     T : AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
     DomIter: IntoIterator<Item = &'a Mixed>,
@@ -348,12 +365,13 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                 .map(|x| {
-                    match x.as_ref().x[colindex] {
-                            MixedTypeDom::Real(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
-                        }
-                    })
-                    .collect();
+                    match x.as_ref().x[colindex] 
+                    {
+                        MixedTypeDom::Real(e) => Ok(e),
+                        _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
+                    }
+                })
+                .collect::<Result<Vec<f64>, BandwidthError>>()?;
                 hyperopt_assign_col(col, colindex, d, &mut res, consider_endpoint, clip);
             },
             Mixed::Int(d) => {
@@ -362,11 +380,11 @@ where
                     .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Int(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Int(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<i64>, BandwidthError>>()?;
                hyperopt_assign_col(col, colindex, d, &mut res, consider_endpoint, clip);
             },
             Mixed::Nat(d) => {
@@ -375,11 +393,11 @@ where
                     .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Nat(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Nat(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<u64>, BandwidthError>>()?;
                 hyperopt_assign_col(col, colindex, d, &mut res, consider_endpoint, clip);
             },
             Mixed::Unit(d) => {
@@ -388,45 +406,45 @@ where
                 .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Unit(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Unit(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<f64>, BandwidthError>>()?;
                 hyperopt_assign_col(col, colindex, d, &mut res, consider_endpoint, clip);
             },
             // =========================
             // CATEGORICAL / COMPLEX TYPES
             // =========================
             Mixed::Cat(d) => {
-                let bw = cat_bw(n.as_(), d);
+                let bw = cat_bw(n.as_(), d)?;
                 res.slice_mut(s![.., colindex]).fill(MaybeUninit::new(bw));
                 
             },
             Mixed::Bool(d) => {
-                let bw = cat_bw(n.as_(), d);
+                let bw = cat_bw(n.as_(), d)?;
                 res.slice_mut(s![.., colindex]).fill(MaybeUninit::new(bw));
                 
             },
             Mixed::GridReal(d) => {
-                let bw = cat_bw(n.as_(), d);
+                let bw = cat_bw(n.as_(), d)?;
                 res.slice_mut(s![.., colindex]).fill(MaybeUninit::new(bw));
                 
             },
             Mixed::GridNat(d) => {
-                let bw = cat_bw(n.as_(), d);
+                let bw = cat_bw(n.as_(), d)?;
                 res.slice_mut(s![.., colindex]).fill(MaybeUninit::new(bw));
                 
             },
             Mixed::GridInt(d) =>{
-                let bw = cat_bw(n.as_(), d);
+                let bw = cat_bw(n.as_(), d)?;
                 res.slice_mut(s![.., colindex]).fill(MaybeUninit::new(bw));
                 
             }
         }
     }
 
-    unsafe { res.assume_init() }
+    Ok(unsafe { res.assume_init() })
 }
 
 /// A struct representing the Hyperopt bandwidth method for Gaussian kernels.
@@ -478,7 +496,7 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -497,7 +515,7 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -516,7 +534,7 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -535,7 +553,7 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -556,7 +574,7 @@ where
     Out: Outcome,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -585,14 +603,14 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scp.iter_opt().map(
             |dom| cat_bw(archive.len().as_(), dom)
         )
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -607,16 +625,16 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         let n: f64 = archive.len().as_();
-        vec![(n +1.) / (n + 2.) ; scp.size()]
+        Ok(vec![(n +1.) / (n + 2.) ; scp.size()])
     }
 }
 
-fn scott<'a, T, Raw, D, Y, I>(archive: &[T], doms: I, clip: bool) -> Vec<f64>
+fn scott<'a, T, Raw, D, Y, I>(archive: &[T], doms: I, clip: bool) -> Result<Vec<f64>, BandwidthError>
 where
     T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     D: NumericalDomain + 'a,
@@ -624,6 +642,10 @@ where
     Raw: XToNdArray<D>,
     I: Iterator<Item = &'a D>,
 {
+    if archive.is_empty() {
+        return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
+    }
+
     let size= archive.len() as f64;
     let arr = archive.x_array_type::<f64>();
     let std = arr.std_axis(Axis(0), 0.0);
@@ -647,7 +669,7 @@ where
         }
         res.push(bw);
     }
-    res
+    Ok(res)
 }
 
 pub fn scott_col<D>(col: &[D::TypeDom], dom: &D, clip: bool) -> f64
@@ -684,7 +706,7 @@ where
     bw
 }
 
-fn scott_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, dim: usize, clip: bool) -> Vec<f64>
+fn scott_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, dim: usize, clip: bool) -> Result<Vec<f64>, BandwidthError>
 where
     T: AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
     DomIter: IntoIterator<Item = &'a Mixed>,
@@ -705,11 +727,11 @@ where
                 .iter()
                 .map(|x| {
                     match x.as_ref().x[colindex] {
-                            MixedTypeDom::Real(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Real(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<f64>, BandwidthError>>()?;
                 res.push(scott_col(&col, dom, clip));
             },
             Mixed::Int(dom) => {
@@ -718,11 +740,11 @@ where
                     .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Int(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Int(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Int type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<i64>, BandwidthError>>()?;
                res.push(scott_col(&col, dom, clip));
             },
             Mixed::Nat(dom) => {
@@ -731,11 +753,11 @@ where
                     .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Nat(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Nat(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Nat type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<u64>, BandwidthError>>()?;
                 res.push(scott_col(&col, dom, clip));
             },
             Mixed::Unit(dom) => {
@@ -744,38 +766,38 @@ where
                 .iter()
                     .map(|x| {
                         match x.as_ref().x[colindex] {
-                            MixedTypeDom::Unit(e) => e,
-                            _ => panic!("Unexpected non-numeric type in numeric column"),
+                            MixedTypeDom::Unit(e) => Ok(e),
+                            _ => Err(BandwidthError::DomainTypeError("Expected Unit type in the archive for the given column index.")),
                         }
                     })
-                    .collect();
+                    .collect::<Result<Vec<f64>, BandwidthError>>()?;
                 res.push(scott_col(&col, dom, clip));
             },
             // =========================
             // CATEGORICAL / COMPLEX TYPES
             // =========================
             Mixed::Cat(d) => {
-                res.push(cat_bw(n.as_(), d));
+                res.push(cat_bw(n.as_(), d)?);
             },
             Mixed::Bool(d) => {
-                res.push(cat_bw(n.as_(), d));
+                res.push(cat_bw(n.as_(), d)?);
                 
             },
             Mixed::GridReal(d) => {
-                res.push(cat_bw(n.as_(), d));
+                res.push(cat_bw(n.as_(), d)?);
                 
             },
             Mixed::GridNat(d) => {
-                res.push(cat_bw(n.as_(), d));
+                res.push(cat_bw(n.as_(), d)?);
                 
             },
             Mixed::GridInt(d) =>{
-                res.push(cat_bw(n.as_(), d));
+                res.push(cat_bw(n.as_(), d)?);
                 
             }
         }
     }
-    res
+    Ok(res)
 }
 
 /// Computes the bandwidth for a given point in the archive using Scott's method:
@@ -809,7 +831,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -828,7 +850,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -847,7 +869,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -866,7 +888,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
@@ -885,7 +907,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Self::BwType
+    fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
         T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {

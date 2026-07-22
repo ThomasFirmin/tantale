@@ -22,7 +22,7 @@ where
     ///
     /// # Returns
     /// A tuple containing two slices: the first slice corresponds to the "good" set (the best points), and the second slice corresponds to the "bad" set (the worst points).
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>);
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError>;
 }
 
 /// A simple linear [`Splitter`].
@@ -40,7 +40,7 @@ pub struct LinearSplit(pub f64);
 impl LinearSplit {
     pub fn new(beta: f64) -> Result<Self, SplitError> {
         if beta <= 0.0 || beta >= 1.0 {
-            return Err(SplitError("Beta must be between 0 and 1".into()));
+            return Err(SplitError::ConfigError("Beta must be between 0 and 1"));
         }
         Ok(LinearSplit(beta))
     }
@@ -49,10 +49,16 @@ impl<T> Splitter<T> for LinearSplit
 where
     T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
+        if archive.size() <= 1 {
+            return Err(SplitError::NotEnoughPoints("Archive must have more than one point"));
+        } else if archive.size() == 2 {
+            // last is put in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
+            return Ok((vec![archive.points.first().unwrap()], vec![archive.points.last().unwrap()]));
+        }
         let quantile = (archive.size() as f64 * (1.0 - self.0)).ceil() as usize;
         let (bad, good) = archive.points.split_at(quantile);
-        (good.iter().collect(), bad.iter().collect())
+        Ok((good.iter().collect(), bad.iter().collect()))
     }
 }
 
@@ -76,7 +82,7 @@ pub struct SqrtSplit(pub f64);
 impl SqrtSplit {
     pub fn new(beta: f64) -> Result<Self, SplitError> {
         if beta <= 0.0 {
-            return Err(SplitError("Beta must be positive".into()));
+            return Err(SplitError::ConfigError("Beta must be positive"));
         }
         Ok(SqrtSplit(beta))
     }
@@ -85,33 +91,34 @@ impl<T> Splitter<T> for SqrtSplit
 where
     T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
-        assert!(archive.size() > 1, "Archive must have more than one point");
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
+        if archive.size() <= 1 {
+            return Err(SplitError::NotEnoughPoints("Archive must have more than one point"));
+        } else if archive.size() == 2 {
+            // last is put in the good set and first in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
+            return Ok((vec![archive.points.last().unwrap()], vec![archive.points.first().unwrap()]));
+        }
 
         let size = archive.size() as f64;
         let quantile = (size - (self.0 / size.sqrt())).ceil();
-        if quantile <= 0.0 {
-            // last is put in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
-            return (archive.points.iter().take(archive.size() - 2).collect(), vec![archive.points.iter().last().unwrap()]);
-        } else if quantile >= size {
-            // last is put in the good set to avoid empty bad set, which would cause an error in the TPE algorithm
-            return (vec![archive.points.iter().last().unwrap()], archive.points.iter().take(archive.size() - 2).collect());
+        if quantile <= 0.0 || quantile >= size {
+            return Err(SplitError::NotEnoughPoints("Not enough points in the archive to perform a valid split."));
         }
         let quantile = quantile as usize;
         let (bad, good) = archive.points.split_at(quantile);
-        (good.iter().collect(), bad.iter().collect())
+        Ok((good.iter().collect(), bad.iter().collect()))
     }
 }
 
-pub fn greedy_hss<'a, T>(front: &mut Vec<&'a T>, n: usize) -> Vec<&'a T>
+pub fn greedy_hss<'a, T>(front: &mut Vec<&'a T>, n: usize) -> Result<Vec<&'a T>, SplitError>
 where
     T: Dominate,
 {
     if front.len() == n {
-        return std::mem::take(front);
+        return Ok(std::mem::take(front));
     }
     if front.len() < n {
-        panic!("Not enough points in the front to extract {} points", n);
+        return Err(SplitError::NotEnoughPoints("Not enough points in the front to extract the requested number of points."));
     }
 
     // Create a 2D array from the front points / negate because WFG consider a minimization problem
@@ -169,7 +176,7 @@ where
         selected.push(front.remove(idx));
         i += 1;
     }
-    selected
+    Ok(selected)
 }
 
 /// A hypervolume-based [`Splitter`].
@@ -191,7 +198,7 @@ pub struct MOSplit(pub f64);
 impl MOSplit {
     pub fn new(beta: f64) -> Result<Self, SplitError> {
         if beta <= 0.0 || beta >= 1.0 {
-            return Err(SplitError("Beta must be between 0 and 1".into()));
+            return Err(SplitError::ConfigError("Beta must be between 0 and 1"));
         }
         Ok(MOSplit(beta))
     }
@@ -201,7 +208,7 @@ impl<T> Splitter<T> for MOSplit
 where
     T: Dominate + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> (Vec<&'a T>, Vec<&'a T>) {
+    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         let quantile = (archive.size() as f64 * self.0).ceil() as usize;
 
         let mut fronts = archive.lex_non_dominated_sort();
@@ -220,7 +227,7 @@ where
 
             let extracted = greedy_hss(&mut fronts[i], remaining);
 
-            good.extend(extracted);
+            good.extend(extracted?);
             bad.extend_from_slice(&fronts[i]);
             i += 1;
         }
@@ -230,6 +237,6 @@ where
             bad.extend_from_slice(f);
         }
 
-        (good, bad)
+        Ok((good, bad))
     }
 }

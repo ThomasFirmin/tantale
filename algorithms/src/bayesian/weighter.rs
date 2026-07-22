@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::bayesian::error::WeighterError;
+
 #[derive(Serialize, Deserialize, Debug)]
 /// A struct to hold the weights for a set of points, as well as the prior weight.
 pub struct PointWeights {
@@ -35,7 +37,7 @@ where
     ///
     /// # Returns
     /// A [`TPEWeights`] struct containing the weights for the good and bad sets, as well as the prior weights for both sets.
-    fn weight(&self, good: &[&T], bad: &[&T]) -> TPEWeights;
+    fn weight(&self, good: &[&T], bad: &[&T]) -> Result<TPEWeights, WeighterError>;
 }
 
 /// A simple uniform [`Weighter`].
@@ -74,7 +76,13 @@ impl<T> Weighter<T> for UniformWeighter
 where
     T: Serialize + for<'de> Deserialize<'de>,
 {
-    fn weight(&self, good: &[&T], bad: &[&T]) -> TPEWeights {
+    fn weight(&self, good: &[&T], bad: &[&T]) -> Result<TPEWeights, WeighterError> {
+        if good.is_empty() || bad.is_empty() {
+            return Err(WeighterError::NotEnoughPoints(
+                "Both good and bad sets must contain at least one point.",
+            ));
+        }
+        
         let n_good = good.len() as f64;
         let n_bad = bad.len() as f64;
 
@@ -87,7 +95,7 @@ where
         let good_prior_weight = self.0 / normalize_cst_good;
         let bad_prior_weight = self.0 / normalize_cst_bad;
 
-        TPEWeights {
+        Ok(TPEWeights {
             good: PointWeights {
                 weights: vec![good_weight; good.len()],
                 prior_weight: good_prior_weight,
@@ -96,7 +104,7 @@ where
                 weights: vec![bad_weight; bad.len()],
                 prior_weight: bad_prior_weight,
             },
-        }
+        })
     }
 }
 

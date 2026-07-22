@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::bayesian::error::PriorError;
+
 
 /// A Beta prior distribution with parameters `alpha` and `beta`.
 /// The Beta distribution is defined on the interval [0, 1] and is commonly used
@@ -18,10 +20,14 @@ impl BetaPrior {
     /// # Panics
     ///
     /// This function will panic if either `alpha` or `beta` is less than or equal to 0.
-    pub fn new(alpha: f64, beta: f64) -> Self {
-        assert!(alpha > 0.0, "Alpha must be greater than 0");
-        assert!(beta > 0.0, "Beta must be greater than 0");
-        BetaPrior(alpha, beta, alpha + beta)
+    pub fn new(alpha: f64, beta: f64) -> Result<Self, PriorError> {
+        if alpha <= 0.0 {
+            return Err(PriorError::ConfigError("Alpha must be greater than 0"));
+        }
+        if beta <= 0.0 {
+            return Err(PriorError::ConfigError("Beta must be greater than 0"));
+        }
+        Ok(BetaPrior(alpha, beta, alpha + beta))
     }
 
     /// Returns the `alpha` parameter of the Beta distribution.

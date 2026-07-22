@@ -12,7 +12,7 @@ use statrs::function::erf;
 use std::sync::Arc;
 
 use crate::bayesian::{
-    bandwidth::BandwidthType, weighter::PointWeights,
+    bandwidth::BandwidthType, error::KernelError, weighter::PointWeights,
 };
 
 const SQRT_2PI: f64 = 2.5066282746310002;
@@ -73,7 +73,7 @@ pub trait KernelFunc<Dom: Domain> {
     /// for efficient kernel computation for each point within the archive.
     type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context(x: &Dom::TypeDom, bandwidth: f64, dom: &Dom) -> Self::Context;
+    fn get_context(x: &Dom::TypeDom, bandwidth: f64, dom: &Dom) -> Result<Self::Context, KernelError>;
 
     /// Computes the kernel function between two [`SolutionShape`](tantale_core::SolutionShape) instances of `Opt` type `Dom`.
     ///
@@ -161,13 +161,13 @@ impl KernelFunc<Real> for GaussianKernel {
     
     type Context = GaussianContext;
 
-    fn get_context(x: &f64, bandwidth: f64, dom: &Real) -> Self::Context {
+    fn get_context(x: &f64, bandwidth: f64, dom: &Real) -> Result<Self::Context, KernelError> {
         let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
         let cst = gaussian_interval(x, bandwidth, low, up);
         let p_low = gaussian_cdf(*x, bandwidth, &low);
         let p_up = gaussian_cdf(*x, bandwidth, &up);
-        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
+        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
     }
 
     fn compute(
@@ -213,12 +213,12 @@ impl KernelFunc<Real> for GaussianKernel {
 impl KernelFunc<Unit> for GaussianKernel {
     type Context = GaussianContext;
 
-    fn get_context(x: &f64, bandwidth: f64, _dom: &Unit) -> Self::Context {
+    fn get_context(x: &f64, bandwidth: f64, _dom: &Unit) -> Result<Self::Context, KernelError> {
         let lhs = 1. / (bandwidth * SQRT_2PI);
         let cst = gaussian_interval(x, bandwidth, 0.0, 1.0);
         let p_low = gaussian_cdf(*x, bandwidth, &0.0);
         let p_up = gaussian_cdf(*x, bandwidth, &1.0);
-        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
+        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
     }
 
     fn compute(
@@ -259,7 +259,7 @@ impl KernelFunc<Unit> for GaussianKernel {
 impl KernelFunc<Int> for GaussianKernel {
     type Context = GaussianContext;
 
-    fn get_context(x: &i64, bandwidth: f64, dom: &Int) -> Self::Context {
+    fn get_context(x: &i64, bandwidth: f64, dom: &Int) -> Result<Self::Context, KernelError> {
         let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
@@ -268,7 +268,7 @@ impl KernelFunc<Int> for GaussianKernel {
         let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
         let cst = gaussian_interval(x, bandwidth, low, up);
-        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
+        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
     }
 
     fn compute(
@@ -318,7 +318,7 @@ impl KernelFunc<Int> for GaussianKernel {
 impl KernelFunc<Nat> for GaussianKernel {
     type Context = GaussianContext;
 
-    fn get_context(x: &u64, bandwidth: f64, dom: &Nat) -> Self::Context {
+    fn get_context(x: &u64, bandwidth: f64, dom: &Nat) -> Result<Self::Context, KernelError> {
 
         let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
@@ -328,7 +328,7 @@ impl KernelFunc<Nat> for GaussianKernel {
         let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
         let cst = gaussian_interval(x, bandwidth, low, up);
-        GaussianContext { bandwidth, lhs, cst, p_low, p_up }
+        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
     }
 
     fn compute(
@@ -405,8 +405,8 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
         _x: &<GridDom<T> as Domain>::TypeDom,
         bandwidth: f64,
         _dom: &GridDom<T>,
-    ) -> Self::Context {
-        AitchisonAitkenContext::new(bandwidth)
+    ) -> Result<Self::Context, KernelError> {
+        Ok(AitchisonAitkenContext::new(bandwidth))
     }
 
     fn compute(
@@ -452,8 +452,8 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
         _x: &<Bool as Domain>::TypeDom,
         bandwidth: f64,
         _dom: &Bool,
-    ) -> Self::Context {
-        AitchisonAitkenContext::new(bandwidth)
+    ) -> Result<Self::Context, KernelError> {
+        Ok(AitchisonAitkenContext::new(bandwidth))
     }
 
     fn compute(
@@ -501,34 +501,34 @@ pub enum MixedContext {
 impl KernelFunc<Mixed> for MixedKernel {
     type Context = MixedContext;
 
-    fn get_context(x: &MixedTypeDom, bandwidth: f64, dom: &Mixed) -> Self::Context {
+    fn get_context(x: &MixedTypeDom, bandwidth: f64, dom: &Mixed) -> Result<Self::Context, KernelError> {
         match (x, dom) {
             (MixedTypeDom::Real(x), Mixed::Real(d)) => {
-                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::Unit(x), Mixed::Unit(d)) => {
-                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::Int(x), Mixed::Int(d)) => {
-                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::Nat(x), Mixed::Nat(d)) => {
-                MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::Bool(x), Mixed::Bool(d)) => {
-                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::Cat(x), Mixed::Cat(d)) => {
-                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::GridReal(x), Mixed::GridReal(d)) => {
-                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::GridNat(x), Mixed::GridNat(d)) => {
-                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
             }
             (MixedTypeDom::GridInt(x), Mixed::GridInt(d)) => {
-                MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d))
+                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
             }
             _ => panic!("Mismatched kernel context and input type"),
         }
@@ -693,7 +693,7 @@ where
     /// for efficient kernel computation for each point within the archive.
     type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>;
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
 
     fn compute(
         &self,
@@ -795,8 +795,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -883,8 +886,11 @@ where
             .product()
     }
     
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -971,8 +977,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1059,8 +1068,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1147,8 +1159,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1236,8 +1251,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1337,8 +1355,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1425,8 +1446,11 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
         archive
             .iter()
             .enumerate()
@@ -1513,8 +1537,12 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
+
         archive
             .iter()
             .enumerate()
@@ -1601,8 +1629,12 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
+
         archive
             .iter()
             .enumerate()
@@ -1689,8 +1721,12 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
+
         archive
             .iter()
             .enumerate()
@@ -1778,8 +1814,12 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Vec<Self::Context>
+    fn get_context<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
     {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
+        
         archive
             .iter()
             .enumerate()
