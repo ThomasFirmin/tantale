@@ -295,7 +295,7 @@ fn test_crowding_distance() {
 fn test_nsga2_selection() {
     let mut solutions = front::generate_solutions();
     let selector = NSGA2Selector;
-    let selected = selector.select_candidates(&mut solutions, 9);
+    let selected = selector.select_candidates(&mut solutions, 9).unwrap();
     let ids = selected.iter().map(|s| s.id().id).collect::<Vec<_>>();
     assert_eq!(
         ids,
@@ -330,7 +330,7 @@ fn test_non_dominated_arg_sorting() {
 fn test_nsga2_argselection() {
     let solutions = front::generate_solutions();
     let selector = NSGA2Selector;
-    let selected = selector.arg_select_candidates(&solutions, 9);
+    let selected = selector.arg_select_candidates(&solutions, 9).unwrap();
     let ids = selected
         .iter()
         .map(|s| solutions[*s].id().id)

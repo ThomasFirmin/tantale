@@ -32,8 +32,7 @@ use serde::{
 use std::{cell::RefCell, marker::PhantomData};
 
 use crate::{
-    mo::CandidateSelector,
-    utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter},
+    mo::{CandidateSelector, SelectorError}, utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter},
 };
 
 thread_local! {
@@ -264,7 +263,7 @@ where
     /// This method is called during the optimization step to determine which candidates should be promoted to the next fidelity level.
     /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state,
     /// which can be customized to implement different selection criteria (e.g., [`NSGA2Selector`](crate::utils::mo::NSGA2Selector)).
-    pub fn select(&mut self, index: usize, n: usize) -> Vec<usize> {
+    pub fn select(&mut self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
         self.0
             .selector
             .arg_select_candidates(&self.0.rung[index], n)
@@ -536,7 +535,7 @@ where
                     .sampler
                     .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
             } else {
-                let idx = self.select(i, k)[0];
+                let idx = self.select(i, k).unwrap()[0];
                 self.0.current_budget = self.0.budgets[i];
                 let sol = IntoComputedShape::extract(self.0.rung[i].remove(idx)).0;
                 fidelity_setter(sol, self.0.current_budget)

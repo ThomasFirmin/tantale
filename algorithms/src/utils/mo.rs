@@ -1,6 +1,25 @@
-use tantale_core::{Dominate, NonDominatedSorting};
+use core::fmt;
+
+use tantale_core::{Dominate, NonDominatedSorting, err_msg, errors::ErrMsg};
 
 use serde::{Deserialize, Serialize};
+
+pub enum SelectorError {
+    /// Error indicating that the configuration of the selector is invalid.
+    ConfigError(&'static str),
+    /// Error indicating that there are not enough points in the archive to perform selection.
+    NotEnoughPoints(&'static str),
+}
+
+impl ErrMsg for SelectorError {
+    fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SelectorError::ConfigError(msg) => write!(f, "Selector error: Invalid configuration for the selector. {msg}"),
+            SelectorError::NotEnoughPoints(msg) => write!(f, "Selector error: Not enough points in the archive to perform selection. {msg}"),
+        }
+    }
+}
+err_msg!(SelectorError);
 
 /// Defines a trait for candidate selection in multi-objective optimization algorithms.
 /// This trait can be implemented by any struct that provides a method for selecting candidates implementing [`Dominate`].
@@ -8,8 +27,8 @@ use serde::{Deserialize, Serialize};
 /// # See also
 /// - [`NSGA2Selector`]: An implementation of the NSGA-II crowding distance selection operator.
 pub trait CandidateSelector: std::fmt::Debug + Serialize + for<'a> Deserialize<'a> {
-    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Vec<&'a T>;
-    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Vec<usize>;
+    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Result<Vec<&'a T>, SelectorError>;
+    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Result<Vec<usize>, SelectorError>;
 }
 
 /// Implements the NSGA-II crowding distance selection operator, described in [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).
@@ -110,13 +129,11 @@ pub struct NSGA2Selector;
 /// 14. &emsp; **return** $C$
 /// ---
 impl CandidateSelector for NSGA2Selector {
-    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Vec<&'a T> {
+    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Result<Vec<&'a T>, SelectorError> {
         if values.len() == size {
-            values.iter().collect()
+            Ok(values.iter().collect())
         } else if values.len() < size {
-            panic!(
-                "The number of values must be greater than or equal to the number of candidates to select."
-            );
+            Err(SelectorError::NotEnoughPoints("Not enough points in the archive to perform selection."))
         } else {
             let fronts = values.non_dominated_sort();
             let mut candidates = Vec::new();
@@ -142,17 +159,15 @@ impl CandidateSelector for NSGA2Selector {
                     break;
                 }
             }
-            candidates
+            Ok(candidates)
         }
     }
 
-    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Vec<usize> {
+    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Result<Vec<usize>, SelectorError> {
         if values.len() == size {
-            (0..values.len()).collect()
+            Ok((0..values.len()).collect())
         } else if values.len() < size {
-            panic!(
-                "The number of values must be greater than or equal to the number of candidates to select."
-            );
+            Err(SelectorError::NotEnoughPoints("Not enough points in the archive to perform selection."))
         } else {
             let fronts = values.non_dominated_argsort();
             let mut candidates = Vec::new();
@@ -179,7 +194,7 @@ impl CandidateSelector for NSGA2Selector {
                     break;
                 }
             }
-            candidates
+            Ok(candidates)
         }
     }
 }

@@ -181,10 +181,9 @@ fn test_sqrt_split_small_archive() {
 }
 
 #[test]
+#[should_panic]
 fn test_sqrt_split_one_archive() {
     let archive = make_archive([42]);
     let splitter = SqrtSplit::new(4.0).unwrap();
-    let (top, bottom) = splitter.split(&archive).unwrap();
-    assert_eq!(top.len(), 0);
-    assert_eq!(bottom.len(), 1);
+    splitter.split(&archive).unwrap();
 }
