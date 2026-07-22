@@ -482,7 +482,7 @@ fn test_tpe_seq_run_hyperopt() {
 
 #[test]
 fn test_tpe_seq_run_hyperopt_consider_endpoints() {
-    let _clean = Cleaner::new("tmp_test_tpe_seqrun_hyperopt");
+    let _clean = Cleaner::new("tmp_test_tpe_seqrun_hyperopt_endpoint");
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
@@ -495,20 +495,20 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
     );
     let obj = Objective::new(func);
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config);
 
     let exp = mono(sp, obj, opt, stop, (rec, check));
     exp.run();
 
-    run_reader("tmp_test_tpe_seqrun_hyperopt", 50);
+    run_reader("tmp_test_tpe_seqrun_hyperopt_endpoint", 50);
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let obj = Objective::new(func);
 
-    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -531,7 +531,7 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
     let func = sp_evaluator::example;
     let obj = Objective::new(func);
 
-    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
+    let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
     let check = MessagePack::new(config).unwrap();
 
@@ -543,5 +543,5 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
         obj,
         (rec, check)
     );
-    run_reader("tmp_test_tpe_seqrun_hyperopt", 100);
+    run_reader("tmp_test_tpe_seqrun_hyperopt_endpoint", 100);
 }

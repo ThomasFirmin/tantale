@@ -76,6 +76,7 @@ pub struct DomainToken {
     pub ty: Ident,
     pub is_nodomain: bool,
     pub is_grid: bool,
+    pub is_log: bool,
 }
 
 /// A domain specification that may be empty (for optional optimizer domain).
@@ -84,6 +85,7 @@ pub struct DomainToken {
 /// defaulting to use the objective domain.
 pub enum DomainStream {
     DomainToken(DomainToken),
+    Log(Span),
     None,
 }
 
@@ -99,10 +101,14 @@ impl Parse for DomainStream {
             is_grid = true;
             input.parse::<Token![<]>()?;
             ty = input.parse::<Ident>()?;
-        } else {
+        } else if first_ty == "Log" {
+            return Ok(DomainStream::Log(first_ty.span()));
+        }
+        else {
             is_grid = false;
             ty = first_ty;
         }
+
         let content;
         syn::parenthesized!(content in input);
         let args = content.parse_terminated(Expr::parse, Token![,])?;
@@ -114,6 +120,7 @@ impl Parse for DomainStream {
             ty,
             is_nodomain: false,
             is_grid,
+            is_log: false,
         }))
     }
 }
@@ -127,6 +134,7 @@ pub struct FullDomainToken {
     pub ty: Ident,
     pub is_nodomain: bool,
     pub is_grid: bool,
+    pub is_log: bool,
 }
 
 /// A complete parsed variable definition line from the `hpo!` macro.
@@ -153,6 +161,9 @@ impl Parse for LineStream {
         let obj_domain = input.parse::<DomainStream>()?;
         let obj_domain = match obj_domain {
             DomainStream::DomainToken(tokens) => tokens,
+            DomainStream::Log(span) => {
+                return Err(syn::Error::new(span, "Log keyword can only be used in the Optimizer part of the variable definition. The Objective part must be a valid domain."));
+            }
             DomainStream::None => {
                 let msg = "The Objective domain cannot be empty.\n A single searchspace variable is defined by:\n `name | Objective part | Optimizer part ;`\n with: \n\the Objective part made of:\n `Type(args:expr) Optional(=> sampler:expr)`\n the Optimizer part made of:\n `Optional(Type(args:expr) => sampler:expr)`\n where `Type` is the the type of the domain, and only the tokens inside 'Optional(...)' should be written.";
                 return Err(syn::Error::new(first_bar.span(), msg));
@@ -164,11 +175,20 @@ impl Parse for LineStream {
         let opt_domain = input.parse::<DomainStream>()?;
         let opt_domain = match opt_domain {
             DomainStream::DomainToken(dom) => dom,
+            DomainStream::Log(span) => {
+                if obj_domain.is_grid {
+                    return Err(syn::Error::new(span, "Log keyword cannot be used with Grid domains."));
+                }
+                let mut dom = obj_domain.clone();
+                dom.is_log = true;
+                dom
+            },
             DomainStream::None => DomainToken {
                 args: Punctuated::new(),
                 ty: Ident::new("NoDomain", second_bar.span()),
                 is_nodomain: true,
                 is_grid: false,
+                is_log: false,
             },
         };
 
@@ -177,12 +197,14 @@ impl Parse for LineStream {
             ty: obj_domain.ty,
             is_nodomain: obj_domain.is_nodomain,
             is_grid: obj_domain.is_grid,
+            is_log: obj_domain.is_log,
         };
         let opt_tokens = FullDomainToken {
             args: opt_domain.args,
             ty: opt_domain.ty,
             is_nodomain: opt_domain.is_nodomain,
             is_grid: false,
+            is_log: opt_domain.is_log,
         };
 
         Ok(LineStream {
@@ -204,6 +226,7 @@ struct VarInfo {
     ty_opt: Ident,
     args_opt: Punctuated<Expr, syn::token::Comma>,
     is_nodomain: bool,
+    is_log: bool,
     _is_grid: bool,
 }
 
@@ -268,6 +291,14 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let obj_args = line.obj_part.args;
         let obj_ty = line.obj_part.ty;
         let obj_is_grid = line.obj_part.is_grid;
+        let obj_is_log = line.obj_part.is_log;
+
+        if obj_is_log {
+            return Err(syn::Error::new(
+                line.name_part.id.span(),
+                "Log keyword can only be used in the Optimizer part of the variable definition. The Objective part must be a valid domain.",
+            ));
+        }
 
         if obj_is_grid ^ is_grid {
             // XOR to ensure all domains are either Grid or not
@@ -281,13 +312,22 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         // If None then copy Obj
         let opt_args = line.opt_part.args;
         let opt_ty = line.opt_part.ty;
+        let opt_is_log = line.opt_part.is_log;
+        
         // Determine if there is at least 1 NoDomain
         let is_nodomain = line.opt_part.is_nodomain;
-        if obj_is_grid && !is_nodomain {
-            return Err(syn::Error::new(
-                line.name_part.id.span(),
-                "Grid domains on Obj side cannot be mixed with other domain on Opt side.",
-            ));
+        if obj_is_grid {
+            if !is_nodomain{
+                return Err(syn::Error::new(
+                    line.name_part.id.span(),
+                    "Grid domains on Obj side cannot be mixed with other domain on Opt side.",
+                ));
+            } else if opt_is_log {
+                return Err(syn::Error::new(
+                    line.name_part.id.span(),
+                    "Log keyword cannot be used with Grid domains.",
+                ));
+            }
         }
         // Push everything into HashmMaps
         tobj_unique.insert(obj_ty.clone());
@@ -307,6 +347,7 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
             args_opt: opt_args,
             is_nodomain,
             _is_grid: obj_is_grid,
+            is_log: opt_is_log,
         };
         tobj_vec.push(obj_ty);
         varinfo.push(varinfostruct);
@@ -376,13 +417,15 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         let ty_obj = vinf.ty_obj;
         let args_obj = vinf.args_obj;
         let ty_opt = vinf.ty_opt;
+        let is_log = vinf.is_log;
         let args_opt = vinf.args_opt;
         let is_nodomain = vinf.is_nodomain;
 
         // OBJ PART
         if is_grid {
             wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::grid(#args_obj))};
-        } else if is_mixedobj {
+        } 
+        else if is_mixedobj {
             wrapped_domobj = quote! {#ident_mixed_obj::#ty_obj(#ty_obj::new(#args_obj))};
         } else {
             wrapped_domobj = quote! {#ty_obj::new(#args_obj)};
@@ -391,11 +434,15 @@ pub fn parse_sp(vartokens: Vec<LineStream>) -> Result<ParsedSpOut, syn::Error> {
         if is_mixedopt {
             if is_nodomain {
                 wrapped_domopt = quote! {#ident_mixed_opt::#ty_obj(#ty_obj::new(#args_obj))};
+            } else if is_log {
+                wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt).to_log())};
             } else {
                 wrapped_domopt = quote! {#ident_mixed_opt::#ty_opt(#ty_opt::new(#args_opt))};
             }
         } else if is_nodomain && !full_nodomain {
             wrapped_domopt = quote! {#ty_obj::new(#args_obj)};
+        } else if is_log {
+            wrapped_domopt = quote! {#ty_opt::new(#args_opt).to_log()};
         } else {
             wrapped_domopt = quote! {#ty_opt::new(#args_opt)};
         }

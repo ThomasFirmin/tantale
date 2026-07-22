@@ -13,7 +13,7 @@ const EPS: f64 = 1e-9;
 fn test_gaussian_kernel_real() {
     let dom = Real::new(0.0, 1.0, Uniform);
 
-    let ctx = GaussianKernel::get_context(&0.4,1.0, &dom);
+    let ctx = GaussianKernel::get_context(&0.4,1.0, &dom).unwrap();
 
     let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
     let g =
@@ -33,7 +33,7 @@ fn test_gaussian_kernel_real_sample_in_bounds() {
     let dom = Real::new(10.0, 20.0, Uniform);
     let mut rng = rand::rng();
 
-    let ctx = GaussianKernel::get_context(&15.0, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&15.0, 5.0, &dom).unwrap();
 
     for _ in 0..20 {
         let sample = GaussianKernel::sample(&mut rng, &15.0, &ctx, &dom);
@@ -64,7 +64,7 @@ fn test_gaussian_kernel_real_prior_positive() {
 fn test_gaussian_kernel_unit_positive() {
     let dom = Unit::new(Uniform);
 
-    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom);
+    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom).unwrap();
 
     let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
 
@@ -84,7 +84,7 @@ fn test_gaussian_kernel_unit_positive() {
 fn test_gaussian_kernel_unit_sample_in_bounds() {
     let dom = Unit::new(Uniform);
     let mut rng = rand::rng();
-    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom);
+    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom).unwrap();
 
     for _ in 0..20 {
         let sample = GaussianKernel::sample(&mut rng, &0.4, &ctx, &dom);
@@ -102,7 +102,7 @@ fn test_gaussian_kernel_unit_sample_in_bounds() {
 fn test_gaussian_kernel_int_positive() {
     let dom = Int::new(0, 10, Uniform);
 
-    let ctx = GaussianKernel::get_context(&4, 5., &dom);
+    let ctx = GaussianKernel::get_context(&4, 5., &dom).unwrap();
     let k = GaussianKernel::compute(&5, &4, &ctx, &dom);
     let g = 0.07808358491192358;
     let norm_cst = 0.7191393900676302;
@@ -120,11 +120,11 @@ fn test_gaussian_kernel_int_same_point_higher() {
     // Kernel at the same point should be >= kernel at a distant point
     let dom = Int::new(0, 10, Uniform);
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
 
     let k_same = GaussianKernel::compute(&4, &4, &ctx, &dom);
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
 
     let k_far = GaussianKernel::compute(&0, &4, &ctx, &dom);
     assert!(
@@ -140,7 +140,7 @@ fn test_gaussian_kernel_int_sample_in_bounds() {
     let dom = Int::new(0, 10, Uniform);
     let mut rng = rand::rng();
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
 
     for _ in 0..20 {
         let sample = GaussianKernel::sample(&mut rng, &5, &ctx, &dom);
@@ -158,7 +158,7 @@ fn test_gaussian_kernel_int_sample_in_bounds() {
 fn test_gaussian_kernel_nat_positive() {
     let dom = Nat::new(0_u64, 10_u64, Uniform);
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
     let k = GaussianKernel::compute(&5, &4, &ctx, &dom);
 
     let g = 0.07808358491192358;
@@ -177,10 +177,10 @@ fn test_gaussian_kernel_nat_same_point_higher() {
     // Kernel at the same point should be >= kernel at a distant point
     let dom = Nat::new(0_u64, 10_u64, Uniform);
     
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
     let k_same = GaussianKernel::compute(&4, &4, &ctx, &dom);
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
     let k_far = GaussianKernel::compute(&0, &4, &ctx, &dom);
 
     assert!(
@@ -196,7 +196,7 @@ fn test_gaussian_kernel_nat_sample_in_bounds() {
     let dom = Nat::new(0_u64, 10_u64, Uniform);
     let mut rng = rand::rng();
 
-    let ctx = GaussianKernel::get_context(&4, 5.0, &dom);
+    let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
 
     for _ in 0..20 {
         let sample = GaussianKernel::sample(&mut rng, &5, &ctx, &dom);
@@ -214,7 +214,7 @@ fn test_gaussian_kernel_nat_sample_in_bounds() {
 fn test_aitchison_aitken_same_category() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
 
-    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom).unwrap();
 
     let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"a".to_string(), &ctx, &dom);
 
@@ -231,7 +231,7 @@ fn test_aitchison_aitken_same_category() {
 fn test_aitchison_aitken_different_category() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
 
-    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 0.1, &dom).unwrap();
 
     let k = AitchisonAitkenKernel::compute(&"a".to_string(), &"b".to_string(), &ctx, &dom);
     // Formula: bw / (|D| - 1) = 0.1 / 2 = 0.05
@@ -263,7 +263,7 @@ fn test_aitchison_aitken_sample_stays_in_domain() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
     let mut rng = rand::rng();
 
-    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 1.0, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&"a".to_string(), 1.0, &dom).unwrap();
 
     for _ in 0..30 {
         let sample = AitchisonAitkenKernel::sample(&mut rng, &"a".to_string(), &ctx, &dom);
@@ -281,7 +281,7 @@ fn test_aitchison_aitken_sums_to_one() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
     let x2 = "a".to_string();
 
-    let ctx = AitchisonAitkenKernel::get_context(&x2, 0.2, &dom);
+    let ctx = AitchisonAitkenKernel::get_context(&x2, 0.2, &dom).unwrap();
 
     let total: f64 = dom
         .values

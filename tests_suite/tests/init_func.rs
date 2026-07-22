@@ -1317,3 +1317,76 @@ pub mod sp_evaluator_mo_fid {
         }
     );
 }
+
+
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+pub struct OutSpikeEvaluator {
+    #[maximize]
+    pub obj: f64,
+    #[spiking]
+    pub spiking: usize,
+    #[samples]
+    pub samples: usize,
+}
+
+pub mod sp_evaluator_spike {
+    use super::{OutSpikeEvaluator, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Unit,
+        sampler::{Bernoulli, Uniform},
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> OutSpikeEvaluator {
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+            let spikes = [! l | Nat(0,100, Uniform) | !] as usize;
+            OutSpikeEvaluator{
+                obj: [! j | Unit(Uniform) | !],
+                spiking: spikes,
+                samples: 100,
+            }
+
+        }
+    );
+}
+
+pub mod sp_evaluator_spike_real {
+    use super::OutSpikeEvaluator;
+    use tantale::core::{Real, sampler::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutSpikeEvaluator {
+            let _a = [! a | Real(0.0, 1000.0, Uniform) | !];
+            let _b = [! b | Real(0.0, 1000.0, Uniform) | !];
+            let _c = [! c | Real(0.0, 1000.0, Uniform) | !];
+            let _d = [! d | Real(0.0, 1000.0, Uniform) | !];
+
+            let spikes: usize = rand::random_range(0..=100);
+
+            OutSpikeEvaluator{
+                obj: [! e | Real(0.0, 1000.0, Uniform) | !],
+                spiking: spikes,
+                samples: 100,
+            }
+        }
+    );
+}

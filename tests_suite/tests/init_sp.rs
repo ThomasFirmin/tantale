@@ -1,4 +1,4 @@
-pub mod sp_ms_nosamp {
+pub mod sp_mixed_to_single {
     use tantale::core::{
         domain::{Bool, Cat, Int, Nat, Real},
         sampler::{Bernoulli, Uniform},
@@ -19,241 +19,10 @@ pub mod sp_ms_nosamp {
     );
 }
 
-pub mod sp_ms_onemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                 | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_right {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_right {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_right {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                  | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_right {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
-        b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform)    ;
-        d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)    ;
-    );
-}
-
-pub mod sp_ms_onemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
-        b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                  | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                              | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)              | Real(0.0,1.0, Uniform) ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                  | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform)    ;
-        b | Nat(0,100, Uniform)       | Real(0.0,1.0, Uniform)    ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | Real(0.0,1.0, Uniform)    ;
-        d | Bool(Bernoulli(0.5))            | Real(0.0,1.0, Uniform)    ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-pub mod sp_sm_nosamp {
+pub mod sp_single_to_mixed {
     use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
@@ -272,241 +41,10 @@ pub mod sp_sm_nosamp {
     );
 }
 
-pub mod sp_sm_onemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)                         ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
-    );
-}
-
-pub mod sp_sm_allmsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)       ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)       ;
-        b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
-        d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))           ;
-    );
-}
-
-pub mod sp_sm_allmsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)         ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)                        ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform)                  ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                        ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)                        ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)                       ;
-        b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
-        d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
-    );
-}
-
-pub mod sp_sm_allmsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)        ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))             ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-pub mod sp_m_equal_nosamp {
+pub mod sp_mixed_to_nodomain {
     use tantale::core::domain::{Bool, Cat, Int, Nat};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
@@ -525,241 +63,10 @@ pub mod sp_m_equal_nosamp {
     );
 }
 
-pub mod sp_m_equal_onemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)       |  ;
-        b | Nat(0,100, Uniform)       |                ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |                ;
-        d | Bool(Bernoulli(0.5))           |                ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)       |                         ;
-        b | Nat(0,100, Uniform)       |                         ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |   ;
-        d | Bool(Bernoulli(0.5))           |                         ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)       |                         ;
-        b | Nat(0,100, Uniform)       |         ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |          ;
-        d | Bool(Bernoulli(0.5))           |                         ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)       |           ;
-        b | Nat(0,100, Uniform)       |         ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |          ;
-        d | Bool(Bernoulli(0.5))           |          ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)        | ;
-        b | Nat(0,100, Uniform)                      | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                | ;
-        d | Bool(Bernoulli(0.5))                          | ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                      | ;
-        b | Nat(0,100, Uniform)                      | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
-        d | Bool(Bernoulli(0.5))                          | ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                      | ;
-        b | Nat(0,100, Uniform)      | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
-        d | Bool(Bernoulli(0.5))                          | ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp_left {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)         | ;
-        b | Nat(0,100, Uniform)       | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | ;
-        d | Bool(Bernoulli(0.5))            | ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)        |   ;
-        b | Nat(0,100, Uniform)                      |                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                |                 ;
-        d | Bool(Bernoulli(0.5))                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_onemsamp_offset_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                      |                 ;
-        b | Nat(0,100, Uniform)                      |                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |  ;
-        d | Bool(Bernoulli(0.5))                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_multiplemsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                      |                 ;
-        b | Nat(0,100, Uniform)      | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) |  ;
-        d | Bool(Bernoulli(0.5))                          |                 ;
-    );
-}
-
-pub mod sp_m_equal_allmsamp_leftright {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)         |   ;
-        b | Nat(0,100, Uniform)       | ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)  |  ;
-        d | Bool(Bernoulli(0.5))            |  ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-pub mod sp_s_equal_nosamp {
+pub mod sp_single_to_nodomain {
     use tantale::core::domain::Real;
     use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
@@ -778,241 +85,10 @@ pub mod sp_s_equal_nosamp {
     );
 }
 
-pub mod sp_s_equal_onemsamp {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |;
-        b | Real(0.0,1.0, Uniform) |                ;
-        c | Real(0.0,1.0, Uniform) |                ;
-        d | Real(0.0,1.0, Uniform) |                ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |                         ;
-        b | Real(0.0,1.0, Uniform) |                         ;
-        c | Real(0.0,1.0, Uniform) |         ;
-        d | Real(0.0,1.0, Uniform) |                         ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |                         ;
-        b | Real(0.0,1.0, Uniform) |         ;
-        c | Real(0.0,1.0, Uniform) |         ;
-        d | Real(0.0,1.0, Uniform) |                         ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |         ;
-        b | Real(0.0,1.0, Uniform) |         ;
-        c | Real(0.0,1.0, Uniform) |         ;
-        d | Real(0.0,1.0, Uniform) |         ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_left {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)  | ;
-        b | Real(0.0,1.0, Uniform)                  | ;
-        c | Real(0.0,1.0, Uniform)                  | ;
-        d | Real(0.0,1.0, Uniform)                  | ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset_left {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  | ;
-        b | Real(0.0,1.0, Uniform)                  | ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)                  | ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp_left {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  | ;
-        b | Real(0.0,1.0, Uniform)  | ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)                  | ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp_left {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)  | ;
-        b | Real(0.0,1.0, Uniform)  | ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)  | ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_left_right {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)  | ;
-        b | Real(0.0,1.0, Uniform)                  |                 ;
-        c | Real(0.0,1.0, Uniform)                  |                 ;
-        d | Real(0.0,1.0, Uniform)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_onemsamp_offset_left_right {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  |                 ;
-        b | Real(0.0,1.0, Uniform)                  |                 ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_multiplemsamp_left_right {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  |                 ;
-        b | Real(0.0,1.0, Uniform)  | ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)                  |                 ;
-    );
-}
-
-pub mod sp_s_equal_allmsamp_left_right {
-    use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)  | ;
-        b | Real(0.0,1.0, Uniform)  | ;
-        c | Real(0.0,1.0, Uniform)  | ;
-        d | Real(0.0,1.0, Uniform)  | ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-pub mod sp_ss_nosamp {
+pub mod sp_single_to_single {
     use tantale::core::domain::{Int, Real};
     use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
@@ -1031,469 +107,10 @@ pub mod sp_ss_nosamp {
     );
 }
 
-pub mod sp_ss_onemsamp {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform) ;
-        b | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                ;
-        d | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                 ;
-        c | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)   ;
-        d | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                 ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                         ;
-        b | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)           ;
-        c | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)           ;
-        d | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)                         ;
-    );
-}
-
-pub mod sp_ss_allmsamp {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)          ;
-        b | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)          ;
-        c | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)          ;
-        d | Real(0.0,1.0, Uniform) |  Int(0,100, Uniform)          ;
-    );
-}
-
-pub mod sp_ss_onemsamp_left {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        b | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-        c | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset_left {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-        b | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp_left {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-        b | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform) ;
-    );
-}
-
-pub mod sp_ss_allmsamp_left {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        b | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-        d | Real(0.0,1.0, Uniform) | Int(0,100, Uniform) ;
-    );
-}
-
-pub mod sp_ss_onemsamp_leftright {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        b | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-        c | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-    );
-}
-
-pub mod sp_ss_onemsamp_offset_leftright {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-    );
-}
-
-pub mod sp_ss_multiplemsamp_leftright {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        d | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)                 ;
-    );
-}
-
-pub mod sp_ss_allmsamp_leftright {
-    use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        b | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        c | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-        d | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)  ;
-    );
-}
-
-pub mod sp_ms_nosamp_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                |                               ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                 |                               ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          |                               ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)               |                               ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          |                               ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_allmsamp_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                 |                               ;
-        b | Nat(0,100, Uniform)               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                    |                               ;
-    );
-}
-
-pub mod sp_ms_onemsamp_right_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        b | Nat(0,100, Uniform)                               |                               ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform)                 ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_right_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               |                               ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                   | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_right_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                               |                               ;
-        b | Nat(0,100, Uniform)                               | Real(0.0,1.0, Uniform) ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                         | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                   |                               ;
-    );
-}
-
-pub mod sp_ms_allmsamp_right_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                | Real(0.0,1.0, Uniform)    ;
-        b | Nat(0,100, Uniform)                | Real(0.0,1.0, Uniform)                    ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)          | Real(0.0,1.0, Uniform)                    ;
-        d | Bool(Bernoulli(0.5))                    | Real(0.0,1.0, Uniform)    ;
-    );
-}
-
-pub mod sp_ms_onemsamp_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)         | Real(0.0,1.0, Uniform) ;
-        b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)                 ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)                 |                               ;
-        d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-pub mod sp_ms_onemsamp_offset_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                              |                               ;
-        b | Nat(0,100, Uniform)                              |                               ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)         | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                  |                               ;
-    );
-}
-
-pub mod sp_ms_multiplemsamp_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Int(0,100, Uniform)                            | Real(0.0,1.0, Uniform)                 ;
-        b | Nat(0,100, Uniform)            | Real(0.0,1.0, Uniform) ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform)       | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                                |                               ;
-    );
-}
-
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
-///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-pub mod sp_sm_nosamp_holes {
+pub mod sp_single_to_mixed_first_hole {
     use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
@@ -1505,14 +122,14 @@ pub mod sp_sm_nosamp_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform) |                           ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
+        a | Real(0.0,1.0, Uniform) |                                           ;
+        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                       ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
+        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                      ;
     );
 }
 
-pub mod sp_sm_onemsamp_holes {
+pub mod sp_single_to_mixed_second_hole {
     use tantale::core::domain::{Bool, Cat, Int, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
@@ -1524,14 +141,14 @@ pub mod sp_sm_onemsamp_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                 ;
-        b | Real(0.0,1.0, Uniform) |                                          ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)                         ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                                   ;
+        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                       ;
+        b | Real(0.0,1.0, Uniform) |                                           ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
+        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                      ;
     );
 }
 
-pub mod sp_sm_onemsamp_offset_holes {
+pub mod sp_single_to_mixed_last_hole {
     use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
@@ -1543,14 +160,14 @@ pub mod sp_sm_onemsamp_offset_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                               ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) |                                          ;
+        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                       ;
+        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                       ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
+        d | Real(0.0,1.0, Uniform) |                                           ;
     );
 }
 
-pub mod sp_sm_multiplemsamp_holes {
+pub mod sp_single_to_mixed_two_hole {
     use tantale::core::domain::{Cat, Nat, Real};
     use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
@@ -1562,14 +179,17 @@ pub mod sp_sm_multiplemsamp_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform) |                                          ;
-        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)               ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) |                                          ;
+        a | Real(0.0,1.0, Uniform) |                                           ;
+        b | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                       ;
+        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
+        d | Real(0.0,1.0, Uniform) |                                           ;
     );
 }
 
-pub mod sp_sm_onemsamp_left_holes {
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+pub mod sp_mixed_to_single_first_hole {
     use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::sampler::{Bernoulli, Uniform};
     use tantale::macros::hpo;
@@ -1581,14 +201,33 @@ pub mod sp_sm_onemsamp_left_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform) |                  ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))           ;
+        a | Real(0.0,1.0, Uniform)                      |                        ;
+        b | Nat(0,100, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform) ;
+        d | Bool(Bernoulli(0.5))                        | Real(0.0,1.0, Uniform) ;
     );
 }
 
-pub mod sp_sm_onemsamp_offset_left_holes {
+pub mod sp_mixed_to_single_second_hole {
+    use tantale::core::domain::{Bool, Cat, Int, Real};
+    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::macros::hpo;
+
+    pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
+
+    hpo!(
+        a | Int(0,100, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        b | Real(0.0,1.0, Uniform)                      |                        ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform) ;
+        d | Bool(Bernoulli(0.5))                        | Real(0.0,1.0, Uniform) ;
+    );
+}
+
+pub mod sp_mixed_to_single_last_hole {
     use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
@@ -1600,16 +239,16 @@ pub mod sp_sm_onemsamp_offset_left_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform)                 | Int(0,100, Uniform)       ;
-        b | Real(0.0,1.0, Uniform)                 | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
-        d | Real(0.0,1.0, Uniform)                 |                  ;
+        a | Int(0,100, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        b | Nat(0,100, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform) ;
+        d | Real(0.0,1.0, Uniform)                      |                        ;
     );
 }
 
-pub mod sp_sm_multiplemsamp_left_holes {
-    use tantale::core::domain::{Bool, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+pub mod sp_mixed_to_single_two_holes {
+    use tantale::core::domain::{Cat, Nat, Real};
+    use tantale::core::sampler::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -1619,88 +258,15 @@ pub mod sp_sm_multiplemsamp_left_holes {
     pub const D_INDEX: usize = 3;
 
     hpo!(
-        a | Real(0.0,1.0, Uniform)                  | Int(0,100, Uniform)       ;
-        b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  |                  ;
-        d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))           ;
+        a | Real(0.0,1.0, Uniform)                      |                        ;
+        b | Nat(0,100, Uniform)                         | Real(0.0,1.0, Uniform) ;
+        c | Cat(["relu", "tanh", "sigmoid"], Uniform)   | Real(0.0,1.0, Uniform) ;
+        d | Real(0.0,1.0, Uniform)                      |                        ;
     );
 }
 
-pub mod sp_sm_allmsamp_left_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)                ;
-        b | Real(0.0,1.0, Uniform) |                           ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)          ;
-        d | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                    ;
-    );
-}
-
-pub mod sp_sm_onemsamp_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Int, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform) | Int(0,100, Uniform)          ;
-        b | Real(0.0,1.0, Uniform)                 |                                   ;
-        c | Real(0.0,1.0, Uniform)                 | Cat(["relu", "tanh", "sigmoid"], Uniform)                  ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
-    );
-}
-
-pub mod sp_sm_onemsamp_offset_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                 |                                   ;
-        b | Real(0.0,1.0, Uniform)                 |                                   ;
-        c | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform)   ;
-        d | Real(0.0,1.0, Uniform)                 | Bool(Bernoulli(0.5))                            ;
-    );
-}
-
-pub mod sp_sm_multiplemsamp_leftright_holes {
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                  |                                  ;
-        b | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
-        d | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
-    );
-}
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
 
 pub mod sp_repeats {
 
@@ -1715,55 +281,15 @@ pub mod sp_repeats {
     pub const D_INDEX: usize = 5;
 
     hpo!(
-        a{3} | Real(0.0,1.0, Uniform)                  |                                  ;
-        b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
-        d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
+        a{3}| Real(0.0,1.0, Uniform) |                                           ;
+        b   | Real(0.0,1.0, Uniform) | Nat(0,100, Uniform)                       ;
+        c   | Real(0.0,1.0, Uniform) | Cat(["relu", "tanh", "sigmoid"], Uniform) ;
+        d   | Real(0.0,1.0, Uniform) | Bool(Bernoulli(0.5))                      ;
     );
 }
 
-pub mod sp_repeats_inc {
-
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 6;
-    pub const A_INDEX: (usize, usize) = (0, 3);
-    pub const B_INDEX: usize = 3;
-    pub const C_INDEX: usize = 4;
-    pub const D_INDEX: usize = 5;
-
-    hpo!(
-        a{3} | Real(0.0,1.0, Uniform)                  |                                  ;
-        b        | Real(0.0,1.0, Uniform)  | Nat(0,100, Uniform)       ;
-        c        | Real(0.0,1.0, Uniform)  | Cat(["relu", "tanh", "sigmoid"], Uniform)  ;
-        d        | Real(0.0,1.0, Uniform)                  | Bool(Bernoulli(0.5))                           ;
-    );
-}
-
-pub mod sp_one_missing_to_single {
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
-    use tantale::macros::hpo;
-
-    pub const SP_SIZE: usize = 4;
-    pub const A_INDEX: usize = 0;
-    pub const B_INDEX: usize = 1;
-    pub const C_INDEX: usize = 2;
-    pub const D_INDEX: usize = 3;
-
-    hpo!(
-        a | Real(0.0,1.0, Uniform)                   |                               ;
-        b | Nat(0,100, Uniform)      | Real(0.0,1.0, Uniform) ;
-        c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform) ;
-        d | Bool(Bernoulli(0.5))                          | Real(0.0,1.0, Uniform)                 ;
-    );
-}
-
-///////////////////////////////////////
-///////////////////////////////////////
-///////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
 
 pub mod sp_only_real {
     use tantale::core::domain::Real;
@@ -1877,92 +403,58 @@ pub mod sp_only_cat {
     );
 }
 
-// sp_ms_nosamp,
-// sp_ms_onemsamp,
-// sp_ms_onemsamp_offset,
-// sp_ms_multiplemsamp,
-// sp_ms_allmsamp,
-// sp_ms_onemsamp_right,
-// sp_ms_onemsamp_offset_right,
-// sp_ms_multiplemsamp_right,
-// sp_ms_allmsamp_right,
-// sp_ms_onemsamp_leftright,
-// sp_ms_onemsamp_offset_leftright,
-// sp_ms_multiplemsamp_leftright,
-// sp_ms_allmsamp_leftright,
-// sp_sm_nosamp,
-// sp_sm_onemsamp,
-// sp_sm_onemsamp_offset,
-// sp_sm_multiplemsamp,
-// sp_sm_allmsamp,
-// sp_sm_onemsamp_left,
-// sp_sm_onemsamp_offset_left,
-// sp_sm_multiplemsamp_left,
-// sp_sm_allmsamp_left,
-// sp_sm_onemsamp_leftright,
-// sp_sm_onemsamp_offset_leftright,
-// sp_sm_multiplemsamp_leftright,
-// sp_sm_allmsamp_leftright,
-// sp_m_equal_nosamp,
-// sp_m_equal_onemsamp,
-// sp_m_equal_onemsamp_offset,
-// sp_m_equal_multiplemsamp,
-// sp_m_equal_allmsamp,
-// sp_m_equal_onemsamp_left,
-// sp_m_equal_onemsamp_offset_left,
-// sp_m_equal_multiplemsamp_left,
-// sp_m_equal_allmsamp_left,
-// sp_m_equal_onemsamp_leftright,
-// sp_m_equal_onemsamp_offset_leftright,
-// sp_m_equal_multiplemsamp_leftright,
-// sp_m_equal_allmsamp_leftright,
-// sp_s_equal_nosamp,
-// sp_s_equal_onemsamp,
-// sp_s_equal_onemsamp_offset,
-// sp_s_equal_allmsamp,
-// sp_s_equal_onemsamp_left,
-// sp_s_equal_onemsamp_offset_left,
-// sp_s_equal_multiplemsamp_left,
-// sp_s_equal_allmsamp_left,
-// sp_s_equal_onemsamp_left_right,
-// sp_s_equal_onemsamp_offset_left_right,
-// sp_s_equal_multiplemsamp_left_right,
-// sp_s_equal_allmsamp_left_right,
-// sp_ss_nosamp,
-// sp_ss_onemsamp,
-// sp_ss_onemsamp_offset,
-// sp_ss_allmsamp,
-// sp_ss_onemsamp_left,
-// sp_ss_onemsamp_offset_left,
-// sp_ss_multiplemsamp_left,
-// sp_ss_allmsamp_left,
-// sp_ss_onemsamp_leftright,
-// sp_ss_onemsamp_offset_leftright,
-// sp_ss_multiplemsamp_leftright,
-// sp_ss_allmsamp_leftright,
-// sp_ms_nosamp_holes,
-// sp_ms_onemsamp_holes,
-// sp_ms_onemsamp_offset_holes,
-// sp_ms_multiplemsamp_holes,
-// sp_ms_allmsamp_holes,
-// sp_ms_onemsamp_right_holes,
-// sp_ms_onemsamp_offset_right_holes,
-// sp_ms_multiplemsamp_right_holes,
-// sp_ms_allmsamp_right_holes,
-// sp_ms_onemsamp_leftright_holes,
-// sp_ms_onemsamp_offset_leftright_holes,
-// sp_ms_multiplemsamp_leftright_holes,
-// sp_sm_nosamp_holes,
-// sp_sm_onemsamp_holes,
-// sp_sm_onemsamp_offset_holes,
-// sp_sm_multiplemsamp_holes,
-// sp_sm_onemsamp_left_holes,
-// sp_sm_onemsamp_offset_left_holes,
-// sp_sm_multiplemsamp_left_holes,
-// sp_sm_allmsamp_left_holes,
-// sp_sm_onemsamp_leftright_holes,
-// sp_sm_onemsamp_offset_leftright_holes,
-// sp_sm_multiplemsamp_leftright_holes,
-// sp_repeats,
-// sp_repeats_inc,
-// sp_one_missing_to_single
+pub mod sp_only_real_log {
+    use tantale::core::domain::Real;
+    use tantale::core::sampler::Uniform;
+    use tantale::macros::hpo;
+
+    pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
+
+    hpo!(
+        a | Real(0.1,1.0, Uniform) | Log ;
+        b | Real(0.0,1.0, Uniform) |     ;
+        c | Real(0.0,1.0, Uniform) |     ;
+        d | Real(0.0,1.0, Uniform) |     ;
+    );
+}
+
+pub mod sp_only_int_log {
+    use tantale::core::domain::Int;
+    use tantale::core::sampler::Uniform;
+    use tantale::macros::hpo;
+
+    pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
+
+    hpo!(
+        a | Int(-100,100,Uniform) |     ;
+        b | Int(1,100,Uniform)    | Log ;
+        c | Int(-100,100,Uniform) |     ;
+        d | Int(-100,100,Uniform) |     ;
+    );
+}
+pub mod sp_only_nat_log {
+    use tantale::core::domain::Nat;
+    use tantale::core::sampler::Uniform;
+    use tantale::macros::hpo;
+
+    pub const SP_SIZE: usize = 4;
+    pub const A_INDEX: usize = 0;
+    pub const B_INDEX: usize = 1;
+    pub const C_INDEX: usize = 2;
+    pub const D_INDEX: usize = 3;
+
+    hpo!(
+        a | Nat(0,100, Uniform) |      ;
+        b | Nat(0,100, Uniform) |      ;
+        c | Nat(0,100, Uniform) |      ;
+        d | Nat(1,100, Uniform) | Log  ;
+    );
+}

@@ -18,7 +18,7 @@ const EPS: f64 = 1e-10;
 fn test_optuna_bw_real() {
     let dom = Real::new(-5.0, 5.0, Uniform);
     let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
-    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false);
+    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
     assert!(
@@ -58,7 +58,7 @@ fn test_optuna_object() {
         ].into_boxed_slice()
     );
 
-    let bw_vec = <Optuna as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp);
+    let bw_vec = <Optuna as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![
         10./5. * 3.0.powf(-1./7.),
         20./5. * 3.0.powf(-1./7.),
@@ -72,7 +72,7 @@ fn test_optuna_object() {
 fn test_optuna_bw_int() {
     let dom = Int::new(-5, 5, Uniform);
     let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
-    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false);
+    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
     assert!(
@@ -87,7 +87,7 @@ fn test_optuna_bw_int() {
 fn test_optuna_bw_nat() {
     let dom = Nat::new(0, 10, Uniform);
     let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
-    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false);
+    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
     assert!(
@@ -102,7 +102,7 @@ fn test_optuna_bw_nat() {
 fn test_optuna_bw_unit() {
     let dom = Unit::new(Uniform);
     let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
-    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false);
+    let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 1.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
     assert!(
@@ -121,7 +121,7 @@ fn test_optuna_bw_with_clip_applies() {
     let unclipped = uml * 200.0_f64.powf(-1.0 / 7.0);
     let expected = magic_clip(unclipped, 200.0, uml);
 
-    let bw = optuna_bw(200.0, -1.0 / 7.0, &dom, true);
+    let bw = optuna_bw(200.0, -1.0 / 7.0, &dom, true).unwrap();
     assert!(
         (bw - expected).abs() < EPS,
         "optuna_bw with clip failed: {} != {}",
@@ -135,7 +135,7 @@ fn test_optuna_bw_with_clip_applies() {
 #[test]
 fn test_cat_bw_three_categories() {
     let dom = Cat::new(["a", "b", "c"], Uniform);
-    let bw = cat_bw(10.0, &dom);
+    let bw = cat_bw(10.0, &dom).unwrap();
     // formula: (N + 1)/(N + C) = (10 + 1)/(10 + 3) = 11/13
     let expected = 11.0 / 13.0;
     assert!(
@@ -149,7 +149,7 @@ fn test_cat_bw_three_categories() {
 #[test]
 fn test_cat_bw_two_categories() {
     let dom = Cat::new(["yes", "no"], Uniform);
-    let bw = cat_bw(8.0, &dom);
+    let bw = cat_bw(8.0, &dom).unwrap();
     // formula: (N + 1)/(N + C) = (8 + 1)/(8 + 2) = 9/10 = 0.9
     let expected = 9.0 / 10.0;
     assert!(
@@ -163,7 +163,7 @@ fn test_cat_bw_two_categories() {
 #[test]
 fn test_bool_bw_two_categories() {
     let dom = Bool::new(Bernoulli(0.5));
-    let bw = cat_bw(8.0, &dom);
+    let bw = cat_bw(8.0, &dom).unwrap();
     // formula: (N + 1)/(N + C) = (8 + 1)/(8 + 2) = 9/10 = 0.9
     let expected = 9.0 / 10.0;
     assert!(
@@ -187,7 +187,7 @@ fn test_cat_bw_is_always_in_range() {
         Uniform,
     );
     for n in [1.0, 5.0, 10.0, 100.0] {
-        let bw = cat_bw(n, &dom);
+        let bw = cat_bw(n, &dom).unwrap();
         assert!(
             bw > 0.0 && bw < 1.0,
             "cat_bw out of (0,1): {} for n={}",
@@ -256,7 +256,7 @@ fn test_hyperopt_object() {
         ].into_boxed_slice()
     );
 
-    let bw_array = <Hyperopt as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp);
+    let bw_array = <Hyperopt as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![
         11.,
         3.,
@@ -347,7 +347,7 @@ fn test_scott_object() {
     );
 
     
-    let bw_vec = <Scott as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp);
+    let bw_vec = <Scott as Bandwidth<Real, Sp<Unit, Real>, BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo, FakeOutcome>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![
         1.0854678306814147,
         1.0854678306814147,

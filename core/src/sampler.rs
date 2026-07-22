@@ -234,8 +234,6 @@ impl From<Bernoulli> for BoolDistribution {
 ///
 /// # Usage
 ///
-/// This is the default sampler for bounded and categorical domains.
-///
 /// ```
 /// use tantale::core::{Sampler, Uniform, Real, Domain};
 ///

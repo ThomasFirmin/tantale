@@ -23,7 +23,7 @@ use tantale::core::{
 
 use crate::init_func::FnState;
 
-use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
+use super::init_sp::sp_mixed_to_nodomain::get_searchspace;
 use csv::StringRecord;
 use std::{path::Path, sync::Arc};
 

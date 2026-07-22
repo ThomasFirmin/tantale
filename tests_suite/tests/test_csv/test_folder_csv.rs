@@ -1,4 +1,4 @@
-use super::init_sp::sp_m_equal_allmsamp::get_searchspace;
+use super::init_sp::sp_mixed_to_nodomain::get_searchspace;
 
 use csv::StringRecord;
 use tantale::algos::BatchRandomSearch;

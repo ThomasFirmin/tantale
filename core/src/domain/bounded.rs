@@ -108,6 +108,12 @@ pub struct Bounded<T: BoundedBounds> {
     pub mid: T,
     pub width: T,
     pub sampler: BoundedDistribution,
+    log: bool,
+}
+
+fn to_log<T: BoundedBounds>(x:T) -> T 
+{
+    T::from(f64::ln(x.as_())).unwrap()
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -119,6 +125,7 @@ impl<T: BoundedBounds> Bounded<T> {
     /// # Parameters
     /// * `lower` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper` - Upper bound of the [`Bounded`] [`Domain`].
+    /// * `sampler` - A [`BoundedDistribution`] that will be used to sample the [`Bounded`] [`Domain`].
     ///
     pub fn new<S: DomainSampler<Self> + Into<BoundedDistribution>>(
         lower: T,
@@ -133,10 +140,20 @@ impl<T: BoundedBounds> Bounded<T> {
                 mid,
                 width,
                 sampler: sampler.into(),
+                log: false,
             }
         } else {
             panic!("Boundaries error, {} is not < {}.", lower, upper);
         }
+    }
+
+    /// Method to convert the [`Bounded`] [`Domain`] to a logarithmic scale.
+    pub fn to_log(self) -> Self {
+        let lower = to_log(*self.bounds.start());
+        let upper = to_log(*self.bounds.end());
+        let mut log_dom = Self::new(lower, upper, self.sampler);
+        log_dom.log = true;
+        log_dom
     }
 
     /// Fabric for a [`Bounded`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
@@ -244,10 +261,47 @@ where
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
         if self.contains(item) {
-            let a: f64 = (*item - *self.bounds.start()).as_();
-            let b: f64 = self.width.as_();
-            let c: f64 = target.width.as_();
-            let mapped: Out = (a / b * c).as_() + *target.bounds.start();
+            let in_lower: f64;
+            let in_upper: f64;
+            let in_width: f64;
+            let in_x: f64;
+            if self.log {
+                in_lower = self.bounds.start().as_().exp();
+                in_upper = self.bounds.end().as_().exp();
+                in_width = in_upper - in_lower;
+                in_x = item.as_().exp();
+            } else {
+                in_lower = self.bounds.start().as_();
+                in_upper = self.bounds.end().as_();
+                in_width = self.width.as_();
+                in_x = item.as_();
+            }
+
+
+            let out_lower: f64;
+            let out_upper: f64;
+            let out_width: f64;
+            if target.log {
+                out_lower = target.bounds.start().as_().exp();
+                out_upper = target.bounds.end().as_().exp();
+                out_width = out_upper - out_lower;
+            } else {
+                out_lower = target.bounds.start().as_();
+                out_upper = target.bounds.end().as_();
+                out_width = target.width.as_();
+            }
+
+            let out_x = if in_lower == out_lower && in_upper == out_upper {
+                in_x
+            } else {
+                ((in_x - in_lower) / in_width * out_width) + out_lower  
+            };
+
+            let mapped = if target.log {
+                out_x.ln().as_()
+            } else {
+                out_x.as_()
+            };
 
             if target.contains(&mapped) {
                 Ok(mapped)
@@ -256,9 +310,10 @@ where
             }
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
-        }
+        }   
     }
 }
+
 impl<In, Out> OntoDom<Bounded<Out>> for Bounded<In>
 where
     In: BoundedBounds,

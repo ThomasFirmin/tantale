@@ -982,7 +982,7 @@ fn test_mo_splitter() {
     }
     let splitter = MOSplit::new(0.6).unwrap();
 
-    let (good, bad) = splitter.split(&archive);
+    let (good, bad) = splitter.split(&archive).unwrap();
     let mut good_ids = good.iter().map(|s| s.id().id).collect::<Vec<_>>();
     let mut bad_ids = bad.iter().map(|s| s.id().id).collect::<Vec<_>>();
     good_ids.sort();
