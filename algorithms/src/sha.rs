@@ -64,7 +64,7 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, State, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use serde::{
@@ -133,7 +133,7 @@ where
     _fn: PhantomData<Fn>,
 }
 
-impl<Smpl, Scp, PSol, Out, Fn> OptState for ShaState<Smpl, Scp, PSol, Out, Fn>
+impl<Smpl, Scp, PSol, Out, Fn> State for ShaState<Smpl, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,

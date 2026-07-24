@@ -293,9 +293,9 @@ pub use domain::{
     ElemCostConstMultiCodomain,
 };
 
-pub mod sampler;
-pub use sampler::{
-    Bernoulli, BoolDistribution, BoundedDistribution, DomainSampler, GridDomDistribution, Uniform,
+pub mod distribution;
+pub use distribution::{
+    Bernoulli, BoolDistribution, BoundedDistribution, Distribution, GridDomDistribution, Uniform,
 };
 
 pub mod variable;
@@ -320,7 +320,7 @@ pub use crate::objective::{
 
 pub mod optimizer;
 pub use crate::optimizer::{
-    BatchOptimizer, BatchSampler, EmptyInfo, OptInfo, OptState, Optimizer, Sampler,
+    BatchOptimizer, BatchSampler, EmptyInfo, OptInfo, Optimizer, Sampler,
     SingleOptimizer, SingleSampler, opt::CompBatch,
 };
 
@@ -352,7 +352,7 @@ pub mod utils;
 pub use utils::{
     Dominate, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
-    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray,
+    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State
 };
 
 #[cfg(feature = "spikes")]

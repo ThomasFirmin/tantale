@@ -1,7 +1,7 @@
 pub mod sp_mixed_to_single {
     use tantale::core::{
         domain::{Bool, Cat, Int, Nat, Real},
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::hpo;
 
@@ -24,7 +24,7 @@ pub mod sp_mixed_to_single {
 
 pub mod sp_single_to_mixed {
     use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -46,7 +46,7 @@ pub mod sp_single_to_mixed {
 
 pub mod sp_mixed_to_nodomain {
     use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -68,7 +68,7 @@ pub mod sp_mixed_to_nodomain {
 
 pub mod sp_single_to_nodomain {
     use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -90,7 +90,7 @@ pub mod sp_single_to_nodomain {
 
 pub mod sp_single_to_single {
     use tantale::core::domain::{Int, Real};
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -112,7 +112,7 @@ pub mod sp_single_to_single {
 
 pub mod sp_single_to_mixed_first_hole {
     use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -131,7 +131,7 @@ pub mod sp_single_to_mixed_first_hole {
 
 pub mod sp_single_to_mixed_second_hole {
     use tantale::core::domain::{Bool, Cat, Int, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -150,7 +150,7 @@ pub mod sp_single_to_mixed_second_hole {
 
 pub mod sp_single_to_mixed_last_hole {
     use tantale::core::domain::{Cat, Int, Nat, Real};
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -169,7 +169,7 @@ pub mod sp_single_to_mixed_last_hole {
 
 pub mod sp_single_to_mixed_two_hole {
     use tantale::core::domain::{Cat, Nat, Real};
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -191,7 +191,7 @@ pub mod sp_single_to_mixed_two_hole {
 
 pub mod sp_mixed_to_single_first_hole {
     use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -210,7 +210,7 @@ pub mod sp_mixed_to_single_first_hole {
 
 pub mod sp_mixed_to_single_second_hole {
     use tantale::core::domain::{Bool, Cat, Int, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -229,7 +229,7 @@ pub mod sp_mixed_to_single_second_hole {
 
 pub mod sp_mixed_to_single_last_hole {
     use tantale::core::domain::{Cat, Int, Nat, Real};
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -248,7 +248,7 @@ pub mod sp_mixed_to_single_last_hole {
 
 pub mod sp_mixed_to_single_two_holes {
     use tantale::core::domain::{Cat, Nat, Real};
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -271,7 +271,7 @@ pub mod sp_mixed_to_single_two_holes {
 pub mod sp_repeats {
 
     use tantale::core::domain::{Bool, Cat, Nat, Real};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 6;
@@ -293,7 +293,7 @@ pub mod sp_repeats {
 
 pub mod sp_only_real {
     use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -312,7 +312,7 @@ pub mod sp_only_real {
 
 pub mod sp_only_int {
     use tantale::core::domain::Int;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -330,7 +330,7 @@ pub mod sp_only_int {
 }
 pub mod sp_only_nat {
     use tantale::core::domain::Nat;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -349,7 +349,7 @@ pub mod sp_only_nat {
 
 pub mod sp_only_unit {
     use tantale::core::domain::Unit;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -367,7 +367,7 @@ pub mod sp_only_unit {
 }
 pub mod sp_only_bool {
     use tantale::core::domain::Bool;
-    use tantale::core::sampler::Bernoulli;
+    use tantale::core::distribution::Bernoulli;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -386,7 +386,7 @@ pub mod sp_only_bool {
 
 pub mod sp_only_cat {
     use tantale::core::domain::Cat;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -405,7 +405,7 @@ pub mod sp_only_cat {
 
 pub mod sp_only_real_log {
     use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -424,7 +424,7 @@ pub mod sp_only_real_log {
 
 pub mod sp_only_int_log {
     use tantale::core::domain::Int;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -442,7 +442,7 @@ pub mod sp_only_int_log {
 }
 pub mod sp_only_nat_log {
     use tantale::core::domain::Nat;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;

@@ -1,4 +1,4 @@
-use crate::{Computed, Domain, ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostCodomain, ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain, HasY, Id, Outcome, SolInfo, TypeCodom, Uncomputed, solution::{CompLone, shape::CompPair}};
+use crate::{Computed, Domain, ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostCodomain, ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain, HasY, Id, Outcome, SolInfo, TypeCodom, Uncomputed, Xy, solution::{CompLone, shape::CompPair}};
 
 /// Trait for objects containing a number of spiking samples
 ///
@@ -145,5 +145,15 @@ where
 
     fn spiking_samples(&self) -> usize {
         self.y().spiking_samples()
+    }
+}
+
+impl<Raw, Y: HasSpikes> HasSpikes for Xy<Raw, Y> {
+    fn samples(&self) -> usize {
+        self.y.samples()
+    }
+
+    fn spiking_samples(&self) -> usize {
+        self.y.spiking_samples()
     }
 }

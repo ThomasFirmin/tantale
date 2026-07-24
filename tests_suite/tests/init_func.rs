@@ -243,7 +243,7 @@ pub mod sp_ms_nosamp {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -286,7 +286,7 @@ pub mod sp_ms_samp {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -329,7 +329,7 @@ pub mod sp_ms_samp_right {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -372,7 +372,7 @@ pub mod sp_ms_noright {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -415,7 +415,7 @@ pub mod sp_ms_samp_noright {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -458,7 +458,7 @@ pub mod sp_sm_samp {
     use super::{OutUnique, Point, float_plus_float, plus_one_float};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -499,7 +499,7 @@ pub mod sp_sm_samp {
 
 pub mod sp_sm_samp_noright {
     use super::{OutUnique, Point, float_plus_float, plus_one_float};
-    use tantale::core::{Real, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -567,7 +567,7 @@ pub mod sp_evaluator {
     use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -599,7 +599,7 @@ pub mod sp_evaluator {
 
 pub mod sp_evaluator_real {
     use super::OutEvaluator;
-    use tantale::core::{Real, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 5;
@@ -620,7 +620,7 @@ pub mod sp_evaluator_real {
 
 pub mod sp_grid_evaluator {
     use super::{Neuron, OutEvaluator};
-    use tantale::core::{Cat, Int, Real, sampler::Uniform};
+    use tantale::core::{Cat, Int, Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -650,7 +650,7 @@ pub mod sp_evaluator_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -693,7 +693,7 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_grid_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron};
-    use tantale::core::{Cat, Int, Real, objective::Step, sampler::Uniform};
+    use tantale::core::{Cat, Int, Real, objective::Step, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -730,7 +730,7 @@ pub mod sp_ms_nosamp_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -783,7 +783,7 @@ pub mod sp_ms_samp_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -836,7 +836,7 @@ pub mod sp_ms_samp_right_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -889,7 +889,7 @@ pub mod sp_ms_noright_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -942,7 +942,7 @@ pub mod sp_ms_samp_noright_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -995,7 +995,7 @@ pub mod sp_sm_samp_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1045,7 +1045,7 @@ pub mod sp_sm_samp_fid {
 
 pub mod sp_sm_samp_noright_fid {
     use super::{FidOutUnique, FnState, Point, float_plus_float, plus_one_float};
-    use tantale::core::{Real, objective::Step, sampler::Uniform};
+    use tantale::core::{Real, objective::Step, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -1117,7 +1117,7 @@ pub mod sp_evaluator_sh {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1178,7 +1178,7 @@ pub mod sp_evaluator_mo {
     use super::{MoOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1240,7 +1240,7 @@ pub mod sp_evaluator_mo_fid {
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
         objective::Step,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1333,7 +1333,7 @@ pub mod sp_evaluator_spike {
     use super::{OutSpikeEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Unit,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1368,7 +1368,7 @@ pub mod sp_evaluator_spike {
 
 pub mod sp_evaluator_spike_real {
     use super::OutSpikeEvaluator;
-    use tantale::core::{Real, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 5;
@@ -1387,6 +1387,69 @@ pub mod sp_evaluator_spike_real {
                 spiking: spikes,
                 samples: 100,
             }
+        }
+    );
+}
+
+
+
+#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+pub struct OutSpikeStepEvaluator {
+    #[maximize]
+    pub obj: f64,
+    #[spiking]
+    pub spiking: usize,
+    #[samples]
+    pub samples: usize,
+    #[step]
+    pub step: Step,
+}
+
+pub mod sp_evaluator_fid_spike {
+    use super::FnState;
+    use super::{OutSpikeStepEvaluator, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Step, Unit, distribution::{Bernoulli, Uniform},
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (OutSpikeStepEvaluator, FnState) {
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+            let spikes = [! l | Nat(0,6524, Uniform) | !] as usize;
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+            state.state += 1;
+            let evalstate = if [! FIDELITY !] >= 32. {Step::Evaluated} else{Step::Partially(state.state)};
+            
+            (
+                OutSpikeStepEvaluator{
+                    obj: [! j | Unit(Uniform) | !],
+                    spiking: spikes,
+                    samples: 6524,
+                    step: evalstate,
+                },
+                FnState { state: 0 }
+            )
+
         }
     );
 }

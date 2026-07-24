@@ -8,7 +8,7 @@ mod test {
         use std::sync::Arc;
         use tantale::core::{
             BaseSol, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Sp,
-            sampler::{Bernoulli, Uniform},
+            distribution::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
         };
         use tantale::macros::hpo;

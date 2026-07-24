@@ -6,7 +6,7 @@
 
 pub mod sp_m_mixed_grid {
     use tantale::core::domain::{Bool, Cat, Int, Nat};
-    use tantale::core::sampler::{Bernoulli, Uniform};
+    use tantale::core::distribution::{Bernoulli, Uniform};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -25,7 +25,7 @@ pub mod sp_m_mixed_grid {
 
 pub mod sp_only_real_grid {
     use tantale::core::domain::Real;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -44,7 +44,7 @@ pub mod sp_only_real_grid {
 
 pub mod sp_only_int_grid {
     use tantale::core::domain::Int;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -62,7 +62,7 @@ pub mod sp_only_int_grid {
 }
 pub mod sp_only_nat_grid {
     use tantale::core::domain::Nat;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -81,7 +81,7 @@ pub mod sp_only_nat_grid {
 
 pub mod sp_only_bool_grid {
     use tantale::core::domain::Bool;
-    use tantale::core::sampler::Bernoulli;
+    use tantale::core::distribution::Bernoulli;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -100,7 +100,7 @@ pub mod sp_only_bool_grid {
 
 pub mod sp_only_cat_grid {
     use tantale::core::domain::Cat;
-    use tantale::core::sampler::Uniform;
+    use tantale::core::distribution::Uniform;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;

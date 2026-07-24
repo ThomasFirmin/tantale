@@ -48,7 +48,7 @@ mod init_func {
 
     pub mod sp_evaluator {
         use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
-        use tantale::core::sampler::{Bernoulli, Uniform};
+        use tantale::core::distribution::{Bernoulli, Uniform};
         use tantale::core::{Bool, Cat, Int, Nat, Real};
         use tantale::macros::objective;
 

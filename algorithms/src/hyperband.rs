@@ -88,7 +88,7 @@ use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
 use tantale_core::{
-    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptState, Optimizer,
+    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, State, Optimizer,
     Searchspace, SingleOptimizer, StepSId,
 };
 
@@ -156,7 +156,7 @@ where
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<Optim, Out, Scp, SInfo> OptState for HyperbandState<Optim, Out, Scp, SInfo>
+impl<Optim, Out, Scp, SInfo> State for HyperbandState<Optim, Out, Scp, SInfo>
 where
     Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
         + BudgetPruner<

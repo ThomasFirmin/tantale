@@ -88,7 +88,7 @@ use serde::{Deserialize, Serialize};
 /// let value = domain.sample(&mut rng);
 /// assert!(domain.contains(&value));
 /// ```
-pub trait DomainSampler<D: Domain> {
+pub trait Distribution<D: Domain> {
     /// Generates a random value from the given domain using this sampling strategy.
     ///
     /// # Parameters
@@ -127,7 +127,7 @@ pub enum BoundedDistribution {
     Uniform(Uniform),
 }
 
-impl<D> DomainSampler<D> for BoundedDistribution
+impl<D> Distribution<D> for BoundedDistribution
 where
     D: RangeDomain,
     D::TypeDom: BoundedBounds,
@@ -163,7 +163,7 @@ pub enum BoolDistribution {
     Bernoulli(Bernoulli),
 }
 
-impl DomainSampler<Bool> for BoolDistribution {
+impl Distribution<Bool> for BoolDistribution {
     fn sample<R: Rng>(&self, dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
         match self {
             BoolDistribution::Bernoulli(b) => b.sample(dom, rng),
@@ -191,7 +191,7 @@ pub enum GridDomDistribution {
     Uniform(Uniform),
 }
 
-impl<T: GridBounds> DomainSampler<GridDom<T>> for GridDomDistribution {
+impl<T: GridBounds> Distribution<GridDom<T>> for GridDomDistribution {
     fn sample<R: Rng>(&self, dom: &GridDom<T>, rng: &mut R) -> TypeDom<GridDom<T>> {
         match self {
             GridDomDistribution::Uniform(u) => u.sample(dom, rng),
@@ -252,7 +252,7 @@ impl From<Bernoulli> for BoolDistribution {
 /// - [`GridDomDistribution`] - Enum wrapper for grid domain samplers
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Uniform;
-impl<D: RangeDomain> DomainSampler<D> for Uniform
+impl<D: RangeDomain> Distribution<D> for Uniform
 where
     D::TypeDom: BoundedBounds,
 {
@@ -264,7 +264,7 @@ where
 /// Uniform sampler implementation for grid like domains.
 ///
 /// Selects a random element from the domain's values with equal probability.
-impl<T: GridBounds> DomainSampler<GridDom<T>> for Uniform {
+impl<T: GridBounds> Distribution<GridDom<T>> for Uniform {
     fn sample<R: Rng>(&self, dom: &GridDom<T>, rng: &mut R) -> TypeDom<GridDom<T>> {
         dom.values.iter().choose(rng).unwrap().clone()
     }
@@ -298,7 +298,7 @@ impl<T: GridBounds> DomainSampler<GridDom<T>> for Uniform {
 /// ```
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Bernoulli(pub f64);
-impl DomainSampler<Bool> for Bernoulli {
+impl Distribution<Bool> for Bernoulli {
     fn sample<R: Rng>(&self, _dom: &Bool, rng: &mut R) -> TypeDom<Bool> {
         rng.random_bool(self.0)
     }

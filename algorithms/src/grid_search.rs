@@ -7,7 +7,7 @@ use tantale_core::{
         outcome::{FuncState, Outcome},
     },
     optimizer::{
-        EmptyInfo, OptState,
+        EmptyInfo, State,
         opt::{Optimizer, SingleOptimizer},
     },
     searchspace::Searchspace,
@@ -30,7 +30,7 @@ use crate::utils::{BCompAcc, BCompShape, FCompAcc, FCompShape};
 /// * `usize` - An additional usize to track the number of times the grid was fully evaluated.
 #[derive(Serialize, Deserialize)]
 pub struct GSState(pub Vec<usize>, pub usize);
-impl OptState for GSState {}
+impl State for GSState {}
 
 /// Sequential Grid Search optimizer implementation.
 /// This optimizer samples solutions on-demand according to a predefined grid

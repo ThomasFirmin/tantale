@@ -25,12 +25,10 @@
 //! resulting typed Tantale objective, ready to be passed to the optimizer.
 
 use std::{
-    fmt::{self, Display},
-    path::PathBuf,
-    sync::Arc,
-    write
+    fmt::{self, Display}, path::PathBuf, sync::Arc, write
 };
 
+use log::warn;
 use pyo3::prelude::*;
 use tantale_core::{FidOutcome, Fidelity, FuncState, Objective, Stepped};
 
@@ -71,7 +69,14 @@ impl FuncState for PyFuncState {
                 .map_err(py_to_io)?;
             // Save the class so load() can reconstruct it.
             let cls = self.0.bind(py).get_type().into_any().unbind();
-            let cls_bytes = pickle_dumps(py, &cls).map_err(py_to_io).unwrap();
+            let cls_bytes = match pickle_dumps(py, &cls) {
+                Ok(res) => res,
+                Err(err) => {
+                    err.print(py); // stderr, same format as Python
+                    warn!("Python objection function state failed to pickle the class");
+                    return Err(err.into());
+                }
+            };
             let path_cls = path.join("_tantale_cls.pkl");
             std::fs::write(path_cls, cls_bytes)
         })
@@ -81,12 +86,23 @@ impl FuncState for PyFuncState {
         let cls_bytes = std::fs::read(path.join("_tantale_cls.pkl"))?;
         let path_str = path_to_str(&path)?;
         Python::attach(|py| -> std::io::Result<Self> {
-            let cls = pickle_loads(py, &cls_bytes).map_err(py_to_io).unwrap();
-            let obj = cls
-                .call_method1(py, "load", (&path_str,))
-                .map_err(py_to_io)
-                .unwrap();
-            Ok(PyFuncState(obj))
+            let cls = match pickle_loads(py, &cls_bytes){
+                Ok(res) => res,
+                Err(err) => {
+                    err.print(py);
+                    warn!("Python objection function state failed to unpickle the class");
+                    return Err(err.into());
+                }
+            };
+            let obj = cls.call_method1(py, "load", (&path_str,));
+            match obj {
+                Ok(obj) => Ok(PyFuncState(obj)),
+                Err(err) => {
+                    err.print(py); // stderr, same format as Python
+                    warn!("Python objection function state failed to load");
+                    Err(err.into())
+                }
+            }
         })
     }
 }
@@ -119,8 +135,14 @@ pub fn py_objective<E: ElementIntoPyObject, Out: PyOutWrap>(x: Arc<[E]>) -> Out 
         .expect("The PyObjective was not initialized");
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");
-        let result = binding.call1(py, (list,)).unwrap();
-        Out::wrap(py, result)
+        let result = binding.call1(py, (list,));
+        match result {
+            Ok(res) => Out::wrap(py, res),
+            Err(err) => {
+                err.print(py); // stderr, same format as Python
+                panic!("Python objective failed");
+            }
+        }
     })
 }
 
@@ -145,12 +167,23 @@ pub fn py_stepped<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
     let py_state = state.map(|s| s.0);
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");
-        let result = binding
-            .call1(py, (list, fidelity.0, py_state))
-            .expect("Python stepped objective raised an error");
+        let result = binding.call1(py, (list, fidelity.0, py_state)).unwrap_or_else(
+            |err: PyErr|
+            {
+                err.print(py);
+                panic!("Python stepped objective failed");
+            }
+        );
+
         let (out, new_state): (Py<PyAny>, Py<PyAny>) = result
             .extract(py)
-            .expect("Python stepped objective must return a 2-tuple (outcome, state)");
+            .unwrap_or_else(
+                |err: PyErr|
+                {
+                    err.print(py);
+                    panic!("Python stepped objective must return a 2-tuple (outcome, state)");
+                }
+            );
         (Out::wrap(py, out), PyFuncState(new_state))
     })
 }

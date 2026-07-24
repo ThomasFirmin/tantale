@@ -36,7 +36,7 @@ use crate::{
 };
 use tantale_core::{
     BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, Id, IntoComputedShape, LinkOpt, OptState, Optimizer, Orderable, OrderedArchive,
+    HasStep, Id, IntoComputedShape, LinkOpt, State, Optimizer, Orderable, OrderedArchive,
     Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape,
     Step, StepSId, Stepped, Uncomputed, Xy,
     domain::{TypeDom, codomain::TypeCodom},
@@ -154,7 +154,7 @@ where
     pub current_archive: usize,
 }
 
-impl<Kern, Bw, Wght, Splt, Scp, S, SolId, Out> OptState
+impl<Kern, Bw, Wght, Splt, Scp, S, SolId, Out> State
     for TpeState<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>
 where
     S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
@@ -310,9 +310,9 @@ where
             bandwidth: kernel.1,
             weighter,
             splitter,
-            point_archive: vec![(0.0, OrderedArchive::default())],
+            point_archive: vec![],
             current_archive: 0,
-            current_fidelity: 0.0,
+            current_fidelity: -f64::INFINITY,
         })
     }
 
@@ -427,7 +427,8 @@ where
         let n_init = self.0.n_init;
         if self.0.point_archive[0].1.size() < n_init {
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
-            self.with_rng(|rng| scp.sample_pair(rng, info))
+            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+            scp.onto_obj(x)
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.0.splitter.split(&self.0.point_archive[0].1);
@@ -438,7 +439,8 @@ where
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                             let info = TpeSInfo::new(0.0, 0.0, 0.0);
-                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+                            return scp.onto_obj(x);
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -570,7 +572,8 @@ where
             let n_init = self.0.n_init;
             if self.0.point_archive[0].1.size() < n_init {
                 let info = TpeSInfo::new(0.0, 0.0, 0.0);
-                self.with_rng(|rng| scp.sample_pair(rng, info))
+                let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+                scp.onto_obj(x)
             } else {
                 // Split the archive into good and bad, and compute the weights
                 let split = self.0.splitter.split(&self.0.point_archive[0].1);
@@ -581,7 +584,8 @@ where
                             SplitError::ConfigError(msg) => {
                                 warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                                 let info = TpeSInfo::new(0.0, 0.0, 0.0);
-                                return self.with_rng(|rng| scp.sample_pair(rng, info));
+                                let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+                                return scp.onto_obj(x);
                             },
                             _ => panic!("Unexpected error: {err:?}"),
                         }
@@ -695,7 +699,8 @@ where
         let n_init = self.0.n_init;
         if self.0.point_archive[0].1.size() < n_init {
             let info = TpeSInfo::new(0.0, 0.0, 0.0);
-            self.with_rng(|rng| scp.sample_pair(rng, info))
+            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+            scp.onto_obj(x)
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.0.splitter.split(&self.0.point_archive[0].1);
@@ -706,7 +711,8 @@ where
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
                             let info = TpeSInfo::new(0.0, 0.0, 0.0);
-                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+                            return scp.onto_obj(x);
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -804,10 +810,10 @@ where
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) -> Scp::SolShape {
-        let n_init = self.0.n_init;
-        if self.0.point_archive[self.0.current_archive].1.size() < n_init {
-            let info = TpeSInfo::new(0.0, 0.0, 0.0);
-            self.with_rng(|rng| scp.sample_pair(rng, info))
+        if self.0.point_archive.is_empty() || self.0.point_archive[self.0.current_archive].1.size() < self.0.n_init {
+            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
+            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+            scp.onto_obj(x)
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.0.splitter.split(&self.0.point_archive[self.0.current_archive].1);
@@ -817,8 +823,9 @@ where
                     match err {
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            let info = TpeSInfo::new(0.0, 0.0, 0.0);
-                            return self.with_rng(|rng| scp.sample_pair(rng, info));
+                            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
+                            let x = self.with_rng(|rng| scp.sample_opt(rng, info));
+                            return scp.onto_obj(x);
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }

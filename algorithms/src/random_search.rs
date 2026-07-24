@@ -7,7 +7,7 @@ use tantale_core::{
         outcome::{FuncState, Outcome},
     },
     optimizer::{
-        EmptyInfo, OptInfo, OptState,
+        EmptyInfo, OptInfo, State,
         opt::{BatchOptimizer, Optimizer, SingleOptimizer},
     },
     recorder::csv::CSVWritable,
@@ -52,7 +52,7 @@ impl CSVWritable<(), ()> for RSInfo {
 /// This struct is intentionally minimal, as Random Search does not require any internal state to function.
 #[derive(Serialize, Deserialize)]
 pub struct SeqRSState;
-impl OptState for SeqRSState {}
+impl State for SeqRSState {}
 
 /// Sequential Random Search optimizer implementation.
 /// This optimizer samples solutions on-demand and  at random
@@ -109,7 +109,7 @@ impl OptState for SeqRSState {}
 /// ```
 /// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
 /// ```rust,ignore
-/// self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+/// self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()))
 /// ```
 pub struct RandomSearch(pub SeqRSState);
 
@@ -196,7 +196,8 @@ where
         scp: &Scp,
         _acc: &BCompAcc<Scp, Out, Self::SInfo>,
     ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+        let x = self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()));
+        scp.onto_obj(x)
     }
 }
 
@@ -232,10 +233,16 @@ where
                         )
                     }
                     Step::Partially(_) => pair,
-                    _ => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
+                    _ => {
+                        let x = self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()));
+                        scp.onto_obj(x)
+                    }
                 }
             }
-            None => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
+            None => {
+                let x = self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()));
+                scp.onto_obj(x)
+            }
         }
     }
 }
@@ -274,7 +281,8 @@ where
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
     ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+        let x = self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()));
+        scp.onto_obj(x)
     }
 
     /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
@@ -309,7 +317,8 @@ where
         scp: &Scp,
         _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
     ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
+        let x = self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()));
+        scp.onto_obj(x)
     }
 
     /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
@@ -345,7 +354,7 @@ impl BatchRSState {
         }
     }
 }
-impl OptState for BatchRSState {}
+impl State for BatchRSState {}
 
 /// Batched Random Search optimizer implementation.
 /// This optimizer samples batches of solutions at random from the [`Searchspace`] at each iteration,
@@ -459,7 +468,8 @@ where
         iteration: opt.0.iteration,
     };
     opt.0.iteration += 1;
-    let pairs = sp.vec_sample_pair(&mut opt.1, bsize, opt.0._emptyinfo.clone());
+    let xs = sp.vec_sample_opt(&mut opt.1, bsize, opt.0._emptyinfo.clone());
+    let pairs = sp.vec_onto_obj(xs);
     Batch::new(pairs, info.into())
 }
 
@@ -584,7 +594,8 @@ where
             .into_iter()
             .map(|p| match p.step() {
                 Step::Evaluated | Step::Discard | Step::Error => {
-                    scp.sample_pair(&mut self.1, self.0._emptyinfo.clone())
+                    let x =scp.sample_opt(&mut self.1, self.0._emptyinfo.clone());
+                    scp.onto_obj(x)
                 }
                 _ => IntoComputedShape::extract(p).0,
             })
@@ -596,8 +607,9 @@ where
         .into();
         if pairs.len() <= self.0.batch {
             let remaining = self.0.batch - pairs.len();
-            let mut new_pairs =
-                scp.vec_sample_pair(&mut self.1, remaining, self.0._emptyinfo.clone());
+            let new_xs =
+                scp.vec_sample_opt(&mut self.1, remaining, self.0._emptyinfo.clone());
+            let mut new_pairs = scp.vec_onto_obj(new_xs);
             pairs.append(&mut new_pairs);
         }
         Batch::new(pairs, info)

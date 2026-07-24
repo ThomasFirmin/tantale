@@ -168,7 +168,13 @@ impl CSVWritable<(), ()> for PyOutcome {
             cls.bind(py)
                 .call_method0("csv_header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(
+                    |err | 
+                    {
+                        err.print(py);
+                        panic!("Python outcome class must implement static method csv_header() -> list[str]");
+                    }
+                )
         })
     }
 
@@ -178,7 +184,13 @@ impl CSVWritable<(), ()> for PyOutcome {
                 .bind(py)
                 .call_method0("csv_write")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(
+                    |err | 
+                    {
+                        err.print(py);
+                        panic!("Python outcome class must implement static method csv_write() -> list[str]");
+                    }
+                )
         })
     }
 }
@@ -270,7 +282,13 @@ impl CSVWritable<(), ()> for PyFidOutcome {
             cls.bind(py)
                 .call_method0("csv_header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(
+                    |err | 
+                    {
+                        err.print(py);
+                        panic!("Python outcome class must implement static method csv_header() -> list[str]");
+                    }
+                )
         })
     }
 
@@ -280,7 +298,13 @@ impl CSVWritable<(), ()> for PyFidOutcome {
                 .bind(py)
                 .call_method0("csv_write")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(
+                    |err | 
+                    {
+                        err.print(py);
+                        panic!("Python outcome class must implement static method csv_write() -> list[str]");
+                    }
+                )
         })
     }
 }

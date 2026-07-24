@@ -311,7 +311,7 @@ where
             && current_id == id
         {
             Some(self.current.take().unwrap().1)
-        } else if let Some((_id, fnstate)) = self.check.load_func_state(id) {
+        } else if let Some((_, fnstate)) = self.check.load_func_state(id) {
             Some(fnstate)
         } else {
             None

@@ -23,6 +23,50 @@ use pyo3::{
 
 use crate::PY_OUTCOME_CLASS;
 
+fn add_python_path_entry(py: Python<'_>, entry: &str) -> PyResult<()> {
+    let sys = py.import("sys")?;
+    let sys_path = sys.getattr("path")?;
+    let present = sys_path
+        .call_method1("__contains__", (entry,))?
+        .extract::<bool>()?;
+
+    if !present {
+        sys_path.call_method1("insert", (0, entry))?;
+    }
+
+    Ok(())
+}
+
+fn add_virtualenv_site_packages(py: Python<'_>) -> PyResult<()> {
+    let venv = match std::env::var("VIRTUAL_ENV") {
+        Ok(path) if !path.is_empty() => path,
+        _ => return Ok(()),
+    };
+
+    let sys = py.import("sys")?;
+    let version_info = sys.getattr("version_info")?;
+    let major = version_info.getattr("major")?.extract::<usize>()?;
+    let minor = version_info.getattr("minor")?.extract::<usize>()?;
+    let site = py.import("site")?;
+    let candidates = [
+        Path::new(&venv)
+            .join("lib")
+            .join(format!("python{major}.{minor}"))
+            .join("site-packages"),
+        Path::new(&venv).join("Lib").join("site-packages"),
+    ];
+
+    for candidate in candidates {
+        if candidate.is_dir() {
+            let candidate = path_to_str(&candidate)
+                .map_err(|err| pyo3::exceptions::PyValueError::new_err(err.to_string()))?;
+            site.call_method1("addsitedir", (candidate.as_str(),))?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Converts a [`Path`] to an owned [`String`].
 ///
 /// Returns [`std::io::Error`] if the path is not valid.
@@ -122,15 +166,7 @@ fn python_module_root(manifest_dir: &str, file: &str, module: &str) -> PyResult<
 }
 
 fn add_python_module_root(py: Python<'_>, root: &str) -> PyResult<()> {
-    let sys = py.import("sys")?;
-    let sys_path = sys.getattr("path")?;
-    let present = sys_path.call_method1("__contains__", (root,))?.extract::<bool>()?;
-
-    if !present {
-        sys_path.call_method1("insert", (0, root))?;
-    }
-
-    Ok(())
+    add_python_path_entry(py, root)
 }
 
 #[doc(hidden)]
@@ -141,6 +177,7 @@ pub fn load_python_attr(
     module: &str,
     attr: &str,
 ) -> PyResult<Py<PyAny>> {
+    add_virtualenv_site_packages(py)?;
     let root = python_module_root(manifest_dir, file, module)?;
     add_python_module_root(py, &root)?;
 
@@ -370,7 +407,10 @@ macro_rules! init_python {
                         .getattr($step_attr)
                         .and_then(|s| Ok(s.extract::<tantale::python::PyStep>()?))
                         .map(|s| s.inner.into())
-                        .unwrap_or_else(|_| tantale::core::EvalStep::error())
+                        .unwrap_or_else(|err| {
+                            err.print(py);
+                            tantale::core::EvalStep::error()
+                        })
                 })
             }
         }
@@ -1046,7 +1086,10 @@ macro_rules! init_python {
                 $of,
                 $om,
                 $on,
-            )?;
+            ).unwrap_or_else(|err| {
+                err.print(py);
+                panic!("Failed to initialize Python class objective");
+            });
             tantale::python::register_outcome(cls);
             let callable = tantale::python::pyutils::load_python_attr(
                 py,
@@ -1054,7 +1097,10 @@ macro_rules! init_python {
                 $ff,
                 $fm,
                 $fn_,
-            )?;
+            ).unwrap_or_else(|err| {
+                err.print(py);
+                panic!("Failed to initialize Python objective callable object");
+            });
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyObjective::new(callable))
         }).unwrap()}
     };
@@ -1071,7 +1117,10 @@ macro_rules! init_python {
                 $of,
                 $om,
                 $on,
-            )?;
+            ).unwrap_or_else(|err| {
+                err.print(py);
+                panic!("Failed to initialize Python class objective");
+            });
             tantale::python::register_outcome(cls);
             let callable = tantale::python::pyutils::load_python_attr(
                 py,
@@ -1079,7 +1128,10 @@ macro_rules! init_python {
                 $ff,
                 $fm,
                 $fn_,
-            )?;
+            ).unwrap_or_else(|err| {
+                err.print(py);
+                panic!("Failed to initialize Python objective callable object");
+            });
             tantale::python::pyo3::PyResult::Ok(tantale::python::PyStepped::new(callable))
         }).unwrap()}
     };
@@ -1164,7 +1216,10 @@ macro_rules! init_python {
                         .getattr($step_attr)
                         .and_then(|s| Ok(s.extract::<tantale::python::PyStep>()?))
                         .map(|s| s.inner.into())
-                        .unwrap_or_else(|_| tantale::core::EvalStep::error())
+                        .unwrap_or_else(|err| {
+                            err.print(py);
+                            tantale::core::EvalStep::error()
+                        })
                 })
             }
         }

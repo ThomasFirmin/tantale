@@ -1,6 +1,6 @@
 mod check_sampler {
     use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real};
-    use tantale::core::{GridInt, GridNat, GridReal, sampler::*};
+    use tantale::core::{GridInt, GridNat, GridReal, distribution::*};
 
     #[test]
     fn sampler_real() {
@@ -79,7 +79,7 @@ mod check_sampler {
 
 mod check_sampler_base {
     use tantale::core::domain::{Bool, Cat, Domain, Int, Mixed, Nat, Real, Unit};
-    use tantale::core::{GridInt, GridNat, GridReal, sampler::*};
+    use tantale::core::{GridInt, GridNat, GridReal, distribution::*};
 
     #[test]
     fn sampler_real_base() {

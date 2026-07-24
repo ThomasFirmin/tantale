@@ -8,7 +8,7 @@ use tantale::algos::bayesian::bandwidth::{
     Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw, scott_col,
 };
 use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, Id, SId, Sp, Uncomputed, Unit, Var, Xy};
-use tantale::core::{Int, Nat, Real, sampler::Uniform};
+use tantale::core::{Int, Nat, Real, distribution::Uniform};
 
 const EPS: f64 = 1e-10;
 

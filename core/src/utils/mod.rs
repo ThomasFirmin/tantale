@@ -21,3 +21,15 @@ pub use has_trait::{
     HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
     HasY,
 };
+
+use serde::{Deserialize, Serialize};
+
+/// Serializable state of an object.
+///
+/// Implementations should capture all information required to resume an
+/// optimization after checkpointing.
+pub trait State
+where
+    Self: Serialize + for<'de> Deserialize<'de>,
+{
+}

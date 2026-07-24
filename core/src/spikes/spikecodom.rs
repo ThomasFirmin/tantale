@@ -94,8 +94,7 @@
 use std::{cmp::Ordering, fmt::Debug};
 
 use crate::{
-    Dominate, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome,
-    recorder::csv::CSVWritable, utils::orderable::Orderable, Codomain, Criteria, BestAccumulator, Single, Cost, Constrained, Multi, ParetoAccumulator,
+    BestAccumulator, Codomain, Constrained, Cost, Criteria, Dominate, HasSpikes, HasY, Id, Multi, ParetoAccumulator, Single, SolInfo, SolutionShape, domain::codomain::{ElemConstrained, ElemCost, ElemMulti, ElemSingle}, objective::outcome::Outcome, recorder::csv::CSVWritable, utils::orderable::Orderable,
 };
 use serde::{Deserialize, Serialize};
 
@@ -106,7 +105,7 @@ pub type SpikeCriteria<Out> = fn(&Out) -> usize;
 /// Defines a [`Codomain`] containing spike information.
 pub trait Spikes<Out: Outcome>: Codomain<Out>
 where
-    Self::TypeCodom: Orderable,
+    Self::TypeCodom: ElemSpikes,
 {
     fn get_spike_criteria(&self) -> SpikeCriteria<Out>;
     fn get_samples_criteria(&self) -> SpikeCriteria<Out>;
@@ -119,6 +118,18 @@ where
     }
     fn get_non_spiking(&self, o: &Out) -> usize{
         self.get_samples(o) - self.get_spiking(o)
+    }
+}
+
+pub trait ElemSpikes: HasSpikes {
+    fn samples(&self) -> usize{
+        <Self as HasSpikes>::samples(self)
+    }
+    fn spiking(&self) -> usize{
+        self.spiking_samples()
+    }
+    fn non_spiking(&self) -> usize {
+        self.non_spiking_samples()
     }
 }
 
@@ -195,6 +206,14 @@ impl Orderable for ElemSpikeCodomain {
         self.partial_cmp(other)
     }
 }
+
+impl ElemSingle for ElemSpikeCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeCodomain {}
 
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for SpikeCodomain<Out> {
     type TypeCodom = ElemSpikeCodomain;
@@ -329,6 +348,20 @@ impl Orderable for ElemSpikeCostCodomain {
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
+    }
+}
+
+impl ElemSingle for ElemSpikeCostCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeCostCodomain {}
+
+impl ElemCost for ElemSpikeCostCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
     }
 }
 
@@ -486,6 +519,20 @@ impl Orderable for ElemSpikeConstCodomain {
     /// $$
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.partial_cmp(other)
+    }
+}
+
+impl ElemSingle for ElemSpikeConstCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeConstCodomain {}
+
+impl ElemConstrained for ElemSpikeConstCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 
@@ -670,6 +717,26 @@ impl Orderable for ElemSpikeCostConstCodomain {
     }
 }
 
+impl ElemSingle for ElemSpikeCostConstCodomain {
+    fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeCostConstCodomain { }
+
+impl ElemCost for ElemSpikeCostConstCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl ElemConstrained for ElemSpikeCostConstCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
+    }
+}
+
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for SpikeCostConstCodomain<Out> {
     type TypeCodom = ElemSpikeCostConstCodomain;
     type Acc<C, SolId, SInfo>
@@ -802,6 +869,14 @@ impl Dominate for ElemSpikeMultiCodomain {
     }
 }
 
+impl ElemMulti for ElemSpikeMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeMultiCodomain { }
+
 impl<Out: Outcome<Cod = Self>> Codomain<Out> for SpikeMultiCodomain<Out> {
     type TypeCodom = ElemSpikeMultiCodomain;
     type Acc<C, SolId, SInfo>
@@ -933,6 +1008,20 @@ impl Dominate for ElemSpikeCostMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemSpikeCostMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeCostMultiCodomain { }
+
+impl ElemCost for ElemSpikeCostMultiCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
     }
 }
 
@@ -1090,6 +1179,20 @@ impl Dominate for ElemSpikeConstMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemSpikeConstMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeConstMultiCodomain { }
+
+impl ElemConstrained for ElemSpikeConstMultiCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 
@@ -1272,6 +1375,26 @@ impl Dominate for ElemSpikeCostConstMultiCodomain {
 
     fn get_objectives(&self) -> &[f64] {
         &self.value
+    }
+}
+
+impl ElemMulti for ElemSpikeCostConstMultiCodomain {
+    fn value(&self) -> &[f64] {
+        &self.value
+    }
+}
+
+impl ElemSpikes for ElemSpikeCostConstMultiCodomain { }
+
+impl ElemCost for ElemSpikeCostConstMultiCodomain {
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl ElemConstrained for ElemSpikeCostConstMultiCodomain {
+    fn constraints(&self) -> &[f64] {
+        &self.constraints
     }
 }
 

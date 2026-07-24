@@ -1,11 +1,10 @@
 use crate::{
     Accumulator, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome, RUN_ID,
-    SOL_ID, SolInfo, SolutionShape,
+    SOL_ID, SolInfo, SolutionShape, State,
     checkpointer::{
         CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
     },
     experiment::Evaluate,
-    optimizer::OptState,
     stop::Stop,
 };
 
@@ -277,7 +276,7 @@ impl MonoCheckpointer for MessagePack {
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
@@ -302,7 +301,7 @@ impl MonoCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Eval), CheckpointError> {
         let global: GlobalParameters = self.load_parameters()?;
@@ -339,7 +338,7 @@ impl MonoCheckpointer for MessagePack {
     }
 
     /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+    fn load_optimizer<OState: State>(&self) -> Result<OState, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_optim.is_file() {
@@ -568,7 +567,7 @@ impl ThrCheckpointer for MessagePack {
     /// The [`OptState`] and [`Stop`] checkpoints are shared among threads.
     /// In synchronous experiments (with [`BatchOptimizer`](crate::BatchOptimizer)), only one thread
     /// saves a single [`Evaluate`], [`OptState`] and [`Stop`] checkpoint, once a [`Batch`](crate::Batch) have been evaluated.
-    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
@@ -598,7 +597,7 @@ impl ThrCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
         let global: GlobalParameters = self.load_parameters()?;
@@ -640,7 +639,7 @@ impl ThrCheckpointer for MessagePack {
     }
 
     /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+    fn load_optimizer_thr<OState: State>(&self) -> Result<OState, CheckpointError> {
         // Check if file exist
         if self
             .config
@@ -910,7 +909,7 @@ impl DistCheckpointer for MessagePack {
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
@@ -936,7 +935,7 @@ impl DistCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         rank: Rank,
     ) -> Result<(OState, St, Eval), CheckpointError> {
@@ -979,7 +978,7 @@ impl DistCheckpointer for MessagePack {
     }
 
     /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer_dist<OState: OptState>(
+    fn load_optimizer_dist<OState: State>(
         &self,
         _rank: Rank,
     ) -> Result<OState, CheckpointError> {

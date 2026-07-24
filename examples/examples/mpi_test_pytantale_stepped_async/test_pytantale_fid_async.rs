@@ -13,7 +13,7 @@ pub fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
             domain::{Bool, Cat, Int, Nat, Real},
-            sampler::{Bernoulli, Uniform},
+            distribution::{Bernoulli, Uniform},
         };
         use tantale::macros::pyhpo;
 

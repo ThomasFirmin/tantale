@@ -198,7 +198,6 @@ An experiment is composed of up to 7 components:
 | `pyhpo!` | Declarative | Same as `hpo!` but for Python bindings (`py` feature) |
 | `Outcome` | Derive | Implements the `Outcome` trait for a struct |
 | `CSVWritable` | Derive | Enables CSV logging of an `Outcome` via `CSVRecorder` |
-| `OptState` | Derive | Implements checkpointing for an optimizer's internal state |
 | `OptInfo` | Derive | Attaches metadata to solutions produced by an optimizer |
 | `SolInfo` | Derive | Attaches per-solution metadata |
 

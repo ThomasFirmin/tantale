@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use tantale::core::{Codomain, MixedTypeDom, Objective, Outcome,TypeCodom};
 use tantale::python::init_python;
 
@@ -19,7 +18,7 @@ fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
             domain::{Bool, Cat, Int, Nat, Real},
-            sampler::{Bernoulli, Uniform},
+            distribution::{Bernoulli, Uniform},
         };
         use tantale::macros::pyhpo;
 

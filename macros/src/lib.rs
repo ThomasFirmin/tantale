@@ -9,7 +9,6 @@ mod csvwritable;
 mod hpo;
 mod objective;
 mod optinfo;
-mod optstate;
 mod outcome;
 #[cfg(feature = "py")]
 mod pyhpo;
@@ -518,42 +517,6 @@ pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(OptInfo)]
 pub fn optinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     optinfo::proc_optinfo(input)
-}
-
-/// The `OptState` derive macro implements the `OptState` trait for types
-/// representing the internal state of an `Optimizer`.
-///
-/// ## Purpose
-///
-/// The optimizer state captures all information needed to:
-/// 1. **Resume optimization** after interruption or failure
-/// 2. **Checkpoint progress** for long-running experiments
-/// 3. **Reconstruct optimizer** with identical behavior from saved state
-///
-/// ## Requirements
-///
-/// The struct must:
-/// - Derive or implement `Serialize` and `Deserialize` from `serde`
-/// - Contain **complete** optimizer state for full reconstruction
-/// - Include all fields necessary to resume optimization identically
-///
-/// ## Quick Example
-///
-/// ```ignore
-/// use tantale::macros::OptState;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(OptState, Serialize, Deserialize)]
-/// pub struct MyOptimizerState {
-///     pub iteration: usize,
-///     pub population: Vec<Vec<f64>>,
-///     pub fitness_values: Vec<f64>,
-///     pub best_solution: Vec<f64>,
-/// }
-/// ```
-#[proc_macro_derive(OptState)]
-pub fn optstate(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    optstate::proc_optstate(input)
 }
 
 /// The `SolInfo` derive macro implements the `SolInfo` trait for types

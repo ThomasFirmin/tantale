@@ -72,7 +72,7 @@ mod init_func {
         use tantale::core::{
             Bool, Cat, Int, Nat, Real,
             objective::Step,
-            sampler::{Bernoulli, Uniform},
+            distribution::{Bernoulli, Uniform},
         };
         use tantale::macros::objective;
 

@@ -1,11 +1,5 @@
 use crate::{
-    FidOutcome, HasFidelity, HasStep,
-    domain::{Domain, onto::LinkOpt},
-    experiment::CompAcc,
-    objective::{FuncWrapper, Outcome},
-    recorder::csv::CSVWritable,
-    searchspace::{CompShape, OptionCompShape, Searchspace},
-    solution::{Batch, Id, SolInfo, Uncomputed, shape::RawObj},
+    FidOutcome, HasFidelity, HasStep, domain::{Domain, onto::LinkOpt}, experiment::CompAcc, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, SolInfo, Uncomputed, shape::RawObj}, utils::has_trait::HasState,
 };
 
 use serde::{Deserialize, Serialize};
@@ -23,21 +17,6 @@ use std::{fmt::Debug, ops::Fn};
 pub trait OptInfo
 where
     Self: Serialize + for<'de> Deserialize<'de> + CSVWritable<(), ()> + Debug + Default,
-{
-}
-
-/// Serializable state of an [`Optimizer`].
-///
-/// Implementations should capture all information required to resume an
-/// optimization after checkpointing.
-///
-/// # Associated Derive Macro
-///
-/// The `OptState` derive macro automatically implements the trait for any struct
-/// satisfying the required trait bounds.
-pub trait OptState
-where
-    Self: Serialize + for<'de> Deserialize<'de>,
 {
 }
 
@@ -65,7 +44,7 @@ pub type OpSInfType<Op, PSol, Scp, SolId, Out> =
 /// An [`Optimizer`] generates candidate [`Solution`](crate::solution::Solution)s to
 /// **maximize** an objective, and maintains the state required to resume or
 /// checkpoint an experiment.
-pub trait Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait Optimizer<PSol, SolId, Opt, Out, Scp>: HasState
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
@@ -74,15 +53,7 @@ where
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
 {
-    type State: OptState;
     type SInfo: SolInfo;
-
-    /// Returns a mutable reference to the [`OptState`] of the [`Optimizer`].
-    fn get_mut_state(&mut self) -> &Self::State;
-    /// Returns a reference to the [`OptState`] of the [`Optimizer`].
-    fn get_state(&self) -> &Self::State;
-    /// Builds an [`Optimizer`] from a previously saved [`OptState`].
-    fn from_state(state: Self::State) -> Self;
 }
 
 /// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`](crate::Codomain).
@@ -242,7 +213,7 @@ where
 /// Conversely to [`SingleOptimizer`]s or [`BatchOptimizer`]s,
 /// a [`Sampler`] does not consume previously computed solutions to generate new candidates,
 /// but only relies on its internal state.
-pub trait Sampler<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait Sampler<PSol, SolId, Opt, Out, Scp>: HasState
 where
     PSol: Uncomputed<SolId, Opt, Self::SInfo>,
     PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
@@ -251,6 +222,7 @@ where
     Out: Outcome,
     Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
 {
+    type SInfo: SolInfo;
 }
 
 /// Single-solution sampler interface.

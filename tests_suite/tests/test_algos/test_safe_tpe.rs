@@ -1,8 +1,10 @@
 use tantale::algos::bayesian::Multivariate;
 use tantale::algos::bayesian::bandwidth::Optuna;
-use tantale::algos::spikes::OneAversion;
+use tantale::algos::spikes::{LinearFidelityAversion, OneAversion};
+use tantale::algos::spikes::safe_asha::SAsha;
 use tantale::algos::spikes::safe_tpe::{SafePrior, SafeTpe};
 use tantale::algos::{LinearSplit, Scott, UniformWeighter, Univariate, safetpe};
+use tantale::core::{Calls, PoolMode, mono_with_pool};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
     experiment::{Runable, mono, threaded},
@@ -11,12 +13,12 @@ use tantale::core::{
 };
 
 use crate::cleaner::Cleaner;
-use crate::init_func::{sp_evaluator_spike, sp_evaluator_spike_real};
+use crate::init_func::{sp_evaluator_spike, sp_evaluator_spike_real,sp_evaluator_fid_spike};
 use crate::run_checker::{run_reader, run_reader_eps};
 
 #[test]
 fn test_safe_tpe_seq_run() {
-    let _clean = Cleaner::new("tmp_test_safe_tpe_seqrun");
+    // let _clean = Cleaner::new("tmp_test_safe_tpe_seqrun");
 
     let sp = sp_evaluator_spike::get_searchspace();
     let func = sp_evaluator_spike::example;
@@ -294,4 +296,32 @@ fn test_safe_tpe_seqthr_run_real() {
         (rec, check)
     );
     run_reader_eps("tmp_test_safe_tpe_seqthrrun_real", 100, num_cpus::get() * 4);
+}
+
+
+#[test]
+fn test_safe_tpe_seq_run_test() {
+    // let _clean = Cleaner::new("save_shd_hpo");
+
+    let sp = sp_evaluator_fid_spike::get_searchspace();
+    let func = sp_evaluator_fid_spike::get_function();
+
+    // Jeffray's prior
+    let aversion =  LinearFidelityAversion::new(1.0, 32.0, 0.1, 1.9);
+    let prior = SafePrior::new(0.05, aversion, 0.5, 0.5, 6524.).unwrap();
+    let kernel = (Multivariate, Scott::new(false));
+    let safe_kernel = (Multivariate, Scott::new(false));
+    let weighter = UniformWeighter::new(1.0);
+    let splitter = LinearSplit::new(0.25).unwrap();
+
+    let sampler = SafeTpe::new(prior, kernel, safe_kernel, 50, 1000, weighter, splitter);
+    let opt = SAsha::new(sampler, (1., 32.), (0.2, 0.8), 2., 2.).unwrap();
+
+    let stop = Evaluated::new(100);
+    let config = FolderConfig::new("save_shd_hpo").init();
+    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let check = MessagePack::new(config);
+
+    let exp = mono_with_pool(sp, func, opt, stop, (rec, check), PoolMode::Persistent);
+    let acc = exp.run();
 }

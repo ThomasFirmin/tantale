@@ -20,7 +20,7 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, OptState, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemMulti, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, State, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemMulti, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -89,7 +89,7 @@ where
     pub current_budget: f64,
     _fn: PhantomData<Fn>,
 }
-impl<Smpl, Selector, Scp, PSol, Out, Fn> OptState
+impl<Smpl, Selector, Scp, PSol, Out, Fn> State
     for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
 where
     PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,

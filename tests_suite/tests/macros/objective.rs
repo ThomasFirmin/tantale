@@ -6,7 +6,7 @@ fn obj_test() {
     mod searchspace {
         use serde::{Deserialize, Serialize};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale::core::sampler::{Bernoulli, Uniform};
+        use tantale::core::distribution::{Bernoulli, Uniform};
         use tantale::macros::{Outcome, objective};
 
         #[derive(Outcome, Debug, Serialize, Deserialize)]

@@ -65,8 +65,8 @@ use std::panic;
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::{utils::MPIProcess, worker::WorkerState};
 use crate::{
-    Accumulator, FuncState, GlobalParameters, HasY, Id, Outcome, SaverConfig, SolInfo,
-    SolutionShape, config::NoConfig, experiment::Evaluate, optimizer::OptState, stop::Stop,
+    Accumulator, FuncState, GlobalParameters, HasY, Id, Outcome, SaverConfig, SolInfo, State,
+    SolutionShape, config::NoConfig, experiment::Evaluate, stop::Stop,
 };
 
 #[cfg(feature = "mpi")]
@@ -235,7 +235,7 @@ pub trait MonoCheckpointer: Checkpointer {
     /// ```ignore
     /// checkpointer.save_state(&opt_state, &stop, &eval);
     /// ```
-    fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
@@ -273,7 +273,7 @@ pub trait MonoCheckpointer: Checkpointer {
     /// checkpointer.before_load()?;
     /// let (opt_state, stop, eval) = checkpointer.load()?;
     /// ```
-    fn load<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Eval), CheckpointError>;
 
@@ -281,7 +281,7 @@ pub trait MonoCheckpointer: Checkpointer {
     fn load_stop<St: Stop>(&self) -> Result<St, CheckpointError>;
 
     /// Loads only the optimizer state from a checkpoint.
-    fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError>;
+    fn load_optimizer<OState: State>(&self) -> Result<OState, CheckpointError>;
 
     /// Loads only the evaluation state from a checkpoint.
     fn load_evaluate<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError>;
@@ -340,14 +340,14 @@ pub trait ThrCheckpointer: Checkpointer {
     /// Equivalent to [`after_load`](MonoCheckpointer::after_load) for threaded optimization experiment.
     fn after_load(&mut self);
     /// Equivalent to [`save_state`](MonoCheckpointer::save_state) for threaded optimization experiment.
-    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
         eval: &Eval,
         thread: usize,
     );
-    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError>;
     /// Loads all the thread-specific evaluation states from a checkpoint, returning a vector of evaluation states for each thread.
@@ -355,7 +355,7 @@ pub trait ThrCheckpointer: Checkpointer {
     /// Equivalent to [`load_stop`](MonoCheckpointer::load_stop) for threaded optimization experiment, returning thread-specific stop state.
     fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError>;
     /// Equivalent to [`load_optimizer`](MonoCheckpointer::load_optimizer) for threaded optimization experiment, returning thread-specific optimizer state.
-    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError>;
+    fn load_optimizer_thr<OState: State>(&self) -> Result<OState, CheckpointError>;
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for threaded optimization experiment, returning shared global parameters.
     fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError>;
 
@@ -573,7 +573,7 @@ where
     /// Define what to do for [`Workers`](crate::experiment::mpi::worker::Worker) that do not have a [`Checkpointer`] when loading a checkpoint.
     fn no_check_load(proc: &MPIProcess);
     /// Equivalent to [`save_state`](MonoCheckpointer::save_state) for distributed optimization experiments, with rank context.
-    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         state: &OState,
         stop: &St,
@@ -581,14 +581,14 @@ where
         rank: Rank,
     );
     /// Equivalent to [`load`](MonoCheckpointer::load) for distributed optimization experiments, returning rank-specific states.
-    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         rank: Rank,
     ) -> Result<(OState, St, Eval), CheckpointError>;
     /// Equivalent to [`load_stop`](MonoCheckpointer::load_stop) for distributed optimization experiments, returning rank-specific stop state.
     fn load_stop_dist<St: Stop>(&self, rank: Rank) -> Result<St, CheckpointError>;
     /// Equivalent to [`load_optimizer`](MonoCheckpointer::load_optimizer) for distributed optimization experiments, returning rank-specific optimizer state.
-    fn load_optimizer_dist<OState: OptState>(&self, rank: Rank) -> Result<OState, CheckpointError>;
+    fn load_optimizer_dist<OState: State>(&self, rank: Rank) -> Result<OState, CheckpointError>;
     /// Equivalent to [`load_evaluate`](MonoCheckpointer::load_evaluate) for distributed optimization experiments, returning rank-specific evaluation state.
     fn load_evaluate_dist<Eval: Evaluate>(&self, rank: Rank) -> Result<Eval, CheckpointError>;
     /// Equivalent to [`load_parameters`](MonoCheckpointer::load_parameters) for distributed optimization experiments, returning global parameters (same across ranks).
@@ -661,7 +661,7 @@ impl MonoCheckpointer for NoCheck {
 
     fn before_load(&mut self) {}
 
-    fn save_state<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         _state: &OState,
         _stop: &St,
@@ -671,7 +671,7 @@ impl MonoCheckpointer for NoCheck {
 
     fn after_load(&mut self) {}
 
-    fn load<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Eval), CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
@@ -681,7 +681,7 @@ impl MonoCheckpointer for NoCheck {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
-    fn load_optimizer<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+    fn load_optimizer<OState: State>(&self) -> Result<OState, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
@@ -725,7 +725,7 @@ impl ThrCheckpointer for NoCheck {
 
     fn after_load(&mut self) {}
 
-    fn save_state_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         _state: &OState,
         _stop: &St,
@@ -735,7 +735,7 @@ impl ThrCheckpointer for NoCheck {
         panic!("NoCheck should not be called to save an experiment.")
     }
 
-    fn load_thr<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_thr<OState: State, St: Stop, Eval: Evaluate>(
         &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
@@ -749,7 +749,7 @@ impl ThrCheckpointer for NoCheck {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
-    fn load_optimizer_thr<OState: OptState>(&self) -> Result<OState, CheckpointError> {
+    fn load_optimizer_thr<OState: State>(&self) -> Result<OState, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
 
@@ -788,7 +788,7 @@ impl DistCheckpointer for NoCheck {
     fn before_load_dist(&mut self, _proc: &MPIProcess) {}
     fn after_load_dist(&mut self, _proc: &MPIProcess) {}
     fn no_check_init(_proc: &MPIProcess) {}
-    fn save_state_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn save_state_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         _state: &OState,
         _stop: &St,
@@ -796,7 +796,7 @@ impl DistCheckpointer for NoCheck {
         _rank: Rank,
     ) {
     }
-    fn load_dist<OState: OptState, St: Stop, Eval: Evaluate>(
+    fn load_dist<OState: State, St: Stop, Eval: Evaluate>(
         &self,
         _rank: Rank,
     ) -> Result<(OState, St, Eval), CheckpointError> {
@@ -805,7 +805,7 @@ impl DistCheckpointer for NoCheck {
     fn load_stop_dist<St: Stop>(&self, _rank: Rank) -> Result<St, CheckpointError> {
         panic!("NoCheck should not be called to load an experiment.")
     }
-    fn load_optimizer_dist<OState: OptState>(
+    fn load_optimizer_dist<OState: State>(
         &self,
         _rank: Rank,
     ) -> Result<OState, CheckpointError> {

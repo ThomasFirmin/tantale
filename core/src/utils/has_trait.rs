@@ -2,8 +2,7 @@
 //! values, evaluation steps, fidelity levels, and associated metadata, regardless of the specific solution representation used in the optimization process.
 
 use crate::{
-    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed,
-    domain::codomain::TypeCodom,
+    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, State, Step, StepId, Uncomputed, domain::codomain::TypeCodom,
 };
 use std::sync::Arc;
 
@@ -210,4 +209,18 @@ pub trait HasVariables: Linked {
 
     /// Returns the number of variables associated with this object.
     fn size(&self) -> usize;
+}
+
+
+/// Trait for objects that can provide their internal state.
+pub trait HasState 
+{
+    type State: State;
+
+    /// Returns a mutable reference to the [`State`] of `Self`.
+    fn get_mut_state(&mut self) -> &Self::State;
+    /// Returns a reference to the [`State`] of `Self`.
+    fn get_state(&self) -> &Self::State;
+    /// Builds `Self` from a previously saved [`State`].
+    fn from_state(state: Self::State) -> Self;
 }
