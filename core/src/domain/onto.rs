@@ -33,15 +33,6 @@ pub trait Linked {
     type TrueOpt: PreDomain;
 }
 
-/// The type of the `Obj` domain linked to `Self` through the [`Linked`] trait.
-pub type LinkObj<T> = <T as Linked>::Obj;
-/// The type of the `Opt` domain linked to `Self` through the [`Linked`] trait.
-pub type LinkOpt<T> = <T as Linked>::Opt;
-/// The [`TypeDom`](Domain::TypeDom) of the `Obj` domain linked to `Self` through the [`Linked`] trait.
-pub type LinkTyObj<T> = <<T as Linked>::Obj as Domain>::TypeDom;
-/// The [`TypeDom`](Domain::TypeDom) of the `Opt` domain linked to `Self` through the [`Linked`] trait.
-pub type LinkTyOpt<T> = <<T as Linked>::Opt as Domain>::TypeDom;
-
 /// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)
 /// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using a target [`Domain`].
 pub trait Onto<Target> {
@@ -64,7 +55,7 @@ pub trait Onto<Target> {
 /// A marker trait for [`Domain`] implementing the [`Onto`] trait.
 pub trait OntoDom<B>: Domain
 where
-    Self: Onto<B, TargetItem = B::TypeDom, Item = Self::TypeDom>,
+    Self: Onto<B, TargetItem = B::Element, Item = Self::Element>,
     B: Domain,
 {
 }

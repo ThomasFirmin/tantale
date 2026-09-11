@@ -13,9 +13,9 @@ use tantale::core::recorder::csv::{InfoCSVWrite, ScpCSVWrite, SolCSVWrite};
 use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{SolutionShape, Uncomputed};
-use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, Objective};
+use tantale::core::{BaseSol, BatchRecorder, Computed, EmptyInfo, NoDomain, OneStep};
 use tantale::core::{
-    Codomain, FolderConfig, HasId, HasInfo, HasSolInfo, HasUncomputed, HasY, Mixed, MixedTypeDom,
+    Codomain, FolderConfig, HasId, HasInfo, HasInfo, HasUncomputed, HasY, Mixed, MixedTypeDom,
     SId, Searchspace, Sp,
     optimizer::opt::BatchOptimizer,
     recorder::csv::{CSVRecorder, CSVWritable},
@@ -67,8 +67,8 @@ pub fn run_recorder<Scp, Op, St, Rec, Fn, PSol>(
     recorder: &mut Rec,
     size: usize,
 ) where
-    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>,
+    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, X = Arc<[LinkTyOpt<Scp>]>>,
+    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, X = Arc<[MixedTypeDom]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, OutExample>
@@ -159,8 +159,8 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     tobatch: OutBatch<SId, Op::Info, OutExample>,
     size: usize,
 ) where
-    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>,
-    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>>,
+    PSol: Uncomputed<SId, LinkOpt<Scp>, Op::SInfo, X = Arc<[LinkTyOpt<Scp>]>>,
+    PSol::Twin<Mixed>: Uncomputed<SId, Mixed, Op::SInfo, X = Arc<[MixedTypeDom]>>,
     Scp: Searchspace<PSol, SId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, SId, Op::SInfo>
         + ScpCSVWrite<PSol, SId, Op::SInfo, OutExample>
@@ -371,7 +371,7 @@ fn test_csv_func() {
         OutExample,
         Sp<Mixed, NoDomain>,
         BatchRandomSearch,
-        Objective<Arc<[MixedTypeDom]>, OutExample>,
+        OneStep<Arc<[MixedTypeDom]>, OutExample>,
     >>::init(&mut recorder, &sp);
 
     run_recorder(&sp, &mut rs, &mut stop, &mut recorder, 6);

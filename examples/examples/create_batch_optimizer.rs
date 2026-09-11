@@ -93,7 +93,7 @@ where
 
 use tantale::core::{
     Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep, IntoComputedShape,
-    RawObj, Step, Stepped,
+    RawObj, Step, MultiStep,
 };
 
 impl<Out, Scp, FnState>
@@ -103,7 +103,7 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Sha
 where
     Out: FidOutcome,
@@ -155,7 +155,7 @@ where
         // If no solution is remaining, then generate a new batch with first_step
         if pairs.is_empty() {
             self.0.budget = self.0.budget_min; // Reset budget
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+            <Sha as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(
                 self, scp, acc,
             )
         } else {
@@ -184,7 +184,7 @@ where
             // If no solution remaining then generate new ones
             if new_pairs.is_empty() {
                 self.0.budget = self.0.budget_min; // Reset budget
-                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                <Sha as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(
                     self, scp, acc,
                 )
             } else {

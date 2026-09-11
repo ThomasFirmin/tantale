@@ -32,7 +32,6 @@
 //! ## State and Metadata
 //!
 //! - [`State`](crate::State) - Serializable state used for checkpointing
-//! - [`OptInfo`] - Optional metadata produced by an optimizer (e.g., diagnostics)
 //! - [`EmptyInfo`] - Default empty metadata type
 //!
 //! ## Integration Points
@@ -47,6 +46,6 @@
 
 pub mod opt;
 pub use opt::{
-    BatchOptimizer, BatchSampler, EmptyInfo, OptInfo, Optimizer, Sampler,
+    BatchOptimizer, BatchSampler, EmptyInfo, Optimizer, Sampler,
     SingleOptimizer, SingleSampler,
 };

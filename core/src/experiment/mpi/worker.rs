@@ -1,5 +1,5 @@
 use crate::{
-    FidOutcome, Fidelity, Id, Objective, Outcome, StepId, Stepped,
+    FidOutcome, Fidelity, Id, OneStep, Outcome, StepId, MultiStep,
     checkpointer::{DistCheckpointer, WorkerCheckpointer},
     experiment::{
         basics::FuncStatePool,
@@ -88,7 +88,7 @@ where
     Out: Outcome,
 {
     pub proc: &'a MPIProcess,
-    pub objective: Objective<Raw, Out>,
+    pub objective: OneStep<Raw, Out>,
 }
 
 impl<'a, Raw, Out> BaseWorker<'a, Raw, Out>
@@ -97,7 +97,7 @@ where
     Out: Outcome,
 {
     /// Creates a [`BaseWorker`] without any state and checkpointer.
-    pub fn new(objective: Objective<Raw, Out>, proc: &'a MPIProcess) -> Self {
+    pub fn new(objective: OneStep<Raw, Out>, proc: &'a MPIProcess) -> Self {
         BaseWorker { proc, objective }
     }
 }
@@ -158,7 +158,7 @@ where
     FnPool: FuncStatePool<FnState, SolId>,
 {
     pub proc: &'a MPIProcess,
-    pub objective: Stepped<Raw, Out, FnState>,
+    pub objective: MultiStep<Raw, Out, FnState>,
     pub state: FidWState<SolId, FnState, FnPool>,
     pub check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
 }
@@ -176,7 +176,7 @@ where
     /// Creates a new [`FidWorker`] with the given parameters.
     pub fn new(
         proc: &'a MPIProcess,
-        objective: Stepped<Raw, Out, FnState>,
+        objective: MultiStep<Raw, Out, FnState>,
         pool: FnPool,
         check: Option<Check::WCheck<FidWState<SolId, FnState, FnPool>>>,
     ) -> Self {

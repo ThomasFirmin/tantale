@@ -35,23 +35,15 @@
 //! recorder.save(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
 //! ```
 
+use std::path::PathBuf;
+
 use crate::{
-    BatchOptimizer, FuncWrapper, RawObj, SingleOptimizer,
-    domain::onto::LinkOpt,
-    objective::Outcome,
-    optimizer::opt::CompBatch,
-    searchspace::{CompShape, Searchspace},
-    solution::{Id, OutBatch, Uncomputed},
+    BatchOptimizer, Domain, FuncWrapper, HasVariables, Optimizer, Problem, Runable, SingleOptimizer, SolInfo, 
+    objective::Outcome, searchspace::Searchspace, solution::Id,
 };
 
-#[cfg(feature = "mpi")]
-use crate::experiment::mpi::utils::MPIProcess;
-
 pub mod csv;
-pub use csv::{CSVRecorder, CSVWritable};
-
-pub mod nosaver;
-pub use nosaver::NoSaver;
+pub use csv::CSVRecorder;
 
 /// Marker trait for recorder implementations used by the experiment runner to save evaluation results.
 ///
@@ -68,35 +60,7 @@ pub use nosaver::NoSaver;
 /// - [`BatchRecorder`] - Batch experiment recorder trait  
 /// - [`CSVRecorder`] - File-based CSV recorder implementation
 /// - [`NoSaver`] - No-op recorder for experiments without persistence
-pub trait Recorder {}
-
-/// Recorder trait for single optimization experiments.
-///
-/// [`SeqRecorder`] is used with [`SingleOptimizer`]s,
-/// which generate and evaluate one solution at a time. Each call to [`save`](SeqRecorder::save)
-/// records a single evaluated solution and its associated outcome.
-///
-/// # Usage
-///
-/// Implementations must provide three methods:
-/// - [`init`](SeqRecorder::init) - Initialize storage for a new experiment
-/// - [`after_load`](SeqRecorder::after_load) - Prepare for resuming a loaded experiment
-/// - [`save`](SeqRecorder::save) - Record a single evaluated solution
-///
-/// # See Also
-///
-/// - [`BatchRecorder`] - For batch optimization experiments
-/// - [`DistSeqRecorder`] - For distributed single experiments (MPI)
-pub trait SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id,
-    Out: Outcome,
-    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
+pub trait Recorder<R: Runable> {
     /// Initialize recorder storage for a new single experiment.
     ///
     /// This method should create any required files, headers, or database tables.
@@ -106,7 +70,7 @@ where
     ///
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init(&mut self, scp: &Scp);
+    fn init(&mut self, runable: &R);
 
     /// Prepare the recorder for resuming from a [`load`](crate::load)ed single experiment.
     ///
@@ -114,9 +78,9 @@ where
     ///
     /// * `scp` - [`Searchspace`] describing the solution structure
     /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn after_load(&mut self, scp: &Scp);
+    fn after_load(&mut self, ctx: &R::Context);
 
-    /// Save a single evaluated solution and its outcome.
+    /// Record a single evaluated solution and its outcome.
     ///
     /// This method is called after each solution evaluation to persist the result.
     ///
@@ -126,216 +90,8 @@ where
     /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`]
     /// * `scp` - [`Searchspace`] used to interpret the solution
     /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
-    fn save(
-        &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-        outputed: &(SolId, Out),
-        scp: &Scp,
-        cod: &Out::Cod,
-    );
-}
+    fn record<T: Tabular<H>, H>(&self, object: &T, header: &H, file: PathBuf);
 
-/// Recorder trait for batch optimization experiments.
-///
-/// [`BatchRecorder`] is used with [`BatchOptimizer`]s,
-/// which generate and evaluate multiple solutions per iteration. Each call to [`save`](BatchRecorder::save)
-/// records a batch of evaluated solutions and their associated outcomes.
-///
-/// # Usage
-///
-/// Implementations must provide three methods:
-/// - [`init`](BatchRecorder::init) - Initialize storage for a new experiment
-/// - [`after_load`](BatchRecorder::after_load) - Prepare for resuming a loaded experiment
-/// - [`save`](BatchRecorder::save) - Record a batch of evaluated solutions
-///
-/// # See Also
-///
-/// - [`SeqRecorder`] - For single optimization experiments
-/// - [`DistBatchRecorder`] - For distributed batch experiments (MPI)
-pub trait BatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id,
-    Out: Outcome,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize recorder storage for a new batched experiment.
-    ///
-    /// This method should create any required files, headers, or database tables.
-    /// It is called once before the optimization loop starts.
-    ///
-    /// # Parameters
-    ///
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init(&mut self, scp: &Scp);
-
-    /// Prepare the recorder for resuming from a [`load`](crate::load)ed batched experiment.
-    ///
-    /// # Parameters
-    ///
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn after_load(&mut self, scp: &Scp);
-
-    /// Save a batch of evaluated [`Solution`](crate::Solution)s and [`Outcome`]s.
-    ///
-    /// # Parameters
-    ///
-    /// * `computed` - The computed [`Batch`](crate::Batch) with optimizer metadata
-    /// * `outputed` - The output [`Batch`](crate::Batch) with outcomes
-    /// * `scp` - [`Searchspace`] used to interpret the solutions
-    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    #[allow(clippy::type_complexity)]
-    fn save(
-        &self,
-        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
-        outputed: &OutBatch<SolId, Op::Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-    );
-}
-
-#[cfg(feature = "mpi")]
-/// Distributed recorder trait for MPI-based single experiments.
-///
-/// [`DistSeqRecorder`] extends [`Recorder`] for single optimizers running in an
-/// MPI-distributed environment. It provides the same functionality as [`SeqRecorder`]
-/// but with additional MPI context for coordinating recording across multiple processes.
-///
-/// # MPI Context
-///
-/// Each method receives a `proc: &MPIProcess` parameter that provides the rank and
-/// communicator needed to manage distributed recording, ensuring proper coordination
-/// when multiple MPI processes write to shared storage.
-///
-/// # See Also
-///
-/// - [`SeqRecorder`] - Single-process single recorder
-/// - [`DistBatchRecorder`] - Distributed batch recorder
-/// - [`MPIProcess`] - MPI process context
-pub trait DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id,
-    Out: Outcome,
-    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize recorder storage for a new distributed single experiment.
-    ///
-    /// Similar to [`SeqRecorder::init`] but with MPI process context.
-    ///
-    /// # Parameters
-    ///
-    /// * `proc` - [`MPIProcess`] context for MPI coordination
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp);
-
-    /// Prepare the recorder for resuming from a loaded distributed single experiment.
-    ///
-    /// Similar to [`SeqRecorder::after_load`] but with MPI process context.
-    ///
-    /// # Parameters
-    ///
-    /// * `proc` - [`MPIProcess`] context for MPI coordination
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp);
-
-    /// Save a single evaluated solution in a distributed single experiment.
-    ///
-    /// Similar to [`SeqRecorder::save`] but allows MPI-aware implementations to coordinate
-    /// writes across processes.
-    ///
-    /// # Parameters
-    ///
-    /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
-    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`]
-    /// * `scp` - [`Searchspace`] used to interpret the solution
-    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
-    fn save_dist(
-        &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-        outputed: &(SolId, Out),
-        scp: &Scp,
-        cod: &Out::Cod,
-    );
-}
-
-#[cfg(feature = "mpi")]
-/// Distributed recorder trait for MPI-based batch experiments.
-///
-/// [`DistBatchRecorder`] extends [`Recorder`] for batch optimizers running in an
-/// MPI-distributed environment. It provides the same functionality as [`BatchRecorder`]
-/// but with additional MPI context for coordinating recording across multiple processes.
-///
-/// # MPI Context
-///
-/// Each method receives a `proc: &MPIProcess` parameter that provides the rank and
-/// communicator needed to manage distributed recording, ensuring proper coordination
-/// when multiple MPI processes write to shared storage.
-///
-/// # See Also
-///
-/// - [`BatchRecorder`] - Single-process batch recorder
-/// - [`DistSeqRecorder`] - Distributed single recorder
-/// - [`MPIProcess`] - MPI process context
-pub trait DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>: Recorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id,
-    Out: Outcome,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Scp: Searchspace<PSol, SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize recorder storage for a new distributed batch experiment.
-    ///
-    /// Similar to [`BatchRecorder::init`] but with MPI process context.
-    ///
-    /// # Parameters
-    ///
-    /// * `proc` - [`MPIProcess`] context for MPI coordination
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init_dist(&mut self, proc: &MPIProcess, scp: &Scp);
-
-    /// Prepare the recorder for resuming from a loaded distributed batch experiment.
-    ///
-    /// Similar to [`BatchRecorder::after_load`] but with MPI process context.
-    ///
-    /// # Parameters
-    ///
-    /// * `proc` - [`MPIProcess`] context for MPI coordination
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn after_load_dist(&mut self, proc: &MPIProcess, scp: &Scp);
-
-    /// Save a batch of evaluated solutions in a distributed batch experiment.
-    ///
-    /// Similar to [`BatchRecorder::save`] but allows MPI-aware implementations to coordinate
-    /// writes across processes.
-    ///
-    /// # Parameters
-    ///
-    /// * `computed` - The computed batch with optimizer metadata
-    /// * `outputed` - The output batch with outcomes
-    /// * `scp` - [`Searchspace`] used to interpret the solutions
-    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcomes
-    #[allow(clippy::type_complexity)]
-    fn save_dist(
-        &self,
-        computed: &CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
-        outputed: &OutBatch<SolId, Op::Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-    );
+    /// Same as [`record`](Recorder::record) but for a vector of [`Tabular`] objects.
+    fn vec_record<T: Tabular<H>, H>(&self, objects: &[T], header: &H, file: PathBuf);
 }

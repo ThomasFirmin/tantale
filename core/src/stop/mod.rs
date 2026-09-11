@@ -7,7 +7,7 @@
 //! The [`ExpStep`] enum provides a minimal signal of where the experiment is in
 //! its progression: distribution, iteration, or after a [`step`](crate::BatchOptimizer::step) (see also single [`step`](crate::SingleOptimizer::step)).
 
-use crate::objective::Step;
+use crate::{objective::Step, utils::has_trait::HasState};
 use serde::{Deserialize, Serialize};
 
 /// Experiment step used to update a [`Stop`] implementation.
@@ -26,7 +26,7 @@ pub enum ExpStep {
 /// Implementations should keep any state required to decide termination. The
 /// experiment calls [`Stop::init`] before the first update, then repeatedly
 /// calls [`Stop::update`] followed by [`Stop::stop`] to check completion.
-pub trait Stop
+pub trait Stop: HasState
 where
     Self: Serialize + for<'a> Deserialize<'a>,
 {

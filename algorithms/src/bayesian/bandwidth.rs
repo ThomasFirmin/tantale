@@ -1,4 +1,4 @@
-use tantale_core::{Bool, Domain, GridDom, HasVariables, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, TypeCodom, Uncomputed, Unit, XToNdArray, Xy, domain::{CategoricalDomain, NumericalDomain, TypeDom, grid::GridBounds}};
+use tantale_core::{Bool, Domain, GridDom, HasVariables, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real, Searchspace, SolInfo, TypeCodom, Uncomputed, Unit, XToNdArray, Xy, domain::{CategoricalDomain, NumericalDomain, Elem, grid::GridBounds}};
 
 use std::{mem::MaybeUninit, sync::Arc};
 use num::{FromPrimitive, Num, cast::AsPrimitive};
@@ -33,7 +33,7 @@ where
     type BwType: BandwidthType;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>;
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>;
 }
 
 /// A struct representing the Optuna bandwidth method for Gaussian kernels.
@@ -76,7 +76,7 @@ impl Optuna {
 pub fn optuna_bw<D>(size: f64, neg_div_dim_p_four: f64, dom: &D, clip: bool) -> Result<f64, BandwidthError>
 where
     D: NumericalDomain,
-    D::TypeDom: Num + AsPrimitive<f64> + FromPrimitive,
+    D::Element: Num + AsPrimitive<f64> + FromPrimitive,
 {
     let (low, up) = dom.get_bounds();
     let uml = (up.as_() - low.as_())/5.0;
@@ -114,7 +114,7 @@ where
     Out: Outcome,
 {
     type BwType = Vec<f64>;
-    fn compute<T: AsRef<Xy<<S>::Raw, TypeCodom<Out>>>>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError> {
+    fn compute<T: AsRef<Xy<<S>::X, TypeCodom<Out>>>>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError> {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
         }
@@ -142,7 +142,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -170,7 +170,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -199,7 +199,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -228,7 +228,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -262,7 +262,7 @@ where
     T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     I: Iterator<Item = &'a D>,
     D: NumericalDomain + 'a,
-    D::TypeDom: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
+    D::Element: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
     Raw: XToNdArray<D>,
 {
     let n_size = archive.len();
@@ -304,10 +304,10 @@ where
     Ok(unsafe { res.assume_init() })
 }
 
-pub fn hyperopt_assign_col<D>(col: Vec<D::TypeDom>, colindex:usize, d: &D, res: &mut Array2<MaybeUninit<f64>>, consider_endpoint: bool, clip: bool)
+pub fn hyperopt_assign_col<D>(col: Vec<D::Element>, colindex:usize, d: &D, res: &mut Array2<MaybeUninit<f64>>, consider_endpoint: bool, clip: bool)
 where
     D: NumericalDomain,
-    D::TypeDom: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
+    D::Element: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
 {
     let n = col.len();
     let (low, up) = d.get_bounds();
@@ -489,7 +489,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Real, Scp, S, SolId, SInfo, Out> for H
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -498,7 +498,7 @@ where
     type BwType = Array2<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -508,7 +508,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Int, Scp, S, SolId, SInfo, Out> for Hy
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -517,7 +517,7 @@ where
     type BwType = Array2<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -527,7 +527,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Nat, Scp, S, SolId, SInfo, Out> for Hy
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -536,7 +536,7 @@ where
     type BwType = Array2<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -546,7 +546,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Unit, Scp, S, SolId, SInfo, Out> for H
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -555,7 +555,7 @@ where
     type BwType = Array2<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -567,7 +567,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Mixed, Scp, S, SolId, SInfo, Out> for 
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -576,7 +576,7 @@ where
     type BwType = Array2<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         hyperopt_mixed(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -596,7 +596,7 @@ where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     G: GridBounds,
     Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<G>, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, GridDom<G>, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -605,7 +605,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scp.iter_opt().map(
             |dom| cat_bw(archive.len().as_(), dom)
@@ -618,7 +618,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Bool, Scp, S, SolId, SInfo, Out> for H
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Bool> + HasVariables,
-    S: Uncomputed<SolId, Bool, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Bool, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -627,7 +627,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         let n: f64 = archive.len().as_();
         Ok(vec![(n +1.) / (n + 2.) ; scp.size()])
@@ -638,7 +638,7 @@ fn scott<'a, T, Raw, D, Y, I>(archive: &[T], doms: I, clip: bool) -> Result<Vec<
 where
     T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     D: NumericalDomain + 'a,
-    D::TypeDom: Num + AsPrimitive<f64>,
+    D::Element: Num + AsPrimitive<f64>,
     Raw: XToNdArray<D>,
     I: Iterator<Item = &'a D>,
 {
@@ -672,10 +672,10 @@ where
     Ok(res)
 }
 
-pub fn scott_col<D>(col: &[D::TypeDom], dom: &D, clip: bool) -> f64
+pub fn scott_col<D>(col: &[D::Element], dom: &D, clip: bool) -> f64
 where
     D: NumericalDomain,
-    D::TypeDom: Num + AsPrimitive<f64>,
+    D::Element: Num + AsPrimitive<f64>,
 
 {
     let n = col.len();
@@ -824,7 +824,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Real, Scp, S, SolId, SInfo, Out> for S
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -833,9 +833,9 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
-        scott::<_, S::Raw, Real, _, _>(archive, scp.iter_opt(), self.0)
+        scott::<_, S::X, Real, _, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -843,7 +843,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Int, Scp, S, SolId, SInfo, Out> for Sc
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -852,7 +852,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -862,7 +862,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Nat, Scp, S, SolId, SInfo, Out> for Sc
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -871,7 +871,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -881,7 +881,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Unit, Scp, S, SolId, SInfo, Out> for S
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -890,7 +890,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -900,7 +900,7 @@ impl<Scp, S, SolId, SInfo, Out> Bandwidth<Mixed, Scp, S, SolId, SInfo, Out> for 
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, Raw = Arc<[TypeDom<Scp::Opt>]>>,
+    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Scp::Opt>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
@@ -909,7 +909,7 @@ where
     type BwType = Vec<f64>;
     fn compute<T>(&mut self, archive: &[T], scp: &Scp) -> Result<Self::BwType, BandwidthError>
     where
-        T: AsRef<Xy<S::Raw, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
+        T: AsRef<Xy<S::X, TypeCodom<Out>>> + XToNdArray<Scp::Opt>
     {
         scott_mixed(archive, scp.iter_opt(), scp.size(), self.0)
     }

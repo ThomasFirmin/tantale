@@ -1,7 +1,7 @@
 mod test {
     use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale::core::{HasX, domain::TypeDom};
+    use tantale::core::{HasX, domain::Elem};
 
     #[test]
     pub fn main() {
@@ -49,7 +49,7 @@ mod test {
         }
 
         // _TantaleMixedObj is automatically created by sp!
-        fn compute_obj(tantale_in: Arc<[TypeDom<Mixed>]>) -> OutStruct {
+        fn compute_obj(tantale_in: Arc<[Elem<Mixed>]>) -> OutStruct {
             let a = match tantale_in[0] {
                 MixedTypeDom::Real(value) => value,
                 _ => unreachable!(""),

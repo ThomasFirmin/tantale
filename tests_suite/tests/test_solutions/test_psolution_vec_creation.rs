@@ -1,5 +1,5 @@
 use tantale::core::BaseSol;
-use tantale::core::domain::TypeDom;
+use tantale::core::domain::Elem;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{ParSId, solution::Uncomputed};
 
@@ -14,14 +14,14 @@ use super::init_sinfo::{TestSInfo, get_sinfo};
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &Unc, pid: u32)
 where
-    Unc: Uncomputed<ParSId, Dom, TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
+    Unc: Uncomputed<ParSId, Dom, TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>:
+    Elem<Dom>:
         Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,
 {
     assert_eq!(
         sol.clone_x(),
-        std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
+        std::sync::Arc::from(vec![Dom::Element::default(); n]),
         "Solution `x` mismatch."
     );
     assert_eq!(

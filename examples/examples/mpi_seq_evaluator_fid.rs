@@ -4,9 +4,9 @@ use tantale::core::checkpointer::NoFuncStateCheck;
 use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
-    Codomain, FidelitySol, HasId, HasStep, Mixed, MixedTypeDom, Sp, StepSId, Stepped,
+    Codomain, FidelitySol, HasId, HasStep, Mixed, MixedTypeDom, Sp, StepSId, MultiStep,
     checkpointer::NoCheck,
-    domain::{NoDomain, TypeDom},
+    domain::{NoDomain, Elem},
     experiment::{
         DistEvaluate, DistOutShapeEvaluate,
         mpi::{
@@ -144,7 +144,7 @@ fn main() {
         <FidWorker<
             '_,
             StepSId,
-            Arc<[TypeDom<sp_evaluator::ObjType>]>,
+            Arc<[Elem<sp_evaluator::ObjType>]>,
             FidOutEvaluator,
             FnState,
             NoCheck,
@@ -158,7 +158,7 @@ fn main() {
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
         let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-        let obj = Arc::new(Stepped::new(func));
+        let obj = Arc::new(MultiStep::new(func));
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
         let mut acc = SingleCodomain::new_accumulator();
@@ -190,7 +190,7 @@ fn main() {
             Sp<Mixed, NoDomain>,
             FidOutEvaluator,
             Calls,
-            Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+            MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
             Option<
                 DistOutShapeEvaluate<
@@ -241,7 +241,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+                MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 Option<
                     DistOutShapeEvaluate<

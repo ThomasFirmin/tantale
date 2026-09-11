@@ -1,7 +1,7 @@
 use tantale::core::HasX;
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, TypeDom, Unit};
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Elem, Unit};
 use tantale::core::{
-    BaseSol, Codomain, Computed, HasId, HasSolInfo, HasY, ParSId, solution::Uncomputed,
+    BaseSol, Codomain, Computed, HasId, HasInfo, HasY, ParSId, solution::Uncomputed,
 };
 
 use num::cast::AsPrimitive;
@@ -18,14 +18,14 @@ type TestComp<Sol, Dom> = Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
 where
-    Unc: Uncomputed<ParSId, Dom, TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
+    Unc: Uncomputed<ParSId, Dom, TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Sync + Send,
-    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
+    Elem<Dom>: Sync + Send,
+    Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     assert_eq!(
         sol.clone_x(),
-        std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
+        std::sync::Arc::from(vec![Dom::Element::default(); n]),
         "Solution `x` mismatch."
     );
     assert_eq!(sol.y().value, 1.0, "Wrong value from codomain.");

@@ -1,25 +1,29 @@
 //! `Has`-like traits provide a unified interface for retrieving information such as solution identifiers, raw solution data, objective function
 //! values, evaluation steps, fidelity levels, and associated metadata, regardless of the specific solution representation used in the optimization process.
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, State, Step, StepId, Uncomputed, domain::codomain::TypeCodom,
+    Codomain, Domain, EvalStep, Fidelity, Id, Linked, Outcome, SolInfo, State, Step, StepId, Uncomputed,
 };
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 /// Trait for objects with a unique solution identifier.
 ///
 /// [`HasId`] provides access to a solution's unique [`Id`], which remains constant across
 /// domain transformations. Twin solutions (same point in different domains) share the same [`Id`],
 /// enabling tracking and correlation throughout the optimization process.
-pub trait HasId<SolId: Id> {
+pub trait HasId 
+{
+    type Id: Id;
     /// Returns the solution's unique identifier.
-    fn id(&self) -> SolId;
+    fn id(&self) -> Self::Id;
 
     /// Returns a reference to the solution's unique identifier.
-    fn ref_id(&self) -> &SolId;
+    fn ref_id(&self) -> &Self::Id;
 
     /// Returns a mutable reference to the solution's unique identifier.
-    fn mut_ref_id(&mut self) -> &mut SolId;
+    fn mut_ref_id(&mut self) -> &mut Self::Id;
 
     /// Checks if another object is a twin (shares the same [`Id`]).
     ///
@@ -33,7 +37,7 @@ pub trait HasId<SolId: Id> {
     /// # Returns
     ///
     /// `true` if both objects share the same [`Id`], `false` otherwise.
-    fn is_twin<Twin: HasId<SolId>>(&self, solb: Twin) -> bool {
+    fn is_twin<Twin: HasId<Id = Self::Id>>(&self, solb: Twin) -> bool {
         self.ref_id() == solb.ref_id()
     }
 }
@@ -42,7 +46,10 @@ pub trait HasId<SolId: Id> {
 ///
 /// [`HasStepId`] extends [`HasId`] to provide access to a solution's unique identifier that also tracks
 /// how many times that solution has been passed to the function to optimize.
-pub trait HasStepId<SolId: StepId>: HasId<SolId> {
+pub trait HasStepId: HasId 
+where
+    Self::Id: StepId
+{
     /// Increments the step counter in the solution's identifier.
     fn increment(&mut self);
 
@@ -50,16 +57,18 @@ pub trait HasStepId<SolId: StepId>: HasId<SolId> {
     fn id_step(&self) -> usize;
 
     /// Returns a new identifier representing the previous step id.
-    fn previous_id(&self) -> SolId;
+    fn previous_id(&self) -> Self::Id;
 }
 
 /// Trait for objects carrying solution metadata.
 ///
-/// [`HasSolInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may
+/// [`HasInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may
 /// include iteration numbers, timestamps, or other optimizer-specific information specifically related to the solution.
-pub trait HasSolInfo<Info: SolInfo> {
+pub trait HasInfo
+{
+    type Info: SolInfo;
     /// Returns the solution's [`SolInfo`] wrapped in [`Arc`].
-    fn sinfo(&self) -> Arc<Info>;
+    fn sinfo(&self) -> Arc<Self::Info>;
 }
 
 /// Trait for objects containing a raw solution.
@@ -67,12 +76,14 @@ pub trait HasSolInfo<Info: SolInfo> {
 /// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution.
 /// This trait is typically implemented by both [`Uncomputed`] and [`Computed`](crate::Computed) solutions,
 /// allowing retrieval of the underlying raw solution regardless of its computed state.
-pub trait HasX<Raw: Clone> {
+pub trait HasX 
+{
+    type X: Clone + Debug + Serialize + for<'de> Deserialize<'de>;
     /// Returns a reference to the raw solution associated with this object.
-    fn ref_x(&self) -> &Raw;
+    fn ref_x(&self) -> &Self::X;
 
     /// Returns a clone of the raw solution associated with this object.
-    fn clone_x(&self) -> Raw;
+    fn clone_x(&self) -> Self::X;
 }
 
 /// Trait for objects with an associated objective function value.
@@ -85,22 +96,16 @@ pub trait HasX<Raw: Clone> {
 /// When the [`TypeCodom`](crate::Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
 /// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
 /// [`Computed`](crate::Computed), [`Pair`](crate::Pair), [`Lone`](crate::Lone), are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
-pub trait HasY<Out: Outcome> {
+pub trait HasY
+{
+    type Y: Debug + Serialize + for<'a> Deserialize<'a>;
+
     /// Returns the objective function value associated with this solution.
     ///
     /// # Returns
     ///
     /// A shared reference to the codomain value (objective function output).
-    fn y(&self) -> Arc<TypeCodom<Out>>;
-}
-
-/// Trait for objects carrying optimizer-specific metadata.
-///
-/// [`HasInfo`] provides access to optimizer-specific information that may be attached to
-/// solutions, distinct from general [`SolInfo`].
-pub trait HasInfo<Info: OptInfo> {
-    /// Returns the optimizer-specific metadata for this solution.
-    fn info(&self) -> Arc<Info>;
+    fn y(&self) -> Arc<Self::Y>;
 }
 
 /// Trait for solutions supporting multi-fidelity evaluation tracking.
@@ -181,9 +186,10 @@ pub trait HasFidelity {
 ///
 /// [`HasUncomputed`] provides access to the underlying [`Uncomputed`] solution within
 /// wrapper types like [`Computed`](crate::Computed) or [`SolutionShape`](crate::SolutionShape).
-pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
+pub trait HasUncomputed
+{
     /// The uncomputed solution type contained within.
-    type Uncomputed: Uncomputed<SolId, Dom, SInfo>;
+    type Uncomputed: Uncomputed;
 
     /// Returns a reference to the contained uncomputed solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed;
@@ -209,6 +215,9 @@ pub trait HasVariables: Linked {
 
     /// Returns the number of variables associated with this object.
     fn size(&self) -> usize;
+
+    /// Returns the names of the variables associated with this object.
+    fn names(&self) -> Vec<String>;
 }
 
 

@@ -6,7 +6,7 @@
 //! ## Overview
 //!
 //! The central abstraction is the [`Domain`] trait. A domain:
-//! - Defines an associated value, an element from the domain, via [`Domain::TypeDom`]
+//! - Defines an associated value, an element from the domain, via [`Domain::Element`]
 //! - Provides a sampling method via [`Domain::sample`]
 //! - Validates membership via [`Domain::contains`]
 //!
@@ -17,8 +17,8 @@
 //!
 //! ## Type Relationship
 //!
-//! Each domain has an associated type [`Domain::TypeDom`]. For convenience, the alias
-//! [`TypeDom`] maps a domain type to its value type:
+//! Each domain has an associated type [`Domain::Element`]. For convenience, the alias
+//! [`Element`] maps a domain type to its value type:
 //!
 //! ## Built-in Domains
 //!
@@ -56,7 +56,7 @@
 //! provide a `new(...) -> Self` constructor.
 
 #[cfg(doc)]
-use crate::objective::Objective;
+use crate::objective::OneStep;
 #[cfg(doc)]
 use crate::optimizer::Optimizer;
 #[cfg(doc)]
@@ -82,11 +82,35 @@ use std::fmt::{Debug, Display};
 ///  [`hpo!`](../../../tantale/macros/macro.hpo.html) macros when defining domains for objectives and searchspaces.
 pub trait PreDomain: Debug {}
 
+pub trait Element
+where 
+    Self: Sized
+        + PartialEq
+        + Clone
+        + Display
+        + Debug
+        + Default
+        + Serialize
+        + for<'a> Deserialize<'a>
+{}
+
+impl<T> Element for T
+where 
+    T: Sized
+        + PartialEq
+        + Clone
+        + Display
+        + Debug
+        + Default
+        + Serialize
+        + for<'a> Deserialize<'a>
+{}
+
 /// Core trait defining a domain and its associated value type.
 ///
 /// A [`Domain`] describes a set of valid values that a variable can take during optimization.
 /// It provides the essential operations needed by Tantale's type system: determining the Rust type
-/// of values in the domain ([`TypeDom`](Domain::TypeDom)), sampling random values...
+/// of values in the domain ([`Element`](Domain::Element)), sampling random values...
 ///
 /// # Trait Bounds
 ///
@@ -96,9 +120,9 @@ pub trait PreDomain: Debug {}
 /// - [`PartialEq`] - Domains can be compared for equality
 /// - [`Debug`] - Domains can be formatted for debugging output
 ///
-/// # Associated Type: `TypeDom`
+/// # Associated Type: `Element`
 ///
-/// The associated type [`TypeDom`](Domain::TypeDom)  defines what
+/// The associated type [`Element`](Domain::Element)  defines what
 /// Rust type represents a single value from the [`Domain`].
 /// # Required Methods
 ///
@@ -125,7 +149,7 @@ pub trait PreDomain: Debug {}
 /// impl PreDomain for BinaryDomain {}
 ///
 /// impl Domain for BinaryDomain {
-///     type TypeDom = bool;
+///     type Element = bool;
 ///
 ///     fn sample<R: Rng>(&self, rng: &mut R) -> bool {
 ///         rng.random_bool(0.5)
@@ -154,7 +178,7 @@ pub trait PreDomain: Debug {}
 ///
 /// # See Also
 ///
-/// - [`TypeDom`] - Type alias for extracting the value type from a domain
+/// - [`Element`] - Type alias for extracting the value type from a domain
 /// - [`Var`] - Variables that use domains
 /// - [`Searchspace`](crate::Searchspace) - Collections of domains defining the optimization space
 pub trait Domain:
@@ -162,29 +186,22 @@ pub trait Domain:
 {
     /// The type representing values from this domain.
     ///
-    /// [`TypeDom`](Domain::TypeDom) is the associated type that defines what type
+    /// [`Element`](Domain::Element) is the associated type that defines what type
     /// represents a single element sampled from the domain.
     ///
     /// # Examples
     ///
     /// For built-in domains:
-    /// - [`Real::TypeDom`](Real)` = f64` - Real-valued domains use 64-bit floats
-    /// - [`Int::TypeDom`](Int)` = i64` - Integer domains use 64-bit signed integers
-    /// - [`Bool::TypeDom`](Bool)` = bool` - Boolean domains use the `bool` type
-    /// - [`Cat::TypeDom`](Cat)` = usize` - Categorical domains use indices
+    /// - [`Real::Element`](Real)` = f64` - Real-valued domains use 64-bit floats
+    /// - [`Int::Element`](Int)` = i64` - Integer domains use 64-bit signed integers
+    /// - [`Bool::Element`](Bool)` = bool` - Boolean domains use the `bool` type
+    /// - [`Cat::Element`](Cat)` = usize` - Categorical domains use indices
     ///
     /// # Usage in [`Solutions`](crate::Solution)
     ///
-    /// The [`TypeDom`] determines the type of values stored in [`Solution`]
+    /// The [`Element`] determines the type of values stored in [`Solution`](crate::Solution).
     /// instances.
-    type TypeDom: Sized
-        + PartialEq
-        + Clone
-        + Display
-        + Debug
-        + Default
-        + Serialize
-        + for<'a> Deserialize<'a>;
+    type Element: Element;
 
     /// Generates a random value from the domain.
     ///
@@ -198,7 +215,7 @@ pub trait Domain:
     ///
     /// # Returns
     ///
-    /// A randomly sampled value of type [`TypeDom`](Domain::TypeDom) that satisfies [`contains`](Domain::contains).
+    /// A randomly sampled value of type [`Element`](Domain::Element) that satisfies [`contains`](Domain::contains).
     ///
     /// # Example
     ///
@@ -210,45 +227,45 @@ pub trait Domain:
     /// let value = domain.sample(&mut rng);
     /// assert!(domain.contains(&value));
     /// ```
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom;
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element;
     /// Checks whether a value belongs to the domain.
     /// # Parameters
     ///
-    /// * `point` - A reference to a value of type [`TypeDom`](Domain::TypeDom) to validate
-    fn contains(&self, point: &Self::TypeDom) -> bool;
+    /// * `point` - A reference to a value of type [`Element`](Domain::Element) to validate
+    fn contains(&self, point: &Self::Element) -> bool;
 }
 
 pub trait NumericalDomain: Domain
 where
-    Self::TypeDom: Num,
+    Self::Element: Num,
 {
     /// Retrieves the bounds of the numerical domain.
-    fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom);
+    fn get_bounds(&self) -> (Self::Element, Self::Element);
 
     /// Retrieves references to the bounds of the numerical domain.
-    fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom);
+    fn get_ref_bounds(&self) -> (&Self::Element, &Self::Element);
 }
 
 pub trait CategoricalDomain: Domain
 where
-    Self::TypeDom: PartialEq,
+    Self::Element: PartialEq,
 {
     /// Retrieves the list of features in the categorical domain.
-    fn get_features(&self) -> &[Self::TypeDom];
+    fn get_features(&self) -> &[Self::Element];
     /// Retrieves the size of the categorical domain, i.e., the number of distinct categories.
     fn size(&self) -> usize;
 }
 
 /// Type alias for extracting the value type from a domain.
 ///
-/// [`TypeDom<T>`] is a convenience type alias that maps a domain type `T` to its associated
-/// [`Domain::TypeDom`] type. This simplifies type signatures and makes code more readable.
+/// [`Elem<T>`] is a convenience type alias that maps a domain type `T` to its associated
+/// [`Domain::Element`] type. This simplifies type signatures and makes code more readable.
 ///
 /// # See Also
 ///
-/// - [`Domain::TypeDom`] - The associated type being aliased
+/// - [`Domain::Element`] - The associated type being aliased
 /// - [`Domain`] - The trait defining domains
-pub type TypeDom<T> = <T as Domain>::TypeDom;
+pub type Elem<T> = <T as Domain>::Element;
 
 pub mod nodomain;
 pub use nodomain::NoDomain;
@@ -269,14 +286,13 @@ pub mod mixed;
 pub use mixed::{Mixed, MixedTypeDom};
 
 pub mod onto;
-pub use onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, Onto, OntoDom};
+pub use onto::{Linked, Onto, OntoDom};
 
 pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
-    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
-    FidCriteria, Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain, TypeAcc,
-    TypeCodom,
+    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
+    Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain,
     ElemSingleCodomain,
     ElemCostCodomain,
     ElemConstCodomain,

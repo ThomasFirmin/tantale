@@ -64,7 +64,7 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, State, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, Stepped, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, State, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, MultiStep, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
 };
 
 use serde::{
@@ -529,7 +529,7 @@ where
         self.0.iteration += 1;
         if pairs.is_empty() {
             // All candidates completed their maximum fidelity: restart with fresh batch
-            <Sha<_,_,_, _ , _> as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
+            <Sha<_,_,_, _ , _> as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(self, scp, acc)
         } else {
             // Compute number of candidates to keep
             let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
@@ -558,7 +558,7 @@ where
 
             if new_pairs.is_empty() {
                 // Safety check: if no candidates remain, restart
-                <Sha<_,_,_, _, _> as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
+                <Sha<_,_,_, _, _> as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(
                     self, scp, acc
                 )
             } else {

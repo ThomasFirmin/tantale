@@ -20,60 +20,98 @@
 //! ```
 
 use crate::{
-    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, domain::{
-        Domain, codomain::{ElemMulti, TypeCodom}, onto::{LinkObj, LinkOpt, Linked},
-    }, objective::Step, solution::{IntoComputedShape, Uncomputed}, utils::orderable::Orderable,
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, aliases::TypeCodom, domain::{
+        Domain, codomain::ElemMulti, onto::Linked,
+    }, objective::Step, solution::Uncomputed, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-/// Objective-side solution type for a [`SolutionShape`].
-pub type SolObj<SolShape, SolId, SInfo> = <SolShape as SolutionShape<SolId, SInfo>>::SolObj;
-/// Optimizer-side solution type for a [`SolutionShape`].
-pub type SolOpt<SolShape, SolId, SInfo> = <SolShape as SolutionShape<SolId, SInfo>>::SolOpt;
-/// Raw objective-side representation for a [`SolutionShape`].
-pub type RawObj<SolShape, SolId, SInfo> =
-    <<SolShape as SolutionShape<SolId, SInfo>>::SolObj as Solution<
-        SolId,
-        LinkObj<SolShape>,
-        SInfo,
-    >>::Raw;
-/// Raw optimizer-side representation for a [`SolutionShape`].
-pub type RawOpt<SolShape, SolId, SInfo> =
-    <<SolShape as SolutionShape<SolId, SInfo>>::SolOpt as Solution<
-        SolId,
-        LinkOpt<SolShape>,
-        SInfo,
-    >>::Raw;
 
 /// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
-pub trait SolutionShape<SolId: Id, SInfo: SolInfo>:
-    Linked + HasId<SolId> + HasSolInfo<SInfo> + Debug + Sized
-where
-    Self: Serialize + for<'a> Deserialize<'a>,
+pub trait SolutionShape:
+    Debug
+    + HasId
+    + HasInfo
+    + Linked
+    + Serialize
+    + for<'de> Deserialize<'de>
 {
-    /// Objective-side solution type.
-    type SolObj: Solution<SolId, Self::Obj, SInfo>;
-    /// Optimizer-side solution type.
-    type SolOpt: Solution<SolId, Self::Opt, SInfo>;
+    type ObjSol : Solution<Id = Self::Id, Info = Self::Info>;
+    type OptSol : Solution<Id = Self::Id, Info = Self::Info>;
 
     /// Get a reference to the objective-side solution.
-    fn get_sobj(&self) -> &Self::SolObj;
+    fn get_sobj(&self) -> &Self::ObjSol;
     /// Get a reference to the optimizer-side solution.
-    fn get_sopt(&self) -> &Self::SolOpt;
+    fn get_sopt(&self) -> &Self::OptSol;
     /// Get a mutable reference to the objective-side solution.
-    fn get_mut_sobj(&mut self) -> &mut Self::SolObj;
+    fn get_mut_sobj(&mut self) -> &mut Self::ObjSol;
     /// Get a mutable reference to the optimizer-side solution.
-    fn get_mut_sopt(&mut self) -> &mut Self::SolOpt;
+    fn get_mut_sopt(&mut self) -> &mut Self::OptSol;
     /// Extract the objective-side solution, consuming the shape.
-    fn extract_sobj(self) -> Self::SolObj;
+    fn extract_sobj(self) -> Self::ObjSol;
     /// Extract the optimizer-side solution, consuming the shape.
-    fn extract_sopt(self) -> Self::SolOpt;
+    fn extract_sopt(self) -> Self::OptSol;
 
     /// Creates a clone of this shape with the same solutions, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
     fn _clone_shape(&self) -> Self;
+}
+
+pub trait UncomputedShape: SolutionShape
+where
+    Self::ObjSol: Uncomputed,
+    Self::OptSol: Uncomputed,
+{
+}
+
+pub trait IntoComputedShape: UncomputedShape
+where
+    Self::ObjSol: Uncomputed,
+    Self::OptSol: Uncomputed,
+{
+    /// The computed type wrapping `Self` with an objective value.
+    ///
+    /// This type must implement [`HasY`] to provide access to the objective function output.
+    type ComputedShape<Out:Outcome>: SolutionShape<
+        ObjSol = Computed<Self::ObjSol, Out>,
+        OptSol = Computed<Self::OptSol, Out>,
+    >;
+
+    /// Converts this uncomputed solution into a computed one with an objective value.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Cod` - The [`crate::Codomain`] defining the output structure
+    /// * `Out` - The outcome type from the objective function
+    ///
+    /// # Parameters
+    ///
+    /// * `y` - The objective function output to associate with this solution
+    ///
+    /// # Returns
+    ///
+    /// A computed solution containing both `self` and `y`.
+    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out>;
+
+    /// Extracts the uncomputed solution and objective value from a computed solution.
+    ///
+    /// This is the inverse operation of [`into_computed`](IntoComputedShape::into_computed),
+    /// decomposing a computed solution back into its constituent parts.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Out` - The outcome type from the objective function
+    ///
+    /// # Parameters
+    ///
+    /// * `comp` - The computed solution to decompose
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(uncomputed_solution, objective_value)`.
+    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>);
 }
 
 /// A pair made of an objective [`Solution`] and its optimizer twin.
@@ -92,105 +130,63 @@ where
 /// assert_eq!(pair.get_sopt().id(), pair.id());
 /// assert_eq!(pair.get_sobj().id(), pair.get_sopt().id());
 /// ```
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
-    serialize = "SolObj: Serialize, SolOpt: Serialize",
-    deserialize = "SolObj: for<'a> Deserialize<'a>, SolOpt: for<'a> Deserialize<'a>",
+    serialize = "SA: Serialize, SB: Serialize",
+    deserialize = "SA: for<'a> Deserialize<'a>, SB: for<'a> Deserialize<'a>",
 ))]
-pub struct Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>(
-    SolObj,
-    SolOpt,
-    PhantomData<SolId>,
-    PhantomData<Obj>,
-    PhantomData<Opt>,
-    PhantomData<SInfo>,
-)
+pub struct Pair<SA, SB>(SA, SB)
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>;
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>;
 
-/// Type alias for a computed [`Pair`] solution.
-pub type CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> = Pair<
-    Computed<SolObj, SolId, Obj, Out, SInfo>,
-    Computed<SolOpt, SolId, Opt, Out, SInfo>,
-    SolId,
-    Obj,
-    Opt,
-    SInfo,
->;
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>
 {
     /// Create a new paired solution from an objective and optimizer solution.
-    pub fn new(solobj: SolObj, solopt: SolOpt) -> Self {
-        Self(
-            solobj,
-            solopt,
-            PhantomData,
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        )
+    pub fn new(sol_a: SA, sol_b: SB) -> Self {
+        Self(sol_a,sol_b)
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> Linked for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> Linked for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>
 {
-    type Obj = Obj;
-    type Opt = Opt;
-    type TrueOpt = Opt;
+    type Obj = SA::Dom;
+    type Opt = SB::Dom;
+    type TrueOpt = SB::Dom;
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasId<SolId>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasId for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>
 {
-    fn id(&self) -> SolId {
+    type Id = SA::Id;
+
+    fn id(&self) -> SA::Id {
         self.0.id()
     }
 
-    fn ref_id(&self) -> &SolId {
+    fn ref_id(&self) -> &SA::Id {
         self.0.ref_id()
     }
 
-    fn mut_ref_id(&mut self) -> &mut SolId {
+    fn mut_ref_id(&mut self) -> &mut SA::Id {
         self.0.mut_ref_id()
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasStepId<SolId>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasStepId for Pair<SA, SB>
 where
-    SolId: StepId,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasStepId<SolId> + HasStep,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasStepId<SolId> + HasStep,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
+    SA::Id: StepId,
+    SB::Id: StepId,
 {
     fn increment(&mut self) {
         self.0.increment();
@@ -201,51 +197,37 @@ where
         self.0.id_step()
     }
 
-    fn previous_id(&self) -> SolId {
+    fn previous_id(&self) -> SA::Id {
         self.0.previous_id()
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasSolInfo<SInfo>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasInfo for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>
 {
-    fn sinfo(&self) -> Arc<SInfo> {
+    type Info = SA::Info;
+    fn sinfo(&self) -> Arc<SA::Info> {
         self.0.sinfo()
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> HasY<Out>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasY for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    Out: Outcome,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasY<Out>,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasY<Out>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
 {
-    fn y(&self) -> Arc<TypeCodom<Out>> {
+    type Y = SA::Y;
+    fn y(&self) -> Arc<SA::Y> {
         self.0.y()
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasStep
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasStep for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasStep,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasStep,
+    SA: Solution + HasStep,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasStep,
 {
     fn step(&self) -> Step {
         self.0.step()
@@ -286,15 +268,10 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> HasFidelity
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> HasFidelity for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasFidelity,
-    SolOpt: Solution<SolId, Opt, SInfo> + HasFidelity,
+    SA: Solution + HasFidelity,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasFidelity,
 {
     fn fidelity(&self) -> Fidelity {
         self.0.fidelity()
@@ -306,35 +283,30 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> SolutionShape<SolId, SInfo>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> SolutionShape for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
+    SA: Solution,
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
 {
-    type SolObj = SolObj;
-    type SolOpt = SolOpt;
+    type ObjSol = SA;
+    type OptSol = SB;
 
-    fn get_sobj(&self) -> &Self::SolObj {
+    fn get_sobj(&self) -> &SA {
         &self.0
     }
-    fn get_sopt(&self) -> &Self::SolOpt {
+    fn get_sopt(&self) -> &SB {
         &self.1
     }
-    fn get_mut_sobj(&mut self) -> &mut Self::SolObj {
+    fn get_mut_sobj(&mut self) -> &mut SA {
         &mut self.0
     }
-    fn get_mut_sopt(&mut self) -> &mut Self::SolOpt {
+    fn get_mut_sopt(&mut self) -> &mut SB {
         &mut self.1
     }
-    fn extract_sobj(self) -> Self::SolObj {
+    fn extract_sobj(self) -> SA {
         self.0
     }
-    fn extract_sopt(self) -> Self::SolOpt {
+    fn extract_sopt(self) -> SB {
         self.1
     }
     fn _clone_shape(&self) -> Self {
@@ -344,160 +316,97 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> IntoComputedShape<SolId, SInfo>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> UncomputedShape for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    SA: Uncomputed,
+    SB: Uncomputed<Id = SA::Id, Info = SA::Info>,
 {
-    type Computed<Out: Outcome> = Pair<
-        Computed<SolObj, SolId, Obj, Out, SInfo>,
-        Computed<SolOpt, SolId, Opt, Out, SInfo>,
-        SolId,
-        Obj,
-        Opt,
-        SInfo,
-    >;
+}
 
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+impl<SA, SB> IntoComputedShape for Pair<SA, SB>
+where
+    SA: Uncomputed,
+    SB: Uncomputed<Id = SA::Id, Info = SA::Info>,
+{
+    type ComputedShape<Out:Outcome> = Pair<Computed<SA, Out>, Computed<SB, Out>>;
+
+    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
         let cobj = Computed::new(self.0, y.clone());
         let copt = Computed::new(self.1, y);
         Pair::new(cobj, copt)
     }
 
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Pair::new(comp.0.sol, comp.1.sol);
         (pair, y)
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo> From<(SolObj, SolOpt)>
-    for Pair<SolObj, SolOpt, SolId, Obj, Opt, SInfo>
+impl<SA, SB> PartialEq for Pair<SA, SB>
 where
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-    SolOpt: Solution<SolId, Opt, SInfo>,
-{
-    fn from(value: (SolObj, SolOpt)) -> Self {
-        Self(
-            value.0,
-            value.1,
-            PhantomData,
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        )
-    }
-}
-
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> PartialEq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
-where
-    Self: HasY<Out>,
-    TypeCodom<Out>: PartialEq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA::Y: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.y() == other.y()
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Eq
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+impl<SA,SB> Eq for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Eq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA::Y: Eq,
 {
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> PartialOrd
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+impl<SA,SB> PartialOrd for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: PartialOrd,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA::Y: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y().partial_cmp(&other.y())
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Ord
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+impl<SA,SB> Ord for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Ord,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA::Y: Ord,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.y().cmp(&other.y())
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Orderable
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+
+impl<SA,SB> Orderable for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA::Y: Orderable,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
 {
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y().ord_cmp(&other.y())
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> Dominate
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+impl<SA,SB> Dominate for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    Opt: Domain,
+    Self: HasY<Y = SA::Y>,
+    SA::Y: ElemMulti,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
 {
     fn dominates(&self, other: &Self) -> bool {
         self.y().dominates(&other.y())
@@ -520,7 +429,7 @@ where
 //--- LONE SOLUTION ---//
 //---------------------//
 
-/// A single [`Solution`] with no link to a [`Twin`](Solution::Twin).
+/// A single [`Solution`].
 ///
 /// This is used for objective-only searchspaces.
 /// When the right-hand sides of the following declarations `[! name | ... | ... !]` in [`hpo!`](../../../tantale/macros/macro.hpo.html) or
@@ -538,78 +447,44 @@ where
 ///
 /// assert_eq!(lone.id(), lone.get_sobj().id());
 /// ```
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "SolObj: Serialize",
-    deserialize = "SolObj: for<'a> Deserialize<'a>"
-))]
-pub struct Lone<SolObj, SolId, Obj, SInfo>(
-    SolObj,
-    PhantomData<SolId>,
-    PhantomData<Obj>,
-    PhantomData<SInfo>,
-)
-where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>;
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(bound = "S: Solution")]
+pub struct Lone<S: Solution>(S);
 
-/// Type alias for a computed [`Lone`] solution.
-pub type CompLone<SolObj, SolId, Obj, SInfo, Out> =
-    Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
-
-impl<SolObj, SolId, Obj, SInfo> Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
+impl<S: Solution> Lone<S>
 {
     /// Create a new lone solution wrapper.
-    pub fn new(sol: SolObj) -> Self {
-        Self(sol, PhantomData, PhantomData, PhantomData)
+    pub fn new(sol: S) -> Self {
+        Self(sol)
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> Linked for Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
+impl<S: Solution> Linked for Lone<S>
 {
-    type Obj = Obj;
-    type Opt = Obj;
+    type Obj = S::Dom;
+    type Opt = S::Dom;
     type TrueOpt = NoDomain;
 }
 
-impl<SolObj, SolId, Obj, SInfo> HasId<SolId> for Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasId<SolId>,
+impl<S: Solution> HasId for Lone<S>
 {
-    fn id(&self) -> SolId {
+    type Id = S::Id;
+    fn id(&self) -> S::Id {
         self.0.id()
     }
 
-    fn ref_id(&self) -> &SolId {
+    fn ref_id(&self) -> &S::Id {
         self.0.ref_id()
     }
 
-    fn mut_ref_id(&mut self) -> &mut SolId {
+    fn mut_ref_id(&mut self) -> &mut S::Id {
         self.0.mut_ref_id()
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> HasStepId<SolId> for Lone<SolObj, SolId, Obj, SInfo>
+impl<S: Solution> HasStepId for Lone<S>
 where
-    SolId: StepId,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasStepId<SolId> + HasStep,
+    S::Id: StepId,
 {
     fn increment(&mut self) {
         self.0.increment();
@@ -619,42 +494,34 @@ where
         self.0.id_step()
     }
 
-    fn previous_id(&self) -> SolId {
+    fn previous_id(&self) -> S::Id {
         self.0.previous_id()
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> HasSolInfo<SInfo> for Lone<SolObj, SolId, Obj, SInfo>
+impl<S> HasInfo for Lone<S>
 where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasSolInfo<SInfo>,
+    S : Solution + HasInfo,
 {
-    fn sinfo(&self) -> Arc<SInfo> {
+    type Info = S::Info;
+    fn sinfo(&self) -> Arc<S::Info> {
         self.0.sinfo()
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> HasY<Out> for Lone<SolObj, SolId, Obj, SInfo>
+impl<S> HasY for Lone<S>
 where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    Out: Outcome,
-    SolObj: Solution<SolId, Obj, SInfo> + HasY<Out>,
+    S: Solution + HasY,
 {
-    fn y(&self) -> Arc<TypeCodom<Out>> {
+    type Y = S::Y;
+    fn y(&self) -> Arc<Self::Y> {
         self.0.y()
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> HasStep for Lone<SolObj, SolId, Obj, SInfo>
+impl<S> HasStep for Lone<S>
 where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasStep,
+    S: Solution + HasStep,
 {
     fn step(&self) -> Step {
         self.0.step()
@@ -689,12 +556,9 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> HasFidelity for Lone<SolObj, SolId, Obj, SInfo>
+impl<S> HasFidelity for Lone<S>
 where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo> + HasFidelity,
+    S: Solution + HasFidelity,
 {
     fn fidelity(&self) -> Fidelity {
         self.0.fidelity()
@@ -705,32 +569,27 @@ where
     }
 }
 
-impl<SolId, SInfo, Obj, SolObj> SolutionShape<SolId, SInfo> for Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
-    SolObj: Solution<SolId, Obj, SInfo>,
+impl<S: Solution> SolutionShape for Lone<S>
 {
-    type SolObj = SolObj;
-    type SolOpt = SolObj;
+    type ObjSol = S;
+    type OptSol = S;
 
-    fn get_sobj(&self) -> &Self::SolObj {
+    fn get_sobj(&self) -> &S {
         &self.0
     }
-    fn get_sopt(&self) -> &Self::SolOpt {
+    fn get_sopt(&self) -> &S {
         &self.0
     }
-    fn get_mut_sobj(&mut self) -> &mut Self::SolObj {
+    fn get_mut_sobj(&mut self) -> &mut S {
         &mut self.0
     }
-    fn get_mut_sopt(&mut self) -> &mut Self::SolOpt {
+    fn get_mut_sopt(&mut self) -> &mut S {
         &mut self.0
     }
-    fn extract_sobj(self) -> Self::SolObj {
+    fn extract_sobj(self) -> S {
         self.0
     }
-    fn extract_sopt(self) -> Self::SolOpt {
+    fn extract_sopt(self) -> S {
         self.0
     }
     fn _clone_shape(&self) -> Self {
@@ -739,120 +598,82 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> IntoComputedShape<SolId, SInfo> for Lone<SolObj, SolId, Obj, SInfo>
-where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
+impl<S:Uncomputed> UncomputedShape for Lone<S>
 {
-    type Computed<Out: Outcome> = Lone<Computed<SolObj, SolId, Obj, Out, SInfo>, SolId, Obj, SInfo>;
+}
 
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+impl<S: Uncomputed> IntoComputedShape for Lone<S>
+{
+    type ComputedShape<Out:Outcome> = Lone<Computed<S, Out>>;
+    
+    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
         Lone::new(Computed::new(self.0, y))
     }
-
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+    
+    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
-        let pair = Lone::new(comp.0.sol);
-        (pair, y)
+        let x = comp.0.sol;
+        (Lone::new(x), y)
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo> From<SolObj> for Lone<SolObj, SolId, Obj, SInfo>
+impl<S> PartialEq for Lone<S>
 where
-    SolId: Id,
-    Obj: Domain,
-    SInfo: SolInfo,
-    SolObj: Solution<SolId, Obj, SInfo>,
-{
-    fn from(value: SolObj) -> Self {
-        Self(value, PhantomData, PhantomData, PhantomData)
-    }
-}
-
-impl<SolObj, SolId, Obj, SInfo, Out> PartialEq for CompLone<SolObj, SolId, Obj, SInfo, Out>
-where
-    Self: HasY<Out>,
-    TypeCodom<Out>: PartialEq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.y() == other.y()
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> Eq for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S> Eq for Lone<S>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Eq,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: Eq,
 {
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> PartialOrd for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S> PartialOrd for Lone<S>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: PartialOrd,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y().partial_cmp(&other.y())
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> Ord for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S> Ord for Lone<S>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Ord,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: Ord,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.y().cmp(&other.y())
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> Orderable for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S> Orderable for Lone<S>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: Orderable,
 {
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y().ord_cmp(&other.y())
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> Dominate for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S: Solution> Dominate for Lone<S>
 where
-    Self: HasY<Out>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: Outcome,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Obj: Domain,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: ElemMulti,
 {
     fn dominates(&self, other: &Self) -> bool {
         self.y().dominates(&other.y())

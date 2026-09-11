@@ -1,9 +1,9 @@
-use tantale::core::{Codomain, MixedTypeDom, Objective, Outcome,TypeCodom};
+use tantale::core::{Codomain, MixedTypeDom, OneStep, Outcome,TypeCodom};
 use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
 
-pub fn get_elem<Raw, Out>(func: &Objective<Raw, Out>, raw: Raw) -> TypeCodom<Out>
+pub fn get_elem<Raw, Out>(func: &OneStep<Raw, Out>, raw: Raw) -> TypeCodom<Out>
 where
     Raw: Clone + Send + Sync + Serialize + for<'a> Deserialize<'a> + 'static,
     Out: Outcome,

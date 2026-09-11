@@ -11,8 +11,8 @@ use tantale::core::searchspace::CompShape;
 use tantale::core::solution::shape::{SolObj, SolOpt};
 use tantale::core::solution::{SolutionShape, Uncomputed};
 use tantale::core::{
-    BatchRecorder, EmptyInfo, FidelitySol, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep,
-    HasUncomputed, HasY, Stepped,
+    BatchRecorder, EmptyInfo, FidelitySol, HasFidelity, HasId, HasInfo, HasInfo, HasStep,
+    HasUncomputed, HasY, MultiStep,
 };
 use tantale::core::{
     Codomain, FolderConfig, HasX, Mixed, MixedTypeDom, Searchspace, Sp, StepSId,
@@ -78,11 +78,11 @@ pub fn run_recorder<Out, Scp, Op, St, Rec, Fn, PSol>(
     recorder: &mut Rec,
     size: usize,
 ) where
-    PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
+    PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, X = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
     PSol::Twin<Mixed>:
-        Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
+        Uncomputed<StepSId, Mixed, Op::SInfo, X = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
@@ -179,11 +179,11 @@ pub fn run_reader<Scp, Op, St, Rec, Fn, PSol>(
     tobatch: OutBatch<StepSId, Op::Info, FidOutExample>,
     size: usize,
 ) where
-    PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, Raw = Arc<[LinkTyOpt<Scp>]>>
+    PSol: Uncomputed<StepSId, LinkOpt<Scp>, Op::SInfo, X = Arc<[LinkTyOpt<Scp>]>>
         + HasStep
         + HasFidelity,
     PSol::Twin<Mixed>:
-        Uncomputed<StepSId, Mixed, Op::SInfo, Raw = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
+        Uncomputed<StepSId, Mixed, Op::SInfo, X = Arc<[MixedTypeDom]>> + HasStep + HasFidelity,
     Scp: Searchspace<PSol, StepSId, Op::SInfo, Obj = Mixed>
         + SolCSVWrite<PSol, StepSId, Op::SInfo>
         + ScpCSVWrite<PSol, StepSId, Op::SInfo, FidOutExample>
@@ -426,7 +426,7 @@ fn test_csv_func() {
         FidOutExample,
         Sp<Mixed, NoDomain>,
         BatchRandomSearch,
-        Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
     >>::init(&mut recorder, &sp);
 
     run_recorder::<
@@ -435,7 +435,7 @@ fn test_csv_func() {
         BatchRandomSearch,
         Calls,
         CSVRecorder,
-        Stepped<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutExample, FnState>,
         FidelitySol<StepSId, Mixed, EmptyInfo>,
     >(&sp, &mut rs, &mut stop, &mut recorder, 6);
 }

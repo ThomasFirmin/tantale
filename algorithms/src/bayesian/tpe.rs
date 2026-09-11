@@ -35,11 +35,11 @@ use crate::{
     bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped},
 };
 use tantale_core::{
-    BaseSol, CSVWritable, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity,
+    BaseSol, Tabular, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity,
     HasStep, Id, IntoComputedShape, LinkOpt, State, Optimizer, Orderable, OrderedArchive,
     Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape,
-    Step, StepSId, Stepped, Uncomputed, Xy,
-    domain::{TypeDom, codomain::TypeCodom},
+    Step, StepSId, MultiStep, Uncomputed, Xy,
+    domain::{Elem, codomain::TypeCodom},
     solution::shape::RawOpt,
 };
 
@@ -101,8 +101,8 @@ impl TpeSInfo {
 
 impl SolInfo for TpeSInfo {}
 
-impl CSVWritable<(), ()> for TpeSInfo {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for TpeSInfo {
+    fn column_names(_elem: &()) -> Vec<String> {
         vec![
             "acquisition".to_string(),
             "good_bdf".to_string(),
@@ -110,7 +110,7 @@ impl CSVWritable<(), ()> for TpeSInfo {
         ]
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         vec![
             self.acquisition.to_string(),
             self.good_bdf.to_string(),
@@ -137,8 +137,8 @@ where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
+    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
+    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
     SolId: Id,
     TypeCodom<Out>: Orderable,
     Out: Outcome,
@@ -149,7 +149,7 @@ where
     pub bandwidth: Bw,
     pub weighter: Wght,
     pub splitter: Splt,
-    pub point_archive: JointFidelityArchive<S::Raw, TypeCodom<Out>>,
+    pub point_archive: JointFidelityArchive<S::X, TypeCodom<Out>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
 }
@@ -162,8 +162,8 @@ where
     Scp: Searchspace<S, SolId, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
+    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
+    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
     SolId: Id,
     TypeCodom<Out>: Orderable,
     Out: Outcome,
@@ -267,8 +267,8 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
+    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
+    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
     SolId: Id,
     TypeCodom<Out>: Orderable,
     Out: Outcome;
@@ -280,8 +280,8 @@ where
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
     Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
     Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::Raw, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::Raw, TypeCodom<Out>>>,
+    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
+    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
     SolId: Id,
     TypeCodom<Out>: Orderable,
     Out: Outcome,
@@ -410,7 +410,7 @@ where
     Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
     Out: Outcome,
     TypeCodom<Out>: Send + Sync + Orderable,
-    TypeDom<Scp::Opt>: Send + Sync,
+    Elem<Scp::Opt>: Send + Sync,
     Kern::Context: Send + Sync,
 {
     fn step(
@@ -510,7 +510,7 @@ where
     Wght: Weighter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
     Splt: Splitter<Xy<RawOpt<Scp::SolShape, StepSId, TpeSInfo>, TypeCodom<Out>>> + Send + Sync,
     TypeCodom<Out>: Send + Sync + Orderable,
-    TypeDom<Scp::Opt>: Send + Sync,
+    Elem<Scp::Opt>: Send + Sync,
     Kern::Context: Send + Sync,
     Out: FidOutcome,
     FnState: FuncState,
@@ -547,7 +547,7 @@ where
                         Scp::Opt,
                         Out,
                         Scp,
-                        Stepped<Arc<[TypeDom<Scp::Obj>]>, Out, FnState>,
+                        MultiStep<Arc<[Elem<Scp::Obj>]>, Out, FnState>,
                     >>::step(self, None, scp, acc)
                 }
                 _ => <Tpe<
@@ -565,7 +565,7 @@ where
                     Scp::Opt,
                     Out,
                     Scp,
-                    Stepped<Arc<[TypeDom<Scp::Obj>]>, Out, FnState>,
+                    MultiStep<Arc<[Elem<Scp::Obj>]>, Out, FnState>,
                 >>::step(self, None, scp, acc),
             }
         } else {
@@ -684,10 +684,10 @@ where
     Bw: Bandwidth<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>
         + Send
         + Sync,
-    Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    Wght: Weighter<Xy<Arc<[Elem<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    Splt: Splitter<Xy<Arc<[Elem<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
     TypeCodom<Out>: Send + Sync + Orderable,
-    TypeDom<Scp::Opt>: Send + Sync,
+    Elem<Scp::Opt>: Send + Sync,
     Kern::Context: Send + Sync,
     Out: Outcome,
 {
@@ -789,10 +789,10 @@ where
             Out,
         > + Send
         + Sync,
-    Wght: Weighter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
-    Splt: Splitter<Xy<Arc<[TypeDom<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    Wght: Weighter<Xy<Arc<[Elem<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
+    Splt: Splitter<Xy<Arc<[Elem<LinkOpt<Scp>>]>, TypeCodom<Out>>> + Send + Sync,
     TypeCodom<Out>: Send + Sync + Orderable,
-    TypeDom<Scp::Opt>: Send + Sync,
+    Elem<Scp::Opt>: Send + Sync,
     Kern::Context: Send + Sync,
     Out: FidOutcome,
     FnState: FuncState,

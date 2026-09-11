@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tantale_core::{Domain, GridDom, HasVariables, HasX, Id, Int, Mixed, Nat, Outcome, Real, Searchspace, SolInfo, TypeCodom, Uncomputed, Unit, Xy, domain::{TypeDom, grid::GridBounds}};
+use tantale_core::{Domain, GridDom, HasVariables, HasX, Id, Int, Mixed, Nat, Outcome, Real, Searchspace, SolInfo, TypeCodom, Uncomputed, Unit, Xy, domain::{Elem, grid::GridBounds}};
 
 use crate::{bayesian::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, kernel::{Kernel, KernelFunc}}};
 
@@ -20,9 +20,9 @@ where
     SInfo: SolInfo,
     Out: Outcome, 
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -34,15 +34,15 @@ where
 impl<Scp, S, SolId, SInfo, Out> NwRegressor<Mixed, Scp, S, SolId, SInfo, Out> for Multivariate
 where
     Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, Raw = Arc<[TypeDom<Mixed>]>>,
+    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Mixed>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -75,15 +75,15 @@ where
 impl<Scp, S, SolId, SInfo, Out> NwRegressor<Real, Scp, S, SolId, SInfo, Out> for Multivariate
 where
     Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, Raw = Arc<[TypeDom<Real>]>>,
+    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Real>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -116,15 +116,15 @@ where
 impl<Scp, S, SolId, SInfo, Out> NwRegressor<Int, Scp, S, SolId, SInfo, Out> for Multivariate
 where
     Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, Raw = Arc<[TypeDom<Int>]>>,
+    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Int>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -157,15 +157,15 @@ where
 impl<Scp, S, SolId, SInfo, Out> NwRegressor<Nat, Scp, S, SolId, SInfo, Out> for Multivariate
 where
     Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, Raw = Arc<[TypeDom<Nat>]>>,
+    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Nat>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -198,15 +198,15 @@ where
 impl<Scp, S, SolId, SInfo, Out> NwRegressor<Unit, Scp, S, SolId, SInfo, Out> for Multivariate
 where
     Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, Raw = Arc<[TypeDom<Unit>]>>,
+    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Unit>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
@@ -240,16 +240,16 @@ impl<G, Scp, S, SolId, SInfo, Out> NwRegressor<GridDom<G>, Scp, S, SolId, SInfo,
 where
     G: GridBounds,
     Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<G>, SInfo, Raw = Arc<[TypeDom<GridDom<G>>]>>,
+    S: Uncomputed<SolId, GridDom<G>, SInfo, X = Arc<[Elem<GridDom<G>>]>>,
     S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
     SolId: Id,
     SInfo: SolInfo,
     Out: Outcome,
 {
 
-    fn predict<T: AsRef<Xy<S::Raw, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
         &self,
-        x: &S::Raw,
+        x: &S::X,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],

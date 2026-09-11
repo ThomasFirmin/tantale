@@ -3,19 +3,16 @@
 //! The `XToNdArray` and `YToNdArray` traits provide methods to convert raw solutions and objective values into [`ndarray::Array2`] format.
 
 use crate::{
-    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, Id, Orderable, Outcome, SolInfo,
-    StepId, TypeCodom, Uncomputed,
-    domain::codomain::{
+    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, Id, Lone, Orderable, Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, domain::{Elem, codomain::{
         ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain,
         ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain,
-    },
-    solution::{CompLone, shape::CompPair},
+    }},
 };
 
 use ndarray::{Array1, Array2, Axis, Zip};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 /// A helper struct to hold the raw solution and the computed codomain value together.
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,7 +34,11 @@ impl<Raw, Y> AsRef<Xy<Raw, Y>> for Xy<Raw, Y> {
     }
 }
 
-impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y> {
+impl<Raw, Y> HasX for Xy<Raw, Y>
+where
+    Raw: Clone + Debug + Serialize + for<'de> Deserialize<'de>,
+{
+    type X = Raw;
     fn ref_x(&self) -> &Raw {
         &self.x
     }
@@ -47,12 +48,11 @@ impl<Raw: Clone, Y> HasX<Raw> for Xy<Raw, Y> {
     }
 }
 
-impl<Raw, Out> HasY<Out> for Xy<Raw, TypeCodom<Out>>
-where
-    Out: Outcome,
+impl<Raw, Y: Debug + Serialize + for<'a> Deserialize<'a>> HasY for Xy<Raw, Y>
 {
+    type Y = Y;
     /// Returns the computed [`TypeCodom`](crate::Codomain::TypeCodom) for this solution.
-    fn y(&self) -> Arc<TypeCodom<Out>> {
+    fn y(&self) -> Arc<Self::Y> {
         self.y.clone()
     }
 }
@@ -104,7 +104,7 @@ impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y> {
 /// Trait for converting raw solution data (x) into [`ndarray::Array2`] format.
 pub trait XToNdArray<Dom: Domain> {
     /// Returns the raw solution data as a 2D array, where each row corresponds to a solution and each column corresponds to a dimension of the solution space.
-    fn x_array(&self) -> Array2<Dom::TypeDom>;
+    fn x_array(&self) -> Array2<Dom::Element>;
 
     /// Returns the raw solution data as a 2D array of a specified type `T`, 
     /// where each row corresponds to a solution and each column corresponds to a dimension of the solution space.
@@ -114,7 +114,7 @@ pub trait XToNdArray<Dom: Domain> {
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T>;
+        Dom::Element: AsPrimitive<T>;
 
     /// Returns the number of columns in the resulting `Array2`, which corresponds to the dimensionality of the raw solution data.
     fn x_cols(&self) -> usize;
@@ -126,7 +126,7 @@ where
     SInfo: SolInfo,
     SolId: Id,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         Array1::from_iter(self.x.iter().cloned()).insert_axis(Axis(0))
     }
     fn x_cols(&self) -> usize {
@@ -136,7 +136,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T> {
         Array1::from_iter(self.x.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
 }
@@ -147,7 +147,7 @@ where
     SInfo: SolInfo,
     SolId: StepId,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         Array1::from_iter(self.x.iter().cloned()).insert_axis(Axis(0))
     }
     fn x_cols(&self) -> usize {
@@ -157,20 +157,17 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T> {
         Array1::from_iter(self.x.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
 }
 
-impl<PSol, SolId, Dom, Info, Out> XToNdArray<Dom> for Computed<PSol, SolId, Dom, Out, Info>
+impl<S, Out> XToNdArray<S::Dom> for Computed<S,Out> 
 where
-    PSol: Uncomputed<SolId, Dom, Info> + XToNdArray<Dom>,
-    Dom: Domain,
-    Info: SolInfo,
+    S: Uncomputed + XToNdArray<S::Dom>,
     Out: Outcome,
-    SolId: Id,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Elem<S::Dom>> {
         self.sol.x_array()
     }
 
@@ -181,7 +178,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T> {
+        Elem<S::Dom>: AsPrimitive<T> {
         self.sol.x_array_type::<T>()
     }
 }
@@ -191,7 +188,7 @@ where
     Dom: Domain,
     X: XToNdArray<Dom> + ?Sized,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         (*self).x_array()
     }
 
@@ -202,7 +199,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T> {
         (*self).x_array_type::<T>()
     }
 }
@@ -212,10 +209,10 @@ where
     X: XToNdArray<Dom>,
     Dom: Domain,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         let n_rows = self.len();
         let n_col = self[0].x_cols();
-        let mut array = Array2::<Dom::TypeDom>::uninit((n_rows, n_col));
+        let mut array = Array2::<Dom::Element>::uninit((n_rows, n_col));
         Zip::from(array.rows_mut())
             .and(self)
             .for_each(|mut row, sol| {
@@ -234,7 +231,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T>
+        Dom::Element: AsPrimitive<T>
     {
         let n_rows = self.len();
         let n_col = self[0].x_cols();
@@ -251,11 +248,11 @@ where
     }
 }
 
-impl <Dom> XToNdArray<Dom> for Arc<[Dom::TypeDom]>
+impl <Dom> XToNdArray<Dom> for Arc<[Dom::Element]>
 where
     Dom: Domain,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         Array1::from_iter(self.iter().cloned()).insert_axis(Axis(0))
     }
 
@@ -266,7 +263,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T>
+        Dom::Element: AsPrimitive<T>
     {
         Array1::from_iter(self.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
@@ -277,7 +274,7 @@ where
     Dom: Domain,
     X: XToNdArray<Dom>,
 {
-    fn x_array(&self) -> Array2<Dom::TypeDom> {
+    fn x_array(&self) -> Array2<Dom::Element> {
         self.x.x_array()
     }
 
@@ -288,7 +285,7 @@ where
     fn x_array_type<T>(&self) -> Array2<T> 
     where
         T: Copy + 'static,
-        Dom::TypeDom: AsPrimitive<T>
+        Dom::Element: AsPrimitive<T>
     {
         self.x.x_array_type::<T>()
     }
@@ -509,13 +506,8 @@ impl YToNdArray for [ElemCostConstMultiCodomain] {
     }
 }
 
-impl<PSol, SolId, Dom, Out, SInfo> YToNdArray for Computed<PSol, SolId, Dom, Out, SInfo>
+impl<S: Uncomputed, Out: Outcome> YToNdArray for Computed<S, Out>
 where
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    Dom: Domain,
-    SInfo: SolInfo,
-    Out: Outcome,
-    SolId: Id,
     TypeCodom<Out>: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
@@ -527,13 +519,8 @@ where
     }
 }
 
-impl<PSol, SolId, Dom, Out, SInfo> YToNdArray for [Computed<PSol, SolId, Dom, Out, SInfo>]
+impl<S: Uncomputed, Out: Outcome> YToNdArray for [Computed<S, Out>]
 where
-    PSol: Uncomputed<SolId, Dom, SInfo>,
-    Dom: Domain,
-    SInfo: SolInfo,
-    Out: Outcome,
-    SolId: Id,
     TypeCodom<Out>: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
@@ -556,18 +543,13 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> YToNdArray
-    for CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>
+impl<SA, SB> YToNdArray for Pair<SA, SB>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: YToNdArray,
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    Out: Outcome,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    Self: HasY<Y = SA::Y>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA::Y: YToNdArray,
+    SB::Y: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
         self.y().y_array()
@@ -578,18 +560,13 @@ where
     }
 }
 
-impl<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out> YToNdArray
-    for [CompPair<SolObj, SolOpt, SolId, Obj, Opt, SInfo, Out>]
+impl<SA, SB> YToNdArray for [Pair<SA, SB>]
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: YToNdArray,
-    SolId: Id,
-    Obj: Domain,
-    Opt: Domain,
-    Out: Outcome,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
-    SolOpt: Uncomputed<SolId, Opt, SInfo>,
+    Self: HasY<Y = SA::Y>,
+    SA: Solution + HasY,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA::Y: YToNdArray,
+    SB::Y: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
         let n_rows = self.len();
@@ -611,15 +588,11 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> YToNdArray for CompLone<SolObj, SolId, Obj, SInfo, Out>
+impl<S> YToNdArray for Lone<S>
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: YToNdArray,
-    SolId: Id,
-    Obj: Domain,
-    Out: Outcome,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
         self.y().y_array()
@@ -630,15 +603,11 @@ where
     }
 }
 
-impl<SolObj, SolId, Obj, SInfo, Out> YToNdArray for [CompLone<SolObj, SolId, Obj, SInfo, Out>]
+impl<S> YToNdArray for [Lone<S>]
 where
-    Self: HasY<Out>,
-    TypeCodom<Out>: YToNdArray,
-    SolId: Id,
-    Obj: Domain,
-    Out: Outcome,
-    SInfo: SolInfo,
-    SolObj: Uncomputed<SolId, Obj, SInfo>,
+    Self: HasY<Y = S::Y>,
+    S: Solution + HasY,
+    S::Y: YToNdArray,
 {
     fn y_array(&self) -> Array2<f64> {
         let n_rows = self.len();

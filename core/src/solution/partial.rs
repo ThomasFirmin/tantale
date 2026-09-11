@@ -14,13 +14,12 @@
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
-use crate::domain::Domain;
-use crate::domain::codomain::TypeCodom; 
+use crate::aliases::TypeCodom;
+use crate::domain::{Domain, Elem};
 use crate::objective::Step;
-use crate::recorder::csv::CSVWritable;
-use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
-use crate::{Computed, EvalStep, Outcome, StepId};
-use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasX};
+use crate::solution::{Id, SolInfo, Solution, SolutionShape, Uncomputed};
+use crate::{Computed, EvalStep, Outcome, Problem, StepId};
+use crate::{HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasX};
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,15 +37,15 @@ impl Display for Fidelity {
     }
 }
 
-impl CSVWritable<(), ()> for Fidelity {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("fidelity")])
-    }
+// impl CSVWritable<(), ()> for Fidelity {
+//     fn header(_elem: &()) -> Vec<String> {
+//         Vec::from([String::from("fidelity")])
+//     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.0.to_string()])
-    }
-}
+//     fn write(&self, _comp: &()) -> Vec<String> {
+//         Vec::from([self.0.to_string()])
+//     }
+// }
 
 impl Fidelity {
     /// Apply this fidelity to both sides of a paired solution.
@@ -81,44 +80,33 @@ impl Fidelity {
 /// assert_eq!(sol.ref_x().len(), 5);
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct BaseSol<SolId, Dom, Info>
-where
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
+#[serde(bound = "SolId: Id, Dom: Domain, Info: SolInfo")]
+pub struct BaseSol<SolId: Id, Dom: Domain, Info: SolInfo>
 {
     pub id: SolId,
-    pub x: Arc<[Dom::TypeDom]>,
+    pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for BaseSol<SolId, Dom, Info>
-where
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
+impl<SolId: Id, Dom: Domain, Info: SolInfo> HasX for BaseSol<SolId, Dom, Info>
 {
+    type X = Arc<[Dom::Element]>;
+    
     /// Return the raw representation for evaluation by the objective.
-    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
+    fn ref_x(&self) -> &Arc<[Dom::Element]> {
         &self.x
     }
 
     /// Return a clone of the raw representation for evaluation by the objective.
-    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
+    fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
 }
 
-impl<SolId, Dom, Info> HasId<SolId> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
+impl<SolId: Id, Dom: Domain, Info: SolInfo> HasId for BaseSol<SolId, Dom, Info>
 {
+    type Id = SolId;
+    
     fn id(&self) -> SolId {
         self.id
     }
@@ -132,25 +120,17 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasSolInfo<Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
+impl<SolId: Id, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<SolId, Dom, Info>
 {
+    type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
+impl<SolId: Id, Dom: Domain, Info: SolInfo> Solution for BaseSol<SolId, Dom, Info>
 {
-    type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = BaseSol<SolId, B, Info>;
+    type Dom = Dom;
 
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
@@ -161,34 +141,15 @@ where
             info: self.info.clone(),
         }
     }
-
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::Twin<B> {
-        BaseSol {
-            id: self.id,
-            x,
-            info: self.info.clone(),
-        }
-    }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
+impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, Info>
 {
-    type TwinUC<B: Domain> = BaseSol<SolId, B, Info>;
     /// Creates a new [`BaseSol`] from a slice of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Attributes
     ///
-    /// * `id` : `SolId` - A unique [`Id`].
+    /// * `id` : `E::SolId` - A unique [`Id`].
     /// * `x` : `Into`[`<Raw>`](Solution::Raw) - A raw solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
     ///
     /// # Example
@@ -198,7 +159,6 @@ where
     ///
     /// let x = std::sync::Arc::from(vec![0.0;5]);
     /// let info = std::sync::Arc::new(EmptyInfo{});
-    ///
     /// let real_sol = BaseSol::<_,Real,_>::new(SId::generate(),x,info);
     ///
     /// for elem in real_sol.ref_x().iter(){
@@ -208,7 +168,7 @@ where
     /// ```
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
-        T: Into<Self::Raw>,
+        T: Into<Self::X>,
     {
         BaseSol {
             id,
@@ -216,25 +176,12 @@ where
             info,
         }
     }
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::TwinUC<B> {
-        BaseSol {
-            id: self.id,
-            x,
-            info: self.info.clone(),
-        }
-    }
 
     /// Create a default-valued solution of a given size.
     /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solution.
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
-        let x = vec![Dom::TypeDom::default(); size];
+        let x = vec![Dom::Element::default(); size];
         BaseSol {
             id,
             x: x.into(),
@@ -248,24 +195,24 @@ where
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-}
-
-impl<SolId, Dom, Info> IntoComputed for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+    
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out>{
         Computed::new(self, y)
     }
-
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-        (comp.sol, comp.y)
-    }
 }
+
+// impl<E:Execution, S:SolutionType> IntoComputed for BaseSol<E, S>
+// {
+//     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
+
+//     fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+//         Computed::new(self, y)
+//     }
+
+//     fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+//         (comp.sol, comp.y)
+//     }
+// }
 
 //--------------------//
 //----- FIDELITY -----//
@@ -296,46 +243,35 @@ where
 /// assert_eq!(sol.fidelity().0, 0.5);
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct FidelitySol<SolId, Dom, Info>
-where
-    SolId: StepId,
-    Dom: Domain,
-    Info: SolInfo,
+#[serde(bound = "SolId: StepId, Dom: Domain, Info: SolInfo")]
+pub struct FidelitySol<SolId: StepId, Dom: Domain, Info: SolInfo>
 {
     pub id: SolId,
-    pub x: Arc<[Dom::TypeDom]>,
+    pub x: Arc<[Dom::Element]>,
+    pub info: Arc<Info>,
     pub step: EvalStep, // A `isize` [`EvalStep`] for serde and mpi communication issues.
     pub fid: Fidelity,
-    pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for FidelitySol<SolId, Dom, Info>
-where
-    SolId: StepId,
-    Dom: Domain,
-    Info: SolInfo,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<SolId, Dom, Info>
 {
+    type X = Arc<[Dom::Element]>;
+
     /// Return the raw representation for evaluation by the objective.
-    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
+    fn ref_x(&self) -> &Arc<[Dom::Element]> {
         &self.x
     }
 
     /// Return a clone of the raw representation for evaluation by the objective.
-    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
+    fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
 }
 
-impl<SolId, Dom, Info> HasId<SolId> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<SolId, Dom, Info>
 {
+    type Id = SolId;
+
     fn id(&self) -> SolId {
         self.id
     }
@@ -349,11 +285,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasStepId<SolId> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<SolId, Dom, Info>
 {
     fn increment(&mut self) {
         self.id.increment();
@@ -368,22 +300,15 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasSolInfo<Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<SolId, Dom, Info>
 {
+    type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
 }
 
-impl<SolId, Dom, Info> HasFidelity for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<SolId, Dom, Info>
 {
     fn fidelity(&self) -> Fidelity {
         self.fid
@@ -393,11 +318,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasStep for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<SolId, Dom, Info>
 {
     /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
@@ -440,14 +361,9 @@ where
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<SolId, Dom, Info>
 {
-    type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
+    type Dom =  Dom;
 
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
@@ -460,37 +376,14 @@ where
             info: self.info.clone(),
         }
     }
-
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::Twin<B> {
-        FidelitySol {
-            id: self.id,
-            x,
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
-    }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
+impl<SolId: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<SolId, Dom, Info>
 {
-    type TwinUC<B: Domain> = FidelitySol<SolId, B, Info>;
-
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
     fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
     where
-        T: Into<Self::Raw>,
+        T: Into<Self::X>,
     {
         FidelitySol {
             id,
@@ -501,26 +394,10 @@ where
         }
     }
 
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::TwinUC<B> {
-        FidelitySol {
-            id: self.id,
-            x,
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
-    }
     /// Create a default-valued [`Fidelity`] solution of a given size.
     fn default(info: Arc<Info>, size: usize) -> Self {
         let id = SolId::generate();
-        let x = vec![Dom::TypeDom::default(); size];
+        let x = vec![Elem::<Dom>::default(); size];
         FidelitySol {
             id,
             x: x.into(),
@@ -536,21 +413,25 @@ where
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-}
-
-impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
-    type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+    
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out>{
         Computed::new(self, y)
     }
-
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-        (comp.sol, comp.y)
-    }
 }
+
+// impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
+// where
+//     Dom: Domain,
+//     Info: SolInfo,
+//     SolId: StepId,
+// {
+//     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
+
+//     fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+//         Computed::new(self, y)
+//     }
+
+//     fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+//         (comp.sol, comp.y)
+//     }
+// }

@@ -271,17 +271,15 @@ pub struct GlobalParameters {
 }
 
 pub mod config;
-#[cfg(feature = "mpi")]
-pub use config::DistSaverConfig;
 pub use config::{FolderConfig, SaverConfig};
 
 pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Criteria, Domain, FidCriteria, Grid, GridDom, GridInt, GridNat, GridReal, Int, LinkObj,
-    LinkOpt, LinkTyObj, LinkTyOpt, Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
-    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain, TypeAcc, TypeCodom,
+    Domain, Grid, GridDom, GridInt, GridNat, GridReal, Int,
+    Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
+    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain,
     Unit,
     ElemSingleCodomain,
     ElemCostCodomain,
@@ -303,25 +301,25 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, IntoComputed, IntoComputedShape, Lone,
+    BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, Lone,
     OutBatch, Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed,
-    shape::RawObj,
 };
 
 pub mod searchspace;
-pub use searchspace::{CompShape, OptionCompShape, Searchspace, Sp, SpPar};
+pub use searchspace::{Searchspace, Sp, SpPar};
 
 pub mod errors;
 
 pub mod objective;
 pub use crate::objective::{
-    EvalStep, FidOutcome, FuncWrapper, Objective, Outcome, Step, Stepped, outcome::FuncState,
+    EvalStep, FidOutcome, FuncWrapper, OneStep, Outcome, Step, MultiStep, outcome::FuncState,
 };
 
 pub mod optimizer;
+use crate::utils::has_trait::HasState;
 pub use crate::optimizer::{
-    BatchOptimizer, BatchSampler, EmptyInfo, OptInfo, Optimizer, Sampler,
-    SingleOptimizer, SingleSampler, opt::CompBatch,
+    BatchOptimizer, BatchSampler, EmptyInfo, Optimizer, Sampler,
+    SingleOptimizer, SingleSampler
 };
 
 pub mod stop;
@@ -329,33 +327,53 @@ pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
 pub use experiment::{
-    CompAcc, MonoExperiment, Pool, PoolMode, Runable, ThrExperiment, mono, mono_with_pool,
-    threaded, threaded_with_pool,
+    MonoExperiment, Pool, PoolMode, Runable, ThrExperiment,
 };
 #[cfg(feature = "mpi")]
 pub use experiment::{
-    DistEvaluate, Evaluate, MPIExperiment, MasterWorker, distributed, distributed_with_pool,
     mpi::utils::MPIProcess, mpi::worker::Worker,
 };
 
 pub mod recorder;
-pub use recorder::{BatchRecorder, CSVRecorder, CSVWritable, NoSaver, Recorder, SeqRecorder};
-#[cfg(feature = "mpi")]
-pub use recorder::{DistBatchRecorder, DistSeqRecorder};
+pub use recorder::{CSVRecorder, Recorder};
 
 pub mod checkpointer;
-#[cfg(feature = "mpi")]
-pub use checkpointer::DistCheckpointer;
-pub use checkpointer::{Checkpointer, MessagePack, MonoCheckpointer, ThrCheckpointer};
+pub use checkpointer::{Checkpointer, MessagePack};
 
 pub mod utils;
 pub use utils::{
-    Dominate, HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed,
+    Dominate, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
-    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State
+    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
+    aliases,
 };
+
+pub mod evaluator;
 
 #[cfg(feature = "spikes")]
 pub mod spikes;
 #[cfg(feature = "spikes")]
 pub use spikes::*;
+
+pub trait Problem {
+    type Scp: Searchspace<Self::Func>;
+    type Func: FuncWrapper<Dom = <Self::Scp as Linked>::Obj>;
+}
+
+pub struct BasicProblem<S, F>
+where
+    S: Searchspace<F>,
+    F: FuncWrapper<Dom = <S as Linked>::Obj>,
+{
+    pub searchspace: S,
+    pub objective: F,
+}
+
+impl<S, F> Problem for BasicProblem<S, F>
+where
+    S: Searchspace<F>,
+    F: FuncWrapper<Dom = <S as Linked>::Obj>,
+{
+    type Scp = S;
+    type Func = F;
+}

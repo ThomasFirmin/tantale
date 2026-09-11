@@ -1,88 +1,38 @@
 use crate::{
-    FidOutcome, HasFidelity, HasStep, domain::{Domain, onto::LinkOpt}, experiment::CompAcc, objective::{FuncWrapper, Outcome}, recorder::csv::CSVWritable, searchspace::{CompShape, OptionCompShape, Searchspace}, solution::{Batch, Id, SolInfo, Uncomputed, shape::RawObj}, utils::has_trait::HasState,
+    FidOutcome, HasFidelity, HasStep, Problem, SolutionShape, Tabular, aliases::{Accum, CompShape, Shape}, domain::Domain, objective::{FuncWrapper, Outcome}, searchspace::Searchspace, solution::{Batch, Id, SolInfo}, utils::has_trait::HasState,
 };
-
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::Fn};
-
-/// Per-iteration metadata produced by an [`Optimizer`].
-///
-/// This typically aggregates informations about
-/// the current iteration of the [`Optimizer`].
-///
-/// # Associated Derive Macro
-///
-/// The `OptInfo` derive macro automatically implements the trait for any struct
-/// satisfying the required trait bounds.
-pub trait OptInfo
-where
-    Self: Serialize + for<'de> Deserialize<'de> + CSVWritable<(), ()> + Debug + Default,
-{
-}
 
 /// Empty implementation for [`OptInfo`] or [`SolInfo`].
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EmptyInfo;
 impl SolInfo for EmptyInfo {}
-impl OptInfo for EmptyInfo {}
-impl CSVWritable<(), ()> for EmptyInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::new()
-    }
-}
-
-/// Type aliases for cleaner associated type definitions of [`Optimizer`]s [`SolInfo`].
-pub type OpSInfType<Op, PSol, Scp, SolId, Out> =
-    <Op as Optimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp>>::SInfo;
 
 /// Core optimizer abstraction.
 ///
 /// An [`Optimizer`] generates candidate [`Solution`](crate::solution::Solution)s to
 /// **maximize** an objective, and maintains the state required to resume or
 /// checkpoint an experiment.
-pub trait Optimizer<PSol, SolId, Opt, Out, Scp>: HasState
+pub trait Optimizer<P>: HasState
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
 {
-    type SInfo: SolInfo;
+    type Info: SolInfo;
 }
-
-/// A [`Batch`] of [`CompShape`] solutions for a given [`Searchspace`] and [`Codomain`](crate::Codomain).
-pub type CompBatch<SolId, SInfo, Info, SolShape, Out> =
-    Batch<SolId, SInfo, Info, CompShape<SolShape, SolId, SInfo, Out>>;
 
 /// Batch optimizer interface.
 ///
 /// At each iteration, the optimizer produces a whole [`Batch`] of new candidates.
-pub trait BatchOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
-    Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait BatchOptimizer<P>: Optimizer<P>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
 {
-    type Info: OptInfo + Send + Sync;
-
     /// Executed once at the beginning of the optimization. Does not require previous
     /// computed solutions.
-    fn first_step(
-        &mut self,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+    fn first_step(&mut self,scp: &P::Scp, acc: &mut Accum<P>) -> Batch<Shape<P>>;
     /// Computes a single iteration of the [`Optimizer`].
     ///
     /// It consumes a [`Batch`] of computed solutions and returns a new batch of
@@ -99,12 +49,7 @@ where
     /// updated after each batch evaluation. The [`Optimizer`] should use it read-only
     /// to inform the generation of new candidates (e.g. for surrogate models or
     /// elitist strategies).
-    fn step(
-        &mut self,
-        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+    fn step(&mut self,x: Batch<CompShape<P>>,scp: &P::Scp, acc: &mut Accum<P>) -> Batch<Shape<P>>;
 
     /// Sets the batch size for the optimizer.
     fn set_batch_size(&mut self, batch_size: usize);
@@ -116,16 +61,10 @@ where
 /// Single optimizer interface.
 ///
 /// At each iteration, the optimizer produces a single [`Uncomputed`] candidate.
-pub trait SingleOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
-    Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait SingleOptimizer<P> : Optimizer<P>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
 {
     /// Computes a single iteration of the [`Optimizer`].
     ///
@@ -143,27 +82,16 @@ where
     /// updated after each solution evaluation. The [`Optimizer`] should use it
     /// read-only to inform the generation of new candidates (e.g. for surrogate
     /// models or elitist strategies).
-    fn step(
-        &mut self,
-        x: OptionCompShape<Scp::SolShape, SolId, Self::SInfo, Out>,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Scp::SolShape;
+    fn step(&mut self,x: Option<CompShape<P>>,scp: &P::Scp, acc: &Accum<P>) -> Shape<P>;
 }
 
 /// Multi-instance optimizer interface for parallel execution.
 ///
 /// Implementations define how optimizer instances interact and synchronize.
-pub trait MultiInstanceOptimizer<PSol, SolId, Opt, Out, Scp, Fun>:
-    Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait MultiInstanceOptimizer<P>: Optimizer<P>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
 {
     /// Exchange information with peer instances.
     fn interact(&self);
@@ -172,15 +100,10 @@ where
 }
 
 /// Multi-fidelity marker trait for optimizers.
-pub trait BudgetPruner<PSol, SolId, Opt, Out, Scp>: Optimizer<PSol, SolId, Opt, Out, Scp>
+pub trait BudgetPruner<P>: Optimizer<P>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo> + HasFidelity + HasStep,
-    PSol::Twin<Scp::Obj>:
-        Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol> + HasFidelity + HasStep,
-    SolId: Id,
-    Opt: Domain,
-    Out: FidOutcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info> + HasFidelity + HasStep,
 {
     /// Sets the minimum and maximum budgets for the optimizer.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64);
@@ -203,110 +126,65 @@ where
     /// Drains all pending candidates from the optimizer, typically for cleanup.
     /// For example, in Hyperband, this can be used to clear all pending candidates
     /// when a new bracket is started, as they may not be relevant to the new budget configuration.
-    fn drain(&mut self) -> Vec<Scp::SolShape>;
+    fn drain(&mut self) -> Vec<Shape<P>>;
 
     /// Drains a single pending candidate from the optimizer, if available.
-    fn drain_one(&mut self) -> Option<Scp::SolShape>;
+    fn drain_one(&mut self) -> Option<Shape<P>>;
 }
 
 /// A [`Sampler`] is an [`Optimizer`] that always generates on-demand new candidates by sampling from an internal state.
 /// Conversely to [`SingleOptimizer`]s or [`BatchOptimizer`]s,
 /// a [`Sampler`] does not consume previously computed solutions to generate new candidates,
 /// but only relies on its internal state.
-pub trait Sampler<PSol, SolId, Opt, Out, Scp>: HasState
+pub trait Sampler<P, SuperSInfo> : HasState
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
+    SuperSInfo: SolInfo,
 {
-    type SInfo: SolInfo;
+    type Info: SolInfo;
 }
 
 /// Single-solution sampler interface.
 /// A [`SingleSampler`] generates one candidate at a time by sampling from an internal state,
 /// and can update this state with newly computed solutions.
-pub trait SingleSampler<PSol, SolId, Opt, Out, Scp, Fun>:
-    Sampler<PSol, SolId, Opt, Out, Scp>
+pub trait SingleSampler<P, SuperSInfo> : Sampler<P, SuperSInfo>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
+    SuperSInfo: SolInfo,
 {
     /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
-    fn sample(
-        &mut self,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Scp::SolShape;
+    fn sample(&mut self,scp: &P::Scp,acc: &Accum<P>) -> Shape<P>;
 
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
+    fn sample_apply<F>(&mut self, f: F, scp: &P::Scp, acc: &Accum<P>) -> Shape<P>
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync
+        F: Fn(Shape<P>) -> Shape<P> + Send + Sync
     {
         f(self.sample(scp, acc))
     }
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
-    fn update(
-        &mut self,
-        x: &CompShape<Scp::SolShape, SolId, Self::SInfo, Out>,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    );
+    fn update(&mut self,x: &CompShape<P>,scp: &P::Scp,acc: &Accum<P>);
 }
 
 /// Batch sampler interface.
 /// A [`BatchSampler`] generates a batch of candidates at a time by sampling from an internal state,
 /// and can update this state with newly computed batches of solutions.
 /// The `Info` associated type allows the [`BatchSampler`] to produce per-batch metadata.
-pub trait BatchSampler<PSol, SolId, Opt, Out, Scp, Fun>:
-    Sampler<PSol, SolId, Opt, Out, Scp>
+pub trait BatchSampler<P, SuperInfo> : Sampler<P, SuperInfo>
 where
-    PSol: Uncomputed<SolId, Opt, Self::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Self::SInfo, Twin<Opt> = PSol>,
-    SolId: Id,
-    Opt: Domain,
-    Out: Outcome,
-    Scp: Searchspace<PSol, SolId, Self::SInfo, Opt = Opt>,
-    Fun: FuncWrapper<RawObj<Scp::SolShape, SolId, Self::SInfo>>,
+    P: Problem,
+    Shape<P>: SolutionShape<Info = Self::Info>,
+    SuperInfo: SolInfo,
 {
-    type Info: OptInfo + Send + Sync;
-
     /// Generates a new batch of candidates by sampling from the internal state of the [`Sampler`].
-    fn sample(
-        &mut self,
-        batch: usize,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>;
+    fn sample(&mut self, batch: usize,scp: &P::Scp,acc: &Accum<P>) -> Batch<Shape<P>>;
 
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        batch: usize,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    ) -> Batch<SolId, Self::SInfo, Self::Info, Scp::SolShape>
+    fn sample_apply<F>(&mut self, f: F, batch: usize, scp: &P::Scp,acc: &Accum<P>) -> Batch<Shape<P>>
     where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync;
+        F: Fn(Shape<P>) -> Shape<P> + Send + Sync;
 
     /// Update the internal state of the [`Sampler`] with a new batch of [`Computed`](crate::Computed) candidates.
-    fn update(
-        &mut self,
-        x: CompBatch<SolId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SolId, Self::SInfo, Out>,
-    );
+    fn update(&mut self,x: Batch<CompShape<P>>,scp: &P::Scp,acc: &Accum<P>);
 }

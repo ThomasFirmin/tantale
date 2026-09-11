@@ -165,7 +165,7 @@
 //! println!("Step : {:?}", out.get_step());
 //! ```
 
-use crate::{Codomain, objective::EvalStep};
+use crate::{Codomain, objective::EvalStep, utils::has_trait::HasHeader};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
@@ -188,7 +188,7 @@ use std::{fmt::Debug, path::PathBuf};
 /// It also implements [`CSVWritable`](crate::recorder::csv::CSVWritable)
 /// for the struct, writing all fields that are compatible with CSV recording
 /// (see module-level documentation for supported types).
-pub trait Outcome
+pub trait Outcome : HasHeader
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
 {

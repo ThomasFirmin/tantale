@@ -130,27 +130,13 @@
 //! ```
 
 use crate::{
-    HasX, Uncomputed,
-    domain::onto::Linked,
-    solution::{
-        Id, IntoComputedShape, SolInfo, SolutionShape,
-        shape::{RawObj, RawOpt},
+    FuncWrapper, HasId, HasInfo, HasX, Problem, Solution, Uncomputed, aliases::{GetId, GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
+        Id, SolInfo, SolutionShape, shape::IntoComputedShape,
     },
 };
 
 use rand::prelude::Rng;
 use std::sync::Arc;
-
-/// Type alias for the computed solution shape of solution shape.
-pub type CompShape<SolShape, SolId, SInfo, Out> =
-    <SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>;
-
-/// Type alias for an optional computed solution shape of solution shape.
-pub type OptionCompShape<SolShape, SolId, SInfo, Out> =
-    Option<<SolShape as IntoComputedShape<SolId, SInfo>>::Computed<Out>>;
-
-/// Type alias for the raw solution shape of a searchspace.
-pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, SInfo>>::SolShape;
 
 /// Core trait defining the searchspace for optimization problems.
 ///
@@ -214,41 +200,28 @@ pub type SShape<Scp, SolOpt, SolId, SInfo> = <Scp as Searchspace<SolOpt, SolId, 
 /// - [`Linked`] - Trait linking Obj and Opt domains
 /// - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Macro for creating searchspaces
 /// - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining searchspaces and wrap objective functions
-pub trait Searchspace<SolOpt, SolId, SInfo>: Linked
-where
-    SolOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    SolOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = SolOpt>,
-    SolId: Id,
-    SInfo: SolInfo,
+pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked
 {
     /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`](crate::Solution) representations.
-    type SolShape: SolutionShape<
-            SolId,
-            SInfo,
-            Obj = Self::Obj,
-            Opt = Self::Opt,
-            SolObj = SolOpt::Twin<Self::Obj>,
-            SolOpt = SolOpt,
-        > + IntoComputedShape<SolId, SInfo>;
+    type Shape: SolutionShape<
+        ObjSol = F::Sol<Self::Obj>,
+        OptSol = F::Sol<Self::Opt>, 
+        Obj=Self::Obj, 
+        Opt=Self::Opt,
+    > + IntoComputedShape;
 
     /// Create a new solution from a raw solution in the Obj domain.
-    fn new_obj<T: Into<RawObj<Self::SolShape, SolId, SInfo>>>(
-        &self,
-        x: T,
-        info: Arc<SInfo>,
-    ) -> Self::SolShape {
-        let sobj = SolOpt::Twin::new(SolId::generate(), x, info);
-        self.onto_opt(sobj)
+    fn new_obj<T: Into<GetRaw<F::Sol<Self::Obj>>>>(&self, x: T, info: Arc<GetSInfo<F::Sol<Self::Obj>>>) -> Self::Shape {
+        let id = GetId::<F::Sol<Self::Obj>>::generate();
+        let sol = F::Sol::<Self::Obj>::new(id, x, info);
+        self.onto_opt(sol)
     }
 
     /// Create a new solution from a raw solution in the Opt domain.
-    fn new_opt<T: Into<RawOpt<Self::SolShape, SolId, SInfo>>>(
-        &self,
-        x: T,
-        info: Arc<SInfo>,
-    ) -> Self::SolShape {
-        let sopt = SolOpt::new(SolId::generate(), x, info);
-        self.onto_obj(sopt)
+    fn new_opt<T: Into<GetRaw<F::Sol<Self::Opt>>>>(&self, x: T, info: Arc<GetSInfo<F::Sol<Self::Opt>>>) -> Self::Shape {
+        let id = GetId::<F::Sol<Self::Opt>>::generate();
+        let sol = F::Sol::<Self::Opt>::new(id, x, info);
+        self.onto_obj(sol)
     }
 
     /// Maps a solution from the Obj domain to the Opt domain.
@@ -291,7 +264,7 @@ where
     ///     println!("Obj: {:?} => Opt: {}", i, o);
     /// }
     /// ```
-    fn onto_opt(&self, inp: SolOpt::Twin<Self::Obj>) -> Self::SolShape;
+    fn onto_opt(&self, inp: GetSObj<Self::Shape>) -> Self::Shape;
     /// Maps a solution from the Opt domain to the Obj domain.
     ///
     /// # Parameters
@@ -328,7 +301,7 @@ where
     ///     println!("Opt: {} => Obj: {:?}", i, o);
     /// }
     /// ```
-    fn onto_obj(&self, inp: SolOpt) -> Self::SolShape;
+    fn onto_obj(&self, inp: GetSOpt<Self::Shape>) -> Self::Shape;
     /// Generates a random solution in the Obj (objective function) domain.
     ///
     /// Samples each variable using its Obj domain sampler.
@@ -367,7 +340,9 @@ where
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt::Twin<Self::Obj>;
+    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> GetSObj<Self::Shape>{
+        Uncomputed::new(GetId::<Self::Shape>::generate(), self.sample_raw_obj(rng), info)
+    }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
     ///
     /// Samples each variable using its Obj domain sampler.
@@ -405,7 +380,7 @@ where
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> RawObj<Self::SolShape, SolId, SInfo>;
+    fn sample_raw_obj<R: Rng>(&self, rng: &mut R) -> GetRaw<GetSObj<Self::Shape>>;
     /// Generates a random solution in the Opt (optimizer) domain.
     ///
     /// Samples each variable using its Opt domain sampler.
@@ -443,7 +418,9 @@ where
     ///     println!("{}", i);
     /// }
     /// ```
-    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> SolOpt;
+    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> GetSOpt<Self::Shape>{
+        Uncomputed::new(GetId::<Self::Shape>::generate(), self.sample_raw_opt(rng), info)
+    }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
     ///
     /// Samples each variable using its Opt domain sampler.
@@ -481,7 +458,7 @@ where
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> RawOpt<Self::SolShape, SolId, SInfo>;
+    fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> GetRaw<GetSOpt<Self::Shape>>;
     /// Generates a random paired solution containing both Obj and Opt representations.
     ///
     /// Samples in the Obj domain and automatically creates the paired Opt representation
@@ -521,7 +498,7 @@ where
     /// println!("Opt: {:?}", pair.get_sopt().ref_x());
     /// ```
     ///
-    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<SInfo>) -> Self::SolShape;
+    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape;
     /// Validates that a solution belongs to the Obj domain of this searchspace.
     ///
     /// Checks each variable value against its Obj domain constraints using
@@ -562,9 +539,8 @@ where
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &obj));
     /// ```
-    fn contains_obj<S>(&self, inp: &S) -> bool
-    where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync;
+    fn contains_obj(&self, inp: &GetRaw<GetSObj<Self::Shape>>) -> bool;
+
     /// Validates that a solution belongs to the Opt domain of this searchspace.
     ///
     /// Checks each variable value against its Opt domain constraints using
@@ -605,9 +581,7 @@ where
     ///
     /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &opt));
     /// ```
-    fn contains_opt<S>(&self, inp: &S) -> bool
-    where
-        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync;
+    fn contains_opt(&self, inp: &GetRaw<GetSOpt<Self::Shape>>) -> bool;
     /// Maps a [`Solution`](crate::Solution) of type `Opt` onto an [`Solution`](crate::Solution) of type `Obj`.
     ///
     /// # Example
@@ -642,7 +616,7 @@ where
     ///     }
     /// }
     /// ```
-    fn vec_onto_obj(&self, inp: Vec<SolOpt>) -> Vec<Self::SolShape>;
+    fn vec_onto_obj(&self, inp: Vec<GetSOpt<Self::Shape>>) -> Vec<Self::Shape>;
     /// Maps a vector of solutions from the Obj domain to the Opt domain.
     ///
     /// Batch version of [`onto_opt`](Searchspace::onto_opt) for efficient processing of
@@ -688,7 +662,7 @@ where
     ///     }
     /// }
     /// ```
-    fn vec_onto_opt(&self, inp: Vec<SolOpt::Twin<Self::Obj>>) -> Vec<Self::SolShape>;
+    fn vec_onto_opt(&self, inp: Vec<GetSObj<Self::Shape>>) -> Vec<Self::Shape>;
     /// Generates multiple random solutions in the Obj domain.
     ///
     /// Batch version of [`sample_obj`](Searchspace::sample_obj) for efficient generation
@@ -738,8 +712,8 @@ where
         &self,
         rng: &mut R,
         size: usize,
-        info: Arc<SInfo>,
-    ) -> Vec<SolOpt::Twin<Self::Obj>>;
+        info: Arc<GetSInfo<Self::Shape>>,
+    ) -> Vec<GetSObj<Self::Shape>>;
     /// Generates multiple random raw solutions in the Obj domain.
     ///
     /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
@@ -783,7 +757,7 @@ where
     /// }
     /// ```
     ///
-    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawObj<Self::SolShape, SolId, SInfo>>;
+    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSObj<Self::Shape>>>;
     /// Generates multiple random solutions in the Opt domain.
     ///
     /// Batch version of [`sample_opt`](Searchspace::sample_opt) for efficient generation
@@ -828,7 +802,7 @@ where
     ///     println!("Opt: {:?}", opt.ref_x());
     /// }
     /// ```
-    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>;
+    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>;
     /// Generates multiple random raw solutions in the Opt domain.
     ///
     /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
@@ -872,7 +846,7 @@ where
     /// }
     /// ```
     ///
-    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<RawOpt<Self::SolShape, SolId, SInfo>>;
+    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSOpt<Self::Shape>>>;
     /// Generates multiple random [`SolutionShape`] with both Obj and Opt representations.
     ///
     /// Batch version of [`sample_pair`](Searchspace::sample_pair) for efficient generation
@@ -924,8 +898,8 @@ where
         &self,
         rng: &mut R,
         size: usize,
-        info: Arc<SInfo>,
-    ) -> Vec<Self::SolShape>;
+        info: Arc<GetSInfo<Self::Shape>>,
+    ) -> Vec<Self::Shape>;
 
     /// Generates multiple `Obj` solutions and applies a transformation to each.
     ///
@@ -978,15 +952,15 @@ where
     ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
-    fn vec_apply_obj<F, R>(
+    fn vec_apply_obj<A, R>(
         &self,
-        f: F,
+        f: A,
         rng: &mut R,
         size: usize,
-        info: Arc<SInfo>,
-    ) -> Vec<SolOpt::Twin<Self::Obj>>
+        info: Arc<GetSInfo<Self::Shape>>,
+    ) -> Vec<GetSObj<Self::Shape>>
     where
-        F: Fn(SolOpt::Twin<Self::Obj>) -> SolOpt::Twin<Self::Obj> + Send + Sync,
+        A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape> + Send + Sync,
         R: Rng;
     /// Generates multiple `Opt` solutions and applies a transformation to each.
     ///
@@ -1039,158 +1013,10 @@ where
     ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
-    fn vec_apply_opt<F, R>(&self, f: F, rng: &mut R, size: usize, info: Arc<SInfo>) -> Vec<SolOpt>
+    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>
     where
-        F: Fn(SolOpt) -> SolOpt + Send + Sync,
+        A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape> + Send + Sync,
         R: Rng;
-
-    /// Generates multiple paired solutions and applies a transformation to each.
-    ///
-    /// This is similar to [`vec_sample_pair`](Searchspace::vec_sample_pair), but allows a
-    /// user-provided closure to post-process each sampled pair before returning the vector.
-    /// This is useful for adding custom metadata, mutating fields, or enforcing additional
-    /// constraints on the generated [`SolutionShape`].
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Closure applied to each sampled paired solution
-    /// * `rng` - Random number generator
-    /// * `size` - Number of paired solutions to generate
-    /// * `info` - Shared solution metadata
-    ///
-    /// # Returns
-    ///
-    /// Vector of paired solutions after applying `f` to each sample.
-    ///
-    /// # Example
-    /// ```
-    /// # mod sp{
-    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
-    /// #        use tantale::macros::hpo;
-    /// #
-    /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
-    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
-    /// #        );
-    /// #    }
-    ///
-    /// use tantale::core::{FidelitySol, EmptyInfo, Searchspace, Pair, Sp, Mixed, Real, StepSId, HasFidelity};
-    /// use std::sync::Arc;
-    ///
-    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
-    /// let info = Arc::new(EmptyInfo);
-    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
-    ///
-    /// let pairs: Vec<Pair<FidelitySol<StepSId, Mixed, EmptyInfo>, FidelitySol<StepSId, Real, EmptyInfo>, StepSId, _, _, _>> = sp.vec_apply_pair(
-    ///     |mut pair: Pair<_, _, _, Mixed, Real, EmptyInfo>| { pair.set_fidelity(1.0); pair },
-    ///     &mut rng,
-    ///     5,
-    ///     info.clone(),
-    /// );
-    ///
-    /// for pair in pairs.iter() {
-    ///     assert_eq!(pair.fidelity().0, 1.0);
-    /// }
-    /// ```
-    fn vec_apply_pair<F, R>(
-        &self,
-        f: F,
-        rng: &mut R,
-        size: usize,
-        info: Arc<SInfo>,
-    ) -> Vec<Self::SolShape>
-    where
-        F: Fn(Self::SolShape) -> Self::SolShape + Send + Sync,
-        R: Rng;
-
-    /// Validates that all solutions in a vector belong to the Obj domain.
-    ///
-    /// Batch version of [`contains_obj`](Searchspace::contains_obj) that returns `true` only if
-    /// all solutions satisfy their Obj domain constraints.
-    ///
-    /// # Parameters
-    ///
-    /// * `inp` - Slice of solutions to validate
-    ///
-    /// # Returns
-    ///
-    /// `true` if all solutions are valid in the Obj domain, `false` otherwise.
-    ///
-    /// # Example
-    /// ```
-    /// # mod sp{
-    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
-    /// #        use tantale::macros::hpo;
-    /// #
-    /// #
-    /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
-    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
-    /// #        );
-    /// #    }
-    ///
-    /// use tantale::core::{BaseSol, Sp, Mixed, Real, Searchspace, Solution, EmptyInfo, SId};
-    /// use std::sync::Arc;
-    ///
-    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
-    ///
-    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
-    /// let info = Arc::new(EmptyInfo);
-    ///
-    /// let vobj: Vec<BaseSol<SId, Mixed, EmptyInfo>> = <Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng, 10, info.clone());
-    ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_obj::<BaseSol<SId, Mixed, EmptyInfo>>(&sp, &vobj));
-    /// ```
-    fn vec_contains_obj<S>(&self, inp: &[S]) -> bool
-    where
-        S: HasX<RawObj<Self::SolShape, SolId, SInfo>> + Send + Sync;
-    /// Validates that all solutions in a vector belong to the Opt domain.
-    ///
-    /// Batch version of [`contains_opt`](Searchspace::contains_opt) that returns `true` only if
-    /// all solutions satisfy their Opt domain constraints.
-    ///
-    /// # Parameters
-    ///
-    /// * `inp` - Slice of solutions to validate
-    ///
-    /// # Returns
-    ///
-    /// `true` if all solutions are valid in the Opt domain, `false` otherwise.
-    ///
-    /// # Example
-    /// ```
-    /// # mod sp{
-    /// #        use tantale::core::{Bool, Cat, Nat, Real, Searchspace, Uniform, Bernoulli};
-    /// #        use tantale::macros::hpo;
-    /// #
-    /// #
-    /// #        hpo!(
-    /// #            a | Real(0.0,1.0, Uniform)                    |                         ;
-    /// #            b | Nat(0,100, Uniform)                       | Real(0.0,1.0, Uniform)  ;
-    /// #            c | Cat(["relu", "tanh", "sigmoid"], Uniform) | Real(0.0,1.0, Uniform)  ;
-    /// #            d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)  ;
-    /// #        );
-    /// #    }
-    ///
-    /// use tantale::core::{BaseSol, Sp, Real, Mixed, Solution, EmptyInfo, SId, Searchspace};
-    /// use std::sync::Arc;
-    ///
-    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
-    ///
-    /// let sp: Sp<Mixed, Real> = sp::get_searchspace();
-    /// let info = Arc::new(EmptyInfo);
-    ///
-    /// let vopt: Vec<BaseSol<SId, Real, EmptyInfo>> = sp.vec_sample_opt(&mut rng, 10, info.clone());
-    ///
-    /// assert!(<Sp<Mixed, Real> as Searchspace<BaseSol<SId, Real, EmptyInfo>, SId, EmptyInfo>>::vec_contains_opt::<BaseSol<SId, Real, EmptyInfo>>(&sp, &vopt));
-    /// ```
-    fn vec_contains_opt<S>(&self, inp: &[S]) -> bool
-    where
-        S: HasX<RawOpt<Self::SolShape, SolId, SInfo>> + Send + Sync;
 }
 
 pub mod spbase;

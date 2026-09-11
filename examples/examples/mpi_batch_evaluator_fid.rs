@@ -4,9 +4,9 @@ use tantale::core::experiment::basics::{IdxMapPool, Pool};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
     Codomain, EmptyInfo, FidelitySol, HasId, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
-    StepSId, Stepped,
+    StepSId, MultiStep,
     checkpointer::NoCheck,
-    domain::{NoDomain, TypeDom},
+    domain::{NoDomain, Elem},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
         batched::batchfidevaluator::FidDistBatchEvaluator,
@@ -150,7 +150,7 @@ fn main() {
         <FidWorker<
             '_,
             StepSId,
-            Arc<[TypeDom<sp_evaluator::ObjType>]>,
+            Arc<[Elem<sp_evaluator::ObjType>]>,
             FidOutEvaluator,
             FnState,
             NoCheck,
@@ -164,7 +164,7 @@ fn main() {
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
         let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-        let obj = Arc::new(Stepped::new(func));
+        let obj = Arc::new(MultiStep::new(func));
         let info = std::sync::Arc::new(RSInfo { iteration: 0 });
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
@@ -201,7 +201,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+                MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 OutBatchEvaluate<
                     StepSId,
@@ -299,7 +299,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+                MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 OutBatchEvaluate<
                     StepSId,
@@ -328,7 +328,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+                MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 OutBatchEvaluate<
                     StepSId,
@@ -357,7 +357,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 FidOutEvaluator,
                 Calls,
-                Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+                MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
                 _,
                 OutBatchEvaluate<
                     StepSId,
@@ -385,7 +385,7 @@ fn main() {
             Sp<Mixed, NoDomain>,
             FidOutEvaluator,
             Calls,
-            Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+            MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
             _,
             OutBatchEvaluate<
                 StepSId,

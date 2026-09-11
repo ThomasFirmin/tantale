@@ -6,8 +6,8 @@ use crate::solution::id::StepId;
 use crate::{
     Accumulator, Codomain, HasX, OptInfo, Searchspace, SolInfo,
     domain::onto::LinkOpt,
-    experiment::{Evaluate, MonoEvaluate, ThrEvaluate},
-    objective::{FidOutcome, Step, Stepped, outcome::FuncState},
+    experiment::{Evaluator, MonoEvaluate, ThrEvaluate},
+    objective::{FidOutcome, Step, MultiStep, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{Batch, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluator
     for FidBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: StepId,
@@ -105,7 +105,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
@@ -118,7 +118,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -144,7 +144,7 @@ where
     ///  - An [`OutBatch`] of outcomes containing the raw [`Outcome`](crate::Outcome).
     fn evaluate(
         &mut self,
-        ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        ob: &MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
@@ -280,7 +280,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluate
+impl<SolId, SInfo, Info, Shape, FnState, FnStPool> Evaluator
     for FidThrBatchEvaluator<SolId, SInfo, Info, Shape, FnState, FnStPool>
 where
     SolId: StepId,
@@ -300,7 +300,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape, FnState, FnStPool>
 where
@@ -313,7 +313,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -353,7 +353,7 @@ where
     ///   solutions that will be [`Step::Partially`] evaluated.
     fn evaluate(
         &mut self,
-        ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
+        ob: Arc<MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
@@ -496,7 +496,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, SInfo, Info, Shape> Evaluate for FidDistBatchEvaluator<SolId, SInfo, Info, Shape>
+impl<SolId, SInfo, Info, Shape> Evaluator for FidDistBatchEvaluator<SolId, SInfo, Info, Shape>
 where
     SolId: StepId,
     SInfo: SolInfo,
@@ -539,7 +539,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -593,7 +593,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for FidDistBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
@@ -607,7 +607,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -652,7 +652,7 @@ where
             Op::SInfo,
             Out,
         >,
-        _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        _ob: &MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,

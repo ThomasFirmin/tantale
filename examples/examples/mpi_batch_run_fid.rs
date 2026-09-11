@@ -1,6 +1,6 @@
 use tantale::algos::BatchRandomSearch;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, Stepped,
+    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, MultiStep,
     experiment::{self, distributed, mpi::utils::MPIProcess},
     load,
     stop::Calls,
@@ -265,7 +265,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
 
-    let obj = Stepped::new(func);
+    let obj = MultiStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -299,7 +299,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
 
-    let obj = Stepped::new(func);
+    let obj = MultiStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_batch_run_fid").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

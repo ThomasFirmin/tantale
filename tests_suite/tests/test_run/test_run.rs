@@ -1,6 +1,6 @@
 use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
+    CSVRecorder, FolderConfig, MessagePack, OneStep, SaverConfig,
     experiment::{MonoExperiment, Runable, ThrExperiment, mono, threaded},
     load,
     stop::Calls,
@@ -30,7 +30,7 @@ fn test_batch_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -49,7 +49,7 @@ fn test_batch_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_batchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -72,7 +72,7 @@ fn test_batch_parrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let opt = BatchRandomSearch::new(7);
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -85,7 +85,7 @@ fn test_batch_parrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -105,7 +105,7 @@ fn test_batch_parrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_parbatchrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -129,7 +129,7 @@ fn test_seqrun() {
     let func = sp_evaluator::example;
     let opt = RandomSearch::new();
 
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Calls::new(50);
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -142,7 +142,7 @@ fn test_seqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -158,7 +158,7 @@ fn test_seqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -187,7 +187,7 @@ fn test_thrseqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -204,7 +204,7 @@ fn test_thrseqrun() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

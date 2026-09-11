@@ -20,7 +20,7 @@
 //! assert_ne!(a, b);
 //! ```
 
-use crate::{SOL_ID, recorder::csv::CSVWritable};
+use crate::SOL_ID;
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -54,6 +54,7 @@ where
         + Copy
         + Debug
         + ToString
+        + HasHeader
         + Serialize
         + for<'a> Deserialize<'a>
         + Hash,
@@ -112,19 +113,28 @@ impl Id for DistSId {
             id,
         }
     }
+
 }
+
 #[cfg(feature = "mpi")]
-impl CSVWritable<(), ()> for DistSId {
-    /// CSV header for distributed identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id"), String::from("rank")])
+impl HasHeader for DistSId{
+    fn header() -> Vec<String> {
+        vec!["rank".to_string(), "id".to_string()]
+    }
+}
+
+#[cfg(feature = "mpi")]
+impl Tabular<()> for DistSId {
+    type Parts = ();
+    fn column_names(&self, part: Self::Parts) -> Vec<String> {
+        Self::header()
     }
 
-    /// CSV row for distributed identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id), format!("{}", self.rank)])
+    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+        vec![self.rank.to_string(), self.id.to_string()]
     }
 }
+
 #[cfg(feature = "mpi")]
 impl PartialEq for DistSId {
     fn eq(&self, other: &Self) -> bool {
@@ -164,23 +174,30 @@ impl Id for ParSId {
         ParSId { pid, id }
     }
 }
+
+impl HasHeader for ParSId {
+    fn header() -> Vec<String> {
+        vec!["pid".to_string(), "id".to_string()]
+    }
+}
+
+impl Tabular<()> for ParSId {
+    type Parts = ();
+    fn column_names(&self, part: Self::Parts) -> Vec<String> {
+        Self::header()
+    }
+
+    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+        vec![self.pid.to_string(), self.id.to_string()]
+    }
+}
 impl ParSId {
     /// Create a new process-local identifier from an explicit process id and counter.
     pub fn new(pid: u32, id: usize) -> ParSId {
         ParSId { pid: pid.as_(), id }
     }
 }
-impl CSVWritable<(), ()> for ParSId {
-    /// CSV header for process-local identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("pid"), String::from("id")])
-    }
 
-    /// CSV row for process-local identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.pid), format!("{}", self.id)])
-    }
-}
 impl PartialEq for ParSId {
     fn eq(&self, other: &Self) -> bool {
         self.pid == other.pid && self.id == other.id
@@ -226,23 +243,30 @@ impl Id for SId {
         SId { id }
     }
 }
+
+impl HasHeader for SId{
+    fn header() -> Vec<String> {
+        vec!["id".to_string()]
+    }
+}
 impl SId {
     /// Create a new sequential identifier from an explicit counter.
     pub fn new(id: usize) -> SId {
         SId { id }
     }
 }
-impl CSVWritable<(), ()> for SId {
-    /// CSV header for sequential identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id")])
+
+impl Tabular<()> for SId {
+    type Parts = ();
+    fn column_names(&self, part: Self::Parts) -> Vec<String> {
+        Self::header()
     }
 
-    /// CSV row for sequential identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id)])
+    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+        vec![self.id.to_string()]
     }
 }
+
 impl PartialEq for SId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -288,6 +312,24 @@ impl Id for StepSId {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         StepSId { id, id_step: 0 }
     }
+
+}
+
+impl HasHeader for StepSId {
+    fn header() -> Vec<String> {
+        vec!["id".to_string(), "id_step".to_string()]
+    }
+}
+
+impl Tabular<()> for StepSId {
+    type Parts = ();
+    fn column_names(&self, part: Self::Parts) -> Vec<String> {
+        Self::header()
+    }
+
+    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+        vec![self.id.to_string(), self.id_step.to_string()]
+    }
 }
 
 impl StepId for StepSId {
@@ -313,17 +355,7 @@ impl StepSId {
         StepSId { id, id_step: 0 }
     }
 }
-impl CSVWritable<(), ()> for StepSId {
-    /// CSV header for sequential identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id"), String::from("id_step")])
-    }
 
-    /// CSV row for sequential identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id), format!("{}", self.id_step)])
-    }
-}
 impl PartialEq for StepSId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id

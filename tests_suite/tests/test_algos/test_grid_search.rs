@@ -2,7 +2,7 @@ use tantale::algos::GridSearch;
 use tantale::{
     algos::grid_search::GSState,
     core::{
-        CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
+        CSVRecorder, FolderConfig, MessagePack, OneStep, SaverConfig,
         experiment::{Runable, ThrExperiment, mono, threaded},
         load,
         stop::Evaluated,
@@ -81,7 +81,7 @@ fn test_thrseqrun() {
 
     let sp = sp_grid_evaluator::get_searchspace();
     let func = sp_grid_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_gs_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -100,7 +100,7 @@ fn test_thrseqrun() {
 
     let sp = sp_grid_evaluator::get_searchspace();
     let func = sp_grid_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_gs_thr_seq_run").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

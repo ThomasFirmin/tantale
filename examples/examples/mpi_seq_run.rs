@@ -1,6 +1,6 @@
 use tantale::algos::RandomSearch;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, Objective,
+    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, OneStep,
     experiment::{self, distributed, mpi::utils::MPIProcess},
     load,
     stop::Calls,
@@ -147,7 +147,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
 
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -181,7 +181,7 @@ fn main() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
 
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mpi_seqrun").init(&proc);
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

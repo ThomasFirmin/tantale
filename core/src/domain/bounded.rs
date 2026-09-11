@@ -28,18 +28,9 @@
 //! ```
 
 use crate::{
-    GridDomDistribution,
-    domain::{
-        Domain, NumericalDomain, PreDomain, TypeDom,
-        bool::Bool,
-        grid::{GridBounds, GridDom},
-        mixed::{Mixed, MixedTypeDom},
-        onto::{Onto, OntoDom},
-        unit::Unit,
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
-    distribution::{BoundedDistribution, Distribution},
+    GridDomDistribution, distribution::{BoundedDistribution, Distribution}, domain::{
+        Domain, Elem, Element, NumericalDomain, PreDomain, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
+    }, errors::OntoError,
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};
@@ -55,14 +46,15 @@ use std::{
 
 pub trait RangeDomain: Domain
 where
-    Self::TypeDom: BoundedBounds,
+    Self::Element: BoundedBounds,
 {
-    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom>;
+    fn get_bounds(&self) -> RangeInclusive<Self::Element>;
 }
 
 /// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
 pub trait BoundedBounds:
-    Num
+    Element
+    + Num
     + NumCast
     + PartialEq
     + PartialOrd
@@ -78,7 +70,8 @@ pub trait BoundedBounds:
 {
 }
 impl<T> BoundedBounds for T where
-    T: Num
+    T: Element 
+        + Num
         + NumCast
         + PartialEq
         + PartialOrd
@@ -181,10 +174,10 @@ impl<T: BoundedBounds> PartialEq for Bounded<T> {
 
 impl<T: BoundedBounds> PreDomain for Bounded<T> {}
 impl<T: BoundedBounds> Domain for Bounded<T> {
-    type TypeDom = T;
+    type Element = T;
 
     /// Sample a `T` using the inner [`BoundedDistribution`] of [`Bounded`].
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element {
         self.sampler.sample(self, rng)
     }
 
@@ -195,17 +188,17 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
 }
 
 impl<T: BoundedBounds> NumericalDomain for Bounded<T> {
-    fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom) {
+    fn get_bounds(&self) -> (Self::Element, Self::Element) {
         (*self.bounds.start(), *self.bounds.end())
     }
 
-    fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom) {
+    fn get_ref_bounds(&self) -> (&Self::Element, &Self::Element) {
         (self.bounds.start(), self.bounds.end())
     }
 }
 
 impl<T: BoundedBounds> RangeDomain for Bounded<T> {
-    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
+    fn get_bounds(&self) -> RangeInclusive<Self::Element> {
         self.bounds.clone()
     }
 }
@@ -241,8 +234,8 @@ where
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Bounded<Out>>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Bounded<Out>>;
     /// [`Onto`] function between a [`Bounded`] and another [`Bounded`] [`Domain`].
     ///
     /// # Parameters
@@ -327,8 +320,8 @@ where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Bool>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Bool>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bool`][`Domain`].
     ///
     /// Considering $l_{in}$ and $u_{in}$ the lower and upper bounds of
@@ -363,8 +356,8 @@ impl<In> Onto<Unit> for Bounded<In>
 where
     In: BoundedBounds,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Unit>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Unit>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Unit`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -413,8 +406,8 @@ where
     Out: GridBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<GridDom<Out>>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<GridDom<Out>>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bounded`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -472,8 +465,8 @@ where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Mixed>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Mixed>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Mixed`][`Domain`].
     ///
     /// # Parameters
@@ -607,18 +600,5 @@ impl From<Mixed> for Int {
             Mixed::Int(d) => d,
             _ => panic!("Cannot convert Mixed to Int, expected Mixed::Int variant."),
         }
-    }
-}
-
-impl<T> CSVWritable<(), <Bounded<T> as Domain>::TypeDom> for Bounded<T>
-where
-    T: BoundedBounds,
-{
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &<Bounded<T> as Domain>::TypeDom) -> Vec<String> {
-        Vec::from([comp.to_string()])
     }
 }

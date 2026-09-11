@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::{FuncState, objective::Step, recorder::CSVWritable};
+use tantale::core::{FuncState, objective::Step, recorder::Tabular};
 use tantale::macros::{CSVWritable, Outcome};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -15,8 +15,8 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
-impl CSVWritable<(), ()> for OutExample {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for OutExample {
+    fn column_names(_elem: &()) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -31,7 +31,7 @@ impl CSVWritable<(), ()> for OutExample {
         ])
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -61,8 +61,8 @@ pub struct OutUnique {
     pub vec: Vec<f64>,
 }
 
-impl CSVWritable<(), ()> for OutUnique {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for OutUnique {
+    fn column_names(_elem: &()) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -77,7 +77,7 @@ impl CSVWritable<(), ()> for OutUnique {
         ])
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -109,8 +109,8 @@ pub struct FidOutExample {
     pub fid: Step,
 }
 
-impl CSVWritable<(), ()> for FidOutExample {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for FidOutExample {
+    fn column_names(_elem: &()) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -126,7 +126,7 @@ impl CSVWritable<(), ()> for FidOutExample {
         ])
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -159,8 +159,8 @@ pub struct FidOutUnique {
     pub fid: Step,
 }
 
-impl CSVWritable<(), ()> for FidOutUnique {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for FidOutUnique {
+    fn column_names(_elem: &()) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -176,7 +176,7 @@ impl CSVWritable<(), ()> for FidOutUnique {
         ])
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),

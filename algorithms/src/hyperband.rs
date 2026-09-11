@@ -86,7 +86,7 @@ use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tantale_core::optimizer::opt::BudgetPruner;
 use tantale_core::solution::IntoComputedShape;
-use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
+use tantale_core::{Batch, BatchOptimizer, Tabular, OptInfo, SolInfo};
 use tantale_core::{
     FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, State, Optimizer,
     Searchspace, SingleOptimizer, StepSId,
@@ -194,17 +194,17 @@ pub struct HyperbandInfo<Info: OptInfo> {
 }
 impl<Info: OptInfo> OptInfo for HyperbandInfo<Info> {}
 
-impl<Info: OptInfo + CSVWritable<(), ()>> CSVWritable<(), ()> for HyperbandInfo<Info> {
+impl<Info: OptInfo + Tabular<(), ()>> Tabular<(), ()> for HyperbandInfo<Info> {
     /// The header consists of the "bracket" column followed by the inner information columns.
-    fn header(_elem: &()) -> Vec<String> {
+    fn column_names(_elem: &()) -> Vec<String> {
         let head = Vec::from([String::from("bracket")]);
-        let inner_head = Info::header(&());
+        let inner_head = Info::column_names(&());
         [head, inner_head].concat()
     }
     /// The "bracket" column contains the current bracket index, followed by the inner information values.
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         let head = Vec::from([self.bracket.to_string()]);
-        let inner_head = self.inner_info.write(&());
+        let inner_head = self.inner_info.column_values(&());
         [head, inner_head].concat()
     }
 }

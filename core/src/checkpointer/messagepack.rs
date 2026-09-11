@@ -4,7 +4,7 @@ use crate::{
     checkpointer::{
         CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
     },
-    experiment::Evaluate,
+    experiment::Evaluator,
     stop::Stop,
 };
 
@@ -276,7 +276,7 @@ impl MonoCheckpointer for MessagePack {
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn save_state<OState: State, St: Stop, Eval: Evaluate>(
+    fn save_state<OState: State, St: Stop, Eval: Evaluator>(
         &self,
         state: &OState,
         stop: &St,
@@ -301,7 +301,7 @@ impl MonoCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load<OState: State, St: Stop, Eval: Evaluate>(
+    fn load<OState: State, St: Stop, Eval: Evaluator>(
         &self,
     ) -> Result<(OState, St, Eval), CheckpointError> {
         let global: GlobalParameters = self.load_parameters()?;
@@ -360,7 +360,7 @@ impl MonoCheckpointer for MessagePack {
         }
     }
     /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
-    fn load_evaluate<Eval: Evaluate>(&self) -> Result<Eval, CheckpointError> {
+    fn load_evaluate<Eval: Evaluator>(&self) -> Result<Eval, CheckpointError> {
         // Check if file exist
         if self.config.path_check.try_exists().unwrap() {
             if self.path_eval.is_file() {
@@ -567,7 +567,7 @@ impl ThrCheckpointer for MessagePack {
     /// The [`OptState`] and [`Stop`] checkpoints are shared among threads.
     /// In synchronous experiments (with [`BatchOptimizer`](crate::BatchOptimizer)), only one thread
     /// saves a single [`Evaluate`], [`OptState`] and [`Stop`] checkpoint, once a [`Batch`](crate::Batch) have been evaluated.
-    fn save_state_thr<OState: State, St: Stop, Eval: Evaluate>(
+    fn save_state_thr<OState: State, St: Stop, Eval: Evaluator>(
         &self,
         state: &OState,
         stop: &St,
@@ -597,7 +597,7 @@ impl ThrCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load_thr<OState: State, St: Stop, Eval: Evaluate>(
+    fn load_thr<OState: State, St: Stop, Eval: Evaluator>(
         &self,
     ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
         let global: GlobalParameters = self.load_parameters()?;
@@ -694,7 +694,7 @@ impl ThrCheckpointer for MessagePack {
         }
     }
 
-    fn load_all_evaluate_thr<Eval: Evaluate>(&self) -> Result<Vec<Eval>, CheckpointError> {
+    fn load_all_evaluate_thr<Eval: Evaluator>(&self) -> Result<Vec<Eval>, CheckpointError> {
         let mut vec_eval = Vec::new();
         if self
             .config
@@ -909,7 +909,7 @@ impl DistCheckpointer for MessagePack {
 
     /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn save_state_dist<OState: State, St: Stop, Eval: Evaluate>(
+    fn save_state_dist<OState: State, St: Stop, Eval: Evaluator>(
         &self,
         state: &OState,
         stop: &St,
@@ -935,7 +935,7 @@ impl DistCheckpointer for MessagePack {
 
     /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
     /// according to a [`FolderConfig`].
-    fn load_dist<OState: State, St: Stop, Eval: Evaluate>(
+    fn load_dist<OState: State, St: Stop, Eval: Evaluator>(
         &self,
         rank: Rank,
     ) -> Result<(OState, St, Eval), CheckpointError> {
@@ -1009,7 +1009,7 @@ impl DistCheckpointer for MessagePack {
     }
 
     /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
-    fn load_evaluate_dist<Eval: Evaluate>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {
+    fn load_evaluate_dist<Eval: Evaluator>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {
         // Check if file exist
         if self
             .config

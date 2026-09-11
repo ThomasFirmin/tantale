@@ -1,8 +1,8 @@
 use crate::{
     Accumulator, HasId, HasInfo, HasX, Id, OptInfo, Outcome, Searchspace, SolInfo,
     domain::{Codomain, codomain::TypeAcc, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
-    objective::{Objective, Step},
+    experiment::{Evaluator, MonoEvaluate, OutBatchEvaluate, ThrEvaluate},
+    objective::{OneStep, Step},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::CompShape,
     solution::{Batch, IntoComputedShape, OutBatch, SolutionShape, Uncomputed, shape::RawObj},
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape> Evaluate for BatchEvaluator<SolId, SInfo, Info, Shape>
+impl<SolId, SInfo, Info, Shape> Evaluator for BatchEvaluator<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -71,7 +71,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
@@ -84,7 +84,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     St: Stop,
@@ -103,7 +103,7 @@ where
     /// if the `stop` condition is met before finishing.
     fn evaluate(
         &mut self,
-        ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        ob: &OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
@@ -141,7 +141,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for BatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
@@ -155,7 +155,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     St: Stop,
@@ -188,7 +188,7 @@ where
             Op::SInfo,
             Out,
         >,
-        _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        _ob: &OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
@@ -271,7 +271,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape> Evaluate for ThrBatchEvaluator<SolId, SInfo, Info, Shape>
+impl<SolId, SInfo, Info, Shape> Evaluator for ThrBatchEvaluator<SolId, SInfo, Info, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -288,7 +288,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         OutBatchEvaluate<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
     > for ThrBatchEvaluator<SolId, Op::SInfo, Op::Info, Scp::SolShape>
 where
@@ -301,7 +301,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Out::Cod: Send + Sync,
     Op::SInfo: Send + Sync,
@@ -329,7 +329,7 @@ where
     ///   leading to overflowing the expected number of evaluations.
     fn evaluate(
         &mut self,
-        ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
+        ob: Arc<OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<

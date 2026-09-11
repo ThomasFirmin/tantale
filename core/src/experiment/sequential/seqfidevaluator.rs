@@ -1,8 +1,8 @@
 use crate::{
     Accumulator, Codomain, FidOutcome, HasFidelity, HasId, HasStep, HasStepId, HasX, Searchspace,
-    SolInfo, Stepped, Stop,
+    SolInfo, MultiStep, Stop,
     domain::{codomain::TypeAcc, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
+    experiment::{Evaluator, MonoEvaluate, OutShapeEvaluate, ThrEvaluate, basics::FuncStatePool},
     objective::{Step, outcome::FuncState},
     optimizer::opt::{OpSInfType, SingleOptimizer},
     searchspace::CompShape,
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluate
+impl<SolId, SInfo, Shape, FnState, FnStPool> Evaluator
     for FidSeqEvaluator<SolId, SInfo, Shape, FnState, FnStPool>
 where
     SolId: StepId,
@@ -110,7 +110,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState, FnStPool>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidSeqEvaluator<SolId, Op::SInfo, Scp::SolShape, FnState, FnStPool>
 where
@@ -123,7 +123,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -147,7 +147,7 @@ where
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(
         &mut self,
-        ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        ob: &MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
@@ -251,7 +251,7 @@ where
     }
 }
 
-impl<Shape, SolId, SInfo, FnState> Evaluate for FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
+impl<Shape, SolId, SInfo, FnState> Evaluator for FidThrSeqEvaluator<Shape, SolId, SInfo, FnState>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
     SolId: StepId,
@@ -268,7 +268,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo, FnState>
 where
@@ -281,7 +281,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -304,7 +304,7 @@ where
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(
         &mut self,
-        ob: Arc<Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
+        ob: Arc<MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>>,
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
@@ -376,7 +376,7 @@ where
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<Shape, SolId, SInfo, FnState, FnStatePool> Evaluate
+impl<Shape, SolId, SInfo, FnState, FnStatePool> Evaluator
     for PoolFidThrSeqEvaluator<Shape, SolId, SInfo, FnState, FnStatePool>
 where
     Shape: SolutionShape<SolId, SInfo> + HasStep + HasFidelity,
@@ -545,7 +545,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, SInfo, Shape> Evaluate for FidDistSeqEvaluator<SolId, SInfo, Shape>
+impl<SolId, SInfo, Shape> Evaluator for FidDistSeqEvaluator<SolId, SInfo, Shape>
 where
     SolId: StepId,
     SInfo: SolInfo,
@@ -585,7 +585,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -639,7 +639,7 @@ impl<PSol, SolId, Op, Scp, Out, St, FnState>
         Scp,
         Out,
         St,
-        Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         FXMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
         Option<DistOutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for FidDistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
@@ -653,7 +653,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
                 Out,
                 FnState,
@@ -691,7 +691,7 @@ where
             Op::SInfo,
             Out,
         >,
-        _ob: &Stepped<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
+        _ob: &MultiStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out, FnState>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,

@@ -18,7 +18,7 @@ pub use xy::{XToNdArray, Xy, YToNdArray};
 
 pub mod has_trait;
 pub use has_trait::{
-    HasFidelity, HasId, HasInfo, HasSolInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
+    HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
     HasY,
 };
 
@@ -33,3 +33,10 @@ where
     Self: Serialize + for<'de> Deserialize<'de>,
 {
 }
+
+pub mod wrapped_info;
+pub use wrapped_info::WrappedInfo;
+
+pub mod aliases;
+
+pub mod record;

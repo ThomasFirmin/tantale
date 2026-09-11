@@ -149,13 +149,13 @@ where
 {
 }
 
-impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for XMessage<SolId, PSol::Raw>
+impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for XMessage<SolId, PSol::X>
 where
     SolId: Id,
     Dom: Domain,
     PSol: Solution<SolId, Dom, SInfo>,
     SInfo: SolInfo,
-    PSol::Raw: Serialize + for<'a> Deserialize<'a>,
+    PSol::X: Serialize + for<'a> Deserialize<'a>,
 {
     /// Create a new [`XMessage`] from a given [`Solution`].
     fn new(sol: &PSol) -> Self {
@@ -182,12 +182,12 @@ where
 {
 }
 
-impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, PSol::Raw>
+impl<PSol, SolId, Dom, SInfo> XMsg<PSol, SolId, Dom, SInfo> for FXMessage<SolId, PSol::X>
 where
     SolId: Id,
     Dom: Domain,
     PSol: Solution<SolId, Dom, SInfo> + HasStep + HasFidelity,
-    PSol::Raw: Serialize + for<'a> Deserialize<'a>,
+    PSol::X: Serialize + for<'a> Deserialize<'a>,
     SInfo: SolInfo,
 {
     /// Create a new [`FXMessage`] from a given [`Solution`].

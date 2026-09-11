@@ -1,6 +1,6 @@
 use tantale_core::{
-    BaseSol, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective,
-    Sampler, SingleSampler, Sp, StepSId, Stepped, Uncomputed,
+    BaseSol, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, OneStep,
+    Sampler, SingleSampler, Sp, StepSId, MultiStep, Uncomputed,
     domain::onto::LinkOpt,
     objective::{
         Step,
@@ -140,7 +140,7 @@ impl<Out>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Objective<
+        OneStep<
             RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
             Out,
         >,
@@ -190,7 +190,7 @@ impl<Out, FnState>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Stepped<
+        MultiStep<
             RawObj<
                 Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
                 StepSId,
@@ -275,7 +275,7 @@ impl<Out>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Objective<
+        OneStep<
             RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
             Out,
         >,
@@ -332,7 +332,7 @@ impl<Out, FnState>
         Grid,
         Out,
         Sp<Grid, NoDomain>,
-        Stepped<
+        MultiStep<
             RawObj<
                 Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
                 StepSId,

@@ -1,8 +1,8 @@
 use tantale::algos::{BatchRandomSearch, RSInfo};
 use tantale::core::experiment::mpi::utils::stop_order;
 use tantale::core::{
-    BaseSol, Codomain, HasId, Mixed, MixedTypeDom, Objective, SId, Sp,
-    domain::{NoDomain, TypeDom},
+    BaseSol, Codomain, HasId, Mixed, MixedTypeDom, OneStep, SId, Sp,
+    domain::{NoDomain, Elem},
     experiment::{
         DistEvaluate, OutBatchEvaluate,
         mpi::{
@@ -96,7 +96,7 @@ fn main() {
 
     if proc.rank != 0 {
         let wkr = BaseWorker::new(sp_evaluator::get_function(), &proc);
-        <BaseWorker<'_, Arc<[TypeDom<sp_evaluator::ObjType>]>, OutEvaluator> as Worker<SId>>::run(
+        <BaseWorker<'_, Arc<[Elem<sp_evaluator::ObjType>]>, OutEvaluator> as Worker<SId>>::run(
             wkr,
         );
     } else {
@@ -106,7 +106,7 @@ fn main() {
         let sp = sp_evaluator::get_searchspace();
         let func = sp_evaluator::example;
         let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-        let obj = Arc::new(Objective::new(func));
+        let obj = Arc::new(OneStep::new(func));
         let info = std::sync::Arc::new(RSInfo { iteration: 0 });
         let sinfo = std::sync::Arc::new(EmptyInfo {});
         let mut stop = Calls::new(50);
@@ -143,7 +143,7 @@ fn main() {
                 Sp<Mixed, NoDomain>,
                 OutEvaluator,
                 Calls,
-                Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+                OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
                 _,
                 OutBatchEvaluate<
                     SId,

@@ -87,12 +87,10 @@
 //! which handle complex scenarios like [`Mixed`](crate::domain::Mixed) domains.
 
 use crate::{
-    domain::{
+    aliases::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt}, domain::{
         Domain, NoDomain, PreDomain,
-        onto::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt, Linked, OntoDom},
-    },
-    errors::OntoError,
-    recorder::csv::{CSVLeftRight, CSVWritable},
+        onto::{Linked, OntoDom},
+    }, errors::OntoError,
 };
 
 use rand::prelude::Rng;
@@ -128,6 +126,12 @@ where
     pub name: (&'static str, Option<usize>), // NAME + SUFFIX
     pub domain_obj: Arc<Obj>,
     pub domain_opt: Arc<Opt>,
+}
+
+/// A helper struct to associate a variable name with its [`Domain`].
+pub struct DomainName<'a, Dom:Domain> {
+    pub name : &'a(&'static str, Option<usize>),
+    pub domain : Arc<Dom>,
 }
 
 /// Implementation of [`Linked`] for variables with two distinct domains.
@@ -632,73 +636,5 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
             vec.push(var);
         }
         vec
-    }
-}
-
-/// Implementation of [`CSVLeftRight`] for [`Var`] with distinct domains.
-///
-/// Enables CSV serialization of variables with separate objective and optimizer domains,
-/// supporting recording and checkpointing workflows in Tantale.
-impl<Obj, Opt> CSVLeftRight<Self, LinkTyObj<Self>, LinkTyOpt<Self>> for Var<Obj, Opt>
-where
-    Obj: OntoDom<Opt> + CSVWritable<(), LinkTyObj<Self>>,
-    Opt: OntoDom<Obj> + CSVWritable<(), LinkTyOpt<Self>>,
-{
-    fn header(elem: &Self) -> Vec<String> {
-        let (name, id) = elem.name;
-        let name_str = match id {
-            Some(i) => format!("{}{}", name, i),
-            None => String::from(name),
-        };
-        let dom_spec = Obj::header(&());
-        if dom_spec.is_empty() {
-            vec![name_str]
-        } else {
-            dom_spec
-                .iter()
-                .map(|head| format!("{}{}", name_str, head))
-                .collect()
-        }
-    }
-
-    fn write_left(&self, comp: &Obj::TypeDom) -> Vec<String> {
-        self.domain_obj.write(comp)
-    }
-
-    fn write_right(&self, comp: &Opt::TypeDom) -> Vec<String> {
-        self.domain_opt.write(comp)
-    }
-}
-
-/// Implementation of [`CSVLeftRight`] for [`Var`] with a single domain ([`NoDomain`]).
-///
-/// Enables CSV serialization of variables where objective and optimizer share the same domain.
-impl<Obj> CSVLeftRight<Self, LinkTyObj<Self>, LinkTyOpt<Self>> for Var<Obj, NoDomain>
-where
-    Obj: Domain + CSVWritable<(), LinkTyObj<Self>>,
-{
-    fn header(elem: &Self) -> Vec<String> {
-        let (name, id) = elem.name;
-        let name_str = match id {
-            Some(i) => format!("{}{}", name, i),
-            None => String::from(name),
-        };
-        let dom_spec = Obj::header(&());
-        if dom_spec.is_empty() {
-            vec![name_str]
-        } else {
-            dom_spec
-                .iter()
-                .map(|head| format!("{}{}", name_str, head))
-                .collect()
-        }
-    }
-
-    fn write_left(&self, comp: &LinkTyObj<Self>) -> Vec<String> {
-        self.domain_obj.write(comp)
-    }
-
-    fn write_right(&self, comp: &LinkTyOpt<Self>) -> Vec<String> {
-        self.domain_obj.write(comp)
     }
 }

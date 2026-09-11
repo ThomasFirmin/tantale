@@ -80,8 +80,7 @@
 //!
 
 use crate::{
-    HasId, HasSolInfo, HasX, HasY, Outcome,
-    domain::{Domain, codomain::TypeCodom},
+    HasId, HasInfo, HasX, HasY, Outcome, Tabular, aliases::TypeCodom, domain::Domain, utils::has_trait::HasHeader,
 };
 
 use serde::{Deserialize, Serialize};
@@ -97,7 +96,7 @@ use std::{fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
+pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> + HasHeader + Tabular<()>{}
 
 /// Core trait representing a candidate solution in the optimization process.
 ///
@@ -126,39 +125,10 @@ pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> {}
 /// - [`BaseSol`] - Standard solution implementation
 /// - [`FidelitySol`] - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
-pub trait Solution<SolId, Dom, SInfo>
-where
-    Self: Sized
-        + Debug
-        + HasX<Self::Raw>
-        + HasId<SolId>
-        + HasSolInfo<SInfo>
-        + Serialize
-        + for<'de> Deserialize<'de>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Dom: Domain,
+pub trait Solution: Debug + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
 {
-    /// The native type representing variable values in this domain.
-    ///
-    /// This type is determined by the [TypeDom](Domain::TypeDom) from the solution's [`Domain`].
-    type Raw: Clone + Debug + Serialize + for<'de> Deserialize<'de>;
-
-    /// Twin solutions share the same [`Id`] but exist in different domains,
-    /// enabling transformations between Obj and Opt representations.
-    type Twin<B: Domain>: Solution<SolId, B, SInfo, Twin<Dom> = Self>;
-
-    /// Creates a twin solution in a different domain with the same [`Id`].
-    ///
-    /// This method constructs a solution in domain `B` that shares the same identifier
-    /// as `self`, establishing a twin relationship. This is used internally by
-    /// [`Searchspace`](crate::Searchspace) when mapping between Obj and Opt domains.
-    ///
-    /// Twins are usually wrapped within a [`SolutionShape`] to facilitate access and manipulation of both representation.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::Twin<B> as Solution<SolId, B, SInfo>>::Raw,
-    ) -> Self::Twin<B>;
+    /// The [domain](Domain) defining the variable types and constraints for this solution.
+    type Dom: Domain;
 
     /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
     /// for [`Accumulator`](crate::domain::codomain::Accumulator).
@@ -192,37 +162,8 @@ where
 /// - [`new`](Uncomputed::new) - From explicit values
 /// - [`default`](Uncomputed::default) - Placeholder with zero/default values
 /// - [`default_vec`](Uncomputed::default_vec) - Batch of placeholders
-pub trait Uncomputed<SolId, Dom, SInfo>
-where
-    Self: Solution<SolId, Dom, SInfo> + IntoComputed,
-    SolId: Id,
-    Dom: Domain,
-    SInfo: SolInfo,
+pub trait Uncomputed: Solution
 {
-    /// The uncomputed twin type in an alternative domain.
-    ///
-    /// Unlike [`Twin`](Solution::Twin), this always produces an [`Uncomputed`] solution,
-    /// preserving the uncomputed status across domain transformations.
-    type TwinUC<B: Domain>: Uncomputed<SolId, B, SInfo, Twin<Dom> = Self, TwinUC<Dom> = Self>;
-
-    /// Creates an uncomputed twin solution in a different domain.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The target domain
-    ///
-    /// # Parameters
-    ///
-    /// * `x` - Variable values in the target domain
-    ///
-    /// # Returns
-    ///
-    /// An uncomputed solution in domain `B` with the same [`Id`] as `self`.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::TwinUC<B> as Solution<SolId, B, SInfo>>::Raw,
-    ) -> Self::TwinUC<B>;
-
     /// Creates a new uncomputed solution with specified values.
     ///
     /// # Parameters
@@ -234,9 +175,9 @@ where
     /// # Returns
     ///
     /// A new uncomputed solution.
-    fn new<T>(id: SolId, x: T, info: Arc<SInfo>) -> Self
+    fn new<T>(id: Self::Id, x: T, info: Arc<Self::Info>) -> Self
     where
-        T: Into<Self::Raw>;
+        T: Into<Self::X>;
 
     /// Creates a placeholder uncomputed solution with default/zero values.
     ///
@@ -250,7 +191,7 @@ where
     /// # Returns
     ///
     /// An uncomputed solution with default values.
-    fn default(info: Arc<SInfo>, size: usize) -> Self;
+    fn default(info: Arc<Self::Info>, size: usize) -> Self;
 
     /// Creates a vector of placeholder uncomputed solutions.
     ///
@@ -265,35 +206,7 @@ where
     /// # Returns
     ///
     /// A vector of `vsize` uncomputed solutions, each with `size` default values.
-    fn default_vec(info: Arc<SInfo>, size: usize, vsize: usize) -> Vec<Self>;
-}
-
-/// Trait for converting uncomputed solutions to computed solutions with objective values.
-///
-/// [`IntoComputed`] enables the transformation from unevaluated solutions to evaluated ones
-/// by associating an objective function output ([`TypeCodom`](crate::Codomain::TypeCodom)). This trait
-/// also provides the reverse operation to extract the original solution and its value.
-///
-/// # Usage
-///
-/// ```text
-/// Uncomputed --[into_computed]--> Computed
-///                                     |
-///                                     v
-///                            (Uncomputed, Y) --[extract]
-/// ```
-///
-/// # Type-Level Design
-///
-/// The [`Computed`](IntoComputed::Computed) associated type is generic over the codomain,
-/// allowing a single uncomputed solution to be converted into computed forms with different
-/// outcome types (single-objective, multi-objective, constrained, etc.).
-pub trait IntoComputed: Sized {
-    /// The computed type wrapping `Self` with an objective value.
-    ///
-    /// This type must implement [`HasY`] to provide access to the objective function output.
-    type Computed<Out: Outcome>: HasY<Out> + Serialize + for<'a> Deserialize<'a> + Debug;
-
+    fn default_vec(info: Arc<Self::Info>, size: usize, vsize: usize) -> Vec<Self>;
     /// Converts this uncomputed solution into a computed one with an objective value.
     ///
     /// # Type Parameters
@@ -308,98 +221,8 @@ pub trait IntoComputed: Sized {
     /// # Returns
     ///
     /// A computed solution containing both `self` and `y`.
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out>;
-
-    /// Extracts the uncomputed solution and objective value from a computed solution.
-    ///
-    /// This is the inverse operation of [`into_computed`](IntoComputed::into_computed),
-    /// decomposing a computed solution back into its constituent parts.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `Cod` - The [`crate::Codomain`] of the objective value
-    /// * `Out` - The [`Outcome`] type
-    ///
-    /// # Parameters
-    ///
-    /// * `comp` - The computed solution to decompose
-    ///
-    /// # Returns
-    ///
-    /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>);
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out>;
 }
-
-pub trait IntoComputedShape<SolId, SInfo>: SolutionShape<SolId, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Self::SolObj: Uncomputed<SolId, Self::Obj, SInfo> + IntoComputed,
-    Self::SolOpt: Uncomputed<SolId, Self::Opt, SInfo> + IntoComputed,
-{
-    /// The computed type wrapping `Self` with an objective value.
-    ///
-    /// This type must implement [`HasY`] to provide access to the objective function output.
-    type Computed<Out: Outcome>: SolutionShape<
-            SolId,
-            SInfo,
-            Obj = Self::Obj,
-            Opt = Self::Opt,
-            SolObj = Computed<Self::SolObj, SolId, Self::Obj, Out, SInfo>,
-            SolOpt = Computed<Self::SolOpt, SolId, Self::Opt, Out, SInfo>,
-        > + HasY<Out>
-        + Serialize
-        + for<'a> Deserialize<'a>
-        + Debug;
-
-    /// Converts this uncomputed solution into a computed one with an objective value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `Cod` - The [`crate::Codomain`] defining the output structure
-    /// * `Out` - The outcome type from the objective function
-    ///
-    /// # Parameters
-    ///
-    /// * `y` - The objective function output to associate with this solution
-    ///
-    /// # Returns
-    ///
-    /// A computed solution containing both `self` and `y`.
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out>;
-
-    /// Extracts the uncomputed solution and objective value from a computed solution.
-    ///
-    /// This is the inverse operation of [`into_computed`](IntoComputed::into_computed),
-    /// decomposing a computed solution back into its constituent parts.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `Cod` - The [`crate::Codomain`] of the objective value
-    /// * `Out` - The [`Outcome`] type
-    ///
-    /// # Parameters
-    ///
-    /// * `comp` - The computed solution to decompose
-    ///
-    /// # Returns
-    ///
-    /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>);
-}
-
-/// Type alias for the twin solution type in an alternative domain.
-///
-/// [`SolTwin`] extracts the [`Twin`](Solution::Twin) associated type from a solution,
-/// providing a convenient way to refer to the solution type in domain `B` that is
-/// twin to a solution of type `S` in domain `A`.
-pub type SolTwin<S, SolId, A, B, SInfo> = <S as Solution<SolId, A, SInfo>>::Twin<B>;
-
-/// Type alias for the raw value type of a solution.
-///
-/// [`SolRaw`] extracts the [`Raw`](Solution::Raw) associated type from a solution,
-/// providing the native type used to represent variable values in the given domain.
-pub type SolRaw<S, SolId, Dom, Info> = <S as Solution<SolId, Dom, Info>>::Raw;
 
 pub mod id;
 pub use id::{Id, ParSId, SId, StepId, StepSId};
@@ -414,4 +237,4 @@ pub mod batchtype;
 pub use batchtype::{Batch, OutBatch};
 
 pub mod shape;
-pub use shape::{CompLone, Lone, Pair, SolutionShape};
+pub use shape::{Lone, Pair, SolutionShape};

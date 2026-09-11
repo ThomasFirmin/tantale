@@ -1,5 +1,5 @@
 use crate::{
-    BatchRecorder, Codomain, FidOutcome, HasFidelity, HasStep, HasStepId, SId, Stepped,
+    BatchRecorder, Codomain, FidOutcome, HasFidelity, HasStep, HasStepId, SId, MultiStep,
     ThrCheckpointer,
     checkpointer::{FuncStateCheckpointer, MonoCheckpointer},
     domain::{codomain::TypeAcc, onto::LinkOpt},
@@ -9,7 +9,7 @@ use crate::{
         ThrEvaluate, ThrExperiment,
         basics::{IdxMapPool, LoadPool, Pool},
     },
-    objective::{Objective, Outcome, outcome::FuncState},
+    objective::{OneStep, Outcome, outcome::FuncState},
     optimizer::opt::{BatchOptimizer, OpSInfType},
     searchspace::{CompShape, Searchspace},
     solution::{Uncomputed, id::StepSId, shape::RawObj},
@@ -46,7 +46,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
     for MonoExperiment<
         PSol,
@@ -57,7 +57,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         BatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
@@ -69,7 +69,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     St: Stop,
@@ -79,7 +79,7 @@ where
             Out,
             Scp,
             Op,
-            Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         >,
     Check: MonoCheckpointer,
     Out: Outcome,
@@ -88,7 +88,7 @@ where
     /// [`Objective`], [`BatchOptimizer`], [`Stop`] condition and optional [`BatchRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -131,7 +131,7 @@ where
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
     ) -> Self {
@@ -244,7 +244,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_objective(&self) -> &OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &self.objective
     }
 
@@ -272,7 +272,7 @@ where
         &mut self.codomain
     }
 
-    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_mut_objective(&mut self) -> &mut OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &mut self.objective
     }
 
@@ -306,7 +306,7 @@ where
         Out,
         Scp,
         Op,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         St,
         Rec,
         Check,
@@ -332,7 +332,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for MonoExperiment<
         PSol,
@@ -343,7 +343,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         FidBatchEvaluator<
             StepSId,
             Op::SInfo,
@@ -362,7 +362,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -377,7 +377,7 @@ where
             Out,
             Scp,
             Op,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -391,7 +391,7 @@ where
     /// [`Stepped`], [`BatchOptimizer`], [`Stop`] condition and optional [`BatchRecorder`] and [`MonoCheckpointer`].
     fn new_with_pool(
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -435,7 +435,7 @@ where
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load_with_pool(
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
@@ -585,7 +585,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -615,7 +615,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    ) -> &mut MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -650,7 +650,7 @@ where
         Out,
         Scp,
         Op,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         St,
         Rec,
         Check,
@@ -680,7 +680,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
     for ThrExperiment<
         PSol,
@@ -691,7 +691,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         ThrBatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
@@ -703,7 +703,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Out::Cod: Send + Sync,
     Op::SInfo: Send + Sync,
@@ -718,7 +718,7 @@ where
             Out,
             Scp,
             Op,
-            Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         >,
     Check: ThrCheckpointer,
     TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out>: Send + Sync,
@@ -728,7 +728,7 @@ where
     /// It also uses an internal [`ThrBatchEvaluator`] to evaluate a batch of [`Uncomputed`] in parallel.
     fn new_with_pool(
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -771,7 +771,7 @@ where
     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
     fn load_with_pool(
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
     ) -> Self {
@@ -897,7 +897,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_objective(&self) -> &OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &self.objective
     }
 
@@ -925,7 +925,7 @@ where
         &mut self.codomain
     }
 
-    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_mut_objective(&mut self) -> &mut OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &mut self.objective
     }
 
@@ -959,7 +959,7 @@ where
         Out,
         Scp,
         Op,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         St,
         Rec,
         Check,
@@ -985,7 +985,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for ThrExperiment<
         PSol,
@@ -996,7 +996,7 @@ impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         FidThrBatchEvaluator<
             StepSId,
             Op::SInfo,
@@ -1015,7 +1015,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -1035,7 +1035,7 @@ where
             Out,
             Scp,
             Op,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -1052,7 +1052,7 @@ where
     /// in parallel.
     fn new_with_pool(
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -1096,7 +1096,7 @@ where
     /// All [`FuncState`]s saved in the checkpoint will be restored in the loaded experiment.
     fn load_with_pool(
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> Self {
@@ -1242,7 +1242,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -1272,7 +1272,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    ) -> &mut MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -1307,7 +1307,7 @@ where
         Out,
         Scp,
         Op,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         St,
         Rec,
         Check,
@@ -1339,7 +1339,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     >
     for MPIExperiment<
         'a,
@@ -1351,7 +1351,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out>
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         BatchEvaluator<SId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
@@ -1363,7 +1363,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
     St: Stop,
@@ -1373,7 +1373,7 @@ where
             Out,
             Scp,
             Op,
-            Objective<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
         >,
     Check: DistCheckpointer,
     Out: Outcome,
@@ -1392,7 +1392,7 @@ where
     fn new_with_pool(
         proc: &'a MPIProcess,
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -1408,7 +1408,7 @@ where
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     > {
         let searchspace = space;
         let codomain = Out::codomain();
@@ -1459,7 +1459,7 @@ where
     fn load_with_pool(
         proc: &'a MPIProcess,
         space: Scp,
-        objective: Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         saver: (Option<Rec>, Check),
         _pool_mode: PoolMode,
     ) -> MasterWorker<
@@ -1473,7 +1473,7 @@ where
         Rec,
         Check,
         Out,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
     > {
         let searchspace = space;
         let codomain = Out::codomain();
@@ -1617,7 +1617,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_objective(&self) -> &OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &self.objective
     }
 
@@ -1645,7 +1645,7 @@ where
         &mut self.codomain
     }
 
-    fn get_mut_objective(&mut self) -> &mut Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+    fn get_mut_objective(&mut self) -> &mut OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
         &mut self.objective
     }
 
@@ -1679,7 +1679,7 @@ where
         Out,
         Scp,
         Op,
-        Objective<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
         St,
         Rec,
         Check,
@@ -1707,7 +1707,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     >
     for MPIExperiment<
         'a,
@@ -1719,7 +1719,7 @@ impl<'a, PSol, Scp, Op, St, Rec, Check, Out, FnState>
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         FidDistBatchEvaluator<StepSId, Op::SInfo, Op::Info, Scp::SolShape>,
     >
 where
@@ -1731,7 +1731,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -1748,7 +1748,7 @@ where
             Out,
             Scp,
             Op,
-            Stepped<
+            MultiStep<
                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
                 Out,
                 FnState,
@@ -1782,7 +1782,7 @@ where
     fn new_with_pool(
         proc: &'a MPIProcess,
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         optimizer: Op,
         stop: St,
         saver: (Option<Rec>, Option<Check>),
@@ -1798,7 +1798,7 @@ where
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
         let (recorder, checkpointer) = saver;
         let searchspace = space;
@@ -1877,7 +1877,7 @@ where
     fn load_with_pool(
         proc: &'a MPIProcess,
         space: Scp,
-        objective: Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         saver: (Option<Rec>, Check),
         pool_mode: PoolMode,
     ) -> MasterWorker<
@@ -1891,7 +1891,7 @@ where
         Rec,
         Check,
         Out,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
     > {
         let searchspace = space;
         let codomain = Out::codomain();
@@ -2045,7 +2045,7 @@ where
         &self.codomain
     }
 
-    fn get_objective(&self) -> &Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    fn get_objective(&self) -> &MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &self.objective
     }
 
@@ -2075,7 +2075,7 @@ where
 
     fn get_mut_objective(
         &mut self,
-    ) -> &mut Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+    ) -> &mut MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
         &mut self.objective
     }
 
@@ -2110,7 +2110,7 @@ where
         Out,
         Scp,
         Op,
-        Stepped<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
         St,
         Rec,
         Check,

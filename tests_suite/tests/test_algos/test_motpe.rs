@@ -2,7 +2,7 @@ use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::bayesian::splitter::MOSplit;
 use tantale::algos::{Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
+    CSVRecorder, FolderConfig, MessagePack, OneStep, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Evaluated,
@@ -25,7 +25,7 @@ fn test_mo_tpe_seq_run() {
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_mo_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -38,7 +38,7 @@ fn test_mo_tpe_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let func = sp_evaluator_mo::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mo_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -61,7 +61,7 @@ fn test_mo_tpe_seq_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let func = sp_evaluator_mo::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mo_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -91,7 +91,7 @@ fn test_mo_tpe_seqthr_run() {
         UniformWeighter::default(),
         MOSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -104,7 +104,7 @@ fn test_mo_tpe_seqthr_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let func = sp_evaluator_mo::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -130,7 +130,7 @@ fn test_mo_tpe_seqthr_run() {
 
     let sp = sp_evaluator_mo::get_searchspace();
     let func = sp_evaluator_mo::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

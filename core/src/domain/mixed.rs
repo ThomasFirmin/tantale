@@ -1,15 +1,12 @@
 use crate::{
-    Cat, GridDom, GridInt, GridNat, GridReal,
-    domain::{
-        Domain, PreDomain, TypeDom,
+    Cat, GridDom, GridInt, GridNat, GridReal, domain::{
+        Domain, PreDomain, Elem,
         bool::Bool,
         bounded::{Int, Nat, Real},
         grid::GridBounds,
         onto::{Onto, OntoDom},
         unit::Unit,
-    },
-    errors::OntoError,
-    recorder::csv::CSVWritable,
+    }, errors::OntoError,
 };
 
 use rand::Rng;
@@ -69,15 +66,15 @@ impl Debug for Mixed {
 /// Basic [`TypeDom`](`Domain::TypeDom`) of [`Mixed`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MixedTypeDom {
-    Real(TypeDom<Real>),
-    Nat(TypeDom<Nat>),
-    Int(TypeDom<Int>),
-    Bool(TypeDom<Bool>),
-    Cat(TypeDom<Cat>),
-    Unit(TypeDom<Unit>),
-    GridReal(TypeDom<GridReal>),
-    GridNat(TypeDom<GridNat>),
-    GridInt(TypeDom<GridInt>),
+    Real(Elem<Real>),
+    Nat(Elem<Nat>),
+    Int(Elem<Int>),
+    Bool(Elem<Bool>),
+    Cat(Elem<Cat>),
+    Unit(Elem<Unit>),
+    GridReal(Elem<GridReal>),
+    GridNat(Elem<GridNat>),
+    GridInt(Elem<GridInt>),
 }
 impl Display for MixedTypeDom {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -97,15 +94,15 @@ impl Display for MixedTypeDom {
 
 impl Default for MixedTypeDom {
     fn default() -> Self {
-        MixedTypeDom::Real(TypeDom::<Real>::default())
+        MixedTypeDom::Real(Elem::<Real>::default())
     }
 }
 impl PreDomain for Mixed {}
 impl Domain for Mixed {
-    type TypeDom = MixedTypeDom;
+    type Element = MixedTypeDom;
 
     /// Samples a point from the [`Mixed`] domain, according to each sub-domain sampling method.
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element {
         match self {
             Self::Real(e) => MixedTypeDom::Real(e.sample(rng)),
             Self::Nat(e) => MixedTypeDom::Nat(e.sample(rng)),
@@ -120,7 +117,7 @@ impl Domain for Mixed {
     }
 
     /// Checks if a given point is in the [`Mixed`] domain, according to each sub-domain `contains` method.
-    fn contains(&self, item: &Self::TypeDom) -> bool {
+    fn contains(&self, item: &Self::Element) -> bool {
         match (self, item) {
             (Self::Real(e), MixedTypeDom::Real(i)) => e.contains(i),
             (Self::Nat(e), MixedTypeDom::Nat(i)) => e.contains(i),
@@ -137,8 +134,8 @@ impl Domain for Mixed {
 }
 
 impl Onto<Real> for Mixed {
-    type TargetItem = TypeDom<Real>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Real>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Real`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -174,8 +171,8 @@ impl Onto<Real> for Mixed {
 impl OntoDom<Real> for Mixed {}
 
 impl Onto<Nat> for Mixed {
-    type TargetItem = TypeDom<Nat>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Nat>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Nat`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -211,8 +208,8 @@ impl Onto<Nat> for Mixed {
 impl OntoDom<Nat> for Mixed {}
 
 impl Onto<Int> for Mixed {
-    type TargetItem = TypeDom<Int>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Int>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Int`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -248,8 +245,8 @@ impl Onto<Int> for Mixed {
 impl OntoDom<Int> for Mixed {}
 
 impl Onto<Unit> for Mixed {
-    type TargetItem = TypeDom<Unit>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Unit>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Unit`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -284,8 +281,8 @@ impl Onto<Unit> for Mixed {
 impl OntoDom<Unit> for Mixed {}
 
 impl Onto<Bool> for Mixed {
-    type TargetItem = TypeDom<Bool>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Bool>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`Bool`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -316,8 +313,8 @@ impl Onto<Bool> for Mixed {
 impl OntoDom<Bool> for Mixed {}
 
 impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
-    type TargetItem = TypeDom<GridDom<Out>>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<GridDom<Out>>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and a [`GridDom`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`GridDom`] and [`Unit`].
@@ -356,8 +353,8 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Mixed {
 impl<Out: GridBounds> OntoDom<GridDom<Out>> for Mixed {}
 
 impl Onto<Mixed> for Mixed {
-    type TargetItem = TypeDom<Mixed>;
-    type Item = TypeDom<Mixed>;
+    type TargetItem = Elem<Mixed>;
+    type Item = Elem<Mixed>;
     /// [`Onto`] function between a [`Mixed`] and another [`Mixed`] [`Domain`].
     ///
     /// Use the respective [`onto`](`Onto::onto`) method for each matched [`Mixed`] [`Bounded`](crate::Bounded), [`Bool`], [`Cat`] and [`Unit`].
@@ -444,25 +441,5 @@ impl From<GridInt> for Mixed {
 impl From<Unit> for Mixed {
     fn from(value: Unit) -> Self {
         Mixed::Unit(value)
-    }
-}
-
-impl CSVWritable<(), MixedTypeDom> for Mixed {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &MixedTypeDom) -> Vec<String> {
-        match comp {
-            MixedTypeDom::Real(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Nat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Int(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Bool(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Cat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Unit(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridReal(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridNat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridInt(s) => Vec::from([s.to_string()]),
-        }
     }
 }

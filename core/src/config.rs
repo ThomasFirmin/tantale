@@ -50,6 +50,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::{Optimizer, Problem, Recorder, Runable, Stop};
 #[cfg(feature = "mpi")]
 use crate::experiment::mpi::utils::MPIProcess;
 
@@ -65,20 +66,9 @@ use crate::experiment::mpi::utils::MPIProcess;
 /// let checkpointer = MessagePack::new(config.clone());
 /// let recorder = CSVRecorder::new(config);
 /// ```
-pub trait SaverConfig {
+pub trait SaverConfig<C>: Clone {
     /// Initialize the configuration and return it in a shared [`Arc`].
-    fn init(self) -> Arc<Self>;
-}
-
-#[cfg(feature = "mpi")]
-/// MPI-aware configuration for distributed experiments.
-///
-/// This trait extends [`SaverConfig`] with an MPI-aware initializer that can
-/// append rank-specific subfolders or other distributed metadata to paths.
-/// It is only available when the `mpi` feature is enabled.
-pub trait DistSaverConfig: SaverConfig {
-    /// Initialize the configuration for a specific MPI process.
-    fn init(self, proc: &MPIProcess) -> Arc<Self>;
+    fn init(self, ctx: &C) -> Self;
 }
 
 /// Folder hierarchy for file-based [`Recorder`](crate::Recorder) and [`Checkpointer`](crate::Checkpointer).
@@ -121,7 +111,7 @@ impl FolderConfig {
     /// let config = FolderConfig::new("./my_run");
     /// let config = config.init();
     /// ```
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str) -> Arc<Self> {
         let path = std::path::absolute(PathBuf::from(path)).unwrap();
         let path_rec = path.join(Path::new("recorder"));
         let path_check = path.join(Path::new("checkpointer"));
@@ -132,50 +122,33 @@ impl FolderConfig {
             path_check,
             path_work,
             is_dist: false,
-        }
+        }.into()
     }
 }
 
-impl SaverConfig for FolderConfig {
+impl SaverConfig<()> for Arc<FolderConfig> 
+{
     /// Initialize and wrap the configuration in an [`Arc`].
-    fn init(self) -> Arc<Self> {
-        Arc::new(self)
-    }
-}
-/// No-op configuration used when persistence is disabled.
-///
-/// This configuration is used with [`NoCheck`](crate::checkpointer::NoCheck).
-pub struct NoConfig;
-impl SaverConfig for NoConfig {
-    /// Initialize the no-op configuration in an [`Arc`].
-    fn init(self) -> Arc<Self> {
-        Arc::new(self)
+    fn init(self, _ctx: &()) -> Self {
+        self
     }
 }
 
 #[cfg(feature = "mpi")]
-impl DistSaverConfig for FolderConfig {
+impl SaverConfig<MPIProcess> for Arc<FolderConfig> {
     /// Initialize a distributed configuration for a specific MPI rank.
     ///
     /// This method appends rank-specific subfolders to recorder and checkpointer
     /// paths and marks the configuration as distributed.
-    fn init(mut self, proc: &MPIProcess) -> Arc<Self> {
+    fn init(mut self, ctx: &MPIProcess) -> Self {
         self.path_rec = self
             .path_rec
-            .join(Path::new(&format!("recorder_rank{}", proc.rank)));
+            .join(Path::new(&format!("recorder_rank{}", ctx.rank)));
         self.path_work = self.path_check.join(Path::new("workers"));
         self.path_check = self
             .path_check
-            .join(Path::new(&format!("checkpointer_rank{}", proc.rank)));
+            .join(Path::new(&format!("checkpointer_rank{}", ctx.rank)));
         self.is_dist = true;
-        Arc::new(self)
-    }
-}
-
-#[cfg(feature = "mpi")]
-impl DistSaverConfig for NoConfig {
-    /// Initialize the no-op configuration for MPI runs.
-    fn init(self, _proc: &MPIProcess) -> Arc<Self> {
-        Arc::new(self)
+        self
     }
 }

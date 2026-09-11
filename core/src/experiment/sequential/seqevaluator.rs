@@ -4,9 +4,9 @@ use crate::experiment::{
     mpi::utils::{SendRec, XMessage},
 };
 use crate::{
-    Accumulator, Codomain, HasId, HasX, Id, Objective, Outcome, Searchspace, SolInfo, Stop,
+    Accumulator, Codomain, HasId, HasX, Id, OneStep, Outcome, Searchspace, SolInfo, Stop,
     domain::{codomain::TypeAcc, onto::LinkOpt},
-    experiment::{Evaluate, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
+    experiment::{Evaluator, MonoEvaluate, OutShapeEvaluate, ThrEvaluate},
     objective::Step,
     optimizer::opt::{OpSInfType, SingleOptimizer},
     searchspace::CompShape,
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<SolId, SInfo, Shape> Evaluate for SeqEvaluator<SolId, SInfo, Shape>
+impl<SolId, SInfo, Shape> Evaluator for SeqEvaluator<SolId, SInfo, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -76,7 +76,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>,
     > for SeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
 where
@@ -89,7 +89,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     St: Stop,
@@ -102,7 +102,7 @@ where
     /// and returns the [`Computed`](crate::solution::Computed) solution along with its [`Outcome`].
     fn evaluate(
         &mut self,
-        ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        ob: &OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,
@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<Shape, SolId, SInfo> Evaluate for ThrSeqEvaluator<Shape, SolId, SInfo>
+impl<Shape, SolId, SInfo> Evaluator for ThrSeqEvaluator<Shape, SolId, SInfo>
 where
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
@@ -197,7 +197,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for ThrSeqEvaluator<Scp::SolShape, SolId, Op::SInfo>
 where
@@ -210,7 +210,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     St: Stop,
@@ -227,7 +227,7 @@ where
     /// Otherwise, it returns `None`, if the current evaluation is [`Step::Discard`] or [`Step::Error`].
     fn evaluate(
         &mut self,
-        ob: Arc<Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
+        ob: Arc<OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>>,
         cod: Arc<Out::Cod>,
         stop: Arc<Mutex<St>>,
         acc: Arc<
@@ -274,7 +274,7 @@ where
     _sinfo: PhantomData<SInfo>,
 }
 
-impl<Shape, SolId, SInfo> Evaluate for VecThrSeqEvaluator<Shape, SolId, SInfo>
+impl<Shape, SolId, SInfo> Evaluator for VecThrSeqEvaluator<Shape, SolId, SInfo>
 where
     Shape: SolutionShape<SolId, SInfo>,
     SolId: Id,
@@ -347,7 +347,7 @@ where
 }
 
 #[cfg(feature = "mpi")]
-impl<SolId, SInfo, Shape> Evaluate for DistSeqEvaluator<SolId, SInfo, Shape>
+impl<SolId, SInfo, Shape> Evaluator for DistSeqEvaluator<SolId, SInfo, Shape>
 where
     SolId: Id,
     SInfo: SolInfo,
@@ -385,7 +385,7 @@ impl<PSol, SolId, Op, Scp, Out, St>
         Scp,
         Out,
         St,
-        Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         XMessage<SolId, RawObj<Scp::SolShape, SolId, Op::SInfo>>,
         Option<OutShapeEvaluate<SolId, Op::SInfo, Scp::SolShape, Out>>,
     > for DistSeqEvaluator<SolId, Op::SInfo, Scp::SolShape>
@@ -399,7 +399,7 @@ where
             LinkOpt<Scp>,
             Out,
             Scp,
-            Objective<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
+            OneStep<RawObj<Scp::SolShape, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>, Out>,
         >,
     Scp: Searchspace<PSol, SolId, OpSInfType<Op, PSol, Scp, SolId, Out>>,
     St: Stop,
@@ -429,7 +429,7 @@ where
             Op::SInfo,
             Out,
         >,
-        _ob: &Objective<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
+        _ob: &OneStep<RawObj<Scp::SolShape, SolId, Op::SInfo>, Out>,
         cod: &Out::Cod,
         stop: &mut St,
         acc: &mut TypeAcc<CompShape<Scp::SolShape, SolId, Op::SInfo, Out>, SolId, Op::SInfo, Out>,

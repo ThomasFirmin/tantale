@@ -39,7 +39,7 @@ use crate::{
 };
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{CSVWritable, Outcome, Step};
+use tantale_core::{Tabular, Outcome, Step};
 
 pub trait PyOutWrap: Outcome {
     /// Wraps a Python return value in the appropriate Rust wrapper type.
@@ -161,8 +161,8 @@ impl<'de> Deserialize<'de> for PyOutcome {
     }
 }
 
-impl CSVWritable<(), ()> for PyOutcome {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for PyOutcome {
+    fn column_names(_elem: &()) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
@@ -178,7 +178,7 @@ impl CSVWritable<(), ()> for PyOutcome {
         })
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)
@@ -275,8 +275,8 @@ impl<'de> Deserialize<'de> for PyFidOutcome {
 
 // impl Outcome for PyFidOutcome {}
 
-impl CSVWritable<(), ()> for PyFidOutcome {
-    fn header(_elem: &()) -> Vec<String> {
+impl Tabular<(), ()> for PyFidOutcome {
+    fn column_names(_elem: &()) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
@@ -292,7 +292,7 @@ impl CSVWritable<(), ()> for PyFidOutcome {
         })
     }
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+    fn column_values(&self, _comp: &()) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)

@@ -1,7 +1,7 @@
 use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
+    CSVRecorder, FolderConfig, MessagePack, OneStep, SaverConfig,
     experiment::{Runable, mono, threaded},
     load,
     stop::Evaluated,
@@ -24,7 +24,7 @@ fn test_tpe_seq_run() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -37,7 +37,7 @@ fn test_tpe_seq_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -60,7 +60,7 @@ fn test_tpe_seq_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -90,7 +90,7 @@ fn test_tpe_seqthr_run() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -103,7 +103,7 @@ fn test_tpe_seqthr_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -129,7 +129,7 @@ fn test_tpe_seqthr_run() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -159,7 +159,7 @@ fn test_tpe_seq_run_real() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -172,7 +172,7 @@ fn test_tpe_seq_run_real() {
 
     let sp = sp_evaluator_real::get_searchspace();
     let func = sp_evaluator_real::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -195,7 +195,7 @@ fn test_tpe_seq_run_real() {
 
     let sp = sp_evaluator_real::get_searchspace();
     let func = sp_evaluator_real::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -225,7 +225,7 @@ fn test_tpe_seqthr_run_real() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -238,7 +238,7 @@ fn test_tpe_seqthr_run_real() {
 
     let sp = sp_evaluator_real::get_searchspace();
     let func = sp_evaluator_real::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -264,7 +264,7 @@ fn test_tpe_seqthr_run_real() {
 
     let sp = sp_evaluator_real::get_searchspace();
     let func = sp_evaluator_real::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqthrrun_real").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -295,7 +295,7 @@ fn test_tpe_seq_run_sqrt_splitter() {
         UniformWeighter::default(),
         SqrtSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -308,7 +308,7 @@ fn test_tpe_seq_run_sqrt_splitter() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -331,7 +331,7 @@ fn test_tpe_seq_run_sqrt_splitter() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -361,7 +361,7 @@ fn test_tpe_seq_run_scott() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -374,7 +374,7 @@ fn test_tpe_seq_run_scott() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -397,7 +397,7 @@ fn test_tpe_seq_run_scott() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_scott").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -427,7 +427,7 @@ fn test_tpe_seq_run_hyperopt() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -440,7 +440,7 @@ fn test_tpe_seq_run_hyperopt() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -463,7 +463,7 @@ fn test_tpe_seq_run_hyperopt() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -493,7 +493,7 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
         UniformWeighter::default(),
         LinearSplit::new(0.25).unwrap(),
     );
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -506,7 +506,7 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);
@@ -529,7 +529,7 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint").init();
     let rec = CSVRecorder::new(config.clone(), true, true, true, true);

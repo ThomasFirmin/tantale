@@ -35,19 +35,13 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId,
-    HasInfo, HasSolInfo, HasStep, HasUncomputed, HasX, HasY, OptInfo, RawObj, SingleOptimizer,
-    SolInfo, StepId,
-    domain::{Codomain, TypeDom, codomain::TypeCodom, onto::LinkOpt},
-    objective::{Outcome, Step},
-    recorder::{BatchRecorder, Recorder, SeqRecorder},
-    searchspace::{CompShape, Searchspace},
-    solution::{
+    BaseSol, BatchOptimizer, Checkpointer, Domain, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasStep, HasUncomputed, HasX, HasY, LinkObj, MonoExperiment, OptInfo, Optimizer, Pair, Problem, RawObj, SingleOptimizer, SolInfo, Solution, StepId, Stop, Tabular, aliases::Shape, domain::{Codomain, Elem, codomain::TypeCodom, onto::LinkOpt}, evaluator::Evaluator, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
         Batch, Id, OutBatch, SolutionShape, Uncomputed,
         shape::{SolObj, SolOpt},
     },
 };
 
+use csv::Writer;
 use rayon::iter::IntoParallelIterator;
 use rayon::prelude::*;
 use std::{
@@ -118,65 +112,6 @@ use crate::{
     recorder::{DistBatchRecorder, DistSeqRecorder},
 };
 
-/// Base trait for writing a type to CSV with headers and values.
-///
-/// This trait separates header generation from value serialization, allowing
-/// headers to be defined once and values to be written many times.
-///
-/// # Type Parameters
-///
-/// - `H` - The type used to generate column headers (often `Self` or `()`)
-/// - `C` - The type of the value to write as a CSV row
-///
-/// # Examples
-///
-/// A [`Codomain`] uses itself as `H` to generate headers based on its
-/// structure, and writes its associated [`TypeCodom`](Codomain::TypeCodom) as `C`.
-///
-/// An [`Id`] typically uses `()` for both `H` and `C`, as headers
-/// and values are self-contained.
-pub trait CSVWritable<H, C> {
-    /// Generate header column names.
-    ///
-    /// # Parameters
-    ///
-    /// * `elem` - Element providing header structure information
-    fn header(elem: &H) -> Vec<String>;
-
-    /// Write value as CSV row columns.
-    ///
-    /// # Parameters
-    ///
-    /// * `comp` - Component to serialize
-    fn write(&self, comp: &C) -> Vec<String>;
-}
-
-/// CSV writer for types with separate Obj and Opt components.
-///
-/// This trait is used by [`Searchspace`] implementations to write
-/// objective-side and optimizer-side values separately to obj.csv and opt.csv.
-///
-/// # Type Parameters
-///
-/// - `H` - The type used to generate column headers (typically the searchspace itself)
-/// - `L` - The left (Obj) component type to write
-/// - `R` - The right (Opt) component type to write
-///
-/// # Example
-///
-/// A [`Var`](crate::Var) uses itself for header generation and writes
-/// [`TypeDom`] values for both Obj and Opt [`Domain`](crate::Domain)s.
-pub trait CSVLeftRight<H, L, R> {
-    /// Generate header columns (shared by both Obj and Opt).
-    fn header(elem: &H) -> Vec<String>;
-
-    /// Write Obj (left) component as CSV columns.
-    fn write_left(&self, comp: &L) -> Vec<String>;
-
-    /// Write Opt (right) component as CSV columns.
-    fn write_right(&self, comp: &R) -> Vec<String>;
-}
-
 /// CSV writer for [`Solution`](crate::Solution) components (obj.csv and opt.csv).
 ///
 /// This trait enables a [`Searchspace`] to write solution components
@@ -187,31 +122,17 @@ pub trait CSVLeftRight<H, L, R> {
 ///
 /// - **obj.csv**: Contains objective-side inputs that are passed to the objective function
 /// - **opt.csv**: Contains optimizer-side representations used internally by the optimizer
-pub trait SolCSVWrite<PartOpt, SolId, SInfo>: Searchspace<PartOpt, SolId, SInfo>
+pub trait SolCSVWrite<SolId, SInfo, Scp, FnObj>: SolutionShape<SolId, SInfo>
 where
-    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
+    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
+    Scp: Searchspace<SolId, SInfo, FnObj, SolShape = Self, Obj = Self::Obj, Opt = Self::Opt>,
 {
-    /// Write the header for objective-side inputs.
-    fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    /// Write the header for optimizer-side inputs.
-    fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
+    /// Write headers for both objective and optimizer sides.
+    fn header(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>);
     /// Write a single objective-side row.
-    fn write_partial_obj(
-        &self,
-        id: &[String],
-        sol: &SolObj<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    );
-    /// Write a single optimizer-side row.
-    fn write_partial_opt(
-        &self,
-        id: &[String],
-        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    );
+    fn write(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>);
 }
 
 /// CSV writer for [`Codomain`] values (cod.csv).
@@ -291,14 +212,13 @@ pub trait OutCSVWrite<SolId: Id>: Outcome {
 /// This trait combines [`SolCSVWrite`], [`CodCSVWrite`], [`InfoCSVWrite`], and [`OutCSVWrite`]
 /// to write a complete [`CompShape`] and its raw [`Outcome`]
 /// across all CSV files in a coordinated manner.
-pub trait ScpCSVWrite<PartOpt, SolId, SInfo, Out>: Searchspace<PartOpt, SolId, SInfo>
+pub trait ScpCSVWrite<SolId, SInfo, FnObj, Out>: Searchspace<SolId, SInfo, FnObj>
 where
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
+    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
     Out: Outcome + CSVWritable<(), ()>,
     Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
-    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
 {
     /// Write a fully computed solution without optimizer info.
     ///
@@ -325,13 +245,26 @@ where
 }
 
 /// Implementation for [`BaseSol`] [`Solution`](crate::Solution)s, which writes the solution components within the CSV files.
-impl<Scp, SolId, SInfo> SolCSVWrite<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
+impl<Dom, Scp, SolId, SInfo> SolCSVWrite<SolId, SInfo, Scp, FnObj> for Pair<BaseSol<SolId, LinkOpt<Scp>, SInfo>, BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, LinkObj<Scp>, LinkOpt<Scp>, SInfo>
 where
-    Scp: Searchspace<BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
-        + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
+    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
+    Scp: Searchspace<SolId, SInfo, FnObj, SolShape = Self, Obj = Self::Obj, Opt = Self::Opt>,
 {
+    fn header(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>) {
+        if let Some(wrt) = wrt_obj {
+            let mut lock_wrt = wrt.lock().unwrap();
+            let mut idstr = SolId::header(&());
+
+            idstr.extend(Scp::header(self));
+        }
+    }
+    
+    fn write(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>) {
+        todo!()
+    }
+
     /// Header row columns: `SolId` fields followed by the searchspace columns.
     ///
     /// # Example
@@ -410,7 +343,7 @@ where
 impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
 where
     Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
-        + CSVLeftRight<Scp, Arc<[TypeDom<Scp::Obj>]>, Arc<[TypeDom<Scp::Opt>]>>,
+        + CSVLeftRight<Scp, Arc<[Elem<Scp::Obj>]>, Arc<[Elem<Scp::Opt>]>>,
     SolId: StepId + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
@@ -543,7 +476,7 @@ where
 
 impl<Shape, SolId, SInfo> InfoCSVWrite<SolId, SInfo> for Shape
 where
-    Shape: SolutionShape<SolId, SInfo> + HasSolInfo<SInfo>,
+    Shape: SolutionShape<SolId, SInfo> + HasInfo<SInfo>,
     SolId: Id + CSVWritable<(), ()>,
     SInfo: SolInfo + CSVWritable<(), ()>,
 {
@@ -557,7 +490,7 @@ where
     fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
-        idstr.extend(SInfo::header(&()));
+        idstr.extend(SInfo::column_names(&()));
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
     }
@@ -575,7 +508,7 @@ where
     ) {
         let mut lwrt = wrt.lock().unwrap();
         let mut idstr = SolId::header(&());
-        idstr.extend(SInfo::header(&()));
+        idstr.extend(SInfo::column_names(&()));
         idstr.extend(Info::header(&()));
         lwrt.write_record(idstr).unwrap();
         lwrt.flush().unwrap();
@@ -590,7 +523,7 @@ where
     /// 3, 12, 42
     /// ```
     fn write_info(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let sinfostr = self.sinfo().write(&());
+        let sinfostr = self.sinfo().column_values(&());
         let idstr = id.iter().chain(sinfostr.iter());
         let mut wrt_local = wrt.lock().unwrap();
         wrt_local.write_record(idstr).unwrap();
@@ -611,7 +544,7 @@ where
         info: Arc<Info>,
         wrt: Arc<Mutex<csv::Writer<File>>>,
     ) {
-        let sinfostr = self.sinfo().write(&());
+        let sinfostr = self.sinfo().column_values(&());
         let infostr = info.write(&());
         let idstr = id.iter().chain(sinfostr.iter()).chain(infostr.iter());
         let mut wrt_local = wrt.lock().unwrap();
@@ -827,10 +760,6 @@ where
 /// - [`BatchRecorder`] - Trait for batch recorders
 pub struct CSVRecorder {
     pub config: Arc<FolderConfig>,
-    pub obj: bool,
-    pub opt: bool,
-    pub info: bool,
-    pub out: bool,
     path_pobj: Option<PathBuf>,
     path_popt: Option<PathBuf>,
     path_info: Option<PathBuf>,
@@ -844,46 +773,19 @@ impl CSVRecorder {
     /// # Parameters
     ///
     /// * `config` - Folder configuration specifying the recorder directory
-    /// * `obj` - Enable obj.csv (objective-side inputs)
-    /// * `opt` - Enable opt.csv (optimizer-side representations)
-    /// * `info` - Enable info.csv (metadata)
-    /// * `out` - Enable out.csv (raw outcomes)
     ///
     /// # Returns
     ///
     /// `Some(CSVRecorder)` with file paths configured.
-    pub fn new(
-        config: Arc<FolderConfig>,
-        obj: bool,
-        opt: bool,
-        info: bool,
-        out: bool,
-    ) -> Option<Self> {
-        let path_pobj = match obj {
-            true => Some(config.path_rec.join(Path::new("obj.csv"))),
-            false => None,
-        };
-        let path_popt = match opt {
-            true => Some(config.path_rec.join(Path::new("opt.csv"))),
-            false => None,
-        };
-        let path_info = match info {
-            true => Some(config.path_rec.join(Path::new("info.csv"))),
-            false => None,
-        };
-        let path_out = match out {
-            true => Some(config.path_rec.join(Path::new("out.csv"))),
-            false => None,
-        };
-
+    pub fn new(config: Arc<FolderConfig>) -> Option<Self> {
+        let path_pobj = Some(config.path_rec.join(Path::new("obj.csv")));
+        let path_popt = Some(config.path_rec.join(Path::new("opt.csv")));
+        let path_info = Some(config.path_rec.join(Path::new("info.csv")));
+        let path_out = Some(config.path_rec.join(Path::new("out.csv")));
         let path_codom = config.path_rec.join(Path::new("cod.csv"));
 
         Some(CSVRecorder {
             config,
-            obj,
-            opt,
-            info,
-            out,
             path_pobj,
             path_popt,
             path_info,
@@ -891,9 +793,53 @@ impl CSVRecorder {
             path_out,
         })
     }
+
+    /// Disable writing the objective-side CSV file (obj.csv).
+    pub fn no_obj(&mut self) {
+        self.path_pobj = None;
+    }
+
+    /// Disable writing the optimizer-side CSV file (opt.csv).
+    pub fn no_opt(&mut self) {
+        self.path_popt = None;
+    }
+
+    /// Disable writing the metadata CSV file (info.csv).
+    pub fn no_info(&mut self) {
+        self.path_info = None;
+    }
+
+    /// Disable writing the raw outcome CSV file (out.csv).
+    pub fn no_out(&mut self) {
+        self.path_out = None;
+    }
 }
 
-impl Recorder for CSVRecorder {}
+impl<P, O, S, C, E> Recorder<MonoExperiment<P, O, S, CSVRecorder, C, E>> for CSVRecorder
+where
+    P: Problem,
+    P::Scp: Tabular<
+    O: Optimizer<P>,
+    S: Stop,
+    C: Checkpointer<MonoExperiment<P, O, S, CSVRecorder, C, E>>,
+    E: Evaluator,
+{
+    fn init(&mut self, runable: &MonoExperiment<P, O, S, CSVRecorder, C, E>) {
+        todo!()
+    }
+
+    fn after_load(&mut self, ctx: &<MonoExperiment<P, O, S, CSVRecorder, C, E> as crate::Runable>::Context) {
+        todo!()
+    }
+
+    fn record<T: Tabular<H>, H>(&self, object: &T, header: &H, file: PathBuf) {
+        todo!()
+    }
+
+    fn vec_record<T: Tabular<H>, H>(&self, objects: &[T], header: &H, file: PathBuf) {
+        todo!()
+    }
+}
 
 impl<PSol, SolId, Out, Scp, Op, FnWrap> SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
     for CSVRecorder
@@ -904,7 +850,7 @@ where
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
         + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
         + Send
@@ -1066,7 +1012,7 @@ where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
@@ -1252,7 +1198,7 @@ where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: Send + Sync,
     Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
         + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
@@ -1433,7 +1379,7 @@ where
     SolId: Id + CSVWritable<(), ()> + Send + Sync,
     Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
     Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: CSVWritable<(), ()> + Send + Sync,
+    Op::SInfo: Send + Sync,
     Op::Info: CSVWritable<(), ()> + Send + Sync,
     Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
     Scp: SolCSVWrite<PSol, SolId, Op::SInfo>

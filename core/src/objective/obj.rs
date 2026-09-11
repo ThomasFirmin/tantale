@@ -142,12 +142,12 @@
 //!     
 //! }
 //! ```
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FidOutcome,
-    objective::outcome::{FuncState, Outcome},
-    solution::partial::Fidelity,
+    BaseSol, Domain, FidOutcome, FidelitySol, HasX, Id, Problem, SolInfo, Solution, StepId, Uncomputed, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity,
 };
 
 type OptimFn<Raw, Out> = fn(Raw) -> Out;
@@ -163,7 +163,16 @@ type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, Fn
 ///
 /// The `FuncWrapper` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}
+pub trait FuncWrapper
+{
+    type Context;
+    type Out: Outcome;
+    type OutShape;
+    type Dom: Domain;
+    type Sol<Dom:Domain>: Uncomputed<Dom=Dom>;
+    /// Evaluate the objective at a given `x` [`Raw`](crate::Solution::Raw) with a given `context`.
+    fn compute(&self, x: <Self::Sol::<Self::Dom> as HasX>::X , context: Self::Context) -> Self::OutShape;
+}
 
 /// Minimal wrapper for a single-shot objective function.
 ///
@@ -171,17 +180,11 @@ pub trait FuncWrapper<Raw: Serialize + for<'a> Deserialize<'a>> {}
 /// input is typically the searchspace solution representation.
 ///
 /// # Type parameters
-/// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
+/// - `S`: [`Solution`] type, which provides the [`Raw`](HasX::Raw) input to the objective function. 
 /// - `Out`: Output implementing [`Outcome`].
-pub struct Objective<Raw, Out>(pub OptimFn<Raw, Out>)
-where
-    Raw: Serialize + for<'a> Deserialize<'a>,
-    Out: Outcome;
+pub struct OneStep<S:Solution, Out: Outcome>(pub OptimFn<S::X, Out>);
 
-impl<Raw, Out> Objective<Raw, Out>
-where
-    Raw: Serialize + for<'a> Deserialize<'a>,
-    Out: Outcome,
+impl<S:Solution, Out: Outcome> OneStep<S, Out>
 {
     /// Creates a new [`Objective`] from a raw function.
     ///
@@ -191,32 +194,34 @@ where
     /// # See also
     /// - [`Searchspace`](crate::searchspace::Searchspace)
     /// - `objective!`
-    pub fn new(func: OptimFn<Raw, Out>) -> Self {
-        Objective(func)
-    }
-    /// Initialize the [`Objective`].
-    pub fn init(&mut self) {}
-    /// Evaluate the objective for a given input `x`.
-    pub fn compute(&self, x: Raw) -> Out {
-        (self.0)(x)
+    pub fn new(func: OptimFn<S::X, Out>) -> Self {
+        OneStep(func)
     }
 }
 
-impl<Raw, Out> Clone for Objective<Raw, Out>
-where
-    Raw: Serialize + for<'a> Deserialize<'a>,
-    Out: Outcome,
+impl<S:Solution, Out: Outcome> Clone for OneStep<S, Out>
 {
     fn clone(&self) -> Self {
-        Objective(self.0)
+        OneStep(self.0)
     }
 }
 
-impl<Raw, Out> FuncWrapper<Raw> for Objective<Raw, Out>
+impl<SolId, Obj, Info, Out> FuncWrapper for OneStep<BaseSol<SolId, Obj, Info>, Out>
 where
-    Raw: Serialize + for<'a> Deserialize<'a>,
+    SolId: Id,
+    Obj: Domain,
+    Info: SolInfo,
     Out: Outcome,
 {
+    type Context = ();
+    type OutShape = Out;
+    type Out = Out;
+    type Dom = Obj;
+    type Sol<Dom:Domain> = BaseSol<SolId, Dom, Info>;
+
+    fn compute(&self, x: Arc<[Obj::Element]>, _context: Self::Context) -> Self::OutShape {
+        (self.0)(x)
+    }
 }
 
 /// Wrapper for objectives evaluated by [`Step`](crate::objective::Step).
@@ -229,26 +234,26 @@ where
 /// - `Raw`: [`Raw`](crate::Solution::Raw) input to the objective function.
 /// - `Out`: Output implementing [`FidOutcome`].
 /// - `FnState`: Internal function state implementing [`FuncState`].
-pub struct Stepped<Raw, Out, FnState>(pub SteppFn<Raw, Out, FnState>)
+pub struct MultiStep<S, Out, FnState>(pub SteppFn<S::X, Out, FnState>)
 where
-    Raw: Serialize + for<'a> Deserialize<'a>,
+    S: Solution,
     Out: FidOutcome,
     FnState: FuncState;
 
-impl<Raw, Out, FnState> Clone for Stepped<Raw, Out, FnState>
+impl<S, Out, FnState> Clone for MultiStep<S, Out, FnState>
 where
-    Raw: Serialize + for<'a> Deserialize<'a>,
+    S: Solution,
     Out: FidOutcome,
     FnState: FuncState,
 {
     fn clone(&self) -> Self {
-        Stepped(self.0)
+        MultiStep(self.0)
     }
 }
 
-impl<Raw, Out, FnState> Stepped<Raw, Out, FnState>
+impl<S, Out, FnState> MultiStep<S, Out, FnState>
 where
-    Raw: Serialize + for<'a> Deserialize<'a>,
+    S: Solution,
     Out: FidOutcome,
     FnState: FuncState,
 {
@@ -260,21 +265,26 @@ where
     /// # See also
     /// - [`Searchspace`](crate::searchspace::Searchspace)
     /// - `objective!` procedural macro
-    pub fn new(func: SteppFn<Raw, Out, FnState>) -> Self {
-        Stepped(func)
-    }
-    /// Initialize the [`Stepped`] objective.
-    pub fn init(&mut self) {}
-    /// Evaluate the objective at a given [`Fidelity`] and optional prior [`FuncState`].
-    pub fn compute(&self, x: Raw, fidelity: Fidelity, state: Option<FnState>) -> (Out, FnState) {
-        (self.0)(x, fidelity, state)
+    pub fn new(func: SteppFn<S::X, Out, FnState>) -> Self {
+        MultiStep(func)
     }
 }
 
-impl<Raw, Out, FnState> FuncWrapper<Raw> for Stepped<Raw, Out, FnState>
+impl<SolId, Obj, Info, Out, FnState> FuncWrapper for MultiStep<FidelitySol<SolId, Obj, Info>, Out, FnState>
 where
-    Raw: Serialize + for<'a> Deserialize<'a>,
+    SolId: StepId,
+    Obj: Domain,
+    Info: SolInfo,
     Out: FidOutcome,
     FnState: FuncState,
 {
+    type Context = (Fidelity, Option<FnState>);
+    type OutShape = (Out, FnState);
+    type Out = Out;
+    type Dom = Obj;
+    type Sol<Dom:Domain> = FidelitySol<SolId, Dom, Info>;
+
+    fn compute(&self, x: Arc<[Obj::Element]>, context: Self::Context) -> Self::OutShape {
+        (self.0)(x, context.0, context.1)
+    }
 }

@@ -101,7 +101,7 @@ where
     }
 }
 
-use tantale::core::{CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, Stepped};
+use tantale::core::{CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, MultiStep};
 
 impl<Out, Scp, FnState>
     SingleOptimizer<
@@ -110,7 +110,7 @@ impl<Out, Scp, FnState>
         Scp::Opt,
         Out,
         Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
+        MultiStep<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
     > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,
