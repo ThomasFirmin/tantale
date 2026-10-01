@@ -128,12 +128,6 @@ where
     pub domain_opt: Arc<Opt>,
 }
 
-/// A helper struct to associate a variable name with its [`Domain`].
-pub struct DomainName<'a, Dom:Domain> {
-    pub name : &'a(&'static str, Option<usize>),
-    pub domain : Arc<Dom>,
-}
-
 /// Implementation of [`Linked`] for variables with two distinct domains.
 ///
 /// This establishes the type relationships between the objective and optimizer domains,
@@ -636,5 +630,31 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
             vec.push(var);
         }
         vec
+    }
+}
+
+/// Trait to convert a variable into a string representation of its name.
+pub trait ToName {
+    /// Converts the variable's name into a string.
+    ///
+    /// # Returns
+    ///
+    /// A `String` representing the variable's name, including any suffix if present.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use tantale::core::variable::ToName;
+    /// use tantale::core::{Real, NoDomain, Uniform, variable::Var};
+    /// 
+    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
+    /// assert_eq!(var.to_name(), "x");
+    /// ```
+    fn to_name(&self) -> String;
+}
+
+impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {
+    fn to_name(&self) -> String {
+        format!("{}_{}", self.name.0, self.name.1.map_or("".to_string(), |i| i.to_string()))
     }
 }

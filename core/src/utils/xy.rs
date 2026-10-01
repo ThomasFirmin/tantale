@@ -3,7 +3,7 @@
 //! The `XToNdArray` and `YToNdArray` traits provide methods to convert raw solutions and objective values into [`ndarray::Array2`] format.
 
 use crate::{
-    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, Id, Lone, Orderable, Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, domain::{Elem, codomain::{
+    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, SolId, Lone, Orderable, Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, domain::{Elem, codomain::{
         ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain,
         ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain,
     }},
@@ -120,11 +120,11 @@ pub trait XToNdArray<Dom: Domain> {
     fn x_cols(&self) -> usize;
 }
 
-impl<SolId, Dom, SInfo> XToNdArray<Dom> for BaseSol<SolId, Dom, SInfo>
+impl<Id, Dom, SInfo> XToNdArray<Dom> for BaseSol<Id, Dom, SInfo>
 where
     Dom: Domain,
     SInfo: SolInfo,
-    SolId: Id,
+    Id: SolId,
 {
     fn x_array(&self) -> Array2<Dom::Element> {
         Array1::from_iter(self.x.iter().cloned()).insert_axis(Axis(0))
@@ -141,11 +141,11 @@ where
     }
 }
 
-impl<SolId, Dom, SInfo> XToNdArray<Dom> for FidelitySol<SolId, Dom, SInfo>
+impl<Id, Dom, SInfo> XToNdArray<Dom> for FidelitySol<Id, Dom, SInfo>
 where
     Dom: Domain,
     SInfo: SolInfo,
-    SolId: StepId,
+    Id: StepId,
 {
     fn x_array(&self) -> Array2<Dom::Element> {
         Array1::from_iter(self.x.iter().cloned()).insert_axis(Axis(0))

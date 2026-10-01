@@ -1,6 +1,5 @@
 use crate::{
-    objective::Step,
-    stop::{ExpStep, Stop},
+    HasState, State, objective::Step, stop::{ExpStep, Stop},
 };
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +7,24 @@ use serde::{Deserialize, Serialize};
 /// [`Evaluated`](crate::objective::Step::Evaluated) solutions during a run exceed a threshold.
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 pub struct Evaluated(pub usize, pub usize);
+
+impl State for Evaluated {}
+impl HasState for Evaluated {
+    type State = Self;
+    
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+    
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+    
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+
+}
 
 impl Stop for Evaluated {
     fn init(&mut self) {} // No initialization needed
@@ -23,13 +40,13 @@ impl Stop for Evaluated {
     /// ```
     /// use tantale::core::{objective::Step, stop::{Stop, Evaluated, ExpStep}};
     /// let mut calls = Evaluated::new(3);
-    /// calls.update(ExpStep::Distribution(Step::Evaluated));
-    /// calls.update(ExpStep::Distribution(Step::Partially(5)));
-    /// calls.update(ExpStep::Distribution(Step::Discard));
-    /// calls.update(ExpStep::Distribution(Step::Error));
+    /// calls.update(ExpStep::Evaluation(Step::Evaluated));
+    /// calls.update(ExpStep::Evaluation(Step::Partially(5)));
+    /// calls.update(ExpStep::Evaluation(Step::Discard));
+    /// calls.update(ExpStep::Evaluation(Step::Error));
     /// assert_eq!(calls.calls(), 1);
     fn update(&mut self, step: ExpStep) {
-        if let ExpStep::Distribution(Step::Evaluated) = step {
+        if let ExpStep::Evaluation(Step::Evaluated) = step {
             self.0 += 1
         }
     }

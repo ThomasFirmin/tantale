@@ -22,6 +22,6 @@
 //!   * Threaded: [`ThrExperiment`](crate::ThrExperiment).
 //!   * Distributed + Threaded: Not yet implemented.
 
-pub mod batchevaluator;
-pub mod batchfidevaluator;
-pub mod batchrun;
+// pub mod batchevaluator;
+// pub mod batchfidevaluator;
+// pub mod batchrun;

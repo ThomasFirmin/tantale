@@ -68,11 +68,11 @@
 //! ```
 
 use crate::{
-    FuncWrapper, HasId, HasInfo, HasVariables, HasX, Problem, aliases::{GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::{
+    FuncWrapper, HasId, HasInfo, HasVariables, HasX, aliases::{GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::{
         Domain, NoDomain, PreDomain, onto::{Linked, OntoDom},
-    }, searchspace::{Searchspace, SolInfo, SpPar}, solution::{
-        Id, Lone, Pair, Solution, Uncomputed,
-    }, variable::Var,
+    }, searchspace::{Searchspace, SpPar}, solution::{
+        Lone, Pair, Uncomputed,
+    }, variable::{Var, var::ToName},
 };
 
 use rand::prelude::Rng;
@@ -127,13 +127,11 @@ where
     }
     
     fn names(&self) -> Vec<String> {
-        self.var.iter().map(
-            |v|
-            match v.name.1 {
-                Some(idx) => format!("{}_{}", v.name.0, idx),
-                None => v.name.0.to_string(),
-            }
-        ).collect()
+        self.var.iter().map(|v|v.to_name()).collect()
+    }
+    
+    fn get_vars(&self) -> &[Var<Self::Obj, Self::Opt>] {
+        &self.var
     }
 }
 
@@ -151,13 +149,11 @@ impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
     }
 
     fn names(&self) -> Vec<String> {
-        self.var.iter().map(
-            |v|
-            match v.name.1 {
-                Some(idx) => format!("{}_{}", v.name.0, idx),
-                None => v.name.0.to_string(),
-            }
-        ).collect()
+        self.var.iter().map(|v|v.to_name()).collect()
+    }
+    
+    fn get_vars(&self) -> &[Var<Obj, NoDomain>] {
+        self.var.as_ref()
     }
 }
 
@@ -227,20 +223,20 @@ where
     /// Map a vector of optimizer-side solutions into the objective space. See [`Onto`](crate::Onto) for details.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_obj(&self, inp: Vec<GetSOpt<Self::Shape>>) -> Vec<Self::Shape> {
-        inp.into_iter().map(|i| self.onto_obj(i)).collect()
+        inp.into_iter().map(|i| <Sp<Obj, Opt> as Searchspace<F>>::onto_obj(self, i)).collect()
     }
 
     /// Map a vector of objective-side solutions into the optimizer space. See [`Onto`](crate::Onto) for details.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_opt(&self, inp: Vec<GetSObj<Self::Shape>>) -> Vec<Self::Shape> {
-        inp.into_iter().map(|i| self.onto_opt(i)).collect()
+        inp.into_iter().map(|i| <Sp<Obj, Opt> as Searchspace<F>>::onto_opt(self, i)).collect()
     }
 
     /// Sample multiple objective-side solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>> {
         (0..size)
-            .map(|_| self.sample_obj(rng, info.clone()))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
             .collect()
     }
 
@@ -248,7 +244,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSObj<Self::Shape>>> {
         (0..size)
-            .map(|_| self.sample_raw_obj(rng))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_raw_obj::<R>(self, rng))
             .collect()
     }
 
@@ -256,20 +252,20 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>> {
         (0..size)
-            .map(|_| self.sample_opt(rng, info.clone()))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone()))
             .collect()
     }
 
     fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSOpt<Self::Shape>>> {
         (0..size)
-            .map(|_| self.sample_raw_opt(rng))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_raw_opt::<R>(self, rng))
             .collect()
     }
     
     /// Sample an objective-side solution and map it to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape {
-        self.onto_opt(self.sample_obj(rng, info.clone()))
+        <Sp<Obj, Opt> as Searchspace<F>>::onto_opt(self, <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
     }
 
     /// Sample multiple [`SolutionShape`](crate::solution::SolutionShape)
@@ -277,7 +273,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<Self::Shape> {
         (0..size)
-            .map(|_| self.onto_opt(self.sample_obj(rng, info.clone())))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_pair(self, rng, info.clone()))
             .collect()
     }
 
@@ -289,7 +285,7 @@ where
         R: Rng,
     {
         (0..size)
-            .map(|_| f(self.sample_obj(rng, info.clone())))
+            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
             .collect()
     }
 
@@ -301,7 +297,7 @@ where
         R: Rng,
     {
         (0..size)
-            .map(|_| f(self.sample_opt(rng, info.clone())))
+            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone())))
             .collect()
     }
 }
@@ -310,8 +306,8 @@ where
 impl<F, Dom> Searchspace<F> for Sp<Dom, NoDomain>
 where
     F: FuncWrapper<Dom = Dom>,
+    F::Sol<Dom>: Uncomputed<X = Arc<[Dom::Element]>>,
     Dom: Domain,
-    GetRaw<F::Sol<Dom>>: Uncomputed<X = Arc<[Dom::Element]>>,
 {
     type Shape = Lone<F::Sol<Dom>>;
 
@@ -337,18 +333,16 @@ where
 
     /// Check whether a solution belongs to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn contains_obj(&self, inp: &GetRaw<F::Sol<Dom>>) -> bool {
-        inp.ref_x()
-            .iter()
+    fn contains_obj(&self, inp: &GetRaw<GetSObj<Self::Shape>>) -> bool {
+        inp.iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_obj(elem))
     }
 
     /// Check whether a solution belongs to the optimizer domain.
     /// See module-level examples in [`crate::searchspace`].
-    fn contains_opt(&self, inp: &GetRaw<F::Sol<Dom>>) -> bool {
-        inp.ref_x()
-            .iter()
+    fn contains_opt(&self, inp: &GetRaw<GetSOpt<Self::Shape >>) -> bool {
+        inp.iter()
             .zip(&self.var)
             .all(|(elem, v)| v.is_in_opt(elem))
     }
@@ -356,26 +350,26 @@ where
     /// Wrap a vector of optimizer-side solutions as lone solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_obj(&self, inp: Vec<F::Sol<Dom>>) -> Vec<Self::Shape> {
-        inp.into_iter().map(|sol| Lone::new(sol)).collect()
+        inp.into_iter().map(Lone::new).collect()
     }
 
     /// Wrap a vector of objective-side solutions as lone solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_opt(&self, inp: Vec<F::Sol<Dom>>) -> Vec<Self::Shape> {
-        inp.into_iter().map(|sol| Lone::new(sol)).collect()
+        inp.into_iter().map(Lone::new).collect()
     }
 
     /// Sample multiple objective-side solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>> {
         (0..size)
-            .map(|_| self.sample_obj(rng, info.clone()))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
             .collect()
     }
 
     fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<F::Sol<Dom>>> {
         (0..size)
-            .map(|_| self.sample_raw_obj(rng))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_raw_obj::<R>(self, rng))
             .collect()
     }
 
@@ -383,27 +377,27 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_opt<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>> {
         (0..size)
-            .map(|_| self.sample_opt(rng, info.clone()))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone()))
             .collect()
     }
     
     fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<F::Sol<Dom>>> {
         (0..size)
-            .map(|_| self.sample_raw_opt(rng))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_raw_opt::<R>(self, rng))
             .collect()
     }
 
     /// Sample an objective-side solution and wrap it as a [`Lone`] [`SolutionShape`](crate::solution::SolutionShape).
     /// See module-level examples in [`crate::searchspace`].
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<F::Sol<Dom>>>) -> Self::Shape {
-        Lone::new(self.sample_obj(rng, info.clone()))
+        Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
     }
 
     /// Sample multiple [`Lone`] [`SolutionShape`](crate::solution::SolutionShape).
     /// See module-level examples in [`crate::searchspace`].
     fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<Self::Shape> {
         (0..size)
-            .map(|_| Lone::new(self.sample_obj(rng, info.clone())))
+            .map(|_| Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
             .collect()
     }
 
@@ -415,7 +409,7 @@ where
         R: Rng,
     {
         (0..size)
-            .map(|_| f(self.sample_obj(rng, info.clone())))
+            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
             .collect()
     }
 
@@ -427,7 +421,7 @@ where
         R: Rng,
     {
         (0..size)
-            .map(|_| f(self.sample_opt(rng, info.clone())))
+            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone())))
             .collect()
     }
 }
@@ -438,75 +432,3 @@ impl<Obj: Domain, Opt: Domain> From<SpPar<Obj, Opt>> for Sp<Obj, Opt> {
         Sp { var: value.var }
     }
 }
-
-// /// CSV support for objective and optimizer sides of the searchspace.
-// impl<Obj, Opt> CSVLeftRight<Sp<Obj, Opt>, Arc<[LinkTyObj<Self>]>, Arc<[LinkTyOpt<Self>]>>
-//     for Sp<Obj, Opt>
-// where
-//     Obj: OntoDom<Opt> + CSVWritable<(), LinkTyObj<Self>>,
-//     Opt: OntoDom<Obj> + CSVWritable<(), LinkTyOpt<Self>>,
-//     Var<Obj, Opt>: CSVLeftRight<Var<Obj, Opt>, LinkTyObj<Self>, LinkTyOpt<Self>>,
-// {
-//     /// Build the CSV header by concatenating variable headers.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn header(elem: &Sp<Obj, Opt>) -> Vec<String> {
-//         elem.var.iter().flat_map(Var::<Obj, Opt>::header).collect()
-//     }
-
-//     /// Write objective-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_left(&self, comp: &Arc<[LinkTyObj<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_left(c))
-//             .collect()
-//     }
-
-//     /// Write optimizer-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_right(&self, comp: &Arc<[LinkTyOpt<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_right(c))
-//             .collect()
-//     }
-// }
-
-// /// CSV support for objective-only searchspaces.
-// impl<Obj> CSVLeftRight<Sp<Obj, NoDomain>, Arc<[LinkTyObj<Self>]>, Arc<[LinkTyOpt<Self>]>>
-//     for Sp<Obj, NoDomain>
-// where
-//     Obj: Domain + CSVWritable<(), LinkTyObj<Self>>,
-//     Var<Obj, NoDomain>: CSVLeftRight<Var<Obj, NoDomain>, LinkTyObj<Self>, LinkTyOpt<Self>>,
-// {
-//     /// Build the CSV header by concatenating variable headers.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn header(elem: &Sp<Obj, NoDomain>) -> Vec<String> {
-//         elem.var
-//             .iter()
-//             .flat_map(Var::<Obj, NoDomain>::header)
-//             .collect()
-//     }
-
-//     /// Write objective-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_left(&self, comp: &Arc<[LinkTyObj<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_left(c))
-//             .collect()
-//     }
-
-//     /// Write optimizer-side values as CSV columns (same as objective-side in this mode).
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_right(&self, comp: &Arc<[LinkTyOpt<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_right(c))
-//             .collect()
-//     }
-// }

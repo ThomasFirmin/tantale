@@ -1,6 +1,6 @@
 use crate::{
     Grid, distribution::{BoolDistribution, Distribution}, domain::{
-        CategoricalDomain, Domain, Elem, Element, PreDomain, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
+        CategoricalDomain, Domain, Elem, PreDomain, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
     }, errors::OntoError,
 };
 

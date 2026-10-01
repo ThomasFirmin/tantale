@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy)]
 pub enum ExpStep {
     /// Within an [`Evaluate`](crate::experiment::Evaluate), during evaluation of a batch or a single solution.
-    Distribution(Step),
+    Evaluation(Step),
     /// At each full optimization loop.
     Iteration,
     /// After the optimization output

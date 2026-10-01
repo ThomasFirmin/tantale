@@ -1,4 +1,4 @@
-use crate::stop::{ExpStep, Stop};
+use crate::{HasState, State, stop::{ExpStep, Stop}};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -9,6 +9,25 @@ use std::time::{Duration, Instant};
 /// from the remaining duration.
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 pub struct Time(Duration, Duration, #[serde(skip)] Option<Instant>); // (threshold, accumulated, start time)
+
+impl State for Time {}
+impl HasState for Time {
+    type State = Self;
+    
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+    
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+    
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+
+}
+
 
 impl Stop for Time {
     fn init(&mut self) {

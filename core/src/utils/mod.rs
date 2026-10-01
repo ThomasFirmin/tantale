@@ -19,8 +19,21 @@ pub use xy::{XToNdArray, Xy, YToNdArray};
 pub mod has_trait;
 pub use has_trait::{
     HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed, HasVariables, HasX,
-    HasY,
+    HasY, HasState,
 };
+
+pub mod wrapped_info;
+pub use wrapped_info::WrappedInfo;
+
+pub mod aliases;
+
+pub mod record;
+
+pub mod config;
+pub use config::{FolderConfig, SaverConfig};
+
+pub mod communicator;
+pub use communicator::Communicator;
 
 use serde::{Deserialize, Serialize};
 
@@ -33,10 +46,3 @@ where
     Self: Serialize + for<'de> Deserialize<'de>,
 {
 }
-
-pub mod wrapped_info;
-pub use wrapped_info::WrappedInfo;
-
-pub mod aliases;
-
-pub mod record;

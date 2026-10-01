@@ -270,9 +270,6 @@ pub struct GlobalParameters {
     pub run_id: usize,
 }
 
-pub mod config;
-pub use config::{FolderConfig, SaverConfig};
-
 pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
@@ -301,8 +298,8 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Batch, Computed, Fidelity, FidelitySol, Id, Lone,
-    OutBatch, Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed,
+    BaseSol, Computed, Fidelity, FidelitySol, SolId, Lone,
+    Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed,
 };
 
 pub mod searchspace;
@@ -316,22 +313,14 @@ pub use crate::objective::{
 };
 
 pub mod optimizer;
-use crate::utils::has_trait::HasState;
-pub use crate::optimizer::{
-    BatchOptimizer, BatchSampler, EmptyInfo, Optimizer, Sampler,
-    SingleOptimizer, SingleSampler
-};
+pub use crate::optimizer::{EmptyInfo, Optimizer, Sampler};
 
 pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
 pub use experiment::{
-    MonoExperiment, Pool, PoolMode, Runable, ThrExperiment,
-};
-#[cfg(feature = "mpi")]
-pub use experiment::{
-    mpi::utils::MPIProcess, mpi::worker::Worker,
+    Experiment, PoolMode, Runable,
 };
 
 pub mod recorder;
@@ -345,35 +334,15 @@ pub use utils::{
     Dominate, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
     NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
+    HasState, FolderConfig, SaverConfig,
     aliases,
 };
 
-pub mod evaluator;
 
 #[cfg(feature = "spikes")]
 pub mod spikes;
 #[cfg(feature = "spikes")]
 pub use spikes::*;
 
-pub trait Problem {
-    type Scp: Searchspace<Self::Func>;
-    type Func: FuncWrapper<Dom = <Self::Scp as Linked>::Obj>;
-}
-
-pub struct BasicProblem<S, F>
-where
-    S: Searchspace<F>,
-    F: FuncWrapper<Dom = <S as Linked>::Obj>,
-{
-    pub searchspace: S,
-    pub objective: F,
-}
-
-impl<S, F> Problem for BasicProblem<S, F>
-where
-    S: Searchspace<F>,
-    F: FuncWrapper<Dom = <S as Linked>::Obj>,
-{
-    type Scp = S;
-    type Func = F;
-}
+pub mod problem;
+pub use problem::{Problem, SimpleProblem, FidelityProblem, SimplePb, FidPb};

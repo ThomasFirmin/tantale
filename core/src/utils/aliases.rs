@@ -4,7 +4,6 @@ use crate::{Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, O
 
 
 // LINKED
-
 /// The type of the `Obj` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkObj<T> = <T as Linked>::Obj;
 /// The type of the `Opt` domain linked to `Self` through the [`Linked`] trait.
@@ -13,6 +12,8 @@ pub type LinkOpt<T> = <T as Linked>::Opt;
 pub type LinkTyObj<T> = <<T as Linked>::Obj as Domain>::Element;
 /// The [`TypeDom`](Domain::TypeDom) of the `Opt` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkTyOpt<T> = <<T as Linked>::Opt as Domain>::Element;
+/// The type of the `TrueOpt` domain linked to `Self` through the [`Linked`] trait.
+pub type LinkTrueOpt<T> = <T as Linked>::TrueOpt;
 
 // CODOMAIN
 
@@ -36,7 +37,6 @@ pub type GetId<T> = <T as HasId>::Id;
 pub type GetY<T> = <T as HasY>::Y;
 
 // EXECUTION
-// pub type SolId<Pb> = <Pb as Problem>::SolId;
 // OBJECTIVE FUNCTION
 pub type Func<Pb> = <Pb as Problem>::Func;
 pub type FuncOut<Pb> = <Func<Pb> as FuncWrapper>::OutShape;
@@ -48,11 +48,13 @@ pub type Obj<Pb> = LinkObj<Scp<Pb>>;
 pub type TObj<Pb> = LinkTyObj<Scp<Pb>>;
 pub type Opt<Pb> = LinkOpt<Scp<Pb>>;
 pub type TOpt<Pb> = LinkTyOpt<Scp<Pb>>;
+pub type TrueOpt<Pb> = LinkTrueOpt<Scp<Pb>>;
 // CODOMAIN
 pub type Cod<Pb> = <Out<Pb> as Outcome>::Cod;
 pub type CodElem<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::TypeCodom;
-// pub type Acc<Pb> = <Codom<Pb> as Codomain<Out<Pb>>>::Acc<CShape<Pb>, SolId<Pb>, SInfo<Pb>>;
 // SOLUTION
+pub type SObj<Pb> = <Func<Pb> as FuncWrapper>::Sol<Obj<Pb>>;
+pub type SOpt<Pb> = <Func<Pb> as FuncWrapper>::Sol<Opt<Pb>>;
 pub type Shape<Pb> = <Scp<Pb> as Searchspace<Func<Pb>>>::Shape;
 pub type Accum<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::Acc<CompShape<Pb>>;
 pub type CompShape<Pb> = <Shape<Pb> as IntoComputedShape>::ComputedShape<Out<Pb>>;

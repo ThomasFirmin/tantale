@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Codomain, Domain, EvalStep, Fidelity, Id, Linked, Outcome, SolInfo, State, Step, StepId, Uncomputed,
+    EvalStep, Fidelity, Linked, SolId, SolInfo, State, Step, StepId, Uncomputed, Var,
 };
 use std::{fmt::Debug, sync::Arc};
 
@@ -15,7 +15,7 @@ use std::{fmt::Debug, sync::Arc};
 /// enabling tracking and correlation throughout the optimization process.
 pub trait HasId 
 {
-    type Id: Id;
+    type Id: SolId;
     /// Returns the solution's unique identifier.
     fn id(&self) -> Self::Id;
 
@@ -197,6 +197,9 @@ pub trait HasUncomputed
 
 /// Trait for objects containing a slice of [`Var`](crate::Var)iables.
 pub trait HasVariables: Linked {
+
+    fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
+
     /// Returns an iterator over the `Opt` [`Domain`]s associated with this object.
     fn iter_opt(&self) -> impl Iterator<Item = &Self::Opt> + '_ {
         (0..self.size()).map(|idx| self.opt_at(idx).unwrap())
@@ -232,4 +235,13 @@ pub trait HasState
     fn get_state(&self) -> &Self::State;
     /// Builds `Self` from a previously saved [`State`].
     fn from_state(state: Self::State) -> Self;
+}
+
+/// Trait for objects that can provide their batch size.
+pub trait HasBatchSize {
+    /// Sets the batch size for the optimizer.
+    fn set_batch_size(&mut self, batch_size: usize);
+
+    /// Returns the current batch size of the optimizer.
+    fn get_batch_size(&self) -> usize;
 }

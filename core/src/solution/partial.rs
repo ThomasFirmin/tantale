@@ -17,8 +17,8 @@
 use crate::aliases::TypeCodom;
 use crate::domain::{Domain, Elem};
 use crate::objective::Step;
-use crate::solution::{Id, SolInfo, Solution, SolutionShape, Uncomputed};
-use crate::{Computed, EvalStep, Outcome, Problem, StepId};
+use crate::solution::{SolId, SolInfo, Solution, SolutionShape, Uncomputed};
+use crate::{Computed, EvalStep, Outcome, StepId};
 use crate::{HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasX};
 
 use serde::{Deserialize, Serialize};
@@ -37,25 +37,13 @@ impl Display for Fidelity {
     }
 }
 
-// impl CSVWritable<(), ()> for Fidelity {
-//     fn header(_elem: &()) -> Vec<String> {
-//         Vec::from([String::from("fidelity")])
-//     }
-
-//     fn write(&self, _comp: &()) -> Vec<String> {
-//         Vec::from([self.0.to_string()])
-//     }
-// }
-
 impl Fidelity {
     /// Apply this fidelity to both sides of a paired solution.
-    pub fn set_pair<Shape, SolId, SInfo>(self, pair: &mut Shape)
+    pub fn set_pair<Shape>(self, pair: &mut Shape)
     where
-        SolId: Id,
-        SInfo: SolInfo,
-        Shape: SolutionShape<SolId, SInfo> + HasFidelity,
-        Shape::SolObj: HasFidelity,
-        Shape::SolOpt: HasFidelity,
+        Shape: SolutionShape + HasFidelity,
+        Shape::ObjSol: HasFidelity,
+        Shape::OptSol: HasFidelity,
     {
         pair.get_mut_sobj().set_fidelity(self.0);
         pair.get_mut_sopt().set_fidelity(self.0);
@@ -63,11 +51,6 @@ impl Fidelity {
 }
 
 /// A non-evaluated [`Solution`].
-///
-/// # Attributes
-/// * `id` : [`Id`] - The unique [`Id`] of the solution.
-/// * `x` : [`Arc`][`<[TypeDom]>`](Domain::TypeDom) - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `info` : [`Arc`]`<Info>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
 ///
 /// # Example
 /// ```
@@ -80,15 +63,15 @@ impl Fidelity {
 /// assert_eq!(sol.ref_x().len(), 5);
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound = "SolId: Id, Dom: Domain, Info: SolInfo")]
-pub struct BaseSol<SolId: Id, Dom: Domain, Info: SolInfo>
+#[serde(bound = "Id: SolId, Dom: Domain, Info: SolInfo")]
+pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo>
 {
-    pub id: SolId,
+    pub id: Id,
     pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
 }
 
-impl<SolId: Id, Dom: Domain, Info: SolInfo> HasX for BaseSol<SolId, Dom, Info>
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info>
 {
     type X = Arc<[Dom::Element]>;
     
@@ -103,24 +86,24 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> HasX for BaseSol<SolId, Dom, Info>
     }
 }
 
-impl<SolId: Id, Dom: Domain, Info: SolInfo> HasId for BaseSol<SolId, Dom, Info>
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info>
 {
-    type Id = SolId;
+    type Id = Id;
     
-    fn id(&self) -> SolId {
+    fn id(&self) -> Id {
         self.id
     }
 
-    fn ref_id(&self) -> &SolId {
+    fn ref_id(&self) -> &Id {
         &self.id
     }
 
-    fn mut_ref_id(&mut self) -> &mut SolId {
+    fn mut_ref_id(&mut self) -> &mut Id {
         &mut self.id
     }
 }
 
-impl<SolId: Id, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<SolId, Dom, Info>
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info>
 {
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
@@ -128,7 +111,7 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<SolId, Dom, Info
     }
 }
 
-impl<SolId: Id, Dom: Domain, Info: SolInfo> Solution for BaseSol<SolId, Dom, Info>
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info>
 {
     type Dom = Dom;
 
@@ -143,15 +126,10 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Solution for BaseSol<SolId, Dom, Inf
     }
 }
 
-impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, Info>
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info>
 {
-    /// Creates a new [`BaseSol`] from a slice of [`TypeDom`](Domain::TypeDom).
-    ///
-    /// # Attributes
-    ///
-    /// * `id` : `E::SolId` - A unique [`Id`].
-    /// * `x` : `Into`[`<Raw>`](Solution::Raw) - A raw solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
-    ///
+    /// Creates a new [`BaseSol`] from a slice of [`Element`](Domain::Element).
+    /// 
     /// # Example
     ///
     /// ```
@@ -166,7 +144,7 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, I
     /// }
     ///
     /// ```
-    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
+    fn new<T>(id: Id, x: T, info: Arc<Info>) -> Self
     where
         T: Into<Self::X>,
     {
@@ -178,9 +156,9 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, I
     }
 
     /// Create a default-valued solution of a given size.
-    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solution.
+    /// It uses the [`Default`] implementation of the underlying [`Element`](Domain::Element) to fill the raw solution.
     fn default(info: Arc<Info>, size: usize) -> Self {
-        let id = SolId::generate();
+        let id = Id::generate();
         let x = vec![Dom::Element::default(); size];
         BaseSol {
             id,
@@ -189,7 +167,7 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, I
         }
     }
     /// Create multiple default-valued solutions with the same size.
-    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solutions.
+    /// It uses the [`Default`] implementation of the underlying [`Element`](Domain::Element) to fill the raw solutions.
     fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
         (0..vsize)
             .map(|_| Self::default(info.clone(), size))
@@ -201,31 +179,11 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, I
     }
 }
 
-// impl<E:Execution, S:SolutionType> IntoComputed for BaseSol<E, S>
-// {
-//     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-//     fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
-//         Computed::new(self, y)
-//     }
-
-//     fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-//         (comp.sol, comp.y)
-//     }
-// }
-
 //--------------------//
 //----- FIDELITY -----//
 //--------------------//
 
 /// A non-evaluated [`Solution`] containing a [`Fidelity`].
-///
-/// # Attributes
-/// * `id` : [`Id`] - The unique [`Id`] of a [`Solution`].
-/// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `step` : [`Step`] -  The current evaluation [`Step`] of `x`.
-/// * `fid` : [`Fidelity`] -  The [`Fidelity`] associated to `x`.
-/// * `info` : [`Arc<SolInfo>`](SolInfo) - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
 ///
 /// # Example
 /// ```
@@ -243,17 +201,17 @@ impl<SolId: Id, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<SolId, Dom, I
 /// assert_eq!(sol.fidelity().0, 0.5);
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound = "SolId: StepId, Dom: Domain, Info: SolInfo")]
-pub struct FidelitySol<SolId: StepId, Dom: Domain, Info: SolInfo>
+#[serde(bound = "Id: StepId, Dom: Domain, Info: SolInfo")]
+pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo>
 {
-    pub id: SolId,
+    pub id: Id,
     pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
     pub step: EvalStep, // A `isize` [`EvalStep`] for serde and mpi communication issues.
     pub fid: Fidelity,
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info>
 {
     type X = Arc<[Dom::Element]>;
 
@@ -268,24 +226,24 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<SolId, Dom,
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info>
 {
-    type Id = SolId;
+    type Id = Id;
 
-    fn id(&self) -> SolId {
+    fn id(&self) -> Id {
         self.id
     }
 
-    fn ref_id(&self) -> &SolId {
+    fn ref_id(&self) -> &Id {
         &self.id
     }
 
-    fn mut_ref_id(&mut self) -> &mut SolId {
+    fn mut_ref_id(&mut self) -> &mut Id {
         &mut self.id
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<Id, Dom, Info>
 {
     fn increment(&mut self) {
         self.id.increment();
@@ -295,12 +253,12 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<SolId,
         self.id.id_step()
     }
 
-    fn previous_id(&self) -> SolId {
+    fn previous_id(&self) -> Id {
         self.id.previous_id()
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<Id, Dom, Info>
 {
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
@@ -308,7 +266,7 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<SolId, D
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<Id, Dom, Info>
 {
     fn fidelity(&self) -> Fidelity {
         self.fid
@@ -318,7 +276,7 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<SolI
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, Info>
 {
     /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
@@ -361,7 +319,7 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<SolId, D
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info>
 {
     type Dom =  Dom;
 
@@ -378,10 +336,10 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<SolId, 
     }
 }
 
-impl<SolId: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<SolId, Dom, Info>
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info>
 {
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
-    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
+    fn new<T>(id: Id, x: T, info: Arc<Info>) -> Self
     where
         T: Into<Self::X>,
     {
@@ -396,7 +354,7 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<SolId
 
     /// Create a default-valued [`Fidelity`] solution of a given size.
     fn default(info: Arc<Info>, size: usize) -> Self {
-        let id = SolId::generate();
+        let id = Id::generate();
         let x = vec![Elem::<Dom>::default(); size];
         FidelitySol {
             id,
@@ -418,20 +376,3 @@ impl<SolId: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<SolId
         Computed::new(self, y)
     }
 }
-
-// impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
-// where
-//     Dom: Domain,
-//     Info: SolInfo,
-//     SolId: StepId,
-// {
-//     type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-//     fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
-//         Computed::new(self, y)
-//     }
-
-//     fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-//         (comp.sol, comp.y)
-//     }
-// }

@@ -12,17 +12,8 @@
 //!
 //! ## Recorder Traits
 //!
-//! Tantale provides specialized recorder traits based on the experiment type:
-//!
-//! ### Single-Process Experiments
-//! - [`Recorder`] - Base marker trait for all recorder implementations
-//! - [`SeqRecorder`] - For single optimizers (one solution at a time)
-//! - [`BatchRecorder`] - For batch optimizers (multiple solutions per iteration)
-//!
-//! ### Distributed Experiments (MPI)
-//! When the `mpi` feature is enabled:
-//! - [`DistSeqRecorder`] - For distributed single experiments
-//! - [`DistBatchRecorder`] - For distributed batch experiments
+//! [`Recorder`] is the base trait for all recorders.
+//! It defines the interface for initializing storage, recording results, and handling resumption from saved states.
 //!
 //! ## Usage
 //!
@@ -35,15 +26,22 @@
 //! recorder.save(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
 //! ```
 
-use std::path::PathBuf;
-
-use crate::{
-    BatchOptimizer, Domain, FuncWrapper, HasVariables, Optimizer, Problem, Runable, SingleOptimizer, SolInfo, 
-    objective::Outcome, searchspace::Searchspace, solution::Id,
-};
+use crate::{Problem, errors::RecorderError, utils::record::{Recordable, Schema}};
 
 pub mod csv;
 pub use csv::CSVRecorder;
+
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum RecorderTargets {
+    XObjective,
+    XOptimizer,
+    Y,
+    Outcome,
+    Metadata,
+    Other(String),
+}
 
 /// Marker trait for recorder implementations used by the experiment runner to save evaluation results.
 ///
@@ -53,45 +51,29 @@ pub use csv::CSVRecorder;
 ///
 /// This is a base trait that all recorders must implement. The actual recording functionality
 /// is provided by specialized traits like [`SeqRecorder`] and [`BatchRecorder`].
-///
+/// 
 /// # See Also
-///
-/// - [`SeqRecorder`] - Sequential experiment recorder trait
-/// - [`BatchRecorder`] - Batch experiment recorder trait  
-/// - [`CSVRecorder`] - File-based CSV recorder implementation
-/// - [`NoSaver`] - No-op recorder for experiments without persistence
-pub trait Recorder<R: Runable> {
-    /// Initialize recorder storage for a new single experiment.
+/// - [`CSVRecorder`] - A concrete implementation that saves results to CSV files.
+pub trait Recorder<P: Problem, Context> {
+    /// Initialize recorder storage for a new experiment.
     ///
-    /// This method should create any required files, headers, or database tables.
+    /// This method should create any required files, or database.
     /// It is called once before the optimization loop starts.
-    ///
-    /// # Parameters
-    ///
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn init(&mut self, runable: &R);
+    fn init(&mut self, problem: &P, context: &Context) -> Result<(), RecorderError>;
 
-    /// Prepare the recorder for resuming from a [`load`](crate::load)ed single experiment.
-    ///
-    /// # Parameters
-    ///
-    /// * `scp` - [`Searchspace`] describing the solution structure
-    /// * `cod` - [`Codomain`](crate::Codomain) describing objective outputs
-    fn after_load(&mut self, ctx: &R::Context);
+    /// Prepare the recorder for resuming from a [`load`](crate::load)ed experiment.
+    fn after_load(&mut self, problem: &P, context: &Context) -> Result<(), RecorderError>;
 
-    /// Record a single evaluated solution and its outcome.
+    /// Record a evaluated solution and its outcome.
     ///
     /// This method is called after each solution evaluation to persist the result.
-    ///
-    /// # Parameters
-    ///
-    /// * `computed` - The fully computed [`Solution`](crate::Solution) with all metadata
-    /// * `outputed` - Tuple of solution [`Id`] and [`Outcome`]
-    /// * `scp` - [`Searchspace`] used to interpret the solution
-    /// * `cod` - [`Codomain`](crate::Codomain) used to interpret the outcome
-    fn record<T: Tabular<H>, H>(&self, object: &T, header: &H, file: PathBuf);
+    fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    where
+        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>;
 
-    /// Same as [`record`](Recorder::record) but for a vector of [`Tabular`] objects.
-    fn vec_record<T: Tabular<H>, H>(&self, objects: &[T], header: &H, file: PathBuf);
+    /// Same as [`record`](Recorder::record) but for a vector of [`Recordable`] objects.
+    fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    where
+        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
+        I: IntoIterator<Item = T>;
 }

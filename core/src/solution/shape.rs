@@ -20,9 +20,9 @@
 //! ```
 
 use crate::{
-    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY, Id, Multi, NoDomain, Outcome, SolInfo, Solution, StepId, aliases::TypeCodom, domain::{
-        Domain, codomain::ElemMulti, onto::Linked,
-    }, objective::Step, solution::Uncomputed, utils::orderable::Orderable,
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY, NoDomain, Outcome, Solution, StepId, 
+    aliases::TypeCodom, domain::{codomain::ElemMulti, onto::Linked}, 
+    objective::Step, solution::Uncomputed, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -75,9 +75,14 @@ where
     ///
     /// This type must implement [`HasY`] to provide access to the objective function output.
     type ComputedShape<Out:Outcome>: SolutionShape<
+        Obj = Self::Obj,
+        Opt = Self::Opt,
+        TrueOpt = Self::TrueOpt,
         ObjSol = Computed<Self::ObjSol, Out>,
         OptSol = Computed<Self::OptSol, Out>,
-    >;
+        Id = Self::Id,
+        Info = Self::Info,
+    > + HasY<Y = TypeCodom<Out>>;
 
     /// Converts this uncomputed solution into a computed one with an objective value.
     ///
@@ -189,16 +194,16 @@ where
     SB::Id: StepId,
 {
     fn increment(&mut self) {
-        self.0.increment();
-        self.1.increment();
+        self.0.id().increment();
+        self.1.id().increment();
     }
 
     fn id_step(&self) -> usize {
-        self.0.id_step()
+        self.0.id().id_step()
     }
 
     fn previous_id(&self) -> SA::Id {
-        self.0.previous_id()
+        self.0.id().previous_id()
     }
 }
 
@@ -405,23 +410,23 @@ impl<SA,SB> Dominate for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA::Y: ElemMulti,
-    SA: Solution + HasY,
-    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y>,
+    SA: Solution + HasY + Dominate,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + HasY<Y = SA::Y> + Dominate,
 {
     fn dominates(&self, other: &Self) -> bool {
-        self.y().dominates(&other.y())
+        self.0.dominates(&other.0)
     }
 
     fn get_objective_by_index(&self, idx: usize) -> f64 {
-        self.y().get_objective_by_index(idx)
+        self.0.get_objective_by_index(idx)
     }
 
     fn len_objectives(&self) -> usize {
-        self.y().len_objectives()
+        self.0.len_objectives()
     }
 
     fn get_objectives(&self) -> &[f64] {
-        self.1.y.get_objectives()
+        self.0.get_objectives()
     }
 }
 
@@ -487,15 +492,15 @@ where
     S::Id: StepId,
 {
     fn increment(&mut self) {
-        self.0.increment();
+        self.0.id().increment();
     }
 
     fn id_step(&self) -> usize {
-        self.0.id_step()
+        self.0.id().id_step()
     }
 
     fn previous_id(&self) -> S::Id {
-        self.0.previous_id()
+        self.0.id().previous_id()
     }
 }
 
@@ -672,8 +677,8 @@ where
 impl<S: Solution> Dominate for Lone<S>
 where
     Self: HasY<Y = S::Y>,
-    S: Solution + HasY,
     S::Y: ElemMulti,
+    S: Solution + HasY + Dominate,
 {
     fn dominates(&self, other: &Self) -> bool {
         self.y().dominates(&other.y())
@@ -688,6 +693,6 @@ where
     }
 
     fn get_objectives(&self) -> &[f64] {
-        self.0.y.get_objectives()
+        self.0.get_objectives()
     }
 }

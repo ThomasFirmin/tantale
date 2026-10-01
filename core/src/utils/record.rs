@@ -1,47 +1,55 @@
 use crate::{
-    BaseSol, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Domain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain, FidelitySol, HasVariables, Id, MultiCodomain, OntoDom, Outcome, Runable, SingleCodomain, SolInfo, SolutionShape, Sp, Var, domain::PreDomain, recorder::csv::SolCSVWrite,
+    BaseSol, Computed, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Domain, ElemConstCodomain, 
+    ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, 
+    ElemSingleCodomain, FidelitySol, SolId, MultiCodomain, Outcome, SingleCodomain, SolInfo, StepId, Uncomputed, Var,
+    aliases::TypeCodom, domain::PreDomain, variable::var::ToName,
 };
 
+
 pub trait Schema<C> {
-    fn columns(context: &C) -> Vec<String>;
-}
-
-pub trait Recordable {
     type Parts;
-    fn record(&self, part: Self::Parts) -> Vec<String>;
+    fn columns(context: &C, part: Self::Parts) -> Vec<String>;
 }
 
-impl<Out:Outcome> Schema<SingleCodomain<Out>> for ElemSingleCodomain{   
-    fn columns(context: &SingleCodomain<Out>) -> Vec<String> {
+pub trait Recordable<C> {
+    type Parts: Clone;
+    fn record(&self, context: &C, part: Self::Parts) -> Vec<String>;
+}
+
+impl<Out:Outcome> Schema<SingleCodomain<Out>> for ElemSingleCodomain{
+    type Parts = ();
+    fn columns(_context: &SingleCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         vec!["y".into()]
     }
     
 }
 
-impl Recordable for ElemSingleCodomain {
+impl<Out:Outcome> Recordable<SingleCodomain<Out>> for ElemSingleCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &SingleCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         vec![self.value.to_string()]
     }
 }
 
 impl<Out: Outcome> Schema<CostCodomain<Out>> for ElemCostCodomain {
-    fn columns(context: &CostCodomain<Out>) -> Vec<String> {
+    type Parts=();
+    fn columns(_context: &CostCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         vec!["y".into(), "cost".into()]
     }
 }
 
-impl Recordable for ElemCostCodomain {
+impl<Out:Outcome> Recordable<CostCodomain<Out>> for ElemCostCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &CostCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         vec![self.value.to_string(), self.cost.to_string()]
     }
 }
 
 impl<Out:Outcome> Schema<ConstCodomain<Out>> for ElemConstCodomain {
-    fn columns(context: &ConstCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &ConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v = Vec::from([String::from("y")]);
         v.extend(
             context.c_criteria
@@ -51,12 +59,13 @@ impl<Out:Outcome> Schema<ConstCodomain<Out>> for ElemConstCodomain {
         );
         v
     }
+    
 }
 
-impl Recordable for ElemConstCodomain {
+impl<Out:Outcome> Recordable<ConstCodomain<Out>> for ElemConstCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &ConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v = Vec::from([self.value.to_string()]);
         v.extend(self.constraints.iter().map(|c| c.to_string()));
         v
@@ -64,7 +73,8 @@ impl Recordable for ElemConstCodomain {
 }
 
 impl<Out:Outcome> Schema<CostConstCodomain<Out>> for ElemCostConstCodomain {
-    fn columns(context: &CostConstCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &CostConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v = Vec::from([String::from("y"), String::from("cost")]);
         v.extend(
             context.c_criteria
@@ -74,12 +84,13 @@ impl<Out:Outcome> Schema<CostConstCodomain<Out>> for ElemCostConstCodomain {
         );
         v
     }
+    
 }
 
-impl Recordable for ElemCostConstCodomain {
+impl<Out:Outcome> Recordable<CostConstCodomain<Out>> for ElemCostConstCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &CostConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v = Vec::from([self.value.to_string(), self.cost.to_string()]);
         v.extend(self.constraints.iter().map(|c| c.to_string()));
         v
@@ -87,7 +98,8 @@ impl Recordable for ElemCostConstCodomain {
 }
 
 impl<Out: Outcome> Schema<MultiCodomain<Out>> for ElemMultiCodomain {
-    fn columns(context: &MultiCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &MultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         context
             .y_criteria
             .iter()
@@ -95,12 +107,13 @@ impl<Out: Outcome> Schema<MultiCodomain<Out>> for ElemMultiCodomain {
             .map(|(idx, _)| format!("y{}", idx))
             .collect()
     }
+    
 }
 
-impl Recordable for ElemMultiCodomain {
+impl<Out: Outcome> Recordable<MultiCodomain<Out>> for ElemMultiCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &MultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         self.value.iter().map(|v| v.to_string()).collect()
     }
 }
@@ -109,7 +122,8 @@ impl Recordable for ElemMultiCodomain {
 
 
 impl<Out: Outcome> Schema<CostMultiCodomain<Out>> for ElemCostMultiCodomain {
-    fn columns(context: &CostMultiCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &CostMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = context
             .y_criteria
             .iter()
@@ -121,10 +135,10 @@ impl<Out: Outcome> Schema<CostMultiCodomain<Out>> for ElemCostMultiCodomain {
     }
 }
 
-impl Recordable for ElemCostMultiCodomain {
+impl<Out: Outcome> Recordable<CostMultiCodomain<Out>> for ElemCostMultiCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &CostMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
         v.push(self.cost.to_string());
         v
@@ -132,7 +146,8 @@ impl Recordable for ElemCostMultiCodomain {
 }
 
 impl<Out: Outcome> Schema<ConstMultiCodomain<Out>> for ElemConstMultiCodomain {
-    fn columns(context: &ConstMultiCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &ConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = context
             .y_criteria
             .iter()
@@ -150,10 +165,10 @@ impl<Out: Outcome> Schema<ConstMultiCodomain<Out>> for ElemConstMultiCodomain {
     }
 }
 
-impl Recordable for ElemConstMultiCodomain {
+impl<Out: Outcome> Recordable<ConstMultiCodomain<Out>> for ElemConstMultiCodomain {
     type Parts = ();
 
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &ConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
         let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
         v.extend(c);
@@ -162,7 +177,8 @@ impl Recordable for ElemConstMultiCodomain {
 }
 
 impl<Out: Outcome> Schema<CostConstMultiCodomain<Out>> for ElemCostConstMultiCodomain {
-    fn columns(context: &CostConstMultiCodomain<Out>) -> Vec<String> {
+    type Parts = ();
+    fn columns(context: &CostConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = context
             .y_criteria
             .iter()
@@ -181,10 +197,9 @@ impl<Out: Outcome> Schema<CostConstMultiCodomain<Out>> for ElemCostConstMultiCod
     }
 }
 
-impl Recordable for ElemCostConstMultiCodomain {
+impl<Out: Outcome> Recordable<CostConstMultiCodomain<Out>> for ElemCostConstMultiCodomain {
     type Parts = ();
-
-    fn record(&self, part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &CostConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
         v.push(self.cost.to_string());
         let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
@@ -193,21 +208,202 @@ impl Recordable for ElemCostConstMultiCodomain {
     }
 }
 
-
-
 /// Parts of a solution that can be recorded separately.
+/// When used with [`Recordable`] or [`Schema`] types, the [`Id`] is always included.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SolParts {
     /// Only the variable values ([`X`](crate::HasX::X))
     X,
-    /// Only the solution identifier ([`Id`](crate::HasId::Id))
-    Id,
     /// Only the solution metadata ([`Info`](crate::HasInfo::Info))
     Info,
     /// All parts of the solution
     All,
+    /// The part without the [`Id`], which is always included in the output.
+    NoId(Box<Self>),
+}
+
+fn no_id_columns<Info, Obj, Opt>(context: &[Var<Obj, Opt>],part: &SolParts) -> Vec<String> 
+where 
+    Obj: Domain,
+    Opt: PreDomain,
+    Info: SolInfo + Schema<(), Parts = ()>,
+{
+    match part {
+        SolParts::X => context.iter().map(|var| var.to_name()).collect(),
+        SolParts::Info => Info::columns(&(), ()),
+        SolParts::All => {
+            let mut part: Vec<String> = context.iter().map(|var| var.to_name()).collect();
+            part.extend(Info::columns(&(), ()));
+            part
+        },
+        SolParts::NoId(inner) => no_id_columns::<Info, Obj, Opt>(context, inner),
+    }
+}
+
+fn fid_no_id_columns<Info, Obj, Opt>(context: &[Var<Obj, Opt>],part: &SolParts) -> Vec<String> 
+where 
+    Obj: Domain,
+    Opt: PreDomain,
+    Info: SolInfo + Schema<(), Parts = ()>,
+{
+    match part {
+        SolParts::X => context.iter().map(|var| var.to_name()).collect(),
+        SolParts::Info => {
+            let mut fid = vec![String::from("fidelity"), String::from("step")];
+            let info = Info::columns(&(), ());
+            fid.extend(info);
+            fid
+        },
+        SolParts::All => {
+            let mut part: Vec<String> = context.iter().map(|var| var.to_name()).collect();
+            let fid = vec![String::from("fidelity"), String::from("step")];
+            let info = Info::columns(&(), ());
+            part.extend(fid);
+            part.extend(info);
+            part
+        },
+        SolParts::NoId(inner) => fid_no_id_columns::<Info, Obj, Opt>(context, inner),
+    }
+}
+
+impl<Id, Info, Dom, Other> Schema<&[Var<Dom, Other>]> for BaseSol<Id, Dom,Info> 
+where 
+    Dom: Domain,
+    Other: PreDomain,
+    Id: SolId + Schema<(), Parts = ()>,
+    Info: SolInfo + Schema<(), Parts = ()>,
+{
+    type Parts = SolParts;
+    fn columns(context: &&[Var<Dom, Other>], part: Self::Parts) -> Vec<String> {
+        let sol_part = match part {
+            SolParts::NoId(sol_parts) => return no_id_columns::<Info, Dom,Other>(context, &sol_parts),
+            _ => no_id_columns::<Info, Dom,Other>(context, &part),
+        };
+
+        let mut id = Id::columns(&(), ());
+        id.extend(sol_part);
+        id
+    }
+}
+
+impl<Id, Info, Dom, Other> Schema<&[Var<Dom, Other>]> for FidelitySol<Id, Dom,Info> 
+where 
+    Dom: Domain,
+    Other: PreDomain,
+    Id: StepId + Schema<(), Parts = ()>,
+    Info: SolInfo + Schema<(), Parts = ()>,
+{
+    type Parts = SolParts;
+    fn columns(context: &&[Var<Dom, Other>], part: Self::Parts) -> Vec<String> {
+        let sol_part = match part {
+            SolParts::NoId(sol_parts) => return fid_no_id_columns::<Info, Dom,Other>(context, &sol_parts),
+            _ => fid_no_id_columns::<Info, Dom,Other>(context, &part),
+        };
+
+        let mut id = Id::columns(&(), ());
+        id.extend(sol_part);
+        id
+    }
+}
+
+impl<Id, Info, Dom> Recordable<()> for BaseSol<Id, Dom,Info> 
+where 
+    Dom: Domain,
+    Id: SolId + Recordable<(), Parts = ()>,
+    Info: SolInfo + Recordable<(), Parts = ()>,
+{
+    type Parts = SolParts;
+
+    fn record(&self, _context: &(), part: Self::Parts) -> Vec<String> {
+        let sol_part = match part {
+            SolParts::X => self.x.iter().map(|v| v.to_string()).collect(),
+            SolParts::Info => self.info.record(&(), ()),
+            SolParts::All => {
+                let mut x: Vec<String> = self.x.iter().map(|v| v.to_string()).collect();
+                let info = self.info.record(&(), ());
+                x.extend(info);
+                x
+            },
+            SolParts::NoId(sol_parts) => {
+                return match *sol_parts {
+                    SolParts::X => self.x.iter().map(|v| v.to_string()).collect(),
+                    SolParts::Info => self.info.record(&(), ()),
+                    SolParts::All => {
+                        let mut x: Vec<String> = self.x.iter().map(|v| v.to_string()).collect();
+                        let info = self.info.record(&(), ());
+                        x.extend(info);
+                        x
+                    },
+                    SolParts::NoId(in_part) => self.record(&(), SolParts::NoId(in_part)),
+                }
+            },
+        };
+        let mut id = self.id.record(&(), ());
+        id.extend(sol_part);
+        id
+    }
+}
+
+impl<Id, Info, Dom> Recordable<()> for FidelitySol<Id, Dom,Info> 
+where 
+    Dom: Domain,
+    Id: StepId + Recordable<(), Parts = ()>,
+    Info: SolInfo + Recordable<(), Parts = ()>,
+{
+    type Parts = SolParts;
+
+    fn record(&self, _context: &(), part: Self::Parts) -> Vec<String> {
+        let sol_part = match part {
+            SolParts::X => self.x.iter().map(|v| v.to_string()).collect(),
+            SolParts::Info => {
+                let mut fid = vec![self.fid.to_string(), self.step.to_string()];
+                let info = self.info.record(&(), ());
+                fid.extend(info);
+                fid
+            },
+            SolParts::All => {
+                let mut x: Vec<String> = self.x.iter().map(|v| v.to_string()).collect();
+                let info = {
+                    let mut fid = vec![self.fid.to_string(), self.step.to_string()];
+                    let info = self.info.record(&(), ());
+                    fid.extend(info);
+                    fid
+                };
+                x.extend(info);
+                x
+            },
+            SolParts::NoId(sol_parts) => {
+                return match *sol_parts {
+                    SolParts::X => self.x.iter().map(|v| v.to_string()).collect(),
+                    SolParts::Info => {
+                        let mut fid = vec![self.fid.to_string(), self.step.to_string()];
+                        let info = self.info.record(&(), ());
+                        fid.extend(info);
+                        fid
+                    },
+                    SolParts::All => {
+                        let mut x: Vec<String> = self.x.iter().map(|v| v.to_string()).collect();
+                        let info = {
+                            let mut fid = vec![self.fid.to_string(), self.step.to_string()];
+                            let info = self.info.record(&(), ());
+                            fid.extend(info);
+                            fid
+                        };
+                        x.extend(info);
+                        x
+                    },
+                    SolParts::NoId(in_part) => self.record(&(), SolParts::NoId(in_part)),
+                }
+            },
+        };
+        let mut id = self.id.record(&(), ());
+        id.extend(sol_part);
+        id
+    }
 }
 
 /// Parts of a [`Computed`] solution that can be recorded separately.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompParts {
     /// Select a part of the computed solution to record.
     Sol(SolParts),
@@ -215,162 +411,88 @@ pub enum CompParts {
     Y,
     /// All parts of the solution
     All,
+    /// The part without the [`Id`], which is always included in the output.
+    NoId(Box<Self>),
 }
 
-/// Parts of a solution shape that can be recorded separately.
-pub enum ShapePart {
-    /// Only the objective solution ([`Obj`](crate::solution::shape::SolutionShape::ObjSol))
-    Obj(SolParts),
-    /// Only the optimizer solution ([`Opt`](crate::solution::shape::SolutionShape::OptSol))
-    Opt(SolParts),
-}
-
-impl<R: Runable> Schema for BaseSol<>
-{
-    
-}
-
-impl<SolId, Dom, Info> Tabular<BaseSol<SolId, Dom, Info>> for Var<>
-where
+impl<'a, S, Out, Dom, Other> Schema<(&'a [Var<Dom, Other>], &'a Out::Cod)> for Computed<S, Out>
+where 
+    S: Uncomputed<Dom = Dom> + Schema<&'a [Var<Dom, Other>], Parts = SolParts>,
+    Out: Outcome,
     Dom: Domain,
-    SolId: Id + Tabular<(), Parts = ()> + HasHeader,
-    Info: SolInfo + Tabular<(), Parts = ()> + HasHeader,
+    Other: PreDomain,
+    S::Id : SolId + Schema<(), Parts = ()>,
+    S::Info : SolInfo + Schema<(), Parts = ()>,
+    TypeCodom<Out>: Schema<Out::Cod, Parts = ()>,
 {
-    type Parts = SolParts;
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        let mut id = SolId::header();
-        let mut part = match part {
-            SolParts::X => self.names(),
-            SolParts::Id => Vec::new(),
-            SolParts::Info => Info::header(),
-            SolParts::All => {
-                let mut v = self.names();
-                v.extend(Info::header());
-                v
+    type Parts = CompParts;
+    fn columns(context: &(&'a [Var<Dom, Other>], &'a Out::Cod), part: Self::Parts) -> Vec<String> {
+        let sol_part = match part {
+            CompParts::Sol(sol_parts) => S::columns(&context.0, SolParts::NoId(sol_parts.into())),
+            CompParts::Y => TypeCodom::<Out>::columns(context.1, ()),
+            CompParts::All => {
+                let mut sol_cols = S::columns(&context.0, SolParts::NoId(SolParts::All.into()));
+                let y_cols = TypeCodom::<Out>::columns(context.1, ());
+                sol_cols.extend(y_cols);
+                sol_cols
             },
+            CompParts::NoId(comp_parts) => {
+                return match *comp_parts {
+                    CompParts::Sol(sol_parts) => S::columns(&context.0, SolParts::NoId(sol_parts.into())),
+                    CompParts::Y => TypeCodom::<Out>::columns(context.1, ()),
+                    CompParts::All => {
+                        let mut sol_cols = S::columns(&context.0, SolParts::NoId(SolParts::All.into()));
+                        let y_cols = TypeCodom::<Out>::columns(context.1, ());
+                        sol_cols.extend(y_cols);
+                        sol_cols
+                    },
+                    CompParts::NoId(in_part) => Self::columns(context, CompParts::NoId(in_part)),
+                }
+            }
         };
-        id.extend(part);
-        id
-    }
-
-    /// Write value as CSV row columns.
-    fn column_values(&self, elem: BaseSol<SolId, Dom, Info>, part: Self::Parts) -> Vec<String> {
-        let mut id = elem.id.column_values(&(), ());
-        let mut part = match part {
-            SolParts::X => elem.x.iter().map(|v| v.to_string()).collect(),
-            SolParts::Id => Vec::new(),
-            SolParts::Info => elem.info.column_values(&(), ()),
-            SolParts::All => {
-                let mut v = self.values(&elem.x);
-                v.extend(elem.info.column_values(&(), ()));
-                v
-            },
-        };
-        id.extend(part);
+        let mut id = S::Id::columns(&(), ());
+        id.extend(sol_part);
         id
     }
 }
 
-impl<H, SolId, Dom, Info> Tabular<FidelitySol<SolId, Dom, Info>> for Vec<String>
-where
-    H: HasVariables,
-    SolId: Id + Tabular<(), Parts = ()> + HasHeader,
+impl<S, Out, Dom> Recordable<()> for Computed<S, Out>
+where 
+    S: Uncomputed<Dom = Dom> + Recordable<(), Parts = SolParts>,
+    Out: Outcome,
     Dom: Domain,
-    Info: SolInfo + Tabular<(), Parts = ()> + HasHeader,
+    S::Id : SolId + Recordable<(), Parts = ()>,
+    S::Info : SolInfo + Recordable<(), Parts = ()>,
+    TypeCodom<Out>: Recordable<(), Parts = ()>,
 {
-    type Parts = SolParts;
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        let mut id = SolId::header();
-        let mut part = match part {
-            SolParts::X => self.names(),
-            SolParts::Id => Vec::new(),
-            SolParts::Info => Info::header(),
-            SolParts::All => {
-                let mut v = self.names();
-                v.extend(Info::header());
-                v
+    type Parts = CompParts;
+
+    fn record(&self, _context: &(), part: Self::Parts) -> Vec<String> {
+        let sol_part =match part {
+            CompParts::Sol(sol_parts) => self.sol.record(&(), SolParts::NoId(sol_parts.into())),
+            CompParts::Y => self.y.record(&(), ()),
+            CompParts::All => {
+                let mut sol_rec = self.sol.record(&(), SolParts::NoId(SolParts::All.into()));
+                let y_rec = self.y.record(&(), ());
+                sol_rec.extend(y_rec);
+                sol_rec
             },
+            CompParts::NoId(comp_parts) => {
+                return match *comp_parts {
+                    CompParts::Sol(sol_parts) => self.sol.record(&(), SolParts::NoId(sol_parts.into())),
+                    CompParts::Y => self.y.record(&(), ()),
+                    CompParts::All => {
+                        let mut sol_rec = self.sol.record(&(), SolParts::NoId(SolParts::All.into()));
+                        let y_rec = self.y.record(&(), ());
+                        sol_rec.extend(y_rec);
+                        sol_rec
+                    },
+                    CompParts::NoId(in_part) => self.record(&(), CompParts::NoId(in_part)),
+                }
+            }
         };
-        id.extend(part);
-        id
-    }
-
-    /// Write value as CSV row columns.
-    fn column_values(&self, elem: FidelitySol<SolId, Dom, Info>, part: Self::Parts) -> Vec<String> {
-        let mut id = elem.id.column_values(&(), ());
-        let mut part = match part {
-            SolParts::X => elem.x.iter().map(|v| v.to_string()).collect(),
-            SolParts::Id => Vec::new(),
-            SolParts::Info => {
-                let mut fid = vec![elem.fid.to_string(), elem.step.to_string()];
-                let mut info = elem.info.column_values(&(), ());
-                fid.extend(info);
-                fid
-            },
-            SolParts::All => {
-                let mut v = self.values(&elem.x);
-                v.extend(elem.info.column_values(&(), ()));
-                v
-            },
-        };
-        id.extend(part);
-        id
-    }
-}
-
-impl<Shape, Obj, Opt> Tabular<Shape> for Sp<Obj, Opt>
-where
-    Shape : SolutionShape<Obj = Obj, Opt = Opt>,
-    Shape::Id: Id + Tabular<(), Parts = ()> + HasHeader,
-    Shape::Info: SolInfo + Tabular<(), Parts = ()> + HasHeader,
-    Obj: Domain,
-    Opt: PreDomain,
-{
-    type Parts = ShapePart;
-
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        match part {
-            ShapePart::Obj(sol_parts) => <Self as HasVariables>::,
-            ShapePart::Opt(sol_parts) => self.column_names(sol_parts),
-        }
-    }
-
-    fn column_values(&self, elem: &Shape, part: Self::Parts) -> Vec<String> {
-        match part {
-            ShapePart::Obj(sol_parts) => self.column_values(elem.get_sobj(), sol_parts),
-            ShapePart::Opt(sol_parts) => self.column_values(elem.get_sopt(), sol_parts),
-        }
-    }
-}
-
-impl<SolId, Out> HasHeader for (SolId, Out)
-where
-    SolId: Id + Tabular<(), Parts = ()> + HasHeader,
-    Out: SolInfo + Tabular<(), Parts = ()> + HasHeader,
-{
-    fn header() -> Vec<String> {
-        let mut id = SolId::header();
-        let mut out = Out::header();
-        id.extend(out);
-        id
-    }
-}
-
-impl<SolId, Out> Tabular<()> for (SolId, Out)
-where
-    SolId: Id + Tabular<(), Parts = ()> + HasHeader,
-    Out: SolInfo + Tabular<(), Parts = ()> + HasHeader,
-{
-    type Parts = ();
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        Self::header()
-    }
-
-    fn column_values(&self, elem: &(), part: Self::Parts) -> Vec<String> {
-        let (sol_id, out) = self;
-        let mut id = sol_id.column_values(&(), ());
-        let mut out = out.column_values(&(), ());
-        id.extend(out);
+        let mut id = self.sol.id().record(&(), ());
+        id.extend(sol_part);
         id
     }
 }

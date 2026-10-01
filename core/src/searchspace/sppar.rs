@@ -67,9 +67,9 @@
 //! ```
 
 use crate::{
-    FuncWrapper, HasId, HasInfo, HasVariables, HasX, Problem, Sp, aliases::{GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::{
+    FuncWrapper, HasId, HasInfo, HasVariables, HasX, Sp, aliases::{GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::{
         Domain, NoDomain, PreDomain, onto::{Linked, OntoDom},
-    }, searchspace::{Searchspace, SolInfo}, solution::{Id, Lone, Pair, Solution, Uncomputed}, variable::Var,
+    }, searchspace::Searchspace, solution::{Lone, Pair, Uncomputed}, variable::{Var, var::ToName},
 };
 
 use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
@@ -119,13 +119,11 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> HasVariables for SpPar<Obj, Opt> {
     }
 
     fn names(&self) -> Vec<String> {
-        self.var.iter().map(
-            |v|
-            match v.name.1 {
-                Some(idx) => format!("{}_{}", v.name.0, idx),
-                None => v.name.0.to_string(),
-            }
-        ).collect()
+        self.var.iter().map(|v|v.to_name()).collect()
+    }
+    
+    fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
     }
 }
 
@@ -143,13 +141,11 @@ impl<Obj: Domain> HasVariables for SpPar<Obj, NoDomain> {
     }
 
     fn names(&self) -> Vec<String> {
-        self.var.iter().map(
-            |v|
-            match v.name.1 {
-                Some(idx) => format!("{}_{}", v.name.0, idx),
-                None => v.name.0.to_string(),
-            }
-        ).collect()
+        self.var.iter().map(|v|v.to_name()).collect()
+    }
+
+    fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>] {
+        &self.var
     }
 }
 
@@ -157,12 +153,16 @@ impl<Obj: Domain> HasVariables for SpPar<Obj, NoDomain> {
 impl<F, Obj, Opt> Searchspace<F> for SpPar<Obj, Opt>
 where
     F: FuncWrapper<Dom = Obj>,
-    F::Sol<Obj>: Uncomputed<X = Arc<[Obj::Element]>>,
+    F::Sol<Obj>: Uncomputed<X = Arc<[Obj::Element]>> + Send + Sync,
     F::Sol<Opt>: Uncomputed<X = Arc<[Opt::Element]>>
     + HasId<Id = <F::Sol<Obj> as HasId>::Id>
-    + HasInfo<Info = <F::Sol<Obj> as HasInfo>::Info>,
-    Obj: OntoDom<Opt>,
-    Opt: OntoDom<Obj>,
+    + HasInfo<Info = <F::Sol<Obj> as HasInfo>::Info>
+    + Send + Sync,
+    <F::Sol<Obj> as HasInfo>::Info: Send + Sync,
+    Obj: OntoDom<Opt> + Send + Sync,
+    Opt: OntoDom<Obj> + Send + Sync,
+    Obj::Element: Send + Sync,
+    Opt::Element: Send + Sync,
 {
     type Shape = Pair<F::Sol<Obj>, F::Sol<Opt>>;
 
@@ -233,8 +233,7 @@ where
     fn contains_obj(&self, inp: &GetRaw<GetSObj<Self::Shape>>) -> bool
     {
         let variter = self.var.par_iter();
-        inp.ref_x()
-            .par_iter()
+        inp.par_iter()
             .zip(variter)
             .all(|(elem, v)| v.is_in_obj(elem))
     }
@@ -244,8 +243,7 @@ where
     fn contains_opt(&self, inp: &GetRaw<GetSOpt<Self::Shape>>) -> bool
     {
         let variter = self.var.par_iter();
-        inp.ref_x()
-            .par_iter()
+        inp.par_iter()
             .zip(variter)
             .all(|(elem, v)| v.is_in_opt(elem))
     }
@@ -253,13 +251,13 @@ where
     /// Map a vector of optimizer-side solutions into the objective space.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_obj(&self, inp: Vec<GetSOpt<Self::Shape>>) -> Vec<Self::Shape> {
-        inp.into_par_iter().map(|sol| self.onto_obj(sol)).collect()
+        inp.into_par_iter().map(|sol| <SpPar<Obj, Opt> as Searchspace<F>>::onto_obj(self, sol)).collect()
     }
 
     /// Map a vector of objective-side solutions into the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_opt(&self, inp: Vec<GetSObj<Self::Shape>>) -> Vec<Self::Shape> {
-        inp.into_par_iter().map(|sol| self.onto_opt(sol)).collect()
+        inp.into_par_iter().map(|sol| <SpPar<Obj, Opt> as Searchspace<F>>::onto_opt(self, sol)).collect()
     }
 
     /// Sample multiple objective-side solutions using per-thread RNGs.
@@ -274,7 +272,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_obj(thread_rng, info.clone())
+                    <SpPar<Obj, Opt> as Searchspace<F>>::sample_obj::<rand::prelude::StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -290,7 +288,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_raw_obj(thread_rng)
+                    <SpPar<Obj, Opt> as Searchspace<F>>::sample_raw_obj::<rand::prelude::StdRng>(self, thread_rng)
                 },
             )
             .collect()
@@ -308,7 +306,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_opt(thread_rng, info.clone())
+                    <SpPar<Obj, Opt> as Searchspace<F>>::sample_opt::<StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -324,7 +322,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_raw_opt(thread_rng)
+                    <SpPar<Obj, Opt> as Searchspace<F>>::sample_raw_opt::<StdRng>(self, thread_rng)
                 },
             )
             .collect()
@@ -333,7 +331,7 @@ where
     /// Sample an objective-side solution and map it to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape {
-        self.onto_opt(self.sample_obj(rng, info.clone()))
+        <SpPar<Obj, Opt> as Searchspace<F>>::onto_opt(self, <SpPar<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
     }
 
     /// Sample multiple pairs by sampling objective-side solutions then mapping them.
@@ -348,7 +346,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_pair(thread_rng, info.clone())
+                    <SpPar<Obj, Opt> as Searchspace<F>>::sample_pair::<rand::prelude::StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -358,7 +356,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>>
     where
-        A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape>,
+        A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape> + Send + Sync,
         R: Rng,
     {
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
@@ -369,7 +367,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    f(self.sample_obj(thread_rng, info.clone()))
+                    f(<SpPar<Obj, Opt> as Searchspace<F>>::sample_obj::<StdRng>(self, thread_rng, info.clone()))
                 },
             )
             .collect()
@@ -379,7 +377,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>
     where
-        A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape>,
+        A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape> + Send + Sync,
         R: Rng,
     {
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
@@ -390,7 +388,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    f(self.sample_opt(thread_rng, info.clone()))
+                    f(<SpPar<Obj, Opt> as Searchspace<F>>::sample_opt::<StdRng>(self, thread_rng, info.clone()))
                 },
             )
             .collect()
@@ -401,8 +399,10 @@ where
 impl<F, Dom> Searchspace<F> for SpPar<Dom, NoDomain>
 where
     F: FuncWrapper<Dom = Dom>,
-    Dom: Domain,
-    GetRaw<F::Sol<Dom>>: Uncomputed<X = Arc<[Dom::Element]>>,
+    F::Sol<Dom>: Uncomputed<X = Arc<[Dom::Element]>> + Send + Sync,
+    <F::Sol<Dom> as HasInfo>::Info: Send + Sync,
+    Dom: Domain + Send + Sync,
+    Dom::Element: Send + Sync,
 {
     /// Wrap an objective-side solution directly as a lone solution.
     type Shape = Lone<F::Sol<Dom>>;
@@ -437,15 +437,14 @@ where
     }
 
     fn sample_raw_opt<R: Rng>(&self, rng: &mut R) -> GetRaw<F::Sol<Dom>> {
-        self.sample_raw_obj(rng)
+        <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_raw_obj::<R>(self, rng)
     }
 
     /// Check whether a solution belongs to the objective domain.
     /// See module-level examples in [`crate::searchspace`].
     fn contains_obj(&self, inp: &GetRaw<F::Sol<Dom>>) -> bool {
         let variter = self.var.par_iter();
-        inp.ref_x()
-            .par_iter()
+        inp.par_iter()
             .zip(variter)
             .all(|(elem, v)| v.is_in_obj(elem))
     }
@@ -454,8 +453,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn contains_opt(&self, inp: &GetRaw<F::Sol<Dom>>) -> bool {
         let variter = self.var.par_iter();
-        inp.ref_x()
-            .par_iter()
+        inp.par_iter()
             .zip(variter)
             .all(|(elem, v)| v.is_in_opt(elem))
     }
@@ -463,13 +461,13 @@ where
     /// Wrap a vector of objective-side solutions as lone solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_obj(&self, inp: Vec<F::Sol<Dom>>) -> Vec<Self::Shape> {
-        inp.into_par_iter().map(|sol| Lone::new(sol)).collect()
+        inp.into_par_iter().map(Lone::new).collect()
     }
 
     /// Wrap a vector of objective-side solutions as lone solutions.
     /// See module-level examples in [`crate::searchspace`].
     fn vec_onto_opt(&self, inp: Vec<F::Sol<Dom>>) -> Vec<Self::Shape> {
-        inp.into_par_iter().map(|sol| Lone::new(sol)).collect()
+        inp.into_par_iter().map(Lone::new).collect()
     }
 
     /// Sample multiple objective-side solutions using per-thread RNGs.
@@ -488,7 +486,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_obj(thread_rng, info.clone())
+                    <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_obj::<StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -503,7 +501,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_raw_obj(thread_rng)
+                    <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_raw_obj::<rand::prelude::StdRng>(self, thread_rng)
                 },
             )
             .collect()
@@ -520,7 +518,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_opt(thread_rng, info.clone())
+                    <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_opt::<StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -535,7 +533,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_raw_opt(thread_rng)
+                    <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_raw_opt::<StdRng>(self, thread_rng)
                 },
             )
             .collect()
@@ -544,7 +542,7 @@ where
     /// Sample an objective-side solution and wrap it as a lone solution.
     /// See module-level examples in [`crate::searchspace`].
     fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<F::Sol<Dom>>>) -> Self::Shape {
-        Lone::new(self.sample_opt(rng, info))
+        Lone::new(<SpPar<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng, info))
     }
 
     /// Sample multiple lone solutions using per-thread RNGs.
@@ -558,7 +556,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    self.sample_pair(thread_rng, info.clone())
+                    <SpPar<Dom, NoDomain> as Searchspace<F>>::sample_pair::<StdRng>(self, thread_rng, info.clone())
                 },
             )
             .collect()
@@ -568,7 +566,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>>
     where
-        A: Fn(F::Sol<Dom>) -> F::Sol<Dom>,
+        A: Fn(F::Sol<Dom>) -> F::Sol<Dom> + Send + Sync,
         R: Rng,
     {
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
@@ -579,7 +577,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    f(self.sample_obj(thread_rng, info.clone()))
+                    f(<SpPar<Dom, NoDomain> as Searchspace<F>>::sample_obj::<StdRng>(self, thread_rng, info.clone()))
                 },
             )
             .collect()
@@ -589,7 +587,7 @@ where
     /// See module-level examples in [`crate::searchspace`].
     fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>>
     where
-        A: Fn(F::Sol<Dom>) -> F::Sol<Dom>,
+        A: Fn(F::Sol<Dom>) -> F::Sol<Dom> + Send + Sync,
         R: Rng,
     {
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
@@ -600,7 +598,7 @@ where
                 |thread_rng, seed| {
                     // Optionally re-seed for reproducibility
                     *thread_rng = StdRng::seed_from_u64(seed);
-                    f(self.sample_opt(thread_rng, info.clone()))
+                    f(<SpPar<Dom, NoDomain> as Searchspace<F>>::sample_opt::<StdRng>(self, thread_rng, info.clone()))
                 },
             )
             .collect()
@@ -613,75 +611,3 @@ impl<Obj: Domain, Opt: Domain> From<Sp<Obj, Opt>> for SpPar<Obj, Opt> {
         SpPar { var: value.var }
     }
 }
-
-// /// CSV support for objective and optimizer sides of the parallel searchspace.
-// impl<Obj, Opt> CSVLeftRight<SpPar<Obj, Opt>, Arc<[LinkTyObj<Self>]>, Arc<[LinkTyOpt<Self>]>>
-//     for SpPar<Obj, Opt>
-// where
-//     Obj: OntoDom<Opt> + CSVWritable<(), LinkTyObj<Self>>,
-//     Opt: OntoDom<Obj> + CSVWritable<(), LinkTyOpt<Self>>,
-//     Var<Obj, Opt>: CSVLeftRight<Var<Obj, Opt>, LinkTyObj<Self>, LinkTyOpt<Self>>,
-// {
-//     /// Build the CSV header by concatenating variable headers.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn header(elem: &SpPar<Obj, Opt>) -> Vec<String> {
-//         elem.var.iter().flat_map(Var::<Obj, Opt>::header).collect()
-//     }
-
-//     /// Write objective-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_left(&self, comp: &Arc<[LinkTyObj<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_left(c))
-//             .collect()
-//     }
-
-//     /// Write optimizer-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_right(&self, comp: &Arc<[LinkTyOpt<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_right(c))
-//             .collect()
-//     }
-// }
-
-// /// CSV support for objective-only parallel searchspaces.
-// impl<Obj> CSVLeftRight<SpPar<Obj, NoDomain>, Arc<[LinkTyObj<Self>]>, Arc<[LinkTyOpt<Self>]>>
-//     for SpPar<Obj, NoDomain>
-// where
-//     Obj: Domain + CSVWritable<(), LinkTyObj<Self>>,
-//     Var<Obj, NoDomain>: CSVLeftRight<Var<Obj, NoDomain>, LinkTyObj<Self>, LinkTyOpt<Self>>,
-// {
-//     /// Build the CSV header by concatenating variable headers.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn header(elem: &SpPar<Obj, NoDomain>) -> Vec<String> {
-//         elem.var
-//             .iter()
-//             .flat_map(Var::<Obj, NoDomain>::header)
-//             .collect()
-//     }
-
-//     /// Write objective-side values as CSV columns.
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_left(&self, comp: &Arc<[LinkTyObj<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_left(c))
-//             .collect()
-//     }
-
-//     /// Write optimizer-side values as CSV columns (same as objective-side in this mode).
-//     /// See module-level examples in [`crate::searchspace`].
-//     fn write_right(&self, comp: &Arc<[LinkTyOpt<Self>]>) -> Vec<String> {
-//         let var_iter = self.var.iter();
-//         comp.iter()
-//             .zip(var_iter)
-//             .flat_map(|(c, v)| v.write_right(c))
-//             .collect()
-//     }
-// }

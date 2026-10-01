@@ -63,7 +63,6 @@
 
 use std::write;
 
-// use crate::recorder::csv::CSVWritable;
 use serde::{Deserialize, Serialize};
 
 /// User-facing enumeration representing the evaluation state of a solution.
@@ -142,16 +141,6 @@ impl PartialEq for Step {
         }
     }
 }
-
-// impl CSVWritable<(), ()> for Step {
-//     fn header(_elem: &()) -> Vec<String> {
-//         Vec::from([String::from("step")])
-//     }
-
-//     fn write(&self, _comp: &()) -> Vec<String> {
-//         Vec::from([self.to_string()])
-//     }
-// }
 
 /// Internal integer-based representation of evaluation state.
 ///

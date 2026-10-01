@@ -142,13 +142,11 @@
 //!     
 //! }
 //! ```
-use std::sync::Arc;
-
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    BaseSol, Domain, FidOutcome, FidelitySol, HasX, Id, Problem, SolInfo, Solution, StepId, Uncomputed, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity,
+    BaseSol, Domain, FidOutcome, FidelitySol, HasX, SolId, SolInfo, Solution, StepId, Uncomputed, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity,
 };
+use std::sync::Arc;
 
 type OptimFn<Raw, Out> = fn(Raw) -> Out;
 type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
@@ -169,7 +167,7 @@ pub trait FuncWrapper
     type Out: Outcome;
     type OutShape;
     type Dom: Domain;
-    type Sol<Dom:Domain>: Uncomputed<Dom=Dom>;
+    type Sol<Dom:Domain>: Uncomputed<Dom=Dom>; 
     /// Evaluate the objective at a given `x` [`Raw`](crate::Solution::Raw) with a given `context`.
     fn compute(&self, x: <Self::Sol::<Self::Dom> as HasX>::X , context: Self::Context) -> Self::OutShape;
 }
@@ -206,9 +204,9 @@ impl<S:Solution, Out: Outcome> Clone for OneStep<S, Out>
     }
 }
 
-impl<SolId, Obj, Info, Out> FuncWrapper for OneStep<BaseSol<SolId, Obj, Info>, Out>
+impl<Id, Obj, Info, Out> FuncWrapper for OneStep<BaseSol<Id, Obj, Info>, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Obj: Domain,
     Info: SolInfo,
     Out: Outcome,
@@ -217,7 +215,7 @@ where
     type OutShape = Out;
     type Out = Out;
     type Dom = Obj;
-    type Sol<Dom:Domain> = BaseSol<SolId, Dom, Info>;
+    type Sol<Dom:Domain> = BaseSol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, _context: Self::Context) -> Self::OutShape {
         (self.0)(x)
@@ -270,9 +268,9 @@ where
     }
 }
 
-impl<SolId, Obj, Info, Out, FnState> FuncWrapper for MultiStep<FidelitySol<SolId, Obj, Info>, Out, FnState>
+impl<Id, Obj, Info, Out, FnState> FuncWrapper for MultiStep<FidelitySol<Id, Obj, Info>, Out, FnState>
 where
-    SolId: StepId,
+    Id: StepId,
     Obj: Domain,
     Info: SolInfo,
     Out: FidOutcome,
@@ -282,7 +280,7 @@ where
     type OutShape = (Out, FnState);
     type Out = Out;
     type Dom = Obj;
-    type Sol<Dom:Domain> = FidelitySol<SolId, Dom, Info>;
+    type Sol<Dom:Domain> = FidelitySol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, context: Self::Context) -> Self::OutShape {
         (self.0)(x, context.0, context.1)

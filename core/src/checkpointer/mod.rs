@@ -59,31 +59,27 @@
 //! - MPI-specific traits are only available with the `mpi` feature.
 //! - See [`experiment::Runable`](crate::experiment::Runable) for how checkpointers are integrated into optimization loops.
 
-use crate::{
-    Accumulator, FuncState, HasY, Id, Outcome, Runable, SaverConfig, SolInfo, SolutionShape, State, stop::Stop, utils::has_trait::HasState,
-};
+use std::path::PathBuf;
+
+use crate::{FuncState, Problem, SolId, StepId, utils::has_trait::HasState};
 
 pub mod messagepack;
 pub use messagepack::MessagePack;
-use serde::{Deserialize, Serialize};
 
-pub use crate::errors::CheckpointError;
+pub use crate::errors::CheckpointerError;
 
-
-/// Marker trait for checkpointing management of [`FuncState`]s in optimization experiments.
-/// This trait provides methods to save, load, and remove the state of individual functions states.
-pub trait FuncStateCheckpointer {
-    /// Save the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState);
-    /// Loads all the [`FuncState`] for a specific function ID in a threaded optimization experiment.
-    fn load_func_state<FnState: FuncState, SolId: Id>(
-        &self,
-        id: &SolId,
-    ) -> Option<(SolId, FnState)>;
-    /// Removes the [`FuncState`] for a specific function ID in a threaded optimization experiment, returning whether the state was successfully removed.
-    fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError>;
-    /// Load all the [`FuncState`] returning a vector of function states for each function ID.
-    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)>;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum CheckpointerTargets {
+    Checkpoint,
+    Backup(PathBuf),
+    Optimizer,
+    Accumulator,
+    Stop,
+    Evaluator,
+    Config,
+    FuncFolder,
+    WorkerFolder,
+    Other(PathBuf),
 }
 
 // Marker trait for checkpointing management in optimization experiments.
@@ -96,20 +92,7 @@ pub trait FuncStateCheckpointer {
 /// - [`MonoCheckpointer`] - For single-threaded optimization experiments
 /// - [`ThrCheckpointer`] - For multi-threaded optimization experiments
 /// - [`DistCheckpointer`] - For distributed MPI-based optimization experiments
-pub trait Checkpointer<R: Runable>
-{
-    /// Associated type for [FuncState] checkpointer, used to manage per-evaluation state.
-    type FnStateCheck: FuncStateCheckpointer;
-    
-    /// Configuration type that implements [`SaverConfig`].
-    ///
-    /// This associated type determines how the checkpointer is configured.
-    /// Typically set to [`FolderConfig`](crate::FolderConfig) for file-based checkpointing.
-    type Config: SaverConfig;
-
-    /// Creates a new [FuncState] checkpointer for managing per-evaluation state.
-    fn new_func_state_checkpointer(&self, ctx: &R::Context) -> Self::FnStateCheck;
-
+pub trait Checkpointer<P: Problem, Context> {
     /// Initializes a new checkpoint structure for a fresh optimization experiment.
     ///
     /// This method must be called before starting a new optimization that will be checkpointed.
@@ -133,7 +116,7 @@ pub trait Checkpointer<R: Runable>
     ///
     /// # See Also
     /// - [`before_load`](Self::before_load) - Used when resuming an existing experiment
-    fn init(&mut self, runable: &R);
+    fn init(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
 
     /// Verifies checkpoint integrity before loading a saved experiment.
     ///
@@ -150,11 +133,11 @@ pub trait Checkpointer<R: Runable>
     ///
     /// # See Also
     /// - [`init`](Self::init) - Used when starting a new experiment
-    fn before_load(&mut self, ctx: &R::Context);
+    fn before_load(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
     /// Performs any necessary cleanup or state preparation after loading a checkpoint.
     /// This method can be used to create a new checkpoint directory after loading an existing one.
     /// It should be called after successfully loading a checkpoint and before resuming optimization.
-    fn after_load(&mut self, ctx: &R::Context);
+    fn after_load(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
     /// Saves the complete state of an optimization experiment to a checkpoint.
     ///
     /// This is the primary checkpoint method.
@@ -173,7 +156,12 @@ pub trait Checkpointer<R: Runable>
     /// ```ignore
     /// checkpointer.save_state(&opt_state, &stop, &eval);
     /// ```
-    fn save_state<T: HasState>(&self, state: &T, ctx: &R::Context);
+    fn save_state<T: HasState>(
+        &self,
+        state: &T,
+        target: &CheckpointerTargets,
+        ctx: &Context,
+    ) -> Result<(), CheckpointerError>;
 
     /// Loads the complete state of an optimization experiment from a checkpoint.
     ///
@@ -195,7 +183,7 @@ pub trait Checkpointer<R: Runable>
     ///
     /// # Errors
     ///
-    /// Returns [`CheckpointError`] if:
+    /// Returns [`CheckpointerError`] if:
     /// - Checkpoint files don't exist
     /// - Deserialization fails (corrupted checkpoint data)
     /// - File I/O errors occur
@@ -206,5 +194,71 @@ pub trait Checkpointer<R: Runable>
     /// checkpointer.before_load()?;
     /// let (opt_state, stop, eval) = checkpointer.load()?;
     /// ```
-    fn load<T: HasState>(&self, ctx: &R::Context) -> Result<T, CheckpointError>;
+    fn load<T: HasState>(
+        &self,
+        target: &CheckpointerTargets,
+        ctx: &Context,
+    ) -> Result<T, CheckpointerError>;
+
+    /// Loads all the states of type `T` from a checkpoint folder.
+    ///
+    /// This method is useful for loading multiple saved states, such as all function states.
+    fn load_folder<T: HasState>(
+        &self,
+        target: &CheckpointerTargets,
+        ctx: &Context,
+    ) -> Result<Vec<T>, CheckpointerError>;
+
+
+    fn save_fn_state<Id: SolId, FnState: FuncState>(
+        &self,
+        id: &Id,
+        state: &FnState,
+        ctx: &Context,
+    ) -> Result<(), CheckpointerError>;
+
+    fn remove_fn_state<Id: SolId, FnState: FuncState>(
+        &self,
+        id: &Id,
+        ctx: &Context,
+    ) -> Result<(), CheckpointerError>;
+
+    fn remove_all_previous_fn_states<Id: StepId, FnState: FuncState>(
+        &self,
+        id: &Id,
+        ctx: &Context,
+    ) -> Result<(), CheckpointerError>{
+        let previous = id.previous_id();
+        let res = self.remove_fn_state::<Id, FnState>(&previous, ctx);
+        if res.is_ok() {
+            self.remove_all_previous_fn_states::<Id, FnState>(&previous, ctx)
+        } else {
+            res
+        }
+    }
+
+    fn load_fn_state<Id: SolId, FnState: FuncState>(
+        &self,
+        id: Id,
+        ctx: &Context,
+    ) -> Result<(Id, FnState), CheckpointerError>;
+
+    fn load_fn_state_folder<Id: SolId, FnState: FuncState>(
+        &self,
+        ctx: &Context,
+    ) -> Result<Vec<(Id, FnState)>, CheckpointerError>;
+
+    /// Removes the checkpointed state at a specific target.
+    fn remove(
+        &self,
+        target: &CheckpointerTargets,
+        ctx: &Context,
+    ) -> Result<(), CheckpointerError>;
+
+    /// Creates a backup of the checkpointed state at a specific target.
+    fn backup(
+        &self,
+        target: &CheckpointerTargets,
+        ctx: &Context,
+    ) -> Result<PathBuf, CheckpointerError>;
 }

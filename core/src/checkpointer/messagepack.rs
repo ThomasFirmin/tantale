@@ -1,144 +1,13 @@
 use crate::{
-    Accumulator, FolderConfig, FuncState, GlobalParameters, HasY, Id, OPT_ID, Outcome, RUN_ID,
-    SOL_ID, SolInfo, SolutionShape, State,
-    checkpointer::{
-        CheckpointError, Checkpointer, FuncStateCheckpointer, MonoCheckpointer, ThrCheckpointer,
-    },
-    experiment::Evaluator,
-    stop::Stop,
+    FolderConfig, FuncState, Problem, SolId, checkpointer::{Checkpointer, CheckpointerTargets}, errors::CheckpointerError, 
+    utils::has_trait::HasState,
 };
 
-use core::panic;
+use chrono::Utc;
 use rmp_serde;
 use std::{
-    fs::{File, create_dir_all, remove_dir_all, rename},
-    path::{Path, PathBuf},
-    sync::{Arc, atomic::Ordering},
+    fs::{self, File, create_dir_all, rename}, path::{Path, PathBuf}, sync::Arc,
 };
-
-#[cfg(feature = "mpi")]
-use crate::{
-    checkpointer::{DistCheckpointer, WorkerCheckpointer},
-    experiment::mpi::{utils::MPIProcess, worker::WorkerState},
-};
-#[cfg(feature = "mpi")]
-use mpi::{Rank, traits::CommunicatorCollectives};
-
-pub struct MPFnStateCheckpointer {
-    pub path: PathBuf,
-}
-
-fn load_from_path<SolId: Id, FnState: FuncState>(
-    path: PathBuf,
-) -> Result<(SolId, FnState), CheckpointError> {
-    let path_id = &path.join(Path::new(&"id.mp"));
-    if path_id.exists() {
-        let rdr = File::open(path_id).map_err(|e| {
-            CheckpointError(format!(
-                "Failed to open the id file {path_id:?} in the checkpoint folder, error: {}",
-                e
-            ))
-        })?;
-        let id_loaded: SolId =
-            rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?;
-        let fn_state = FnState::load(path).map_err(|e| CheckpointError(e.to_string()))?;
-        Ok((id_loaded, fn_state))
-    } else {
-        Err(CheckpointError(
-            "Cannot find the state checkpoint.".to_string(),
-        ))
-    }
-}
-
-impl FuncStateCheckpointer for MPFnStateCheckpointer {
-    /// Saves a [`FuncState`] to a folder named `state_func_{id}`
-    /// with `id` the string representation of the given `id`.
-    /// Inside this folder, a file named `id.mp` is created,
-    /// containing the `id`.
-    /// If a folder with the same name already exists, it is renamed to a backup name, by appending "_backup" to the original folder name.
-    /// After saving the new [`FuncState`], if a backup folder exists, it is removed.
-    /// The backup is used to prevent loss of data in case of failure during the saving process,
-    /// which could leave the checkpoint folder in an inconsistent state.
-    fn save_func_state<FnState: FuncState, SolId: Id>(&self, id: &SolId, func_state: &FnState) {
-        let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
-        let path_id = &path_ste.join(Path::new(&"id.mp"));
-        let backup = self
-            .path
-            .join(Path::new(&format!("backup_state_func_{}", id_str)));
-
-        if path_ste.exists() {
-            rename(&path_ste, &backup).unwrap();
-        }
-        let _ = create_dir_all(&path_ste);
-        let mut file = File::create(path_id).unwrap();
-        rmp_serde::encode::write(&mut file, &id).unwrap();
-        let _ = func_state.save(path_ste);
-        if backup.exists() {
-            remove_dir_all(backup).unwrap();
-        }
-    }
-
-    /// Loads a [`FuncState`] from a folder named `state_func_{id}`
-    /// with the given `id`.
-    /// The function checks the consistency of the loaded `id` with the given `id`, by reading the `id.mp` file inside the folder.
-    /// If the folder `state_func_{id}` does not exist,
-    /// it looks for a backup folder named `backup_state_func_{id}`.
-    /// If it exists, it loads the [`FuncState`] from this backup folder,
-    /// and checks the consistency of the loaded `id` with the given `id`.
-    fn load_func_state<FnState: FuncState, SolId: Id>(
-        &self,
-        id: &SolId,
-    ) -> Option<(SolId, FnState)> {
-        let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
-        let backup = self
-            .path
-            .join(Path::new(&format!("backup_state_func_{}", id_str)));
-        if path_ste.exists() {
-            Some(load_from_path(path_ste).unwrap())
-        } else if backup.exists() {
-            Some(load_from_path(backup).unwrap())
-        } else {
-            None
-        }
-    }
-
-    fn remove_func_state<SolId: Id>(&self, id: &SolId) -> Result<bool, CheckpointError> {
-        let id_str = id.to_string();
-        let path_ste = self.path.join(Path::new(&format!("state_func_{}", id_str)));
-        if path_ste.exists() {
-            std::fs::remove_dir_all(path_ste).map_err(|e| CheckpointError(e.to_string()))?;
-            Ok(true)
-        } else {
-            Err(CheckpointError(String::from(
-                "The given FuncState file does not exist.",
-            )))
-        }
-    }
-
-    fn load_all_func_state<FnState: FuncState, SolId: Id>(&self) -> Vec<(SolId, FnState)> {
-        let mut vec_func_state = Vec::new();
-        if self.path.try_exists().unwrap() {
-            for entry in std::fs::read_dir(&self.path).unwrap() {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir()
-                    && path
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .starts_with("state_func_")
-                    && let Some((id, func_state)) = Some(load_from_path(path).unwrap())
-                {
-                    vec_func_state.push((id, func_state));
-                }
-            }
-        }
-        vec_func_state
-    }
-}
 
 /// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
 ///
@@ -158,15 +27,8 @@ pub struct MessagePack {
     path_optim: PathBuf,
     path_config: PathBuf,
     path_acc: PathBuf,
-}
-impl Checkpointer for MessagePack {
-    type FnStateCheck = MPFnStateCheckpointer;
-
-    fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
-        MPFnStateCheckpointer {
-            path: self.config.path_check.clone(),
-        }
-    }
+    path_workers: PathBuf,
+    path_func: PathBuf,
 }
 
 impl MessagePack {
@@ -177,6 +39,8 @@ impl MessagePack {
         let path_optim = config.path_check.join(Path::new("state_optim.mp"));
         let path_config = config.path_check.join(Path::new("state_config.mp"));
         let path_acc = config.path_check.join(Path::new("state_acc.mp"));
+        let path_workers = config.path_check.join(Path::new("state_workers"));
+        let path_func = config.path_check.join(Path::new("state_func"));
         Some(MessagePack {
             config,
             path_stop,
@@ -184,79 +48,90 @@ impl MessagePack {
             path_optim,
             path_config,
             path_acc,
+            path_workers,
+            path_func,
         })
     }
-}
 
-impl MonoCheckpointer for MessagePack {
-    type Config = FolderConfig;
-
-    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
-    /// creates the folder hierarchy based on [`FolderConfig`].
-    fn init(&mut self) {
-        let does_exist = self.config.path_check.try_exists().unwrap();
-        if does_exist {
-            panic!(
-                "The checkpointer folder path already exists, {}.",
-                self.config.path_check.display()
-            )
-        } else if self.config.path_check.is_file() {
-            panic!(
-                "The checkpointer path cant point to a file, {}.",
-                self.config.path_check.display()
-            )
-        } else {
-            create_dir_all(&self.config.path_check).unwrap();
+    pub fn retrieve<'a>(&'a self, target: &'a CheckpointerTargets) -> &'a PathBuf {
+        match target {
+            CheckpointerTargets::Checkpoint => &self.config.path_check,
+            CheckpointerTargets::Backup(path) => path,
+            CheckpointerTargets::Optimizer => &self.path_optim,
+            CheckpointerTargets::Accumulator => &self.path_acc,
+            CheckpointerTargets::Stop => &self.path_stop,
+            CheckpointerTargets::Evaluator => &self.path_eval,
+            CheckpointerTargets::Config => &self.path_config,
+            CheckpointerTargets::WorkerFolder => &self.path_workers,
+            CheckpointerTargets::FuncFolder => &self.path_func,
+            CheckpointerTargets::Other(path) => path,
         }
     }
-    /// Ran after [`init`](MonoCheckpointer::init), and after a [`load!`](crate::load).
-    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    fn before_load(&mut self) {
+}
+
+/// Enum to specify how to modify the checkpoint target (e.g., directory structure, file naming) to retrieve a specific checkpoint file.
+pub enum PathModifier {
+    Prefix(String),
+    Suffix(String),
+    PrefixSuffix(String, String),
+    None,
+}
+
+impl<P: Problem> Checkpointer<P, ()> for MessagePack
+{
+    fn init(&mut self, _p: &P, _context: &()) -> Result<(), CheckpointerError> {
+        let does_exist = self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+        if does_exist {
+            return Err(CheckpointerError::FileCreationError(format!("{} already exists.", self.config.path_check.display())))
+            
+        } else if self.config.path_check.is_file() {
+            return Err(CheckpointerError::FolderCreationError(format!("{} points to a file.", self.config.path_check.display())))
+        } else {
+            create_dir_all(&self.config.path_check).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+        }
+        Ok(())
+    }
+    
+    fn before_load(&mut self, _p: &P, _context: &()) -> Result<(), CheckpointerError> {
         // Check if all folder and files exist
-        if self.config.path_check.try_exists().unwrap() {
-            if !self.path_config.try_exists().unwrap() {
-                panic!(
-                    "The `config` file does not exist in {}",
-                    self.path_config.display()
-                )
+        if self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))? {
+            if !self.path_config.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of config file {}: {}", self.path_config.display(), e)))? {
+                return Err(CheckpointerError::FileNotFound(format!("The `config` file does not exist in {}",self.path_config.display())))
             }
-            if !self.path_optim.try_exists().unwrap() {
-                panic!(
+            if !self.path_optim.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of optimizer file {}: {}", self.path_optim.display(), e)))? {
+                return Err(CheckpointerError::FileNotFound(format!(
                     "The `optimizer` file does not exist in {}",
                     self.path_optim.display()
-                )
+                )))
             }
             if !self.path_stop.try_exists().unwrap() {
-                panic!(
+                return Err(CheckpointerError::FileNotFound(format!(
                     "The `stop` file does not exist in {}",
                     self.path_stop.display()
-                )
+                )))
             }
             if !self.path_eval.try_exists().unwrap() {
-                panic!(
+                return Err(CheckpointerError::FileNotFound(format!(
                     "The `eval` file does not exist in {}",
                     self.path_eval.display()
-                )
+                )))
             }
             if !self.path_acc.try_exists().unwrap() {
-                panic!(
+                return Err(CheckpointerError::FileNotFound(format!(
                     "The `accumulator` file does not exist in {}",
                     self.path_acc.display()
-                )
+                )))
             }
         } else {
-            panic!(
+            return Err(CheckpointerError::FileNotFound(format!(
                 "The checkpointer folder does not exists, {}.",
                 self.config.path_check.display()
-            )
+            )))
         }
+        Ok(())
     }
-
-    /// Ran after a [`load!`](crate::load). Here, we rename the old checkpoint folder to a backup name, to avoid overwriting it with new checkpoints.
-    /// The backup name is generated by appending "_backup_" and a number to the original checkpoint folder name.
-    /// If a folder with the generated backup name already exists, we increment the number until we find a unique backup name.
-    /// Create a new checkpoint folder with the original name, to be ready for new checkpoints.
-    fn after_load(&mut self) {
+    
+    fn after_load(&mut self, p: &P, context: &()) -> Result<(), CheckpointerError> {
         // rename old checkpoint folder
         let mut i = 0;
         let mut new_path = self
@@ -270,951 +145,907 @@ impl MonoCheckpointer for MessagePack {
                 .with_file_name(format!("checkpoint_backup_{}", i));
             i += 1;
         }
-        rename(&self.config.path_check, &new_path).unwrap();
-        self.init();
+        rename(&self.config.path_check, &new_path).map_err(|e| CheckpointerError::Other(format!("Failed to rename checkpoint folder {} to backup {}: {}", self.config.path_check.display(), new_path.display(), e)))?;
+        self.init(p, context)
     }
-
-    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    fn save_state<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-        state: &OState,
-        stop: &St,
-        eval: &Eval,
-    ) {
-        let mut wrt = File::create(&self.path_optim).unwrap();
-        rmp_serde::encode::write(&mut wrt, state).unwrap();
-        let mut wrt = File::create(&self.path_stop).unwrap();
-        rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let mut wrt = File::create(&self.path_eval).unwrap();
-        rmp_serde::encode::write(&mut wrt, eval).unwrap();
-
-        let global = GlobalParameters {
-            sold_id: SOL_ID.load(Ordering::Relaxed),
-            opt_id: OPT_ID.load(Ordering::Relaxed),
-            run_id: RUN_ID.load(Ordering::Relaxed),
-        };
-
-        let mut wrt = File::create(&self.path_config).unwrap();
-        rmp_serde::encode::write(&mut wrt, &global).unwrap();
-    }
-
-    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    fn load<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-    ) -> Result<(OState, St, Eval), CheckpointError> {
-        let global: GlobalParameters = self.load_parameters()?;
-        SOL_ID.store(global.sold_id, Ordering::Release);
-        OPT_ID.store(global.sold_id, Ordering::Release);
-        Ok((
-            self.load_optimizer()?,
-            self.load_stop()?,
-            self.load_evaluate()?,
-        ))
-    }
-
-    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
-    fn load_stop<St: Stop>(&self) -> Result<St, CheckpointError> {
-        // Check if file exist
-        if self.config.path_check.try_exists().unwrap() {
-            if self.path_stop.is_file() {
-                let rdr =
-                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Stop` file state_stop.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer<OState: State>(&self) -> Result<OState, CheckpointError> {
-        // Check if file exist
-        if self.config.path_check.try_exists().unwrap() {
-            if self.path_optim.is_file() {
-                let rdr =
-                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Optimizer` file state_optim.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-    /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
-    fn load_evaluate<Eval: Evaluator>(&self) -> Result<Eval, CheckpointError> {
-        // Check if file exist
-        if self.config.path_check.try_exists().unwrap() {
-            if self.path_eval.is_file() {
-                let rdr =
-                    File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Evaluate` file state_eval.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
-    fn load_parameters(&self) -> Result<GlobalParameters, CheckpointError> {
-        // Check if file exist
-        if self.config.path_check.try_exists().unwrap() {
-            if self.path_config.is_file() {
-                let rdr =
-                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Config` file state_config.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    fn save_accumulator<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
+    
+    fn save_state<T: HasState>(&self,state: &T,target: &CheckpointerTargets,ctx: &()) -> Result<(), CheckpointerError>
     {
-        let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();
+        let bckp = <MessagePack as Checkpointer<P, ()>>::backup(self, target, ctx);
+        let target = self.retrieve(target);
+        let mut wrt = File::create(target).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create checkpoint file {}: {}", target.display(), e)))?;
+        rmp_serde::encode::write(&mut wrt, state.get_state()).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+        if let Ok(backup_path) = bckp {
+            <MessagePack as Checkpointer<P, ()>>::remove(self, &CheckpointerTargets::Backup(backup_path), ctx)?;
+        }
+        Ok(())
     }
-
-    fn load_accumulator<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
+    
+    fn load<T: HasState>(&self,target: &CheckpointerTargets,_ctx: &()) -> Result<T, CheckpointerError>
     {
-        // Check if file exist
-        if self.config.path_check.try_exists().unwrap() {
-            if self.path_acc.is_file() {
-                let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
+        let target = self.retrieve(target);
+        if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint file {}: {}", target.display(), e)))? {
+            if target.is_file() {
+                let rdr =
+                    File::open(target).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", target.display(), e)))?;
+                let state: T::State = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+                Ok(T::from_state(state))
             } else {
-                Err(CheckpointError(String::from(
-                    "The `Accumulator` file state_acc.mp does not exists.",
-                )))
+                Err(CheckpointerError::FileNotFound(format!("The given path is not a file, {}.", target.display())))
             }
         } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
+            Err(CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint file, {}.", target.display())))
         }
     }
-}
-
-impl ThrCheckpointer for MessagePack {
-    type Config = FolderConfig;
-
-    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
-    /// creates the folder hierarchy based on [`FolderConfig`].
-    fn init_thr(&mut self) {
-        let does_exist = self.config.path_check.try_exists().unwrap();
-        if does_exist {
-            panic!(
-                "The checkpointer folder path already exists, {}.",
-                self.config.path_check.display()
-            )
-        } else if self.config.path_check.is_file() {
-            panic!(
-                "The checkpointer path cant point to a file, {}.",
-                self.config.path_check.display()
-            )
+    
+    fn load_folder<T: HasState>(&self,target: &CheckpointerTargets,_ctx: &()) -> Result<Vec<T>, CheckpointerError>
+    {
+        let target = self.retrieve(target);
+        if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", target.display(), e)))? {
+            if target.is_dir() {
+                let paths = fs::read_dir(target).map_err(|e| CheckpointerError::Other(format!("Failed to read checkpoint folder {}: {}", target.display(), e)))?;
+                let mut states = Vec::new();
+                for p in paths {
+                    let path = p.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in checkpoint folder {}: {}", target.display(), e)))?.path();
+                    if path.is_file()
+                    {
+                        let rdr = File::open(&path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", path.display(), e)))?;
+                        let state: T::State = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+                        states.push(T::from_state(state));
+                    }
+                }
+                Ok(states)
+            } else {
+                Err(CheckpointerError::FileNotFound(format!("The given path is not a folder, {}.", target.display())))
+            }
         } else {
-            create_dir_all(&self.config.path_check).unwrap();
+            Err(CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint folder, {}.", target.display())))
         }
     }
+    
+    fn remove(&self,target: &CheckpointerTargets,_ctx: &()) -> Result<(), CheckpointerError>
+    {
+        let target = self.retrieve(target);
+        if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+            if target.is_file() {
+                std::fs::remove_file(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint file {}: {}", target.display(), e)))?;
+                Ok(())
+            } else if target.is_dir() {
+                std::fs::remove_dir_all(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint folder {}: {}", target.display(), e)))?;
+                Ok(())
+            } else {
+                Err(CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())))
+            }
+        } else {
+            Err(CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())))
+        }
+    }
+    
+    fn backup(&self,target: &CheckpointerTargets,_ctx: &()) -> Result<PathBuf, CheckpointerError>
+    {
+        let target = self.retrieve(target);
+        let time_str = Utc::now().format("%Y_%m_%d_%H_%M_%S").to_string();
+        let backup = target.with_file_name(format!("{}_backup_{}", target.file_name().unwrap().to_str().unwrap(), time_str));
+        if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+            if target.is_file() {
+                rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint file {} to {}: {}", target.display(), backup.display(), e)))?;
+                Ok(backup)
+            } else if target.is_dir() {
+                rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint folder {} to {}: {}", target.display(), backup.display(), e)))?;
+                Ok(backup)
+            } else {
+                Err(CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())))
+            }
+        } else {
+            Err(CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())))
+        }
+    }
+    
+    fn save_fn_state<Id: SolId, FnState: FuncState>(&self,id: &Id,state: &FnState,_ctx: &()) -> Result<(), CheckpointerError>
+    {
+        let folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        let func_folder = folder.join(format!("func_{}", id.to_string()));
+        if !func_folder.exists() {
+            create_dir_all(&func_folder).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create function state folder {}: {}", func_folder.display(), e)))?;
+        }
+        let id_path = func_folder.join("id.mp");
+        let mut wrt = File::create(&id_path).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create function state file {}: {}", id_path.display(), e)))?;
+        rmp_serde::encode::write(&mut wrt, &id).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+        state.save(func_folder).map_err(|e | CheckpointerError::WriteError(format!("Failed to save function state. {}", e)))?;
+        Ok(())
+    }
 
-    /// Ran after [`init_thr`](ThrCheckpointer::init_thr), and after a [`load!`](crate::load).
-    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    ///
-    /// # Note
-    ///
-    /// Here the [`Evaluate`] checkpoints is a [`Vec`] of [`Evaluate`] states, corresponding to each state of threads
-    /// involved in previous computions.
-    /// The number of [`Evaluate`] checkpoints might vary according to how many
-    /// threads were actually active during previous [`run`](crate::Runable::run). Then, some [`Evaluate`] checkpoints for some
-    /// threads might not have been previously created. If so, they are replaced by an empty [`Evaluate`].
-    fn before_load_thr(&mut self) {
-        // Check if all folder and files exist
-        if self.config.path_check.try_exists().unwrap() {
-            if !self.path_config.try_exists().unwrap() {
-                panic!(
-                    "The `config` file does not exist in {}",
-                    self.path_config.display()
-                )
+    fn remove_fn_state<Id: SolId, FnState: FuncState>(&self,id: &Id, _ctx: &()) -> Result<(), CheckpointerError> {
+        let folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        let func_folder = folder.join(format!("func_{}", id.to_string()));
+        std::fs::remove_dir_all(&func_folder).map_err(|e| CheckpointerError::Other(format!("Failed to remove function state folder {}: {}", func_folder.display(), e)))?;
+        Ok(())
+    }
+    
+    fn load_fn_state<Id: SolId, FnState: FuncState>(&self,id: Id, _ctx: &()) -> Result<(Id, FnState), CheckpointerError>
+    {
+        let folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        let func_folder = folder.join(format!("func_{}", id.to_string()));
+        if func_folder.exists() && func_folder.is_dir() {
+            let id_path = func_folder.join("id.mp");
+            if id_path.exists() && id_path.is_file() {
+                let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+                let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+                if loaded_id != id {
+                    return Err(CheckpointerError::Other(format!("Loaded function state ID {} does not match requested ID {}.", loaded_id.to_string(), id.to_string())));
+                }
+                let fn_state = FnState::load(func_folder).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+                Ok((loaded_id, fn_state))
+            } else {
+                Err(CheckpointerError::FileNotFound(format!("Function state file {} does not exist.", id_path.display())))
             }
-            if !self.path_optim.try_exists().unwrap() {
-                panic!(
-                    "The `optimizer` file does not exist in {}",
-                    self.path_optim.display()
-                )
-            }
-            if !self.path_stop.try_exists().unwrap() {
-                panic!(
-                    "The `stop` file does not exist in {}",
-                    self.path_stop.display()
-                )
-            }
-            if !self.path_acc.try_exists().unwrap() {
-                panic!(
-                    "The `accumulator` file does not exist in {}",
-                    self.path_acc.display()
-                )
-            }
-            // Check if at least one evaluate file exists
-            let mut found = false;
-            for entry in std::fs::read_dir(&self.config.path_check).unwrap() {
-                let entry = entry.unwrap();
+        } else {
+            Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", func_folder.display())))
+        }
+    }
+    
+    fn load_fn_state_folder<Id: SolId, FnState: FuncState>(&self, _ctx: &()) -> Result<Vec<(Id, FnState)>, CheckpointerError>
+    {
+        let folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        if folder.exists() && folder.is_dir() {
+            let mut states = Vec::new();
+            for entry in fs::read_dir(folder).map_err(|e| CheckpointerError::Other(format!("Failed to read function state folder {}: {}", folder.display(), e)))? {
+                let entry = entry.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in function state folder {}: {}", folder.display(), e)))?;
                 let path = entry.path();
-                if path.is_file()
-                    && path
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .starts_with("state_eval_")
-                {
-                    found = true;
-                    break;
+                if path.is_dir() {
+                    let id_path = path.join("id.mp");
+                    if id_path.exists() && id_path.is_file() {
+                        let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+                        let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+                        let fn_state = FnState::load(path.clone()).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+                        states.push((loaded_id, fn_state));
+                    }
                 }
             }
-            if !found {
-                panic!(
-                    "No `eval` file exists in {}",
-                    self.config.path_check.display()
-                )
-            }
+            Ok(states)
         } else {
-            panic!(
-                "The checkpointer folder does not exists, {}.",
-                self.config.path_check.display()
-            )
-        }
-    }
-
-    /// Ran after a [`load!`](crate::load). Here, we rename the old checkpoint folder to a backup name, to avoid overwriting it with new checkpoints.
-    /// The backup name is generated by appending "_backup_" and a number to the original checkpoint folder name.
-    /// If a folder with the generated backup name already exists, we increment the number until we find a unique backup name.
-    /// Create a new checkpoint folder with the original name, to be ready for new checkpoints.
-    fn after_load(&mut self) {
-        // rename old checkpoint folder
-        let mut i = 0;
-        let mut new_path = self
-            .config
-            .path_check
-            .with_file_name(format!("checkpoint_backup_{}", i));
-        while new_path.exists() {
-            new_path = self
-                .config
-                .path_check
-                .with_file_name(format!("checkpoint_backup_{}", i));
-            i += 1;
-        }
-        rename(&self.config.path_check, &new_path).unwrap();
-        self.init_thr();
-    }
-
-    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    ///
-    /// # Note
-    ///
-    /// In asynchronous experiments (with [`SingleOptimizer`](crate::SingleOptimizer)), each thread saves its own [`Evaluate`] checkpoint.
-    /// The [`OptState`] and [`Stop`] checkpoints are shared among threads.
-    /// In synchronous experiments (with [`BatchOptimizer`](crate::BatchOptimizer)), only one thread
-    /// saves a single [`Evaluate`], [`OptState`] and [`Stop`] checkpoint, once a [`Batch`](crate::Batch) have been evaluated.
-    fn save_state_thr<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-        state: &OState,
-        stop: &St,
-        eval: &Eval,
-        thr: usize,
-    ) {
-        let mut wrt = File::create(&self.path_optim).unwrap();
-        rmp_serde::encode::write(&mut wrt, state).unwrap();
-        let mut wrt = File::create(&self.path_stop).unwrap();
-        rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let path_eval_thr = self
-            .config
-            .path_check
-            .join(Path::new(&format!("state_eval_{}.mp", thr)));
-        let mut wrt = File::create(&path_eval_thr).unwrap();
-        rmp_serde::encode::write(&mut wrt, eval).unwrap();
-
-        let global = GlobalParameters {
-            sold_id: SOL_ID.load(Ordering::Relaxed),
-            opt_id: OPT_ID.load(Ordering::Relaxed),
-            run_id: RUN_ID.load(Ordering::Relaxed),
-        };
-
-        let mut wrt = File::create(&self.path_config).unwrap();
-        rmp_serde::encode::write(&mut wrt, &global).unwrap();
-    }
-
-    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    fn load_thr<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-    ) -> Result<(OState, St, Vec<Eval>), CheckpointError> {
-        let global: GlobalParameters = self.load_parameters()?;
-        SOL_ID.store(global.sold_id, Ordering::Release);
-        OPT_ID.store(global.sold_id, Ordering::Release);
-        Ok((
-            self.load_optimizer_thr()?,
-            self.load_stop_thr()?,
-            self.load_all_evaluate_thr()?,
-        ))
-    }
-
-    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
-    fn load_stop_thr<St: Stop>(&self) -> Result<St, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_stop.is_file() {
-                let rdr =
-                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Stop` file state_stop.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer_thr<OState: State>(&self) -> Result<OState, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_optim.is_file() {
-                let rdr =
-                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Optimizer` file state_optim.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
-    fn load_parameters_thr(&self) -> Result<GlobalParameters, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_config.is_file() {
-                let rdr =
-                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Config` file state_config.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    fn load_all_evaluate_thr<Eval: Evaluator>(&self) -> Result<Vec<Eval>, CheckpointError> {
-        let mut vec_eval = Vec::new();
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            for entry in std::fs::read_dir(&self.config.path_check)
-                .map_err(|e| CheckpointError(e.to_string()))?
-            {
-                let entry = entry.map_err(|e| CheckpointError(e.to_string()))?;
-                let path = entry.path();
-                if path.is_file()
-                    && path
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .starts_with("state_eval_")
-                {
-                    let rdr = File::open(&path).map_err(|e| CheckpointError(e.to_string()))?;
-                    let eval: Eval = rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?;
-                    vec_eval.push(eval);
-                }
-            }
-            Ok(vec_eval)
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    fn save_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc)
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
-    {
-        let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();
-    }
-
-    fn load_accumulator_thr<Acc, C, SolId, SInfo, Out>(&self) -> Result<Acc, CheckpointError>
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
-    {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_acc.is_file() {
-                let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Accumulator` file state_acc.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
+            Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", folder.display())))
         }
     }
 }
 
-#[cfg(feature = "mpi")]
-impl DistCheckpointer for MessagePack {
-    type WCheck<WState: WorkerState> = WCheckMessagePack;
+// impl<P, O, S, R, E> Checkpointer<ThrExperiment<P, O, S, R, MessagePack>> for MessagePack
+// where
+//     ThrExperiment<P, O, S, R, MessagePack>: Runable,
+//     P: Problem,
+//     O: Optimizer<P>,
+//     S: Stop,
+//     R: Recorder<ThrExperiment<P, O, S, R, MessagePack>>,
+//     E: Evaluator,
+// {
+//     fn init(&mut self, _runable: &ThrExperiment<P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let does_exist = self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//         if does_exist {
+//             return Err(CheckpointerError::FileCreationError(format!("{} already exists.", self.config.path_check.display())))
+            
+//         } else if self.config.path_check.is_file() {
+//             return Err(CheckpointerError::FolderCreationError(format!("{} points to a file.", self.config.path_check.display())))
+//         } else {
+//             create_dir_all(&self.config.path_check).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//         }
+//         Ok(())
+//     }
+    
+//     fn before_load(&mut self, _runable: &ThrExperiment<P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         // Check if all folder and files exist
+//         if self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))? {
+//             if !self.path_config.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of config file {}: {}", self.path_config.display(), e)))? {
+//                 return Err(CheckpointerError::FileNotFound(format!("The `config` file does not exist in {}",self.path_config.display())))
+//             }
+//             if !self.path_optim.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of optimizer file {}: {}", self.path_optim.display(), e)))? {
+//                 return Err(CheckpointerError::FileNotFound(format!(
+//                     "The `optimizer` file does not exist in {}",
+//                     self.path_optim.display()
+//                 )))
+//             }
+//             if !self.path_stop.try_exists().unwrap() {
+//                 return Err(CheckpointerError::FileNotFound(format!(
+//                     "The `stop` file does not exist in {}",
+//                     self.path_stop.display()
+//                 )))
+//             }
+//             if !self.path_eval.try_exists().unwrap() {
+//                 return Err(CheckpointerError::FileNotFound(format!(
+//                     "The `eval` file does not exist in {}",
+//                     self.path_eval.display()
+//                 )))
+//             }
+//             if !self.path_acc.try_exists().unwrap() {
+//                 return Err(CheckpointerError::FileNotFound(format!(
+//                     "The `accumulator` file does not exist in {}",
+//                     self.path_acc.display()
+//                 )))
+//             }
+//         } else {
+//             return Err(CheckpointerError::FileNotFound(format!(
+//                 "The checkpointer folder does not exists, {}.",
+//                 self.config.path_check.display()
+//             )))
+//         }
+//         Ok(())
+//     }
+    
+//     fn after_load(&mut self, runable: &ThrExperiment<P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         // rename old checkpoint folder
+//         let mut i = 0;
+//         let mut new_path = self
+//             .config
+//             .path_check
+//             .with_file_name(format!("checkpoint_backup_{}", i));
+//         while new_path.exists() {
+//             new_path = self
+//                 .config
+//                 .path_check
+//                 .with_file_name(format!("checkpoint_backup_{}", i));
+//             i += 1;
+//         }
+//         rename(&self.config.path_check, &new_path).map_err(|e| CheckpointerError::Other(format!("Failed to rename checkpoint folder {} to backup {}: {}", self.config.path_check.display(), new_path.display(), e)))?;
+//         self.init(runable)
+//     }
+    
+//     fn save_state<T: HasState>(&self, state: &T, target: &CheckpointerTargets, ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let bckp = self.backup(target, ctx);
+//         let target = self.retrieve(target);
+//         let mut wrt = File::create(target).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create checkpoint file {}: {}", target.display(), e)))?;
+//         rmp_serde::encode::write(&mut wrt, state.get_state()).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+//         if let Ok(backup_path) = bckp {
+//             self.remove(&CheckpointerTargets::Backup(backup_path), ctx);
+//         }
+//         Ok(())
+//     }
+    
+//     fn load<T: HasState>(&self, target: &CheckpointerTargets, _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context) -> Result<T, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint file {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 let rdr =
+//                     File::open(target).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", target.display(), e)))?;
+//                 let state: T::State = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                 Ok(T::from_state(state))
+//             } else {
+//                 Err(CheckpointerError::FileNotFound(format!("The given path is not a file, {}.", target.display())))
+//             }
+//         } else {
+//             Err(CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint file, {}.", target.display())))
+//         }
+//     }
+    
+//     fn load_folder<T: HasState>(&self, target: &CheckpointerTargets, _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context) -> Result<Vec<T>, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", target.display(), e)))? {
+//             if target.is_dir() {
+//                 let paths = fs::read_dir(target).map_err(|e| CheckpointerError::Other(format!("Failed to read checkpoint folder {}: {}", target.display(), e)))?;
+//                 let mut states = Vec::new();
+//                 for p in paths {
+//                     let path = p.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in checkpoint folder {}: {}", target.display(), e)))?.path();
+//                     if path.is_file()
+//                     {
+//                         let rdr = File::open(&path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", path.display(), e)))?;
+//                         let state: T::State = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                         states.push(T::from_state(state));
+//                     }
+//                 }
+//                 Ok(states)
+//             } else {
+//                 Err(CheckpointerError::FileNotFound(format!("The given path is not a folder, {}.", target.display())))
+//             }
+//         } else {
+//             Err(CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint folder, {}.", target.display())))
+//         }
+//     }
+    
+//     fn remove(&self, target: &CheckpointerTargets, _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 std::fs::remove_file(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint file {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else if target.is_dir() {
+//                 std::fs::remove_dir_all(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint folder {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else {
+//                 Err(CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())))
+//             }
+//         } else {
+//             Err(CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())))
+//         }
+//     }
+    
+//     fn backup(&self, target: &CheckpointerTargets, _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context) -> Result<PathBuf, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         let time_str = Utc::now().format("%Y_%m_%d_%H_%M_%S").to_string();
+//         let backup = target.with_file_name(format!("{}_backup_{}", target.file_name().unwrap().to_str().unwrap(), time_str));
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint file {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else if target.is_dir() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint folder {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else {
+//                 Err(CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())))
+//             }
+//         } else {
+//             Err(CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())))
+//         }
+//     }
+    
+//     fn save_fn_state<Id: SolId, FnState: FuncState>(
+//         &self,
+//         state: &super::(Id, FnState),
+//         target: &CheckpointerTargets,
+//         _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<(), CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 let func_folder = folder.join(format!("func_{}", state.0.to_string()));
+//                 if !func_folder.exists() {
+//                     create_dir_all(&func_folder).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create function state folder {}: {}", func_folder.display(), e)))?;
+//                 }
+//                 let id_path = func_folder.join("id.mp".to_string());
+//                 let mut wrt = File::create(&id_path).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create function state file {}: {}", id_path.display(), e)))?;
+//                 rmp_serde::encode::write(&mut wrt, &state.0).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+//                 state.1.save(func_folder);
+//                 Ok(())
+//             }
+//             _ => Err(CheckpointerError::Other("Function state can only be saved in the FuncFolder target.".to_string())),
+//         }
+//     }
+    
+//     fn load_fn_state<Id: SolId, FnState: FuncState>(
+//         &self,
+//         id: Id,
+//         target: &CheckpointerTargets,
+//         _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<(Id, FnState), CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 let func_folder = folder.join(format!("func_{}", id.to_string()));
+//                 if func_folder.exists() && func_folder.is_dir() {
+//                     let id_path = func_folder.join("id.mp".to_string());
+//                     if id_path.exists() && id_path.is_file() {
+//                         let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+//                         let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                         if loaded_id != id {
+//                             return Err(CheckpointerError::Other(format!("Loaded function state ID {} does not match requested ID {}.", loaded_id.to_string(), id.to_string())));
+//                         }
+//                         let fn_state = FnState::load(func_folder).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+//                         Ok(IdFnState(loaded_id, fn_state))
+//                     } else {
+//                         Err(CheckpointerError::FileNotFound(format!("Function state file {} does not exist.", id_path.display())))
+//                     }
+//                 } else {
+//                     Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", func_folder.display())))
+//                 }
+//             }
+//             _ => Err(CheckpointerError::Other("Function state can only be loaded from the FuncFolder target.".to_string())),
+//         }
+//     }
+    
+//     fn load_fn_state_folder<Id: SolId, FnState: FuncState>(
+//         &self,
+//         target: &CheckpointerTargets,
+//         _ctx: &<ThrExperiment<P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<Vec<(Id, FnState)>, CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 if folder.exists() && folder.is_dir() {
+//                     let mut states = Vec::new();
+//                     for entry in fs::read_dir(folder).map_err(|e| CheckpointerError::Other(format!("Failed to read function state folder {}: {}", folder.display(), e)))? {
+//                         let entry = entry.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in function state folder {}: {}", folder.display(), e)))?;
+//                         let path = entry.path();
+//                         if path.is_dir() {
+//                             let id_path = path.join("id.mp".to_string());
+//                             if id_path.exists() && id_path.is_file() {
+//                                 let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+//                                 let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                                 let fn_state = FnState::load(path.clone()).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+//                                 states.push(IdFnState(loaded_id, fn_state));
+//                             }
+//                         }
+//                     }
+//                     Ok(states)
+//                 } else {
+//                     Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", folder.display())))
+//                 }
+//             }
+//             _ => Err(CheckpointerError::Other("Function states can only be loaded from the FuncFolder target.".to_string())),
+//         }
+//     }
+// }
 
-    /// Checks if folders and files already exists, if so [`panic!`]. Otherwise, the function
-    /// creates the folder hierarchy based on [`FolderConfig`].
-    ///
-    /// # Note
-    ///
-    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution. The Master creates
-    /// and cheks the folder hierarchy. Then, once done, waits for all workers to reach the same point,
-    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
-    fn init_dist(&mut self, proc: &MPIProcess) {
-        if self.config.is_dist {
-            let does_exist = self.config.path_check.try_exists().unwrap();
-            if does_exist {
-                panic!(
-                    "The checkpointer folder path already exists, {}.",
-                    self.config.path_check.display()
-                )
-            } else if self.config.path_check.is_file() {
-                panic!(
-                    "The checkpointer path cant point to a file, {}.",
-                    self.config.path_check.display()
-                )
-            } else {
-                create_dir_all(&self.config.path_check).unwrap();
-                create_dir_all(&self.config.path_work).unwrap();
-            }
-        } else {
-            panic!(
-                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method on the config object."
-            )
-        }
-        // Wait for worker
-        proc.world.barrier();
-    }
+// #[cfg(feature = "mpi")]
+// impl<'a, P, O, S, R, E> Checkpointer<MPIExperiment<'a, P, O, S, R, MessagePack>> for MessagePack
+// where
+//     P: Problem,
+//     O: Optimizer<P>,
+//     S: Stop,
+//     R: Recorder<MPIExperiment<'a, P, O, S, R, MessagePack>>,
+//     MPIExperiment<'a, P, O, S, R, MessagePack>: Runable<Context = MPIProcess>,
+//     E: Evaluator,
+// {
 
-    /// Ran after [`init_dist`](DistCheckpointer::init_dist), and after a [`load!`](crate::load).
-    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    ///
-    /// /// # Note
-    ///
-    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
-    /// The Master checks the folder hierarchy, if some files or folder are missing, then [`panic!`].
-    /// Then, once done, it waits for all workers to reach the same point,
-    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
-    fn before_load_dist(&mut self, proc: &MPIProcess) {
-        if self.config.is_dist {
-            // Check if all folder and files exist
-            if self.config.path_check.try_exists().unwrap() {
-                if !self.path_config.try_exists().unwrap() {
-                    panic!(
-                        "The `config` file does not exist in {}",
-                        self.path_config.display()
-                    )
-                }
-                if !self.path_optim.try_exists().unwrap() {
-                    panic!(
-                        "The `optimizer` file does not exist in {}",
-                        self.path_optim.display()
-                    )
-                }
-                if !self.path_stop.try_exists().unwrap() {
-                    panic!(
-                        "The `stop` file does not exist in {}",
-                        self.path_stop.display()
-                    )
-                }
-                if !self.path_eval.try_exists().unwrap() {
-                    panic!(
-                        "The `eval` file does not exist in {}",
-                        self.path_eval.display()
-                    )
-                }
-                if !self.path_acc.try_exists().unwrap() {
-                    panic!(
-                        "The `accumulator` file does not exist in {}",
-                        self.path_acc.display()
-                    )
-                }
-            } else {
-                panic!(
-                    "The checkpointer folder does not exists, {}.",
-                    self.config.path_check.display()
-                )
-            }
-        } else {
-            panic!(
-                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
-            )
-        }
-        proc.world.barrier();
-    }
+//     fn init(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         if self.config.is_dist {
+//             let does_exist = self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//             if does_exist {
+//                 CheckpointerError::FileCreationError(format!("{} already exists.", self.config.path_check.display())).into()
+//             } else if self.config.path_check.is_file() {
+//                 CheckpointerError::FolderCreationError(format!("{} points to a file.", self.config.path_check.display())).into()
+//             } else {
+//                 create_dir_all(&self.config.path_check).map_err(|e| CheckpointerError::Other(format!("Failed to create checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//                 create_dir_all(&self.config.path_work).map_err(|e| CheckpointerError::Other(format!("Failed to create working folder {}: {}", self.config.path_work.display(), e)))?;
+//             }
+//         } else {
+//             CheckpointerError::Other(format!("The FolderConfig should be set for MPI environment.")).into()
+//         }
+//         // Wait for worker
+//         proc.world.barrier();
+//         Ok(())
+//     }
+    
+//     fn before_load(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         if self.config.is_dist {
+//             // Check if all folder and files exist
+//             if self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))? {
+//                 if !self.path_config.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of config file {}: {}", self.path_config.display(), e)))? {
+//                     CheckpointerError::FileNotFound(format!("The `config` file does not exist in {}",self.path_config.display())).into()
+//                 }
+//                 if !self.path_optim.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `optimizer` file does not exist in {}",self.path_optim.display())).into()
+//                 }
+//                 if !self.path_stop.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `stop` file does not exist in {}",self.path_stop.display())).into()
+//                 }
+//                 if !self.path_eval.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `eval` file does not exist in {}",self.path_eval.display())).into()
+//                 }
+//                 if !self.path_acc.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `accumulator` file does not exist in {}",self.path_acc.display())).into()
+//                 }
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The checkpointer folder does not exists, {}.",self.config.path_check.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::Other(format!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")).into()
+//         }
+//         proc.world.barrier();
+//         Ok(())
+//     }
+    
+//     fn after_load(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         self.backup(&CheckpointerTargets::Checkpoint, proc)?;
+//         proc.world.barrier();
+//         self.init_dist(proc)
+//     }
+    
+//     fn save_state<T: HasState>(&self, state: &T, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let bckp = self.backup(target, ctx);
+//         let target = self.retrieve(target);
+//         let mut wrt = File::create(target).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create checkpoint file {}: {}", target.display(), e)))?;
+//         rmp_serde::encode::write(&mut wrt, state.get_state()).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+//         if let Ok(backup_path) = bckp {
+//             self.remove(&CheckpointerTargets::Checkpoint(backup_path), ctx);
+//         }
+//         Ok(())
+//     }
+    
+//     fn load<T: HasState>(&self, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<T, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint file {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 let rdr =
+//                     File::open(target).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", target.display(), e)))?;
+//                 let state = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                 Ok(state)
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The given path is not a file, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint file, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn load_folder<T: HasState>(&self, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<Vec<T>, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", target.display(), e)))? {
+//             if target.is_dir() {
+//                 let paths = fs::read_dir(target).map_err(|e| CheckpointerError::Other(format!("Failed to read checkpoint folder {}: {}", target.display(), e)))?;
+//                 let mut states = Vec::new();
+//                 for p in paths {
+//                     let path = p.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in checkpoint folder {}: {}", target.display(), e)))?.path();
+//                     if path.is_file()
+//                     {
+//                         let rdr = File::open(&path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", path.display(), e)))?;
+//                         let state = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                         states.push(state);
+//                     }
+//                 }
+//                 Ok(states)
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The given path is not a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint folder, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn remove(&self, target: &Self::Target, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 std::fs::remove_file(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint file {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else if target.is_dir() {
+//                 std::fs::remove_dir_all(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint folder {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else {
+//                 CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn backup(&self, target: &Self::Target, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<PathBuf, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         let time_str = Utc::now().format("%Y_%m_%d_%H_%M_%S").to_string();
+//         let backup = target.with_file_name(format!("{}_backup_{}", target.file_name().unwrap().to_str().unwrap(), time_str));
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint file {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else if target.is_dir() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint folder {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else {
+//                 CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())).into()
+//         }
+//     }
 
-    /// Ran after a [`load!`](crate::load). Here, we rename the old checkpoint folder to a backup name, to avoid overwriting it with new checkpoints.
-    /// The backup name is generated by appending "_backup_" and a number to the original checkpoint folder name.
-    /// If a folder with the generated backup name already exists, we increment the number until we find a unique backup name.
-    /// Create a new checkpoint folder with the original name, to be ready for new checkpoints.
-    /// A [`world barrier`](mpi::collective::CommunicatorCollectives::barrier)
-    /// is used to synchronize all processes after renaming the old checkpoint folder, to ensure that no process starts saving new checkpoints before the old checkpoint folder has been renamed.
-    fn after_load_dist(&mut self, proc: &MPIProcess) {
-        // rename old checkpoint folder
-        let mut i = 0;
-        let mut new_path = self
-            .config
-            .path_check
-            .with_file_name(format!("checkpoint_backup_{}", i));
-        while new_path.exists() {
-            new_path = self
-                .config
-                .path_check
-                .with_file_name(format!("checkpoint_backup_{}", i));
-            i += 1;
-        }
-        rename(&self.config.path_check, &new_path).unwrap();
-        proc.world.barrier();
-        self.init_dist(proc);
-    }
+//     fn save_fn_state<Id: SolId, FnState: FuncState>(
+//         &self,
+//         state: &super::(Id, FnState),
+//         target: &CheckpointerTargets,
+//         _ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<(), CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 let func_folder = folder.join(format!("func_{}", state.0.to_string()));
+//                 if !func_folder.exists() {
+//                     create_dir_all(&func_folder).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create function state folder {}: {}", func_folder.display(), e)))?;
+//                 }
+//                 let id_path = func_folder.join("id.mp".to_string());
+//                 let mut wrt = File::create(&id_path).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create function state file {}: {}", id_path.display(), e)))?;
+//                 rmp_serde::encode::write(&mut wrt, &state.0).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+//                 state.1.save(func_folder);
+//                 Ok(())
+//             }
+//             _ => Err(CheckpointerError::Other("Function state can only be saved in the FuncFolder target.".to_string())),
+//         }
+//     }
+    
+//     fn load_fn_state<Id: SolId, FnState: FuncState>(
+//         &self,
+//         id: Id,
+//         target: &CheckpointerTargets,
+//         _ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<(Id, FnState), CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 let func_folder = folder.join(format!("func_{}", id.to_string()));
+//                 if func_folder.exists() && func_folder.is_dir() {
+//                     let id_path = func_folder.join("id.mp".to_string());
+//                     if id_path.exists() && id_path.is_file() {
+//                         let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+//                         let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                         if loaded_id != id {
+//                             return Err(CheckpointerError::Other(format!("Loaded function state ID {} does not match requested ID {}.", loaded_id.to_string(), id.to_string())));
+//                         }
+//                         let fn_state = FnState::load(func_folder).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+//                         Ok(IdFnState(loaded_id, fn_state))
+//                     } else {
+//                         Err(CheckpointerError::FileNotFound(format!("Function state file {} does not exist.", id_path.display())))
+//                     }
+//                 } else {
+//                     Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", func_folder.display())))
+//                 }
+//             }
+//             _ => Err(CheckpointerError::Other("Function state can only be loaded from the FuncFolder target.".to_string())),
+//         }
+//     }
+    
+//     fn load_fn_state_folder<Id: SolId, FnState: FuncState>(
+//         &self,
+//         target: &CheckpointerTargets,
+//         _ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context,
+//     ) -> Result<Vec<(Id, FnState)>, CheckpointerError> {
+//         match target {
+//             CheckpointerTargets::FuncFolder => {
+//                 let folder = self.retrieve(target);
+//                 if folder.exists() && folder.is_dir() {
+//                     let mut states = Vec::new();
+//                     for entry in fs::read_dir(folder).map_err(|e| CheckpointerError::Other(format!("Failed to read function state folder {}: {}", folder.display(), e)))? {
+//                         let entry = entry.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in function state folder {}: {}", folder.display(), e)))?;
+//                         let path = entry.path();
+//                         if path.is_dir() {
+//                             let id_path = path.join("id.mp".to_string());
+//                             if id_path.exists() && id_path.is_file() {
+//                                 let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+//                                 let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                                 let fn_state = FnState::load(path.clone()).map_err(|e| CheckpointerError::ReadError(format!("Failed to load function state. {}", e)))?;
+//                                 states.push(IdFnState(loaded_id, fn_state));
+//                             }
+//                         }
+//                     }
+//                     Ok(states)
+//                 } else {
+//                     Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", folder.display())))
+//                 }
+//             }
+//             _ => Err(CheckpointerError::Other("Function states can only be loaded from the FuncFolder target.".to_string())),
+//         }
+//     }
+// }
 
-    /// A no-operation function to synchronize all processes after initialization, if no [`WorkerCheckpointer`] is used.
-    fn no_check_init(proc: &MPIProcess) {
-        proc.world.barrier();
-    }
+// #[cfg(feature = "mpi")]
+// impl<'a, P, O, S, R, E> Checkpointer<BaseWorker<>> for MessagePack
+// where
+//     P: Problem,
+//     O: Optimizer<P>,
+//     S: Stop,
+//     R: Recorder<MPIExperiment<'a, P, O, S, R, MessagePack>>,
+//     MPIExperiment<'a, P, O, S, R, MessagePack>: Runable<Context = MPIProcess>,
+//     E: Evaluator,
+// {
 
-    /// A no-operation function to synchronize all processes after loading, if no [`WorkerCheckpointer`] is used.
-    fn no_check_load(proc: &MPIProcess) {
-        proc.world.barrier();
-        proc.world.barrier();
-        proc.world.barrier();
-    }
+//     fn init(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         if self.config.is_dist {
+//             let does_exist = self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//             if does_exist {
+//                 CheckpointerError::FileCreationError(format!("{} already exists.", self.config.path_check.display())).into()
+//             } else if self.config.path_check.is_file() {
+//                 CheckpointerError::FolderCreationError(format!("{} points to a file.", self.config.path_check.display())).into()
+//             } else {
+//                 create_dir_all(&self.config.path_check).map_err(|e| CheckpointerError::Other(format!("Failed to create checkpoint folder {}: {}", self.config.path_check.display(), e)))?;
+//                 create_dir_all(&self.config.path_work).map_err(|e| CheckpointerError::Other(format!("Failed to create working folder {}: {}", self.config.path_work.display(), e)))?;
+//             }
+//         } else {
+//             CheckpointerError::Other(format!("The FolderConfig should be set for MPI environment.")).into()
+//         }
+//         // Wait for worker
+//         proc.world.barrier();
+//         Ok(())
+//     }
+    
+//     fn before_load(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         if self.config.is_dist {
+//             // Check if all folder and files exist
+//             if self.config.path_check.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", self.config.path_check.display(), e)))? {
+//                 if !self.path_config.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of config file {}: {}", self.path_config.display(), e)))? {
+//                     CheckpointerError::FileNotFound(format!("The `config` file does not exist in {}",self.path_config.display())).into()
+//                 }
+//                 if !self.path_optim.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `optimizer` file does not exist in {}",self.path_optim.display())).into()
+//                 }
+//                 if !self.path_stop.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `stop` file does not exist in {}",self.path_stop.display())).into()
+//                 }
+//                 if !self.path_eval.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `eval` file does not exist in {}",self.path_eval.display())).into()
+//                 }
+//                 if !self.path_acc.try_exists().unwrap() {
+//                     CheckpointerError::FileNotFound(format!("The `accumulator` file does not exist in {}",self.path_acc.display())).into()
+//                 }
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The checkpointer folder does not exists, {}.",self.config.path_check.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::Other(format!("The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method.")).into()
+//         }
+//         proc.world.barrier();
+//         Ok(())
+//     }
+    
+//     fn after_load(&mut self, runable: &MPIExperiment<'a, P, O, S, R, MessagePack>) -> Result<(), CheckpointerError> {
+//         let proc = runable.proc;
+//         self.backup(&CheckpointerTargets::Checkpoint, proc)?;
+//         proc.world.barrier();
+//         self.init_dist(proc)
+//     }
+    
+//     fn save_state<T: HasState>(&self, state: &T, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let bckp = self.backup(target, ctx);
+//         let target = self.retrieve(target);
+//         let mut wrt = File::create(target).map_err(|e| CheckpointerError::FileCreationError(format!("Failed to create checkpoint file {}: {}", target.display(), e)))?;
+//         rmp_serde::encode::write(&mut wrt, state.get_state()).map_err(|e| CheckpointerError::WriteError(e.to_string()))?;
+//         if let Ok(backup_path) = bckp {
+//             self.remove(&CheckpointerTargets::Checkpoint(backup_path), ctx);
+//         }
+//         Ok(())
+//     }
+    
+//     fn load<T: HasState>(&self, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<T, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint file {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 let rdr =
+//                     File::open(target).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", target.display(), e)))?;
+//                 let state = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                 Ok(state)
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The given path is not a file, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint file, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn load_folder<T: HasState>(&self, target: &CheckpointerTargets, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<Vec<T>, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint folder {}: {}", target.display(), e)))? {
+//             if target.is_dir() {
+//                 let paths = fs::read_dir(target).map_err(|e| CheckpointerError::Other(format!("Failed to read checkpoint folder {}: {}", target.display(), e)))?;
+//                 let mut states = Vec::new();
+//                 for p in paths {
+//                     let path = p.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in checkpoint folder {}: {}", target.display(), e)))?.path();
+//                     if path.is_file()
+//                     {
+//                         let rdr = File::open(&path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open checkpoint file {}: {}", path.display(), e)))?;
+//                         let state = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+//                         states.push(state);
+//                     }
+//                 }
+//                 Ok(states)
+//             } else {
+//                 CheckpointerError::FileNotFound(format!("The given path is not a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint folder, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn remove(&self, target: &Self::Target, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<(), CheckpointerError> {
+//         let target = self.retrieve(target);
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 std::fs::remove_file(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint file {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else if target.is_dir() {
+//                 std::fs::remove_dir_all(target).map_err(|e| CheckpointerError::Other(format!("Failed to remove checkpoint folder {}: {}", target.display(), e)))?;
+//                 Ok(())
+//             } else {
+//                 CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())).into()
+//         }
+//     }
+    
+//     fn backup(&self, target: &Self::Target, ctx: &<MPIExperiment<'a, P, O, S, R, MessagePack> as Runable>::Context) -> Result<PathBuf, CheckpointerError> {
+//         let target = self.retrieve(target);
+//         let time_str = Utc::now().format("%Y_%m_%d_%H_%M_%S").to_string();
+//         let backup = target.with_file_name(format!("{}_backup_{}", target.file_name().unwrap().to_str().unwrap(), time_str));
+//         if target.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target.display(), e)))? {
+//             if target.is_file() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint file {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else if target.is_dir() {
+//                 rename(target, &backup).map_err(|e| CheckpointerError::Other(format!("Failed to backup checkpoint folder {} to {}: {}", target.display(), backup.display(), e)))?;
+//                 Ok(backup)
+//             } else {
+//                 CheckpointerError::Other(format!("The given path is neither a file nor a folder, {}.", target.display())).into()
+//             }
+//         } else {
+//             CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target.display())).into()
+//         }
+//     }
+// }
 
-    /// Saves a checkpoint from all different states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    fn save_state_dist<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-        state: &OState,
-        stop: &St,
-        eval: &Eval,
-        _rank: Rank,
-    ) {
-        let mut wrt = File::create(&self.path_optim).unwrap();
-        rmp_serde::encode::write(&mut wrt, state).unwrap();
-        let mut wrt = File::create(&self.path_stop).unwrap();
-        rmp_serde::encode::write(&mut wrt, stop).unwrap();
-        let mut wrt = File::create(&self.path_eval).unwrap();
-        rmp_serde::encode::write(&mut wrt, eval).unwrap();
+// #[cfg(feature = "mpi")]
+// impl WCheckMessagePack {
+//     /// Returns a [`WCheckMessagePack`] for the given [`MPIProcess`].
+//     pub fn new(config: Arc<FolderConfig>, proc: &MPIProcess) -> Self {
+//         if !config.is_dist {
+//             panic!(
+//                 "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
+//             )
+//         }
+//         let path_check = config
+//             .path_work
+//             .join(format!("worker_rank{}.mp", proc.rank));
+//         WCheckMessagePack(path_check)
+//     }
+// }
 
-        let global = GlobalParameters {
-            sold_id: SOL_ID.load(Ordering::Relaxed),
-            opt_id: OPT_ID.load(Ordering::Relaxed),
-            run_id: RUN_ID.load(Ordering::Relaxed),
-        };
+// #[cfg(feature = "mpi")]
+// impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
+//     type FnStateCheck = MPFnStateCheckpointer;
+//     /// Checks if folders and files already exists, if so [`panic!`] for [WorkerCheckpointer].
+//     ///
+//     /// # Note
+//     ///
+//     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
+//     /// The [`Worker`](crate::Worker) wait for the Master to create and check the folder hierarchy,
+//     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
+//     /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
+//     fn init(&mut self, proc: &MPIProcess) {
+//         proc.world.barrier();
+//         if self.0.try_exists().unwrap() {
+//             panic!(
+//                 "The Worker folder {} in checkpoint already exists.",
+//                 self.0.display()
+//             )
+//         }
+//     }
+//     /// Ran after [`init`](WorkerCheckpointer::init), and after a [`load!`](crate::load).
+//     /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
+//     ///
+//     /// # Note
+//     ///
+//     /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
+//     /// The [`Worker`](crate::Worker) wait for the Master to check the folder hierarchy,
+//     /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
+//     /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
+//     fn before_load(&mut self, proc: &MPIProcess) {
+//         proc.world.barrier();
+//         // Check if all folder and files exist
+//         if !self.0.try_exists().unwrap() {
+//             panic!(
+//                 "The Worker folder {} in checkpoint does not exists.",
+//                 self.0.display()
+//             )
+//         }
+//     }
 
-        let mut wrt = File::create(&self.path_config).unwrap();
-        rmp_serde::encode::write(&mut wrt, &global).unwrap();
-    }
+//     fn after_load(&mut self, proc: &MPIProcess) {
+//         proc.world.barrier(); // First barrier for all workers to finish checking their checkpoint file
+//         proc.world.barrier(); // Second barrier for all workers to be ready to load their checkpoint file
+//     }
 
-    /// Loads a checkpoint from already saved states, [`OptState`], [`Stop`], [`Evaluate`], and [`GlobalParameters`],
-    /// according to a [`FolderConfig`].
-    fn load_dist<OState: State, St: Stop, Eval: Evaluator>(
-        &self,
-        rank: Rank,
-    ) -> Result<(OState, St, Eval), CheckpointError> {
-        let global = self.load_parameters_dist(rank)?;
-        SOL_ID.store(global.sold_id, Ordering::Release);
-        OPT_ID.store(global.opt_id, Ordering::Release);
-        Ok((
-            self.load_optimizer_dist(rank)?,
-            self.load_stop_dist(rank)?,
-            self.load_evaluate_dist(rank)?,
-        ))
-    }
+//     /// Saves a checkpoint from the given [`WorkerState`], according to a [`FolderConfig`].
+//     fn save_state(&self, state: &WState, _rank: Rank) {
+//         let mut wrt = File::create(&self.0).unwrap();
+//         rmp_serde::encode::write(&mut wrt, state).unwrap();
+//     }
 
-    /// Loads a checkpoint from an already saved  [`Stop`], according to a [`FolderConfig`].
-    fn load_stop_dist<St: Stop>(&self, _rank: Rank) -> Result<St, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_stop.is_file() {
-                let rdr =
-                    File::open(&self.path_stop).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Stop` file state_stop.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
+//     /// Loads a checkpoint from an already saved [`WorkerState`], according to a [`FolderConfig`].
+//     fn load(&self, _rank: Rank) -> Result<WState, CheckpointError> {
+//         // Check if file exist
+//         if self
+//             .0
+//             .try_exists()
+//             .map_err(|e| CheckpointError(e.to_string()))?
+//         {
+//             let rdr = File::open(&self.0).map_err(|e| CheckpointError(e.to_string()))?;
+//             Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
+//         } else {
+//             Err(CheckpointError(String::from(
+//                 "The given path does not have any checkpoint folder",
+//             )))
+//         }
+//     }
 
-    /// Loads a checkpoint from an already saved  [`OptState`], according to a [`FolderConfig`].
-    fn load_optimizer_dist<OState: State>(
-        &self,
-        _rank: Rank,
-    ) -> Result<OState, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_optim.is_file() {
-                let rdr =
-                    File::open(&self.path_optim).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Optimizer` file state_optim.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved [`Evaluate`], according to a [`FolderConfig`].
-    fn load_evaluate_dist<Eval: Evaluator>(&self, _rank: Rank) -> Result<Eval, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_eval.is_file() {
-                let rdr =
-                    File::open(&self.path_eval).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Evaluate` file state_eval.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Loads a checkpoint from an already saved  [`GlobalParameters`], according to a [`FolderConfig`].
-    fn load_parameters_dist(&self, _rank: Rank) -> Result<GlobalParameters, CheckpointError> {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_config.is_file() {
-                let rdr =
-                    File::open(&self.path_config).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Config` file state_config.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    /// Returns a [`WorkerCheckpointer`] based on the given [`MPIProcess`].
-    fn get_check_worker<WState: WorkerState>(&self, proc: &MPIProcess) -> Self::WCheck<WState> {
-        WCheckMessagePack::new(self.config.clone(), proc)
-    }
-
-    fn save_accumulator_dist<Acc, C, SolId, SInfo, Out>(&self, acc: &Acc, _rank: Rank)
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
-    {
-        let mut wrt = File::create(&self.path_acc).unwrap();
-        rmp_serde::encode::write(&mut wrt, acc).unwrap();
-    }
-
-    fn load_accumulator_dist<Acc, C, SolId, SInfo, Out>(
-        &self,
-        _rank: Rank,
-    ) -> Result<Acc, CheckpointError>
-    where
-        Acc: Accumulator<C, SolId, SInfo, Out>,
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo,
-        Out: Outcome,
-    {
-        // Check if file exist
-        if self
-            .config
-            .path_check
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            if self.path_acc.is_file() {
-                let rdr = File::open(&self.path_acc).map_err(|e| CheckpointError(e.to_string()))?;
-                Ok(
-                    rmp_serde::decode::from_read(rdr)
-                        .map_err(|e| CheckpointError(e.to_string()))?,
-                )
-            } else {
-                Err(CheckpointError(String::from(
-                    "The `Accumulator` file state_acc.mp does not exists.",
-                )))
-            }
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-}
-
-#[cfg(feature = "mpi")]
-/// A [`WorkerCheckpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
-///
-/// # Notes
-/// The worker checkpoint file hierarchy is as follows, it varies from usual mono-thread [`Checkpointer`]:
-/// * `path` from [`FolderConfig`]
-///  * checkpoint
-///   * workers <===== Modification here
-///     * `worker_state_rank{}` ([`WorkerState`]) <====== And here
-pub struct WCheckMessagePack(PathBuf);
-
-#[cfg(feature = "mpi")]
-impl WCheckMessagePack {
-    /// Returns a [`WCheckMessagePack`] for the given [`MPIProcess`].
-    pub fn new(config: Arc<FolderConfig>, proc: &MPIProcess) -> Self {
-        if !config.is_dist {
-            panic!(
-                "The FolderConfig should be set for Distribued environment. Use the `.to_dist()` method."
-            )
-        }
-        let path_check = config
-            .path_work
-            .join(format!("worker_rank{}.mp", proc.rank));
-        WCheckMessagePack(path_check)
-    }
-}
-
-#[cfg(feature = "mpi")]
-impl<WState: WorkerState> WorkerCheckpointer<WState> for WCheckMessagePack {
-    type FnStateCheck = MPFnStateCheckpointer;
-    /// Checks if folders and files already exists, if so [`panic!`] for [WorkerCheckpointer].
-    ///
-    /// # Note
-    ///
-    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
-    /// The [`Worker`](crate::Worker) wait for the Master to create and check the folder hierarchy,
-    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
-    /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
-    fn init(&mut self, proc: &MPIProcess) {
-        proc.world.barrier();
-        if self.0.try_exists().unwrap() {
-            panic!(
-                "The Worker folder {} in checkpoint already exists.",
-                self.0.display()
-            )
-        }
-    }
-    /// Ran after [`init`](WorkerCheckpointer::init), and after a [`load!`](crate::load).
-    /// Checks if the folder and file hierarchy exists, based on [`FolderConfig`]. If not, then [`panic!`].
-    ///
-    /// # Note
-    ///
-    /// Here, we suppose a [`MasterWorker`](crate::MasterWorker) distribution.
-    /// The [`Worker`](crate::Worker) wait for the Master to check the folder hierarchy,
-    /// with a [`barrier`](mpi::collective::CommunicatorCollectives::barrier).
-    /// Then the [`Worker`](crate::Worker) checks if its own checkpoint file exists.
-    fn before_load(&mut self, proc: &MPIProcess) {
-        proc.world.barrier();
-        // Check if all folder and files exist
-        if !self.0.try_exists().unwrap() {
-            panic!(
-                "The Worker folder {} in checkpoint does not exists.",
-                self.0.display()
-            )
-        }
-    }
-
-    fn after_load(&mut self, proc: &MPIProcess) {
-        proc.world.barrier(); // First barrier for all workers to finish checking their checkpoint file
-        proc.world.barrier(); // Second barrier for all workers to be ready to load their checkpoint file
-    }
-
-    /// Saves a checkpoint from the given [`WorkerState`], according to a [`FolderConfig`].
-    fn save_state(&self, state: &WState, _rank: Rank) {
-        let mut wrt = File::create(&self.0).unwrap();
-        rmp_serde::encode::write(&mut wrt, state).unwrap();
-    }
-
-    /// Loads a checkpoint from an already saved [`WorkerState`], according to a [`FolderConfig`].
-    fn load(&self, _rank: Rank) -> Result<WState, CheckpointError> {
-        // Check if file exist
-        if self
-            .0
-            .try_exists()
-            .map_err(|e| CheckpointError(e.to_string()))?
-        {
-            let rdr = File::open(&self.0).map_err(|e| CheckpointError(e.to_string()))?;
-            Ok(rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointError(e.to_string()))?)
-        } else {
-            Err(CheckpointError(String::from(
-                "The given path does not have any checkpoint folder",
-            )))
-        }
-    }
-
-    fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
-        let path = self.0.parent().unwrap().to_path_buf();
-        MPFnStateCheckpointer { path }
-    }
-}
+//     fn new_func_state_checkpointer(&self) -> Self::FnStateCheck {
+//         let path = self.0.parent().unwrap().to_path_buf();
+//         MPFnStateCheckpointer { path }
+//     }
+// }

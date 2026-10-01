@@ -20,7 +20,7 @@
 //! assert_ne!(a, b);
 //! ```
 
-use crate::SOL_ID;
+use crate::{SOL_ID, utils::record::{Recordable, Schema}};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -45,7 +45,7 @@ use mpi::Rank;
 /// let id = SId::generate();
 /// println!("Generated id: {:?}", id);
 /// ```
-pub trait Id
+pub trait SolId
 where
     Self: Sized
         + PartialEq
@@ -54,7 +54,8 @@ where
         + Copy
         + Debug
         + ToString
-        + HasHeader
+        + Schema<(), Parts = ()>
+        + Recordable<(), Parts = ()>
         + Serialize
         + for<'a> Deserialize<'a>
         + Hash,
@@ -64,7 +65,7 @@ where
 }
 
 /// Identifier for stepped solutions, embedding a step counter.
-pub trait StepId: Id {
+pub trait StepId: SolId {
     /// Increment the step counter by one.
     fn increment(&mut self);
     /// Get the current step counter value.
@@ -103,7 +104,7 @@ impl Display for DistSId {
 }
 
 #[cfg(feature = "mpi")]
-impl Id for DistSId {
+impl SolId for DistSId {
     /// Generate a new distributed identifier using the MPI rank and a global counter.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
@@ -117,20 +118,18 @@ impl Id for DistSId {
 }
 
 #[cfg(feature = "mpi")]
-impl HasHeader for DistSId{
-    fn header() -> Vec<String> {
+impl Schema<()> for DistSId{
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["rank".to_string(), "id".to_string()]
     }
+    
 }
 
 #[cfg(feature = "mpi")]
-impl Tabular<()> for DistSId {
+impl Recordable<()> for DistSId {
     type Parts = ();
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        Self::header()
-    }
-
-    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+    fn record(&self, context: &(), part: Self::Parts) -> Vec<String> {
         vec![self.rank.to_string(), self.id.to_string()]
     }
 }
@@ -166,7 +165,7 @@ impl Display for ParSId {
     }
 }
 
-impl Id for ParSId {
+impl SolId for ParSId {
     /// Generate a new process-local identifier from the current process id.
     fn generate() -> Self {
         let pid = std::process::id().as_();
@@ -175,19 +174,17 @@ impl Id for ParSId {
     }
 }
 
-impl HasHeader for ParSId {
-    fn header() -> Vec<String> {
+impl Schema<()> for ParSId {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["pid".to_string(), "id".to_string()]
     }
 }
 
-impl Tabular<()> for ParSId {
+impl Recordable<()> for ParSId {
     type Parts = ();
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        Self::header()
-    }
 
-    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.pid.to_string(), self.id.to_string()]
     }
 }
@@ -236,7 +233,7 @@ impl Display for SId {
     }
 }
 
-impl Id for SId {
+impl SolId for SId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
@@ -244,25 +241,17 @@ impl Id for SId {
     }
 }
 
-impl HasHeader for SId{
-    fn header() -> Vec<String> {
+impl Schema<()> for SId{
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["id".to_string()]
     }
-}
-impl SId {
-    /// Create a new sequential identifier from an explicit counter.
-    pub fn new(id: usize) -> SId {
-        SId { id }
-    }
+    
 }
 
-impl Tabular<()> for SId {
+impl Recordable<()> for SId {
     type Parts = ();
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        Self::header()
-    }
-
-    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.id.to_string()]
     }
 }
@@ -306,7 +295,7 @@ impl Display for StepSId {
     }
 }
 
-impl Id for StepSId {
+impl SolId for StepSId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
@@ -315,19 +304,17 @@ impl Id for StepSId {
 
 }
 
-impl HasHeader for StepSId {
-    fn header() -> Vec<String> {
+impl Schema<()> for StepSId{
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["id".to_string(), "id_step".to_string()]
     }
+    
 }
 
-impl Tabular<()> for StepSId {
+impl Recordable<()> for StepSId {
     type Parts = ();
-    fn column_names(&self, part: Self::Parts) -> Vec<String> {
-        Self::header()
-    }
-
-    fn column_values(&self, elem: (), part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.id.to_string(), self.id_step.to_string()]
     }
 }

@@ -80,7 +80,7 @@
 //!
 
 use crate::{
-    HasId, HasInfo, HasX, HasY, Outcome, Tabular, aliases::TypeCodom, domain::Domain, utils::has_trait::HasHeader,
+    HasId, HasInfo, HasX, Outcome, aliases::TypeCodom, domain::Domain, utils::record::{Recordable, Schema},
 };
 
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,7 @@ use std::{fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> + HasHeader + Tabular<()>{}
+pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()>{}
 
 /// Core trait representing a candidate solution in the optimization process.
 ///
@@ -225,7 +225,7 @@ pub trait Uncomputed: Solution
 }
 
 pub mod id;
-pub use id::{Id, ParSId, SId, StepId, StepSId};
+pub use id::{SolId, ParSId, SId, StepId, StepSId};
 
 pub mod partial;
 pub use partial::{BaseSol, Fidelity, FidelitySol};
@@ -233,8 +233,8 @@ pub use partial::{BaseSol, Fidelity, FidelitySol};
 pub mod computed;
 pub use computed::Computed;
 
-pub mod batchtype;
-pub use batchtype::{Batch, OutBatch};
+// pub mod batchtype;
+// pub use batchtype::{Batch, OutBatch};
 
 pub mod shape;
 pub use shape::{Lone, Pair, SolutionShape};

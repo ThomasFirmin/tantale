@@ -50,9 +50,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::{Optimizer, Problem, Recorder, Runable, Stop};
 #[cfg(feature = "mpi")]
-use crate::experiment::mpi::utils::MPIProcess;
+use crate::experiment::parallel::mpi::MPICommunicator;
 
 /// Base trait for configuration objects used by recorders and checkpointers.
 ///
@@ -135,12 +134,12 @@ impl SaverConfig<()> for Arc<FolderConfig>
 }
 
 #[cfg(feature = "mpi")]
-impl SaverConfig<MPIProcess> for Arc<FolderConfig> {
+impl SaverConfig<MPICommunicator> for Arc<FolderConfig> {
     /// Initialize a distributed configuration for a specific MPI rank.
     ///
     /// This method appends rank-specific subfolders to recorder and checkpointer
     /// paths and marks the configuration as distributed.
-    fn init(mut self, ctx: &MPIProcess) -> Self {
+    fn init(mut self, ctx: &MPICommunicator) -> Self {
         self.path_rec = self
             .path_rec
             .join(Path::new(&format!("recorder_rank{}", ctx.rank)));

@@ -256,46 +256,33 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, Codomain, Domain, Problem, Searchspace, Solution, SolutionShape, 
-    aliases::{Accum, Cod, CompShape, Func, Scp},
-    checkpointer::Checkpointer,
-    objective::{FuncWrapper, Outcome},
-    optimizer::Optimizer,
-    recorder::Recorder,
-    solution::{Id, Uncomputed},
-    stop::Stop,
-    utils::has_trait::HasState,
+    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Scp}, 
+    checkpointer::Checkpointer, optimizer::Optimizer, recorder::Recorder,
+    solution::SolId, stop::Stop,
 };
-use serde::{Deserialize, Serialize};
 
 // BASICS
 pub mod basics;
-pub use basics::{MonoExperiment, Pool, ThrExperiment};
+pub use basics::{Experiment};
 // BATCHED
 pub mod batched;
-pub use batched::batchevaluator::{BatchEvaluator, ThrBatchEvaluator};
-pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
+// pub use batched::batchevaluator::{BatchEvaluator, ThrBatchEvaluator};
+// pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
 // SEQUENTIAL
-pub mod sequential;
-pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
-pub use sequential::seqfidevaluator::{
-    FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator,
-};
+// pub mod sequential;
+// pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
+// pub use sequential::seqfidevaluator::{
+//     FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator,
+// };
 
-#[cfg(feature = "mpi")]
-pub use batched::batchfidevaluator::FidDistBatchEvaluator;
+// #[cfg(feature = "mpi")]
+// pub use batched::batchfidevaluator::FidDistBatchEvaluator;
+// #[cfg(feature = "mpi")]
+// pub use sequential::seqevaluator::DistSeqEvaluator;
+// #[cfg(feature = "mpi")]
+// pub use sequential::seqfidevaluator::FidDistSeqEvaluator;
 
-#[cfg(feature = "mpi")]
-pub use sequential::seqevaluator::DistSeqEvaluator;
-#[cfg(feature = "mpi")]
-pub use sequential::seqfidevaluator::FidDistSeqEvaluator;
-
-#[cfg(feature = "mpi")]
-pub mod mpi;
-#[cfg(feature = "mpi")]
-pub use basics::MPIExperiment;
-
-
+pub mod parallel;
 
 /// Pool modes for the [`FuncStatePool`](crate::experiment::basics::FuncStatePool) when retrieving [`FuncState`](crate::FuncState).
 /// This prevent overflowing RAM whith large [`FuncState`](crate::FuncState) by allowing to retrieve the state from memory if it is still there,
@@ -425,34 +412,14 @@ pub enum PoolMode {
 /// - [`crate::domain::codomain::Accumulator`] - Trait for accumulating best solutions across iterations
 /// - [`crate::domain::codomain::BestAccumulator`] - Accumulator for single-objective codomains
 /// - [`crate::domain::codomain::ParetoAccumulator`] - Accumulator for multi-objective codomains
-pub trait Runable
-{
-    type SolId: Id;
-    type Problem: Problem;
-    type Optimizer: Optimizer<Self::Problem>;
+pub trait Runable: Sized {
+    type SolId: SolId;
+    type Problem: Problem<Id = Self::SolId>;
+    type Optimizer: Optimizer<Self::Problem, Info = <Self::Problem as Problem>::Info>;
     type Stop: Stop;
-    type Recorder: Recorder;
-    type Checkpointer: Checkpointer;
+    type Recorder: Recorder<Self::Problem, Self::Context>;
+    type Checkpointer: Checkpointer<Self::Problem, Self::Context>;
     type Context;
-    /// Creates a new default experiment from its components.
-    ///
-    /// Constructs an experiment ready to run from scratch. The optimizer's internal
-    /// state is initialized fresh, and the accumulator starts empty.
-    ///
-    /// Prefer the [`mono`], [`threaded`] or [`distributed`] functions which
-    /// infer the concrete experiment type automatically.
-    ///
-    /// ## PoolMode
-    ///
-    /// By default, the function state pool is set to [`PoolMode::InMemory`],
-    /// which means that function states will be kept in memory if possible.
-    /// If you want to specify a different pool mode, use the [`new_with_pool`](Runable::new_with_pool) method.
-    fn new(pb: Self::Problem, optimizer: Self::Optimizer, stop: Self::Stop, rec: Option<Self::Recorder>, check: Option<Self::Checkpointer>, ctx: Self::Context) -> Self {
-        Self::new_with_pool(pb, optimizer, stop, rec, check, ctx, PoolMode::InMemory)
-    }
-
-    /// Similar to [`new`](Self::new), but allows specifying the [`PoolMode`] for function state management.
-    fn new_with_pool(pb: Self::Problem, optimizer: Self::Optimizer, stop: Self::Stop, rec: Option<Self::Recorder>, check: Option<Self::Checkpointer>, ctx: Self::Context, pool_mode: PoolMode) -> Self;
 
     /// Runs the optimization loop to completion.
     ///
@@ -462,20 +429,6 @@ pub trait Runable
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
     fn run(self) -> Accum<Self::Problem>;
-
-    /// Restores an experiment from a checkpoint.
-    ///
-    /// Reconstructs the full experiment state (optimizer, stop criterion, accumulator)
-    /// from the provided [`Checkpointer`]. The searchspace, codomain, and objective are
-    /// supplied explicitly because they are not serialized.
-    ///
-    /// Prefer the [`mono_load`] / [`threaded_load`] free functions or the `load!` macro.
-    fn load(pb: Self::Problem, optimizer: Self::Optimizer, stop: Self::Stop, rec: Option<Self::Recorder>, check: Option<Self::Checkpointer>) -> Self {
-        Self::load_with_pool(pb, optimizer, stop, rec, check, PoolMode::InMemory)
-    }
-
-    /// Restores an experiment from a checkpoint with specified [`PoolMode`].
-    fn load_with_pool(pb: Self::Problem, optimizer: Self::Optimizer, stop: Self::Stop, rec: Option<Self::Recorder>, check: Option<Self::Checkpointer>, pool_mode: PoolMode) -> Self;
 
     /// Returns a reference to the [`Stop`] criterion.
     fn get_stop(&self) -> &Self::Stop;
@@ -510,7 +463,7 @@ pub trait Runable
     fn get_mut_stop(&mut self) -> &mut Self::Stop;
 
     /// Returns a mutable reference to the [`Searchspace`].
-    fn get_mut_searchspace(&mut self) -> &mut Self::Searchspace;
+    fn get_mut_searchspace(&mut self) -> &mut Scp<Self::Problem>;
 
     /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
     fn get_mut_codomain(&mut self) -> &mut Cod<Self::Problem>;
@@ -537,7 +490,4 @@ pub trait Runable
     fn update_accumulator(&mut self, comp: &CompShape<Self::Problem>) {
         self.get_mut_accumalator().accumulate(comp);
     }
-
-    /// Extracts the components of the experiment.
-    fn extract(self) ->(Self::Problem, Self::Optimizer, Self::Stop, Option<Self::Recorder>, Option<Self::Checkpointer>, Accum<Self::Problem>);
 }

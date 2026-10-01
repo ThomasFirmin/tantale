@@ -130,8 +130,8 @@
 //! ```
 
 use crate::{
-    FuncWrapper, HasId, HasInfo, HasX, Problem, Solution, Uncomputed, aliases::{GetId, GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
-        Id, SolInfo, SolutionShape, shape::IntoComputedShape,
+    FuncWrapper, Uncomputed, aliases::{GetId, GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
+        SolId, SolutionShape, shape::IntoComputedShape,
     },
 };
 
@@ -340,8 +340,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> GetSObj<Self::Shape>{
-        Uncomputed::new(GetId::<Self::Shape>::generate(), self.sample_raw_obj(rng), info)
+    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<GetSObj<Self::Shape>>>) -> GetSObj<Self::Shape>{
+        Uncomputed::new(GetId::<GetSObj<Self::Shape>>::generate(), self.sample_raw_obj(rng), info)
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
     ///
@@ -418,8 +418,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked
     ///     println!("{}", i);
     /// }
     /// ```
-    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> GetSOpt<Self::Shape>{
-        Uncomputed::new(GetId::<Self::Shape>::generate(), self.sample_raw_opt(rng), info)
+    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<GetSOpt<Self::Shape>>>) -> GetSOpt<Self::Shape>{
+        Uncomputed::new(GetId::<GetSOpt<Self::Shape>>::generate(), self.sample_raw_opt(rng), info)
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
     ///

@@ -20,18 +20,13 @@
 //! ```
 
 use crate::{
-    HasId, HasInfo, HasStep, Solution, StepId, objective::{Outcome, Step}, solution::{Id, SolInfo, SolutionShape},
+    HasStep, objective::{Outcome, Step}, solution::{SolId, SolutionShape},
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, vec::IntoIter};
 
-#[cfg(feature = "mpi")]
-use crate::experiment::mpi::utils::PriorityList;
-#[cfg(feature = "mpi")]
-use mpi::Rank;
-#[cfg(feature = "mpi")]
 use std::collections::HashMap;
 
 /// A [`Batch`] describes a collection of [`SolutionShape`].
@@ -367,17 +362,17 @@ where
 
 /// A [`OutBatch`] describes a collection of solution [`Id`]s and raw [`Outcome`] values.
 #[derive(Debug)]
-pub struct OutBatch<SolId, Out>
+pub struct OutBatch<Id, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Out: Outcome,
 {
-    pub out: Vec<(SolId, Out)>,
+    pub out: Vec<(Id, Out)>,
 }
 
-impl<SolId, Out> OutBatch<SolId, Out>
+impl<Id, Out> OutBatch<Id, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Out: Outcome,
 {
     /// Creates a new [`OutBatch`] from a vec of pairs of solution [`Id`]s and raw [`Outcome`] values, and an [`OptInfo`].
@@ -396,7 +391,7 @@ where
     /// let batch = OutBatch::new(out);
     /// assert_eq!(batch.size(), 1);
     /// ```
-    pub fn new(out: Vec<(SolId, Out)>) -> Self {
+    pub fn new(out: Vec<(Id, Out)>) -> Self {
         OutBatch { out }
     }
 
@@ -438,7 +433,7 @@ where
     /// batch.add((SId::generate(), Out { value: 2.0 }));
     /// assert_eq!(batch.size(), 1);
     /// ```
-    pub fn add(&mut self, out: (SolId, Out)) {
+    pub fn add(&mut self, out: (Id, Out)) {
         self.out.push(out);
     }
 
@@ -459,7 +454,7 @@ where
     /// batch.add_vec(vec![(SId::generate(), Out { value: 2.0 }), (SId::generate(), Out { value: 3.0 })]);
     /// assert_eq!(batch.size(), 2);
     /// ```
-    pub fn add_vec(&mut self, vout: Vec<(SolId, Out)>) {
+    pub fn add_vec(&mut self, vout: Vec<(Id, Out)>) {
         self.out.extend(vout);
     }
 
@@ -528,7 +523,7 @@ where
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    pub fn bindex(&self, index: usize) -> &'_ (SolId, Out) {
+    pub fn bindex(&self, index: usize) -> &'_ (Id, Out) {
         &self.out[index]
     }
 
@@ -537,14 +532,14 @@ where
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    pub fn remove(&mut self, index: usize) -> (SolId, Out) {
+    pub fn remove(&mut self, index: usize) -> (Id, Out) {
         self.out.remove(index)
     }
 
     /// Pop the last paired solution [`Id`] and raw [`Outcome`] within the batch.
     ///
     /// Returns `None` if the batch is empty.
-    pub fn pop(&mut self) -> Option<(SolId, Out)> {
+    pub fn pop(&mut self) -> Option<(Id, Out)> {
         self.out.pop()
     }
 }
@@ -553,39 +548,39 @@ where
 //--- INTOITERATOR ---//
 //--------------------//
 
-impl<SolId, Out> IntoIterator for OutBatch<SolId, Out>
+impl<Id, Out> IntoIterator for OutBatch<Id, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = (SolId, Out);
-    type IntoIter = IntoIter<(SolId, Out)>;
+    type Item = (Id, Out);
+    type IntoIter = IntoIter<(Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.into_iter()
     }
 }
 
-impl<'a, SolId, Out> IntoIterator for &'a OutBatch<SolId, Out>
+impl<'a, Id, Out> IntoIterator for &'a OutBatch<Id, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = &'a (SolId, Out);
-    type IntoIter = slice::Iter<'a, (SolId, Out)>;
+    type Item = &'a (Id, Out);
+    type IntoIter = slice::Iter<'a, (Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter()
     }
 }
 
-impl<'a, SolId, Out> IntoIterator for &'a mut OutBatch<SolId, Out>
+impl<'a, Id, Out> IntoIterator for &'a mut OutBatch<Id, Out>
 where
-    SolId: Id,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = &'a mut (SolId, Out);
-    type IntoIter = slice::IterMut<'a, (SolId, Out)>;
+    type Item = &'a mut (Id, Out);
+    type IntoIter = slice::IterMut<'a, (Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter_mut()
@@ -596,39 +591,39 @@ where
 //--- INTOPARITERATOR ---//
 //-----------------------//
 
-impl<SolId, Out> IntoParallelIterator for OutBatch<SolId, Out>
+impl<Id, Out> IntoParallelIterator for OutBatch<Id, Out>
 where
-    SolId: Id + Send,
+    Id: SolId + Send,
     Out: Outcome + Send,
 {
-    type Item = (SolId, Out);
-    type Iter = rayon::vec::IntoIter<(SolId, Out)>;
+    type Item = (Id, Out);
+    type Iter = rayon::vec::IntoIter<(Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         self.out.into_par_iter()
     }
 }
 
-impl<'a, SolId, Out> IntoParallelIterator for &'a OutBatch<SolId, Out>
+impl<'a, Id, Out> IntoParallelIterator for &'a OutBatch<Id, Out>
 where
-    SolId: Id + Send + Sync,
+    Id: SolId + Send + Sync,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a (SolId, Out);
-    type Iter = rayon::slice::Iter<'a, (SolId, Out)>;
+    type Item = &'a (Id, Out);
+    type Iter = rayon::slice::Iter<'a, (Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&[_]>::into_par_iter(&self.out)
     }
 }
 
-impl<'a, SolId, Out> IntoParallelIterator for &'a mut OutBatch<SolId, Out>
+impl<'a, Id, Out> IntoParallelIterator for &'a mut OutBatch<Id, Out>
 where
-    SolId: Id + Send + Sync,
+    Id: SolId + Send + Sync,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a mut (SolId, Out);
-    type Iter = rayon::slice::IterMut<'a, (SolId, Out)>;
+    type Item = &'a mut (Id, Out);
+    type Iter = rayon::slice::IterMut<'a, (Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&mut [_]>::into_par_iter(&mut self.out)

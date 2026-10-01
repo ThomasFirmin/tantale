@@ -53,7 +53,8 @@
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed, HasX, HasY, Multi, StepId, Xy, aliases::TypeCodom, domain::{Domain, codomain::ElemMulti}, objective::{Outcome, Step}, solution::{Id, SolInfo, Solution, Uncomputed}, utils::orderable::Orderable,
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed, HasX, HasY, StepId, Xy, aliases::TypeCodom, domain::codomain::ElemMulti, 
+    objective::{Outcome, Step}, solution::{Solution, Uncomputed}, utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -114,15 +115,15 @@ where
     Self::Id: StepId,
 {
     fn increment(&mut self) {
-        self.sol.increment()
+        self.sol.id().increment()
     }
 
     fn id_step(&self) -> usize {
-        self.sol.id_step()
+        self.sol.id().id_step()
     }
 
     fn previous_id(&self) -> Self::Id {
-        self.sol.previous_id()
+        self.sol.id().previous_id()
     }
 }
 
@@ -323,7 +324,7 @@ impl<S: Uncomputed, Out: Outcome> Computed<S, Out>
     /// # Returns
     ///
     /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract(self) -> (S, Arc<TypeCodom<Out>>){
+    pub fn extract(self) -> (S, Arc<TypeCodom<Out>>){
         (self.sol, self.y)
     }
 }

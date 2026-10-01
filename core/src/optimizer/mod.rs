@@ -45,7 +45,4 @@
 //! See the [`opt`] submodule for trait definitions and details.
 
 pub mod opt;
-pub use opt::{
-    BatchOptimizer, BatchSampler, EmptyInfo, Optimizer, Sampler,
-    SingleOptimizer, SingleSampler,
-};
+pub use opt::{EmptyInfo, Optimizer, Sampler};

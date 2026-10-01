@@ -6,16 +6,9 @@
 //!
 //! ## Trait Hierarchy
 //!
-//! The CSV recording system is built on several trait layers:
-//!
-//! - [`CSVWritable`] - Base trait for writing individual types to CSV columns
-//! - [`CSVLeftRight`] - For types with Obj/Opt components (used by [`Searchspace`])
-//! - [`SolCSVWrite`] - Writing [`Solution`](crate::Solution) components (obj.csv, opt.csv)
-//! - [`CodCSVWrite`] - Writing [`Codomain`] values (cod.csv)
-//! - [`InfoCSVWrite`] - Writing [`SolInfo`] and [`OptInfo`] metadata (info.csv)
-//! - [`OutCSVWrite`] - Writing raw [`Outcome`] values (out.csv)
-//! - [`ScpCSVWrite`] - Orchestrates writing all components of a computed solution
-//! - [`BatchCSVWrite`] - Writes batches of solutions in parallel
+//! The CSV recording system is built on [`Recordable`] and [`Schema`] traits, 
+//! which define how to serialize objects into string rows and headers, respectively. 
+//! The [`Recorder`] trait is implemented for the [`CSVRecorder`] to handle writing these rows to files.
 //!
 //! ## File Layout
 //!
@@ -35,692 +28,14 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    BaseSol, BatchOptimizer, Checkpointer, Domain, Fidelity, FidelitySol, FolderConfig, FuncWrapper, HasFidelity, HasId, HasInfo, HasStep, HasUncomputed, HasX, HasY, LinkObj, MonoExperiment, OptInfo, Optimizer, Pair, Problem, RawObj, SingleOptimizer, SolInfo, Solution, StepId, Stop, Tabular, aliases::Shape, domain::{Codomain, Elem, codomain::TypeCodom, onto::LinkOpt}, evaluator::Evaluator, objective::{Outcome, Step}, recorder::{BatchRecorder, Recorder, SeqRecorder}, searchspace::{CompShape, Searchspace}, solution::{
-        Batch, Id, OutBatch, SolutionShape, Uncomputed,
-        shape::{SolObj, SolOpt},
-    },
+    Computed, FolderConfig, HasVariables, Problem, Var, 
+    aliases::{Obj, Out, SObj, SOpt, TrueOpt}, errors::RecorderError,
+    recorder::{Recorder, RecorderTargets}, utils::record::{CompParts, Recordable, Schema, SolParts},
 };
 
-use csv::Writer;
-use rayon::iter::IntoParallelIterator;
-use rayon::prelude::*;
 use std::{
-    fs::{File, OpenOptions, create_dir_all},
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    fs::{File, OpenOptions, create_dir_all}, path::{Path, PathBuf}, sync::{Arc, Mutex},
 };
-
-/// Container holding thread-safe CSV writer handles for all output files.
-///
-/// Each writer is wrapped in `Arc<Mutex<_>>` to enable parallel writes from multiple threads.
-/// Only `cod` is required; other files are optional based on [`CSVRecorder`] configuration.
-pub struct CSVFiles {
-    pub obj: Option<Arc<Mutex<csv::Writer<File>>>>,
-    pub opt: Option<Arc<Mutex<csv::Writer<File>>>>,
-    pub cod: Arc<Mutex<csv::Writer<File>>>,
-    pub info: Option<Arc<Mutex<csv::Writer<File>>>>,
-    pub out: Option<Arc<Mutex<csv::Writer<File>>>>,
-}
-
-impl CSVFiles {
-    /// Open all configured CSV files and wrap them in thread-safe writers.
-    ///
-    /// Files are opened in append mode to support resuming experiments.
-    pub fn new(
-        obj: &Option<PathBuf>,
-        opt: &Option<PathBuf>,
-        cod: &PathBuf,
-        info: &Option<PathBuf>,
-        out: &Option<PathBuf>,
-    ) -> Self {
-        let obj = obj.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
-        });
-        let opt = opt.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
-        });
-        let cod = Arc::new(Mutex::new(csv::Writer::from_writer(
-            OpenOptions::new().append(true).open(cod).unwrap(),
-        )));
-        let info = info.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
-        });
-        let out = out.as_ref().map(|path| {
-            Arc::new(Mutex::new(csv::Writer::from_writer(
-                OpenOptions::new().append(true).open(path).unwrap(),
-            )))
-        });
-        CSVFiles {
-            obj,
-            opt,
-            cod,
-            info,
-            out,
-        }
-    }
-}
-
-#[cfg(feature = "mpi")]
-use crate::{
-    experiment::mpi::utils::MPIProcess,
-    recorder::{DistBatchRecorder, DistSeqRecorder},
-};
-
-/// CSV writer for [`Solution`](crate::Solution) components (obj.csv and opt.csv).
-///
-/// This trait enables a [`Searchspace`] to write solution components
-/// by decomposing them into objective-side (obj.csv) and optimizer-side (opt.csv) parts.
-/// The searchspace generates headers and serializes values for both parts.
-///
-/// # CSV Files
-///
-/// - **obj.csv**: Contains objective-side inputs that are passed to the objective function
-/// - **opt.csv**: Contains optimizer-side representations used internally by the optimizer
-pub trait SolCSVWrite<SolId, SInfo, Scp, FnObj>: SolutionShape<SolId, SInfo>
-where
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
-    Scp: Searchspace<SolId, SInfo, FnObj, SolShape = Self, Obj = Self::Obj, Opt = Self::Opt>,
-{
-    /// Write headers for both objective and optimizer sides.
-    fn header(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>);
-    /// Write a single objective-side row.
-    fn write(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>);
-}
-
-/// CSV writer for [`Codomain`] values (cod.csv).
-///
-/// This trait enables a [`Codomain`] to serialize its
-/// [`TypeCodom`](Codomain::TypeCodom) values. The codomain structure
-/// defines the headers, while computed values are written as rows.
-///
-/// # CSV File
-///
-/// - **cod.csv**: Contains computed objective values, constraints, and other codomain elements
-pub trait CodCSVWrite<SolId, Out>: Codomain<Out>
-where
-    Self: Sized + CSVWritable<Self, Self::TypeCodom>,
-    SolId: Id + CSVWritable<(), ()>,
-    Out: Outcome,
-{
-    /// Write the codomain header.
-    fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>);
-    /// Write one codomain row for a solution id.
-    fn write_codom(
-        &self,
-        id: &[String],
-        codom: Arc<Self::TypeCodom>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    );
-}
-
-/// CSV writer for solution metadata (info.csv).
-///
-/// This trait enables writing [`SolInfo`] and optionally
-/// [`OptInfo`] metadata associated with computed solutions.
-///
-/// # CSV File
-///
-/// - **info.csv**: Contains metadata like age, seed, iteration number, batch number, etc.
-pub trait InfoCSVWrite<SolId, SInfo>: SolutionShape<SolId, SInfo>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-{
-    /// Write the info header (solution info only).
-    fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>);
-
-    /// Write the info header (solution info + optimizer info).
-    fn header_info_with_optinfo<Info: OptInfo + CSVWritable<(), ()>>(
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    );
-    /// Write one info row (solution info only).
-    fn write_info(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>);
-
-    /// Write one info row (solution info + optimizer info).
-    fn write_info_with_optinfo<Info: OptInfo + CSVWritable<(), ()>>(
-        &self,
-        id: &[String],
-        info: Arc<Info>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    );
-}
-
-/// CSV writer for raw [`Outcome`] values (out.csv).
-///
-/// This trait enables writing raw outcome values returned by the objective function.
-///
-/// # CSV File
-///
-/// - **out.csv**: Contains raw outcomes before interpretation into the codomain
-pub trait OutCSVWrite<SolId: Id>: Outcome {
-    /// Write the outcome header.
-    fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>);
-    /// Write one outcome row for a solution id.
-    fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>);
-}
-
-/// Orchestrates writing all components of a computed solution to CSV files.
-///
-/// This trait combines [`SolCSVWrite`], [`CodCSVWrite`], [`InfoCSVWrite`], and [`OutCSVWrite`]
-/// to write a complete [`CompShape`] and its raw [`Outcome`]
-/// across all CSV files in a coordinated manner.
-pub trait ScpCSVWrite<SolId, SInfo, FnObj, Out>: Searchspace<SolId, SInfo, FnObj>
-where
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
-    Out: Outcome + CSVWritable<(), ()>,
-    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
-{
-    /// Write a fully computed solution without optimizer info.
-    ///
-    /// Used by sequential optimizers that don't provide batch-level metadata.
-    fn write(
-        &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
-        opair: &(SolId, Out),
-        cod: &Out::Cod,
-        wrts: &CSVFiles,
-    );
-
-    /// Write a fully computed solution with optimizer info.
-    ///
-    /// Used by batch optimizers that provide iteration/batch metadata via [`OptInfo`].
-    fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
-        &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
-        opair: &(SolId, Out),
-        info: Arc<Info>,
-        cod: &Out::Cod,
-        wrts: &CSVFiles,
-    );
-}
-
-/// Implementation for [`BaseSol`] [`Solution`](crate::Solution)s, which writes the solution components within the CSV files.
-impl<Dom, Scp, SolId, SInfo> SolCSVWrite<SolId, SInfo, Scp, FnObj> for Pair<BaseSol<SolId, LinkOpt<Scp>, SInfo>, BaseSol<SolId, LinkOpt<Scp>, SInfo>, SolId, LinkObj<Scp>, LinkOpt<Scp>, SInfo>
-where
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    FnObj: FuncWrapper<SolId, Self::Obj, SInfo>,
-    Scp: Searchspace<SolId, SInfo, FnObj, SolShape = Self, Obj = Self::Obj, Opt = Self::Opt>,
-{
-    fn header(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>) {
-        if let Some(wrt) = wrt_obj {
-            let mut lock_wrt = wrt.lock().unwrap();
-            let mut idstr = SolId::header(&());
-
-            idstr.extend(Scp::header(self));
-        }
-    }
-    
-    fn write(&self, scp: &Scp, wrt_obj: Option<Arc<Mutex<Writer<File>>>>, wrt_opt: Option<Arc<Mutex<Writer<File>>>>) {
-        todo!()
-    }
-
-    /// Header row columns: `SolId` fields followed by the searchspace columns.
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
-    /// ```text
-    /// id, var1_name, var2_name, var3_name
-    /// ```
-    fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(Scp::header(self));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Header row columns: `SolId` fields followed by the searchspace columns.
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
-    /// ```text
-    /// id, var1_name, var2_name, var3_name
-    /// ```
-    fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(Scp::header(self));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Row columns: `SolId` fields followed by objective-side searchspace values.
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
-    /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
-    /// the row could be:
-    /// ```text
-    /// 3, 10.5,20.4, 30.1
-    /// ```
-    fn write_partial_obj(
-        &self,
-        id: &[String],
-        sol: &SolObj<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let solstr = self.write_left(sol.ref_x());
-        let idstr = id.iter().chain(solstr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-    /// Row columns: `SolId` fields followed by optimizer-side searchspace values.
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of *
-    /// [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
-    /// the row could be:
-    /// ```text
-    /// 3, 1, 2, 3
-    /// ```
-    fn write_partial_opt(
-        &self,
-        id: &[String],
-        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let solstr = self.write_right(sol.ref_x());
-        let idstr = id.iter().chain(solstr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-}
-
-/// Implementation for [`FidelitySol`] [`Solution`](crate::Solution)s, which adds [`Fidelity`] and [`Step`] columns to the CSV files.
-impl<Scp, SolId, SInfo> SolCSVWrite<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo> for Scp
-where
-    Scp: Searchspace<FidelitySol<SolId, LinkOpt<Scp>, SInfo>, SolId, SInfo>
-        + CSVLeftRight<Scp, Arc<[Elem<Scp::Obj>]>, Arc<[Elem<Scp::Opt>]>>,
-    SolId: StepId + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-{
-    /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
-    /// ```text
-    /// id, var1_name, var2_name, var3_name, step, fidelity
-    /// ```
-    fn header_partial_obj(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        let stepstr = Step::header(&());
-        let fidstr = Fidelity::header(&());
-        idstr.extend(Scp::header(self));
-        idstr.extend(stepstr);
-        idstr.extend(fidstr);
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Header row columns: `SolId` fields, searchspace columns, then [`Step`] and [`Fidelity`].
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s, the header will be:
-    /// ```text
-    /// id, var1_name, var2_name, var3_name, step, fidelity
-    /// ```
-    fn header_partial_opt(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        let stepstr = Step::header(&());
-        let fidstr = Fidelity::header(&());
-        idstr.extend(Scp::header(self));
-        idstr.extend(stepstr);
-        idstr.extend(fidstr);
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Row columns: `SolId` fields, objective-side searchspace values, then [`Step`] and [`Fidelity`].
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
-    /// the row could be:
-    /// ```text
-    /// 3, 10.5,20.4, 30.1, 2, 0.5
-    /// ```
-    fn write_partial_obj(
-        &self,
-        id: &[String],
-        sol: &SolObj<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let solstr = self.write_left(sol.ref_x());
-        let stepstr = &sol.step().write(&());
-        let fidstr = &sol.fidelity().write(&());
-        let idstr = id.iter().chain(solstr.iter()).chain(stepstr).chain(fidstr);
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-    /// Row columns: `SolId` fields, optimizer-side searchspace values, then [`Step`] and [`Fidelity`].
-    ///
-    /// # Example
-    /// For a [`SId`](crate::SId), a searchspace with 3 [`Variable`](crate::Var)s of [`Real`](crate::Real) [`Onto`](crate::Onto) [`Int`](crate::Int) types, respectively,
-    /// the row could be:
-    /// ```text
-    /// 3, 1,2, 3, 2, 0.5
-    /// ```
-    fn write_partial_opt(
-        &self,
-        id: &[String],
-        sol: &SolOpt<Self::SolShape, SolId, SInfo>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let solstr = self.write_right(sol.ref_x());
-        let stepstr = &sol.step().write(&());
-        let fidstr = &sol.fidelity().write(&());
-        let idstr = id.iter().chain(solstr.iter()).chain(stepstr).chain(fidstr);
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-}
-
-impl<SolId, Out> CodCSVWrite<SolId, Out> for Out::Cod
-where
-    Self: Sized + CSVWritable<Self, Self::TypeCodom>,
-    SolId: Id + CSVWritable<(), ()>,
-    Out: Outcome,
-{
-    /// Header row columns: `SolId` fields followed by codomain columns.
-    ///
-    /// # Example
-    /// With a [`ConstCodomain`](crate::ConstCodomain) defining `y` and two constraints, the
-    /// header will be:
-    /// ```text
-    /// id, y, c0, c1
-    /// ```
-    fn header_codom(&self, wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(Self::header(self));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-    /// Row columns: `SolId` fields followed by codomain values.
-    ///
-    /// # Example
-    /// For a [`ConstCodomain`](crate::ConstCodomain) with `y=0.42` and two constraints
-    /// `[-1.0, 0.0]`, the row could be:
-    /// ```text
-    /// 3, 0.42, -1.0, 0.0
-    /// ```
-    fn write_codom(
-        &self,
-        id: &[String],
-        codom: Arc<Self::TypeCodom>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let codstr = self.write(&codom);
-        let idstr = id.iter().chain(codstr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-}
-
-impl<Shape, SolId, SInfo> InfoCSVWrite<SolId, SInfo> for Shape
-where
-    Shape: SolutionShape<SolId, SInfo> + HasInfo<SInfo>,
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-{
-    /// Header row columns: `SolId` fields, then [`SolInfo`] columns.
-    ///
-    /// # Example
-    /// With a mock `SolInfo` that exposes `age` and `seed` the header could be:
-    /// ```text
-    /// id, age, seed
-    /// ```
-    fn header_info(wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(SInfo::column_names(&()));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Header row columns: `SolId` fields, then [`SolInfo`] columns.
-    ///
-    /// # Example
-    /// With a mock `SolInfo` that exposes `age` and `seed`, and a mock `OptInfo` that exposes
-    /// `iter` and `batch`, the header could be:
-    /// ```text
-    /// id, age, seed, iter, batch
-    /// ```
-    fn header_info_with_optinfo<Info: OptInfo + CSVWritable<(), ()>>(
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(SInfo::column_names(&()));
-        idstr.extend(Info::header(&()));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Row columns: `SolId` fields, [`SolInfo`] values.
-    ///
-    /// # Example
-    /// With the mock headers above and `id=3`, `age=12`, `seed=42`, the row
-    /// could be:
-    /// ```text
-    /// 3, 12, 42
-    /// ```
-    fn write_info(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let sinfostr = self.sinfo().column_values(&());
-        let idstr = id.iter().chain(sinfostr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-
-    /// Row columns: `SolId` fields, [`SolInfo`] and [`OptInfo`] values.
-    ///
-    /// # Example
-    /// With the mock headers above and `id=3`, `age=12`, `seed=42`, `iter=7`, `batch=2`, the row
-    /// could be:
-    /// ```text
-    /// 3, 12, 42, 7, 2
-    /// ```
-    fn write_info_with_optinfo<Info: OptInfo + CSVWritable<(), ()>>(
-        &self,
-        id: &[String],
-        info: Arc<Info>,
-        wrt: Arc<Mutex<csv::Writer<File>>>,
-    ) {
-        let sinfostr = self.sinfo().column_values(&());
-        let infostr = info.write(&());
-        let idstr = id.iter().chain(sinfostr.iter()).chain(infostr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-}
-
-impl<Out, SolId> OutCSVWrite<SolId> for Out
-where
-    SolId: Id + CSVWritable<(), ()>,
-    Out: Outcome + CSVWritable<(), ()>,
-{
-    /// Header row columns: `SolId` fields followed by outcome columns.
-    ///
-    /// # Example
-    /// With a mock `Outcome` that exposes `loss` and `acc`, the header could be:
-    /// ```text
-    /// id, loss, acc
-    /// ```
-    fn header_out(wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let mut lwrt = wrt.lock().unwrap();
-        let mut idstr = SolId::header(&());
-        idstr.extend(Out::header(&()));
-        lwrt.write_record(idstr).unwrap();
-        lwrt.flush().unwrap();
-    }
-
-    /// Row columns: `SolId` fields followed by outcome values.
-    ///
-    /// # Example
-    /// With the mock headers above and `id=3`, `loss=0.12`, `acc=0.97`, the row could be:
-    /// ```text
-    /// 3, 0.12, 0.97
-    /// ```
-    fn write_out(&self, id: &[String], wrt: Arc<Mutex<csv::Writer<File>>>) {
-        let outstr = self.write(&());
-        let idstr = id.iter().chain(outstr.iter());
-        let mut wrt_local = wrt.lock().unwrap();
-        wrt_local.write_record(idstr).unwrap();
-        wrt_local.flush().unwrap();
-    }
-}
-
-impl<Scp, PartOpt, SolId, SInfo, Out> ScpCSVWrite<PartOpt, SolId, SInfo, Out> for Scp
-where
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    Out: Outcome + OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
-    TypeCodom<Out>: Send + Sync,
-    PartOpt: Uncomputed<SolId, Self::Opt, SInfo>,
-    PartOpt::Twin<Self::Obj>: Uncomputed<SolId, Self::Obj, SInfo, Twin<Self::Opt> = PartOpt>,
-    Scp: SolCSVWrite<PartOpt, SolId, SInfo>,
-{
-    fn write(
-        &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
-        opair: &(SolId, Out),
-        cod: &Out::Cod,
-        wrts: &CSVFiles,
-    ) {
-        let id = pair.id();
-        let idstr = id.write(&());
-
-        // CODOM
-        <Out::Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
-        // OBJ
-        if let Some(f) = wrts.obj.clone() {
-            self.write_partial_obj(&idstr, pair.get_sobj().get_uncomputed(), f);
-        }
-        // OPT
-        if let Some(f) = wrts.opt.clone() {
-            self.write_partial_opt(&idstr, pair.get_sopt().get_uncomputed(), f);
-        }
-        // INFO
-        if let Some(f) = wrts.info.clone() {
-            pair.write_info(&idstr, f);
-        }
-        // OUT
-        if let Some(f) = wrts.out.clone() {
-            opair.1.write_out(&idstr, f);
-        }
-    }
-
-    fn write_with_opt_info<Info: OptInfo + CSVWritable<(), ()>>(
-        &self,
-        pair: &CompShape<Self::SolShape, SolId, SInfo, Out>,
-        opair: &(SolId, Out),
-        info: Arc<Info>,
-        cod: &Out::Cod,
-        wrts: &CSVFiles,
-    ) {
-        let id = pair.id();
-        let idstr = id.write(&());
-
-        // CODOM
-        <Out::Cod as CodCSVWrite<SolId, Out>>::write_codom(cod, &idstr, pair.y(), wrts.cod.clone());
-        // OBJ
-        if let Some(f) = wrts.obj.clone() {
-            self.write_partial_obj(&idstr, pair.get_sobj().get_uncomputed(), f);
-        }
-        // OPT
-        if let Some(f) = wrts.opt.clone() {
-            self.write_partial_opt(&idstr, pair.get_sopt().get_uncomputed(), f);
-        }
-        // INFO
-        if let Some(f) = wrts.info.clone() {
-            pair.write_info_with_optinfo(&idstr, info, f);
-        }
-        // OUT
-        if let Some(f) = wrts.out.clone() {
-            opair.1.write_out(&idstr, f);
-        }
-    }
-}
-
-/// Writes a [`Batch`] of computed solutions to CSV files in parallel.
-///
-/// This trait enables efficient parallel writing of multiple solutions using Rayon.
-/// Each solution in the batch is written to all configured CSV files simultaneously.
-pub trait BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
-where
-    SolId: Id + CSVWritable<(), ()>,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    Info: OptInfo + CSVWritable<(), ()>,
-    Out: Outcome + CSVWritable<(), ()>,
-    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>>,
-    PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
-    PartOpt::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
-    Scp: Searchspace<PartOpt, SolId, SInfo>,
-{
-    /// Write a batch of computed solutions and raw outcomes in parallel.
-    ///
-    /// # Parameters
-    ///
-    /// * `obatch` - Batch of raw outcomes corresponding to the solutions
-    /// * `scp` - Searchspace for interpreting solutions
-    /// * `cod` - Codomain for interpreting outcomes
-    /// * `wrts` - Thread-safe CSV file handles
-    fn write(
-        &self,
-        obatch: &OutBatch<SolId, Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-        wrts: Arc<CSVFiles>,
-    );
-}
-
-impl<PartOpt, Scp, SolId, SInfo, Out, Info> BatchCSVWrite<PartOpt, Scp, SolId, SInfo, Out, Info>
-    for Batch<SolId, SInfo, Info, CompShape<Scp::SolShape, SolId, SInfo, Out>>
-where
-    Self: Send + Sync,
-    SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    SInfo: SolInfo + CSVWritable<(), ()>,
-    Info: OptInfo + CSVWritable<(), ()> + Send + Sync,
-    Out: Outcome + CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
-    PartOpt: Uncomputed<SolId, Scp::Opt, SInfo>,
-    PartOpt::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo, Twin<Scp::Opt> = PartOpt>,
-    Scp: Searchspace<PartOpt, SolId, SInfo> + ScpCSVWrite<PartOpt, SolId, SInfo, Out> + Send + Sync,
-    CompShape<Scp::SolShape, SolId, SInfo, Out>: Send + Sync,
-{
-    fn write(
-        &self,
-        obatch: &OutBatch<SolId, Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-        wrts: Arc<CSVFiles>,
-    ) {
-        let info = self.info();
-        self.into_par_iter().zip(obatch).for_each(|(cpair, opair)| {
-            scp.write_with_opt_info(cpair, opair, info.clone(), cod, &wrts.clone())
-        });
-    }
-}
 
 /// CSV-based recorder implementation for optimization experiments.
 ///
@@ -763,7 +78,7 @@ pub struct CSVRecorder {
     path_pobj: Option<PathBuf>,
     path_popt: Option<PathBuf>,
     path_info: Option<PathBuf>,
-    path_codom: PathBuf,
+    path_codom: Option<PathBuf>,
     path_out: Option<PathBuf>,
 }
 
@@ -782,7 +97,7 @@ impl CSVRecorder {
         let path_popt = Some(config.path_rec.join(Path::new("opt.csv")));
         let path_info = Some(config.path_rec.join(Path::new("info.csv")));
         let path_out = Some(config.path_rec.join(Path::new("out.csv")));
-        let path_codom = config.path_rec.join(Path::new("cod.csv"));
+        let path_codom = Some(config.path_rec.join(Path::new("cod.csv")));
 
         Some(CSVRecorder {
             config,
@@ -794,746 +109,386 @@ impl CSVRecorder {
         })
     }
 
-    /// Disable writing the objective-side CSV file (obj.csv).
-    pub fn no_obj(&mut self) {
-        self.path_pobj = None;
+    pub fn retrieve(&self, target: &RecorderTargets) -> &Option<PathBuf> {
+        match target {
+            RecorderTargets::XObjective => &self.path_pobj,
+            RecorderTargets::XOptimizer => &self.path_popt,
+            RecorderTargets::Y => &self.path_codom,
+            RecorderTargets::Outcome => &self.path_out,
+            RecorderTargets::Metadata => &self.path_info,
+            RecorderTargets::Other(_) => &None,
+        }
     }
 
-    /// Disable writing the optimizer-side CSV file (opt.csv).
-    pub fn no_opt(&mut self) {
-        self.path_popt = None;
+    pub fn create(&self, target: &RecorderTargets) -> Result<(), RecorderError> {
+        match self.retrieve(target) {
+            Some(path) => {
+                File::create_new(path).map_err(|e| RecorderError::FileCreationError(e.to_string()))?;
+                Ok(())
+            },
+            None => Err(RecorderError::FileNotFound(format!("No file configured for target {:?}", target))),
+        }
     }
 
-    /// Disable writing the metadata CSV file (info.csv).
-    pub fn no_info(&mut self) {
-        self.path_info = None;
-    }
-
-    /// Disable writing the raw outcome CSV file (out.csv).
-    pub fn no_out(&mut self) {
-        self.path_out = None;
+    pub fn open(&self, target: &RecorderTargets) -> Result<Arc<Mutex<csv::Writer<File>>>, RecorderError> {
+        match self.retrieve(target) {
+            Some(path) => {
+                let writer = csv::Writer::from_writer(
+                    OpenOptions::new().append(true).open(path).map_err(|e| RecorderError::FileCreationError(e.to_string()))?
+                );
+                Ok(Arc::new(Mutex::new(writer)))
+            },
+            None => Err(RecorderError::FileNotFound(format!("No file configured for target {:?}", target))),
+        }
     }
 }
 
-impl<P, O, S, C, E> Recorder<MonoExperiment<P, O, S, CSVRecorder, C, E>> for CSVRecorder
+fn write_to(writer: Arc<Mutex<csv::Writer<File>>>, row: Vec<String>) -> Result<(), RecorderError> {
+    let mut lwrt = writer.lock().unwrap();
+    lwrt.write_record(row).map_err(|e| RecorderError::WriteError(e.to_string()))?;
+    lwrt.flush().map_err(|e| RecorderError::WriteError(e.to_string()))?;
+    Ok(())
+}
+
+impl<P> Recorder<P, ()> for CSVRecorder
 where
     P: Problem,
-    P::Scp: Tabular<
-    O: Optimizer<P>,
-    S: Stop,
-    C: Checkpointer<MonoExperiment<P, O, S, CSVRecorder, C, E>>,
-    E: Evaluator,
+    P::Scp: HasVariables,
+    SObj<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+    SOpt<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
 {
-    fn init(&mut self, runable: &MonoExperiment<P, O, S, CSVRecorder, C, E>) {
-        todo!()
-    }
-
-    fn after_load(&mut self, ctx: &<MonoExperiment<P, O, S, CSVRecorder, C, E> as crate::Runable>::Context) {
-        todo!()
-    }
-
-    fn record<T: Tabular<H>, H>(&self, object: &T, header: &H, file: PathBuf) {
-        todo!()
-    }
-
-    fn vec_record<T: Tabular<H>, H>(&self, objects: &[T], header: &H, file: PathBuf) {
-        todo!()
-    }
-}
-
-impl<PSol, SolId, Out, Scp, Op, FnWrap> SeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
-    for CSVRecorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
-    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: Send + Sync,
-    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
-        + Send
-        + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize the recorder folder and CSV files, and write CSV headers.
-    ///
-    /// # File hierarchy
-    /// ```text
-    /// recorder/
-    ///   obj.csv
-    ///   opt.csv
-    ///   cod.csv
-    ///   info.csv
-    ///   out.csv
-    /// ```
-    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init(&mut self, scp: &Scp) {
-        let cod = Out::codomain();
+    fn init(&mut self, problem: &P, _context: &()) -> Result<(), RecorderError> {
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
-            panic!(
-                "The recorder folder path already exists, {}.",
-                self.config.path_rec.display()
-            )
+            Err(RecorderError::FolderCreationError(format!("This folder already exists: {}", self.config.path_rec.display())))
         } else if self.config.path.is_file() {
-            panic!(
-                "The recorder path cant point to a file, {}.",
-                self.config.path_rec.display()
-            )
+            Err(RecorderError::FolderCreationError(format!("This path points to a file: {}", self.config.path_rec.display())))
         } else {
-            create_dir_all(&self.config.path_rec).unwrap();
-            if let Some(f) = &self.path_pobj {
-                File::create_new(f).unwrap();
+            create_dir_all(&self.config.path_rec).map_err(|e| RecorderError::FolderCreationError(e.to_string()))?;
+            self.create(&RecorderTargets::XObjective)?;
+            self.create(&RecorderTargets::XOptimizer)?;
+            self.create(&RecorderTargets::Metadata)?;
+            self.create(&RecorderTargets::Outcome)?;
+            self.create(&RecorderTargets::Y)?;
+
+            // Header of objective-side X of solution
+            if let Ok(f) = self.open(&RecorderTargets::XObjective) {
+                let header = SObj::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::X);
+                write_to(f, header)?;
+
+            }
+            // Header of optimizer-side X of solution
+            if let Ok(f) = self.open(&RecorderTargets::XOptimizer) {
+                let header = SOpt::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::X);
+                write_to(f, header)?;
+            }
+            // Header of solution metadata (SolInfo)
+            if let Ok(f) = self.open(&RecorderTargets::Metadata) {
+                let header = SObj::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::Info);
+                write_to(f, header)?;
+            }
+            // Header of the output file (out.csv)
+            if let Ok(f) = self.open(&RecorderTargets::Outcome) {
+                let header = Out::<P>::columns(&(), ());
+                write_to(f, header)?;
             }
 
-            if let Some(f) = &self.path_popt {
-                File::create_new(f).unwrap();
+            if let Ok(f) = self.open(&RecorderTargets::Y) {
+                let header = Computed::<SObj<P>, Out<P>>::columns(&(problem.get_searchspace().get_vars(), problem.get_codomain()), CompParts::Y);
+                write_to(f, header)?;
             }
-
-            if let Some(f) = &self.path_info {
-                File::create_new(f).unwrap();
-            }
-
-            if let Some(f) = &self.path_out {
-                File::create_new(f).unwrap();
-            }
-            File::create_new(&self.path_codom).unwrap();
-
-            let files = CSVFiles::new(
-                &self.path_pobj,
-                &self.path_popt,
-                &self.path_codom,
-                &self.path_info,
-                &self.path_out,
-            );
-
-            if let Some(f) = files.obj.clone() {
-                scp.header_partial_obj(f);
-            }
-
-            if let Some(f) = files.opt.clone() {
-                scp.header_partial_opt(f);
-            }
-
-            if let Some(f) = files.info.clone() {
-                Scp::SolShape::header_info(f);
-            }
-
-            if let Some(f) = files.out.clone() {
-                Out::header_out(f);
-            }
-
-            cod.header_codom(files.cod.clone());
+            Result::Ok(())
         }
     }
 
-    /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load(&mut self, _scp: &Scp) {
-        // Check if all folder and files exist
-        if self.config.path_rec.try_exists().unwrap() {
+    fn after_load(&mut self, _problem: &P, _context: &()) -> Result<(), RecorderError> {
+        if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
             if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap()
+                && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                panic!(
-                    "The `Objective` recorder file does not exist, {}.",
-                    ppobj.display()
-                )
+                return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
             }
 
             if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap()
+                && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                panic!(
-                    "The `Optimizer` recorder file does not exist, {}.",
-                    ppopt.display()
-                )
+                return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
             }
 
             if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap()
+                && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                panic!("The `Info` file does not exist, {}.", ppinfo.display())
+                return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
             }
 
             if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap()
+                && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                panic!(
-                    "The `Output` recorder file does not exist, {}.",
-                    ppout.display()
-                )
+                return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
             }
 
-            if !self.path_codom.try_exists().unwrap() {
-                panic!(
-                    "The `Codomain` recorder file does not exist, {}.",
-                    self.path_codom.display()
-                )
+            if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+                return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
             }
         } else {
-            panic!(
-                "The recorder folder does not exist, {}.",
-                self.config.path_rec.display()
-            );
+            return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
         }
+        Ok(())
     }
 
-    /// Write a single computed pair (`CompShape`) and its raw outcome.
-    ///
-    /// # Example
-    /// In sequential optimization, `save_pair` is called per evaluation, appending exactly one row
-    /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
-    fn save(
-        &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-        outputed: &(SolId, Out),
-        scp: &Scp,
-        cod: &Out::Cod,
-    ) {
-        let files = CSVFiles::new(
-            &self.path_pobj,
-            &self.path_popt,
-            &self.path_codom,
-            &self.path_info,
-            &self.path_out,
-        );
-        scp.write(computed, outputed, cod, &files);
+    fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    where
+        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>
+    {
+        if let Ok(f) = self.open(target) {
+            let row = object.record(contexts.0, part);
+            return write_to(f, row)
+        }
+        Ok(())
+    }
+
+    fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    where
+        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
+        I: IntoIterator<Item = T>
+    {   
+        if let Ok(f) = self.open(target) {
+            object.into_iter().try_for_each(|obj| {
+                let row = obj.record(contexts.0, part.clone());
+                write_to(f.clone(), row)
+            })?
+        }
+        Ok(())
     }
 }
 
-impl<PSol, SolId, Out, Scp, Op, FnWrap> BatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
-    for CSVRecorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: Send + Sync,
-    Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
-    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
-        + Send
-        + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>:
-        InfoCSVWrite<SolId, Op::SInfo> + HasY<Out> + Send + Sync,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize the recorder folder and CSV files, and write CSV headers.
-    ///
-    /// # File hierarchy
-    /// ```text
-    /// recorder/
-    ///   obj.csv
-    ///   opt.csv
-    ///   cod.csv
-    ///   info.csv
-    ///   out.csv
-    /// ```
-    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init(&mut self, scp: &Scp) {
-        let cod = Out::codomain();
-        let does_exist = self.config.path_rec.try_exists().unwrap();
-        if does_exist {
-            panic!(
-                "The recorder folder path already exists, {}.",
-                self.config.path_rec.display()
-            )
-        } else if self.config.path.is_file() {
-            panic!(
-                "The recorder path cant point to a file, {}.",
-                self.config.path_rec.display()
-            )
-        } else {
-            create_dir_all(&self.config.path_rec).unwrap();
-            if let Some(f) = &self.path_pobj {
-                File::create_new(f).unwrap();
-            }
+// impl<P, O, S, C, E> Recorder<ThrExperiment<P, O, S, CSVRecorder, C, E>> for CSVRecorder
+// where
+//     P: Problem<Info = O::Info>,
+//     P::Scp: HasVariables,
+//     SObj<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+//     SOpt<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+//     O: Optimizer<P>,
+//     S: Stop,
+//     C: Checkpointer<ThrExperiment<P, O, S, CSVRecorder, C, E>>,
+// {
+//    fn init(&mut self, runable: &ThrExperiment<P, O, S, CSVRecorder, C, E>) -> Result<(), RecorderError> {
+//         let does_exist = self.config.path_rec.try_exists().unwrap();
+//         if does_exist {
+//             return Err(RecorderError::FolderCreationError(format!("This folder already exists: {}", self.config.path_rec.display())));
+//         } else if self.config.path.is_file() {
+//             return Err(RecorderError::FolderCreationError(format!("This path points to a file: {}", self.config.path_rec.display())));
+//         } else {
+//             create_dir_all(&self.config.path_rec).map_err(|e| RecorderError::FolderCreationError(e.to_string()))?;
+//             self.create(&RecorderTargets::XObjective);
+//             self.create(&RecorderTargets::XOptimizer);
+//             self.create(&RecorderTargets::Metadata);
+//             self.create(&RecorderTargets::Outcome);
+//             self.create(&RecorderTargets::Y);
 
-            if let Some(f) = &self.path_popt {
-                File::create_new(f).unwrap();
-            }
+//             // Header of objective-side X of solution
+//             if let Ok(f) = self.open(&RecorderTargets::XObjective) {
+//                 let header = SObj::<P>::columns(&runable.searchspace.get_vars(), SolParts::X);
+//                 write_to(f, header)?;
 
-            if let Some(f) = &self.path_info {
-                File::create_new(f).unwrap();
-            }
+//             }
+//             // Header of optimizer-side X of solution
+//             if let Ok(f) = self.open(&RecorderTargets::XOptimizer) {
+//                 let header = SOpt::<P>::columns(&runable.searchspace.get_vars(), SolParts::X);
+//                 write_to(f, header)?;
+//             }
+//             // Header of solution metadata (SolInfo)
+//             if let Ok(f) = self.open(&RecorderTargets::Metadata) {
+//                 let header = SObj::<P>::columns(&runable.searchspace.get_vars(), SolParts::Info);
+//                 write_to(f, header)?;
+//             }
+//             // Header of the output file (out.csv)
+//             if let Ok(f) = self.open(&RecorderTargets::Outcome) {
+//                 let header = Out::<P>::columns(&(), ());
+//                 write_to(f, header)?;
+//             }
 
-            if let Some(f) = &self.path_out {
-                File::create_new(f).unwrap();
-            }
-            File::create_new(&self.path_codom).unwrap();
+//             if let Ok(f) = self.open(&RecorderTargets::Y) {
+//                 let header = Computed::<SObj<P>, Out<P>>::columns(&(&runable.searchspace.get_vars(), &runable.codomain), CompParts::Y);
+//                 write_to(f, header)?;
+//             }
+//             Result::Ok(())
+//         }
+//     }
 
-            let files = CSVFiles::new(
-                &self.path_pobj,
-                &self.path_popt,
-                &self.path_codom,
-                &self.path_info,
-                &self.path_out,
-            );
+//     fn after_load(&mut self, _runable: &ThrExperiment<P, O, S, CSVRecorder, C, E>) -> Result<(), RecorderError> {
+//         if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+//             if let Some(ppobj) = &self.path_pobj
+//                 && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
+//             }
 
-            if let Some(f) = files.obj.clone() {
-                scp.header_partial_obj(f);
-            }
+//             if let Some(ppopt) = &self.path_popt
+//                 && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
+//             }
 
-            if let Some(f) = files.opt.clone() {
-                scp.header_partial_opt(f);
-            }
+//             if let Some(ppinfo) = &self.path_info
+//                 && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
+//             }
 
-            if let Some(f) = files.info.clone() {
-                Scp::SolShape::header_info_with_optinfo::<Op::Info>(f);
-            }
+//             if let Some(ppout) = &self.path_out
+//                 && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
+//             }
 
-            if let Some(f) = files.out.clone() {
-                Out::header_out(f);
-            }
+//             if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+//                 return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
+//             }
+//         } else {
+//             return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
+//         }
+//         Ok(())
+//     }
 
-            cod.header_codom(files.cod.clone());
-        }
-    }
+//     fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+//     where
+//         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>
+//     {
+//         if let Ok(f) = self.open(target) {
+//             let row = object.record(contexts.0, part);
+//             return write_to(f, row)
+//         }
+//         Ok(())
+//     }
 
-    /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load(&mut self, _scp: &Scp) {
-        // Check if all folder and files exist
-        if self.config.path_rec.try_exists().unwrap() {
-            if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Objective` recorder file does not exist, {}.",
-                    ppobj.display()
-                )
-            }
+//     fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+//     where
+//         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
+//         I: IntoIterator<Item = T>
+//     {   
+//         if let Ok(f) = self.open(target) {
+//             object.into_iter().try_for_each(|obj| {
+//                 let row = obj.record(contexts.0, part.clone());
+//                 write_to(f.clone(), row)
+//             })?
+//         }
+//         Ok(())
+//     }
+// }
 
-            if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Optimizer` recorder file does not exist, {}.",
-                    ppopt.display()
-                )
-            }
+// #[cfg(feature = "mpi")]
+// impl<'a, P, O, S, C, E> Recorder<MPIExperiment<'a, P, O, S, CSVRecorder, C, E>> for CSVRecorder
+// where
+//     P: Problem,
+//     P::Scp: HasVariables,
+//     SObj<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+//     SOpt<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+//     O: Optimizer<P>,
+//     S: Stop,
+//     C: Checkpointer<MPIExperiment<'a, P, O, S, CSVRecorder, C, E>>,
+// {
+//     fn init(&mut self, runable: &MPIExperiment<'a, P, O, S, CSVRecorder, C, E>) -> Result<(), RecorderError> {
+//         let does_exist = self.config.path_rec.try_exists().unwrap();
+//         if does_exist {
+//             return Err(RecorderError::FolderCreationError(format!("This folder already exists: {}", self.config.path_rec.display())));
+//         } else if self.config.path.is_file() {
+//             return Err(RecorderError::FolderCreationError(format!("This path points to a file: {}", self.config.path_rec.display())));
+//         } else {
+//             create_dir_all(&self.config.path_rec).map_err(|e| RecorderError::FolderCreationError(e.to_string()))?;
+//             self.create(&RecorderTargets::XObjective);
+//             self.create(&RecorderTargets::XOptimizer);
+//             self.create(&RecorderTargets::Metadata);
+//             self.create(&RecorderTargets::Outcome);
+//             self.create(&RecorderTargets::Y);
 
-            if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap()
-            {
-                panic!("The `Info` file does not exist, {}.", ppinfo.display())
-            }
+//             // Header of objective-side X of solution
+//             if let Ok(f) = self.open(&RecorderTargets::XObjective) {
+//                 let header = SObj::<P>::columns(&runable.searchspace.get_vars(), SolParts::X);
+//                 write_to(f, header)?;
 
-            if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Output` recorder file does not exist, {}.",
-                    ppout.display()
-                )
-            }
+//             }
+//             // Header of optimizer-side X of solution
+//             if let Ok(f) = self.open(&RecorderTargets::XOptimizer) {
+//                 let header = SOpt::<P>::columns(&runable.searchspace.get_vars(), SolParts::X);
+//                 write_to(f, header)?;
+//             }
+//             // Header of solution metadata (SolInfo)
+//             if let Ok(f) = self.open(&RecorderTargets::Metadata) {
+//                 let header = SObj::<P>::columns(&runable.searchspace.get_vars(), SolParts::Info);
+//                 write_to(f, header)?;
+//             }
+//             // Header of the output file (out.csv)
+//             if let Ok(f) = self.open(&RecorderTargets::Outcome) {
+//                 let header = Out::<P>::columns(&(), ());
+//                 write_to(f, header)?;
+//             }
 
-            if !self.path_codom.try_exists().unwrap() {
-                panic!(
-                    "The `Codomain` recorder file does not exist, {}.",
-                    self.path_codom.display()
-                )
-            }
-        } else {
-            panic!(
-                "The recorder folder does not exist, {}.",
-                self.config.path_rec.display()
-            );
-        }
-    }
+//             if let Ok(f) = self.open(&RecorderTargets::Y) {
+//                 let header = Computed::<SObj<P>, Out<P>>::columns(&(&runable.searchspace.get_vars(), &runable.codomain), CompParts::Y);
+//                 write_to(f, header)?;
+//             }
+//             Result::Ok(())
+//         }
+//     }
 
-    /// Write a full batch of computed solutions and their associated outputs.
-    ///
-    /// # Example
-    /// During batched optimization, one call to `save_batch` writes *one row per solution* to each
-    /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
-    fn save(
-        &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
-        outputed: &OutBatch<SolId, Op::Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-    ) {
-        let files = Arc::new(CSVFiles::new(
-            &self.path_pobj,
-            &self.path_popt,
-            &self.path_codom,
-            &self.path_info,
-            &self.path_out,
-        ));
-        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Out, Op::Info>::write(
-            computed, outputed, scp, cod, files,
-        );
-    }
-}
+//     fn after_load(&mut self, _runable: &MPIExperiment<'a, P, O, S, CSVRecorder, C, E>) -> Result<(), RecorderError> {
+//         if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+//             if let Some(ppobj) = &self.path_pobj
+//                 && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
+//             }
 
-/// Implementation of [`DistSeqRecorder`] for MPI-distributed sequential experiments.
-///
-/// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
-/// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
-///
-/// # File Structure
-///
-/// ```text
-/// <config.path>/
-///   recorder_rank0/
-///     obj.csv, opt.csv, cod.csv, info.csv, out.csv
-///   recorder_rank1/
-///     obj.csv, opt.csv, cod.csv, info.csv, out.csv
-///   ...
-/// ```
-///
-/// Each rank maintains independent CSV files linked by solution [`Id`].
-#[cfg(feature = "mpi")]
-impl<PSol, SolId, Out, Scp, Op, FnWrap> DistSeqRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
-    for CSVRecorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: SingleOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
-    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
-        + Send
-        + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-{
-    /// Initialize the recorder folder and CSV files, and write CSV headers.
-    ///
-    /// # File hierarchy
-    /// ```text
-    /// recorder/
-    ///   obj.csv
-    ///   opt.csv
-    ///   cod.csv
-    ///   info.csv
-    ///   out.csv
-    /// ```
-    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp) {
-        let cod = Out::codomain();
-        let does_exist = self.config.path_rec.try_exists().unwrap();
-        if does_exist {
-            panic!(
-                "The recorder folder path already exists, {}.",
-                self.config.path_rec.display()
-            )
-        } else if self.config.path.is_file() {
-            panic!(
-                "The recorder path cant point to a file, {}.",
-                self.config.path_rec.display()
-            )
-        } else {
-            create_dir_all(&self.config.path_rec).unwrap();
-            if let Some(f) = &self.path_pobj {
-                File::create_new(f).unwrap();
-            }
+//             if let Some(ppopt) = &self.path_popt
+//                 && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
+//             }
 
-            if let Some(f) = &self.path_popt {
-                File::create_new(f).unwrap();
-            }
+//             if let Some(ppinfo) = &self.path_info
+//                 && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
+//             }
 
-            if let Some(f) = &self.path_info {
-                File::create_new(f).unwrap();
-            }
+//             if let Some(ppout) = &self.path_out
+//                 && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+//             {
+//                 return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
+//             }
 
-            if let Some(f) = &self.path_out {
-                File::create_new(f).unwrap();
-            }
-            File::create_new(&self.path_codom).unwrap();
+//             if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+//                 return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
+//             }
+//         } else {
+//             return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
+//         }
+//         Ok(())
+//     }
 
-            let files = CSVFiles::new(
-                &self.path_pobj,
-                &self.path_popt,
-                &self.path_codom,
-                &self.path_info,
-                &self.path_out,
-            );
+//     fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+//     where
+//         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>
+//     {
+//         if let Ok(f) = self.open(target) {
+//             let row = object.record(contexts.0, part);
+//             return write_to(f, row)
+//         }
+//         Ok(())
+//     }
 
-            if let Some(f) = files.obj.clone() {
-                scp.header_partial_obj(f);
-            }
-
-            if let Some(f) = files.opt.clone() {
-                scp.header_partial_opt(f);
-            }
-
-            if let Some(f) = files.info.clone() {
-                Scp::SolShape::header_info(f);
-            }
-
-            if let Some(f) = files.out.clone() {
-                Out::header_out(f);
-            }
-
-            cod.header_codom(files.cod.clone());
-        }
-    }
-
-    /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {
-        // Check if all folder and files exist
-        if self.config.path_rec.try_exists().unwrap() {
-            if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Objective` recorder file does not exist, {}.",
-                    ppobj.display()
-                )
-            }
-
-            if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Optimizer` recorder file does not exist, {}.",
-                    ppopt.display()
-                )
-            }
-
-            if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap()
-            {
-                panic!("The `Info` file does not exist, {}.", ppinfo.display())
-            }
-
-            if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Output` recorder file does not exist, {}.",
-                    ppout.display()
-                )
-            }
-
-            if !self.path_codom.try_exists().unwrap() {
-                panic!(
-                    "The `Codomain` recorder file does not exist, {}.",
-                    self.path_codom.display()
-                )
-            }
-        } else {
-            panic!(
-                "The recorder folder does not exist, {}.",
-                self.config.path_rec.display()
-            );
-        }
-    }
-
-    /// Write a single computed pair (`CompShape`) and its raw outcome.
-    ///
-    /// # Example
-    /// In sequential optimization, `save_pair` is called per evaluation, appending exactly one row
-    /// to each enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
-    fn save_dist(
-        &self,
-        computed: &CompShape<Scp::SolShape, SolId, Op::SInfo, Out>,
-        outputed: &(SolId, Out),
-        scp: &Scp,
-        cod: &Out::Cod,
-    ) {
-        let files = CSVFiles::new(
-            &self.path_pobj,
-            &self.path_popt,
-            &self.path_codom,
-            &self.path_info,
-            &self.path_out,
-        );
-        scp.write(computed, outputed, cod, &files);
-    }
-}
-
-/// Implementation of [`DistBatchRecorder`] for MPI-distributed batch experiments.
-///
-/// The CSV recorder creates rank-specific folders (e.g., `recorder_rank0/`) to avoid
-/// write conflicts between MPI processes. The codomain (cod.csv) is always saved.
-///
-/// # File Structure
-///
-/// ```text
-/// <config.path>/
-///   recorder_rank0/
-///     obj.csv, opt.csv, cod.csv, info.csv, out.csv
-///   recorder_rank1/
-///     obj.csv, opt.csv, cod.csv, info.csv, out.csv
-///   ...
-/// ```
-///
-/// Each rank maintains independent CSV files linked by solution [`Id`].
-#[cfg(feature = "mpi")]
-impl<PSol, SolId, Out, Scp, Op, FnWrap> DistBatchRecorder<PSol, SolId, Out, Scp, Op, FnWrap>
-    for CSVRecorder
-where
-    PSol: Uncomputed<SolId, Scp::Opt, Op::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-    SolId: Id + CSVWritable<(), ()> + Send + Sync,
-    Out: OutCSVWrite<SolId> + CSVWritable<(), ()> + Send + Sync,
-    Op: BatchOptimizer<PSol, SolId, LinkOpt<Scp>, Out, Scp, FnWrap>,
-    Op::SInfo: Send + Sync,
-    Op::Info: CSVWritable<(), ()> + Send + Sync,
-    Out::Cod: CodCSVWrite<SolId, Out> + CSVWritable<Out::Cod, TypeCodom<Out>> + Send + Sync,
-    Scp: SolCSVWrite<PSol, SolId, Op::SInfo>
-        + ScpCSVWrite<PSol, SolId, Op::SInfo, Out>
-        + Send
-        + Sync,
-    Scp::SolShape: InfoCSVWrite<SolId, Op::SInfo>,
-    FnWrap: FuncWrapper<RawObj<Scp::SolShape, SolId, Op::SInfo>>,
-    CompShape<Scp::SolShape, SolId, Op::SInfo, Out>: Send + Sync,
-{
-    /// Initialize the recorder folder and CSV files, and write CSV headers.
-    ///
-    /// # File hierarchy
-    /// ```text
-    /// recorder/
-    ///   obj.csv
-    ///   opt.csv
-    ///   cod.csv
-    ///   info.csv
-    ///   out.csv
-    /// ```
-    /// Files are created based on the `obj/opt/info/out` flags, while `cod.csv` is always created.
-    fn init_dist(&mut self, _proc: &MPIProcess, scp: &Scp) {
-        let cod = Out::codomain();
-        let does_exist = self.config.path_rec.try_exists().unwrap();
-        if does_exist {
-            panic!(
-                "The recorder folder path already exists, {}.",
-                self.config.path_rec.display()
-            )
-        } else if self.config.path.is_file() {
-            panic!(
-                "The recorder path cant point to a file, {}.",
-                self.config.path_rec.display()
-            )
-        } else {
-            create_dir_all(&self.config.path_rec).unwrap();
-            if let Some(f) = &self.path_pobj {
-                File::create_new(f).unwrap();
-            }
-
-            if let Some(f) = &self.path_popt {
-                File::create_new(f).unwrap();
-            }
-
-            if let Some(f) = &self.path_info {
-                File::create_new(f).unwrap();
-            }
-
-            if let Some(f) = &self.path_out {
-                File::create_new(f).unwrap();
-            }
-            File::create_new(&self.path_codom).unwrap();
-
-            let files = CSVFiles::new(
-                &self.path_pobj,
-                &self.path_popt,
-                &self.path_codom,
-                &self.path_info,
-                &self.path_out,
-            );
-
-            if let Some(f) = files.obj.clone() {
-                scp.header_partial_obj(f);
-            }
-
-            if let Some(f) = files.opt.clone() {
-                scp.header_partial_opt(f);
-            }
-
-            if let Some(f) = files.info.clone() {
-                Scp::SolShape::header_info_with_optinfo::<Op::Info>(f);
-            }
-
-            if let Some(f) = files.out.clone() {
-                Out::header_out(f);
-            }
-
-            cod.header_codom(files.cod.clone());
-        }
-    }
-
-    /// Validate that the recorder folder and configured CSV files exist after a [`load!`](crate::load) macro call.
-    fn after_load_dist(&mut self, _proc: &MPIProcess, _scp: &Scp) {
-        // Check if all folder and files exist
-        if self.config.path_rec.try_exists().unwrap() {
-            if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Objective` recorder file does not exist, {}.",
-                    ppobj.display()
-                )
-            }
-
-            if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Optimizer` recorder file does not exist, {}.",
-                    ppopt.display()
-                )
-            }
-
-            if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().unwrap()
-            {
-                panic!("The `Info` file does not exist, {}.", ppinfo.display())
-            }
-
-            if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().unwrap()
-            {
-                panic!(
-                    "The `Output` recorder file does not exist, {}.",
-                    ppout.display()
-                )
-            }
-
-            if !self.path_codom.try_exists().unwrap() {
-                panic!(
-                    "The `Codomain` recorder file does not exist, {}.",
-                    self.path_codom.display()
-                )
-            }
-        } else {
-            panic!(
-                "The recorder folder does not exist, {}.",
-                self.config.path_rec.display()
-            );
-        }
-    }
-
-    /// Write a full batch of computed solutions and their associated outputs.
-    ///
-    /// # Example
-    /// During batched optimization, one call to `save_batch` writes *one row per solution* to each
-    /// enabled CSV file (`obj.csv`, `opt.csv`, `info.csv`, `out.csv`) plus `cod.csv`.
-    fn save_dist(
-        &self,
-        computed: &crate::CompBatch<SolId, Op::SInfo, Op::Info, Scp::SolShape, Out>,
-        outputed: &OutBatch<SolId, Op::Info, Out>,
-        scp: &Scp,
-        cod: &Out::Cod,
-    ) {
-        let files = Arc::new(CSVFiles::new(
-            &self.path_pobj,
-            &self.path_popt,
-            &self.path_codom,
-            &self.path_info,
-            &self.path_out,
-        ));
-        BatchCSVWrite::<PSol, Scp, SolId, Op::SInfo, Out, Op::Info>::write(
-            computed, outputed, scp, cod, files,
-        );
-    }
-}
+//     fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+//     where
+//         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
+//         I: IntoIterator<Item = T>
+//     {   
+//         if let Ok(f) = self.open(target) {
+//             object.into_iter().try_for_each(|obj| {
+//                 let row = obj.record(contexts.0, part.clone());
+//                 write_to(f.clone(), row)
+//             })?
+//         }
+//         Ok(())
+//     }
+// }

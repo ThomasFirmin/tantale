@@ -94,22 +94,19 @@
 use std::{cmp::Ordering, fmt::Debug};
 
 use crate::{
-    Dominate, EvalStep, HasY, Id, SolInfo, SolutionShape, objective::outcome::Outcome, utils::{orderable::Orderable, record::{Recordable, Schema}},
+    Dominate, HasState, HasY, SolutionShape, State, objective::outcome::Outcome, utils::{orderable::Orderable, record::{Recordable, Schema}},
 };
 use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
 /// one of its `f64` further used within a [`Codomain`].
 type Criteria<Out> = fn(&Out) -> f64;
-/// A fidelity criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
-/// one of its [`EvalStep`].
-type FidCriteria<Out> = fn(&Out) -> EvalStep;
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>: Debug + Sized {
     /// The type of elements extracted from the [`Outcome`] by this [`Codomain`].
-    type TypeCodom: Debug + Schema<Context = Self> + Recordable + Serialize + for<'a> Deserialize<'a>;
+    type TypeCodom: Debug + Schema<Self, Parts = ()> + Recordable<Self, Parts = ()> + Serialize + for<'a> Deserialize<'a>;
 
     /// The accumulator type used to track the best solution seen so far.
     type Acc<C>: Accumulator<C>
@@ -132,7 +129,7 @@ pub trait Codomain<Out: Outcome>: Debug + Sized {
 /// Defines how to accumulate elements of a [`Codomain`] across evaluations,
 /// e.g. to keep track of the best solution seen so far for a [`Single`] objective,
 /// or the Pareto front for a [`Multi`] objective.
-pub trait Accumulator<C>: Debug + Default + Serialize + for<'a> Deserialize<'a>
+pub trait Accumulator<C>: Debug + Default + HasState
 where
     C: SolutionShape + HasY,
 {
@@ -251,6 +248,31 @@ where
     }
 }
 
+impl<C> State for BestAccumulator<C> 
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemSingle + Ord,
+{}
+
+impl<C> HasState for BestAccumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemSingle + Ord,
+{
+    type State = BestAccumulator<C>;
+
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
 
 impl<C> Accumulator<C> for BestAccumulator<C>
 where
@@ -307,6 +329,33 @@ where
 {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<C> State for ParetoAccumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemMulti,
+{}
+
+
+impl<C> HasState for ParetoAccumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemMulti, 
+{
+    type State = ParetoAccumulator<C>;
+    
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+    
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+    
+    fn from_state(state: Self::State) -> Self {
+        state
     }
 }
 
@@ -392,12 +441,9 @@ impl ElemSingle for ElemSingleCodomain {
 
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
-    type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = BestAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemSingleCodomain {
@@ -511,12 +557,9 @@ impl ElemCost for ElemCostCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
     type TypeCodom = ElemCostCodomain;
-    type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = BestAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostCodomain {
@@ -641,12 +684,9 @@ impl ElemConstrained for ElemConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
-    type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = BestAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemConstCodomain {
@@ -800,12 +840,9 @@ impl ElemConstrained for ElemCostConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
-    type Acc<C, SolId, SInfo>
-        = BestAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = BestAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostConstCodomain {
@@ -901,12 +938,9 @@ impl ElemMulti for ElemMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
-    type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = ParetoAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemMultiCodomain {
@@ -1008,12 +1042,9 @@ impl ElemCost for ElemCostMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
     type TypeCodom = ElemCostMultiCodomain;
-    type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = ParetoAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostMultiCodomain {
@@ -1129,12 +1160,9 @@ impl ElemConstrained for ElemConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
     type TypeCodom = ElemConstMultiCodomain;
-    type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = ParetoAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemConstMultiCodomain {
@@ -1275,12 +1303,9 @@ impl ElemConstrained for ElemCostConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
     type TypeCodom = ElemCostConstMultiCodomain;
-    type Acc<C, SolId, SInfo>
-        = ParetoAccumulator<C, SolId, SInfo, Out>
+    type Acc<C> = ParetoAccumulator<C>
     where
-        C: SolutionShape<SolId, SInfo> + HasY<Out>,
-        SolId: Id,
-        SInfo: SolInfo;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostConstMultiCodomain {
