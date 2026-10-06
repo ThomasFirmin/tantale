@@ -256,9 +256,7 @@
 //! - [`Stop`] - Stopping criterion interface
 
 use crate::{
-    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Scp}, 
-    checkpointer::Checkpointer, optimizer::Optimizer, recorder::Recorder,
-    solution::SolId, stop::Stop,
+    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Opt, Scp}, checkpointer::Checkpointer, optimizer::Sampler, recorder::Recorder, solution::SolId, stop::Stop,
 };
 
 // BASICS
@@ -415,7 +413,7 @@ pub enum PoolMode {
 pub trait Runable: Sized {
     type SolId: SolId;
     type Problem: Problem<Id = Self::SolId>;
-    type Optimizer: Optimizer<Self::Problem, Info = <Self::Problem as Problem>::Info>;
+    type Optimizer: Sampler<Self::Problem, Opt<Self::Problem>, Info = <Self::Problem as Problem>::Info>;
     type Stop: Stop;
     type Recorder: Recorder<Self::Problem, Self::Context>;
     type Checkpointer: Checkpointer<Self::Problem, Self::Context>;
@@ -434,22 +432,22 @@ pub trait Runable: Sized {
     fn get_stop(&self) -> &Self::Stop;
 
     /// Returns a reference to the [`Searchspace`].
-    fn get_searchspace(&self) -> &Scp<Self::Problem>;
+    fn searchspace(&self) -> &Scp<Self::Problem>;
 
     /// Returns a reference to the [`Codomain`](crate::Codomain).
-    fn get_codomain(&self) -> &Cod<Self::Problem>;
+    fn codomain(&self) -> &Cod<Self::Problem>;
 
     /// Returns a reference to the objective function wrapper.
-    fn get_objective(&self) -> &Func<Self::Problem>;
+    fn objective(&self) -> &Func<Self::Problem>;
 
     /// Returns a reference to the [`Optimizer`].
-    fn get_optimizer(&self) -> &Self::Optimizer;
+    fn optimizer(&self) -> &Self::Optimizer;
 
     /// Returns a reference to the [`Recorder`], if any.
-    fn get_recorder(&self) -> Option<&Self::Recorder>;
+    fn recorder(&self) -> Option<&Self::Recorder>;
 
     /// Returns a reference to the [`Checkpointer`], if any.
-    fn get_checkpointer(&self) -> Option<&Self::Checkpointer>;
+    fn checkpointer(&self) -> Option<&Self::Checkpointer>;
 
     /// Returns a mutable reference to the [`Stop`] criterion.
     ///
@@ -460,34 +458,34 @@ pub trait Runable: Sized {
     /// exp.get_mut_stop().add(500); // run 500 more evaluations
     /// exp.run();
     /// ```
-    fn get_mut_stop(&mut self) -> &mut Self::Stop;
+    fn mut_stop(&mut self) -> &mut Self::Stop;
 
     /// Returns a mutable reference to the [`Searchspace`].
-    fn get_mut_searchspace(&mut self) -> &mut Scp<Self::Problem>;
+    fn mut_searchspace(&mut self) -> &mut Scp<Self::Problem>;
 
     /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
-    fn get_mut_codomain(&mut self) -> &mut Cod<Self::Problem>;
+    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem>;
 
     /// Returns a mutable reference to the objective function wrapper.
-    fn get_mut_objective(&mut self) -> &mut Func<Self::Problem>;
+    fn mut_objective(&mut self) -> &mut Func<Self::Problem>;
 
     /// Returns a mutable reference to the [`Optimizer`].
-    fn get_mut_optimizer(&mut self) -> &mut Self::Optimizer;
+    fn mut_optimizer(&mut self) -> &mut Self::Optimizer;
 
     /// Returns a mutable reference to the [`Recorder`], if any.
-    fn get_mut_recorder(&mut self) -> Option<&mut Self::Recorder>;
+    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder>;
 
     /// Returns a mutable reference to the [`Checkpointer`], if any.
-    fn get_mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer>;
+    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer>;
 
     /// Returns a read-only reference to the [`Accumulator`].
-    fn get_accumalator(&self) -> &Accum<Self::Problem>;
+    fn accumulator(&self) -> &Accum<Self::Problem>;
 
     /// Returns a mutable reference to the [`Accumulator`].
-    fn get_mut_accumalator(&mut self) -> &mut Accum<Self::Problem>;
+    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem>;
 
     /// Integrates a newly evaluated solution into the [`Accumulator`].
     fn update_accumulator(&mut self, comp: &CompShape<Self::Problem>) {
-        self.get_mut_accumalator().accumulate(comp);
+        self.mut_accumulator().accumulate(comp);
     }
 }

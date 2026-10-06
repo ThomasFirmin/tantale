@@ -129,7 +129,7 @@ impl Schema<()> for DistSId{
 #[cfg(feature = "mpi")]
 impl Recordable<()> for DistSId {
     type Parts = ();
-    fn record(&self, context: &(), part: Self::Parts) -> Vec<String> {
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.rank.to_string(), self.id.to_string()]
     }
 }

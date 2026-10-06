@@ -246,12 +246,10 @@
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mpi")]
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Global counter for solution identifiers.
 pub static SOL_ID: AtomicUsize = AtomicUsize::new(0);
-/// Global counter for optimizer identifiers.
-pub static OPT_ID: AtomicUsize = AtomicUsize::new(0);
 /// Global counter for run identifiers.
 pub static RUN_ID: AtomicUsize = AtomicUsize::new(0);
 #[cfg(feature = "mpi")]
@@ -264,10 +262,42 @@ pub static MPI_SIZE: OnceLock<mpi::Rank> = OnceLock::new();
 pub struct GlobalParameters {
     /// Last solution id.
     pub sold_id: usize,
-    /// Last optimizer id.
-    pub opt_id: usize,
     /// Last run id.
     pub run_id: usize,
+}
+
+impl State for GlobalParameters { }
+
+impl HasState for GlobalParameters {
+    type State = Self;
+
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+impl GlobalParameters {
+    /// Create a new instance of `GlobalParameters` with default values.
+    pub fn new() -> Self {
+        Self {
+            sold_id: SOL_ID.load(Ordering::Relaxed),
+            run_id: RUN_ID.load(Ordering::Relaxed),
+        }
+    }
+}
+
+impl Default for GlobalParameters {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub mod domain;
@@ -313,7 +343,7 @@ pub use crate::objective::{
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, Optimizer, Sampler};
+pub use crate::optimizer::{EmptyInfo, Sampler};
 
 pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};

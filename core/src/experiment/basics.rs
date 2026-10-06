@@ -1,17 +1,63 @@
+use std::{marker::PhantomData, process::exit, sync::atomic::Ordering};
+
 use crate::{
-    BaseSol, Checkpointer, FuncState, OneStep, Optimizer, 
-    Outcome, Problem, Runable, SId, Searchspace, SimplePb, SolInfo, SolutionShape, StepId, Stop,
-    aliases::{Accum, Cod, LinkObj, LinkOpt}, checkpointer::CheckpointerTargets, experiment::PoolMode, recorder::Recorder,
+    Accumulator, BaseSol, Checkpointer, Codomain, Computed, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasInfo, HasState, HasVariables, HasX, MultiStep, OneStep, Outcome, Problem, RUN_ID, Runable, SId, SOL_ID, Sampler, Searchspace, SimplePb, SolId, SolInfo, SolutionShape, State, StepId, StepSId, Stop, Var, aliases::{Accum, Cod, CompShape, LinkObj, LinkOpt, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, experiment::PoolMode, recorder::{Recorder, RecorderTargets}, solution::shape::IntoComputedShape, stop::ExpStep, utils::record::{CompParts, Recordable, Schema, SolParts}
 };
 
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(bound = "Shape<P>: SolutionShape, Out<P>: Outcome")]
+pub struct ExpState<P:Problem> {
+    /// The current solution being evaluated.
+    pub currently: Shape<P>,
+    /// The current output of the optimization process, if any.
+    pub output: Option<Out<P>>,
+}
+
+impl<P:Problem> State for ExpState<P> { }
+
+impl<P:Problem> ExpState<P> {
+    pub fn new(currently: Shape<P>) -> Self {
+        Self { currently, output: None }
+    }
+
+    pub fn set_output(&mut self, output: Out<P>) {
+        self.output = Some(output);
+    }
+
+    pub fn has_output(&self) -> bool {
+        self.output.is_some()
+    }
+
+    pub fn to_computed(self, codomain: &Cod<P>) -> (CompShape<P>, Out<P>) {
+        let output = self.output.expect("No output available to convert to computed shape.");
+        (self.currently.into_computed(codomain.get_elem(&output).into()), output)
+    }
+}
+
+impl<P:Problem> HasState for ExpState<P> {
+    type State = Self;
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+    
+    fn get_mut_state(&mut self) -> &Self::State {
+        self
+    }
+    
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
 
 pub struct Experiment<P, O, S, R, C>
 where
     Self: Runable,
     P: Problem<Info = O::Info>,
-    O: Optimizer<P>,
+    P::Scp: Searchspace<P::Func> + HasVariables,
+    O: Sampler<P, Opt<P>>,
     S: Stop,
     R: Recorder<P, ()>,
     C: Checkpointer<P, ()>,
@@ -22,27 +68,36 @@ where
     pub recorder: Option<R>,
     pub checkpointer: Option<C>,
     pub accumulator: Accum<P>,
-    pub(crate) pool_mode: PoolMode,
+    pub pool_mode: PoolMode,
+    pub state: ExpState<P>,
 }
 
 impl<P, O, S, R, C> Experiment<P, O, S, R, C>
 where
     Self: Runable,
     P:Problem<Info = O::Info>,
-    P::Scp: Searchspace<P::Func>,
-    O:Optimizer<P>,
+    P::Scp: Searchspace<P::Func> + HasVariables,
+    O:Sampler<P, Opt<P>>,
     S:Stop,
     R:Recorder<P, ()>,
     C:Checkpointer<P, ()>,
 {
+
     pub fn new(
         problem: P,
-        optimizer: O,
+        mut optimizer: O,
         stop: S,
         recorder: Option<R>,
         checkpointer: Option<C>,
     ) -> Self {
         let accumulator = Accum::<P>::default();
+        let sol = optimizer.sample(problem.get_searchspace(), &accumulator);
+        if sol.is_none() {
+            log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+            exit(1);
+        }
+        let state = ExpState::new(sol.unwrap());
+
         Self {
             problem,
             optimizer,
@@ -51,15 +106,26 @@ where
             checkpointer,
             accumulator,
             pool_mode: PoolMode::InMemory,
+            state,
+        }
+    }
+
+    pub fn with_pool(self, pool: PoolMode) -> Self {
+        Self {
+            pool_mode: pool,
+            ..self
         }
     }
 
     pub fn load_with_pool(problem: P, recorder: Option<R>, mut checkpointer: C, pool_mode: PoolMode) -> Self {
         checkpointer.before_load(&problem, &()).unwrap();
 
-        let optimizer = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
+        let mut optimizer: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
         let stop = checkpointer.load(&CheckpointerTargets::Stop, &()).unwrap();
         let accumulator = checkpointer.load(&CheckpointerTargets::Accumulator, &()).unwrap();
+        let parameters: GlobalParameters = checkpointer.load(&CheckpointerTargets::Config, &()).unwrap();
+        SOL_ID.store(parameters.sold_id, Ordering::Relaxed);
+        RUN_ID.store(parameters.run_id + 1, Ordering::Relaxed);
 
         let recorder = match recorder {
             Some(mut rec) => {
@@ -68,7 +134,22 @@ where
             }
             None => None,
         };
-        checkpointer.after_load(&problem, &()).unwrap();
+
+        let exp = checkpointer.load(&CheckpointerTargets::Experiment, &());
+
+        let state = match exp {
+            Ok(e) => e,
+            Err(e) => {
+                log::warn!("Failed to load experiment state: {}. Sampling from optimizer.", e);
+                let sol = optimizer.sample(problem.get_searchspace(), &accumulator);
+                if sol.is_none() {
+                    log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                    exit(1);
+                }
+                ExpState::new(sol.unwrap())
+            },
+        };
+
 
         Self {
             problem,
@@ -78,17 +159,46 @@ where
             checkpointer: Some(checkpointer),
             accumulator,
             pool_mode,
+            state,
         }
+    }
+}
+
+fn record<R: Recorder<P,Ctx>, P: Problem, Ctx>
+(
+    recorder: &Option<R>,
+    problem: &P,
+    computed: &CompShape<P>,
+    outputed: &Out<P>,
+)
+where
+    P::Id: SolId,
+    P::Info: SolInfo,
+    P::Scp: HasVariables,
+    P::Func: FuncWrapper<Dom = LinkObj<P::Scp>>,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    if let Some(rec) = recorder {
+        let codomain = problem.get_codomain();
+        let vars = problem.get_searchspace().get_vars();
+        let contexts = (codomain, &(vars, codomain));
+        rec.record(&RecorderTargets::XObjective, computed.get_sobj(), contexts, CompParts::Sol(SolParts::X)).unwrap();
+        rec.record(&RecorderTargets::XOptimizer, computed.get_sopt(), contexts, CompParts::Sol(SolParts::X)).unwrap();
+        rec.record(&RecorderTargets::Y, computed.get_sobj(), contexts, CompParts::Y).unwrap();
+        rec.record(&RecorderTargets::Outcome, outputed, (&(),&()), ()).unwrap();
+        rec.record(&RecorderTargets::Metadata, computed.sinfo().as_ref(), (&(),&()), ()).unwrap();
     }
 }
 
 impl<O, S, R, C, Scp, Out, Info> Runable for Experiment<SimplePb<Info, Scp, Out>, O, S, R, C>
 where
-    O:Optimizer<SimplePb<Info, Scp, Out>, Info = Info>,
+    O:Sampler<SimplePb<Info, Scp, Out>, Scp::Opt, Info = Info>,
     S:Stop,
     R:Recorder<SimplePb<Info, Scp, Out>, ()>,
     C:Checkpointer<SimplePb<Info, Scp, Out>, ()>,
-    Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>>,
+    Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>> + HasVariables,
     Scp::Shape: SolutionShape<
         Id = SId,
         Info = Info,
@@ -109,71 +219,123 @@ where
     type Recorder = R;
     type Checkpointer = C;
     
-    fn run(self) -> Accum<Self::Problem> {
-        todo!()
+    fn run(mut self) -> Accum<Self::Problem> {
+        if self.state.has_output() 
+        {
+            // If the experiment state has an output, it means that the last evlauation was recorded
+            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
+            let (computed, output) = self.state.to_computed(self.problem.get_codomain());
+
+            record(&self.recorder, &self.problem, &computed, &output);
+
+            self.accumulator.accumulate(&computed);
+            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            self.state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+        }
+        
+        loop {
+            // Check if stop
+            if self.stop.stop() { break; };
+
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.optimizer, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+                let parameters = GlobalParameters::new();
+                check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            // Compute the output of the current solution
+            let output = self.problem.get_objective().compute(self.state.currently.get_sobj().clone_x(), ());
+            
+            self.state.set_output(output);
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            
+            let (computed, output) = self.state.to_computed(self.problem.get_codomain());
+
+            record(&self.recorder, &self.problem, &computed, &output);
+            self.accumulator.accumulate(&computed);
+
+            if let Some(ref check) = self.checkpointer {
+                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+
+            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+
+            self.state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+            self.stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        self.accumulator
     }
     
     fn get_stop(&self) -> &Self::Stop {
         &self.stop
     }
     
-    fn get_searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
+    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
         self.problem.get_searchspace()
     }
     
-    fn get_codomain(&self) -> &Cod<Self::Problem> {
+    fn codomain(&self) -> &Cod<Self::Problem> {
         self.problem.get_codomain()
     }
     
-    fn get_objective(&self) -> &crate::aliases::Func<Self::Problem> {
+    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
         self.problem.get_objective()
     }
     
-    fn get_optimizer(&self) -> &Self::Optimizer {
+    fn optimizer(&self) -> &Self::Optimizer {
         &self.optimizer
     }
     
-    fn get_recorder(&self) -> Option<&Self::Recorder> {
+    fn recorder(&self) -> Option<&Self::Recorder> {
         self.recorder.as_ref()
     }
     
-    fn get_checkpointer(&self) -> Option<&Self::Checkpointer> {
+    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
         self.checkpointer.as_ref()
     }
-    
-    fn get_mut_stop(&mut self) -> &mut Self::Stop {
-        &mut self.stop
-    }
-    
-    fn get_mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
-        self.problem.get_mut_searchspace()
-    }
-    
-    fn get_mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
-        self.problem.get_mut_codomain()
-    }
-    
-    fn get_mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
-        self.problem.get_mut_objective()
-    }
-    
-    fn get_mut_optimizer(&mut self) -> &mut Self::Optimizer {
-        &mut self.optimizer
-    }
-    
-    fn get_mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
-        self.recorder.as_mut()
-    }
-    
-    fn get_mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
-        self.checkpointer.as_mut()
-    }
-    
-    fn get_accumalator(&self) -> &Accum<Self::Problem> {
+
+    fn accumulator(&self) -> &Accum<Self::Problem> {
         &self.accumulator
     }
     
-    fn get_mut_accumalator(&mut self) -> &mut Accum<Self::Problem> {
+    fn mut_stop(&mut self) -> &mut Self::Stop {
+        &mut self.stop
+    }
+    
+    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
+        self.problem.get_mut_searchspace()
+    }
+    
+    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
+        self.problem.get_mut_codomain()
+    }
+    
+    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
+        self.problem.get_mut_objective()
+    }
+    
+    fn mut_optimizer(&mut self) -> &mut Self::Optimizer {
+        &mut self.optimizer
+    }
+    
+    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
+        self.recorder.as_mut()
+    }
+    
+    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
+        self.checkpointer.as_mut()
+    }
+    
+    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
         &mut self.accumulator
     }
 }
@@ -182,12 +344,12 @@ where
 /// This abstraction allows for different implementations of function state management, such as in-memory pools or checkpointer-backed storage.
 pub trait FuncStatePool<Id: StepId, FnState: FuncState>: Default
 {
-    /// Insert a new [`FuncState`] into the pool, associated with a solution [`Id`].
+    /// Insert a new [`FuncState`] into the pool, associated with a solution [`StepId`].
     fn insert<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: Id, state: FnState, check: &Option<C>,ctx: &Ctx);
-    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// Remove the [`FuncState`] associated with the given solution [`StepId`], if it exists.
     fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool;
-    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
-    fn retrieve(&mut self, id: &Id) -> Option<FnState>;
+    /// Retrieve the [`FuncState`] associated with the given solution [`StepId`], if it exists.
+    fn retrieve<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> Option<FnState>;
 }
 
 /// An implementation of [`FuncStatePool`] that uses an in-memory [`IndexMap`] to store function states.
@@ -219,14 +381,14 @@ impl<Id: StepId, FnState: FuncState> FromIterator<(Id, FnState)> for InMemoryPoo
 
 impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool<Id, FnState>
 {
-    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
+    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`StepId`].
     fn insert<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: Id, state: FnState, check: &Option<C>,ctx: &Ctx) {
         if let Some(c) = check {
             let _ = c.save_fn_state(&id, &state, ctx);
         }
         self.0.insert(id, state);
     }
-    /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+    /// Remove the [`FuncState`] associated with the given solution [`StepId`], if it exists.
     /// Returns `true` if the state was present and removed, `false` otherwise.
     fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool {
         if let Some(c) = check {
@@ -234,87 +396,275 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
         }
         self.0.swap_remove(id).is_some()
     }
-    /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
-    fn retrieve(&mut self, id: &Id) -> Option<FnState> {
-        self.0.swap_remove(id)
+    /// Retrieve the [`FuncState`] associated with the given solution [`StepId`], if it exists.
+    fn retrieve<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> Option<FnState> {
+        let res = self.0.swap_remove(id);
+        if let Some(c) = check && res.is_none() {
+            let loaded = c.load_fn_state::<Id, FnState>(*id, ctx);
+            loaded.map_or(None, |a| Some(a.1))
+        } else {
+            res
+        }
     }
 }
 
-// pub struct LoadPool<FnStCheck, FnState, SolId>
-// where
-//     FnState: FuncState,
-//     SolId: Id,
-//     FnStCheck: FuncStateCheckpointer,
-// {
-//     pub current: Option<(SolId, FnState)>,
-//     pub check: FnStCheck,
-// }
+#[derive(Debug, Clone)]
+pub struct LoadPool<Id: StepId, FnState: FuncState>(PhantomData<(Id, FnState)>);
 
-// impl<SolId, FnState, FnStCheck> Default for LoadPool<FnStCheck, FnState, SolId>
-// where
-//     SolId: Id,
-//     FnState: FuncState,
-//     FnStCheck: FuncStateCheckpointer,
-// {
-//     fn default() -> Self {
-//         panic!("LoadPool cannot be created with default.")
-//     }
-// }
+impl<Id: StepId, FnState: FuncState> LoadPool<Id, FnState>
+{
+    /// Create a new [`LoadPool`] with an optional function state checkpointer.
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
 
-// impl<FnStCheck, FnState, SolId> LoadPool<FnStCheck, FnState, SolId>
-// where
-//     FnState: FuncState,
-//     SolId: Id,
-//     FnStCheck: FuncStateCheckpointer,
-// {
-//     pub fn new(check: FnStCheck) -> Self {
-//         Self {
-//             check,
-//             current: None,
-//         }
-//     }
-// }
+impl<Id: StepId, FnState: FuncState> Default for LoadPool<Id, FnState>
+{
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 
-// impl<FnStCheck, SolId, FnState> FuncStatePool<FnState, SolId>
-//     for LoadPool<FnStCheck, FnState, SolId>
-// where
-//     FnStCheck: FuncStateCheckpointer,
-//     SolId: Id,
-//     FnState: FuncState,
-// {
-//     /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
-//     /// This implementation saves the state using the checkpointer and keeps track of the current state in memory for quick retrieval.
-//     fn insert(&mut self, id: SolId, state: FnState) {
-//         self.check.save_func_state(&id, &state);
-//         self.current = Some((id, state));
-//     }
+impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for LoadPool<Id, FnState>
+{
+    /// Insert a new [`FuncState`] into the pool, associated with the given solution [`StepId`].
+    /// This implementation saves the state using the checkpointer and keeps track of the current state in memory for quick retrieval.
+    fn insert<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: Id, state: FnState, check: &Option<C>,ctx: &Ctx) {
+        if let Some(c) = check {
+            let _ = c.save_fn_state(&id, &state, ctx);
+        } else {
+            panic!("LoadPool requires a checkpointer to save function states.");
+        }
+    }
 
-//     /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
-//     /// This implementation removes the state from the checkpointer and clears the current state if it matches the given [`Id`].
-//     fn remove(&mut self, id: &SolId) -> bool {
-//         if let Some((current_id, _)) = &self.current
-//             && current_id == id
-//         {
-//             self.current = None;
-//         }
-//         self.check.remove_func_state(id).is_ok()
-//     }
+    /// Remove the [`FuncState`] associated with the given solution [`StepId`], if it exists.
+    /// This implementation removes the state from the checkpointer and clears the current state if it matches the given [`StepId`].
+    fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool {
+        if let Some(c) = check {
+            let _ = c.remove_all_previous_fn_states::<Id, FnState>(id, ctx);
+            true
+        } else {
+            panic!("LoadPool requires a checkpointer to remove function states.");
+        }
+    }
 
-//     /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
-//     /// This implementation first checks if the current state in memory matches the given [`Id`] and
-//     /// returns it if so; otherwise, it attempts to load the state from the checkpointer.
-//     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
-//         if let Some((current_id, _)) = &self.current
-//             && current_id == id
-//         {
-//             Some(self.current.take().unwrap().1)
-//         } else if let Some((_, fnstate)) = self.check.load_func_state(id) {
-//             Some(fnstate)
-//         } else {
-//             None
-//         }
-//     }
-// }
+    /// Retrieve the [`FuncState`] associated with the given solution [`StepId`], if it exists.
+    /// This implementation first checks if the current state in memory matches the given [`StepId`] and
+    /// returns it if so; otherwise, it attempts to load the state from the checkpointer.
+    fn retrieve<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> Option<FnState> {
+        if let Some(c) = check {
+            let loaded = c.load_fn_state::<Id, FnState>(*id, ctx);
+            loaded.map_or(None, |a| Some(a.1))
+        } else {
+            panic!("LoadPool requires a checkpointer to retrieve function states.");
+        }
+    }
+}
+
+pub enum Pool<Id: StepId, FnState: FuncState>
+{
+    InMemory(InMemoryPool<Id, FnState>),
+    Persistent(LoadPool<Id, FnState>),
+}
+
+
+impl<Id: StepId, FnState: FuncState> Pool<Id, FnState> {
+    pub fn new(mode: PoolMode) -> Self {
+        match mode {
+            PoolMode::InMemory => Self::InMemory(InMemoryPool::default()),
+            PoolMode::Persistent => Self::Persistent(LoadPool::default()),
+        }
+    }
+}
+
+impl<Id: StepId, FnState: FuncState> Default for Pool<Id, FnState> {
+    fn default() -> Self {
+        Self::InMemory(InMemoryPool::default())
+    }
+}
+
+impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for Pool<Id, FnState> {
+    fn insert<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: Id, state: FnState, check: &Option<C>,ctx: &Ctx) {
+        match self {
+            Pool::InMemory(p) => p.insert(id, state, check, ctx),
+            Pool::Persistent(p) => p.insert(id, state, check, ctx),
+        }
+    }
+
+    fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool {
+        match self {
+            Pool::InMemory(p) => p.remove(id, check, ctx),
+            Pool::Persistent(p) => p.remove(id, check, ctx),
+        }
+    }
+
+    fn retrieve<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> Option<FnState> {
+        match self {
+            Pool::InMemory(p) => p.retrieve(id, check, ctx),
+            Pool::Persistent(p) => p.retrieve(id, check, ctx),
+        }
+    }
+}
+
+
+impl<O, S, R, C, Scp, Out, Info, FnState> Runable for Experiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C>
+where
+    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S:Stop,
+    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()>,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    Scp::Shape: SolutionShape<
+        Id = StepSId,
+        Info = Info,
+        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+        Obj = LinkObj<Scp>,
+        Opt = LinkOpt<Scp>,
+    > + HasFidelity,
+    Out: FidOutcome,
+    Info: SolInfo,
+    FnState: FuncState,
+{
+    type SolId  = StepSId;
+    type Context = ();
+
+    type Problem = FidPb<Info, Scp, Out, FnState>;
+    type Optimizer = O;
+    type Stop = S;
+    type Recorder = R;
+    type Checkpointer = C;
+    
+    fn run(mut self) -> Accum<Self::Problem> {
+        if self.state.has_output() 
+        {
+            // If the experiment state has an output, it means that the last evlauation was recorded
+            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
+            let (computed, output) = self.state.to_computed(self.problem.get_codomain());
+
+            record(&self.recorder, &self.problem, &computed, &output);
+
+            self.accumulator.accumulate(&computed);
+            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            self.state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+        }
+
+        let mut pool = match self.pool_mode {
+            PoolMode::InMemory => Pool::InMemory(InMemoryPool::default()),
+            PoolMode::Persistent => Pool::Persistent(LoadPool::default()),
+        };
+        
+        loop {
+            // Check if stop
+            if self.stop.stop() { break; };
+
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.optimizer, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+                let parameters = GlobalParameters::new();
+                check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            // Compute the output of the current solution
+            let id = self.state.currently.id();
+            let fn_state = pool.retrieve(&id.previous_id(), &self.checkpointer, &());
+            let fidelity = self.state.currently.fidelity();
+            let (output, fn_state) = self.problem.get_objective().compute(self.state.currently.get_sobj().clone_x(), (fidelity, fn_state));
+            self.state.set_output(output);
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            pool.remove(&id.previous_id(), &self.checkpointer, &());
+            pool.insert(id, fn_state, &self.checkpointer, &());
+            
+            let (computed, output) = self.state.to_computed(self.problem.get_codomain());
+
+            record(&self.recorder, &self.problem, &computed, &output);
+            self.accumulator.accumulate(&computed);
+
+            if let Some(ref check) = self.checkpointer {
+                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+
+            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+
+            self.state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+            self.stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        self.accumulator
+    }
+    
+    fn get_stop(&self) -> &Self::Stop {
+        &self.stop
+    }
+    
+    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
+        self.problem.get_searchspace()
+    }
+    
+    fn codomain(&self) -> &Cod<Self::Problem> {
+        self.problem.get_codomain()
+    }
+    
+    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
+        self.problem.get_objective()
+    }
+    
+    fn optimizer(&self) -> &Self::Optimizer {
+        &self.optimizer
+    }
+    
+    fn recorder(&self) -> Option<&Self::Recorder> {
+        self.recorder.as_ref()
+    }
+    
+    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
+        self.checkpointer.as_ref()
+    }
+
+    fn accumulator(&self) -> &Accum<Self::Problem> {
+        &self.accumulator
+    }
+    
+    fn mut_stop(&mut self) -> &mut Self::Stop {
+        &mut self.stop
+    }
+    
+    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
+        self.problem.get_mut_searchspace()
+    }
+    
+    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
+        self.problem.get_mut_codomain()
+    }
+    
+    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
+        self.problem.get_mut_objective()
+    }
+    
+    fn mut_optimizer(&mut self) -> &mut Self::Optimizer {
+        &mut self.optimizer
+    }
+    
+    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
+        self.recorder.as_mut()
+    }
+    
+    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
+        self.checkpointer.as_mut()
+    }
+    
+    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
+        &mut self.accumulator
+    }
+}
 
 // /// An enum that abstracts over different implementations of a function state pool.
 // /// It can either be an in-memory [`IdxMapPool`] or a checkpointer-backed [`LoadPool`].
@@ -346,7 +696,7 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
 //     SolId: Id,
 //     FnStCheck: FuncStateCheckpointer,
 // {
-//     /// Insert a new [`FuncState`] into the pool, associated with the given solution [`Id`].
+//     /// Insert a new [`FuncState`] into the pool, associated with the given solution [`StepId`].
 //     /// The behavior of this method depends on the underlying pool implementation:
 //     /// - For [`IdxMapPool`], it will save the state in the in-memory map and optionally persist it using the checkpointer.
 //     /// - For [`LoadPool`], it will save the state using the checkpointer and keep track of the current state in memory for quick retrieval
@@ -357,10 +707,10 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
 //         }
 //     }
 
-//     /// Remove the [`FuncState`] associated with the given solution [`Id`], if it exists.
+//     /// Remove the [`FuncState`] associated with the given solution [`StepId`], if it exists.
 //     /// The behavior of this method depends on the underlying pool implementation:
 //     /// - For [`IdxMapPool`], it will remove the state from the in-memory map and optionally remove it from the checkpointer.
-//     /// - For [`LoadPool`], it will remove the state from the checkpointer and clear the current state if it matches the given [`Id`].
+//     /// - For [`LoadPool`], it will remove the state from the checkpointer and clear the current state if it matches the given [`StepId`].
 //     fn remove(&mut self, id: &SolId) -> bool {
 //         match self {
 //             Pool::IdxMap(p) => p.remove(id),
@@ -368,10 +718,10 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
 //         }
 //     }
 
-//     /// Retrieve the [`FuncState`] associated with the given solution [`Id`], if it exists.
+//     /// Retrieve the [`FuncState`] associated with the given solution [`StepId`], if it exists.
 //     /// The behavior of this method depends on the underlying pool implementation:
 //     /// - For [`IdxMapPool`], it will retrieve the state from the in-memory map.
-//     /// - For [`LoadPool`], it will first check if the current state in memory matches the given [`Id`] and return it if so;
+//     /// - For [`LoadPool`], it will first check if the current state in memory matches the given [`StepId`] and return it if so;
 //     ///   otherwise, it will attempt to load the state from the checkpointer.
 //     fn retrieve(&mut self, id: &SolId) -> Option<FnState> {
 //         match self {

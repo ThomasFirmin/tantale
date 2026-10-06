@@ -23,7 +23,7 @@ pub struct MessagePack {
     /// Describes the folder hierarchy.
     pub config: Arc<FolderConfig>,
     path_stop: PathBuf,
-    path_eval: PathBuf,
+    path_exp: PathBuf,
     path_optim: PathBuf,
     path_config: PathBuf,
     path_acc: PathBuf,
@@ -35,7 +35,7 @@ impl MessagePack {
     /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
     pub fn new(config: Arc<FolderConfig>) -> Option<Self> {
         let path_stop = config.path_check.join(Path::new("state_stop.mp"));
-        let path_eval = config.path_check.join(Path::new("state_eval.mp"));
+        let path_exp = config.path_check.join(Path::new("state_exp.mp"));
         let path_optim = config.path_check.join(Path::new("state_optim.mp"));
         let path_config = config.path_check.join(Path::new("state_config.mp"));
         let path_acc = config.path_check.join(Path::new("state_acc.mp"));
@@ -44,7 +44,7 @@ impl MessagePack {
         Some(MessagePack {
             config,
             path_stop,
-            path_eval,
+            path_exp,
             path_optim,
             path_config,
             path_acc,
@@ -60,7 +60,7 @@ impl MessagePack {
             CheckpointerTargets::Optimizer => &self.path_optim,
             CheckpointerTargets::Accumulator => &self.path_acc,
             CheckpointerTargets::Stop => &self.path_stop,
-            CheckpointerTargets::Evaluator => &self.path_eval,
+            CheckpointerTargets::Experiment => &self.path_exp,
             CheckpointerTargets::Config => &self.path_config,
             CheckpointerTargets::WorkerFolder => &self.path_workers,
             CheckpointerTargets::FuncFolder => &self.path_func,
@@ -110,10 +110,10 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
                     self.path_stop.display()
                 )))
             }
-            if !self.path_eval.try_exists().unwrap() {
+            if !self.path_exp.try_exists().unwrap() {
                 return Err(CheckpointerError::FileNotFound(format!(
                     "The `eval` file does not exist in {}",
-                    self.path_eval.display()
+                    self.path_exp.display()
                 )))
             }
             if !self.path_acc.try_exists().unwrap() {

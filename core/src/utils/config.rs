@@ -65,9 +65,9 @@ use crate::experiment::parallel::mpi::MPICommunicator;
 /// let checkpointer = MessagePack::new(config.clone());
 /// let recorder = CSVRecorder::new(config);
 /// ```
-pub trait SaverConfig<C>: Clone {
+pub trait SaverConfig<C> {
     /// Initialize the configuration and return it in a shared [`Arc`].
-    fn init(self, ctx: &C) -> Self;
+    fn init(self, ctx: &C) -> Arc<Self>;
 }
 
 /// Folder hierarchy for file-based [`Recorder`](crate::Recorder) and [`Checkpointer`](crate::Checkpointer).
@@ -125,29 +125,25 @@ impl FolderConfig {
     }
 }
 
-impl SaverConfig<()> for Arc<FolderConfig> 
+impl SaverConfig<()> for FolderConfig 
 {
     /// Initialize and wrap the configuration in an [`Arc`].
-    fn init(self, _ctx: &()) -> Self {
-        self
+    fn init(self, _ctx: &()) -> Arc<Self> {
+        Arc::new(self)
     }
 }
 
 #[cfg(feature = "mpi")]
-impl SaverConfig<MPICommunicator> for Arc<FolderConfig> {
+impl SaverConfig<MPICommunicator> for FolderConfig {
     /// Initialize a distributed configuration for a specific MPI rank.
     ///
     /// This method appends rank-specific subfolders to recorder and checkpointer
     /// paths and marks the configuration as distributed.
-    fn init(mut self, ctx: &MPICommunicator) -> Self {
-        self.path_rec = self
-            .path_rec
-            .join(Path::new(&format!("recorder_rank{}", ctx.rank)));
+    fn init(mut self, ctx: &MPICommunicator) -> Arc<Self> {
+        self.path_rec = self.path_rec.join(Path::new(&format!("recorder_rank{}", ctx.proc.rank)));
         self.path_work = self.path_check.join(Path::new("workers"));
-        self.path_check = self
-            .path_check
-            .join(Path::new(&format!("checkpointer_rank{}", ctx.rank)));
+        self.path_check = self.path_check.join(Path::new(&format!("checkpointer_rank{}", ctx.proc.rank)));
         self.is_dist = true;
-        self
+        Arc::new(self)
     }
 }

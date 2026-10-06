@@ -84,11 +84,11 @@ use std::sync::Arc;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use tantale_core::optimizer::opt::BudgetPruner;
+use tantale_core::optimizer::opt::Pruner;
 use tantale_core::solution::IntoComputedShape;
 use tantale_core::{Batch, BatchOptimizer, Tabular, OptInfo, SolInfo};
 use tantale_core::{
-    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, State, Optimizer,
+    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, State, Sampler,
     Searchspace, SingleOptimizer, StepSId,
 };
 
@@ -126,8 +126,8 @@ macro_rules! hyperband {
 /// - `SInfo` - The solution info type for the inner optimizer
 pub struct HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -158,8 +158,8 @@ where
 
 impl<Optim, Out, Scp, SInfo> State for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -310,16 +310,16 @@ impl<Info: OptInfo> HyperbandInfo<Info> {
 /// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
 pub struct Hyperband<Optim, Out, Scp, SInfo>(pub HyperbandState<Optim, Out, Scp, SInfo>)
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>,
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>,
     Out: FidOutcome,
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
     SInfo: SolInfo;
 
 impl<Optim, Out, Scp, SInfo> Hyperband<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -374,11 +374,11 @@ where
 }
 
 impl<Optim, Out, Scp, SInfo>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Hyperband<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -427,7 +427,7 @@ where
             Scp,
             SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
-        > + BudgetPruner<
+        > + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -550,7 +550,7 @@ where
             Scp,
             SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
             SInfo = SInfo,
-        > + BudgetPruner<
+        > + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -623,8 +623,8 @@ where
 
 struct HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -655,8 +655,8 @@ struct HBFieldVisitor;
 
 impl<Optim, Out, Scp, SInfo> Serialize for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -685,8 +685,8 @@ where
 
 impl<Optim, Out, Scp, SInfo> HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -751,8 +751,8 @@ impl<'de> Deserialize<'de> for HBField {
 
 impl<'de, Optim, Out, Scp, SInfo> Visitor<'de> for HyperbandStateVisitor<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,
@@ -880,8 +880,8 @@ where
 
 impl<'de, Optim, Out, Scp, SInfo> Deserialize<'de> for HyperbandState<Optim, Out, Scp, SInfo>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
+    Optim: Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
+        + Pruner<
             FidelitySol<StepSId, Scp::Opt, SInfo>,
             StepSId,
             Scp::Opt,

@@ -1,6 +1,5 @@
 use crate::{
-    Problem, SolutionShape, aliases::{Accum, CompShape, Shape}, solution::SolInfo, 
-    utils::{has_trait::HasState, record::{Recordable, Schema}},
+    Domain, HasFidelity, HasStep, Problem, aliases::{Accum, CompShape, Opt, Shape}, solution::SolInfo, utils::{has_trait::HasState, record::{Recordable, Schema}},
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::Fn};
@@ -24,36 +23,88 @@ impl SolInfo for EmptyInfo {}
 
 /// Core optimizer abstraction.
 ///
-/// An [`Optimizer`] generates candidate [`Solution`](crate::solution::Solution)s to
+/// A [`Sampler`] generates candidate [`Solution`](crate::solution::Solution)s to
 /// **maximize** an objective, and maintains the state required to resume or
 /// checkpoint an experiment.
-pub trait Optimizer<P: Problem<Info = Self::Info>>: HasState
+pub trait Sampler<P: Problem<Info = Self::Info>, Dom: Domain>: HasState
 {
     type Info: SolInfo;
     
-    /// Computes a single iteration of the [`Optimizer`].
-    ///
-    /// It consumes an optional computed solution and returns a new uncomputed
-    /// candidate. [`Self`] is mutable to update the internal state.
-    ///
-    /// The `acc` parameter provides a read-only view of the best solutions
-    /// accumulated since the start of the experiment:
-    /// - For single-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`BestAccumulator`](crate::BestAccumulator) holding the single best solution seen so far.
-    /// - For multi-objective [`Codomain`](crate::Codomain)s, `acc` is a
-    ///   [`ParetoAccumulator`](crate::ParetoAccumulator) holding the current Pareto front.
-    ///
-    /// The accumulator is maintained externally by the [`Runable`](crate::Runable) and
-    /// updated after each solution evaluation. The [`Optimizer`] should use it
-    /// read-only to inform the generation of new candidates (e.g. for surrogate
-    /// models or elitist strategies).
-    fn step(&mut self,x: Option<CompShape<P>>,scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>;
+    /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
+    fn sample(&mut self,scp: &P::Scp,acc: &Accum<P>) -> Option<Shape<P>>;
+
+    fn sample_apply<F>(&mut self, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
+    where
+        F: Fn(Option<Shape<P>>) -> Option<Shape<P>> + Send + Sync
+    {
+        f(self.sample(scp, acc))
+    }
+
+    /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
+    fn update(&mut self,x: CompShape<P>,scp: &P::Scp,acc: &Accum<P>);
+
+    /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate and sample a new candidate.
+    fn update_and_sample(&mut self, x: CompShape<P>, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>> {
+        self.update(x, scp, acc);
+        self.sample(scp, acc)
+    }
+
+    /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate and sample a new candidate, 
+    /// applying a function to the result.
+    fn update_and_sample_apply<F>(&mut self, x: CompShape<P>, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
+    where
+        F: Fn(Option<Shape<P>>) -> Option<Shape<P>> + Send + Sync
+    {
+        self.update(x, scp, acc);
+        f(self.sample(scp, acc))
+    }
+}
+
+pub trait Batched<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>>
+{
+    /// Returns the current batch size used by the optimizer for sampling candidates.
+    fn batch_size(&self) -> usize;
+    
+    /// Sets the batch size used by the optimizer for sampling candidates.
+    fn set_batch_size(&mut self, size: usize);
+    
+    /// Returns the current batch of candidates.
+    fn batch(&self) -> &[Shape<P>];
+    
+    /// Returns a mutable reference to the current batch of candidates.
+    fn mut_batch(&mut self) -> &mut Vec<Shape<P>>;
+    
+    /// Returns the current batch of computed candidates.
+    fn comp_batch(&self) -> &[CompShape<P>];
+    
+    /// Returns a mutable reference to the current batch of computed candidates.
+    fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>>;
+
+    /// Adds a candidate to the current batch.
+    fn add_to_batch(&mut self, candidate: Shape<P>) {
+        self.mut_batch().push(candidate);
+    }
+
+    /// Pops a candidate from the current batch.
+    fn pop_from_batch(&mut self) -> Option<Shape<P>> {
+        self.mut_batch().pop()
+    }
+
+    /// Adds a computed candidate to the current batch of computed candidates.
+    fn add_to_comp_batch(&mut self, candidate: CompShape<P>) {
+        self.mut_comp_batch().push(candidate);
+    }
+
+    /// Pops a computed candidate from the current batch of computed candidates.
+    fn pop_from_comp_batch(&mut self) -> Option<CompShape<P>> {
+        self.mut_comp_batch().pop()
+    }
 }
 
 /// Multi-instance optimizer interface for parallel execution.
 ///
 /// Implementations define how optimizer instances interact and synchronize.
-pub trait MultiInstanceOptimizer<P: Problem<Info = Self::Info>>: Optimizer<P>
+pub trait MultiInstanceSampler<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>>
 {
     /// Exchange information with peer instances.
     fn interact(&self);
@@ -62,7 +113,9 @@ pub trait MultiInstanceOptimizer<P: Problem<Info = Self::Info>>: Optimizer<P>
 }
 
 /// Multi-fidelity marker trait for optimizers.
-pub trait BudgetPruner<P: Problem<Info = Self::Info>>: Optimizer<P>
+pub trait Pruner<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>>
+where
+    P::Shape: HasFidelity + HasStep,
 {
     /// Sets the minimum and maximum budgets for the optimizer.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64);
@@ -89,30 +142,4 @@ pub trait BudgetPruner<P: Problem<Info = Self::Info>>: Optimizer<P>
 
     /// Drains a single pending candidate from the optimizer, if available.
     fn drain_one(&mut self) -> Option<Shape<P>>;
-}
-
-/// A [`Sampler`] is an [`Optimizer`] that always generates on-demand new candidates by sampling from an internal state.
-/// Conversely to [`SingleOptimizer`]s or [`BatchOptimizer`]s,
-/// a [`Sampler`] does not consume previously computed solutions to generate new candidates,
-/// but only relies on its internal state.
-pub trait Sampler<P, SuperSInfo> : HasState
-where
-    P: Problem,
-    Shape<P>: SolutionShape<Info = Self::Info>,
-    SuperSInfo: SolInfo,
-{
-    type Info: SolInfo;
-
-    /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
-    fn sample(&mut self,scp: &P::Scp,acc: &Accum<P>) -> Option<Shape<P>>;
-
-    fn sample_apply<F>(&mut self, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
-    where
-        F: Fn(Option<Shape<P>>) -> Option<Shape<P>> + Send + Sync
-    {
-        f(self.sample(scp, acc))
-    }
-
-    /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
-    fn update(&mut self,x: &CompShape<P>,scp: &P::Scp,acc: &Accum<P>);
 }

@@ -100,7 +100,7 @@ use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
 /// one of its `f64` further used within a [`Codomain`].
-type Criteria<Out> = fn(&Out) -> f64;
+pub(crate) type Criteria<Out> = fn(&Out) -> f64;
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.

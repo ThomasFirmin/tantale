@@ -39,7 +39,7 @@ use crate::{
 };
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{Tabular, Outcome, Step};
+use tantale_core::{Outcome, Step, utils::record::{Recordable, Schema}};
 
 pub trait PyOutWrap: Outcome {
     /// Wraps a Python return value in the appropriate Rust wrapper type.
@@ -161,8 +161,9 @@ impl<'de> Deserialize<'de> for PyOutcome {
     }
 }
 
-impl Tabular<(), ()> for PyOutcome {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for PyOutcome {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
@@ -177,8 +178,11 @@ impl Tabular<(), ()> for PyOutcome {
                 )
         })
     }
+}
 
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for PyOutcome {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)
@@ -275,8 +279,9 @@ impl<'de> Deserialize<'de> for PyFidOutcome {
 
 // impl Outcome for PyFidOutcome {}
 
-impl Tabular<(), ()> for PyFidOutcome {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for PyFidOutcome {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
@@ -291,8 +296,11 @@ impl Tabular<(), ()> for PyFidOutcome {
                 )
         })
     }
+}
 
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for PyFidOutcome {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)

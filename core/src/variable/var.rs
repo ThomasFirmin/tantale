@@ -658,3 +658,9 @@ impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {
         format!("{}_{}", self.name.0, self.name.1.map_or("".to_string(), |i| i.to_string()))
     }
 }
+
+impl<Obj: Domain, Opt: PreDomain> ToName for &Var<Obj, Opt> {
+    fn to_name(&self) -> String {
+        format!("{}_{}", self.name.0, self.name.1.map_or("".to_string(), |i| i.to_string()))
+    }
+}

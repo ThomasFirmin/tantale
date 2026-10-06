@@ -1,18 +1,10 @@
-use crate::{
-    Domain, EvalStep, Fidelity, HasFidelity, HasStep, Outcome, SolId, SolInfo, Solution, Uncomputed, errors::CommunicatorError, solution::SolutionShape, utils::{Communicator, communicator::{Channel, IdlePeers, Msg}},
-};
+use crate::{errors::CommunicatorError, utils::{communicator::{Channel, IdlePeers, Msg}}};
 
 use bincode::{config::Configuration, serde::Compat};
-use bitvec::{
-    bitvec,
-    slice::{IterOnes, IterZeros},
-    vec::BitVec,
-};
 use mpi::{
-    Rank, Tag, traits::{Destination, Source},
+    Rank, Tag, traits::{Communicator, Destination, Source},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{MPI_RANK, MPI_SIZE};
 use mpi::{environment::Universe, topology::SimpleCommunicator};
@@ -27,12 +19,12 @@ impl BinCodeCodec {
     }
 
     pub fn encode<T: Serialize>(&self, value: &T) -> Vec<u8> {
-        bincode::encode_to_vec(value, self.config).unwrap()
+        bincode::encode_to_vec(Compat(value), self.config).unwrap()
     }
 
     pub fn decode<'a, T: for<'de> Deserialize<'de>>(&self, bytes: &'a [u8]) -> T {
-        let (value, _): (T, _) = bincode::borrow_decode_from_slice(bytes, self.config).unwrap();
-        value
+        let decoded: (Compat<T>, usize) = bincode::borrow_decode_from_slice(bytes, self.config).unwrap();
+        decoded.0.0
     }
 }
 
@@ -90,14 +82,14 @@ impl Channel for MPIChannel {
 
     fn send<M: Msg>(&self, peer: &Self::Peer, message: M) -> Result<(), CommunicatorError> {
         let tag = message.get_tag();
-        let content = self.codec.encode(&Compat(message));
-        self.world.process_at_rank(*peer).send_with_tag(&content, tag.into());
+        let content = self.codec.encode(&message);
+        self.world.process_at_rank(*peer).send_with_tag(&content, tag as Tag);
         Ok(())
     }
 
     fn receive<M: Msg>(&self) -> Result<(Self::Peer, M), CommunicatorError> {
         let (bytes, status): (Vec<u8>, _) = self.world.any_process().receive_vec();
-        let msg = self.codec.decode::<Compat<M>>(&bytes).0;
+        let msg = self.codec.decode::<M>(&bytes);
         Ok((status.source_rank(), msg))
     }
 
@@ -123,10 +115,16 @@ impl MPICommunicator {
     }
 }
 
-impl Communicator for MPICommunicator {
+impl Default for MPICommunicator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl crate::utils::Communicator for MPICommunicator {
     type Channel = MPIChannel;
     
-    fn channel(&self, me: Rank) -> &MPIChannel {
+    fn channel(&self, _me: Rank) -> &MPIChannel {
         &self.proc
     }
 
@@ -135,11 +133,11 @@ impl Communicator for MPICommunicator {
     }
 
     fn set_idle(&mut self, peer: Rank) {
-        self.idle.set_idle(peer.into());
+        self.idle.set_idle(peer as usize);
     }
     
     fn set_busy(&mut self, peer: Rank) {
-        self.idle.set_busy(peer.into());
+        self.idle.set_busy(peer as usize);
     }
 
     fn is_idle(&self, peer: Rank) -> bool {

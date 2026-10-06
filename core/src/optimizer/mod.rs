@@ -45,4 +45,4 @@
 //! See the [`opt`] submodule for trait definitions and details.
 
 pub mod opt;
-pub use opt::{EmptyInfo, Optimizer, Sampler};
+pub use opt::{EmptyInfo, Sampler, Pruner};

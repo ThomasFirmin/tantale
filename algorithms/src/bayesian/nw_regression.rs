@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
-use tantale_core::{Domain, GridDom, HasVariables, HasX, Id, Int, Mixed, Nat, Outcome, Real, Searchspace, SolInfo, TypeCodom, Uncomputed, Unit, Xy, domain::{Elem, grid::GridBounds}};
+use tantale_core::{Domain, GridDom, HasVariables, HasX, Int, Mixed, Nat, Problem, Real, Searchspace, 
+    Unit, Xy, aliases::{GetRaw, Out, SOpt, TypeCodom}, domain::grid::GridBounds};
 
 use crate::{bayesian::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, kernel::{Kernel, KernelFunc}}};
 
@@ -9,46 +8,40 @@ use crate::{bayesian::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multi
 pub type Predictor = Vec<f64>;
 
 /// A trait for Nadaraya-Watson regression models.
-pub trait NwRegressor<Dom, Scp, S, SolId, SInfo, Out>: Kernel<Dom, Scp, S, SolId, SInfo, Out>
+pub trait NwRegressor<P, Dom>: Kernel<P, Dom>
 where
-    Self: Sized + Serialize + for<'a> Deserialize<'a>,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Dom>,
     Dom: Domain,
-    Scp: Searchspace<S, SolId, SInfo, Opt = Dom>,
-    S: Uncomputed<SolId, Dom, SInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome, 
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
+        scp: &P::Scp,
     ) -> f64;
 }
 
-impl<Scp, S, SolId, SInfo, Out> NwRegressor<Mixed, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> NwRegressor<P, Mixed> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Mixed>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Mixed>,
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())
@@ -72,24 +65,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> NwRegressor<Real, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> NwRegressor<P, Real> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Real>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Real>,
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())
@@ -113,24 +104,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> NwRegressor<Int, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> NwRegressor<P, Int> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Int>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Int>,
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())
@@ -154,24 +143,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> NwRegressor<Nat, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> NwRegressor<P, Nat> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Nat>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Nat>,
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())
@@ -195,24 +182,22 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> NwRegressor<Unit, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> NwRegressor<P, Unit> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Unit>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Unit>,
 {
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())
@@ -236,26 +221,23 @@ where
     }
 }
 
-impl<G, Scp, S, SolId, SInfo, Out> NwRegressor<GridDom<G>, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P, G> NwRegressor<P, GridDom<G>> for Multivariate
 where
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Mixed>,
     G: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<G>, SInfo, X = Arc<[Elem<GridDom<G>>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
 {
-
-    fn predict<T: AsRef<Xy<S::X, TypeCodom<Out>>>>(
+    fn predict<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>>(
         &self,
-        x: &S::X,
+        x: &GetRaw<SOpt<P>>,
         y: &Predictor,
         weights: &[f64],
         archive: &[T],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: (f64, f64) = archive
             .iter()
             .zip(y.iter())

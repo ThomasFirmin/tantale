@@ -58,7 +58,7 @@
 #[cfg(doc)]
 use crate::objective::OneStep;
 #[cfg(doc)]
-use crate::optimizer::Optimizer;
+use crate::optimizer::Sampler;
 #[cfg(doc)]
 use crate::solution::Solution;
 #[cfg(doc)]

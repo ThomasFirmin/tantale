@@ -17,8 +17,8 @@ pub enum ExpStep {
     Evaluation(Step),
     /// At each full optimization loop.
     Iteration,
-    /// After the optimization output
-    Optimization,
+    /// After the sampling step.
+    Sampling,
 }
 
 /// Stop criterion for an experiment.

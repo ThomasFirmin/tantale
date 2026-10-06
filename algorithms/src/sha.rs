@@ -64,7 +64,7 @@
 use std::marker::PhantomData;
 
 use tantale_core::{
-    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, State, Optimizer, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, MultiStep, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    Batch, BatchOptimizer, BatchSampler, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasInfo, HasStep, LinkOpt, State, Sampler, Orderable, RawObj, Searchspace, Single, SolInfo, Step, StepSId, MultiStep, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::Pruner, solution::IntoComputedShape,
 };
 
 use serde::{
@@ -293,7 +293,7 @@ where
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Smpl, Out, Scp, SInfo, Fn>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Sha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: BatchSampler<
@@ -337,7 +337,7 @@ where
 }
 
 impl<Smpl, Out, Scp, SInfo, Fn>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Pruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Sha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: BatchSampler<

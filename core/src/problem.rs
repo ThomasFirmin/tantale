@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{BaseSol, Domain, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, Linked, MultiStep, OneStep, Outcome, SId, 
-    Searchspace, SolId, SolInfo, SolutionShape, StepId, StepSId, aliases::{LinkObj, LinkOpt},
-    solution::shape::IntoComputedShape};
+use crate::{BaseSol, Domain, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, HasVariables, Linked, MultiStep, 
+    OneStep, Outcome, SId, Searchspace, SolId, SolInfo, SolutionShape, StepId, StepSId, 
+    aliases::{LinkObj, LinkOpt}, solution::shape::IntoComputedShape};
 
 pub trait Problem {
     type Id: SolId;
@@ -107,7 +107,7 @@ impl<Id, Info, Scp, Func> Problem for Pb<Id, Info, Scp, Func>
 where
     Id: SolId,
     Info: SolInfo,
-    Scp: Searchspace<Func>,
+    Scp: Searchspace<Func> + HasVariables,
     Scp::Shape: SolutionShape<
         Id = Id,
         Info = Info,

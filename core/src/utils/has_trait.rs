@@ -209,7 +209,7 @@ pub trait HasVariables: Linked {
     fn iter_obj(&self) -> impl Iterator<Item = &Self::Obj> + '_ {
         (0..self.size()).map(|idx| self.obj_at(idx).unwrap())
     }
-
+    
     /// Returns the `Obj` [`Domain`] at a specific index, if it exists.
     fn obj_at(&self, index: usize) -> Option<&Self::Obj>;
 

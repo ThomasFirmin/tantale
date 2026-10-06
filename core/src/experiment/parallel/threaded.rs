@@ -1,15 +1,9 @@
-use crate::{
-    Domain, EvalStep, Fidelity, HasFidelity, HasStep, Outcome, SolId, SolInfo, Solution, Uncomputed, errors::CommunicatorError, solution::SolutionShape, utils::{Communicator, communicator::{Channel, IdlePeers, Msg}},
-};
 
-use bitvec::{
-    bitvec,
-    slice::{IterOnes, IterZeros},
-    vec::BitVec,
+use crate::{
+    errors::CommunicatorError, utils::{Communicator, communicator::{Channel, IdlePeers, Msg}},
 };
 use crossbeam::channel::{Receiver, Sender, unbounded};
-use serde::{Deserialize, Serialize};
-use std::{any::Any, collections::HashMap, marker::PhantomData};
+use std::any::Any;
 
 pub struct Envelope {
     pub tag: u32,
@@ -23,9 +17,9 @@ impl Envelope {
 }
 
 pub struct ThreadChannel {
-    id: usize,
-    sender: Vec<Sender<(usize,Envelope)>>,
-    receiver: Receiver<(usize,Envelope)>,
+    pub id: usize,
+    pub sender: Vec<Sender<(usize,Envelope)>>,
+    pub receiver: Receiver<(usize,Envelope)>,
 }
 
 impl ThreadChannel {

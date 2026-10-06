@@ -20,7 +20,7 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, State, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemMulti, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, State, Sampler, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemMulti, TypeCodom}, optimizer::opt::Pruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -265,7 +265,7 @@ where
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: SingleSampler<
@@ -311,7 +311,7 @@ where
 }
 
 impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Pruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: SingleSampler<

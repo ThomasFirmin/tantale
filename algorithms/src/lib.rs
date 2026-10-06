@@ -6,7 +6,6 @@
 //!   * [`GridSearch`] : the usual [Grid Search](https://en.wikipedia.org/wiki/Hyperparameter_optimization#Grid_search) algorithm.
 //! - [Random Search](mod@random_search) :
 //!   * [`RandomSearch`] : the usual sequential [Random Search](https://en.wikipedia.org/wiki/Random_search) algorithm. Generating points on demand.
-//!   * [`BatchRandomSearch`] : a batch version of random search. Generating points in batches.
 //! - [Successive Halving](mod@sha) :
 //!   * [`Sha`] : the original [Successive Halving](https://arxiv.org/pdf/1502.07943) algorithm for multi-fidelity hyperparameter optimization.
 //! - [Asynchronous Successive Halving](mod@asha) :
@@ -21,7 +20,7 @@
 //!
 
 pub mod random_search;
-pub use random_search::{BatchRSState, BatchRandomSearch, RSInfo, RandomSearch};
+pub use random_search::{RSInfo, RandomSearch};
 
 pub mod sha;
 pub use sha::{Sha, ShaState};

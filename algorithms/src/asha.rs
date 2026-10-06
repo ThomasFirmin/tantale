@@ -71,7 +71,7 @@ use std::{cell::RefCell, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, State, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::BudgetPruner, solution::IntoComputedShape,
+    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, State, Sampler, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemSingle, TypeCodom}, optimizer::opt::Pruner, solution::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -281,7 +281,7 @@ where
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
 impl<Smpl, Out, Scp, SInfo, Fn>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: SingleSampler<
@@ -323,7 +323,7 @@ where
 }
 
 impl<Smpl, Out, Scp, SInfo, Fn>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
+    Pruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
 where
     Smpl: SingleSampler<

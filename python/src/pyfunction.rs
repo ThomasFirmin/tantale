@@ -30,7 +30,7 @@ use std::{
 
 use log::warn;
 use pyo3::prelude::*;
-use tantale_core::{FidOutcome, Fidelity, FuncState, OneStep, MultiStep};
+use tantale_core::{FidOutcome, Fidelity, FuncState, MultiStep, OneStep, Uncomputed};
 
 use crate::{
     PY_OBJECTIVE_FUNC, PY_STEPPED_FUNC,
@@ -216,7 +216,12 @@ impl PyObjective {
     /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
-    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap>(&self) -> OneStep<Arc<[E]>, Out> {
+    pub fn register<E, Out, S>(&self) -> OneStep<S, Out> 
+    where
+        S: Uncomputed<X = Arc<[E]>>,
+        Out: PyOutWrap,
+        E: ElementIntoPyObject,
+    {
         Python::attach(|py| {
             PY_OBJECTIVE_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python objective function: a function has already been registered");
         });
@@ -258,9 +263,12 @@ impl PyStepped {
     /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
     ///
     /// Only one `PyStepped` may be active per thread at a time.
-    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
-        &self,
-    ) -> MultiStep<Arc<[E]>, Out, PyFuncState> {
+    pub fn register<E, Out, S>(&self) -> MultiStep<S, Out, PyFuncState>
+    where
+        S: Uncomputed<X = Arc<[E]>>,
+        Out: PyOutWrap + FidOutcome,
+        E: ElementIntoPyObject,
+    {
         Python::attach(|py| {
             PY_STEPPED_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python stepped objective function: a function has already been registered");
         });

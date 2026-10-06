@@ -31,16 +31,9 @@
 //! - Watanabe, [*Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance*](https://arxiv.org/pdf/2304.11127).
 //! - Ozaki et al., [*Multiobjective Tree-Structured Parzen Estimator*](https://www.jair.org/index.php/jair/article/view/13188/26784)
 //!
-use crate::{
-    bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter}, utils::{BCompAcc, BCompShape, FCompAcc, FCompShape, SimpleObjective, SimpleStepped},
-};
+use crate::bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter};
 use tantale_core::{
-    BaseSol, Tabular, CompAcc, CompShape, FidOutcome, FidelitySol, FuncState, HasFidelity,
-    HasStep, Id, IntoComputedShape, LinkOpt, State, Optimizer, Orderable, OrderedArchive,
-    Outcome, SId, Sampler, Searchspace, SingleOptimizer, SingleSampler, SolInfo, SolutionShape,
-    Step, StepSId, MultiStep, Uncomputed, Xy,
-    domain::{Elem, codomain::TypeCodom},
-    solution::shape::RawOpt,
+    BaseSol, FidOutcome, FidelitySol, FuncState, HasFidelity, HasState, HasStep, MultiStep, Orderable, OrderedArchive, Outcome, Problem, SId, Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, Step, StepSId, Uncomputed, Xy, aliases::{GetRaw, Opt, Out, SOpt, TypeCodom}, domain::Elem, utils::record::{Recordable, Schema},
 };
 
 use rand::rngs::StdRng;
@@ -101,16 +94,20 @@ impl TpeSInfo {
 
 impl SolInfo for TpeSInfo {}
 
-impl Tabular<(), ()> for TpeSInfo {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for TpeSInfo {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec![
             "acquisition".to_string(),
             "good_bdf".to_string(),
             "bad_pdf".to_string(),
         ]
     }
+}
 
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for TpeSInfo {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![
             self.acquisition.to_string(),
             self.good_bdf.to_string(),
@@ -130,18 +127,14 @@ type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrderedArchive<Xy<Raw, CodEl
     serialize = "Wght: Serialize, Splt: Serialize, Bw: Serialize, Kern::Context: Serialize",
     deserialize = "Wght: for<'a> Deserialize<'a>, Splt: for<'a> Deserialize<'a>, Bw: for<'a> Deserialize<'a>, Kern::Context: for<'a> Deserialize<'a>",
 ))]
-pub struct TpeState<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>
+pub struct TpeState<Kern, Bw, Wght, Splt, P>
 where
-    S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Scp: Searchspace<S, SolId, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
-    SolId: Id,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    Splt: Splitter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    P: Problem,
+    TypeCodom<Out<P>>: Orderable,
 {
     pub n_init: usize,
     pub n_sample: usize,
@@ -149,24 +142,19 @@ where
     pub bandwidth: Bw,
     pub weighter: Wght,
     pub splitter: Splt,
-    pub point_archive: JointFidelityArchive<S::X, TypeCodom<Out>>,
+    pub point_archive: JointFidelityArchive<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
 }
 
-impl<Kern, Bw, Wght, Splt, Scp, S, SolId, Out> State
-    for TpeState<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>
+impl<Kern, Bw, Wght, Splt, P> State for TpeState<Kern, Bw, Wght, Splt, P>
 where
-    S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Scp: Searchspace<S, SolId, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
-    SolId: Id,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    Splt: Splitter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    P: Problem,
+    TypeCodom<Out<P>>: Orderable,
 {
 }
 
@@ -258,33 +246,23 @@ where
 ///   * `point_archive`: A collection of archived points.
 ///   * `current_fidelity`: The current fidelity level if applicable. Used for multi-fidelity optimization.
 ///   * `current_archive`: The current archive of solutions if applicable. Used for multi-fidelity optimization.
-pub struct Tpe<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>(
-    pub TpeState<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>,
-)
+pub struct Tpe<Kern, Bw, Wght, Splt, P>(pub TpeState<Kern, Bw, Wght, Splt, P>)
 where
-    Scp: Searchspace<S, SolId, TpeSInfo>,
-    S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
-    SolId: Id,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome;
-
-impl<Kern, Bw, Wght, Splt, Scp, S, SolId, Out> Tpe<Kern, Bw, Wght, Splt, Scp, S, SolId, Out>
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    Splt: Splitter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    P: Problem,
+    TypeCodom<Out<P>>: Orderable;
+    
+impl<Kern, Bw, Wght, Splt, P> Tpe<Kern, Bw, Wght, Splt, P>
 where
-    Scp: Searchspace<S, SolId, TpeSInfo>,
-    S: Uncomputed<SolId, Scp::Opt, TpeSInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, TpeSInfo>,
-    Kern: Kernel<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Bw: Bandwidth<Scp::Opt, Scp, S, SolId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<S::X, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<S::X, TypeCodom<Out>>>,
-    SolId: Id,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    Splt: Splitter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    P: Problem,
+    TypeCodom<Out<P>>: Orderable,
 {
     /// Creates a new TPE optimizer with the specified components and parameters.
     ///
@@ -324,26 +302,22 @@ where
     }
 }
 
-impl<Kern, Bw, Wght, Splt, Scp, Out>
-    Optimizer<BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Scp::Opt, Out, Scp>
-    for Tpe<Kern, Bw, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>
+impl<Kern, Bw, Wght, Splt, P> HasState for Tpe<Kern, Bw, Wght, Splt, P>
 where
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo>,
-    Kern: Kernel<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
-    Bw: Bandwidth<LinkOpt<Scp>, Scp, BaseSol<SId, LinkOpt<Scp>, TpeSInfo>, SId, TpeSInfo, Out>,
-    Wght: Weighter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
-    Splt: Splitter<Xy<RawOpt<Scp::SolShape, SId, TpeSInfo>, TypeCodom<Out>>>,
-    TypeCodom<Out>: Orderable,
-    Out: Outcome,
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    Splt: Splitter<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>,
+    P: Problem,
+    TypeCodom<Out<P>>: Orderable,
 {
-    type State = TpeState<Kern, Bw, Wght, Splt, Scp, BaseSol<SId, Scp::Opt, TpeSInfo>, SId, Out>;
-    type SInfo = TpeSInfo;
-
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
+    type State = TpeState<Kern, Bw, Wght, Splt, P>;
 
     fn get_mut_state(&mut self) -> &Self::State {
+        &mut self.0
+    }
+
+    fn get_state(&self) -> &Self::State {
         &self.0
     }
 
@@ -353,7 +327,7 @@ where
 }
 
 impl<Kern, Bw, Wght, Splt, Scp, Out>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp>
+    Sampler<FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Scp::Opt, Out, Scp>
     for Tpe<Kern, Bw, Wght, Splt, Scp, FidelitySol<StepSId, Scp::Opt, TpeSInfo>, StepSId, Out>
 where
     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, TpeSInfo>, StepSId, TpeSInfo>,

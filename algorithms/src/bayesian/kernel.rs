@@ -1,7 +1,6 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasVariables, HasX, Id, Int, Mixed, MixedTypeDom, Nat, Outcome, Real,
-    Searchspace, SolInfo, Uncomputed, Unit, Xy,
-    domain::{CategoricalDomain, NumericalDomain, Elem, codomain::TypeCodom, grid::GridBounds},
+    Bool, Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Outcome, Problem, Real, Searchspace, SolId, 
+    SolInfo, Uncomputed, Unit, Xy, aliases::{GetRaw, Out, SOpt, TypeCodom}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds},
 };
 
 use core::f64;
@@ -677,42 +676,38 @@ impl KernelFunc<Mixed> for MixedKernel {
 /// # See also
 /// - [`Univariate`] for the univariate kernel, which assumes independence between dimensions and computes the product of the kernel values for each dimension.
 /// - [`Multivariate`] for the multivariate kernel, which models the joint distribution of all dimensions.
-pub trait Kernel<Dom, Scp, S, SolId, SInfo, Out>
+pub trait Kernel<P, Dom>
 where
-    Self: Sized + Serialize + for<'a> Deserialize<'a>,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Dom>,
     Dom: Domain,
-    Scp: Searchspace<S, SolId, SInfo, Opt = Dom>,
-    S: Uncomputed<SolId, Dom, SInfo>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
 {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
     /// for efficient kernel computation for each point within the archive.
     type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &P::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
 
     fn compute(
         &self,
-        s: &S::X,
-        archive: &[&Xy<S::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
+        scp: &P::Scp,
     ) -> f64;
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64;
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &P::Scp) -> f64;
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<S::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> S::X;
+        scp: &P::Scp,
+    ) -> GetRaw<SOpt<P>>;
 }
 
 /// The univariate kernel computes the product of the kernel values for each dimension of the solution, assuming independence between dimensions.
@@ -727,25 +722,24 @@ where
 #[derive(Serialize, Deserialize)]
 pub struct Univariate;
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P> Kernel<P, Mixed> for Univariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Mixed>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Mixed>,
+    SOpt<P>: Uncomputed<X = Arc<[MixedTypeDom]>>,
 {
     type Context = Vec<MixedContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -762,17 +756,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<Mixed, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -785,7 +780,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -795,8 +790,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -818,25 +812,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Real, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P> Kernel<P, Real> for Univariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Real>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Real>,
+    SOpt<P>: Uncomputed<X = Arc<[f64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -853,17 +846,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<Real, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -876,7 +870,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -886,8 +880,7 @@ where
             .product()
     }
     
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -909,25 +902,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Int, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P> Kernel<P, Int> for Univariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Int>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Int>,
+    SOpt<P>: Uncomputed<X = Arc<[i64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -944,17 +936,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<Int, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -967,7 +960,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -977,8 +970,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1000,25 +992,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Nat, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P> Kernel<P, Nat> for Univariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Nat>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Nat>,
+    SOpt<P>: Uncomputed<X = Arc<[u64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1035,17 +1026,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<Nat, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1058,7 +1050,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1068,8 +1060,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1091,25 +1082,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Unit, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P> Kernel<P, Unit> for Univariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Unit>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Unit>,
+    SOpt<P>: Uncomputed<X = Arc<[f64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1126,17 +1116,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<Unit, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1149,7 +1140,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1159,8 +1150,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1182,26 +1172,25 @@ where
     }
 }
 
-impl<G, Scp, S, SolId, SInfo, Out> Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out> for Univariate
+impl<P, G> Kernel<P, GridDom<G>> for Univariate
 where
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Mixed>,
+    SOpt<P>: Uncomputed<X = Arc<[G]>>,
     G: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<G>, SInfo, X = Arc<[Elem<GridDom<G>>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
 {
     type Context = Vec<AitchisonAitkenContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1218,17 +1207,18 @@ where
                     .sum::<f64>()
             })
             .product();
-        let prior = <Univariate as Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + product
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1241,7 +1231,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1251,8 +1241,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1287,25 +1276,24 @@ where
 #[derive(Serialize, Deserialize)]
 pub struct Multivariate;
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Mixed, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> Kernel<P, Mixed> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Mixed> + HasVariables,
-    S: Uncomputed<SolId, Mixed, SInfo, X = Arc<[Elem<Mixed>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Mixed>,
+    SOpt<P>: Uncomputed<X = Arc<[MixedTypeDom]>>,
 {
     type Context = Vec<MixedContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1322,17 +1310,18 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<Mixed, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1345,7 +1334,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1355,8 +1344,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1378,25 +1366,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Real, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> Kernel<P, Real> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Real> + HasVariables,
-    S: Uncomputed<SolId, Real, SInfo, X = Arc<[Elem<Real>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Real>,
+    SOpt<P>: Uncomputed<X = Arc<[f64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1413,17 +1400,18 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<Real, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1436,7 +1424,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1446,8 +1434,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1469,25 +1456,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Int, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> Kernel<P, Int> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Int> + HasVariables,
-    S: Uncomputed<SolId, Int, SInfo, X = Arc<[Elem<Int>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Int>,
+    SOpt<P>: Uncomputed<X = Arc<[i64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1504,17 +1490,18 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<Int, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1527,7 +1514,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1537,100 +1524,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
-        if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
-        }
-
-        archive
-            .iter()
-            .enumerate()
-            .map(|(idx, p)| {
-                p.as_ref().ref_x()
-                    .iter()
-                    .zip(scp.iter_opt())
-                    .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
-                    .collect()
-            })
-            .collect()
-    }
-}
-
-impl<Scp, S, SolId, SInfo, Out> Kernel<Nat, Scp, S, SolId, SInfo, Out> for Multivariate
-where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Nat> + HasVariables,
-    S: Uncomputed<SolId, Nat, SInfo, X = Arc<[Elem<Nat>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
-{
-    type Context = Vec<GaussianContext>;
-
-    fn compute(
-        &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
-        context: &[Self::Context],
-        weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
-        let sum: f64 = archive
-            .iter()
-            .zip(weights.weights.iter())
-            .zip(context.iter())
-            .map(|((comp, weight), ctx)| {
-                s.iter()
-                    .zip(comp.ref_x().iter())
-                    .zip(scp.iter_opt())
-                    .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        GaussianKernel::compute(x1, x2, dctx, dom)
-                    })
-                    .product::<f64>()
-                    * weight
-            })
-            .sum();
-        let prior = <Multivariate as Kernel<Nat, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
-        weights.prior_weight * prior + sum
-    }
-
-    fn sample<R: Rng>(
-        &self,
-        rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
-        context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
-        let dim = scp.size();
-        (0..dim)
-            .map(|d| {
-                let dom = scp.opt_at(d).unwrap();
-                let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
-                let ctx = &context[rng_idx];
-                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
-            })
-            .collect()
-    }
-
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
-        s.iter()
-            .enumerate()
-            .map(|(d, x)| {
-                let dom = scp.opt_at(d).unwrap();
-                GaussianKernel::prior(x, dom)
-            })
-            .product()
-    }
-
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1653,25 +1547,24 @@ where
     }
 }
 
-impl<Scp, S, SolId, SInfo, Out> Kernel<Unit, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> Kernel<P, Nat> for Multivariate
 where
-    Scp: Searchspace<S, SolId, SInfo, Opt = Unit> + HasVariables,
-    S: Uncomputed<SolId, Unit, SInfo, X = Arc<[Elem<Unit>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Nat>,
+    SOpt<P>: Uncomputed<X = Arc<[u64]>>,
 {
     type Context = Vec<GaussianContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1688,17 +1581,18 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<Unit, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1711,7 +1605,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1721,8 +1615,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1745,26 +1638,116 @@ where
     }
 }
 
-impl<G, Scp, S, SolId, SInfo, Out> Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out> for Multivariate
+impl<P> Kernel<P, Unit> for Multivariate
 where
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = Unit>,
+    SOpt<P>: Uncomputed<X = Arc<[f64]>>,
+{
+    type Context = Vec<GaussianContext>;
+
+    fn compute(
+        &self,
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
+        context: &[Self::Context],
+        weights: &PointWeights,
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
+        let sum: f64 = archive
+            .iter()
+            .zip(weights.weights.iter())
+            .zip(context.iter())
+            .map(|((comp, weight), ctx)| {
+                s.iter()
+                    .zip(comp.ref_x().iter())
+                    .zip(scp.iter_opt())
+                    .zip(ctx.iter())
+                    .map(|(((x1, x2), dom), dctx)| {
+                        GaussianKernel::compute(x1, x2, dctx, dom)
+                    })
+                    .product::<f64>()
+                    * weight
+            })
+            .sum();
+        let prior = Self::prior(self, s, scp);
+        weights.prior_weight * prior + sum
+    }
+
+    fn sample<R: Rng>(
+        &self,
+        rng: &mut R,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
+        context: &[Self::Context],
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
+        let dim = scp.size();
+        (0..dim)
+            .map(|d| {
+                let dom = scp.opt_at(d).unwrap();
+                let rng_idx = rng.random_range(0..archive.len());
+                let x = archive[rng_idx].ref_x();
+                let ctx = &context[rng_idx];
+                GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
+            })
+            .collect()
+    }
+
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
+        s.iter()
+            .enumerate()
+            .map(|(d, x)| {
+                let dom = scp.opt_at(d).unwrap();
+                GaussianKernel::prior(x, dom)
+            })
+            .product()
+    }
+
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+        if archive.is_empty() {
+            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+        }
+
+        archive
+            .iter()
+            .enumerate()
+            .map(|(idx, p)| {
+                p.as_ref().ref_x()
+                    .iter()
+                    .zip(scp.iter_opt())
+                    .enumerate()
+                    .map(
+                        |(dim, (x, dom))| 
+                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
+                    )
+                    .collect()
+            })
+            .collect()
+    }
+}
+
+impl<P, G> Kernel<P, GridDom<G>> for Multivariate
+where
+    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    P: Problem,
+    P::Scp: Searchspace<P::Func, Opt = GridDom<G>>,
+    SOpt<P>: Uncomputed<X = Arc<[G]>>,
     G: GridBounds,
-    Scp: Searchspace<S, SolId, SInfo, Opt = GridDom<G>> + HasVariables,
-    S: Uncomputed<SolId, GridDom<G>, SInfo, X = Arc<[Elem<GridDom<G>>]>>,
-    S::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, SInfo>,
-    SolId: Id,
-    SInfo: SolInfo,
-    Out: Outcome,
 {
     type Context = Vec<AitchisonAitkenContext>;
 
     fn compute(
         &self,
-        s: &<S>::X,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        s: &GetRaw<SOpt<P>>,
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
         weights: &PointWeights,
-        scp: &Scp,
-    ) -> f64 {
+        scp: &<P as Problem>::Scp,
+    ) -> f64
+    {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1781,17 +1764,18 @@ where
                     * weight
             })
             .sum();
-        let prior = <Multivariate as Kernel<GridDom<G>, Scp, S, SolId, SInfo, Out>>::prior(self, s, scp);
+        let prior = Self::prior(self, s, scp);
         weights.prior_weight * prior + sum
     }
 
     fn sample<R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<<S>::X, TypeCodom<Out>>],
+        archive: &[&Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>],
         context: &[Self::Context],
-        scp: &Scp,
-    ) -> <S>::X {
+        scp: &<P as Problem>::Scp,
+    ) -> GetRaw<SOpt<P>>
+    {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1804,7 +1788,7 @@ where
             .collect()
     }
 
-    fn prior(&self, s: &S::X, scp: &Scp) -> f64 {
+    fn prior(&self, s: &GetRaw<SOpt<P>>, scp: &<P as Problem>::Scp) -> f64 {
         s.iter()
             .enumerate()
             .map(|(d, x)| {
@@ -1814,8 +1798,7 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<S::X, TypeCodom<Out>>>, Bw: BandwidthType>(archive: &[T], scp: &Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>
-    {
+    fn get_context<T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }

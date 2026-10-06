@@ -75,7 +75,7 @@ pub enum CheckpointerTargets {
     Optimizer,
     Accumulator,
     Stop,
-    Evaluator,
+    Experiment,
     Config,
     FuncFolder,
     WorkerFolder,

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{EvalStep, Fidelity, errors::CommunicatorError};
 
 /// A simple message for a [`Communicator`].
-pub trait Msg : Sized + Send + 'static
+pub trait Msg : Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static
 {
     /// Returns a unique tag for the message type, used for identifying the message in communication protocols. 
     fn get_tag(&self) -> u32;
@@ -162,10 +162,10 @@ impl Communicator for NoCommunicator {
 /// A message that contains a reference to an [`SolId`] and a reference to some content.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "Content: Serialize + for<'a> Deserialize<'a>")]
-pub struct MessageWithTag<Content: Send + 'static>(pub u32, pub Content);
-unsafe impl<Content: Send> Send for MessageWithTag<Content> {}
+pub struct MessageWithTag<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static>(pub u32, pub Content);
+unsafe impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Send for MessageWithTag<Content> {}
 
-impl<Content: Send + 'static> Msg for MessageWithTag<Content>
+impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Msg for MessageWithTag<Content>
 {   
     fn get_tag(&self) -> u32 {
         self.0
@@ -175,15 +175,15 @@ impl<Content: Send + 'static> Msg for MessageWithTag<Content>
 /// A message that contains a reference to an [`SolId`], a reference to some content, an [`EvalStep`], and a [`Fidelity`].
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "Content: Serialize + for<'a> Deserialize<'a>")]
-pub struct MessageWithFid<Content: Send + 'static>(pub MessageWithTag<Content>, pub EvalStep, pub Fidelity);
+pub struct MessageWithFid<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static>(pub MessageWithTag<Content>, pub EvalStep, pub Fidelity);
 
-impl<Content: Send + 'static> MessageWithFid<Content> {
+impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> MessageWithFid<Content> {
     pub fn new(tag: u32, content: Content, step: EvalStep, fidelity: Fidelity) -> Self {
         MessageWithFid(MessageWithTag(tag, content), step, fidelity)
     }
 }
 
-impl <Content: Send + 'static> Msg for MessageWithFid<Content>
+impl <Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Msg for MessageWithFid<Content>
 {   
     fn get_tag(&self) -> u32 {
         self.0.0
