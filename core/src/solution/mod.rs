@@ -96,7 +96,7 @@ use std::{fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()>{}
+pub trait SolInfo: Debug + Serialize + Send + Sync + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()>{}
 
 /// Core trait representing a candidate solution in the optimization process.
 ///
@@ -125,14 +125,12 @@ pub trait SolInfo: Debug + Serialize + for<'a> Deserialize<'a> + Schema<(), Part
 /// - [`BaseSol`] - Standard solution implementation
 /// - [`FidelitySol`] - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
-pub trait Solution: Debug + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
+pub trait Solution: Debug + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
+where
+    Self::X: Send + Sync + Serialize + for<'de> Deserialize<'de>,
 {
     /// The [domain](Domain) defining the variable types and constraints for this solution.
     type Dom: Domain;
-
-    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_sol(&self) -> Self;
 }
 
 /// Trait for solutions that have not yet been evaluated.

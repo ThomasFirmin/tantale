@@ -80,6 +80,16 @@ pub struct Computed<S: Uncomputed, Out: Outcome>
     pub y: Arc<TypeCodom<Out>>,
 }
 
+impl<S: Uncomputed, Out: Outcome> Clone for Computed<S, Out>
+{
+    fn clone(&self) -> Self {
+        Self {
+            sol: self.sol.clone(),
+            y: self.y.clone(),
+        }
+    }
+}
+
 impl<S: Uncomputed, Out: Outcome> HasX for Computed<S, Out>
 {
     type X = S::X;
@@ -206,11 +216,6 @@ impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out>
 impl<S: Uncomputed, Out: Outcome> Solution for Computed<S, Out>
 {
     type Dom = S::Dom;
-
-    fn _clone_sol(&self) -> Self {
-        Self::new(self.sol._clone_sol(), self.y.clone())
-    }
-    
 }
 
 impl<S: Uncomputed, Out: Outcome> PartialEq for Computed<S, Out>

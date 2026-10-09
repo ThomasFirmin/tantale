@@ -11,11 +11,11 @@ use std::fmt::{Debug, Display};
 
 /// A shortcut for the bounds of the generic type `<T>` in [`GridDom`]`<T>`
 pub trait GridBounds:
-    PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
+    Send + Sync + PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
 {
 }
 impl<T> GridBounds for T where
-    T: PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
+    T: Send + Sync + PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
 {
 }
 

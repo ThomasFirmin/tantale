@@ -12,7 +12,7 @@ impl State for Calls {}
 impl HasState for Calls {
     type State = Self;
 
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
 

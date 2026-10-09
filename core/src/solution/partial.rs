@@ -71,6 +71,21 @@ pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo>
     pub info: Arc<Info>,
 }
 
+impl<Id, Dom, Info> Clone for BaseSol<Id, Dom, Info>
+where
+    Id: SolId,
+    Dom: Domain,
+    Info: SolInfo,
+{
+    fn clone(&self) -> Self {
+        BaseSol {
+            id: self.id,
+            x: self.x.clone(),
+            info: self.info.clone(),
+        }
+    }
+}
+
 impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info>
 {
     type X = Arc<[Dom::Element]>;
@@ -114,16 +129,6 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info>
 impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info>
 {
     type Dom = Dom;
-
-    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_sol(&self) -> Self {
-        BaseSol {
-            id: self.id,
-            x: self.x.clone(),
-            info: self.info.clone(),
-        }
-    }
 }
 
 impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info>
@@ -209,6 +214,19 @@ pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo>
     pub info: Arc<Info>,
     pub step: EvalStep, // A `isize` [`EvalStep`] for serde and mpi communication issues.
     pub fid: Fidelity,
+}
+
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Clone for FidelitySol<Id, Dom, Info>
+{
+    fn clone(&self) -> Self {
+        FidelitySol {
+            id: self.id,
+            x: self.x.clone(),
+            info: self.info.clone(),
+            step: self.step,
+            fid: self.fid,
+        }
+    }
 }
 
 impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info>
@@ -322,18 +340,6 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, In
 impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info>
 {
     type Dom =  Dom;
-
-    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_sol(&self) -> Self {
-        FidelitySol {
-            id: self.id,
-            x: self.x.clone(),
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
-    }
 }
 
 impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info>

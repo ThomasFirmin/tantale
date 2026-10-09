@@ -6,7 +6,7 @@ use crate::{
 use chrono::Utc;
 use rmp_serde;
 use std::{
-    fs::{self, File, create_dir_all, rename}, path::{Path, PathBuf}, sync::Arc,
+    fs::{self, File, create_dir_all, rename}, path::{Path, PathBuf},
 };
 
 /// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
@@ -21,7 +21,7 @@ use std::{
 ///   * `state_config.mp`  --  Various global parameters, see [`GlobalParameters`])
 pub struct MessagePack {
     /// Describes the folder hierarchy.
-    pub config: Arc<FolderConfig>,
+    pub config: FolderConfig,
     path_stop: PathBuf,
     path_exp: PathBuf,
     path_optim: PathBuf,
@@ -33,7 +33,7 @@ pub struct MessagePack {
 
 impl MessagePack {
     /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
-    pub fn new(config: Arc<FolderConfig>) -> Option<Self> {
+    pub fn new(config: FolderConfig) -> Option<Self> {
         let path_stop = config.path_check.join(Path::new("state_stop.mp"));
         let path_exp = config.path_check.join(Path::new("state_exp.mp"));
         let path_optim = config.path_check.join(Path::new("state_optim.mp"));

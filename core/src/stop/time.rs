@@ -14,7 +14,7 @@ impl State for Time {}
 impl HasState for Time {
     type State = Self;
     
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
     

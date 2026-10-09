@@ -1,12 +1,13 @@
 use paste::paste;
 
 use tantale::core::{
-    BaseSol, EmptyInfo, FidelitySol, HasStep, HasX, SId, Searchspace, Sp, Step, StepSId,
+    EmptyInfo, HasStep, HasX, Searchspace, Sp, Step,
     solution::shape::SolutionShape,
 };
 
 use super::init_sp::*;
 use super::init_sp_grid::*;
+use super::init_sp::{one_step_func, multi_step_func};
 
 macro_rules! get_test {
     ($($name : ident),+) => {
@@ -17,23 +18,23 @@ macro_rules! get_test {
                 let sp = $name::get_searchspace();
                 let sp_size = $name::SP_SIZE;
                 assert_eq!(sp.var.len(),sp_size,"Length of Variables is different from size of searchspace.");
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
+                let sinfo = std::sync::Arc::new(EmptyInfo);
 
                 let mut rng = rand::rng();
 
-                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
+                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 assert_eq!(sample_obj.ref_x().len(),sp_size,"Length of Obj solution is different from size of searchspace.");
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::contains_obj(&sp, &sample_obj));
-                let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_opt(&sp, sample_obj);
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, sample_obj.ref_x()));
+                let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::onto_opt(&sp, sample_obj);
                 assert_eq!(converted_opt.get_sopt().x.len(),sp_size,"Length of converted Opt solution is different from size of searchspace.");
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::contains_opt(&sp, converted_opt.get_sopt()));
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, converted_opt.get_sopt().ref_x()));
 
-                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_opt(&sp, &mut rng,sinfo.clone());
+                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::sample_opt(&sp, &mut rng,sinfo.clone());
                 assert_eq!(sample_opt.ref_x().len(),sp_size,"Length of Opt solution is different from size of searchspace.");
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::contains_opt(&sp, &sample_opt));
-                let converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_obj(&sp, sample_opt);
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, sample_opt.ref_x()));
+                let converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::onto_obj(&sp, sample_opt);
                 assert_eq!(converted_obj.get_sobj().x.len(),sp_size,"Length of converted Obj solution is different from size of searchspace.");
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::contains_obj(&sp, converted_obj.get_sobj()));
+                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, converted_obj.get_sobj().ref_x()));
             }
             #[test]
             fn [<$name _vec>]() {
@@ -42,17 +43,17 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_contains_obj(&sp, &vec_sample_obj));
-                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj);
+                let vec_sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
+                assert!(vec_sample_obj.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, v.ref_x())));
+                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::vec_onto_opt(&sp, vec_sample_obj);
                 let csopt: Vec<_> = vec_converted_opt.into_iter().map(|p| p.extract_sopt()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_contains_opt(&sp, &csopt));
+                assert!(csopt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
 
-                let vec_sample_opt: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_contains_opt(&sp, &vec_sample_opt));
-                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt);
+                let vec_sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
+                assert!(vec_sample_opt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
+                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::vec_onto_obj(&sp, vec_sample_opt);
                 let csobj: Vec<_> = vec_converted_obj.into_iter().map(|p| p.extract_sobj()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_contains_obj(&sp, &csobj));
+                assert!(csobj.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, v.ref_x())));
             }
             #[test]
             fn [<$name _apply_vec>]() {
@@ -61,20 +62,20 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<FidelitySol<StepSId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_obj(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_contains_obj(&sp, &vec_sample_obj));
+                let vec_sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_apply_obj(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
+                assert!(vec_sample_obj.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, v.ref_x())));
                 assert!(&vec_sample_obj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
-                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_onto_opt(&sp, vec_sample_obj);
+                let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_onto_opt(&sp, vec_sample_obj);
                 let csopt: Vec<_> = vec_converted_opt.into_iter().map(|p| p.extract_sopt()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_contains_opt(&sp, &csopt));
+                assert!(csopt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
                 assert!(&csopt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
 
-                let vec_sample_opt: Vec<FidelitySol<StepSId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_apply_opt(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_contains_opt(&sp, &vec_sample_opt));
+                let vec_sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_apply_opt(&sp,|mut pair| {pair.discard(); pair},&mut rng,3,sinfo.clone());
+                assert!(vec_sample_opt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
                 assert!(&vec_sample_opt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
-                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_onto_obj(&sp, vec_sample_opt);
+                let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_onto_obj(&sp, vec_sample_opt);
                 let csobj: Vec<_> = vec_converted_obj.into_iter().map(|p| p.extract_sobj()).collect();
-                assert!(<Sp<$name::ObjType,$name::OptType> as Searchspace<FidelitySol<StepSId,_,EmptyInfo>, StepSId, EmptyInfo>>::vec_contains_obj(&sp, &csobj));
+                assert!(csobj.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, v.ref_x())));
                 assert!(&csobj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
             }
 

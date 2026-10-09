@@ -1,7 +1,7 @@
 use paste::paste;
 use tantale::core::recorder::csv::CSVWritable;
 use tantale::core::solution::{
-    Id,
+    SolId,
     id::{ParSId, SId},
 };
 

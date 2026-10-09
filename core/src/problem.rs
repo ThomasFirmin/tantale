@@ -1,12 +1,28 @@
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
+use serde::{Deserialize, Serialize};
 
-use crate::{BaseSol, Domain, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, HasVariables, Linked, MultiStep, 
-    OneStep, Outcome, SId, Searchspace, SolId, SolInfo, SolutionShape, StepId, StepSId, 
-    aliases::{LinkObj, LinkOpt}, solution::shape::IntoComputedShape};
+use crate::{BaseSol, FidelitySol, FuncWrapper, HasVariables, HasX, Linked, MultiStep, OneStep, Outcome, SId, Searchspace, SolId, SolInfo, SolutionShape, StepSId, aliases::{LinkObj, LinkOpt}, solution::shape::IntoComputedShape};
 
-pub trait Problem {
+pub trait PbMode: Serialize + for<'de> Deserialize<'de> {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SimpleMode;
+impl PbMode for SimpleMode {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FidelityMode;
+impl PbMode for FidelityMode {}
+
+pub trait Problem
+where
+    <Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Opt>: HasX<X = Self::XOpt>,
+    <Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Obj>: HasX<X = Self::XObj>,
+{
     type Id: SolId;
     type Info: SolInfo;
+
+    type XObj: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
+    type XOpt: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
 
     type Scp: Searchspace<
         Self::Func,
@@ -15,6 +31,8 @@ pub trait Problem {
 
     type Func: FuncWrapper<
         Dom = <Self::Scp as Linked>::Obj,
+        Id = Self::Id,
+        Info = Self::Info,
     >;
 
     type Shape: SolutionShape<
@@ -38,47 +56,12 @@ pub trait Problem {
     fn get_mut_codomain(&mut self) -> &mut <<Self::Func as FuncWrapper>::Out as Outcome>::Cod;
 }
 
-pub trait SimpleProblem<Opt: Domain>: Problem 
-where
-    Self::Scp: Searchspace<Self::Func,Shape = Self::Shape,Opt = Opt>
-{ }
-
-impl<Opt, T, Id, Scp, Info, Out> SimpleProblem<Opt> for T
-where
-    Opt: Domain,
-    Id: SolId,
-    Scp: Searchspace<OneStep<BaseSol<Id, LinkObj<Scp>, Info>, Out>, Opt = Opt>,
-    Info: SolInfo,
-    Out: Outcome,
-    T: Problem<Id = Id, Scp = Scp, Info = Info, Func = OneStep<BaseSol<Id, LinkObj<Scp>, Info>, Out>>,
-    T::Scp: Searchspace<T::Func, Shape = T::Shape, Opt = Opt>,
-{}
-
-pub trait FidelityProblem<Opt: Domain>: Problem 
-where
-    Self::Scp: Searchspace<Self::Func,Shape = Self::Shape,Opt = Opt>
-{ }
-
-impl<Opt, T, Id, Scp, Info, Out, FnState> FidelityProblem<Opt> for T
-where
-    Opt: Domain,
-    Id: StepId,
-    Scp: Searchspace<MultiStep<FidelitySol<Id, LinkObj<Scp>, Info>, Out, FnState>, Opt = Opt>,
-    Info: SolInfo,
-    Out: FidOutcome,
-    FnState: FuncState,
-    T: Problem<Id = Id, Scp = Scp, Info = Info, Func = MultiStep<FidelitySol<Id, LinkObj<Scp>, Info>, Out, FnState>>,
-    T::Scp: Searchspace<T::Func, Shape = T::Shape, Opt = Opt>,
-    T::Shape: HasFidelity + HasStep,
-{ }
-
-
 pub struct Pb<Id, Info, Scp, Func>
 where
     Id: SolId,
     Info: SolInfo,
     Scp: Searchspace<Func>,
-    Func: FuncWrapper<Dom = LinkObj<Scp>>
+    Func: FuncWrapper<Dom = LinkObj<Scp>, Id = Id, Info = Info>,
 {
     searchspace: Scp,
     objective: Func,
@@ -91,7 +74,7 @@ where
     Id: SolId,
     Info: SolInfo,
     Scp: Searchspace<Func>,
-    Func: FuncWrapper<Dom = LinkObj<Scp>>,
+    Func: FuncWrapper<Dom = LinkObj<Scp>, Id = Id, Info = Info>,
 {
     pub fn new(searchspace: Scp, objective: Func) -> Self {
         Self {
@@ -116,11 +99,14 @@ where
         Obj = LinkObj<Scp>,
         Opt = LinkOpt<Scp>,
     > + IntoComputedShape,
-    Func: FuncWrapper<Dom = LinkObj<Scp>>,
+    Func: FuncWrapper<Dom = LinkObj<Scp>, Id = Id, Info = Info>,
 {
     type Id = Id;
 
     type Info = Info;
+
+    type XObj = <<Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Obj> as HasX>::X;
+    type XOpt = <<Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Opt> as HasX>::X;
 
     type Scp = Scp;
 
@@ -153,5 +139,7 @@ where
     }
 }
 
-pub type SimplePb<Info, Scp, Out> = Pb<SId, Info, Scp, OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>>;
-pub type FidPb<Info, Scp, Out, FnState> = Pb<StepSId, Info, Scp, MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>>;
+pub type SimplePb<Info, Scp, Out> = Pb<SId, Info, Scp, SimpleFn<Info, LinkObj<Scp>, Out>>;
+pub type SimpleFn<Info, Obj, Out> = OneStep<BaseSol<SId, Obj, Info>, Out>;
+pub type FidPb<Info, Scp, Out, FnState> = Pb<StepSId, Info, Scp, FidFn<Info, LinkObj<Scp>, Out, FnState>>;
+pub type FidFn<Info, Obj, Out, FnState> = MultiStep<FidelitySol<StepSId, Obj, Info>, Out, FnState>;

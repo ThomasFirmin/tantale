@@ -41,17 +41,17 @@ pub trait Sampler<P: Problem<Info = Self::Info>, Dom: Domain>: HasState
     }
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate.
-    fn update(&mut self,x: CompShape<P>,scp: &P::Scp,acc: &Accum<P>);
+    fn update(&mut self,x: &CompShape<P>,scp: &P::Scp,acc: &Accum<P>);
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate and sample a new candidate.
-    fn update_and_sample(&mut self, x: CompShape<P>, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>> {
+    fn update_and_sample(&mut self, x: &CompShape<P>, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>> {
         self.update(x, scp, acc);
         self.sample(scp, acc)
     }
 
     /// Update the internal state of the [`Sampler`] with a new [`Computed`](crate::Computed) candidate and sample a new candidate, 
     /// applying a function to the result.
-    fn update_and_sample_apply<F>(&mut self, x: CompShape<P>, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
+    fn update_and_sample_apply<F>(&mut self, x: &CompShape<P>, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
     where
         F: Fn(Option<Shape<P>>) -> Option<Shape<P>> + Send + Sync
     {
@@ -60,7 +60,7 @@ pub trait Sampler<P: Problem<Info = Self::Info>, Dom: Domain>: HasState
     }
 }
 
-pub trait Batched<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>>
+pub trait Batched<P: Problem<Info = Self::Info>, Dom: Domain>: Sampler<P, Dom>
 {
     /// Returns the current batch size used by the optimizer for sampling candidates.
     fn batch_size(&self) -> usize;
@@ -113,7 +113,7 @@ pub trait MultiInstanceSampler<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>
 }
 
 /// Multi-fidelity marker trait for optimizers.
-pub trait Pruner<P: Problem<Info = Self::Info>>: Sampler<P, Opt<P>>
+pub trait Pruner<P: Problem<Info = Self::Info>, Opt: Domain>: Sampler<P, Opt>
 where
     P::Shape: HasFidelity + HasStep,
 {

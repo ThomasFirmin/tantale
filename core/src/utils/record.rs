@@ -1,13 +1,15 @@
+#[cfg(feature = "spikes")]
+use crate::{ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostCodomain, ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain, SpikeCodomain, SpikeConstCodomain, SpikeConstMultiCodomain, SpikeCostCodomain, SpikeCostConstCodomain, SpikeCostConstMultiCodomain, SpikeCostMultiCodomain, SpikeMultiCodomain};
 use crate::{
-    BaseSol, Computed, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Domain, ElemConstCodomain, 
-    ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, 
-    ElemSingleCodomain, FidelitySol, SolId, MultiCodomain, Outcome, SingleCodomain, SolInfo, StepId, Uncomputed, Var,
-    aliases::TypeCodom, domain::PreDomain, variable::var::ToName,
+    BaseSol, Computed, ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain, 
+    CostMultiCodomain, Domain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain, 
+    ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain, FidelitySol,
+    MultiCodomain, Outcome, SingleCodomain, SolId, SolInfo, StepId, Uncomputed, aliases::TypeCodom, variable::var::ToName,
 };
 
 
 pub trait Schema<C> {
-    type Parts;
+    type Parts: Clone;
     fn columns(context: &C, part: Self::Parts) -> Vec<String>;
 }
 
@@ -26,7 +28,6 @@ impl<Out:Outcome> Schema<SingleCodomain<Out>> for ElemSingleCodomain{
 
 impl<Out:Outcome> Recordable<SingleCodomain<Out>> for ElemSingleCodomain {
     type Parts = ();
-
     fn record(&self, _context: &SingleCodomain<Out>, _part: Self::Parts) -> Vec<String> {
         vec![self.value.to_string()]
     }
@@ -208,6 +209,218 @@ impl<Out: Outcome> Recordable<CostConstMultiCodomain<Out>> for ElemCostConstMult
     }
 }
 
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeCodomain<Out>> for ElemSpikeCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        vec![self.value.to_string(), self.samples.to_string(), self.spiking.to_string()]
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeCodomain<Out>> for ElemSpikeCodomain{
+    type Parts = ();
+    fn columns(_context: &SpikeCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        vec![String::from("y"), String::from("samples"), String::from("spike")]
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeCostCodomain<Out>> for ElemSpikeCostCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeCostCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        vec![self.value.to_string(), self.cost.to_string(), self.samples.to_string(), self.spiking.to_string()]
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeCostCodomain<Out>> for ElemSpikeCostCodomain{
+    type Parts = ();
+    fn columns(_context: &SpikeCostCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        vec![String::from("y"), String::from("cost"), String::from("samples"), String::from("spike")]
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeConstCodomain<Out>> for ElemSpikeConstCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v = Vec::from([self.value.to_string(), self.samples.to_string(), self.spiking.to_string()]);
+        let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
+        v.extend(c);
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeConstCodomain<Out>> for ElemSpikeConstCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v = Vec::from([String::from("y"), String::from("samples"), String::from("spike")]);
+        let c: Vec<String> = context
+            .c_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeCostConstCodomain<Out>> for ElemSpikeCostConstCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeCostConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v = Vec::from([self.value.to_string(), self.cost.to_string(), self.samples.to_string(), self.spiking.to_string()]);
+        let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
+        v.extend(c);
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeCostConstCodomain<Out>> for ElemSpikeCostConstCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeCostConstCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v = Vec::from([String::from("y"), String::from("cost"), String::from("samples"), String::from("spike")]);
+        let c: Vec<String> = context
+            .c_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeMultiCodomain<Out>> for ElemSpikeMultiCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
+        v.push(self.samples.to_string());
+        v.push(self.spiking.to_string());
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeMultiCodomain<Out>> for ElemSpikeMultiCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = context
+            .y_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.push(String::from("samples"));
+        v.push(String::from("spike"));
+        v
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeCostMultiCodomain<Out>> for ElemSpikeCostMultiCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeCostMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
+        v.push(self.cost.to_string());
+        v.push(self.samples.to_string());
+        v.push(self.spiking.to_string());
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeCostMultiCodomain<Out>> for ElemSpikeCostMultiCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeCostMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = context
+            .y_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.push(String::from("cost"));
+        v.push(String::from("samples"));
+        v.push(String::from("spike"));
+        v
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeConstMultiCodomain<Out>> for ElemSpikeConstMultiCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
+        v.push(self.samples.to_string());
+        v.push(self.spiking.to_string());
+        let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
+        v.extend(c);
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeConstMultiCodomain<Out>> for ElemSpikeConstMultiCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = context
+            .y_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.push(String::from("samples"));
+        v.push(String::from("spike"));
+        let c: Vec<String> = context
+            .c_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+}
+
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Recordable<SpikeCostConstMultiCodomain<Out>> for ElemSpikeCostConstMultiCodomain{
+    type Parts = ();
+    fn record(&self, _context: &SpikeCostConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = self.value.iter().map(|val| val.to_string()).collect();
+        v.push(self.cost.to_string());
+        v.push(self.samples.to_string());
+        v.push(self.spiking.to_string());
+        let c: Vec<String> = self.constraints.iter().map(|cst| cst.to_string()).collect();
+        v.extend(c);
+        v
+    }
+}
+#[cfg(feature = "spikes")]
+impl<Out:Outcome> Schema<SpikeCostConstMultiCodomain<Out>> for ElemSpikeCostConstMultiCodomain{
+    type Parts = ();
+    fn columns(context: &SpikeCostConstMultiCodomain<Out>, _part: Self::Parts) -> Vec<String> {
+        let mut v: Vec<String> = context
+            .y_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("y{}", idx))
+            .collect();
+        v.push(String::from("cost"));
+        v.push(String::from("samples"));
+        v.push(String::from("spike"));
+        let c: Vec<String> = context
+            .c_criteria
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| format!("c{}", idx))
+            .collect();
+        v.extend(c);
+        v
+    }
+}
+
+
+
+
 /// Parts of a solution that can be recorded separately.
 /// When used with [`Recordable`] or [`Schema`] types, the [`Id`] is always included.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -222,10 +435,9 @@ pub enum SolParts {
     NoId(Box<Self>),
 }
 
-fn no_id_columns<Info, Obj, Opt>(context: &[Var<Obj, Opt>],part: &SolParts) -> Vec<String> 
-where 
-    Obj: Domain,
-    Opt: PreDomain,
+fn no_id_columns<Info, T>(context: &[T],part: &SolParts) -> Vec<String>
+where
+    T: ToName,
     Info: SolInfo + Schema<(), Parts = ()>,
 {
     match part {
@@ -236,14 +448,13 @@ where
             part.extend(Info::columns(&(), ()));
             part
         },
-        SolParts::NoId(inner) => no_id_columns::<Info, Obj, Opt>(context, inner),
+        SolParts::NoId(inner) => no_id_columns::<Info, T>(context, inner),
     }
 }
 
-fn fid_no_id_columns<Info, Obj, Opt>(context: &[Var<Obj, Opt>],part: &SolParts) -> Vec<String> 
-where 
-    Obj: Domain,
-    Opt: PreDomain,
+fn fid_no_id_columns<Info, T>(context: &[T], part: &SolParts) -> Vec<String> 
+where
+    T: ToName,
     Info: SolInfo + Schema<(), Parts = ()>,
 {
     match part {
@@ -262,22 +473,22 @@ where
             part.extend(info);
             part
         },
-        SolParts::NoId(inner) => fid_no_id_columns::<Info, Obj, Opt>(context, inner),
+        SolParts::NoId(inner) => fid_no_id_columns::<Info, T>(context, inner),
     }
 }
 
-impl<Id, Info, Dom, Other> Schema<&[Var<Dom, Other>]> for BaseSol<Id, Dom,Info> 
-where 
+impl<Id, Info, T, Dom> Schema<&[T]> for BaseSol<Id, Dom,Info> 
+where
     Dom: Domain,
-    Other: PreDomain,
+    T: ToName,
     Id: SolId + Schema<(), Parts = ()>,
     Info: SolInfo + Schema<(), Parts = ()>,
 {
     type Parts = SolParts;
-    fn columns(context: &&[Var<Dom, Other>], part: Self::Parts) -> Vec<String> {
+    fn columns(context: &&[T], part: Self::Parts) -> Vec<String> {
         let sol_part = match part {
-            SolParts::NoId(sol_parts) => return no_id_columns::<Info, Dom,Other>(context, &sol_parts),
-            _ => no_id_columns::<Info, Dom,Other>(context, &part),
+            SolParts::NoId(sol_parts) => return no_id_columns::<Info, T>(context, &sol_parts),
+            _ => no_id_columns::<Info, T>(context, &part),
         };
 
         let mut id = Id::columns(&(), ());
@@ -286,18 +497,18 @@ where
     }
 }
 
-impl<Id, Info, Dom, Other> Schema<&[Var<Dom, Other>]> for FidelitySol<Id, Dom,Info> 
-where 
+impl<Id, Info, T, Dom> Schema<&[T]> for FidelitySol<Id, Dom,Info> 
+where
     Dom: Domain,
-    Other: PreDomain,
+    T: ToName,
     Id: StepId + Schema<(), Parts = ()>,
     Info: SolInfo + Schema<(), Parts = ()>,
 {
     type Parts = SolParts;
-    fn columns(context: &&[Var<Dom, Other>], part: Self::Parts) -> Vec<String> {
+    fn columns(context: &&[T], part: Self::Parts) -> Vec<String> {
         let sol_part = match part {
-            SolParts::NoId(sol_parts) => return fid_no_id_columns::<Info, Dom,Other>(context, &sol_parts),
-            _ => fid_no_id_columns::<Info, Dom,Other>(context, &part),
+            SolParts::NoId(sol_parts) => return fid_no_id_columns::<Info, T>(context, &sol_parts),
+            _ => fid_no_id_columns::<Info, T>(context, &part),
         };
 
         let mut id = Id::columns(&(), ());
@@ -415,18 +626,14 @@ pub enum CompParts {
     NoId(Box<Self>),
 }
 
-impl<'a, S, Out, Dom, Other> Schema<(&'a [Var<Dom, Other>], &'a Out::Cod)> for Computed<S, Out>
+impl<'a, S, Out, T, Dom> Schema<(&'a [T], &'a Out::Cod)> for Computed<S, Out>
 where 
-    S: Uncomputed<Dom = Dom> + Schema<&'a [Var<Dom, Other>], Parts = SolParts>,
+    S: Uncomputed<Dom = Dom> + Schema<&'a [T], Parts = SolParts>,
     Out: Outcome,
     Dom: Domain,
-    Other: PreDomain,
-    S::Id : SolId + Schema<(), Parts = ()>,
-    S::Info : SolInfo + Schema<(), Parts = ()>,
-    TypeCodom<Out>: Schema<Out::Cod, Parts = ()>,
 {
     type Parts = CompParts;
-    fn columns(context: &(&'a [Var<Dom, Other>], &'a Out::Cod), part: Self::Parts) -> Vec<String> {
+    fn columns(context: &(&'a [T], &'a Out::Cod), part: Self::Parts) -> Vec<String> {
         let sol_part = match part {
             CompParts::Sol(sol_parts) => S::columns(&context.0, SolParts::NoId(sol_parts.into())),
             CompParts::Y => TypeCodom::<Out>::columns(context.1, ()),
@@ -456,38 +663,35 @@ where
     }
 }
 
-impl<S, Out, Dom> Recordable<()> for Computed<S, Out>
+impl<S, Out, Dom> Recordable<Out::Cod> for Computed<S, Out>
 where 
     S: Uncomputed<Dom = Dom> + Recordable<(), Parts = SolParts>,
     Out: Outcome,
     Dom: Domain,
-    S::Id : SolId + Recordable<(), Parts = ()>,
-    S::Info : SolInfo + Recordable<(), Parts = ()>,
-    TypeCodom<Out>: Recordable<(), Parts = ()>,
 {
     type Parts = CompParts;
 
-    fn record(&self, _context: &(), part: Self::Parts) -> Vec<String> {
+    fn record(&self, context: &Out::Cod, part: Self::Parts) -> Vec<String> {
         let sol_part =match part {
             CompParts::Sol(sol_parts) => self.sol.record(&(), SolParts::NoId(sol_parts.into())),
-            CompParts::Y => self.y.record(&(), ()),
+            CompParts::Y => self.y.record(context, ()),
             CompParts::All => {
                 let mut sol_rec = self.sol.record(&(), SolParts::NoId(SolParts::All.into()));
-                let y_rec = self.y.record(&(), ());
+                let y_rec = self.y.record(context, ());
                 sol_rec.extend(y_rec);
                 sol_rec
             },
             CompParts::NoId(comp_parts) => {
                 return match *comp_parts {
                     CompParts::Sol(sol_parts) => self.sol.record(&(), SolParts::NoId(sol_parts.into())),
-                    CompParts::Y => self.y.record(&(), ()),
+                    CompParts::Y => self.y.record(context, ()),
                     CompParts::All => {
                         let mut sol_rec = self.sol.record(&(), SolParts::NoId(SolParts::All.into()));
-                        let y_rec = self.y.record(&(), ());
+                        let y_rec = self.y.record(context, ());
                         sol_rec.extend(y_rec);
                         sol_rec
                     },
-                    CompParts::NoId(in_part) => self.record(&(), CompParts::NoId(in_part)),
+                    CompParts::NoId(in_part) => self.record(context, CompParts::NoId(in_part)),
                 }
             }
         };

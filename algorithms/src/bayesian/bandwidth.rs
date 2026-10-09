@@ -1,10 +1,9 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasVariables, Int, Mixed, MixedTypeDom, Nat, Outcome, Problem, Real, 
-    Searchspace, SolId, SolInfo, Uncomputed, Unit, XToNdArray, Xy, 
-    aliases::{GetRaw, Out, SOpt, TypeCodom}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}
+    Bool, Domain, GridDom, HasVariables, Int, Linked, Mixed, MixedTypeDom, Nat, 
+    Problem, Real, Unit, XToNdArray, Xy, aliases::{CodElem, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}
 };
 
-use std::{mem::MaybeUninit, sync::Arc};
+use std::{fmt::Debug, mem::MaybeUninit, sync::Arc};
 use num::{FromPrimitive, Num, cast::AsPrimitive};
 use ndarray::{Array2, Axis, s};
 use serde::{Deserialize, Serialize};
@@ -25,15 +24,14 @@ pub trait BandwidthType {
 /// - [`CategoricalBw`] for the categorical bandwidth method.
 pub trait Bandwidth<P, Dom>
 where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    Self: Send + Sync + Clone + Sized + Serialize + for<'a> Deserialize<'a>,
     P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Dom>,
+    P::Scp: Linked<Opt = Dom>,
     Dom: Domain,
 {
     type BwType: BandwidthType;
-    fn compute<T>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>;
+
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>;
 }
 
 /// A struct representing the Optuna bandwidth method for Gaussian kernels.
@@ -106,13 +104,12 @@ impl BandwidthType for Vec<f64> {
 impl<P> Bandwidth<P, Real> for Optuna
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Real> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Real> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -131,13 +128,12 @@ where
 impl<P> Bandwidth<P, Int> for Optuna
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Int> + HasVariables,
+    P: Problem<XOpt=Arc<[i64]>>,
+    P::Scp: Linked<Opt = Int> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -154,13 +150,12 @@ where
 impl<P> Bandwidth<P, Nat> for Optuna
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Nat> + HasVariables,
+    P: Problem<XOpt=Arc<[u64]>>,
+    P::Scp: Linked<Opt = Nat> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -179,13 +174,12 @@ where
 impl<P> Bandwidth<P, Unit> for Optuna
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Unit> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Unit> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -204,13 +198,13 @@ where
 impl<P> Bandwidth<P, Mixed> for Optuna
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Mixed> + HasVariables,
+    P: Problem<XOpt=Arc<[MixedTypeDom]>>,
+    P::Scp: Linked<Opt = Mixed> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -245,7 +239,8 @@ where
     I: Iterator<Item = &'a D>,
     D: NumericalDomain + 'a,
     D::Element: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
-    Raw: XToNdArray<D>,
+    Raw: XToNdArray<D> + Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
+    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
 {
     let n_size = archive.len();
     let arr = archive.x_array();
@@ -327,10 +322,11 @@ where
     }
 }
 
-fn hyperopt_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, consider_endpoint: bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
+fn hyperopt_mixed<'a, T, Y, I>(archive: &[T], doms: I, consider_endpoint: bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
 where
-    T : AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
-    DomIter: IntoIterator<Item = &'a Mixed>,
+    T: AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
+    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
+    I: Iterator<Item = &'a Mixed>,
 {
     let n = archive.len();
     let mut res = Array2::uninit((n, dim));
@@ -347,7 +343,7 @@ where
                 let col: Vec<f64> = archive
                 .iter()
                 .map(|x| {
-                    match x.as_ref().x[colindex] 
+                    match x.as_ref().x[colindex]
                     {
                         MixedTypeDom::Real(e) => Ok(e),
                         _ => Err(BandwidthError::DomainTypeError("Expected Real type in the archive for the given column index.")),
@@ -470,13 +466,12 @@ impl BandwidthType for Array2<f64> {
 impl<P> Bandwidth<P, Real> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Real> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Real> + HasVariables,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -485,13 +480,12 @@ where
 impl<P> Bandwidth<P, Int> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Int> + HasVariables,
+    P: Problem<XOpt=Arc<[i64]>>,
+    P::Scp: Linked<Opt = Int> + HasVariables,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -500,13 +494,12 @@ where
 impl<P> Bandwidth<P, Nat> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Nat> + HasVariables,
+    P: Problem<XOpt=Arc<[u64]>>,
+    P::Scp: Linked<Opt = Nat> + HasVariables,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -515,13 +508,12 @@ where
 impl<P> Bandwidth<P, Unit> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Unit> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Unit> + HasVariables,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -530,13 +522,12 @@ where
 impl<P> Bandwidth<P, Mixed> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Mixed> + HasVariables,
+    P: Problem<XOpt=Arc<[MixedTypeDom]>>,
+    P::Scp: Linked<Opt = Mixed> + HasVariables,
 {
     type BwType = Array2<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt_mixed(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -554,14 +545,13 @@ pub struct CategoricalBw;
 impl<P, G> Bandwidth<P, GridDom<G>> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = GridDom<G>> + HasVariables,
+    P: Problem<XOpt=Arc<[G]>>,
+    P::Scp: Linked<Opt = GridDom<G>> + HasVariables,
     G: GridBounds,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scp.iter_opt().map(
             |dom| cat_bw(archive.len().as_(), dom)
@@ -573,13 +563,12 @@ where
 impl<P> Bandwidth<P, Bool> for Hyperopt
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Bool> + HasVariables,
+    P: Problem<XOpt=Arc<[bool]>>,
+    P::Scp: Linked<Opt = Bool> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         let n: f64 = archive.len().as_();
         Ok(vec![(n +1.) / (n + 2.) ; scp.size()])
@@ -591,8 +580,9 @@ where
     T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
     D: NumericalDomain + 'a,
     D::Element: Num + AsPrimitive<f64>,
-    Raw: XToNdArray<D>,
     I: Iterator<Item = &'a D>,
+    Raw: XToNdArray<D> + Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
+    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
 {
     if archive.is_empty() {
         return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -661,6 +651,7 @@ where
 fn scott_mixed<'a, T, Y, DomIter>(archive: &[T], doms: DomIter, dim: usize, clip: bool) -> Result<Vec<f64>, BandwidthError>
 where
     T: AsRef<Xy<Arc<[MixedTypeDom]>, Y>>,
+    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
     DomIter: IntoIterator<Item = &'a Mixed>,
 {
     let n = archive.len();
@@ -775,13 +766,12 @@ impl Scott {
 impl<P> Bandwidth<P, Real> for Scott
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Real> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Real> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -790,13 +780,12 @@ where
 impl<P> Bandwidth<P, Int> for Scott
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Int> + HasVariables,
+    P: Problem<XOpt=Arc<[i64]>>,
+    P::Scp: Linked<Opt = Int> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -805,13 +794,12 @@ where
 impl<P> Bandwidth<P, Nat> for Scott
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Nat> + HasVariables,
+    P: Problem<XOpt=Arc<[u64]>>,
+    P::Scp: Linked<Opt = Nat> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -820,13 +808,12 @@ where
 impl<P> Bandwidth<P, Unit> for Scott
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Unit> + HasVariables,
+    P: Problem<XOpt=Arc<[f64]>>,
+    P::Scp: Linked<Opt = Unit> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott(archive, scp.iter_opt(), self.0)
     }
@@ -835,13 +822,12 @@ where
 impl<P> Bandwidth<P, Mixed> for Scott
 where
     Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Mixed> + HasVariables,
+    P: Problem<XOpt=Arc<[MixedTypeDom]>>,
+    P::Scp: Linked<Opt = Mixed> + HasVariables,
 {
     type BwType = Vec<f64>;
-    fn compute<T>(&mut self, archive: &[T], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
-    where
-        T: AsRef<Xy<GetRaw<SOpt<P>>, TypeCodom<Out<P>>>> + XToNdArray<SOpt<P>>
+    
+    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott_mixed(archive, scp.iter_opt(), scp.size(), self.0)
     }

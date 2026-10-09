@@ -50,9 +50,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-#[cfg(feature = "mpi")]
-use crate::experiment::parallel::mpi::MPICommunicator;
-
 /// Base trait for configuration objects used by recorders and checkpointers.
 ///
 /// Implementations of this trait provide an initialization method that returns
@@ -89,13 +86,12 @@ pub trait SaverConfig<C> {
 ///   * state_stop.mp      ([`Stop`](crate::Stop))
 ///   * state_eval.mp     ([`Evaluate`](crate::experiment::Evaluate))
 ///   * state_config.mp    ([`GlobalParameters`](crate::GlobalParameters))
+#[derive(Debug, Clone)]
 pub struct FolderConfig {
     pub path: PathBuf,
     pub path_rec: PathBuf,
     pub path_check: PathBuf,
     pub path_work: PathBuf,
-    /// Whether this configuration has already been initialized for distributed runs.
-    pub is_dist: bool,
 }
 
 impl FolderConfig {
@@ -110,7 +106,7 @@ impl FolderConfig {
     /// let config = FolderConfig::new("./my_run");
     /// let config = config.init();
     /// ```
-    pub fn new(path: &str) -> Arc<Self> {
+    pub fn new(path: &str) -> Self {
         let path = std::path::absolute(PathBuf::from(path)).unwrap();
         let path_rec = path.join(Path::new("recorder"));
         let path_check = path.join(Path::new("checkpointer"));
@@ -120,30 +116,18 @@ impl FolderConfig {
             path_rec,
             path_check,
             path_work,
-            is_dist: false,
-        }.into()
+        }
     }
-}
-
-impl SaverConfig<()> for FolderConfig 
-{
-    /// Initialize and wrap the configuration in an [`Arc`].
-    fn init(self, _ctx: &()) -> Arc<Self> {
-        Arc::new(self)
+    /// Set the path for the recorder relatively to the root path. This allows for custom recorder folder names.
+    pub fn set_path_rec(&mut self, path: &str) {
+        self.path_rec = self.path.join(PathBuf::from(path));
     }
-}
-
-#[cfg(feature = "mpi")]
-impl SaverConfig<MPICommunicator> for FolderConfig {
-    /// Initialize a distributed configuration for a specific MPI rank.
-    ///
-    /// This method appends rank-specific subfolders to recorder and checkpointer
-    /// paths and marks the configuration as distributed.
-    fn init(mut self, ctx: &MPICommunicator) -> Arc<Self> {
-        self.path_rec = self.path_rec.join(Path::new(&format!("recorder_rank{}", ctx.proc.rank)));
-        self.path_work = self.path_check.join(Path::new("workers"));
-        self.path_check = self.path_check.join(Path::new(&format!("checkpointer_rank{}", ctx.proc.rank)));
-        self.is_dist = true;
-        Arc::new(self)
+    /// Set the path for the checkpointer relatively to the root path. This allows for custom checkpointer folder names.
+    pub fn set_path_check(&mut self, path: &str) {
+        self.path_check = self.path.join(PathBuf::from(path));
+    }
+    /// Set the path for the worker folders relatively to the root path. This allows for custom worker folder names.
+    pub fn set_path_work(&mut self, path: &str) {
+        self.path_work = self.path.join(PathBuf::from(path));
     }
 }

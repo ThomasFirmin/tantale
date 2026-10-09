@@ -1,3 +1,129 @@
+pub mod one_step_func{
+    use serde::{Deserialize, Serialize};
+    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, SId, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use std::sync::Arc;
+
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct OutStruct {
+        #[maximize]
+        out: f64,
+    }
+
+    fn example<ObjType:Domain>(_tantale_in: Arc<[Elem<ObjType>]>) -> OutStruct {
+            OutStruct { out: 42.0 }
+        }
+
+    pub fn get_function<ObjType:Domain>() -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, OutStruct> {
+        OneStep::new(example::<ObjType>)
+    }
+
+    pub type FuncType<ObjType> = OneStep<BaseSol<SId, ObjType, EmptyInfo>, OutStruct>;
+    pub type SolType<ObjType> = BaseSol<SId, ObjType, EmptyInfo>;
+}
+
+pub mod one_step_func_with_out{
+    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, Outcome, SId, domain::Elem}};
+    use std::sync::Arc;
+
+    fn example<ObjType:Domain, Out:Outcome>(_tantale_in: Arc<[Elem<ObjType>]>) -> Out {
+            unreachable!("This function is only used to test the OneStep type, it should not be called");
+        }
+
+    pub fn get_function<ObjType:Domain, Out:Outcome>() -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, Out> {
+        OneStep::new(example::<ObjType, Out>)
+    }
+
+    pub type FuncType<ObjType, Out> = OneStep<BaseSol<SId, ObjType, EmptyInfo>, Out>;
+    pub type SolType<ObjType> = BaseSol<SId, ObjType, EmptyInfo>;
+}
+
+pub mod multi_step_func{
+    use serde::{Deserialize, Serialize};
+    use tantale::{core::{Domain, EmptyInfo, Fidelity, FidelitySol, FuncState, MultiStep, StepSId, Step, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use std::sync::Arc;
+
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct FidOutEvaluator {
+        #[maximize]
+        pub obj: f64,
+        #[step]
+        pub fid: Step,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct FnState {
+        pub state: isize,
+    }
+    impl FuncState for FnState {
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
+            let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
+            rmp_serde::encode::write(&mut file, &self).unwrap();
+            Ok(())
+        }
+        fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+            let file_path = path.join("fn_state.mp");
+            let file = std::fs::File::open(file_path)?;
+            let state = rmp_serde::decode::from_read(file).unwrap();
+            Ok(state)
+        }
+    }
+
+    fn example<ObjType:Domain>(_tantale_in: Arc<[Elem<ObjType>]>, _fid: Fidelity, _state: Option<FnState>) -> (FidOutEvaluator, FnState) {
+        (FidOutEvaluator { obj: 42.0, fid: Step::Partially(1) }, FnState { state: 1 })
+    }
+
+    pub fn get_function<ObjType:Domain>() -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState> {
+        MultiStep::new(example::<ObjType>)
+    }
+
+    pub type FuncType<ObjType> = MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState>;
+    pub type SolType<ObjType> = FidelitySol<StepSId, ObjType, EmptyInfo>;
+}
+
+pub mod multi_step_func_with_out{
+    use serde::{Deserialize, Serialize};
+    use tantale::{core::{FidelitySol, Domain, EmptyInfo, FidOutcome, Fidelity, FuncState, MultiStep, StepSId, Step, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use std::sync::Arc;
+
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct FidOutEvaluator {
+        #[maximize]
+        pub obj: f64,
+        #[step]
+        pub fid: Step,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct FnState {
+        pub state: isize,
+    }
+    impl FuncState for FnState {
+        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
+            let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
+            rmp_serde::encode::write(&mut file, &self).unwrap();
+            Ok(())
+        }
+        fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
+            let file_path = path.join("fn_state.mp");
+            let file = std::fs::File::open(file_path)?;
+            let state = rmp_serde::decode::from_read(file).unwrap();
+            Ok(state)
+        }
+    }
+
+    fn example<ObjType:Domain, Out:FidOutcome>(_tantale_in: Arc<[Elem<ObjType>]>, _fid: Fidelity, _state: Option<FnState>) -> (Out, FnState) {
+        unreachable!("This function is only used to test the MultiStep type, it should not be called");
+    }
+
+    pub fn get_function<ObjType:Domain, Out: FidOutcome>() -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState> {
+        MultiStep::new(example::<ObjType, Out>)
+    }
+
+    pub type FuncType<ObjType, Out> = MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState>;
+    pub type SolType<ObjType> = FidelitySol<StepSId, ObjType, EmptyInfo>;
+}
+
+
 pub mod sp_mixed_to_single {
     use tantale::core::{
         domain::{Bool, Cat, Int, Nat, Real},

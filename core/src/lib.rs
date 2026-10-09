@@ -271,7 +271,7 @@ impl State for GlobalParameters { }
 impl HasState for GlobalParameters {
     type State = Self;
 
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
 
@@ -300,6 +300,8 @@ impl Default for GlobalParameters {
     }
 }
 
+extern crate self as tantale_core;
+
 pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
@@ -316,6 +318,7 @@ pub use domain::{
     ElemCostMultiCodomain,
     ElemConstMultiCodomain,
     ElemCostConstMultiCodomain,
+    Criteria,
 };
 
 pub mod distribution;
@@ -364,7 +367,7 @@ pub use utils::{
     Dominate, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
     NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
-    HasState, FolderConfig, SaverConfig,
+    HasState, FolderConfig, SaverConfig, Recordable, Schema,
     aliases,
 };
 
@@ -375,4 +378,5 @@ pub mod spikes;
 pub use spikes::*;
 
 pub mod problem;
-pub use problem::{Problem, SimpleProblem, FidelityProblem, SimplePb, FidPb};
+pub use problem::{Problem, SimplePb, FidPb};
+

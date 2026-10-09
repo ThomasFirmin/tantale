@@ -32,6 +32,7 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 /// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
 pub trait SolutionShape:
     Debug
+    + Clone
     + HasId
     + HasInfo
     + Linked
@@ -53,10 +54,6 @@ pub trait SolutionShape:
     fn extract_sobj(self) -> Self::ObjSol;
     /// Extract the optimizer-side solution, consuming the shape.
     fn extract_sopt(self) -> Self::OptSol;
-
-    /// Creates a clone of this shape with the same solutions, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_shape(&self) -> Self;
 }
 
 pub trait UncomputedShape: SolutionShape
@@ -153,6 +150,18 @@ where
     /// Create a new paired solution from an objective and optimizer solution.
     pub fn new(sol_a: SA, sol_b: SB) -> Self {
         Self(sol_a,sol_b)
+    }
+}
+
+impl<SA, SB> Clone for Pair<SA, SB>
+where
+    SA: Solution + Clone,
+    SB: Solution<Id = SA::Id, Info = SA::Info> + Clone
+{
+    fn clone(&self) -> Self {
+        let obj = self.get_sobj().clone();
+        let opt = self.get_sopt().clone();
+        Self::new(obj, opt)
     }
 }
 
@@ -314,11 +323,6 @@ where
     fn extract_sopt(self) -> SB {
         self.1
     }
-    fn _clone_shape(&self) -> Self {
-        let obj = self.get_sobj()._clone_sol();
-        let opt = self.get_sopt()._clone_sol();
-        Self::new(obj, opt)
-    }
 }
 
 impl<SA, SB> UncomputedShape for Pair<SA, SB>
@@ -452,7 +456,7 @@ where
 ///
 /// assert_eq!(lone.id(), lone.get_sobj().id());
 /// ```
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(bound = "S: Solution")]
 pub struct Lone<S: Solution>(S);
 
@@ -596,10 +600,6 @@ impl<S: Solution> SolutionShape for Lone<S>
     }
     fn extract_sopt(self) -> S {
         self.0
-    }
-    fn _clone_shape(&self) -> Self {
-        let obj = self.get_sobj()._clone_sol();
-        Self::new(obj)
     }
 }
 

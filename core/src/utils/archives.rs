@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The best point is the last point in the archive, and the worst point is the first point in the archive.
 /// The sorted objects should implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(serialize = "T: Serialize", deserialize = "T: for<'a> Deserialize<'a>"))]
+#[serde(bound = "T: Serialize + for<'a> Deserialize<'a>")]
 pub struct OrderedArchive<T: Orderable + Serialize + for<'a> Deserialize<'a>> {
     pub points: Vec<T>, // sorted ascending by point
 }

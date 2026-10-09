@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use tantale::core::{Outcome, Step};
-use tantale::macros::Outcome;
+use tantale::macros::{Outcome, Recordable, Schema};
 
 #[test]
 fn mixed_derive() {
     use tantale::core::Codomain;
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         #[cost]
         pub cost2: f64,

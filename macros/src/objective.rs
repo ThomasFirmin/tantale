@@ -130,7 +130,7 @@ fn simple_vec_replacement(
 ) -> TokenStream {
     // For replicated non-Mixed domains, collect a slice of the input array as references
     // Returns: tantale_in[start..end].iter().collect::<Vec<&TypeDom>>()
-    quote! {{tantale_in[#start..#end].iter().collect::<Vec<&<#ty as Domain>::TypeDom>>()}}.into()
+    quote! {{tantale_in[#start..#end].iter().collect::<Vec<&<#ty as Domain>::Element>>()}}.into()
 }
 
 fn complex_vec_replacement(
@@ -148,7 +148,7 @@ fn complex_vec_replacement(
                     #mixed_ty::#ty(value) => value.clone(),
                     _ => unreachable!("Trying to access a value of the wrong type from the objective input.")
                 }
-            }).collect::<Vec<<#ty as Domain>::TypeDom>>()
+            }).collect::<Vec<<#ty as Domain>::Element>>()
         }
     }
     .into()
@@ -441,7 +441,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
     fn_item
         .sig
         .inputs
-        .push(parse_quote! {tantale_in : std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>});
+        .push(parse_quote! {tantale_in : std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::Element]>});
 
     if state.is_some() {
         fn_item
@@ -469,7 +469,10 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let attrs = fn_item.attrs;
     let vis = fn_item.vis;
     let sig = &fn_item.sig;
-    let generics = sig.generics.clone();
+    let mut generics = sig.generics.clone();
+    // Add generics
+    generics.params.push(parse_quote! {Info: tantale::core::SolInfo});
+
     let fn_ident = &sig.ident;
 
     let fn_tokens: TokenStream = quote! {
@@ -481,17 +484,19 @@ pub fn obj(input: TokenStream) -> TokenStream {
     .into();
 
     let wraper_tokens = if state.is_some() {
+        generics.params.push(parse_quote! {Id: tantale::core::StepId});
         quote! {
-            pub fn get_function #generics() -> tantale::core::Stepped<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype,#state>
+            pub fn get_function #generics () -> tantale::core::MultiStep<tantale::core::FidelitySol<Id, #ident_mixed_obj, Info>, #otype, #state>
             {
-                tantale::core::Stepped::new(#fn_ident)
+                tantale::core::MultiStep::new(#fn_ident)
             }
         }
     } else {
+        generics.params.push(parse_quote! {Id: tantale::core::SolId});
         quote! {
-            pub fn get_function #generics() -> tantale::core::Objective<std::sync::Arc<[<#ident_mixed_obj as tantale::core::Domain>::TypeDom]>,#otype>
+            pub fn get_function #generics () -> tantale::core::OneStep<tantale::core::BaseSol<Id, #ident_mixed_obj, Info>, #otype>
             {
-                tantale::core::Objective::new(#fn_ident)
+                tantale::core::OneStep::new(#fn_ident)
             }
         }
     };

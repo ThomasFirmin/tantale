@@ -100,13 +100,13 @@ use serde::{Deserialize, Serialize};
 
 /// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
 /// one of its `f64` further used within a [`Codomain`].
-pub(crate) type Criteria<Out> = fn(&Out) -> f64;
+pub type Criteria<Out> = fn(&Out) -> f64;
 
 /// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
-pub trait Codomain<Out: Outcome>: Debug + Sized {
+pub trait Codomain<Out: Outcome>: Send + Sync + Debug + Sized {
     /// The type of elements extracted from the [`Outcome`] by this [`Codomain`].
-    type TypeCodom: Debug + Schema<Self, Parts = ()> + Recordable<Self, Parts = ()> + Serialize + for<'a> Deserialize<'a>;
+    type TypeCodom: Send + Sync + Clone + Debug + Schema<Self, Parts = ()> + Recordable<Self, Parts = ()> + Serialize + for<'a> Deserialize<'a>;
 
     /// The accumulator type used to track the best solution seen so far.
     type Acc<C>: Accumulator<C>
@@ -209,7 +209,7 @@ pub trait ElemCost {
 ///
 /// Since Tantale maximizes, [`update`](Accumulator::accumulate) keeps the element with the highest
 /// [`Ord`] value. The inner [`best`](BestAccumulator::best) is [`None`] until the first update.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
 pub struct BestAccumulator<C>
 where
@@ -261,7 +261,7 @@ where
 {
     type State = BestAccumulator<C>;
 
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
 
@@ -281,9 +281,9 @@ where
 {
     fn accumulate(&mut self, computed: &C) {
         match &self.best {
-            None => self.best = Some(computed._clone_shape()),
+            None => self.best = Some(computed.clone()),
             Some(current) if computed.y() > current.y() => {
-                self.best = Some(computed._clone_shape())
+                self.best = Some(computed.clone())
             }
             _ => {}
         }
@@ -295,7 +295,7 @@ where
 /// [`update`](Accumulator::accumulate) maintains the set of non-dominated solutions:
 /// dominated solutions are discarded, and any existing front member that the new element
 /// dominates is removed before the new element is added.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(bound(serialize = "C: Serialize", deserialize = "C: for<'a> Deserialize<'a>",))]
 pub struct ParetoAccumulator<C>
 where
@@ -346,7 +346,7 @@ where
 {
     type State = ParetoAccumulator<C>;
     
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
     
@@ -369,7 +369,7 @@ where
             return;
         }
         self.front.retain(|f| !computed.y().dominates(&f.y()));
-        self.front.push(computed._clone_shape());
+        self.front.push(computed.clone());
     }
 }
 
@@ -390,7 +390,7 @@ impl<Out: Outcome> SingleCodomain<Out> {
 
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`SingleCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemSingleCodomain {
     pub value: f64,
 }
@@ -475,7 +475,7 @@ impl<Out: Outcome> CostCodomain<Out> {
 }
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemCostCodomain {
     pub value: f64,
     pub cost: f64,
@@ -599,7 +599,7 @@ impl<Out: Outcome> ConstCodomain<Out> {
 
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`ConstCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemConstCodomain {
     pub value: f64,
     pub constraints: Box<[f64]>,
@@ -730,7 +730,7 @@ impl<Out: Outcome> CostConstCodomain<Out> {
 
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostConstCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemCostConstCodomain {
     pub value: f64,
     pub cost: f64,
@@ -885,7 +885,7 @@ impl<Out: Outcome> MultiCodomain<Out> {
 }
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`MultiCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemMultiCodomain {
     pub value: Box<[f64]>,
 }
@@ -972,7 +972,7 @@ impl<Out: Outcome> CostMultiCodomain<Out> {
 }
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostMultiCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemCostMultiCodomain {
     pub value: Box<[f64]>,
     pub cost: f64,
@@ -1081,7 +1081,7 @@ impl<Out: Outcome> ConstMultiCodomain<Out> {
 }
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`ConstMultiCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemConstMultiCodomain {
     pub value: Box<[f64]>,
     pub constraints: Box<[f64]>,
@@ -1202,7 +1202,7 @@ impl<Out: Outcome> CostConstMultiCodomain<Out> {
 }
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostConstMultiCodomain`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ElemCostConstMultiCodomain {
     pub value: Box<[f64]>,
     pub cost: f64,

@@ -85,6 +85,8 @@ pub trait PreDomain: Debug {}
 pub trait Element
 where 
     Self: Sized
+        + Send
+        + Sync
         + PartialEq
         + Clone
         + Display
@@ -97,6 +99,8 @@ where
 impl<T> Element for T
 where 
     T: Sized
+        + Send
+        + Sync
         + PartialEq
         + Clone
         + Display
@@ -182,7 +186,7 @@ where
 /// - [`Var`] - Variables that use domains
 /// - [`Searchspace`](crate::Searchspace) - Collections of domains defining the optimization space
 pub trait Domain:
-    PreDomain + Sized + PartialEq + Debug + Serialize + for<'a> Deserialize<'a>
+    Send + Sync + PreDomain + Sized + PartialEq + Debug + Serialize + for<'a> Deserialize<'a>
 {
     /// The type representing values from this domain.
     ///
@@ -301,4 +305,5 @@ pub use codomain::{
     ElemCostMultiCodomain,
     ElemConstMultiCodomain,
     ElemCostConstMultiCodomain,
+    Criteria,
 };

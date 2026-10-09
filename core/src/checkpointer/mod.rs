@@ -110,7 +110,7 @@ pub trait Checkpointer<P: Problem, Context> {
     ///
     /// ```ignore
     /// let config = FolderConfig::new(Path::new("./my_experiment"));
-    /// let mut checkpointer = MessagePack::new(Arc::new(config))?;
+    /// let mut checkpointer = MessagePack::new(config)?;
     /// checkpointer.init();  // Creates ./my_experiment/checkpoint/
     /// ```
     ///

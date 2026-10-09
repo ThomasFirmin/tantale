@@ -43,7 +43,7 @@ impl<P:Problem> HasState for ExpState<P> {
         self
     }
     
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
     
@@ -63,7 +63,7 @@ where
     C: Checkpointer<P, ()>,
 {
     pub problem: P,
-    pub optimizer: O,
+    pub sampler: O,
     pub stop: S,
     pub recorder: Option<R>,
     pub checkpointer: Option<C>,
@@ -85,13 +85,13 @@ where
 
     pub fn new(
         problem: P,
-        mut optimizer: O,
+        mut sampler: O,
         stop: S,
         recorder: Option<R>,
         checkpointer: Option<C>,
     ) -> Self {
         let accumulator = Accum::<P>::default();
-        let sol = optimizer.sample(problem.get_searchspace(), &accumulator);
+        let sol = sampler.sample(problem.get_searchspace(), &accumulator);
         if sol.is_none() {
             log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
             exit(1);
@@ -100,7 +100,7 @@ where
 
         Self {
             problem,
-            optimizer,
+            sampler,
             stop,
             recorder,
             checkpointer,
@@ -117,10 +117,10 @@ where
         }
     }
 
-    pub fn load_with_pool(problem: P, recorder: Option<R>, mut checkpointer: C, pool_mode: PoolMode) -> Self {
+    pub fn load(problem: P, recorder: Option<R>, mut checkpointer: C) -> Self {
         checkpointer.before_load(&problem, &()).unwrap();
 
-        let mut optimizer: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
+        let mut sampler: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
         let stop = checkpointer.load(&CheckpointerTargets::Stop, &()).unwrap();
         let accumulator = checkpointer.load(&CheckpointerTargets::Accumulator, &()).unwrap();
         let parameters: GlobalParameters = checkpointer.load(&CheckpointerTargets::Config, &()).unwrap();
@@ -141,7 +141,7 @@ where
             Ok(e) => e,
             Err(e) => {
                 log::warn!("Failed to load experiment state: {}. Sampling from optimizer.", e);
-                let sol = optimizer.sample(problem.get_searchspace(), &accumulator);
+                let sol = sampler.sample(problem.get_searchspace(), &accumulator);
                 if sol.is_none() {
                     log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
                     exit(1);
@@ -153,12 +153,12 @@ where
 
         Self {
             problem,
-            optimizer,
+            sampler,
             stop,
             recorder,
             checkpointer: Some(checkpointer),
             accumulator,
-            pool_mode,
+            pool_mode: PoolMode::InMemory,
             state,
         }
     }
@@ -214,7 +214,7 @@ where
     type Context = ();
 
     type Problem = SimplePb<Info, Scp, Out>;
-    type Optimizer = O;
+    type Sampler = O;
     type Stop = S;
     type Recorder = R;
     type Checkpointer = C;
@@ -229,7 +229,7 @@ where
             record(&self.recorder, &self.problem, &computed, &output);
 
             self.accumulator.accumulate(&computed);
-            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
             let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
             self.state = ExpState::new(sol);
             self.stop.update(ExpStep::Sampling);
@@ -241,7 +241,7 @@ where
 
             if let Some(ref check) = self.checkpointer {
                 check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-                check.save_state(&self.optimizer, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
                 check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
                 check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
                 let parameters = GlobalParameters::new();
@@ -264,7 +264,7 @@ where
                 check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
             }
 
-            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
             let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
 
             self.state = ExpState::new(sol);
@@ -291,8 +291,8 @@ where
         self.problem.get_objective()
     }
     
-    fn optimizer(&self) -> &Self::Optimizer {
-        &self.optimizer
+    fn sampler(&self) -> &Self::Sampler {
+        &self.sampler
     }
     
     fn recorder(&self) -> Option<&Self::Recorder> {
@@ -323,8 +323,8 @@ where
         self.problem.get_mut_objective()
     }
     
-    fn mut_optimizer(&mut self) -> &mut Self::Optimizer {
-        &mut self.optimizer
+    fn mut_sampler(&mut self) -> &mut Self::Sampler {
+        &mut self.sampler
     }
     
     fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
@@ -531,7 +531,7 @@ where
     type Context = ();
 
     type Problem = FidPb<Info, Scp, Out, FnState>;
-    type Optimizer = O;
+    type Sampler = O;
     type Stop = S;
     type Recorder = R;
     type Checkpointer = C;
@@ -546,7 +546,7 @@ where
             record(&self.recorder, &self.problem, &computed, &output);
 
             self.accumulator.accumulate(&computed);
-            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
             let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
             self.state = ExpState::new(sol);
             self.stop.update(ExpStep::Sampling);
@@ -563,7 +563,7 @@ where
 
             if let Some(ref check) = self.checkpointer {
                 check.save_state(&self.state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-                check.save_state(&self.optimizer, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
                 check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
                 check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
                 let parameters = GlobalParameters::new();
@@ -590,7 +590,7 @@ where
                 check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
             }
 
-            let new_sol = self.optimizer.update_and_sample(computed, self.problem.get_searchspace(), &self.accumulator);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
             let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
 
             self.state = ExpState::new(sol);
@@ -617,8 +617,8 @@ where
         self.problem.get_objective()
     }
     
-    fn optimizer(&self) -> &Self::Optimizer {
-        &self.optimizer
+    fn sampler(&self) -> &Self::Sampler {
+        &self.sampler
     }
     
     fn recorder(&self) -> Option<&Self::Recorder> {
@@ -649,8 +649,8 @@ where
         self.problem.get_mut_objective()
     }
     
-    fn mut_optimizer(&mut self) -> &mut Self::Optimizer {
-        &mut self.optimizer
+    fn mut_sampler(&mut self) -> &mut Self::Sampler {
+        &mut self.sampler
     }
     
     fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
@@ -1384,186 +1384,4 @@ where
 //         saver,
 //         pool_mode
 //     )
-// }
-
-// /// Macro for loading experiments from checkpoints with simplified syntax.
-// ///
-// /// This macro provides a convenient interface for calling the `*_load` functions
-// /// while requiring only the optimizer and stop criterion types to be specified.
-// /// All other generic types are inferred from the provided arguments.
-// ///
-// /// # Syntax
-// ///
-// /// ```text
-// /// load!(mono, OptimizerType, StopType, space, objective, saver)
-// /// load!(threaded, OptimizerType, StopType, space, objective, saver)
-// /// load!(distributed, mpi_proc, OptimizerType, StopType, space, objective, saver)  // MPI feature only
-// /// ```
-// ///
-// /// # Parameters
-// ///
-// /// * First argument: Execution context (`mono`, `threaded`, or `distributed`)
-// /// * For distributed: `mpi_proc` - Reference to [`MPIProcess`](crate::experiment::mpi::utils::MPIProcess)
-// /// * `OptimizerType` - The concrete optimizer type (e.g., `RandomSearch`)
-// /// * `StopType` - The concrete stopping criterion type (e.g., `Calls`)
-// /// * `space` - Tuple of searchspace
-// /// * `objective` - The objective function wrapper
-// /// * `saver` - Tuple of (optional recorder, required checkpointer)
-// ///
-// /// # Alternative with PoolMode
-// ///
-// /// You can also specify a [`PoolMode`] for function state management by using the following syntax:
-// /// ```text
-// /// load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
-// /// ```
-// ///
-// /// # Examples
-// ///
-// /// ## Basic Loading
-// ///
-// /// ```rust,ignore
-// /// use tantale::core::{load, MessagePack, FolderConfig};
-// /// use tantale::algos::RandomSearch;
-// /// use tantale::core::stop::Calls;
-// ///
-// /// let config = FolderConfig::new("results").init();
-// /// let checkpointer = MessagePack::new(config).unwrap();
-// ///
-// /// let exp = load!(
-// ///     mono,                    // Execution context
-// ///     RandomSearch,            // Optimizer type
-// ///     Calls,                   // Stop criterion type
-// ///     searchspace, // Space
-// ///     objective,               // Objective function
-// ///     (None, checkpointer)     // Saver (no recorder, with checkpointer)
-// /// );
-// ///
-// /// exp.run();
-// /// ```
-// ///
-// /// ## Extending Optimization Budget
-// ///
-// /// ```rust,ignore
-// /// let mut exp = load!(mono, MyOpt, Calls, searchspace, obj, (None, checkpointer));
-// ///
-// /// let config = FolderConfig::new("results[`FuncWrapper``] / ").init();
-// /// let checkpointer = MessagePack::new(config).unwrap();
-// ///
-// /// // Inspect current progress
-// /// println!("Completed: {}", exp.get_stop().calls());
-// ///
-// /// // Add more evaluations
-// /// exp.get_mut_stop().add(100);
-// ///
-// /// // Continue optimization
-// /// exp.run();
-// /// ```
-// ///
-// /// ## Multi-Threaded Loading
-// ///
-// /// ```rust,ignore
-// /// let exp = load!(threaded, BatchRandomSearch, Calls, space, obj, saver);
-// /// exp.run();
-// /// ```
-// ///
-// /// ## Distributed Loading (MPI feature)
-// ///
-// /// ```rust,ignore
-// /// #[cfg(feature = "mpi")]
-// /// {
-// ///     use tantale::core::{load, MessagePack, FolderConfig, experiment::mpi::utils::MPIProcess};
-// ///     use tantale::algos::RandomSearch;
-// ///     use tantale::core::stop::Calls;
-// ///     
-// ///     let mpi_process = MPIProcess::new();
-// ///
-// ///     let config = FolderConfig::new("results").init(&mpi_process);
-// ///     let checkpointer = MessagePack::new(config).unwrap();
-// ///
-// ///     let exp = load!(
-// ///         distributed,
-// ///         &mpi_process,
-// ///         MyOptimizer,
-// ///         Calls,
-// ///         searchspace,
-// ///         obj,
-// ///         (None, checkpointer)
-// ///     );
-// ///     exp.run();
-// /// }
-// /// ```
-// ///
-// /// # See Also
-// ///
-// /// * [`mono_load`] - Direct function for single-threaded loading
-// /// * [`threaded_load`] - Direct function for multi-threaded loading  
-// /// * [`distributed_load`] - Direct function for distributed loading (MPI feature)
-// /// * [`mono`], [`threaded`], [`distributed`] - For creating new experiments
-// #[macro_export]
-// #[cfg(not(feature = "mpi"))]
-// macro_rules! load {
-//     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver,
-//         )
-//     };
-//     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver,
-//         )
-//     };
-//     (mono, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::mono_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver, $pool_mode,
-//         )
-//     };
-//     (threaded, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::threaded_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver, $pool_mode,
-//         )
-//     };
-// }
-
-// /// Macro for loading experiments from checkpoints with simplified syntax (MPI-enabled version).
-// ///
-// /// This is the MPI-enabled version of the `load!` macro. It provides the same functionality
-// /// as the non-MPI version but with additional support for distributed experiments.
-// ///
-// /// # See Also
-// ///
-// /// See the non-MPI `load!` macro documentation for detailed usage and examples.
-// /// The only difference is that this version supports the `distributed` variant.
-// #[macro_export]
-// #[cfg(feature = "mpi")]
-// macro_rules! load {
-//     (mono, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::mono_load::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver,
-//         )
-//     };
-//     (threaded, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::threaded_load::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver,
-//         )
-//     };
-//     (distributed, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::distributed_load::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $proc, $space, $objective, $saver,
-//         )
-//     };
-//     (mono, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::mono_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver, $pool_mode,
-//         )
-//     };
-//     (threaded, $pool_mode:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::threaded_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $space, $objective, $saver, $pool_mode,
-//         )
-//     };
-//     (distributed, $pool_mode:expr, $proc:expr, $Op:ty, $St:ty, $space:expr, $objective:expr, $saver:expr) => {
-//         $crate::experiment::distributed_load_with_pool::<_, $Op, $St, _, _, _, _, _, _, _>(
-//             $proc, $space, $objective, $saver, $pool_mode,
-//         )
-//     };
 // }

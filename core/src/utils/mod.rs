@@ -28,6 +28,7 @@ pub use wrapped_info::WrappedInfo;
 pub mod aliases;
 
 pub mod record;
+pub use record::{Recordable, Schema};
 
 pub mod config;
 pub use config::{FolderConfig, SaverConfig};

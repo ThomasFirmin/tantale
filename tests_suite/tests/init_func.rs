@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::{FuncState, objective::Step, recorder::Tabular};
-use tantale::macros::{CSVWritable, Outcome};
+use tantale::core::{Recordable, Schema};
+use tantale::core::{FuncState, objective::Step};
+use tantale::macros::{Outcome, Recordable, Schema};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
@@ -15,8 +16,10 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
-impl Tabular<(), ()> for OutExample {
-    fn column_names(_elem: &()) -> Vec<String> {
+
+impl Schema<()> for OutExample {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -30,8 +33,11 @@ impl Tabular<(), ()> for OutExample {
             String::from("vec"),
         ])
     }
+}
 
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for OutExample {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -61,8 +67,9 @@ pub struct OutUnique {
     pub vec: Vec<f64>,
 }
 
-impl Tabular<(), ()> for OutUnique {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for OutUnique {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -76,8 +83,10 @@ impl Tabular<(), ()> for OutUnique {
             String::from("vec"),
         ])
     }
-
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+}
+impl Recordable<()> for OutUnique {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -109,8 +118,9 @@ pub struct FidOutExample {
     pub fid: Step,
 }
 
-impl Tabular<(), ()> for FidOutExample {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for FidOutExample {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -125,8 +135,10 @@ impl Tabular<(), ()> for FidOutExample {
             String::from("fid"),
         ])
     }
-
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+}
+impl Recordable<()> for FidOutExample {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -159,8 +171,9 @@ pub struct FidOutUnique {
     pub fid: Step,
 }
 
-impl Tabular<(), ()> for FidOutUnique {
-    fn column_names(_elem: &()) -> Vec<String> {
+impl Schema<()> for FidOutUnique {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -175,8 +188,11 @@ impl Tabular<(), ()> for FidOutUnique {
             String::from("fid"),
         ])
     }
+}
 
-    fn column_values(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for FidOutUnique {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -537,10 +553,28 @@ pub mod sp_sm_samp_noright {
     );
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutEvaluator {
     #[maximize]
     pub obj: f64,
+}
+
+impl Schema<()> for OutEvaluator {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+        ])
+    }
+}
+
+impl Recordable<()> for OutEvaluator {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+        ])
+    }
 }
 
 impl PartialEq for OutEvaluator {
@@ -549,12 +583,31 @@ impl PartialEq for OutEvaluator {
     }
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutEvaluator {
     #[maximize]
     pub obj: f64,
     #[step]
     pub fid: Step,
+}
+
+impl Schema<()> for FidOutEvaluator {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([
+            String::from("obj"),
+            String::from("fid"),
+        ])
+    }
+}
+impl Recordable<()> for FidOutEvaluator {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([
+            self.obj.to_string(),
+            self.fid.to_string(),
+        ])
+    }
 }
 
 impl PartialEq for FidOutEvaluator {
@@ -1092,7 +1145,7 @@ pub mod sp_sm_samp_noright_fid {
     );
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
 pub struct MoOutEvaluator {
     #[maximize]
     pub obj1: f64,
@@ -1101,7 +1154,7 @@ pub struct MoOutEvaluator {
     info: f64,
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct MoFidOutEvaluator {
     #[maximize]
     pub obj1: f64,
@@ -1319,7 +1372,8 @@ pub mod sp_evaluator_mo_fid {
 }
 
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+
+#[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
 pub struct OutSpikeEvaluator {
     #[maximize]
     pub obj: f64,
@@ -1391,9 +1445,7 @@ pub mod sp_evaluator_spike_real {
     );
 }
 
-
-
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct OutSpikeStepEvaluator {
     #[maximize]
     pub obj: f64,

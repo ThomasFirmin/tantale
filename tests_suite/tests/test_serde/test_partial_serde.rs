@@ -1,5 +1,6 @@
 use super::init_sp::{
     sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real, sp_only_unit,
+    one_step_func::FuncType,
 };
 
 use paste::paste;
@@ -16,7 +17,7 @@ macro_rules! get_test {
                 let sp = $sp::get_searchspace();
                 let info = Arc::new(EmptyInfo{});
                 let rng = &mut rand::rng();
-                let sample: BaseSol<SId,$sp::ObjType,_> = Searchspace::<BaseSol<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
+                let sample = Searchspace::<FuncType<$dom>>::sample_obj(&sp, rng,info.clone());
 
                 let st_ser = rmp_serde::encode::to_vec(&sample).unwrap();
                 let nsample : BaseSol<SId,$dom,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();

@@ -403,17 +403,15 @@ pub enum PoolMode {
 ///
 /// # See Also
 ///
-/// - [`mono`], [`threaded`], [`distributed`] - Helper functions to create experiments
-/// - `load!` - Macro for loading experiments from checkpoints
-/// - [`Optimizer`] - Trait for optimization algorithms
+/// - [`Sampler`] - Trait for optimization algorithms
 /// - [`Stop`] - Trait for stopping criteria
-/// - [`crate::domain::codomain::Accumulator`] - Trait for accumulating best solutions across iterations
-/// - [`crate::domain::codomain::BestAccumulator`] - Accumulator for single-objective codomains
-/// - [`crate::domain::codomain::ParetoAccumulator`] - Accumulator for multi-objective codomains
+/// - [`Accumulator`] - Trait for accumulating best solutions across iterations
+/// - [`Recorder`] - Trait for saving evaluated solutions
+/// - [`Checkpointer`] - Trait for saving experiment state for recovery
 pub trait Runable: Sized {
     type SolId: SolId;
     type Problem: Problem<Id = Self::SolId>;
-    type Optimizer: Sampler<Self::Problem, Opt<Self::Problem>, Info = <Self::Problem as Problem>::Info>;
+    type Sampler: Sampler<Self::Problem, Opt<Self::Problem>, Info = <Self::Problem as Problem>::Info>;
     type Stop: Stop;
     type Recorder: Recorder<Self::Problem, Self::Context>;
     type Checkpointer: Checkpointer<Self::Problem, Self::Context>;
@@ -423,7 +421,6 @@ pub trait Runable: Sized {
     ///
     /// Executes the full pipeline, generation, evaluation, accumulation, recording,
     /// checkpointing, and stop-criterion checks, until the [`Stop`] criterion is met.
-    /// Consumes `self` so that a finished experiment cannot be accidentally re-run.
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
     fn run(self) -> Accum<Self::Problem>;
@@ -441,7 +438,7 @@ pub trait Runable: Sized {
     fn objective(&self) -> &Func<Self::Problem>;
 
     /// Returns a reference to the [`Optimizer`].
-    fn optimizer(&self) -> &Self::Optimizer;
+    fn sampler(&self) -> &Self::Sampler;
 
     /// Returns a reference to the [`Recorder`], if any.
     fn recorder(&self) -> Option<&Self::Recorder>;
@@ -450,17 +447,9 @@ pub trait Runable: Sized {
     fn checkpointer(&self) -> Option<&Self::Checkpointer>;
 
     /// Returns a mutable reference to the [`Stop`] criterion.
-    ///
-    /// Useful for extending or adjusting the budget after loading from a checkpoint:
-    ///
-    /// ```rust,ignore
-    /// let mut exp = load!(mono, MyOpt, Calls, space, obj, (None, checkpointer));
-    /// exp.get_mut_stop().add(500); // run 500 more evaluations
-    /// exp.run();
-    /// ```
     fn mut_stop(&mut self) -> &mut Self::Stop;
 
-    /// Returns a mutable reference to the [`Searchspace`].
+    /// Returns a mutable reference to the [`Searchspace`](crate::Searchspace).
     fn mut_searchspace(&mut self) -> &mut Scp<Self::Problem>;
 
     /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
@@ -470,7 +459,7 @@ pub trait Runable: Sized {
     fn mut_objective(&mut self) -> &mut Func<Self::Problem>;
 
     /// Returns a mutable reference to the [`Optimizer`].
-    fn mut_optimizer(&mut self) -> &mut Self::Optimizer;
+    fn mut_sampler(&mut self) -> &mut Self::Sampler;
 
     /// Returns a mutable reference to the [`Recorder`], if any.
     fn mut_recorder(&mut self) -> Option<&mut Self::Recorder>;

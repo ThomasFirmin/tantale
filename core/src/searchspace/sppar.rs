@@ -262,7 +262,7 @@ where
 
     /// Sample multiple objective-side solutions using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_obj<R: Rng>(&self,rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>> {
+    fn vec_sample_obj<R: Rng>(&self,rng: &mut R, size: usize, info: Arc<F::Info>) -> Vec<GetSObj<Self::Shape>> {
         // Generate seeds for each thread
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
         seeds
@@ -296,7 +296,7 @@ where
 
     /// Sample multiple optimizer-side solutions using per-thread RNGs.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>> {
+    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<F::Info>) -> Vec<GetSOpt<Self::Shape>> {
         // Generate seeds for each thread
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
         seeds
@@ -330,13 +330,13 @@ where
 
     /// Sample an objective-side solution and map it to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
-    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape {
+    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<F::Info>) -> Self::Shape {
         <SpPar<Obj, Opt> as Searchspace<F>>::onto_opt(self, <SpPar<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
     }
 
     /// Sample multiple pairs by sampling objective-side solutions then mapping them.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<Self::Shape> {
+    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<F::Info>) -> Vec<Self::Shape> {
         // Generate seeds for each thread
         let seeds: Vec<u64> = (0..size).map(|_| rng.random()).collect();
         seeds
@@ -354,7 +354,7 @@ where
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>>
+    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<F::Info>) -> Vec<GetSObj<Self::Shape>>
     where
         A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape> + Send + Sync,
         R: Rng,
@@ -375,7 +375,7 @@ where
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>
+    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<F::Info>) -> Vec<GetSOpt<Self::Shape>>
     where
         A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape> + Send + Sync,
         R: Rng,

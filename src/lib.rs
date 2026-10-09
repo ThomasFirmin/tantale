@@ -116,6 +116,10 @@ pub use macros::hpo;
 #[doc(inline)]
 pub use macros::objective;
 #[doc(inline)]
+pub use macros::basic_bounds;
+#[doc(inline)]
+pub use macros::fidelity_bounds;
+#[doc(inline)]
 pub use tantale_algos as algos;
 #[doc(inline)]
 pub use tantale_core as core;

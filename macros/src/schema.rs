@@ -23,17 +23,16 @@ fn is_evalstate_type(ty: &Type) -> bool {
     })
 }
 
-/// Entry point for the `CSVWritable` derive macro.
+/// Entry point for the `Schema` derive macro.
 ///
-/// This function processes a struct and derives implementations for automatic CSV serialization [`CSVWritable`](crate::CSVWritable).
-pub fn proc_csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+/// This function processes a struct and derives implementations for automatic columns (headers) generation.
+pub fn proc_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
     let eident = input.ident;
     let egenerics = input.generics;
     let ewhere = &egenerics.where_clause;
 
-    let mut to_string_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
     let mut to_header_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
 
     input.fields.iter().for_each(|field| {
@@ -46,32 +45,25 @@ pub fn proc_csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStre
             ),
         };
 
-        if is_vec_type(fty) || is_evalstate_type(fty) {
+        if is_vec_type(fty) || is_evalstate_type(fty) || is_numeric_type(fty){
             to_header_stmts.push(quote! {stringify!(#fident).to_string()});
-            to_string_stmts.push(quote! {format!{"{:?}", self.#fident}});
-        } else if is_numeric_type(fty) {
-            to_header_stmts.push(quote! {stringify!(#fident).to_string()});
-            to_string_stmts.push(quote! {self.#fident.to_string()});
         } else {
             panic!(
                 "{:?}",
                 syn::Error::new(
                     field.span(),
-                    "Unsupported field type for CSVWritable. Only numeric types, Vec, and Step (for EvalState) are supported."
+                    "Unsupported field type for Schema. Only numeric types, Vec, and Step (for EvalState) are supported."
                 )
             );
         }
     });
 
     quote!{
-        impl #egenerics tantale::core::recorder::csv::CSVWritable<() , ()> for #eident #egenerics #ewhere
+        impl #egenerics tantale::core::Schema<()> for #eident #egenerics #ewhere
         {
-            fn header(_elem:&())->Vec<String>{
+            type Parts = ();
+            fn columns(context: &(), part: ()) -> Vec<String>{
                 Vec::from([#(#to_header_stmts,)*])
-            }
-
-            fn write(&self, _comp : &())->Vec<String>{
-                Vec::from([#(#to_string_stmts,)*])
             }
         }
     }.into()

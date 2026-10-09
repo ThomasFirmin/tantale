@@ -49,622 +49,622 @@
 // //--- MONOTHREADED ---//
 // //--------------------//
 
-// impl<PSol, Scp, Op, St, Rec, Check, Out>
-//     Runable<
-//         PSol,
-//         SId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-//     >
-//     for MonoExperiment<
-//         PSol,
-//         SId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-//         SeqEvaluator<SId, Op::SInfo, Scp::SolShape>,
-//     >
-// where
-//     PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
-//     PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-//     Op: SingleOptimizer<
-//             PSol,
-//             SId,
-//             LinkOpt<Scp>,
-//             Out,
-//             Scp,
-//             OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
-//         >,
-//     Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
-//     St: Stop,
-//     Rec:
-//         SeqRecorder<PSol, SId, Out, Scp, Op, OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
-//     Check: MonoCheckpointer,
-//     Out: Outcome,
-// {
-//     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
-//     /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
-//     fn new_with_pool(
-//         space: Scp,
-//         objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-//         optimizer: Op,
-//         stop: St,
-//         saver: (Option<Rec>, Option<Check>),
-//         _pool_mode: PoolMode,
-//     ) -> Self {
-//         let (recorder, checkpointer) = saver;
-//         let searchspace = space;
-//         let codomain = Out::codomain();
-//         let recorder = match recorder {
-//             Some(mut r) => {
-//                 r.init(&searchspace);
-//                 Some(r)
-//             }
-//             None => None,
-//         };
-//         let checkpointer = match checkpointer {
-//             Some(mut c) => {
-//                 c.init();
-//                 Some(c)
-//             }
-//             None => None,
-//         };
+impl<PSol, Scp, Op, St, Rec, Check, Out>
+    Runable<
+        PSol,
+        SId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+    >
+    for MonoExperiment<
+        PSol,
+        SId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        SeqEvaluator<SId, Op::SInfo, Scp::SolShape>,
+    >
+where
+    PSol: Uncomputed<SId, Scp::Opt, Op::SInfo>,
+    PSol::Twin<Scp::Obj>: Uncomputed<SId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    Op: SingleOptimizer<
+            PSol,
+            SId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            OneStep<RawObj<Scp::SolShape, SId, OpSInfType<Op, PSol, Scp, SId, Out>>, Out>,
+        >,
+    Scp: Searchspace<PSol, SId, OpSInfType<Op, PSol, Scp, SId, Out>>,
+    St: Stop,
+    Rec:
+        SeqRecorder<PSol, SId, Out, Scp, Op, OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>>,
+    Check: MonoCheckpointer,
+    Out: Outcome,
+{
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
+    fn new_with_pool(
+        space: Scp,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>, Option<Check>),
+        _pool_mode: PoolMode,
+    ) -> Self {
+        let (recorder, checkpointer) = saver;
+        let searchspace = space;
+        let codomain = Out::codomain();
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace);
+                Some(r)
+            }
+            None => None,
+        };
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
+            None => None,
+        };
 
-//         let accumulator = Out::Cod::new_accumulator();
+        let accumulator = Out::Cod::new_accumulator();
 
-//         MonoExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer,
-//             accumulator,
-//             evaluator: None,
-//             pool_mode: _pool_mode,
-//         }
-//     }
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer,
+            accumulator,
+            evaluator: None,
+            pool_mode: _pool_mode,
+        }
+    }
 
-//     /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
-//     /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
-//     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
-//     fn load_with_pool(
-//         space: Scp,
-//         objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-//         saver: (Option<Rec>, Check),
-//         _pool_mode: PoolMode,
-//     ) -> Self {
-//         let searchspace = space;
-//         let codomain = Out::codomain();
-//         let (recorder, mut checkpointer) = saver;
-//         checkpointer.before_load();
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Objective`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
+    fn load_with_pool(
+        space: Scp,
+        objective: OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        saver: (Option<Rec>, Check),
+        _pool_mode: PoolMode,
+    ) -> Self {
+        let searchspace = space;
+        let codomain = Out::codomain();
+        let (recorder, mut checkpointer) = saver;
+        checkpointer.before_load();
 
-//         let (state, stop, evaluator) = checkpointer.load().unwrap();
-//         let optimizer = Op::from_state(state);
-//         let recorder = match recorder {
-//             Some(mut rec) => {
-//                 rec.after_load(&searchspace);
-//                 Some(rec)
-//             }
-//             None => None,
-//         };
-//         let accumulator = checkpointer.load_accumulator().unwrap();
-//         checkpointer.after_load();
+        let (state, stop, evaluator) = checkpointer.load().unwrap();
+        let optimizer = Op::from_state(state);
+        let recorder = match recorder {
+            Some(mut rec) => {
+                rec.after_load(&searchspace);
+                Some(rec)
+            }
+            None => None,
+        };
+        let accumulator = checkpointer.load_accumulator().unwrap();
+        checkpointer.after_load();
 
-//         MonoExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer: Some(checkpointer),
-//             accumulator,
-//             evaluator: Some(evaluator),
-//             pool_mode: _pool_mode,
-//         }
-//     }
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            accumulator,
+            evaluator: Some(evaluator),
+            pool_mode: _pool_mode,
+        }
+    }
 
-//     /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
-//     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
-//     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-//     /// is saved using the inner [`SeqRecorder`] when [`SeqEvaluator`] has finished evaluating an element.
-//     ///
-//     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
-//     /// (inner [`SeqEvaluator`]. updates) step.
-//     fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
-//         let mut eval = match self.evaluator {
-//             Some(e) => e,
-//             None => SeqEvaluator::new(self.optimizer.step(
-//                 None,
-//                 &self.searchspace,
-//                 &self.accumulator,
-//             )),
-//         };
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`], per iteration, using the inner [`SeqEvaluator`],
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`SeqRecorder`] when [`SeqEvaluator`] has finished evaluating an element.
+    ///
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`SeqEvaluator`]. updates) step.
+    fn run(mut self) -> CompAcc<Scp::SolShape, SId, Op::SInfo, Out> {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => SeqEvaluator::new(self.optimizer.step(
+                None,
+                &self.searchspace,
+                &self.accumulator,
+            )),
+        };
 
-//         let mut computed;
-//         let mut outputed;
-//         loop {
-//             // Stop part
-//             if self.stop.stop() {
-//                 break;
-//             };
-//             self.stop.update(ExpStep::Iteration); // New iteration
+        let mut computed;
+        let mut outputed;
+        loop {
+            // Stop part
+            if self.stop.stop() {
+                break;
+            };
+            self.stop.update(ExpStep::Iteration); // New iteration
 
-//             // Evaluate the solution
-//             (computed, outputed) = MonoEvaluate::<
-//                 _,
-//                 SId,
-//                 Op,
-//                 Scp,
-//                 Out,
-//                 St,
-//                 _,
-//                 OutShapeEvaluate<SId, Op::SInfo, Scp::SolShape, Out>,
-//             >::evaluate(
-//                 &mut eval,
-//                 &self.objective,
-//                 &self.codomain,
-//                 &mut self.stop,
-//                 &mut self.accumulator,
-//             );
+            // Evaluate the solution
+            (computed, outputed) = MonoEvaluate::<
+                _,
+                SId,
+                Op,
+                Scp,
+                Out,
+                St,
+                _,
+                OutShapeEvaluate<SId, Op::SInfo, Scp::SolShape, Out>,
+            >::evaluate(
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+                &mut self.accumulator,
+            );
 
-//             // Check if stop
-//             if let Some(r) = &self.recorder {
-//                 r.save(&computed, &outputed, &self.searchspace, &self.codomain);
-//             }
+            // Check if stop
+            if let Some(r) = &self.recorder {
+                r.save(&computed, &outputed, &self.searchspace, &self.codomain);
+            }
 
-//             eval = self
-//                 .optimizer
-//                 .step(Some(computed), &self.searchspace, &self.accumulator)
-//                 .into();
-//             self.stop.update(ExpStep::Optimization);
-//             if let Some(c) = &self.checkpointer {
-//                 c.save_state(self.optimizer.get_state(), &self.stop, &eval);
-//                 c.save_accumulator(&self.accumulator);
-//             }
-//         }
+            eval = self
+                .optimizer
+                .step(Some(computed), &self.searchspace, &self.accumulator)
+                .into();
+            self.stop.update(ExpStep::Optimization);
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+                c.save_accumulator(&self.accumulator);
+            }
+        }
 
-//         self.accumulator
-//     }
+        self.accumulator
+    }
 
-//     fn get_stop(&self) -> &St {
-//         &self.stop
-//     }
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
 
-//     fn get_searchspace(&self) -> &Scp {
-//         &self.searchspace
-//     }
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
 
-//     fn get_codomain(&self) -> &Out::Cod {
-//         &self.codomain
-//     }
+    fn get_codomain(&self) -> &Out::Cod {
+        &self.codomain
+    }
 
-//     fn get_objective(&self) -> &OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
-//         &self.objective
-//     }
+    fn get_objective(&self) -> &OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &self.objective
+    }
 
-//     fn get_optimizer(&self) -> &Op {
-//         &self.optimizer
-//     }
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
 
-//     fn get_recorder(&self) -> Option<&Rec> {
-//         self.recorder.as_ref()
-//     }
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
 
-//     fn get_checkpointer(&self) -> Option<&Check> {
-//         self.checkpointer.as_ref()
-//     }
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
 
-//     fn get_mut_stop(&mut self) -> &mut St {
-//         &mut self.stop
-//     }
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
 
-//     fn get_mut_searchspace(&mut self) -> &mut Scp {
-//         &mut self.searchspace
-//     }
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
 
-//     fn get_mut_codomain(&mut self) -> &mut Out::Cod {
-//         &mut self.codomain
-//     }
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
+        &mut self.codomain
+    }
 
-//     fn get_mut_objective(&mut self) -> &mut OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
-//         &mut self.objective
-//     }
+    fn get_mut_objective(&mut self) -> &mut OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out> {
+        &mut self.objective
+    }
 
-//     fn get_mut_optimizer(&mut self) -> &mut Op {
-//         &mut self.optimizer
-//     }
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
 
-//     fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
-//         self.recorder.as_mut()
-//     }
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
 
-//     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
-//         self.checkpointer.as_mut()
-//     }
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
+    }
 
-//     fn get_accumalator(
-//         &self,
-//     ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
-//         &self.accumulator
-//     }
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
+        &self.accumulator
+    }
 
-//     fn get_mut_accumalator(
-//         &mut self,
-//     ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
-//         &mut self.accumulator
-//     }
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, SId, Op::SInfo, Out>, SId, Op::SInfo, Out> {
+        &mut self.accumulator
+    }
 
-//     fn extract(
-//         self,
-//     ) -> ExpComponent<
-//         Out,
-//         Scp,
-//         Op,
-//         OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
-//         St,
-//         Rec,
-//         Check,
-//     > {
-//         (
-//             self.searchspace,
-//             self.codomain,
-//             self.objective,
-//             self.optimizer,
-//             self.stop,
-//             (self.recorder, self.checkpointer),
-//         )
-//     }
-// }
+    fn extract(
+        self,
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        OneStep<RawObj<Scp::SolShape, SId, Op::SInfo>, Out>,
+        St,
+        Rec,
+        Check,
+    > {
+        (
+            self.searchspace,
+            self.codomain,
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
+    }
+}
 
-// impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
-//     Runable<
-//         PSol,
-//         StepSId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-//     >
-//     for MonoExperiment<
-//         PSol,
-//         StepSId,
-//         Scp,
-//         Op,
-//         St,
-//         Rec,
-//         Check,
-//         Out,
-//         MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-//         FidSeqEvaluator<
-//             StepSId,
-//             Op::SInfo,
-//             Scp::SolShape,
-//             FnState,
-//             Pool<Check::FnStateCheck, FnState, StepSId>,
-//         >,
-//     >
-// where
-//     PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
-//     PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
-//     Op: SingleOptimizer<
-//             PSol,
-//             StepSId,
-//             LinkOpt<Scp>,
-//             Out,
-//             Scp,
-//             MultiStep<
-//                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-//                 Out,
-//                 FnState,
-//             >,
-//         >,
-//     Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-//     Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
-//     St: Stop,
-//     Rec: SeqRecorder<
-//             PSol,
-//             StepSId,
-//             Out,
-//             Scp,
-//             Op,
-//             MultiStep<
-//                 RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
-//                 Out,
-//                 FnState,
-//             >,
-//         >,
-//     Check: MonoCheckpointer,
-//     Out: FidOutcome,
-//     FnState: FuncState,
-// {
-//     /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
-//     /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
-//     fn new_with_pool(
-//         space: Scp,
-//         objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-//         optimizer: Op,
-//         stop: St,
-//         saver: (Option<Rec>, Option<Check>),
-//         pool_mode: PoolMode,
-//     ) -> Self {
-//         let (recorder, checkpointer) = saver;
-//         let searchspace = space;
-//         let codomain = Out::codomain();
-//         let recorder = match recorder {
-//             Some(mut r) => {
-//                 r.init(&searchspace);
-//                 Some(r)
-//             }
-//             None => None,
-//         };
-//         let checkpointer = match checkpointer {
-//             Some(mut c) => {
-//                 c.init();
-//                 Some(c)
-//             }
-//             None => None,
-//         };
-//         let accumulator = Out::Cod::new_accumulator();
-//         MonoExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer,
-//             accumulator,
-//             evaluator: None,
-//             pool_mode,
-//         }
-//     }
+impl<PSol, Scp, Op, St, Rec, Check, Out, FnState>
+    Runable<
+        PSol,
+        StepSId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+    >
+    for MonoExperiment<
+        PSol,
+        StepSId,
+        Scp,
+        Op,
+        St,
+        Rec,
+        Check,
+        Out,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        FidSeqEvaluator<
+            StepSId,
+            Op::SInfo,
+            Scp::SolShape,
+            FnState,
+            Pool<Check::FnStateCheck, FnState, StepSId>,
+        >,
+    >
+where
+    PSol: Uncomputed<StepSId, Scp::Opt, Op::SInfo> + HasFidelity + HasStep + HasStepId<StepSId>,
+    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Op::SInfo, Twin<Scp::Opt> = PSol>,
+    Op: SingleOptimizer<
+            PSol,
+            StepSId,
+            LinkOpt<Scp>,
+            Out,
+            Scp,
+            MultiStep<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
+    Scp: Searchspace<PSol, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+    Scp::SolShape: HasStep + HasFidelity + HasStepId<StepSId>,
+    St: Stop,
+    Rec: SeqRecorder<
+            PSol,
+            StepSId,
+            Out,
+            Scp,
+            Op,
+            MultiStep<
+                RawObj<Scp::SolShape, StepSId, OpSInfType<Op, PSol, Scp, StepSId, Out>>,
+                Out,
+                FnState,
+            >,
+        >,
+    Check: MonoCheckpointer,
+    Out: FidOutcome,
+    FnState: FuncState,
+{
+    /// Create a new [`MonoExperiment`] from a [`Searchspace`], [`Codomain`],
+    /// [`Objective`], [`SingleOptimizer`], [`Stop`] condition and optional [`SeqRecorder`] and [`MonoCheckpointer`].
+    fn new_with_pool(
+        space: Scp,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        optimizer: Op,
+        stop: St,
+        saver: (Option<Rec>, Option<Check>),
+        pool_mode: PoolMode,
+    ) -> Self {
+        let (recorder, checkpointer) = saver;
+        let searchspace = space;
+        let codomain = Out::codomain();
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.init(&searchspace);
+                Some(r)
+            }
+            None => None,
+        };
+        let checkpointer = match checkpointer {
+            Some(mut c) => {
+                c.init();
+                Some(c)
+            }
+            None => None,
+        };
+        let accumulator = Out::Cod::new_accumulator();
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer,
+            accumulator,
+            evaluator: None,
+            pool_mode,
+        }
+    }
 
-//     /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
-//     /// and [`Stepped`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
-//     /// You can use [`load!`](crate::load) macro to load an experiment more easily.
-//     fn load_with_pool(
-//         space: Scp,
-//         objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-//         saver: (Option<Rec>, Check),
-//         pool_mode: PoolMode,
-//     ) -> Self {
-//         let searchspace = space;
-//         let codomain = Out::codomain();
-//         let (recorder, mut checkpointer) = saver;
-//         checkpointer.before_load();
-//         let fnstatecheck = checkpointer.new_func_state_checkpointer();
+    /// Load a [`MonoExperiment`] from a saved state using a [`Searchspace`], [`Codomain`],
+    /// and [`Stepped`], along with an optional [`SeqRecorder`] and non-optional [`MonoCheckpointer`].
+    /// You can use [`load!`](crate::load) macro to load an experiment more easily.
+    fn load_with_pool(
+        space: Scp,
+        objective: MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        saver: (Option<Rec>, Check),
+        pool_mode: PoolMode,
+    ) -> Self {
+        let searchspace = space;
+        let codomain = Out::codomain();
+        let (recorder, mut checkpointer) = saver;
+        checkpointer.before_load();
+        let fnstatecheck = checkpointer.new_func_state_checkpointer();
 
-//         let opt_state = checkpointer.load_optimizer().unwrap();
-//         let stop = checkpointer.load_stop().unwrap();
-//         let mut evaluator: FidSeqEvaluator<_, _, _, _, _> = checkpointer.load_evaluate().unwrap();
+        let opt_state = checkpointer.load_optimizer().unwrap();
+        let stop = checkpointer.load_stop().unwrap();
+        let mut evaluator: FidSeqEvaluator<_, _, _, _, _> = checkpointer.load_evaluate().unwrap();
 
-//         match pool_mode {
-//             PoolMode::InMemory => {
-//                 let fn_states = fnstatecheck.load_all_func_state();
-//                 let mut pool = IdxMapPool::from_iter(fn_states);
-//                 pool.check = Some(fnstatecheck);
-//                 evaluator.pool = Pool::IdxMap(pool);
-//             }
-//             PoolMode::Persistent => {
-//                 evaluator.pool = Pool::Load(LoadPool::new(fnstatecheck));
-//             }
-//         }
+        match pool_mode {
+            PoolMode::InMemory => {
+                let fn_states = fnstatecheck.load_all_func_state();
+                let mut pool = IdxMapPool::from_iter(fn_states);
+                pool.check = Some(fnstatecheck);
+                evaluator.pool = Pool::IdxMap(pool);
+            }
+            PoolMode::Persistent => {
+                evaluator.pool = Pool::Load(LoadPool::new(fnstatecheck));
+            }
+        }
 
-//         let optimizer = Op::from_state(opt_state);
-//         let recorder = match recorder {
-//             Some(mut r) => {
-//                 r.after_load(&searchspace);
-//                 Some(r)
-//             }
-//             None => None,
-//         };
+        let optimizer = Op::from_state(opt_state);
+        let recorder = match recorder {
+            Some(mut r) => {
+                r.after_load(&searchspace);
+                Some(r)
+            }
+            None => None,
+        };
 
-//         let accumulator = checkpointer.load_accumulator().unwrap();
+        let accumulator = checkpointer.load_accumulator().unwrap();
 
-//         checkpointer.after_load();
+        checkpointer.after_load();
 
-//         MonoExperiment {
-//             searchspace,
-//             codomain,
-//             objective,
-//             optimizer,
-//             stop,
-//             recorder,
-//             checkpointer: Some(checkpointer),
-//             accumulator,
-//             evaluator: Some(evaluator),
-//             pool_mode,
-//         }
-//     }
+        MonoExperiment {
+            searchspace,
+            codomain,
+            objective,
+            optimizer,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            accumulator,
+            evaluator: Some(evaluator),
+            pool_mode,
+        }
+    }
 
-//     /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
-//     /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`],
-//     /// per iteration, using the inner [`FidSeqEvaluator`].
-//     /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
-//     /// is saved using the inner [`SeqRecorder`] when [`FidSeqEvaluator`] has finished evaluating an element.
-//     ///
-//     /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
-//     /// (inner [`FidSeqEvaluator`]. updates) step.
-//     fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Out> {
-//         let mut eval = match self.evaluator {
-//             Some(e) => e,
-//             None => {
-//                 let fn_check = self
-//                     .checkpointer
-//                     .as_ref()
-//                     .map(|c| c.new_func_state_checkpointer());
-//                 let sol = self
-//                     .optimizer
-//                     .step(None, &self.searchspace, &self.accumulator)
-//                     .into();
-//                 match self.pool_mode {
-//                     PoolMode::InMemory => {
-//                         let pool = IdxMapPool::new(fn_check);
-//                         FidSeqEvaluator::new(sol, Pool::IdxMap(pool))
-//                     }
-//                     PoolMode::Persistent => {
-//                         FidSeqEvaluator::new(sol, Pool::Load(LoadPool::new(fn_check.unwrap())))
-//                     }
-//                 }
-//             }
-//         };
+    /// Run the [`MonoExperiment`], performing optimization, using a [`SingleOptimizer`], until the [`Stop`] condition is met.
+    /// The process evaluates a single [`SolutionShape`] of [`Uncomputed`] + [`HasStep`] + [`HasFidelity`],
+    /// per iteration, using the inner [`FidSeqEvaluator`].
+    /// A checkpoint is performed after each optimization step. And a single [`Computed`](crate::Computed),
+    /// is saved using the inner [`SeqRecorder`] when [`FidSeqEvaluator`] has finished evaluating an element.
+    ///
+    /// The [`Stop`] condition is updated after each [`ExpStep::Iteration`], [`ExpStep::Optimization`], and [`ExpStep::Distribution`]
+    /// (inner [`FidSeqEvaluator`]. updates) step.
+    fn run(mut self) -> CompAcc<Scp::SolShape, StepSId, Op::SInfo, Out> {
+        let mut eval = match self.evaluator {
+            Some(e) => e,
+            None => {
+                let fn_check = self
+                    .checkpointer
+                    .as_ref()
+                    .map(|c| c.new_func_state_checkpointer());
+                let sol = self
+                    .optimizer
+                    .step(None, &self.searchspace, &self.accumulator)
+                    .into();
+                match self.pool_mode {
+                    PoolMode::InMemory => {
+                        let pool = IdxMapPool::new(fn_check);
+                        FidSeqEvaluator::new(sol, Pool::IdxMap(pool))
+                    }
+                    PoolMode::Persistent => {
+                        FidSeqEvaluator::new(sol, Pool::Load(LoadPool::new(fn_check.unwrap())))
+                    }
+                }
+            }
+        };
 
-//         self.stop.init();
-//         loop {
-//             // Stop part
-//             if self.stop.stop() {
-//                 break;
-//             };
-//             self.stop.update(ExpStep::Iteration); // New iteration
+        self.stop.init();
+        loop {
+            // Stop part
+            if self.stop.stop() {
+                break;
+            };
+            self.stop.update(ExpStep::Iteration); // New iteration
 
-//             // Evaluate the solution
-//             let output = MonoEvaluate::<
-//                 _,
-//                 StepSId,
-//                 Op,
-//                 Scp,
-//                 Out,
-//                 St,
-//                 _,
-//                 Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp::SolShape, Out>>,
-//             >::evaluate(
-//                 &mut eval,
-//                 &self.objective,
-//                 &self.codomain,
-//                 &mut self.stop,
-//                 &mut self.accumulator,
-//             );
+            // Evaluate the solution
+            let output = MonoEvaluate::<
+                _,
+                StepSId,
+                Op,
+                Scp,
+                Out,
+                St,
+                _,
+                Option<OutShapeEvaluate<StepSId, Op::SInfo, Scp::SolShape, Out>>,
+            >::evaluate(
+                &mut eval,
+                &self.objective,
+                &self.codomain,
+                &mut self.stop,
+                &mut self.accumulator,
+            );
 
-//             let (computed, outputed) = output.unzip();
+            let (computed, outputed) = output.unzip();
 
-//             // Saver part
-//             if let Some(comp) = &computed
-//                 && let Some(out) = &outputed
-//                 && let Some(r) = &self.recorder
-//             {
-//                 r.save(comp, out, &self.searchspace, &self.codomain);
-//             }
+            // Saver part
+            if let Some(comp) = &computed
+                && let Some(out) = &outputed
+                && let Some(r) = &self.recorder
+            {
+                r.save(comp, out, &self.searchspace, &self.codomain);
+            }
 
-//             eval.update(
-//                 self.optimizer
-//                     .step(computed, &self.searchspace, &self.accumulator),
-//             );
-//             self.stop.update(ExpStep::Optimization);
-//             if let Some(c) = &self.checkpointer {
-//                 c.save_state(self.optimizer.get_state(), &self.stop, &eval);
-//                 c.save_accumulator(&self.accumulator);
-//             }
-//         }
-//         self.accumulator
-//     }
+            eval.update(
+                self.optimizer
+                    .step(computed, &self.searchspace, &self.accumulator),
+            );
+            self.stop.update(ExpStep::Optimization);
+            if let Some(c) = &self.checkpointer {
+                c.save_state(self.optimizer.get_state(), &self.stop, &eval);
+                c.save_accumulator(&self.accumulator);
+            }
+        }
+        self.accumulator
+    }
 
-//     fn get_stop(&self) -> &St {
-//         &self.stop
-//     }
+    fn get_stop(&self) -> &St {
+        &self.stop
+    }
 
-//     fn get_searchspace(&self) -> &Scp {
-//         &self.searchspace
-//     }
+    fn get_searchspace(&self) -> &Scp {
+        &self.searchspace
+    }
 
-//     fn get_codomain(&self) -> &Out::Cod {
-//         &self.codomain
-//     }
+    fn get_codomain(&self) -> &Out::Cod {
+        &self.codomain
+    }
 
-//     fn get_objective(&self) -> &MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
-//         &self.objective
-//     }
+    fn get_objective(&self) -> &MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+        &self.objective
+    }
 
-//     fn get_optimizer(&self) -> &Op {
-//         &self.optimizer
-//     }
+    fn get_optimizer(&self) -> &Op {
+        &self.optimizer
+    }
 
-//     fn get_recorder(&self) -> Option<&Rec> {
-//         self.recorder.as_ref()
-//     }
+    fn get_recorder(&self) -> Option<&Rec> {
+        self.recorder.as_ref()
+    }
 
-//     fn get_checkpointer(&self) -> Option<&Check> {
-//         self.checkpointer.as_ref()
-//     }
+    fn get_checkpointer(&self) -> Option<&Check> {
+        self.checkpointer.as_ref()
+    }
 
-//     fn get_mut_stop(&mut self) -> &mut St {
-//         &mut self.stop
-//     }
+    fn get_mut_stop(&mut self) -> &mut St {
+        &mut self.stop
+    }
 
-//     fn get_mut_searchspace(&mut self) -> &mut Scp {
-//         &mut self.searchspace
-//     }
+    fn get_mut_searchspace(&mut self) -> &mut Scp {
+        &mut self.searchspace
+    }
 
-//     fn get_mut_codomain(&mut self) -> &mut Out::Cod {
-//         &mut self.codomain
-//     }
+    fn get_mut_codomain(&mut self) -> &mut Out::Cod {
+        &mut self.codomain
+    }
 
-//     fn get_mut_objective(
-//         &mut self,
-//     ) -> &mut MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
-//         &mut self.objective
-//     }
+    fn get_mut_objective(
+        &mut self,
+    ) -> &mut MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState> {
+        &mut self.objective
+    }
 
-//     fn get_mut_optimizer(&mut self) -> &mut Op {
-//         &mut self.optimizer
-//     }
+    fn get_mut_optimizer(&mut self) -> &mut Op {
+        &mut self.optimizer
+    }
 
-//     fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
-//         self.recorder.as_mut()
-//     }
+    fn get_mut_recorder(&mut self) -> Option<&mut Rec> {
+        self.recorder.as_mut()
+    }
 
-//     fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
-//         self.checkpointer.as_mut()
-//     }
+    fn get_mut_checkpointer(&mut self) -> Option<&mut Check> {
+        self.checkpointer.as_mut()
+    }
 
-//     fn get_accumalator(
-//         &self,
-//     ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
-//         &self.accumulator
-//     }
+    fn get_accumalator(
+        &self,
+    ) -> &TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out> {
+        &self.accumulator
+    }
 
-//     fn get_mut_accumalator(
-//         &mut self,
-//     ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
-//     {
-//         &mut self.accumulator
-//     }
+    fn get_mut_accumalator(
+        &mut self,
+    ) -> &mut TypeAcc<CompShape<Scp::SolShape, StepSId, Op::SInfo, Out>, StepSId, Op::SInfo, Out>
+    {
+        &mut self.accumulator
+    }
 
-//     fn extract(
-//         self,
-//     ) -> ExpComponent<
-//         Out,
-//         Scp,
-//         Op,
-//         MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
-//         St,
-//         Rec,
-//         Check,
-//     > {
-//         (
-//             self.searchspace,
-//             self.codomain,
-//             self.objective,
-//             self.optimizer,
-//             self.stop,
-//             (self.recorder, self.checkpointer),
-//         )
-//     }
-// }
+    fn extract(
+        self,
+    ) -> ExpComponent<
+        Out,
+        Scp,
+        Op,
+        MultiStep<RawObj<Scp::SolShape, StepSId, Op::SInfo>, Out, FnState>,
+        St,
+        Rec,
+        Check,
+    > {
+        (
+            self.searchspace,
+            self.codomain,
+            self.objective,
+            self.optimizer,
+            self.stop,
+            (self.recorder, self.checkpointer),
+        )
+    }
+}
 
 // //---------------------//
 // //--- MULTITHREADED ---//

@@ -167,7 +167,9 @@ pub trait FuncWrapper
     type Out: Outcome;
     type OutShape;
     type Dom: Domain;
-    type Sol<Dom:Domain>: Uncomputed<Dom=Dom>; 
+    type Id: SolId;
+    type Info: SolInfo;
+    type Sol<Dom:Domain>: Uncomputed<Dom=Dom, Id= Self::Id, Info=Self::Info>; 
     /// Evaluate the objective at a given `x` [`Raw`](crate::Solution::Raw) with a given `context`.
     fn compute(&self, x: <Self::Sol::<Self::Dom> as HasX>::X , context: Self::Context) -> Self::OutShape;
 }
@@ -215,6 +217,8 @@ where
     type OutShape = Out;
     type Out = Out;
     type Dom = Obj;
+    type Id = Id;
+    type Info = Info;
     type Sol<Dom:Domain> = BaseSol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, _context: Self::Context) -> Self::OutShape {
@@ -280,6 +284,8 @@ where
     type OutShape = (Out, FnState);
     type Out = Out;
     type Dom = Obj;
+    type Id = Id;
+    type Info = Info;
     type Sol<Dom:Domain> = FidelitySol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, context: Self::Context) -> Self::OutShape {

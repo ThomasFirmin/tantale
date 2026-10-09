@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tantale::core::Step;
-use tantale::macros::Outcome;
+use tantale::macros::{Outcome, Schema, Recordable};
 
-#[derive(Outcome, Debug, Serialize, Deserialize)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct OutExample {
     #[maximize]
     pub obj1: f64,

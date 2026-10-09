@@ -74,7 +74,7 @@ use std::{
 /// - [`SeqRecorder`] - Trait for sequential recorders
 /// - [`BatchRecorder`] - Trait for batch recorders
 pub struct CSVRecorder {
-    pub config: Arc<FolderConfig>,
+    pub config: FolderConfig,
     path_pobj: Option<PathBuf>,
     path_popt: Option<PathBuf>,
     path_info: Option<PathBuf>,
@@ -92,7 +92,7 @@ impl CSVRecorder {
     /// # Returns
     ///
     /// `Some(CSVRecorder)` with file paths configured.
-    pub fn new(config: Arc<FolderConfig>) -> Option<Self> {
+    pub fn new(config: FolderConfig) -> Option<Self> {
         let path_pobj = Some(config.path_rec.join(Path::new("obj.csv")));
         let path_popt = Some(config.path_rec.join(Path::new("opt.csv")));
         let path_info = Some(config.path_rec.join(Path::new("info.csv")));
@@ -109,6 +109,7 @@ impl CSVRecorder {
         })
     }
 
+    /// Retrieve the file path for a given recorder target.
     pub fn retrieve(&self, target: &RecorderTargets) -> &Option<PathBuf> {
         match target {
             RecorderTargets::XObjective => &self.path_pobj,
@@ -120,6 +121,7 @@ impl CSVRecorder {
         }
     }
 
+    /// Create the CSV file for a specific target if it does not exist.
     pub fn create(&self, target: &RecorderTargets) -> Result<(), RecorderError> {
         match self.retrieve(target) {
             Some(path) => {
@@ -130,6 +132,7 @@ impl CSVRecorder {
         }
     }
 
+    /// Open a CSV file for appending, returning a thread-safe writer.
     pub fn open(&self, target: &RecorderTargets) -> Result<Arc<Mutex<csv::Writer<File>>>, RecorderError> {
         match self.retrieve(target) {
             Some(path) => {
@@ -139,6 +142,18 @@ impl CSVRecorder {
                 Ok(Arc::new(Mutex::new(writer)))
             },
             None => Err(RecorderError::FileNotFound(format!("No file configured for target {:?}", target))),
+        }
+    }
+
+    /// Deactivate recording for a specific target.
+    pub fn deactivate(&mut self, target: &RecorderTargets) {
+        match target {
+            RecorderTargets::XObjective => self.path_pobj = None,
+            RecorderTargets::XOptimizer => self.path_popt = None,
+            RecorderTargets::Y => self.path_codom = None,
+            RecorderTargets::Outcome => self.path_out = None,
+            RecorderTargets::Metadata => self.path_info = None,
+            RecorderTargets::Other(_) => {},
         }
     }
 }

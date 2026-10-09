@@ -5,14 +5,15 @@
 
 extern crate proc_macro;
 
-mod csvwritable;
+mod schema;
+mod recordable;
 mod hpo;
 mod objective;
-mod optinfo;
 mod outcome;
+mod basic_bounds;
+mod fidelity_bounds;
 #[cfg(feature = "py")]
 mod pyhpo;
-mod solinfo;
 
 #[cfg(not(feature = "spikes"))]
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
@@ -487,165 +488,14 @@ pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hpo::hpo(input)
 }
 
-/// The `OptInfo` derive macro implements the `OptInfo` trait for types
-/// representing per-iteration metadata produced by an `Optimizer`.
-///
-/// ## Purpose
-///
-/// During optimization, algorithms often generate metadata associated to a batch at each iteration,
-/// that isn't part of the core optimizer state. For example the acquisition
-/// value in q-Expected Improvement Bayesian optimization, associating a score to a batch of candidates solutions.
-///
-/// `OptInfo` provides a structured way to attach this metadata to batches of solutions.
-///
-/// ## Requirements
-///
-/// The struct must:
-/// - Derive or implement `Serialize`, `Deserialize`, `Debug`, and `Default` from standard traits
-///
-/// ## Example
-///
-/// ```ignore
-/// use tantale::macros::OptInfo;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(OptInfo, Serialize, Deserialize, Debug, Default)]
-/// pub struct QEiInfo {
-///     pub qei: f64,
-/// }
-/// ```
-#[proc_macro_derive(OptInfo)]
-pub fn optinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    optinfo::proc_optinfo(input)
+#[proc_macro_attribute]
+pub fn basic_bounds(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    basic_bounds::basic_bounds(attr, item)
 }
 
-/// The `SolInfo` derive macro implements the `SolInfo` trait for types
-/// representing metadata associated with individual solutions during optimization.
-///
-/// ## Purpose
-///
-/// `SolInfo` provides a structured way to attach metadata to individual solutions, such as:
-/// - Evaluation fidelity level
-/// - Acquisition function values
-/// - Uncertainty estimates
-/// - Any other per-solution information relevant to the optimization process
-///
-/// ## Requirements
-/// The struct must:
-/// - Derive or implement `Serialize`, `Deserialize`, and `Debug` from standard traits
-/// - Contain fields relevant to per-solution metadata
-///
-/// ## Example
-/// ```ignore
-/// use tantale::macros::SolInfo;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(SolInfo, Serialize, Deserialize, Debug)]
-/// pub struct MySolInfo {
-///     pub acquisition_value: f64,
-///     pub uncertainty: f64,
-/// }
-/// ```
-#[proc_macro_derive(SolInfo)]
-pub fn solinfo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    solinfo::proc_solinfo(input)
-}
-
-/// The `CSVWritable` derive macro implements the `CSVWritable` trait for types
-/// that can be serialized to CSV format.
-///
-/// ## Purpose
-///
-/// `CSVWritable` provides a structured way to write objects to CSV files.
-///
-/// ## Quick Example
-///
-/// ```ignore
-/// use tantale::macros::CSVWritable;
-///
-/// #[derive(CSVWritable)]
-/// pub struct ModelResult {
-///     pub train_loss: f64,
-///     pub val_loss: f64,
-///     pub accuracy: f64,
-/// }
-/// ```
-///
-/// Generated:
-/// - `impl CSVWritable` - Enables CSV logging of results
-///   - Headers: `["train_loss", "val_loss", "accuracy"]`
-///   - Rows: for example `["0.523", "0.612", "0.845"]`
-///
-/// ## Supported Field Types
-///
-/// The macro automatically detects field types and generates appropriate serialization:
-///
-/// | Field Type | Conversion to CSV | Example |
-/// |-----------|---|---------|
-/// | `f64`, `f32` | to_string() | `0.523` |
-/// | `i32`, `i64`, `isize` | to_string() | `-42` |
-/// | `u32`, `u64`, `usize` | to_string() | `100` |
-/// | `bool` | to_string() | `true` |
-/// | `String` | to_string() | `"sigmoid"` |
-/// | `Vec<T>` | Debug format `[...]` | `[1.0, 2.0, 3.0]` |
-/// | `Step` | to_string() | `Evaluated` |
-///
-/// ## CSV Output Format
-///
-/// The macro implements `CSVWritable` for automatic result logging:
-///
-/// ```ignore
-/// #[derive(CSVWritable)]
-/// pub struct Metrics {
-///     pub rmse: f64,
-///     pub mae: f64,
-///     pub r2: f64,
-/// }
-///
-/// // Generates:
-/// // header() -> ["rmse", "mae", "r2"]
-/// // write()  -> ["0.234", "0.189", "0.856"] (for each evaluation)
-/// ```
-///
-/// The header is derived automatically from field names, and values are serialized
-/// based on their types (numeric to_string, Vec with debug format, etc.).
-///
-/// ## Fields with Vectors
-///
-/// Vec fields are serialized using debug format for multi-valued results:
-///
-/// ```ignore
-/// #[derive(CSVWritable)]
-/// pub struct PredictionResult {
-///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
-///     pub error: f64,              // 0.05
-/// }
-///
-/// // CSV output:
-/// // header() -> ["predictions", "error"]
-/// // write()  -> ["[0.1, 0.2, 0.3]", "0.05"]
-/// ```
-///
-/// ## Field Naming
-///
-/// Field names automatically become CSV column headers:
-///
-/// ```ignore
-/// #[derive(CSVWritable)]
-/// pub struct Metrics {
-///     pub train_loss: f64,     // CSV header: "train_loss"
-///     pub val_loss: f64,       // CSV header: "val_loss"
-///     pub fit_time_ms: u32,    // CSV header: "fit_time_ms"
-/// }
-/// ```
-///
-/// ## Limitations
-///
-/// 1. **Supported types only** - Custom types require implementing CSVWritable manually
-/// 2. **Field order preserved** - CSV columns match struct field order
-#[proc_macro_derive(CSVWritable)]
-pub fn csvwritable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    csvwritable::proc_csvwritable(input)
+#[proc_macro_attribute]
+pub fn fidelity_bounds(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    fidelity_bounds::fidelity_bounds(attr, item)
 }
 
 #[cfg(all(feature = "py", not(feature = "mpi")))]
@@ -660,4 +510,148 @@ pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     pyhpo::pyhpo(input)
+}
+
+/// The `Schema` derive macro implements the `Schema` trait.
+///
+/// ## Purpose
+///
+/// `Schema` provides a structured way to retrieve columns names (headers) of a struct.
+///
+/// ## Quick Example
+///
+/// ```ignore
+/// use tantale::macros::Schema;
+///
+/// #[derive(Schema)]
+/// pub struct ModelResult {
+///     pub train_loss: f64,
+///     pub val_loss: f64,
+///     pub accuracy: f64,
+/// }
+/// ```
+///
+/// Generated:
+/// - `impl Schema` - Enables automatic header generation.
+///   - Headers: `["train_loss", "val_loss", "accuracy"]`
+///
+/// ## Output Format
+///
+/// The macro implements `Schema` for the struct, providing its headers:
+///
+/// ```ignore
+/// #[derive(Schema)]
+/// pub struct Metrics {
+///     pub rmse: f64,
+///     pub mae: f64,
+///     pub r2: f64,
+/// }
+///
+/// // Generates:
+/// // columns(&(), ()) -> ["rmse", "mae", "r2"]
+/// ```
+///
+/// The header is derived automatically from field names.
+///
+/// ## Fields with Vectors
+///
+/// Vec fields are serialized using debug format for multi-valued results:
+///
+/// ```ignore
+/// #[derive(Schema)]
+/// pub struct PredictionResult {
+///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
+///     pub error: f64,              // 0.05
+/// }
+///
+/// // Generates:
+/// // columns(&(), ()) -> ["predictions", "error"]
+/// ```
+///
+/// ## Field Naming
+///
+/// Field names automatically become column headers:
+///
+/// ```ignore
+/// #[derive(Schema)]
+/// pub struct Metrics {
+///     pub train_loss: f64,     // header: "train_loss"
+///     pub val_loss: f64,       // header: "val_loss"
+///     pub fit_time_ms: u32,    // header: "fit_time_ms"
+/// }
+/// ```
+///
+/// ## Limitations
+///
+/// 1. **Supported types only** - Custom types require implementing Schema manually
+/// 2. **Field order preserved** - Columns match struct field order
+#[proc_macro_derive(Schema)]
+pub fn schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    schema::proc_schema(input)
+}
+
+
+/// The `Recordable` derive macro implements the `Recordable` tait.
+///
+/// ## Purpose
+///
+/// `Recordable` provides a structured way to write objects values to a `Vec<String>`.
+///
+/// ## Quick Example
+///
+/// ```ignore
+/// use tantale::macros::Recordable;
+///
+/// #[derive(Recordable)]
+/// pub struct ModelResult {
+///     pub train_loss: f64,
+///     pub val_loss: f64,
+///     pub accuracy: f64,
+/// }
+/// ```
+///
+/// Generated:
+/// - `impl Recordable` - Enables automatic header generation.
+///   - Headers: `["train_loss", "val_loss", "accuracy"]`
+///
+/// ## Output Format
+///
+/// The macro implements `Recordable` for the struct, providing its headers:
+///
+/// ```ignore
+/// #[derive(Recordable)]
+/// pub struct Metrics {
+///     pub rmse: f64,
+///     pub mae: f64,
+///     pub r2: f64,
+/// }
+///
+/// // Generates:
+/// // columns(&(), ()) -> ["rmse", "mae", "r2"]
+/// ```
+///
+/// The header is derived automatically from field names.
+///
+/// ## Fields with Vectors
+///
+/// Vec fields are serialized using debug format for multi-valued results:
+///
+/// ```ignore
+/// #[derive(Recordable)]
+/// pub struct PredictionResult {
+///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
+///     pub error: f64,              // 0.05
+/// }
+///
+/// // Generates:
+/// // columns(&(), ()) -> ["predictions", "error"]
+/// ```
+///
+/// ## Limitations
+///
+/// 1. **Supported types only** - Custom types require implementing Recordable manually
+/// 2. **Field order preserved** - Columns match struct field order
+#[proc_macro_derive(Recordable)]
+pub fn recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    recordable::proc_recordable(input)
 }

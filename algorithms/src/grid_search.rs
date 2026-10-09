@@ -1,12 +1,18 @@
 use tantale_core::{
-    BaseSol, EmptyInfo, FidOutcome, Grid, GridDom, HasFidelity, HasState, HasStep, Lone, MixedTypeDom, NoDomain, Problem,
-    Sampler, SimpleProblem, SolId, SolutionShape, Sp, State, Uncomputed, aliases::{Accum, CompShape, Shape},
-    domain::grid::GridBounds, objective::outcome::{FuncState, Outcome}, 
-    searchspace::Searchspace, solution::SId,
+    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampler, Sp, State, 
+    aliases::{Accum, CompShape, Shape}, domain::{CategoricalDomain, grid::GridBounds}, searchspace::Searchspace,
 };
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tantale_macros::basic_bounds;
 
+
+/// A helper macro to shortcut the type signature of [`GridSearch`] when loading.
+#[macro_export]
+macro_rules! gridsearch {
+    () => {GridSearch};
+}
 
 //------------------//
 //--- SEQUENTIAL ---//
@@ -73,7 +79,7 @@ impl HasState for GridSearch {
         self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
 
@@ -82,40 +88,39 @@ impl HasState for GridSearch {
     }
 }
 
+#[basic_bounds(P, GridDom<T>, EmptyInfo)]
 impl<P, T> Sampler<P, GridDom<T>> for GridSearch
 where
-    P: SimpleProblem<GridDom<T>>,
-    P::Scp: Searchspace<P::Func, Obj=GridDom<T>, TrueOpt = NoDomain>,
     T: GridBounds,
 {
     type Info = EmptyInfo;
     
-    fn sample(&mut self,scp: &<P as Problem>::Scp,acc: &Accum<P>) -> Option<Shape<P>> {
-        let x: Vec<MixedTypeDom> = self
-            .0
+    fn sample(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<Shape<P>> {
+        let x: Arc<[_]> = self
             .0
             .iter()
             .enumerate()
             .map(|(i, &idx)| {
-                let var = &scp.var[i];
-                var.domain_obj.get(idx).unwrap()
+                let dom = &scp.opt_at(i).unwrap();
+                dom.get_features().get(idx).unwrap().clone()
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
 
-        for i in (0..self.0.0.len()).rev() {
-            let var = &scp.var[i];
-            self.0.0[i] += 1;
-            if self.0.0[i] < var.domain_obj.size() {
+        for i in (0..self.0.len()).rev() {
+            let dom = &scp.opt_at(i).unwrap();
+            self.0[i] += 1;
+            if self.0[i] < dom.size() {
                 break;
             } else {
-                self.0.0[i] = 0;
+                self.0[i] = 0;
                 if i == 0 {
-                    self.0.1 += 1;
+                    self.1 += 1;
                 }
             }
         }
-        Lone::new(BaseSol::new(SId::generate(), x, EmptyInfo.into())).into()
+        Some(scp.new_opt(x, EmptyInfo.into()))
     }
     
-    fn update(&mut self,x: CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) { }
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) { }
 }

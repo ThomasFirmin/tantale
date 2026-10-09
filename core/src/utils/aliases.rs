@@ -1,6 +1,6 @@
 //! Type aliases for convenience in accessing associated types.
 
-use crate::{Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, Outcome, Problem, Searchspace, SolutionShape, solution::shape::IntoComputedShape};
+use crate::{Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, Outcome, Problem, SolutionShape, solution::shape::IntoComputedShape};
 
 
 // LINKED
@@ -54,7 +54,9 @@ pub type Cod<Pb> = <Out<Pb> as Outcome>::Cod;
 pub type CodElem<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::TypeCodom;
 // SOLUTION
 pub type SObj<Pb> = <Func<Pb> as FuncWrapper>::Sol<Obj<Pb>>;
+pub type XObj<Pb> = <SObj<Pb> as HasX>::X;
 pub type SOpt<Pb> = <Func<Pb> as FuncWrapper>::Sol<Opt<Pb>>;
-pub type Shape<Pb> = <Scp<Pb> as Searchspace<Func<Pb>>>::Shape;
+pub type XOpt<Pb> = <SOpt<Pb> as HasX>::X;
+pub type Shape<Pb> = <Pb as Problem>::Shape;
 pub type Accum<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::Acc<CompShape<Pb>>;
 pub type CompShape<Pb> = <Shape<Pb> as IntoComputedShape>::ComputedShape<Out<Pb>>;

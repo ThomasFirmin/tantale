@@ -14,11 +14,11 @@ use std::sync::Arc;
 use super::init_outcome::{OutExample, get_struct};
 use super::init_sinfo::{TestSInfo, get_sinfo};
 
-type TestComp<Sol, Dom> = Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
+type TestComp<Sol> = Computed<Sol, OutExample>;
 
-fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
+fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc>, pid: u32)
 where
-    Unc: Uncomputed<ParSId, Dom, TestSInfo, X = Arc<[Dom::Element]>>,
+    Unc: Uncomputed<Id=ParSId, Dom=Dom, Info=TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
     Elem<Dom>: Sync + Send,
     Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,

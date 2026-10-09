@@ -4,6 +4,7 @@ use tantale::core::utils::xy::XToNdArray;
 use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, Sp, solution::shape::SolutionShape};
 
 use super::init_sp::*;
+use super::init_sp::one_step_func::FuncType;
 use super::init_sp_grid::*;
 
 macro_rules! get_test {
@@ -19,26 +20,26 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
+                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_obj(&sp,&mut rng,sinfo.clone());
                 let array = sample_obj.x_array();
                 for (x1, x2) in array.row(0).iter().zip(sample_obj.x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
                 }
 
-                let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_opt(&sp, sample_obj);
+                let converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::onto_opt(&sp, sample_obj);
                 let array = converted_opt.get_sopt().x_array();
                 for (x1, x2) in array.row(0).iter().zip(converted_opt.get_sopt().x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
                 }
 
-                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::sample_opt(&sp, &mut rng,sinfo.clone());
+                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_opt(&sp, &mut rng,sinfo.clone());
                 let array = sample_opt.x_array();
                 for (x1, x2) in array.row(0).iter().zip(sample_opt.x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
                 }
 
 
-                let converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::onto_obj(&sp, sample_opt);
+                let converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::onto_obj(&sp, sample_opt);
                 let array = converted_obj.get_sobj().x_array();
                 for (x1, x2) in array.row(0).iter().zip(converted_obj.get_sobj().x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
@@ -51,7 +52,7 @@ macro_rules! get_test {
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
+                let vec_sample_obj: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
                 let array = vec_sample_obj.x_array();
                 for (row, sol) in array.rows().into_iter().zip(vec_sample_obj.iter()) {
                     for (x1, x2) in row.iter().zip(sol.x.iter()) {
@@ -59,7 +60,7 @@ macro_rules! get_test {
                     }
                 }
 
-                let vec_sample_opt: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>, SId, EmptyInfo>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
+                let vec_sample_opt: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
                 let array = vec_sample_opt.x_array();
                 for (row, sol) in array.rows().into_iter().zip(vec_sample_opt.iter()) {
                     for (x1, x2) in row.iter().zip(sol.x.iter()) {

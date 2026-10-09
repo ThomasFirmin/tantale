@@ -15,6 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 tantale_core = { workspace = true }
+tantale_macros = { workspace = true }
 num = { workspace = true}
 rand = { workspace = true}
 serde = { workspace = true, features=["derive","rc"]}

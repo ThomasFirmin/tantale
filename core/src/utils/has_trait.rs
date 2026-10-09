@@ -78,7 +78,7 @@ pub trait HasInfo
 /// allowing retrieval of the underlying raw solution regardless of its computed state.
 pub trait HasX 
 {
-    type X: Clone + Debug + Serialize + for<'de> Deserialize<'de>;
+    type X: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
     /// Returns a reference to the raw solution associated with this object.
     fn ref_x(&self) -> &Self::X;
 
@@ -195,7 +195,7 @@ pub trait HasUncomputed
     fn get_uncomputed(&self) -> &Self::Uncomputed;
 }
 
-/// Trait for objects containing a slice of [`Var`](crate::Var)iables.
+/// Trait for objects containing a slice of [Var]iables.
 pub trait HasVariables: Linked {
 
     fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
@@ -209,7 +209,12 @@ pub trait HasVariables: Linked {
     fn iter_obj(&self) -> impl Iterator<Item = &Self::Obj> + '_ {
         (0..self.size()).map(|idx| self.obj_at(idx).unwrap())
     }
-    
+
+    /// Returns the [`Var`] at a specific index, if it exists.
+    fn var_at(&self, index: usize) -> Option<&Var<Self::Obj, Self::TrueOpt>> {
+        self.get_vars().get(index)
+    }
+
     /// Returns the `Obj` [`Domain`] at a specific index, if it exists.
     fn obj_at(&self, index: usize) -> Option<&Self::Obj>;
 
@@ -229,10 +234,10 @@ pub trait HasState
 {
     type State: State;
 
-    /// Returns a mutable reference to the [`State`] of `Self`.
-    fn get_mut_state(&mut self) -> &Self::State;
     /// Returns a reference to the [`State`] of `Self`.
     fn get_state(&self) -> &Self::State;
+    /// Returns a mutable reference to the [`State`] of `Self`.
+    fn get_mut_state(&mut self) -> &mut Self::State;
     /// Builds `Self` from a previously saved [`State`].
     fn from_state(state: Self::State) -> Self;
 }

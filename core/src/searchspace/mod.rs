@@ -200,7 +200,7 @@ use std::sync::Arc;
 /// - [`Linked`] - Trait linking Obj and Opt domains
 /// - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Macro for creating searchspaces
 /// - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining searchspaces and wrap objective functions
-pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked
+pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
 {
     /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`](crate::Solution) representations.
     type Shape: SolutionShape<

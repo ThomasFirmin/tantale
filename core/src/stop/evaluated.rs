@@ -12,7 +12,7 @@ impl State for Evaluated {}
 impl HasState for Evaluated {
     type State = Self;
     
-    fn get_mut_state(&mut self) -> &Self::State {
+    fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
     

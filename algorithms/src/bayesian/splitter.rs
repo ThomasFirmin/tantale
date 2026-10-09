@@ -9,8 +9,9 @@ use wfg_rs::wfg::{inclusive_wfg, reference_point, wfg};
 
 /// The [`Splitter`] trait defines a method for splitting a vector into two parts within the TPE algorithm.
 /// The element to be split must implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
-pub trait Splitter<T>: Serialize + for<'a> Deserialize<'a>
+pub trait Splitter<T>
 where
+    Self: Send + Sync + Serialize + for<'a> Deserialize<'a>,
     T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
     /// Splits the given archive of points into two parts: the "good" set and the "bad" set.
@@ -47,7 +48,7 @@ impl LinearSplit {
 }
 impl<T> Splitter<T> for LinearSplit
 where
-    T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
+    T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
     fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         if archive.size() <= 1 {
@@ -89,7 +90,7 @@ impl SqrtSplit {
 }
 impl<T> Splitter<T> for SqrtSplit
 where
-    T: PartialOrd + Orderable + Serialize + for<'a> Deserialize<'a>,
+    T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
     fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         if archive.size() <= 1 {

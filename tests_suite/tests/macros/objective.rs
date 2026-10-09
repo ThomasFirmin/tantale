@@ -1,5 +1,5 @@
 use rand::rngs::ThreadRng;
-use tantale::core::{BaseSol, HasX};
+use tantale::core::{BaseSol, HasX, Problem, aliases::Shape, problem::Pb};
 
 #[test]
 fn obj_test() {
@@ -7,9 +7,9 @@ fn obj_test() {
         use serde::{Deserialize, Serialize};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
         use tantale::core::distribution::{Bernoulli, Uniform};
-        use tantale::macros::{Outcome, objective};
+        use tantale::macros::{Outcome, Schema, Recordable, objective};
 
-        #[derive(Outcome, Debug, Serialize, Deserialize)]
+        #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
         pub struct OutExample {
             #[maximize]
             pub obj: f64,
@@ -72,21 +72,16 @@ fn obj_test() {
 
     use tantale::core::{EmptyInfo, SId, Searchspace, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
+    let func = searchspace::get_function();
+    let pb: Pb<SId, EmptyInfo, tantale::core::Sp<tantale::core::Mixed, tantale::core::Mixed>, tantale::core::OneStep<BaseSol<_, tantale::core::Mixed, _>, searchspace::OutExample>> = Pb::new(sp, func);
 
     let mut rng = rand::rng();
 
-    fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
-    where
-        Scp: Searchspace<
-                BaseSol<SId, searchspace::OptType, EmptyInfo>,
-                SId,
-                EmptyInfo,
-                Opt = searchspace::OptType,
-            >,
+    fn get_pair<P:Problem<Info = EmptyInfo>>(pb: &P, rng: &mut ThreadRng) -> Shape<P>
     {
         let info = std::sync::Arc::new(EmptyInfo {});
-        let obj = sp.sample_obj(rng, info);
-        let pair = sp.onto_opt(obj); // Paired solutions have the same ID
+        let obj = pb.get_searchspace().sample_obj(rng, info);
+        let pair = pb.get_searchspace().onto_opt(obj);
         println!(
             "Obj {:?}:  <=> Opt {:?} : ",
             pair.get_sobj(),
@@ -94,6 +89,6 @@ fn obj_test() {
         );
         pair
     }
-    let sample = get_pair(&sp, &mut rng);
+    let sample = get_pair(&pb, &mut rng);
     searchspace::example(sample.get_sobj().clone_x());
 }
