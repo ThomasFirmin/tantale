@@ -3,6 +3,17 @@
 use crate::{Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, Outcome, Problem, SolutionShape, solution::shape::IntoComputedShape};
 
 
+/// Type alias for extracting the value type from a domain.
+///
+/// [`Elem<T>`] is a convenience type alias that maps a domain type `T` to its associated
+/// [`Domain::Element`] type. This simplifies type signatures and makes code more readable.
+///
+/// # See Also
+///
+/// - [`Domain::Element`] - The associated type being aliased
+/// - [`Domain`] - The trait defining domains
+pub type Elem<T> = <T as Domain>::Element;
+
 // LINKED
 /// The type of the `Obj` domain linked to `Self` through the [`Linked`] trait.
 pub type LinkObj<T> = <T as Linked>::Obj;
@@ -38,9 +49,10 @@ pub type GetY<T> = <T as HasY>::Y;
 
 // EXECUTION
 // OBJECTIVE FUNCTION
+pub type GetFuncSol<Func,Dom> = <Func as FuncWrapper>::Sol<Dom>;
 pub type Func<Pb> = <Pb as Problem>::Func;
-pub type FuncOut<Pb> = <Func<Pb> as FuncWrapper>::OutShape;
-pub type FuncCtx<Pb> = <Func<Pb> as FuncWrapper>::Context;
+pub type GetFuncCtx<Pb> = <Func<Pb> as FuncWrapper>::Context;
+pub type GetFuncOutShape<Pb> = <Func<Pb> as FuncWrapper>::OutShape;
 pub type Out<Pb> = <Func<Pb> as FuncWrapper>::Out;
 // DOMAIN
 pub type Scp<Pb> = <Pb as Problem>::Scp;
@@ -53,6 +65,7 @@ pub type TrueOpt<Pb> = LinkTrueOpt<Scp<Pb>>;
 pub type Cod<Pb> = <Out<Pb> as Outcome>::Cod;
 pub type CodElem<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::TypeCodom;
 // SOLUTION
+pub type Id<Pb> = <Pb as Problem>::Id;
 pub type SObj<Pb> = <Func<Pb> as FuncWrapper>::Sol<Obj<Pb>>;
 pub type XObj<Pb> = <SObj<Pb> as HasX>::X;
 pub type SOpt<Pb> = <Func<Pb> as FuncWrapper>::Sol<Opt<Pb>>;
@@ -60,3 +73,4 @@ pub type XOpt<Pb> = <SOpt<Pb> as HasX>::X;
 pub type Shape<Pb> = <Pb as Problem>::Shape;
 pub type Accum<Pb> = <Cod<Pb> as Codomain<Out<Pb>>>::Acc<CompShape<Pb>>;
 pub type CompShape<Pb> = <Shape<Pb> as IntoComputedShape>::ComputedShape<Out<Pb>>;
+pub type Info<Pb> = <Pb as Problem>::Info;

@@ -6,7 +6,7 @@ use super::init_sp::{
 use paste::paste;
 use std::sync::Arc;
 use tantale::core::{
-    Sp, Computed, EmptyInfo, XToNdArray, YToNdArray, searchspace::Searchspace,
+    Sp, Computed, XToNdArray, YToNdArray, searchspace::Searchspace,
 };
 
 macro_rules! get_test {
@@ -17,9 +17,9 @@ macro_rules! get_test {
             #[test]
             fn [< test_ $sp _ $func _json >](){
                 let sp = $sp::get_searchspace();
-                let info = Arc::new(EmptyInfo{});
+
                 let rng = &mut rand::rng();
-                let sample = <Sp<$sp::ObjType,$sp::OptType> as Searchspace<FuncType<$sp::ObjType, $out>>>::sample_obj(&sp, rng,info.clone());
+                let sample = <Sp<$sp::ObjType,$sp::OptType> as Searchspace<FuncType<$sp::ObjType, $out>>>::sample_obj(&sp, rng);
                 let (_,elem) = $func();
                 let x_array = sample.x_array();
                 let y_array = elem.y_array();

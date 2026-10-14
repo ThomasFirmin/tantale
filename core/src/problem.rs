@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 use serde::{Deserialize, Serialize};
 
-use crate::{BaseSol, FidelitySol, FuncWrapper, HasVariables, HasX, Linked, MultiStep, OneStep, Outcome, SId, Searchspace, SolId, SolInfo, SolutionShape, StepSId, aliases::{LinkObj, LinkOpt}, solution::shape::IntoComputedShape};
+use crate::{BaseSol, FidelitySol, FuncWrapper, HasVariables, HasX, Linked, MultiStep, OneStep, Outcome, SId, Searchspace, SolId, SolInfo, SolutionShape, StepSId, Uncomputed, aliases::{GetFuncSol, LinkObj, LinkOpt}, solution::shape::IntoComputedShape};
 
 pub trait PbMode: Serialize + for<'de> Deserialize<'de> {}
 
@@ -13,10 +13,10 @@ impl PbMode for SimpleMode {}
 pub struct FidelityMode;
 impl PbMode for FidelityMode {}
 
-pub trait Problem
+pub trait Problem: Sized
 where
-    <Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Opt>: HasX<X = Self::XOpt>,
-    <Self::Func as FuncWrapper>::Sol<<Self::Scp as Linked>::Obj>: HasX<X = Self::XObj>,
+    GetFuncSol<Self::Func, LinkObj<Self::Scp>>: Uncomputed<Dom= LinkObj<Self::Scp>, X = Self::XObj, Id = Self::Id, Info = Self::Info>,
+    GetFuncSol<Self::Func, LinkOpt<Self::Scp>>: Uncomputed<Dom= LinkOpt<Self::Scp>, X = Self::XOpt, Id = Self::Id, Info = Self::Info>,
 {
     type Id: SolId;
     type Info: SolInfo;
@@ -24,26 +24,15 @@ where
     type XObj: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
     type XOpt: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
 
-    type Scp: Searchspace<
-        Self::Func,
-        Shape = Self::Shape,
-    >;
+    type Scp: Searchspace<Self::Func,Shape = Self::Shape>;
 
-    type Func: FuncWrapper<
-        Dom = <Self::Scp as Linked>::Obj,
-        Id = Self::Id,
-        Info = Self::Info,
-    >;
+    type Func: FuncWrapper<Dom = <Self::Scp as Linked>::Obj, Info = Self::Info, Id = Self::Id>;
 
     type Shape: SolutionShape<
         Id = Self::Id,
         Info = Self::Info,
-        ObjSol = <Self::Func as FuncWrapper>::Sol<
-            <Self::Scp as Linked>::Obj
-        >,
-        OptSol = <Self::Func as FuncWrapper>::Sol<
-            <Self::Scp as Linked>::Opt
-        >,
+        ObjSol = GetFuncSol<Self::Func, LinkObj<Self::Scp>>,
+        OptSol = GetFuncSol<Self::Func, LinkOpt<Self::Scp>>,
         Obj = <Self::Scp as Linked>::Obj,
         Opt = <Self::Scp as Linked>::Opt,
     > + IntoComputedShape;
@@ -61,7 +50,7 @@ where
     Id: SolId,
     Info: SolInfo,
     Scp: Searchspace<Func>,
-    Func: FuncWrapper<Dom = LinkObj<Scp>, Id = Id, Info = Info>,
+    Func: FuncWrapper<Dom = LinkObj<Scp>, Id =  Id, Info = Info>,
 {
     searchspace: Scp,
     objective: Func,
@@ -74,7 +63,7 @@ where
     Id: SolId,
     Info: SolInfo,
     Scp: Searchspace<Func>,
-    Func: FuncWrapper<Dom = LinkObj<Scp>, Id = Id, Info = Info>,
+    Func: FuncWrapper<Dom = LinkObj<Scp>, Id =  Id, Info = Info>,
 {
     pub fn new(searchspace: Scp, objective: Func) -> Self {
         Self {

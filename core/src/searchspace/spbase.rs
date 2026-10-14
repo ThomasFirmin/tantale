@@ -45,13 +45,13 @@
 //! let pair = <Sp<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::sample_pair(
 //!     &sp,
 //!     &mut rng,
-//!     info.clone(),
+//!     F::Info::default().into(),
 //! );
 //! let pairs = <Sp<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::vec_sample_pair(
 //!     &sp,
 //!     &mut rng,
 //!     3,
-//!     info.clone(),
+//!     F::Info::default().into(),
 //! );
 //! let obj = <Sp<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::sample_obj(
 //!     &sp,
@@ -68,7 +68,8 @@
 //! ```
 
 use crate::{
-    FuncWrapper, HasId, HasInfo, HasVariables, HasX, aliases::{GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::{
+    FuncWrapper, HasId, HasInfo, HasVariables, HasX, aliases::{GetFuncSol, GetRaw, GetSObj, GetSOpt},
+    domain::{
         Domain, NoDomain, PreDomain, onto::{Linked, OntoDom},
     }, searchspace::{Searchspace, SpPar}, solution::{
         Lone, Pair, Uncomputed,
@@ -133,6 +134,10 @@ where
     fn get_vars(&self) -> &[Var<Self::Obj, Self::Opt>] {
         &self.var
     }
+
+    fn set_vars(&mut self, vars: Vec<Var<Self::Obj, Self::TrueOpt>>) {
+        self.var = vars.into_boxed_slice();
+    }
 }
 
 impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
@@ -155,16 +160,18 @@ impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
     fn get_vars(&self) -> &[Var<Obj, NoDomain>] {
         self.var.as_ref()
     }
+    
+    fn set_vars(&mut self, vars: Vec<Var<Self::Obj, Self::TrueOpt>>) {
+        self.var = vars.into_boxed_slice();
+    }
 }
 
 /// [`Searchspace`] implementation for paired objective/optimizer domains.
 impl<F, Obj, Opt> Searchspace<F> for Sp<Obj, Opt>
 where
     F: FuncWrapper<Dom = Obj>,
-    F::Sol<Obj>: Uncomputed<X = Arc<[Obj::Element]>>,
-    F::Sol<Opt>: Uncomputed<X = Arc<[Opt::Element]>>
-    + HasId<Id = <F::Sol<Obj> as HasId>::Id>
-    + HasInfo<Info = <F::Sol<Obj> as HasInfo>::Info>,
+    GetFuncSol<F, Obj>: Uncomputed<X = Arc<[Obj::Element]>>,
+    GetFuncSol<F, Opt>: Uncomputed<X = Arc<[Opt::Element]>>,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
 {
@@ -234,9 +241,9 @@ where
 
     /// Sample multiple objective-side solutions.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>> {
+    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>> {
         (0..size)
-            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng))
             .collect()
     }
 
@@ -250,9 +257,9 @@ where
 
     /// Sample multiple optimizer-side solutions.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>> {
+    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetSOpt<Self::Shape>> {
         (0..size)
-            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone()))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng))
             .collect()
     }
 
@@ -264,40 +271,40 @@ where
     
     /// Sample an objective-side solution and map it to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
-    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape {
-        <Sp<Obj, Opt> as Searchspace<F>>::onto_opt(self, <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
+    fn sample_pair<R: Rng>(&self, rng: &mut R) -> Self::Shape {
+        <Sp<Obj, Opt> as Searchspace<F>>::onto_opt(self, <Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng))
     }
 
     /// Sample multiple [`SolutionShape`](crate::solution::SolutionShape)
     /// by sampling objective-side solutions then mapping them to the optimizer space.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<Self::Shape> {
+    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<Self::Shape> {
         (0..size)
-            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_pair(self, rng, info.clone()))
+            .map(|_| <Sp<Obj, Opt> as Searchspace<F>>::sample_pair(self, rng))
             .collect()
     }
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSObj<Self::Shape>>
+    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>>
     where
         A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape>,
         R: Rng,
     {
         (0..size)
-            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
+            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_obj::<R>(self, rng)))
             .collect()
     }
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>
+    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize) -> Vec<GetSOpt<Self::Shape>>
     where
         A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape>,
         R: Rng,
     {
         (0..size)
-            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone())))
+            .map(|_| f(<Sp<Obj, Opt> as Searchspace<F>>::sample_opt::<R>(self, rng)))
             .collect()
     }
 }
@@ -361,9 +368,9 @@ where
 
     /// Sample multiple objective-side solutions.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>> {
+    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<F::Sol<Dom>> {
         (0..size)
-            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng))
             .collect()
     }
 
@@ -375,9 +382,9 @@ where
 
     /// Sample multiple optimizer-side solutions (same as objective-side in this mode).
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_opt<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>> {
+    fn vec_sample_opt<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<F::Sol<Dom>> {
         (0..size)
-            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone()))
+            .map(|_| <Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng))
             .collect()
     }
     
@@ -389,39 +396,39 @@ where
 
     /// Sample an objective-side solution and wrap it as a [`Lone`] [`SolutionShape`](crate::solution::SolutionShape).
     /// See module-level examples in [`crate::searchspace`].
-    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<F::Sol<Dom>>>) -> Self::Shape {
-        Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone()))
+    fn sample_pair<R: Rng>(&self, rng: &mut R) -> Self::Shape {
+        Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng))
     }
 
     /// Sample multiple [`Lone`] [`SolutionShape`](crate::solution::SolutionShape).
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<Self::Shape> {
+    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<Self::Shape> {
         (0..size)
-            .map(|_| Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
+            .map(|_| Lone::new(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng)))
             .collect()
     }
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize,info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>>
+    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize) -> Vec<F::Sol<Dom>>
     where
         A: Fn(F::Sol<Dom>) -> F::Sol<Dom>,
         R: Rng,
     {
         (0..size)
-            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng, info.clone())))
+            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_obj::<R>(self, rng)))
             .collect()
     }
 
     /// Equivalent to `vec_sample_opt` but applies a function to each sampled solution.
     /// See module-level examples in [`crate::searchspace`].
-    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<F::Sol<Dom>>>) -> Vec<F::Sol<Dom>>
+    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize) -> Vec<F::Sol<Dom>>
     where
         A: Fn(F::Sol<Dom>) -> F::Sol<Dom>,
         R: Rng,
     {
         (0..size)
-            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng, info.clone())))
+            .map(|_| f(<Sp<Dom, NoDomain> as Searchspace<F>>::sample_opt::<R>(self, rng)))
             .collect()
     }
 }

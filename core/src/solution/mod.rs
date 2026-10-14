@@ -84,7 +84,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, sync::Arc};
+use std::{any::Any, fmt::Debug, sync::Arc};
 
 /// Metadata associated with a solution during optimization.
 ///
@@ -96,7 +96,36 @@ use std::{fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Debug + Serialize + Send + Sync + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()>{}
+pub trait SolInfo: Debug + Default + Serialize + Send + Sync + 'static + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()> {
+    /// Returns the first sub-info of type `T` found in this info tree, sharing the underlying [`Arc`].
+    fn find_info<T: SolInfo>(self: Arc<Self>) -> Option<Arc<T>> {
+        (self as Arc<dyn Any + Send + Sync>).downcast::<T>().ok()
+    }
+}
+
+/// Info returned by a sampler alongside a solution.
+pub enum Sampled<I> {
+    /// New info, converted into `P::Info` by the top-level `sample`.
+    Fresh(Arc<I>),
+    /// The shape already carries its final info; only valid for a shape that was sampled before.
+    Reused,
+}
+
+impl<I> From<I> for Sampled<I> {
+    fn from(info: I) -> Self {
+        Sampled::Fresh(Arc::new(info))
+    }
+}
+
+impl<I: SolInfo> Sampled<I> {
+    /// Returns the info, recovering it from the shape's current info when it was [`Reused`](Sampled::Reused).
+    pub fn resolve<S: SolInfo>(self, shape_info: Arc<S>) -> Arc<I> {
+        match self {
+            Sampled::Fresh(info) => info,
+            Sampled::Reused => shape_info.find_info::<I>().unwrap_or_default(),
+        }
+    }
+}
 
 /// Core trait representing a candidate solution in the optimization process.
 ///
@@ -125,9 +154,7 @@ pub trait SolInfo: Debug + Serialize + Send + Sync + for<'a> Deserialize<'a> + S
 /// - [`BaseSol`] - Standard solution implementation
 /// - [`FidelitySol`] - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
-pub trait Solution: Debug + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
-where
-    Self::X: Send + Sync + Serialize + for<'de> Deserialize<'de>,
+pub trait Solution: Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
 {
     /// The [domain](Domain) defining the variable types and constraints for this solution.
     type Dom: Domain;

@@ -35,7 +35,7 @@
 //! - **Inner Optimizer**: Must satisfy both [`Optimizer`] and [`BudgetPruner`]
 //!   traits. Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
 //! - **Output Type**: Must satisfy [`FidOutcome`] for multi-fidelity support
-//! - **Searchspace**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
+//! - **Searchspace**: Must generate [`SolutionShape`](SolutionShape) with [`HasFidelity`] and [`HasStep`]
 //! - **Solution Info**: Must satisfy [`SolInfo`] constraint for the inner optimizer
 //!
 //! # Example
@@ -60,7 +60,7 @@
 //! Each bracket is executed sequentially, with the inner optimizer managing successive halving
 //! within each bracket. For [`BatchOptimizer`] inner optimizers (like SHA), brackets run one after another. For
 //! [`SingleOptimizer`] (like ASHA) when the inner [`BudgetPruner`] reaches its budget limit,
-//! the internal solutions are drained and [`Discarded`](tantale_core::Step::Discard), incoming solution from
+//! the internal solutions are drained and [`Discarded`](Step::Discard), incoming solution from
 //! previous brackets might be included within the next bracket if their fidelity level correspond to new fidelity
 //! level of the next bracket.
 //!
@@ -80,19 +80,18 @@
 //! See also the work on Successive Halving by [Li et al. (2020)](https://arxiv.org/pdf/1810.05934).
 
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use tantale_core::aliases::{Accum, CompShape, Shape};
+use tantale_core::aliases::{Accum, CompShape, Opt, Shape};
 use tantale_core::optimizer::opt::Pruner;
-use tantale_core::solution::shape::IntoComputedShape;
+use tantale_core::{HasState, Sampled};
 use tantale_core::utils::WrappedInfo;
 use tantale_core::utils::record::{Recordable, Schema};
-use tantale_core::{Domain, FidelityProblem, Problem, SolInfo};
-use tantale_core::{
-    FidOutcome, FuncState, HasFidelity, 
-    HasStep, State, Sampler, Searchspace,
-};
+use tantale_core::{Domain, Problem, SolInfo};
+use tantale_core::{State, Sampler};
+use tantale_macros::fidelity_bounds;
 
 /// A helper macro to simplify the type signature of [`Hyperband`].
 /// You can write:
@@ -106,7 +105,7 @@ use tantale_core::{
 #[macro_export]
 macro_rules! hyperband {
     ($inner : ty) => {
-        Hyperband<$inner, _, _, _>
+        Hyperband<$inner, _>
     };
 }
 
@@ -127,14 +126,14 @@ impl SolInfo for HyperbandInfo {}
 
 impl Schema<()> for HyperbandInfo {
     type Parts = ();
-    fn columns(_context: &()) -> Vec<String> {
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["bracket".to_string()]
     }
 }
 
 impl Recordable<()> for HyperbandInfo {
     type Parts = ();
-    fn record(&self, _context: &()) -> Vec<String> {
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.bracket.to_string()]
     }
 }
@@ -237,10 +236,10 @@ impl HyperbandInfo {
 ///
 /// - [`Sha`](crate::Sha) - Successive Halving (batch optimizer)
 /// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
+#[fidelity_bounds(P)]
 pub struct Hyperband<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     /// Minimum budget across all brackets ($b_{\min}$)
     pub budget_min: f64,
@@ -254,12 +253,13 @@ where
     pub current_s: usize,
     /// The inner optimizer state managing the current bracket
     pub inner: Prnr,
+    _p: PhantomData<P>,
 }
 
+#[fidelity_bounds(P)]
 impl<Prnr, P> Hyperband<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     /// Creates a new [`Hyperband`] optimizer from an inner optimizer.
     ///
@@ -296,35 +296,75 @@ where
             current_s,
             s_max,
             inner: sampler,
+            _p: PhantomData,
         }
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn wrap(&self, sampled: Option<(Shape<P>, Sampled<Prnr::Info>)>) -> Option<(Shape<P>, Sampled<WrappedInfo<Prnr::Info, HyperbandInfo>>)> {
+        sampled.map(|(sol, info)| match info {
+            Sampled::Fresh(inner) => {
+                let hinfo = Arc::new(HyperbandInfo::new(self.current_s));
+                (sol, Sampled::Fresh(Arc::new(WrappedInfo::new(inner, hinfo))))
+            }
+            Sampled::Reused => (sol, Sampled::Reused),
+        })
     }
 }
 
+#[fidelity_bounds(P)]
+impl<Prnr, P> State for Hyperband<Prnr, P>
+where
+    Prnr: Pruner<P, Opt<P>>,
+{ }
+
+#[fidelity_bounds(P)]
+impl<Prnr, P> HasState for Hyperband<Prnr, P>
+where
+    Prnr: Pruner<P, Opt<P>>,
+{
+    type State = Self;
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+#[fidelity_bounds(P, Opt)]
 impl<Prnr, P, Opt> Sampler<P, Opt> for Hyperband<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt>,
     Opt: Domain,
 {
-    type Info = WrappedInfo<HyperbandInfo<>, Prnr::Info>;
+    type Info = WrappedInfo<Prnr::Info, HyperbandInfo>;
 
-    fn sample(&mut self,scp: &<P as Problem>::Scp,acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if self.inner.get_current_budget() < self.inner.get_budgets().1 {
-            self.inner.sample(scp, acc)
+            let sampled = self.inner.sample_info(scp, acc);
+            self.wrap(sampled)
         } else {
             let to_discard = self.inner.drain_one();
 
             if let Some(discard) = to_discard {
-                to_discard
+                Some((discard, Sampled::Reused))
             } else {
-                if self.0.current_s == 0 {
-                    self.0.current_s = self.0.s_max;
+                if self.current_s == 0 {
+                    self.current_s = self.s_max;
                 } else {
-                    self.0.current_s -= 1;
+                    self.current_s -= 1;
                 }
-                let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
-                self.inner.set_budgets(self.0.budget_min, r);
-                self.inner.sample(scp, acc)
+                let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
+                self.inner.set_budgets(self.budget_min, r);
+                let sampled = self.inner.sample_info(scp, acc);
+                self.wrap(sampled)
             }
         }
     }
@@ -338,10 +378,11 @@ where
 //--- SERDE ---//
 //-------------//
 
+#[fidelity_bounds(P)]
 struct HyperbandStateVisitor<Prnr, P>(PhantomData<(Prnr, P)>)
 where
-    Prnr: Pruner<P>,
-    P: Problem;
+    Prnr: Pruner<P, Opt<P>>;
+
 enum HBField {
     BudgetMin,
     BudgetMax,
@@ -353,10 +394,10 @@ enum HBField {
 
 struct HBFieldVisitor;
 
+#[fidelity_bounds(P)]
 impl<Prnr, P> Serialize for Hyperband<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -373,10 +414,10 @@ where
     }
 }
 
+#[fidelity_bounds(P)]
 impl<Prnr, P> HyperbandStateVisitor<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     fn new() -> Self {
         HyperbandStateVisitor(PhantomData)
@@ -424,10 +465,10 @@ impl<'de> Deserialize<'de> for HBField {
     }
 }
 
+#[fidelity_bounds(P)]
 impl<'de, Prnr, P> Visitor<'de> for HyperbandStateVisitor<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     type Value = Hyperband<Prnr, P>;
 
@@ -464,6 +505,7 @@ where
             current_s,
             s_max,
             inner: Prnr::from_state(inner_state),
+            _p: PhantomData,
         })
     }
 
@@ -533,14 +575,15 @@ where
             current_s,
             s_max,
             inner: Prnr::from_state(inner_state),
+            _p: PhantomData,
         })
     }
 }
 
+#[fidelity_bounds(P)]
 impl<'de, Prnr, P> Deserialize<'de> for Hyperband<Prnr, P>
 where
-    Prnr: Pruner<P>,
-    P: Problem,
+    Prnr: Pruner<P, Opt<P>>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

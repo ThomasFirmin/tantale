@@ -5,6 +5,7 @@ use tantale::core::problem::Pb;
 use super::init_sp::one_step_func::{FuncType};
 
 #[test]
+#[allow(clippy::type_complexity)]
 fn test_rsstate_json() {
     let state = BatchRandomSearch::<Pb<SId, EmptyInfo, Sp<Mixed, NoDomain>, FuncType<Mixed>>>::new(10);
 

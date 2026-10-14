@@ -1,4 +1,5 @@
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Elem, Unit};
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+use tantale::core::aliases::Elem;
 use tantale::core::solution::{ParSId, Uncomputed};
 use tantale::core::{BaseSol, HasId};
 

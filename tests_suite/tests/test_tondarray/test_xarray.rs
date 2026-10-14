@@ -16,11 +16,10 @@ macro_rules! get_test {
                 let sp = $name::get_searchspace();
                 let sp_size = $name::SP_SIZE;
                 assert_eq!(sp.var.len(),sp_size,"Length of Variables is different from size of searchspace.");
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
 
-                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_obj(&sp,&mut rng,sinfo.clone());
+                let sample_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_obj(&sp,&mut rng);
                 let array = sample_obj.x_array();
                 for (x1, x2) in array.row(0).iter().zip(sample_obj.x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
@@ -32,7 +31,7 @@ macro_rules! get_test {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
                 }
 
-                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_opt(&sp, &mut rng,sinfo.clone());
+                let sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::sample_opt(&sp, &mut rng);
                 let array = sample_opt.x_array();
                 for (x1, x2) in array.row(0).iter().zip(sample_opt.x.iter()) {
                     assert_eq!(x1, x2, "Mismatch between x_array and x values");
@@ -48,11 +47,10 @@ macro_rules! get_test {
             #[test]
             fn [<$name _vec_xarray>]() {
                 let sp = $name::get_searchspace();
-                let sinfo = std::sync::Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
 
-                let vec_sample_obj: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_obj(&sp, &mut rng,3,sinfo.clone());
+                let vec_sample_obj: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_obj(&sp, &mut rng,3);
                 let array = vec_sample_obj.x_array();
                 for (row, sol) in array.rows().into_iter().zip(vec_sample_obj.iter()) {
                     for (x1, x2) in row.iter().zip(sol.x.iter()) {
@@ -60,7 +58,7 @@ macro_rules! get_test {
                     }
                 }
 
-                let vec_sample_opt: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_opt(&sp, &mut rng,3,sinfo.clone());
+                let vec_sample_opt: Vec<BaseSol<SId,_,EmptyInfo>> = <Sp<$name::ObjType,$name::OptType> as Searchspace<FuncType<$name::ObjType>>>::vec_sample_opt(&sp, &mut rng,3);
                 let array = vec_sample_opt.x_array();
                 for (row, sol) in array.rows().into_iter().zip(vec_sample_opt.iter()) {
                     for (x1, x2) in row.iter().zip(sol.x.iter()) {

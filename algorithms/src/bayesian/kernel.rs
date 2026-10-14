@@ -1,6 +1,5 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Problem, Real, Searchspace, Unit, Xy, 
-    aliases::{CodElem, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds},
+    Bool, Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Problem, Real, Unit, Xy, aliases::{CodElem, Opt, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}, utils::AsX,
 };
 use tantale_macros::basic_bounds;
 
@@ -330,6 +329,7 @@ impl KernelFunc<Nat> for GaussianKernel {
         Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
     }
 
+    /// Computes the kernel value between two points in the domain.
     fn compute(
         x1: &u64,
         x2: &u64,
@@ -408,6 +408,7 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
         Ok(AitchisonAitkenContext::new(bandwidth))
     }
 
+    /// Computes the kernel value between two points in the domain.
     fn compute(
         x1: &T,
         x2: &T,
@@ -455,6 +456,7 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
         Ok(AitchisonAitkenContext::new(bandwidth))
     }
 
+    /// Computes the kernel value between two points in the domain.
     fn compute(
         x1: &bool,
         x2: &bool,
@@ -472,6 +474,7 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
         1.0 / (dom.size() as f64)
     }
 
+    /// Samples a new point from the kernel.
     fn sample<R: Rng>(
         rng: &mut R,
         x: &bool,
@@ -613,6 +616,7 @@ impl KernelFunc<Mixed> for MixedKernel {
         }
     }
 
+    /// Samples a new point from the kernel.
     fn sample<R: Rng>(
         rng: &mut R,
         x: &MixedTypeDom,
@@ -676,24 +680,20 @@ impl KernelFunc<Mixed> for MixedKernel {
 /// # See also
 /// - [`Univariate`] for the univariate kernel, which assumes independence between dimensions and computes the product of the kernel values for each dimension.
 /// - [`Multivariate`] for the multivariate kernel, which models the joint distribution of all dimensions.
-pub trait Kernel<P, Dom>
-where
-    Self: Send + Sync + Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Dom>,
-    Dom: Domain,
+#[basic_bounds(P,Dom)]
+pub trait Kernel<P, Dom>: Send + Sync + Clone + Sized + Serialize + for<'a> Deserialize<'a>
 {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
     /// for efficient kernel computation for each point within the archive.
     type Context: Send + Sync + Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &P::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &P::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &P::Scp,
@@ -701,10 +701,10 @@ where
 
     fn prior(&self, s: &XOpt<P>, scp: &P::Scp) -> f64;
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &P::Scp,
     ) -> XOpt<P>;
@@ -727,10 +727,10 @@ impl<P> Kernel<P, Mixed> for Univariate
 {
     type Context = Vec<MixedContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -746,7 +746,7 @@ impl<P> Kernel<P, Mixed> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        MixedKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        MixedKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -756,10 +756,10 @@ impl<P> Kernel<P, Mixed> for Univariate
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -769,7 +769,7 @@ impl<P> Kernel<P, Mixed> for Univariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 MixedKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -786,7 +786,7 @@ impl<P> Kernel<P, Mixed> for Univariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -813,10 +813,10 @@ impl<P> Kernel<P, Real> for Univariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -832,7 +832,7 @@ impl<P> Kernel<P, Real> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        GaussianKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -842,10 +842,10 @@ impl<P> Kernel<P, Real> for Univariate
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -855,7 +855,7 @@ impl<P> Kernel<P, Real> for Univariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -872,7 +872,7 @@ impl<P> Kernel<P, Real> for Univariate
             .product()
     }
     
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -899,10 +899,10 @@ impl<P> Kernel<P, Int> for Univariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -918,7 +918,7 @@ impl<P> Kernel<P, Int> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        GaussianKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -928,10 +928,10 @@ impl<P> Kernel<P, Int> for Univariate
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -941,7 +941,7 @@ impl<P> Kernel<P, Int> for Univariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -958,7 +958,7 @@ impl<P> Kernel<P, Int> for Univariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -985,10 +985,10 @@ impl<P> Kernel<P, Nat> for Univariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1004,7 +1004,7 @@ impl<P> Kernel<P, Nat> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        GaussianKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1014,10 +1014,10 @@ impl<P> Kernel<P, Nat> for Univariate
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1027,7 +1027,7 @@ impl<P> Kernel<P, Nat> for Univariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1044,7 +1044,7 @@ impl<P> Kernel<P, Nat> for Univariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1071,10 +1071,10 @@ impl<P> Kernel<P, Unit> for Univariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1090,7 +1090,7 @@ impl<P> Kernel<P, Unit> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        GaussianKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        GaussianKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1100,10 +1100,10 @@ impl<P> Kernel<P, Unit> for Univariate
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1113,7 +1113,7 @@ impl<P> Kernel<P, Unit> for Univariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1130,7 +1130,7 @@ impl<P> Kernel<P, Unit> for Univariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1159,10 +1159,10 @@ where
 {
     type Context = Vec<AitchisonAitkenContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1178,7 +1178,7 @@ where
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        AitchisonAitkenKernel::compute(x1, &comp.ref_x()[d], &ctx[d], dom)
+                        AitchisonAitkenKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
                             * weight
                     })
                     .sum::<f64>()
@@ -1188,10 +1188,10 @@ where
         weights.prior_weight * prior + product
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1201,7 +1201,7 @@ where
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 <AitchisonAitkenKernel as KernelFunc<GridDom<G>>>::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1218,7 +1218,7 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1258,10 +1258,10 @@ impl<P> Kernel<P, Mixed> for Multivariate
 {
     type Context = Vec<MixedContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1273,7 +1273,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1287,10 +1287,10 @@ impl<P> Kernel<P, Mixed> for Multivariate
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1300,7 +1300,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 MixedKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1317,7 +1317,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1344,10 +1344,10 @@ impl<P> Kernel<P, Real> for Multivariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1359,7 +1359,7 @@ impl<P> Kernel<P, Real> for Multivariate
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1373,10 +1373,10 @@ impl<P> Kernel<P, Real> for Multivariate
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1386,7 +1386,7 @@ impl<P> Kernel<P, Real> for Multivariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1403,7 +1403,7 @@ impl<P> Kernel<P, Real> for Multivariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1430,10 +1430,10 @@ impl<P> Kernel<P, Int> for Multivariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1445,7 +1445,7 @@ impl<P> Kernel<P, Int> for Multivariate
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1459,10 +1459,10 @@ impl<P> Kernel<P, Int> for Multivariate
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1472,7 +1472,7 @@ impl<P> Kernel<P, Int> for Multivariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1489,7 +1489,7 @@ impl<P> Kernel<P, Int> for Multivariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1517,10 +1517,10 @@ impl<P> Kernel<P, Nat> for Multivariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1532,7 +1532,7 @@ impl<P> Kernel<P, Nat> for Multivariate
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1546,10 +1546,10 @@ impl<P> Kernel<P, Nat> for Multivariate
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1559,7 +1559,7 @@ impl<P> Kernel<P, Nat> for Multivariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1576,7 +1576,7 @@ impl<P> Kernel<P, Nat> for Multivariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1604,10 +1604,10 @@ impl<P> Kernel<P, Unit> for Multivariate
 {
     type Context = Vec<GaussianContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1619,7 +1619,7 @@ impl<P> Kernel<P, Unit> for Multivariate
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1633,10 +1633,10 @@ impl<P> Kernel<P, Unit> for Multivariate
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1646,7 +1646,7 @@ impl<P> Kernel<P, Unit> for Multivariate
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 GaussianKernel::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1663,7 +1663,7 @@ impl<P> Kernel<P, Unit> for Multivariate
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }
@@ -1693,10 +1693,10 @@ where
 {
     type Context = Vec<AitchisonAitkenContext>;
 
-    fn compute(
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         s: &XOpt<P>,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
@@ -1708,7 +1708,7 @@ where
             .zip(context.iter())
             .map(|((comp, weight), ctx)| {
                 s.iter()
-                    .zip(comp.ref_x().iter())
+                    .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
                     .map(|(((x1, x2), dom), dctx)| {
@@ -1722,10 +1722,10 @@ where
         weights.prior_weight * prior + sum
     }
 
-    fn sample<R: Rng>(
+    fn sample<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, R: Rng>(
         &self,
         rng: &mut R,
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> XOpt<P>
@@ -1735,7 +1735,7 @@ where
             .map(|d| {
                 let dom = scp.opt_at(d).unwrap();
                 let rng_idx = rng.random_range(0..archive.len());
-                let x = archive[rng_idx].ref_x();
+                let x = archive[rng_idx].as_ref().ref_x();
                 let ctx = &context[rng_idx];
                 <AitchisonAitkenKernel as KernelFunc<GridDom<G>>>::sample(rng, &x[d], &ctx[d], dom)
             })
@@ -1752,7 +1752,7 @@ where
             .product()
     }
 
-    fn get_context<Bw: BandwidthType>(archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
             return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
         }

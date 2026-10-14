@@ -1,7 +1,7 @@
 mod test {
 use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{HasX, OneStep, Problem, aliases::Shape, domain::Elem, problem::Pb}, macros::{Recordable, Schema}};
+    use tantale::{core::{HasX, OneStep, Problem, aliases::{Shape, Elem}, problem::Pb}, macros::{Recordable, Schema}};
 
     #[test]
     pub fn main() {
@@ -38,8 +38,7 @@ use rand::rngs::ThreadRng;
 
         fn get_pair<P: Problem<Info = EmptyInfo>>(p: &P, rng: &mut ThreadRng) -> Shape<P>
         {
-            let info = std::sync::Arc::new(EmptyInfo {});
-            let obj = p.get_searchspace().sample_obj(rng, info);
+            let obj = p.get_searchspace().sample_obj(rng);
             let pair = p.get_searchspace().onto_opt(obj); // Paired solutions have the same ID
             println!(
                 "Obj {:?}:  <=> Opt {:?} : ",

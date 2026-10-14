@@ -23,16 +23,16 @@ pub mod random_search;
 pub use random_search::{RSInfo, RandomSearch , BatchRandomSearch};
 
 pub mod sha;
-pub use sha::{Sha, ShaState};
+pub use sha::Sha;
 
 pub mod asha;
 pub use asha::Asha;
 
-// pub mod hyperband;
-// pub use hyperband::Hyperband;
+pub mod hyperband;
+pub use hyperband::Hyperband;
 
-// pub mod moasha;
-// pub use moasha::MoAsha;
+pub mod moasha;
+pub use moasha::MoAsha;
 
 pub mod grid_search;
 pub use grid_search::GridSearch;
@@ -53,5 +53,5 @@ pub use bayesian::{
     prior::BetaPrior,
 };
 
-// #[cfg(feature = "spikes")]
-// pub mod spikes;
+#[cfg(feature = "spikes")]
+pub mod spikes;

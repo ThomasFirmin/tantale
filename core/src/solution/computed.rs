@@ -100,6 +100,11 @@ impl<S: Uncomputed, Out: Outcome> HasX for Computed<S, Out>
     fn clone_x(&self) -> S::X {
         self.sol.clone_x()
     }
+    
+    fn set_x(&mut self, x: Self::X) {
+        self.sol.set_x(x);
+    }
+    
 }
 
 impl<S: Uncomputed, Out: Outcome> HasId for Computed<S, Out>
@@ -143,6 +148,10 @@ impl<S: Uncomputed, Out: Outcome> HasInfo for Computed<S, Out>
     /// Return the [`SolInfo`] associated with the underlying solution.
     fn sinfo(&self) -> Arc<S::Info> {
         self.sol.sinfo()
+    }
+    
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.sol.set_info(info);
     }
 }
 
@@ -202,6 +211,10 @@ impl<S: Uncomputed, Out: Outcome> HasY for Computed<S, Out>
     fn y(&self) -> Arc<TypeCodom<Out>> {
         self.y.clone()
     }
+    
+    fn set_y(&mut self, y: Arc<Self::Y>) {
+        self.y = y;
+    }
 }
 
 impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out>
@@ -210,6 +223,10 @@ impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out>
     /// Returns the underlying [`Uncomputed`] solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed {
         &self.sol
+    }
+    
+    fn set_uncomputed(&mut self, uncomputed: Self::Uncomputed) {
+        self.sol = uncomputed;
     }
 }
 

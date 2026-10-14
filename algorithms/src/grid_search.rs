@@ -1,5 +1,5 @@
 use tantale_core::{
-    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampler, Sp, State, 
+    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampled, Sampler, Sp, State, 
     aliases::{Accum, CompShape, Shape}, domain::{CategoricalDomain, grid::GridBounds}, searchspace::Searchspace,
 };
 
@@ -88,14 +88,14 @@ impl HasState for GridSearch {
     }
 }
 
-#[basic_bounds(P, GridDom<T>, EmptyInfo)]
+#[basic_bounds(P, GridDom<T>)]
 impl<P, T> Sampler<P, GridDom<T>> for GridSearch
 where
     T: GridBounds,
 {
     type Info = EmptyInfo;
     
-    fn sample(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
         let x: Arc<[_]> = self
             .0
             .iter()
@@ -119,7 +119,42 @@ where
                 }
             }
         }
-        Some(scp.new_opt(x, EmptyInfo.into()))
+        Some((scp.new_opt(x), EmptyInfo.into()))
+    }
+    
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) { }
+}
+
+#[basic_bounds(P, Grid)]
+impl<P> Sampler<P, Grid> for GridSearch
+{
+    type Info = EmptyInfo;
+    
+    fn sample_info(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
+        let x: Arc<[_]> = self
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
+                let dom = &scp.opt_at(i).unwrap();
+                dom.get(idx).unwrap().clone()
+            })
+            .collect::<Vec<_>>()
+            .into();
+
+        for i in (0..self.0.len()).rev() {
+            let dom = &scp.opt_at(i).unwrap();
+            self.0[i] += 1;
+            if self.0[i] < dom.size() {
+                break;
+            } else {
+                self.0[i] = 0;
+                if i == 0 {
+                    self.1 += 1;
+                }
+            }
+        }
+        Some((scp.new_opt(x), EmptyInfo.into()))
     }
     
     fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) { }

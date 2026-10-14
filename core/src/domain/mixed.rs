@@ -1,12 +1,13 @@
 use crate::{
     Cat, GridDom, GridInt, GridNat, GridReal, domain::{
-        Domain, PreDomain, Elem,
+        Domain, PreDomain,
         bool::Bool,
         bounded::{Int, Nat, Real},
         grid::GridBounds,
         onto::{Onto, OntoDom},
         unit::Unit,
     }, errors::OntoError,
+    utils::aliases::Elem,
 };
 
 use rand::Rng;

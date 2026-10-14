@@ -14,8 +14,8 @@
 //! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
 //! ```
 
-use crate::aliases::TypeCodom;
-use crate::domain::{Domain, Elem};
+use crate::aliases::{Elem, TypeCodom};
+use crate::domain::Domain;
 use crate::objective::Step;
 use crate::solution::{SolId, SolInfo, Solution, SolutionShape, Uncomputed};
 use crate::{Computed, EvalStep, Outcome, StepId};
@@ -99,6 +99,10 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info>
     fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
+    
+    fn set_x(&mut self, x: Self::X) {
+        self.x = x;
+    }
 }
 
 impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info>
@@ -123,6 +127,10 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info>
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
+    }
+    
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.info = info;
     }
 }
 
@@ -242,6 +250,10 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info>
     fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
+    
+    fn set_x(&mut self, x: Self::X) {
+        self.x = x;
+    }
 }
 
 impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info>
@@ -281,6 +293,10 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<Id, Dom, In
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
+    }
+    
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.info = info;
     }
 }
 

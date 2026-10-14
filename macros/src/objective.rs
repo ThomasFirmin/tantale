@@ -484,20 +484,38 @@ pub fn obj(input: TokenStream) -> TokenStream {
     .into();
 
     let wraper_tokens = if state.is_some() {
-        generics.params.push(parse_quote! {Id: tantale::core::StepId});
         quote! {
-            pub fn get_function #generics () -> tantale::core::MultiStep<tantale::core::FidelitySol<Id, #ident_mixed_obj, Info>, #otype, #state>
+            pub fn get_function #generics () -> tantale::core::MultiStep<tantale::core::FidelitySol<tantale::core::StepSId, #ident_mixed_obj, Info>, #otype, #state>
             {
                 tantale::core::MultiStep::new(#fn_ident)
             }
+            
+            pub fn get_problem #generics () -> tantale::core::Pb<tantale::core::StepSId, Info, tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>, tantale::core::MultiStep<tantale::core::FidelitySol<tantale::core::StepSId, #ident_mixed_obj, Info>, #otype, #state>>
+            {
+                let sp = get_searchspace();
+                let func = get_function::<Info>();
+                tantale::core::Pb::new(sp, func)
+            }
+
+            pub type FuncType<Info> = tantale::core::MultiStep<tantale::core::FidelitySol<tantale::core::StepSId, #ident_mixed_obj, Info>, #otype, #state>;
+            pub type PbType<Info> = tantale::core::Pb<tantale::core::StepSId, Info, tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>, tantale::core::MultiStep<tantale::core::FidelitySol<tantale::core::StepSId, #ident_mixed_obj, Info>, #otype, #state>>;
         }
     } else {
-        generics.params.push(parse_quote! {Id: tantale::core::SolId});
         quote! {
-            pub fn get_function #generics () -> tantale::core::OneStep<tantale::core::BaseSol<Id, #ident_mixed_obj, Info>, #otype>
+            pub fn get_function #generics () -> tantale::core::OneStep<tantale::core::BaseSol<tantale::core::SId, #ident_mixed_obj, Info>, #otype>
             {
                 tantale::core::OneStep::new(#fn_ident)
             }
+
+            pub fn get_problem #generics () -> tantale::core::Pb<tantale::core::SId, Info, tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>, tantale::core::OneStep<tantale::core::BaseSol<tantale::core::SId, #ident_mixed_obj, Info>, #otype>>
+            {
+                let sp = get_searchspace();
+                let func = get_function::<Info>();
+                tantale::core::Pb::new(sp, func)
+            }
+
+            pub type FuncType<Info> = tantale::core::OneStep<tantale::core::BaseSol<tantale::core::SId, #ident_mixed_obj, Info>, #otype>;
+            pub type PbType<Info> = tantale::core::Pb<tantale::core::SId, Info, tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>, tantale::core::OneStep<tantale::core::BaseSol<tantale::core::SId, #ident_mixed_obj, Info>, #otype>>;
         }
     };
 

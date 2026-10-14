@@ -1,7 +1,7 @@
 use tantale::core::BaseSol;
-use tantale::core::domain::Elem;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{ParSId, solution::Uncomputed};
+use tantale::core::aliases::Elem;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

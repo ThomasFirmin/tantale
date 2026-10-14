@@ -260,17 +260,6 @@ where
     fn size(&self) -> usize;
 }
 
-/// Type alias for extracting the value type from a domain.
-///
-/// [`Elem<T>`] is a convenience type alias that maps a domain type `T` to its associated
-/// [`Domain::Element`] type. This simplifies type signatures and makes code more readable.
-///
-/// # See Also
-///
-/// - [`Domain::Element`] - The associated type being aliased
-/// - [`Domain`] - The trait defining domains
-pub type Elem<T> = <T as Domain>::Element;
-
 pub mod nodomain;
 pub use nodomain::NoDomain;
 

@@ -29,8 +29,9 @@
 
 use crate::{
     GridDomDistribution, distribution::{BoundedDistribution, Distribution}, domain::{
-        Domain, Elem, Element, NumericalDomain, PreDomain, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
+        Domain, Element, NumericalDomain, PreDomain, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
     }, errors::OntoError,
+    utils::aliases::Elem,
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};

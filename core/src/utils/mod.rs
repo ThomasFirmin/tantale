@@ -14,7 +14,7 @@ pub mod archives;
 pub use archives::OrderedArchive;
 
 pub mod xy;
-pub use xy::{XToNdArray, Xy, YToNdArray};
+pub use xy::{AsX, XToNdArray, Xy, YToNdArray};
 
 pub mod has_trait;
 pub use has_trait::{
@@ -31,7 +31,7 @@ pub mod record;
 pub use record::{Recordable, Schema};
 
 pub mod config;
-pub use config::{FolderConfig, SaverConfig};
+pub use config::FolderConfig;
 
 pub mod communicator;
 pub use communicator::Communicator;

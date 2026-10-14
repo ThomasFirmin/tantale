@@ -1,5 +1,5 @@
 use rand::rngs::ThreadRng;
-use tantale::core::{BaseSol, HasX, Problem, aliases::Shape, problem::Pb};
+use tantale::core::{HasX, Problem, aliases::Shape, problem::Pb};
 
 #[test]
 fn obj_test() {
@@ -73,14 +73,14 @@ fn obj_test() {
     use tantale::core::{EmptyInfo, SId, Searchspace, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
     let func = searchspace::get_function();
-    let pb: Pb<SId, EmptyInfo, tantale::core::Sp<tantale::core::Mixed, tantale::core::Mixed>, tantale::core::OneStep<BaseSol<_, tantale::core::Mixed, _>, searchspace::OutExample>> = Pb::new(sp, func);
+    let _pb: Pb<SId, EmptyInfo, _,_> = Pb::new(sp, func);
+    let pb = searchspace::get_problem();
 
     let mut rng = rand::rng();
 
     fn get_pair<P:Problem<Info = EmptyInfo>>(pb: &P, rng: &mut ThreadRng) -> Shape<P>
     {
-        let info = std::sync::Arc::new(EmptyInfo {});
-        let obj = pb.get_searchspace().sample_obj(rng, info);
+        let obj = pb.get_searchspace().sample_obj(rng);
         let pair = pb.get_searchspace().onto_opt(obj);
         println!(
             "Obj {:?}:  <=> Opt {:?} : ",

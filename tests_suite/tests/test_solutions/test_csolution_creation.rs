@@ -1,8 +1,9 @@
 use tantale::core::HasX;
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Elem, Unit};
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{
     BaseSol, Codomain, Computed, HasId, HasInfo, HasY, ParSId, solution::Uncomputed,
 };
+use tantale::core::aliases::Elem;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};

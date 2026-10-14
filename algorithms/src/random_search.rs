@@ -1,11 +1,11 @@
 use tantale_core::{
-    HasState, Problem, Sampler, SolInfo, State, aliases::{Accum, CompShape, Shape}, optimizer::opt::Batched, searchspace::Searchspace, utils::record::{Recordable, Schema},
+    HasState, Problem, Sampled, Sampler, SolInfo, State, aliases::{Accum, CompShape, Shape}, optimizer::opt::{Batched, Prunable}, searchspace::Searchspace, utils::record::{Recordable, Schema},
 };
 
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use tantale_macros::basic_bounds;
-use std::{cell::RefCell, sync::Arc};
+use std::cell::RefCell;
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -144,18 +144,21 @@ impl HasState for RandomSearch {
     }
 }
 
-#[basic_bounds(P, Opt, RSInfo)]
+#[basic_bounds(P, Opt)]
 impl<P, Opt> Sampler<P, Opt> for RandomSearch
 {
     type Info = RSInfo;
 
-    fn sample(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<RSInfo>)> {
         self.0 += 1;
-        Some(self.with_rng(|rng| scp.sample_pair(rng, RSInfo(self.0).into())))
+        let shape = self.with_rng(|rng| scp.sample_pair(rng));
+        Some((shape, RSInfo(self.0).into()))
     }
 
     fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) { }
 }
+
+impl Prunable for RandomSearch {}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Shape<P>: Serialize + for<'a> Deserialize<'a>")]
@@ -203,7 +206,7 @@ impl<P:Problem> HasState for BatchRandomSearch<P> {
 }
 
 
-#[basic_bounds(P, Opt, RSInfo)]
+#[basic_bounds(P, Opt)]
 impl<P, Opt> Batched<P, Opt> for BatchRandomSearch<P> {
     fn batch_size(&self) -> usize {
         self.batch_size
@@ -230,22 +233,24 @@ impl<P, Opt> Batched<P, Opt> for BatchRandomSearch<P> {
     }
 }
 
-#[basic_bounds(P, Opt, RSInfo)]
+#[basic_bounds(P, Opt)]
 impl<P, Opt> Sampler<P, Opt> for BatchRandomSearch<P>
 {
     type Info = RSInfo;
 
-    fn sample(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<RSInfo>)> {
         if self.batch_uncomputed.is_empty(){
             self.calls += 1;
-            let info: Arc<RSInfo> = RSInfo(self.calls).into();
-            self.batch_uncomputed = self.with_rng(|rng| scp.vec_sample_pair(rng, self.batch_size, info.clone()));
+            self.batch_uncomputed = self.with_rng(|rng| scp.vec_sample_pair(rng, self.batch_size));
             self.batch_computed.clear();
         }
-        self.batch_uncomputed.pop()
+        let shape = self.batch_uncomputed.pop()?;
+        Some((shape, RSInfo(self.calls).into()))
     }
 
     fn update(&mut self, x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
         self.add_to_comp_batch(x.clone());
     }
 }
+ 
+impl<P:Problem> Prunable for BatchRandomSearch<P> {}

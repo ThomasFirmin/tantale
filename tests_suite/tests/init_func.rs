@@ -665,7 +665,7 @@ pub mod sp_evaluator_real {
             let _d = [! d | Real(1000.0,2000.0, Uniform) | !];
 
             OutEvaluator{
-                obj: [! j | Real(1000.0,2000.0, Uniform) | !]
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !] as f64
             }
         }
     );
@@ -1502,6 +1502,90 @@ pub mod sp_evaluator_fid_spike {
                 FnState { state: 0 }
             )
 
+        }
+    );
+}
+
+
+
+pub mod sp_real {
+    use super::OutEvaluator;
+    use tantale::core::{Real, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Real(-5.0, 5.0, Uniform) | !];
+            let _b = [! b | Real(-10.0, 10.0, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Real(-20.0, 20.0, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_int {
+    use super::OutEvaluator;
+    use tantale::core::{Int, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Int(1000,2000, Uniform) | !];
+            let _b = [! b | Int(1000,2000, Uniform) | !];
+            let _c = [! c | Int(1000,2000, Uniform) | !];
+            let _d = [! d | Int(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Int(1000,2000, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_nat {
+    use super::OutEvaluator;
+    use tantale::core::{Nat, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Nat(1000,2000, Uniform) | !];
+            let _b = [! b | Nat(1000,2000, Uniform) | !];
+            let _c = [! c | Nat(1000,2000, Uniform) | !];
+            let _d = [! d | Nat(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Nat(1000,2000, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_unit {
+    use super::OutEvaluator;
+    use tantale::core::{Nat, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Nat(1000,2000, Uniform) | !];
+            let _b = [! b | Nat(1000,2000, Uniform) | !];
+            let _c = [! c | Nat(1000,2000, Uniform) | !];
+            let _d = [! d | Nat(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Nat(1000,2000, Uniform) | !] as f64
+            }
         }
     );
 }

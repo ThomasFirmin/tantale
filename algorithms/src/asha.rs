@@ -71,8 +71,7 @@ use std::{cell::RefCell, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    HasFidelity, HasState, HasStep, Orderable, Problem, Sampler, State, Step,
-    aliases::{CompShape, Opt, Shape}, optimizer::opt::Pruner, solution::shape::IntoComputedShape,
+    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, aliases::{CodElem, CompShape, Opt, Shape}, domain::codomain::ElemSingle, optimizer::opt::{Prunable, Pruner}, solution::shape::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -159,8 +158,9 @@ type AshaRungs<P> = Vec<Vec<CompShape<P>>>;
 /// ```
 pub struct Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
@@ -176,14 +176,16 @@ where
 
 impl<Smpl, P> State for Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 { }
 
 impl<Smpl, P> HasState for Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     type State = Self;
 
@@ -202,8 +204,9 @@ where
 
 impl<Smpl, P> Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -243,10 +246,11 @@ where
     }
 }
 
-#[fidelity_bounds(P, Opt, Smpl::Info)]
+#[fidelity_bounds(P, Opt)]
 impl<Smpl, P, Opt> Pruner<P, Opt> for Asha<Smpl, P>
 where
-    Smpl: Sampler<P, Opt>,
+    Smpl: Sampler<P, Opt> + Prunable,
+    CodElem<P>: ElemSingle,
     CompShape<P>: Orderable,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -322,10 +326,11 @@ where
 /// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Asynchronous Successive Halving.
-#[fidelity_bounds(P, Opt, Smpl::Info)]
+#[fidelity_bounds(P, Opt)]
 impl<Smpl, P, Opt> Sampler<P, Opt> for Asha<Smpl, P>
 where
-    Smpl: Sampler<P, Opt>,
+    Smpl: Sampler<P, Opt> + Prunable,
+    CodElem<P>: ElemSingle,
     CompShape<P>: Orderable,
 {
     type Info = Smpl::Info;
@@ -369,7 +374,7 @@ where
     /// To simplify things, a function state is local to a worker, and is not shared across workers.
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
-    fn sample(&mut self,scp: &<P as Problem>::Scp,acc: &tantale_core::aliases::Accum<P>) -> Option<tantale_core::aliases::Shape<P>> {
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &tantale_core::aliases::Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let mut i = self.budgets.len() - 1;
         let mut k = (self.rungs[i].len() as f64 / self.scaling) as usize;
         while k == 0 && i > 0 {
@@ -378,15 +383,17 @@ where
         }
         if k == 0 {
             self.current_budget = self.budgets[0];
-            self
-                .sampler
-                .sample_apply(|s| s.map(|mut sol| {sol.set_fidelity(self.budgets[0]);sol}), scp, acc)
+            let sample= self.sampler.sample_info(scp, acc);
+            sample.map(|(mut sol, info)| {
+                sol.set_fidelity(self.current_budget);
+                (sol, info)
+            })
         } else {
             self.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
             self.current_budget = self.budgets[i];
             let mut sol: Shape<P> = IntoComputedShape::extract(self.rungs[i].pop().unwrap()).0;
             sol.set_fidelity(self.current_budget);
-            Some(sol)
+            Some((sol, Sampled::Reused))
         }
     }
 
@@ -420,7 +427,7 @@ where
 
 struct AshaStateVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
-    P: Problem<Info=Smpl::Info>,
+    P: Problem,
     Smpl: Sampler<P, Opt<P>>;
 
 enum AshaField {
@@ -435,8 +442,9 @@ struct AshaFieldVisitor;
 
 impl<Smpl, P> Serialize for Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -454,8 +462,9 @@ where
 
 impl<Smpl, P> AshaStateVisitor<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     fn new() -> Self {
         AshaStateVisitor(PhantomData)
@@ -496,8 +505,9 @@ impl<'de> Deserialize<'de> for AshaField {
 
 impl<'de, Smpl, P> Visitor<'de> for AshaStateVisitor<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     type Value = Asha<Smpl, P>;
 
@@ -597,8 +607,9 @@ where
 
 impl<'de, Smpl, P> Deserialize<'de> for Asha<Smpl, P>
 where
-    P: Problem<Info=Smpl::Info>,
-    Smpl: Sampler<P, Opt<P>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CodElem<P>: ElemSingle,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

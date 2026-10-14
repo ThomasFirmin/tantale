@@ -409,8 +409,8 @@ pub enum PoolMode {
 /// - [`Recorder`] - Trait for saving evaluated solutions
 /// - [`Checkpointer`] - Trait for saving experiment state for recovery
 pub trait Runable: Sized {
-    type SolId: SolId;
-    type Problem: Problem<Id = Self::SolId>;
+    type Id: SolId;
+    type Problem: Problem<Id = Self::Id>;
     type Sampler: Sampler<Self::Problem, Opt<Self::Problem>, Info = <Self::Problem as Problem>::Info>;
     type Stop: Stop;
     type Recorder: Recorder<Self::Problem, Self::Context>;

@@ -1,12 +1,13 @@
 use crate::{
     GridDom, distribution::{BoundedDistribution, Distribution}, domain::{
-        Domain, NumericalDomain, PreDomain, Elem,
+        Domain, NumericalDomain, PreDomain,
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         grid::GridBounds,
         mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
     }, errors::OntoError,
+    utils::aliases::Elem,
 };
 
 use num::cast::AsPrimitive;

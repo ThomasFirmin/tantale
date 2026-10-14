@@ -1,8 +1,9 @@
 use crate::{
     Bool, Bounded, Domain, Distribution, GridDomDistribution, Mixed, MixedTypeDom,
     Onto, OntoDom, Unit,
-    domain::{CategoricalDomain, PreDomain, Elem, bounded::BoundedBounds},
+    domain::{CategoricalDomain, PreDomain, bounded::BoundedBounds},
     errors::OntoError,
+    utils::aliases::Elem,
 };
 use num::cast::AsPrimitive;
 use rand::RngExt;

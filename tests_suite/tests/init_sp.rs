@@ -1,6 +1,8 @@
 pub mod one_step_func{
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, SId, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use tantale::{core::{
+        BaseSol, Domain, EmptyInfo, OneStep, SId, utils::aliases::Elem
+    }, macros::{Outcome, Recordable, Schema}};
     use std::sync::Arc;
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
@@ -22,7 +24,7 @@ pub mod one_step_func{
 }
 
 pub mod one_step_func_with_out{
-    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, Outcome, SId, domain::Elem}};
+    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, Outcome, SId, utils::aliases::Elem}};
     use std::sync::Arc;
 
     fn example<ObjType:Domain, Out:Outcome>(_tantale_in: Arc<[Elem<ObjType>]>) -> Out {
@@ -39,7 +41,11 @@ pub mod one_step_func_with_out{
 
 pub mod multi_step_func{
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{Domain, EmptyInfo, Fidelity, FidelitySol, FuncState, MultiStep, StepSId, Step, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use tantale::{core::{
+        Domain, EmptyInfo, Fidelity, FidelitySol, FuncState, MultiStep, StepSId, Step, 
+        utils::aliases::Elem}, 
+        macros::{Outcome, Recordable, Schema}
+    };
     use std::sync::Arc;
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
@@ -82,7 +88,11 @@ pub mod multi_step_func{
 
 pub mod multi_step_func_with_out{
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{FidelitySol, Domain, EmptyInfo, FidOutcome, Fidelity, FuncState, MultiStep, StepSId, Step, domain::Elem}, macros::{Outcome, Recordable, Schema}};
+    use tantale::{core::{
+        FidelitySol, Domain, EmptyInfo, FidOutcome, Fidelity, FuncState, MultiStep, StepSId, Step,
+        utils::aliases::Elem
+    },
+    macros::{Outcome, Recordable, Schema}};
     use std::sync::Arc;
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]

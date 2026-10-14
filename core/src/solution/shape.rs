@@ -225,6 +225,12 @@ where
     fn sinfo(&self) -> Arc<SA::Info> {
         self.0.sinfo()
     }
+    
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.0.set_info(info.clone());
+        self.1.set_info(info);
+    }
+    
 }
 
 impl<SA, SB> HasY for Pair<SA, SB>
@@ -235,6 +241,11 @@ where
     type Y = SA::Y;
     fn y(&self) -> Arc<SA::Y> {
         self.0.y()
+    }
+    
+    fn set_y(&mut self, y: Arc<Self::Y>) {
+        self.0.set_y(y.clone());
+        self.1.set_y(y);
     }
 }
 
@@ -516,6 +527,10 @@ where
     fn sinfo(&self) -> Arc<S::Info> {
         self.0.sinfo()
     }
+    
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.0.set_info(info);
+    }
 }
 
 impl<S> HasY for Lone<S>
@@ -526,6 +541,12 @@ where
     fn y(&self) -> Arc<Self::Y> {
         self.0.y()
     }
+    
+    fn set_y(&mut self, y: Arc<Self::Y>) {
+        self.0.set_y(y);
+    }
+
+    
 }
 
 impl<S> HasStep for Lone<S>

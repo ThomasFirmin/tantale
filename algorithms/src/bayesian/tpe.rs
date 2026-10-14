@@ -33,8 +33,7 @@
 //!
 use crate::bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter};
 use tantale_core::{
-    HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Sampler, Searchspace, SolInfo, SolutionShape, State, Xy,
-    aliases::{Accum, CodElem, CompShape, Opt, SOpt, Shape, XOpt}, problem::{FidelityMode, PbMode, SimpleMode}, utils::record::{Recordable, Schema},
+    HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Prunable, SId, Sampled, Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, StepSId, Xy, aliases::{Accum, CodElem, CompShape, Opt, SOpt, Shape, XOpt}, utils::record::{Recordable, Schema},
 };
 
 use rand::rngs::StdRng;
@@ -42,7 +41,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tantale_macros::{basic_bounds, fidelity_bounds};
 use core::panic;
-use std::{cell::RefCell, marker::PhantomData, sync::Arc, vec};
+use std::{cell::RefCell, vec};
 use log::warn;
 
 thread_local! {
@@ -69,7 +68,7 @@ pub fn acquisition(good_pdf: f64, bad_pdf: f64) -> f64 {
     good_pdf / bad_pdf
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TpeSInfo {
     pub acquisition: f64,
     pub good_bdf: f64,
@@ -77,12 +76,22 @@ pub struct TpeSInfo {
 }
 
 impl TpeSInfo {
-    pub fn new(acquisition: f64, good_bdf: f64, bad_pdf: f64) -> Arc<Self> {
-        Arc::new(TpeSInfo {
+    pub fn new(acquisition: f64, good_bdf: f64, bad_pdf: f64) -> Self {
+        Self {
             acquisition,
             good_bdf,
             bad_pdf,
-        })
+        }
+    }
+}
+
+impl Default for TpeSInfo {
+    fn default() -> Self {
+        Self {
+            acquisition: f64::NAN,
+            good_bdf: f64::NAN,
+            bad_pdf: f64::NAN,
+        }
     }
 }
 
@@ -200,19 +209,20 @@ type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrderedArchive<Xy<Raw, CodEl
 ///   * `point_archive`: A collection of archived points.
 ///   * `current_fidelity`: The current fidelity level if applicable. Used for multi-fidelity optimization.
 ///   * `current_archive`: The current archive of solutions if applicable. Used for multi-fidelity optimization.
+#[basic_bounds(P)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
-    serialize = "Wght: Serialize, Splt: Serialize, Bw: Serialize, Kern::Context: Serialize, Mode: Serialize",
-    deserialize = "Wght: for<'a> Deserialize<'a>, Splt: for<'a> Deserialize<'a>, Bw: for<'a> Deserialize<'a>, Kern::Context: for<'a> Deserialize<'a>, Mode: for<'a> Deserialize<'a>",
+    serialize = "Wght: Serialize, Splt: Serialize, Bw: Serialize, Kern::Context: Serialize",
+    deserialize = "Wght: for<'a> Deserialize<'a>, Splt: for<'a> Deserialize<'a>, Bw: for<'a> Deserialize<'a>, Kern::Context: for<'a> Deserialize<'a>",
 ))]
-pub struct Tpe<Kern, Bw, Wght, Splt, P, Mode>
+pub struct Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
     Kern: Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem,
-    Mode: PbMode,
+    Id: SolId,
+    P: Problem<Id = Id>,
     CodElem<P>: Orderable
 {
     pub n_init: usize,
@@ -224,17 +234,17 @@ where
     pub point_archive: JointFidelityArchive<<SOpt<P> as HasX>::X, CodElem<P>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
-    _mode: PhantomData<Mode>,
 }
 
-impl<Kern, Bw, Wght, Splt, P, Mode> Tpe<Kern, Bw, Wght, Splt, P, Mode>
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
     Kern: Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem,
-    Mode: PbMode,
+    P: Problem<Id=Id>,
+    Id: SolId,
     CodElem<P>: Orderable,
 {
     /// Creates a new TPE optimizer with the specified components and parameters.
@@ -264,7 +274,6 @@ where
             point_archive: vec![],
             current_archive: 0,
             current_fidelity: -f64::INFINITY,
-            _mode: PhantomData,
         }
     }
 
@@ -276,25 +285,27 @@ where
     }
 }
 
-impl<Kern, Bw, Wght, Splt, P, Mode> State for Tpe<Kern, Bw, Wght, Splt, P, Mode>
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> State for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
     Kern: Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem,
-    Mode: PbMode,
+    P: Problem<Id=Id>,
+    Id: SolId,
     CodElem<P>: Orderable,
 { }
 
-impl<Kern, Bw, Wght, Splt, P, Mode> HasState for Tpe<Kern, Bw, Wght, Splt, P, Mode>
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> HasState for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
     Kern: Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem,
-    Mode: PbMode,
+    P: Problem<Id=Id>,
+    Id: SolId,
     CodElem<P>: Orderable,
 {
     type State = Self;
@@ -312,22 +323,22 @@ where
     }
 }
 
-#[basic_bounds(P, Opt, TpeSInfo)]
-impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, SimpleMode>
+#[basic_bounds(P, Opt)]
+impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, SId>
 where
     Kern: Kernel<P, Opt>,
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
+    P: Problem<Id=SId>,
     CodElem<P>: Orderable,
 {
     type Info = TpeSInfo;
 
-    fn sample(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let n_init = self.n_init;
         if self.point_archive[0].1.size() < n_init {
-            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
-            Some(self.with_rng(|rng| scp.sample_pair(rng, info)))
+            Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.splitter.split(&self.point_archive[0].1);
@@ -337,8 +348,7 @@ where
                     match err {
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
-                            return Some(self.with_rng(|rng| scp.sample_pair(rng, info)));
+                            return Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -370,8 +380,8 @@ where
                 .max_by(|a, b| a.1.total_cmp(&b.1))
                 .unwrap();
 
-            let info = TpeSInfo::new(acq, gpdf, bpdf);
-            Some(scp.new_opt(s, info))
+            let info = TpeSInfo::new(acq, gpdf, bpdf).into();
+            Some((scp.new_opt(s), info))
         }
     }
 
@@ -381,21 +391,21 @@ where
     }
 }
 
-#[fidelity_bounds(P, Opt, TpeSInfo)]
-impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, FidelityMode>
+#[fidelity_bounds(P, Opt)]
+impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, StepSId>
 where
     Kern: Kernel<P, Opt>,
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
+    P: Problem<Id=StepSId>,
     CodElem<P>: Orderable,
 {
     type Info = TpeSInfo;
 
-    fn sample(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<Shape<P>> {
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if self.point_archive.is_empty() || self.point_archive[self.current_archive].1.size() < self.n_init {
-            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
-            Some(self.with_rng(|rng| scp.sample_pair(rng, info)))
+            Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.splitter.split(&self.point_archive[self.current_archive].1);
@@ -405,8 +415,7 @@ where
                     match err {
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            let info = TpeSInfo::new(f64::NAN, f64::NAN, f64::NAN);
-                            return Some(self.with_rng(|rng| scp.sample_pair(rng, info)));
+                            return Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -438,8 +447,8 @@ where
                 .max_by(|a, b| a.1.total_cmp(&b.1))
                 .unwrap();
 
-            let info = TpeSInfo::new(acq, gpdf, bpdf);
-            Some(scp.new_opt(s, info))
+            let info = TpeSInfo::new(acq, gpdf, bpdf).into();
+            Some((scp.new_opt(s), info))
         }
     }
 
@@ -477,3 +486,15 @@ where
         // Else we ignore as an archive with higher accuracy has already reached the threshold
     }
 }
+
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> Prunable for Tpe<Kern, Bw, Wght, Splt, P, Id>
+where
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
+    Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
+    P: Problem<Id=Id>,
+    Id: SolId,
+    CodElem<P>: Orderable,
+{ }

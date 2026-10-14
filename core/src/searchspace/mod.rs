@@ -130,13 +130,12 @@
 //! ```
 
 use crate::{
-    FuncWrapper, Uncomputed, aliases::{GetId, GetRaw, GetSInfo, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
+    FuncWrapper, Uncomputed, aliases::{GetId, GetRaw, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
         SolId, SolutionShape, shape::IntoComputedShape,
     },
 };
 
 use rand::prelude::Rng;
-use std::sync::Arc;
 
 /// Core trait defining the searchspace for optimization problems.
 ///
@@ -208,19 +207,20 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
         OptSol = F::Sol<Self::Opt>, 
         Obj=Self::Obj, 
         Opt=Self::Opt,
+        Info = F::Info,
     > + IntoComputedShape;
 
     /// Create a new solution from a raw solution in the Obj domain.
-    fn new_obj<T: Into<GetRaw<F::Sol<Self::Obj>>>>(&self, x: T, info: Arc<GetSInfo<F::Sol<Self::Obj>>>) -> Self::Shape {
+    fn new_obj<T: Into<GetRaw<F::Sol<Self::Obj>>>>(&self, x: T) -> Self::Shape {
         let id = GetId::<F::Sol<Self::Obj>>::generate();
-        let sol = F::Sol::<Self::Obj>::new(id, x, info);
+        let sol = F::Sol::<Self::Obj>::new(id, x, F::Info::default().into());
         self.onto_opt(sol)
     }
 
     /// Create a new solution from a raw solution in the Opt domain.
-    fn new_opt<T: Into<GetRaw<F::Sol<Self::Opt>>>>(&self, x: T, info: Arc<GetSInfo<F::Sol<Self::Opt>>>) -> Self::Shape {
+    fn new_opt<T: Into<GetRaw<F::Sol<Self::Opt>>>>(&self, x: T) -> Self::Shape {
         let id = GetId::<F::Sol<Self::Opt>>::generate();
-        let sol = F::Sol::<Self::Opt>::new(id, x, info);
+        let sol = F::Sol::<Self::Opt>::new(id, x, F::Info::default().into());
         self.onto_obj(sol)
     }
 
@@ -340,8 +340,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_obj<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<GetSObj<Self::Shape>>>) -> GetSObj<Self::Shape>{
-        Uncomputed::new(GetId::<GetSObj<Self::Shape>>::generate(), self.sample_raw_obj(rng), info)
+    fn sample_obj<R: Rng>(&self, rng: &mut R) -> GetSObj<Self::Shape>{
+        Uncomputed::new(GetId::<GetSObj<Self::Shape>>::generate(), self.sample_raw_obj(rng), F::Info::default().into())
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
     ///
@@ -418,8 +418,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     println!("{}", i);
     /// }
     /// ```
-    fn sample_opt<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<GetSOpt<Self::Shape>>>) -> GetSOpt<Self::Shape>{
-        Uncomputed::new(GetId::<GetSOpt<Self::Shape>>::generate(), self.sample_raw_opt(rng), info)
+    fn sample_opt<R: Rng>(&self, rng: &mut R) -> GetSOpt<Self::Shape>{
+        Uncomputed::new(GetId::<GetSOpt<Self::Shape>>::generate(), self.sample_raw_opt(rng), F::Info::default().into())
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
     ///
@@ -498,7 +498,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// println!("Opt: {:?}", pair.get_sopt().ref_x());
     /// ```
     ///
-    fn sample_pair<R: Rng>(&self, rng: &mut R, info: Arc<GetSInfo<Self::Shape>>) -> Self::Shape;
+    fn sample_pair<R: Rng>(&self, rng: &mut R) -> Self::Shape;
     /// Validates that a solution belongs to the Obj domain of this searchspace.
     ///
     /// Checks each variable value against its Obj domain constraints using
@@ -708,12 +708,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_obj<R: Rng>(
-        &self,
-        rng: &mut R,
-        size: usize,
-        info: Arc<GetSInfo<Self::Shape>>,
-    ) -> Vec<GetSObj<Self::Shape>>;
+    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>>;
     /// Generates multiple random raw solutions in the Obj domain.
     ///
     /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
@@ -802,7 +797,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     println!("Opt: {:?}", opt.ref_x());
     /// }
     /// ```
-    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>;
+    fn vec_sample_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetSOpt<Self::Shape>>;
     /// Generates multiple random raw solutions in the Opt domain.
     ///
     /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
@@ -894,12 +889,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_pair<R: Rng>(
-        &self,
-        rng: &mut R,
-        size: usize,
-        info: Arc<GetSInfo<Self::Shape>>,
-    ) -> Vec<Self::Shape>;
+    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<Self::Shape>;
 
     /// Generates multiple `Obj` solutions and applies a transformation to each.
     ///
@@ -952,13 +942,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
-    fn vec_apply_obj<A, R>(
-        &self,
-        f: A,
-        rng: &mut R,
-        size: usize,
-        info: Arc<GetSInfo<Self::Shape>>,
-    ) -> Vec<GetSObj<Self::Shape>>
+    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>>
     where
         A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape> + Send + Sync,
         R: Rng;
@@ -1013,7 +997,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
-    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize, info: Arc<GetSInfo<Self::Shape>>) -> Vec<GetSOpt<Self::Shape>>
+    fn vec_apply_opt<A, R>(&self, f: A, rng: &mut R, size: usize) -> Vec<GetSOpt<Self::Shape>>
     where
         A: Fn(GetSOpt<Self::Shape>) -> GetSOpt<Self::Shape> + Send + Sync,
         R: Rng;

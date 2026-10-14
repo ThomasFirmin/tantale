@@ -1,4 +1,6 @@
+
 use serde::{Deserialize, Serialize};
+use std::{any::{Any, TypeId}, sync::Arc};
 
 use crate::{SolInfo, utils::record::{Recordable, Schema}};
 
@@ -9,8 +11,18 @@ where
     Info: SolInfo,
     SuperInfo: SolInfo,
 {
-    pub inner: Info,
-    pub super_info: SuperInfo,
+    pub inner: Arc<Info>,
+    pub super_info: Arc<SuperInfo>,
+}
+
+impl<Info, SuperInfo> WrappedInfo<Info, SuperInfo>
+where
+    Info: SolInfo,
+    SuperInfo: SolInfo,
+{
+    pub fn new(inner: Arc<Info>, super_info: Arc<SuperInfo>) -> Self {
+        WrappedInfo { inner, super_info }
+    }
 }
 
 impl<Info, SuperInfo> Schema<()> for WrappedInfo<Info, SuperInfo>
@@ -45,4 +57,11 @@ where
     Info: SolInfo,
     SuperInfo: SolInfo,
 {
+    fn find_info<T: SolInfo>(self: Arc<Self>) -> Option<Arc<T>> {
+        if TypeId::of::<Self>() == TypeId::of::<T>() {
+            return (self as Arc<dyn Any + Send + Sync>).downcast::<T>().ok();
+        }
+        self.inner.clone().find_info::<T>()
+            .or_else(|| self.super_info.clone().find_info::<T>())
+    }
 }

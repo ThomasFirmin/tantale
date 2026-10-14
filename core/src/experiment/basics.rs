@@ -54,10 +54,9 @@ impl<P:Problem> HasState for ExpState<P> {
 
 pub struct Experiment<P, O, S, R, C>
 where
-    Self: Runable,
-    P: Problem<Info = O::Info>,
+    P: Problem,
     P::Scp: Searchspace<P::Func> + HasVariables,
-    O: Sampler<P, Opt<P>>,
+    O: Sampler<P, Opt<P>, Info = <P as Problem>::Info>,
     S: Stop,
     R: Recorder<P, ()>,
     C: Checkpointer<P, ()>,
@@ -74,10 +73,9 @@ where
 
 impl<P, O, S, R, C> Experiment<P, O, S, R, C>
 where
-    Self: Runable,
-    P:Problem<Info = O::Info>,
+    P:Problem,
     P::Scp: Searchspace<P::Func> + HasVariables,
-    O:Sampler<P, Opt<P>>,
+    O: Sampler<P, Opt<P>, Info = <P as Problem>::Info>,
     S:Stop,
     R:Recorder<P, ()>,
     C:Checkpointer<P, ()>,
@@ -89,7 +87,8 @@ where
         stop: S,
         recorder: Option<R>,
         checkpointer: Option<C>,
-    ) -> Self {
+    ) -> Self 
+    {
         let accumulator = Accum::<P>::default();
         let sol = sampler.sample(problem.get_searchspace(), &accumulator);
         if sol.is_none() {
@@ -117,7 +116,8 @@ where
         }
     }
 
-    pub fn load(problem: P, recorder: Option<R>, mut checkpointer: C) -> Self {
+    pub fn load(problem: P, recorder: Option<R>, mut checkpointer: C) -> Self
+    {
         checkpointer.before_load(&problem, &()).unwrap();
 
         let mut sampler: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
@@ -149,7 +149,6 @@ where
                 ExpState::new(sol.unwrap())
             },
         };
-
 
         Self {
             problem,
@@ -210,7 +209,7 @@ where
     Out: Outcome,
     Info: SolInfo,
 {
-    type SolId  = SId;
+    type Id  = SId;
     type Context = ();
 
     type Problem = SimplePb<Info, Scp, Out>;
@@ -219,7 +218,8 @@ where
     type Recorder = R;
     type Checkpointer = C;
     
-    fn run(mut self) -> Accum<Self::Problem> {
+    fn run(mut self) -> Accum<Self::Problem> 
+    {
         if self.state.has_output() 
         {
             // If the experiment state has an output, it means that the last evlauation was recorded
@@ -527,7 +527,7 @@ where
     Info: SolInfo,
     FnState: FuncState,
 {
-    type SolId  = StepSId;
+    type Id  = StepSId;
     type Context = ();
 
     type Problem = FidPb<Info, Scp, Out, FnState>;
@@ -536,7 +536,8 @@ where
     type Recorder = R;
     type Checkpointer = C;
     
-    fn run(mut self) -> Accum<Self::Problem> {
+    fn run(mut self) -> Accum<Self::Problem> 
+    {
         if self.state.has_output() 
         {
             // If the experiment state has an output, it means that the last evlauation was recorded

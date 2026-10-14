@@ -69,6 +69,9 @@ pub trait HasInfo
     type Info: SolInfo;
     /// Returns the solution's [`SolInfo`] wrapped in [`Arc`].
     fn sinfo(&self) -> Arc<Self::Info>;
+
+    /// Sets the solution's [`SolInfo`] to a new value.
+    fn set_info(&mut self, info: Arc<Self::Info>);
 }
 
 /// Trait for objects containing a raw solution.
@@ -84,6 +87,9 @@ pub trait HasX
 
     /// Returns a clone of the raw solution associated with this object.
     fn clone_x(&self) -> Self::X;
+
+    /// Sets the raw solution to a new value.
+    fn set_x(&mut self, x: Self::X);
 }
 
 /// Trait for objects with an associated objective function value.
@@ -106,6 +112,9 @@ pub trait HasY
     ///
     /// A shared reference to the codomain value (objective function output).
     fn y(&self) -> Arc<Self::Y>;
+
+    /// Sets the objective function value associated with this solution.
+    fn set_y(&mut self, y: Arc<Self::Y>);
 }
 
 /// Trait for solutions supporting multi-fidelity evaluation tracking.
@@ -193,12 +202,19 @@ pub trait HasUncomputed
 
     /// Returns a reference to the contained uncomputed solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed;
+
+    /// Sets the contained uncomputed solution to a new value.
+    fn set_uncomputed(&mut self, uncomputed: Self::Uncomputed);
 }
 
 /// Trait for objects containing a slice of [Var]iables.
 pub trait HasVariables: Linked {
 
+    /// Returns a slice of [Var]iables associated with this object.
     fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
+
+    /// Sets the slice of [Var]iables for this object.
+    fn set_vars(&mut self, vars: Vec<Var<Self::Obj, Self::TrueOpt>>);
 
     /// Returns an iterator over the `Opt` [`Domain`]s associated with this object.
     fn iter_opt(&self) -> impl Iterator<Item = &Self::Opt> + '_ {
@@ -240,6 +256,11 @@ pub trait HasState
     fn get_mut_state(&mut self) -> &mut Self::State;
     /// Builds `Self` from a previously saved [`State`].
     fn from_state(state: Self::State) -> Self;
+
+    /// Sets the [`State`] of `Self` to a new value.
+    fn set_state(&mut self, state: Self::State) {
+        *self.get_mut_state() = state;
+    }
 }
 
 /// Trait for objects that can provide their batch size.

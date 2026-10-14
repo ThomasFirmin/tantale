@@ -1,11 +1,11 @@
-use tantale::core::recorder::csv::CSVWritable;
+use tantale::core::utils::record::{Recordable, Schema};
 
 mod outcome {
     use serde::{Deserialize, Serialize};
     use tantale::core::objective::Step;
-    use tantale::macros::{CSVWritable, Outcome};
+    use tantale::macros::{Schema, Recordable, Outcome};
 
-    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+    #[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
     pub struct OutExample {
         pub fid2: f64,
         pub con3: f64,
@@ -38,7 +38,7 @@ mod outcome {
 
 #[test]
 fn out_header() {
-    let head = outcome::OutExample::header(&());
+    let head = outcome::OutExample::columns(&(), ());
     let str_true = Vec::from([
         String::from("fid2"),
         String::from("con3"),
@@ -60,7 +60,7 @@ fn out_header() {
 #[test]
 fn out_write() {
     let out = outcome::get_struct();
-    let wrote = out.write(&());
+    let wrote = out.record(&(), ());
     let str_true = Vec::from([
         String::from("2.2"),
         String::from("3.3"),

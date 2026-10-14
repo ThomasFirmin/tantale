@@ -48,10 +48,11 @@
 use crate::{
     GridDom,
     domain::{
-        Bool, Bounded, Domain, Elem,
+        Bool, Bounded, Domain,
         bounded::{BoundedBounds, RangeDomain},
         grid::GridBounds,
     },
+    utils::aliases::Elem,
 };
 
 use rand::{

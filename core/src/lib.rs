@@ -332,7 +332,7 @@ pub use variable::var::Var;
 pub mod solution;
 pub use solution::{
     BaseSol, Computed, Fidelity, FidelitySol, SolId, Lone,
-    Pair, ParSId, SId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed,
+    Pair, ParSId, SId, SolInfo, Sampled, Solution, SolutionShape, StepId, StepSId, Uncomputed,
 };
 
 pub mod searchspace;
@@ -346,7 +346,7 @@ pub use crate::objective::{
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, Sampler};
+pub use crate::optimizer::{EmptyInfo, Sampler, Pruner, Prunable};
 
 pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
@@ -367,7 +367,7 @@ pub use utils::{
     Dominate, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
     NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
-    HasState, FolderConfig, SaverConfig, Recordable, Schema,
+    HasState, FolderConfig, Recordable, Schema,
     aliases,
 };
 
@@ -378,5 +378,5 @@ pub mod spikes;
 pub use spikes::*;
 
 pub mod problem;
-pub use problem::{Problem, SimplePb, FidPb};
+pub use problem::{Problem, SimplePb, FidPb, Pb};
 

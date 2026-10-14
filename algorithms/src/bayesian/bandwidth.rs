@@ -1,6 +1,5 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasVariables, Int, Linked, Mixed, MixedTypeDom, Nat, 
-    Problem, Real, Unit, XToNdArray, Xy, aliases::{CodElem, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}
+    Bool, Domain, GridDom, HasVariables, Int, Linked, Mixed, MixedTypeDom, Nat, Problem, Real, Unit, XToNdArray, Xy, aliases::{CodElem, Opt, TOpt, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}, utils::AsX
 };
 
 use std::{fmt::Debug, mem::MaybeUninit, sync::Arc};
@@ -31,7 +30,7 @@ where
 {
     type BwType: BandwidthType;
 
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>;
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>;
 }
 
 /// A struct representing the Optuna bandwidth method for Gaussian kernels.
@@ -109,7 +108,7 @@ where
 {
     type BwType = Vec<f64>;
 
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -133,7 +132,7 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -155,7 +154,7 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -179,7 +178,7 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -204,7 +203,7 @@ where
     type BwType = Vec<f64>;
     
 
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         if archive.is_empty() {
             return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -233,14 +232,13 @@ where
     }
 }
 
-fn hyperopt<'a, T, Raw, Y, I, D>(archive: &[T], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
+fn hyperopt<'a, T, P, I>(archive: &[T], doms: I, consider_endpoint:bool, dim: usize, clip:bool) -> Result<Array2<f64>, BandwidthError>
 where
-    T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
-    I: Iterator<Item = &'a D>,
-    D: NumericalDomain + 'a,
-    D::Element: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
-    Raw: XToNdArray<D> + Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
-    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
+    P: Problem,
+    T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>,
+    Opt<P>: NumericalDomain + 'a,
+    I: Iterator<Item = &'a Opt<P>>,
+    TOpt<P>: Num + AsPrimitive<f64> + FromPrimitive + PartialOrd,
 {
     let n_size = archive.len();
     let arr = archive.x_array();
@@ -471,9 +469,9 @@ where
 {
     type BwType = Array2<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
+        hyperopt::<_, P, _>(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
 
@@ -485,9 +483,9 @@ where
 {
     type BwType = Array2<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
+        hyperopt::<_, P, _>(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
 
@@ -499,9 +497,9 @@ where
 {
     type BwType = Array2<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
+        hyperopt::<_, P, _>(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
 
@@ -513,9 +511,9 @@ where
 {
     type BwType = Array2<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        hyperopt(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
+        hyperopt::<_, P, _>(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
 }
 
@@ -527,7 +525,7 @@ where
 {
     type BwType = Array2<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         hyperopt_mixed(archive, scp.iter_opt(), self.consider_endpoint, scp.size(), self.magic_clip)
     }
@@ -551,7 +549,7 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scp.iter_opt().map(
             |dom| cat_bw(archive.len().as_(), dom)
@@ -568,21 +566,20 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         let n: f64 = archive.len().as_();
         Ok(vec![(n +1.) / (n + 2.) ; scp.size()])
     }
 }
 
-fn scott<'a, T, Raw, D, Y, I>(archive: &[T], doms: I, clip: bool) -> Result<Vec<f64>, BandwidthError>
+fn scott<'a, T, P, I>(archive: &[T], doms: I, clip: bool) -> Result<Vec<f64>, BandwidthError>
 where
-    T: AsRef<Xy<Raw, Y>> + XToNdArray<D>,
-    D: NumericalDomain + 'a,
-    D::Element: Num + AsPrimitive<f64>,
-    I: Iterator<Item = &'a D>,
-    Raw: XToNdArray<D> + Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
-    Y: Send + Sync + Clone + Debug + Serialize + for<'b> Deserialize<'b>,
+    P: Problem,
+    T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>,
+    Opt<P>: NumericalDomain + 'a,
+    I: Iterator<Item = &'a Opt<P>>,
+    TOpt<P>: Num + AsPrimitive<f64>,
 {
     if archive.is_empty() {
         return Err(BandwidthError::NotEnoughPoints("Archive is empty. Cannot compute bandwidth."));
@@ -771,9 +768,9 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        scott(archive, scp.iter_opt(), self.0)
+        scott::<_, P, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -785,9 +782,9 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        scott(archive, scp.iter_opt(), self.0)
+        scott::<_, P, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -799,9 +796,9 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        scott(archive, scp.iter_opt(), self.0)
+        scott::<_, P, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -813,9 +810,9 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
-        scott(archive, scp.iter_opt(), self.0)
+        scott::<_, P, _>(archive, scp.iter_opt(), self.0)
     }
 }
 
@@ -827,7 +824,7 @@ where
 {
     type BwType = Vec<f64>;
     
-    fn compute(&mut self, archive: &[&Xy<XOpt<P>, CodElem<P>>], scp: &<P as Problem>::Scp) -> Result<Self::BwType, BandwidthError>
+    fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(&mut self, archive: &[T], scp: &P::Scp) -> Result<Self::BwType, BandwidthError>
     {
         scott_mixed(archive, scp.iter_opt(), scp.size(), self.0)
     }

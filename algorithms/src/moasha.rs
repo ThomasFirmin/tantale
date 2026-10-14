@@ -20,7 +20,7 @@
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
 use tantale_core::{
-    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt, Multi, State, Sampler, RawObj, Searchspace, SingleOptimizer, SingleSampler, SolInfo, Step, StepSId, Uncomputed, domain::codomain::{ElemMulti, TypeCodom}, optimizer::opt::Pruner, solution::IntoComputedShape,
+    Domain, Dominate, HasFidelity, HasState, HasStep, Problem, Sampled, Sampler, State, Step, aliases::{Accum, CodElem, CompShape, Opt, Shape}, domain::codomain::ElemMulti, optimizer::opt::{Prunable, Pruner}, solution::shape::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -29,9 +29,10 @@ use serde::{
     de::{self, Visitor},
     ser::SerializeStruct,
 };
+use tantale_macros::fidelity_bounds;
 use std::{cell::RefCell, marker::PhantomData};
 
-use crate::{mo::{CandidateSelector, SelectorError}, utils::{FCompAcc, FCompShape, PrunerError, SimpleStepped, build_halving_budgets, fidelity_setter}};
+use crate::{mo::{CandidateSelector, SelectorError}, utils::{PrunerError, build_halving_budgets}};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -49,61 +50,14 @@ thread_local! {
 #[macro_export]
 macro_rules! moasha {
     ($sampler : ident, $selector : ident) => {
-        MoAsha<$sampler, $selector, _, _, _, _>
+        MoAsha<$sampler, $selector, _>
     };
     ($sampler : ty, $selector: ident) => {
-        MoAsha<$sampler, $selector, _, _, _, _>
+        MoAsha<$sampler, $selector, _>
     };
 }
 
-type MoAshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
-
-/// Internal state of the [`MoAsha`] optimizer.
-///
-/// This structure maintains all essential information needed to resume an optimization
-/// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-pub struct MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
-where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-{
-    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
-    pub sampler: Smpl,
-    /// The candidate selection strategy used for promoting candidates between rungs.
-    /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
-    pub selector: Selector,
-    /// A vector of budget levels corresponding to the halving rounds.
-    pub budgets: Vec<f64>,
-    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
-    pub scaling: f64,
-    /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: MoAshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
-    /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
-    pub current_budget: f64,
-    _fn: PhantomData<Fn>,
-}
-impl<Smpl, Selector, Scp, PSol, Out, Fn> State
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
-where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Selector: CandidateSelector,
-{
-}
+type MoAshaRungs<P> = Vec<Vec<CompShape<P>>>;
 
 /// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
 ///
@@ -170,35 +124,69 @@ where
 /// # Internal State
 ///
 /// - [`MoAsha`]: Checkpointable state including budget, scaling factor, and iteration count
-pub struct MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>(
-    pub MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>,
-)
+pub struct MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate;
-
-impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>
-where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    TypeCodom<Out>: Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
+    /// The candidate selection strategy used for promoting candidates between rungs.
+    /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
+    pub selector: Selector,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<f64>,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    pub scaling: f64,
+    /// A vector of vectors representing the rungs of the Successive Halving process.
+    pub rung: MoAshaRungs<P>,
+    /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
+    pub current_budget: f64,
+}
+
+impl<Smpl, Selector, P> State for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+}
+
+impl<Smpl, Selector, P> HasState for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+    type State = Self;
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+impl<Smpl, Selector, P> MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
     /// Creates a new [`MoAsha`] optimizer with the specified parameters.
     ///
@@ -232,15 +220,14 @@ where
 
         let length = budgets.len();
         let current_budget = budgets[0];
-        Ok(MoAsha(MoAshaState {
+        Ok(MoAsha {
             sampler,
             selector,
             budgets,
             scaling,
             rung: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
-            _fn: PhantomData,
-        }))
+        })
     }
 
     /// Selects candidates for promotion based on the index of the rung and budget levels.
@@ -248,9 +235,9 @@ where
     /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state,
     /// which can be customized to implement different selection criteria (e.g., [`NSGA2Selector`](crate::utils::mo::NSGA2Selector)).
     pub fn select(&mut self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
-        self.0
+        self
             .selector
-            .arg_select_candidates(&self.0.rung[index], n)
+            .arg_select_candidates(&self.rung[index], n)
     }
 
     pub fn with_rng<F, T>(&self, f: F) -> T
@@ -264,195 +251,17 @@ where
 /// Implementation of the [`Optimizer`] trait for Successive Halving.
 ///
 /// Defines the state management and codomain configuration for Successive Halving.
-impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    Sampler<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Sampler<P, Opt> for MoAsha<Smpl, Selector, P>
 where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
+    Opt:Domain,
+    Smpl: Sampler<P, Opt> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
-    type State =
-        MoAshaState<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
-    type SInfo = SInfo;
-
-    /// Returns a reference to the current optimizer state.
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    /// Returns a mutable reference to the current optimizer state.
-    fn get_mut_state(&mut self) -> &Self::State {
-        &mut self.0
-    }
-
-    /// Reconstructs the [`MoAsha`] optimizer from a saved state.
-    ///
-    /// Used for checkpointing and resuming optimization experiments.
-    /// Creates a fresh random number generator for the reconstructed optimizer.
-    fn from_state(state: Self::State) -> Self {
-        MoAsha(state)
-    }
-}
-
-impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    Pruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
-where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Selector: CandidateSelector,
-{
-    /// Reinitializes the budget parameters for this optimizer.
-    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
-    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
-    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budgets = (0..)
-            .map(|i| budget_min * self.0.scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *self.0.budgets.last().unwrap() != budget_max {
-            let last = self.0.budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
-        self.0.current_budget = self.0.budgets[0];
-    }
-
-    /// Returns the current minimum and maximum budgets of this optimizer.
-    fn get_budgets(&self) -> (f64, f64) {
-        (
-            *self.0.budgets.first().unwrap(),
-            *self.0.budgets.last().unwrap(),
-        )
-    }
-
-    /// Updates the scaling factor for this optimizer.
-    fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        self.0.scaling = scaling;
-    }
-
-    /// Returns the current scaling factor for this optimizer.
-    fn get_scaling(&self) -> f64 {
-        self.0.scaling
-    }
-
-    /// Sets the current budget level used by the optimizer for pruning candidates.
-    fn set_current_budget(&mut self, budget: f64) {
-        assert!(
-            budget >= self.0.budgets[0] && budget <= self.0.budgets[self.0.budgets.len() - 1],
-            "Current budget must be within the range of defined budgets"
-        );
-        self.0.current_budget = budget;
-    }
-
-    fn get_current_budget(&self) -> f64 {
-        self.0.current_budget
-    }
-
-    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
-    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
-    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Scp::SolShape> {
-        let clear = self
-            .0
-            .rung
-            .drain(..)
-            .flatten()
-            .map(|comp| {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                sol
-            })
-            .collect();
-        self.0.rung = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
-        clear
-    }
-
-    fn drain_one(&mut self) -> Option<Scp::SolShape> {
-        for rung in self.0.rung.iter_mut() {
-            if let Some(comp) = rung.pop() {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                return Some(sol);
-            }
-        }
-        None
-    }
-}
-
-/// Implementation of the [`SingleOptimizer`] trait for Successive Halving.
-///
-/// Implements the core optimization logic: initial batch generation and successive halving
-/// with fidelity-based candidate elimination.
-impl<Smpl, Selector, Out, Scp, SInfo, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, SInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
-    for MoAsha<
-        Smpl,
-        Selector,
-        Scp,
-        FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-        Out,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
-where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
-    FnState: FuncState,
-    Selector: CandidateSelector,
-{
+    type Info = Smpl::Info;
+    
     /// Executes one iteration of [`MoAsha`].
     ///
     /// This method implements the core algorithm:
@@ -493,43 +302,124 @@ where
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
     ///
-    fn step(
-        &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        if let Some(comp) = x {
-            if let Step::Partially(_s) = comp.step() {
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
-                if let Some(i) = idx {
-                    self.0.rung[i + 1].push(comp);
-                }
-            }
-
-            let mut i = self.0.budgets.len() - 1;
-            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            while k == 0 && i > 0 {
-                i -= 1;
-                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            }
-            if k == 0 {
-                self.0.current_budget = self.0.budgets[0];
-                self.0
-                    .sampler
-                    .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
-            } else {
-                let idx = self.select(i, k).unwrap()[0];
-                self.0.current_budget = self.0.budgets[i];
-                let sol = IntoComputedShape::extract(self.0.rung[i].remove(idx)).0;
-                fidelity_setter(sol, self.0.current_budget)
-            }
-        } else {
-            self.0.current_budget = self.0.budgets[0];
-            self.0
-                .sampler
-                .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut i = self.budgets.len() - 1;
+        let mut k = (self.rung[i].len() as f64 / self.scaling) as usize;
+        while k == 0 && i > 0 {
+            i -= 1;
+            k = (self.rung[i].len() as f64 / self.scaling) as usize;
         }
+        if k == 0 {
+            self.current_budget = self.budgets[0];
+            let sample= self.sampler.sample_info(scp, acc);
+            sample.map(|(mut sol, info)| {
+                sol.set_fidelity(self.current_budget);
+                (sol, info)
+            })
+        } else {
+            let idx = self.select(i, k).unwrap()[0];
+            self.current_budget = self.budgets[i];
+            let mut sol: Shape<P> = IntoComputedShape::extract(self.rung[i].remove(idx)).0;
+            sol.set_fidelity(self.current_budget);
+            Some((sol, Sampled::Reused))
+        }
+    }
+    
+    fn update(&mut self,x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
+        if let Step::Partially(_s) = x.step() {
+            let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
+            if let Some(i) = idx {
+                self.rung[i + 1].push(x.clone());
+            }
+        }
+    }
+
+}
+
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Pruner<P, Opt> for MoAsha<Smpl, Selector, P>
+where
+    Opt:Domain,
+    Smpl: Sampler<P, Opt> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+    /// Reinitializes the budget parameters for this optimizer.
+    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
+    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
+    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
+        self.budgets = (0..)
+            .map(|i| budget_min * self.scaling.powi(i))
+            .take_while(|&b| b <= budget_max)
+            .collect();
+        //If final budget is not budget_max, modify final budget to be budget_max
+        if *self.budgets.last().unwrap() != budget_max {
+            let last = self.budgets.last_mut().unwrap();
+            *last = budget_max;
+        }
+        self.current_budget = self.budgets[0];
+    }
+
+    /// Returns the current minimum and maximum budgets of this optimizer.
+    fn get_budgets(&self) -> (f64, f64) {
+        (
+            *self.budgets.first().unwrap(),
+            *self.budgets.last().unwrap(),
+        )
+    }
+
+    /// Updates the scaling factor for this optimizer.
+    fn set_scaling(&mut self, scaling: f64) {
+        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        self.scaling = scaling;
+    }
+
+    /// Returns the current scaling factor for this optimizer.
+    fn get_scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64) {
+        assert!(
+            budget >= self.budgets[0] && budget <= self.budgets[self.budgets.len() - 1],
+            "Current budget must be within the range of defined budgets"
+        );
+        self.current_budget = budget;
+    }
+
+    fn get_current_budget(&self) -> f64 {
+        self.current_budget
+    }
+
+    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
+    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
+    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
+    fn drain(&mut self) -> Vec<Shape<P>> {
+        let clear = self
+            .rung
+            .drain(..)
+            .flatten()
+            .map(|comp| {
+                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
+                sol.discard();
+                sol
+            })
+            .collect();
+        self.rung = (0..self.budgets.len()).map(|_| Vec::new()).collect();
+        clear
+    }
+
+    fn drain_one(&mut self) -> Option<Shape<P>> {
+        for rung in self.rung.iter_mut() {
+            if let Some(comp) = rung.pop() {
+                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
+                sol.discard();
+                return Some(sol);
+            }
+        }
+        None
     }
 }
 
@@ -537,25 +427,13 @@ where
 //--- SERDE ---//
 //-------------//
 
-struct MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+struct MoAshaVisitor<Smpl, Selector, P>(PhantomData<(Smpl, Selector, P)>)
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-{
-    _scp: PhantomData<Scp>,
-    _psol: PhantomData<PSol>,
-    _smpl: PhantomData<Smpl>,
-    _out: PhantomData<Out>,
-    _fn: PhantomData<Fn>,
-    _selector: PhantomData<Selector>,
-}
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate;
 
 enum MoAshaField {
     Sampler,
@@ -568,19 +446,13 @@ enum MoAshaField {
 
 struct MoAshaFieldVisitor;
 
-impl<Smpl, Selector, Scp, PSol, Out, Fn> Serialize
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<Smpl, Selector, P> Serialize for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -597,28 +469,16 @@ where
     }
 }
 
-impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<Smpl, Selector, P> MoAshaVisitor<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
     fn new() -> Self {
-        MoAshaStateVisitor {
-            _scp: PhantomData,
-            _psol: PhantomData,
-            _smpl: PhantomData,
-            _out: PhantomData,
-            _fn: PhantomData,
-            _selector: PhantomData,
-        }
+        MoAshaVisitor(PhantomData)
     }
 }
 
@@ -663,24 +523,18 @@ impl<'de> Deserialize<'de> for MoAshaField {
     }
 }
 
-impl<'de, Scp, PSol, Smpl, Selector, Out, Fn> Visitor<'de>
-    for MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Smpl, Selector, P> Visitor<'de> for MoAshaVisitor<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
-    type Value = MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>;
+    type Value = MoAsha<Smpl, Selector, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("struct MoAshaState")
+        formatter.write_str("struct MoAsha")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -705,14 +559,13 @@ where
         let current_budget = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(5, &self))?;
-        Ok(MoAshaState {
+        Ok(MoAsha {
             sampler: Smpl::from_state(sampler),
             selector,
             budgets,
             scaling,
             rung,
             current_budget,
-            _fn: PhantomData,
         })
     }
 
@@ -776,36 +629,29 @@ where
         let current_budget =
             current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
 
-        Ok(MoAshaState {
+        Ok(MoAsha {
             sampler: Smpl::from_state(sampler),
             selector,
             budgets,
             scaling,
             rung,
             current_budget,
-            _fn: PhantomData,
         })
     }
 }
 
-impl<'de, Scp, Selector, PSol, Smpl, Out, Fn> Deserialize<'de>
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Smpl, Selector, P> Deserialize<'de> for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: ElemMulti,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(MoAshaStateVisitor::new())
+        deserializer.deserialize_map(MoAshaVisitor::new())
     }
 }

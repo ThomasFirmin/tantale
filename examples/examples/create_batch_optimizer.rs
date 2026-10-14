@@ -65,9 +65,9 @@ impl Sha {
     }
 }
 
-use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Optimizer, Searchspace, Single};
+use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Sampler, Searchspace, Single};
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Sha
 where
     Out: FidOutcome,

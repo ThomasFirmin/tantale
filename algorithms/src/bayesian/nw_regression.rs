@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tantale_core::{Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Problem, Real, Searchspace, Unit, Xy, aliases::{CodElem, XOpt}, domain::grid::GridBounds};
+use tantale_core::{GridDom, HasVariables, HasX, Int, Mixed, Nat, Problem, Real, Searchspace, Unit, Xy, aliases::{CodElem, Opt, XOpt}, domain::grid::GridBounds, utils::AsX};
+use tantale_macros::basic_bounds;
 
 use crate::{bayesian::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, kernel::{Kernel, KernelFunc}}};
 
@@ -9,36 +10,29 @@ use crate::{bayesian::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multi
 pub type Predictor = Vec<f64>;
 
 /// A trait for Nadaraya-Watson regression models.
+#[basic_bounds(P, Dom)]
 pub trait NwRegressor<P, Dom>: Kernel<P, Dom>
-where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem,
-    P::Scp: Searchspace<P::Func, Opt = Dom>,
-    Dom: Domain,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &P::Scp,
     ) -> f64;
 }
 
+#[basic_bounds(P, Mixed)]
 impl<P> NwRegressor<P, Mixed> for Multivariate
-where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem<XOpt = Arc<[MixedTypeDom]>>,
-    P::Scp: Searchspace<P::Func, Opt = Mixed> + HasVariables,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64
@@ -66,18 +60,15 @@ where
     }
 }
 
+#[basic_bounds(P, Real)]
 impl<P> NwRegressor<P, Real> for Multivariate
-where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem<XOpt = Arc<[f64]>>,
-    P::Scp: Searchspace<P::Func, Opt = Real> + HasVariables,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64
@@ -105,18 +96,15 @@ where
     }
 }
 
+#[basic_bounds(P, Int)]
 impl<P> NwRegressor<P, Int> for Multivariate
-where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem<XOpt = Arc<[i64]>>,
-    P::Scp: Searchspace<P::Func, Opt = Int> + HasVariables,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64
@@ -144,18 +132,15 @@ where
     }
 }
 
+#[basic_bounds(P, Nat)]
 impl<P> NwRegressor<P, Nat> for Multivariate
-where
-    Self: Clone + Sized + Serialize + for<'a> Deserialize<'a>,
-    P: Problem<XOpt = Arc<[u64]>>,
-    P::Scp: Searchspace<P::Func, Opt = Nat> + HasVariables,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64
@@ -189,12 +174,12 @@ where
     P: Problem<XOpt = Arc<[f64]>>,
     P::Scp: Searchspace<P::Func, Opt = Unit> + HasVariables,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64
@@ -229,12 +214,12 @@ where
     P::Scp: Searchspace<P::Func, Opt = GridDom<G>> + HasVariables,
     G: GridBounds,
 {
-    fn predict(
+    fn predict<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
         x: &XOpt<P>,
         y: &Predictor,
         weights: &[f64],
-        archive: &[&Xy<XOpt<P>, CodElem<P>>],
+        archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
     ) -> f64

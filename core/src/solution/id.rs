@@ -48,6 +48,8 @@ use mpi::Rank;
 pub trait SolId
 where
     Self: Sized
+        + Send
+        + Sync
         + PartialEq
         + Eq
         + Clone

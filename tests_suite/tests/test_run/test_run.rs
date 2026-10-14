@@ -9,7 +9,7 @@ use tantale::core::{
 
 use crate::cleaner::Cleaner;
 use crate::init_func::sp_evaluator;
-use crate::run_checker::{run_reader, run_reader_eps};
+use crate::run_checker::run_reader;
 
 #[test]
 fn test_batch_run() {

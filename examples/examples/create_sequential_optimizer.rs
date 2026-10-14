@@ -72,10 +72,10 @@ where
 }
 
 use tantale::core::{
-    FidOutcome, FidelitySol, IntoComputedShape, LinkOpt, Optimizer, Searchspace, Single, TypeCodom,
+    FidOutcome, FidelitySol, IntoComputedShape, LinkOpt, Sampler, Searchspace, Single, TypeCodom,
 };
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
+impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
     for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
 where
     Out: FidOutcome,

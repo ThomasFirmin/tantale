@@ -7,7 +7,7 @@ use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
 use tantale::core::{
-    Computed, EmptyInfo, HasId, HasX, HasY, searchspace::Searchspace,
+    Computed, HasId, HasX, HasY, searchspace::Searchspace,
 };
 
 macro_rules! get_test {
@@ -18,9 +18,9 @@ macro_rules! get_test {
             #[test]
             fn [< test_ $sp _ $func _json >](){
                 let sp = $sp::get_searchspace();
-                let info = Arc::new(EmptyInfo{});
+
                 let rng = &mut rand::rng();
-                let sample = Searchspace::<FuncType<$sp::ObjType, $out>>::sample_obj(&sp, rng,info.clone());
+                let sample = Searchspace::<FuncType<$sp::ObjType, $out>>::sample_obj(&sp, rng);
                 let (_,elem) = $func();
                 let computed: Computed<SolType<$sp::ObjType>,$out> = Computed::new(sample,Arc::new(elem));
 

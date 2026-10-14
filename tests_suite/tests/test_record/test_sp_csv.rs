@@ -1,9 +1,10 @@
 use super::init_sp::*;
-use tantale::core::recorder::csv::CSVLeftRight;
-use tantale::core::{BaseSol, EmptyInfo, HasX, SId, Searchspace, Sp};
+use tantale::core::{
+    BaseSol, EmptyInfo, HasX, Recordable, Schema, SId, Searchspace, HasVariables, Sp, 
+    utils::{record::SolParts, aliases::LinkOpt}
+};
 
 use paste::paste;
-use std::sync::Arc;
 
 // BOTH DOMAINS ARE DEFINED
 macro_rules! get_test {
@@ -13,26 +14,31 @@ macro_rules! get_test {
             #[test]
             fn [<head_$name>](){
                 let sp = $name::get_searchspace();
-                let head = Sp::<$name::ObjType,$name::OptType>::header(&sp);
+                let vars = sp.get_vars();
+                let context = vars;
+                let head = BaseSol::<SId, $name::ObjType, EmptyInfo>::columns(
+                    &context,
+                    SolParts::NoId(Box::new(SolParts::X)),
+                );
                 assert_eq!(head,Vec::from($expected), "Wrong header for searchspace.");
             }
 
             #[test]
             fn [<write_$name>](){
                 let sp: Sp<$name::ObjType,$name::OptType> = $name::get_searchspace();
-                let sinfo = Arc::new(EmptyInfo{});
 
                 let mut rng = rand::rng();
 
-                let sample_obj: BaseSol<SId,$name::ObjType,EmptyInfo> = <Sp<$name::ObjType,$name::OptType> as Searchspace<BaseSol<SId,_,EmptyInfo>,SId,EmptyInfo>>::sample_obj(&sp,&mut rng,sinfo.clone());
+                let sample_obj: BaseSol<SId,$name::ObjType,EmptyInfo> = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::sample_obj(&sp,&mut rng);
                 let s_str : Vec<String> = sample_obj.ref_x().iter().map(|x| x.to_string()).collect();
-                let s_csv = sp.write_left(&sample_obj.ref_x());
+                let parts = SolParts::NoId(Box::new(SolParts::X));
+                let s_csv = sample_obj.record(&(), parts.clone());
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Obj searchspace.");
 
 
-                let sample_opt: BaseSol<SId,_,_> = sp.sample_opt(&mut rng,sinfo.clone());
+                let sample_opt: BaseSol<SId,LinkOpt<Sp<$name::ObjType,$name::OptType>>,EmptyInfo> = <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::sample_opt(&sp,&mut rng);
                 let s_str : Vec<String> = sample_opt.x.iter().map(|x| x.to_string()).collect();
-                let s_csv = sp.write_right(&sample_opt.x);
+                let s_csv = sample_opt.record(&(), parts);
                 assert_eq!(s_csv,s_str, "Wrong csv writing for a sample from Opt searchspace.");
 
             }

@@ -1,5 +1,5 @@
 use paste::paste;
-use tantale::core::recorder::csv::CSVWritable;
+use tantale::core::utils::record::{Recordable, Schema};
 use tantale::core::solution::{
     SolId,
     id::{ParSId, SId},
@@ -11,7 +11,7 @@ macro_rules! test_header {
             paste!{
                 #[test]
                 fn [<test_$name _header>](){
-                    let head = $idty::header(&());
+                    let head = $idty::columns(&(), ());
                     assert_eq!(head,$expected,"CSV Header does not match the baseline.")
                 }
             }
@@ -32,7 +32,7 @@ macro_rules! test_write {
                 fn [<test_$name _write>](){
                     let id = $idty::generate();
                     let expected = $expected;
-                    let wrote = id.write(&());
+                    let wrote = id.record(&(), ());
                     assert_eq!(wrote,expected(id),"Written CSV ID does not match the baseline.")
                 }
             }

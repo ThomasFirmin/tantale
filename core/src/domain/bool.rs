@@ -1,7 +1,8 @@
 use crate::{
     Grid, distribution::{BoolDistribution, Distribution}, domain::{
-        CategoricalDomain, Domain, Elem, PreDomain, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
+        CategoricalDomain, Domain, PreDomain, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
     }, errors::OntoError,
+    utils::aliases::Elem,
 };
 
 use num::cast::AsPrimitive;

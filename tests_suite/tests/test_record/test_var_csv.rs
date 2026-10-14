@@ -1,6 +1,5 @@
 use super::init_dom::*;
-use tantale::core::Var;
-use tantale::core::recorder::csv::CSVLeftRight;
+use tantale::core::{BaseSol, EmptyInfo, Schema, Recordable, SId, SolId, utils::record::SolParts, Uncomputed, Var};
 
 use paste::paste;
 
@@ -13,7 +12,12 @@ macro_rules! get_variable {
                 let domobj = [<get_domain_ $dom1>]();
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = Var::<$ty1,$ty2>::new("a", domobj, domopt);
-                let head = Var::<_,_>::header(&variable);
+                let variables = [variable];
+                let context = variables.as_slice();
+                let head = BaseSol::<SId, $ty1, EmptyInfo>::columns(
+                    &context,
+                    SolParts::NoId(Box::new(SolParts::X)),
+                );
                 assert_eq!(head[0],"a", "Wrong header for variable of name 'a'");
             }
 
@@ -23,15 +27,26 @@ macro_rules! get_variable {
                 let domopt = [<get_domain_ $dom2 _2>]();
                 let variable = Var::<$ty1,$ty2>::new("a", domobj, domopt);
                 let mut rng = rand::rng();
+                let parts = SolParts::NoId(Box::new(SolParts::X));
 
                 let sample = variable.sample_obj(&mut rng);
                 let s_str = sample.to_string();
-                let s_csv = variable.write_left(&sample);
+                let solution = BaseSol::<SId, $ty1, EmptyInfo>::new(
+                    SId::generate(),
+                    [sample],
+                    std::sync::Arc::new(EmptyInfo {}),
+                );
+                let s_csv = solution.record(&(), parts.clone());
                 assert_eq!(s_csv[0],s_str, "Wrong csv writing for a sample from an Obj var.");
 
                 let sample = variable.sample_opt(&mut rng);
                 let s_str = sample.to_string();
-                let s_csv = variable.write_right(&sample);
+                let solution = BaseSol::<SId, $ty2, EmptyInfo>::new(
+                    SId::generate(),
+                    [sample],
+                    std::sync::Arc::new(EmptyInfo {}),
+                );
+                let s_csv = solution.record(&(), parts);
                 assert_eq!(s_csv[0],s_str, "Wrong csv writing for a sample from an Opt var.");
             }
         }

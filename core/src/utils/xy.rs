@@ -3,10 +3,13 @@
 //! The `XToNdArray` and `YToNdArray` traits provide methods to convert raw solutions and objective values into [`ndarray::Array2`] format.
 
 use crate::{
-    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, SolId, Lone, Orderable, Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, domain::{Elem, codomain::{
+    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, SolId, Lone, Orderable,
+    Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, 
+    domain::codomain::{
         ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain,
         ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain,
-    }},
+    },
+    utils::aliases::Elem,
 };
 
 use ndarray::{Array1, Array2, Axis, Zip};
@@ -60,6 +63,10 @@ where
     fn clone_x(&self) -> Raw {
         self.x.clone()
     }
+    
+    fn set_x(&mut self, x: Self::X) {
+        self.x = x;
+    }
 }
 
 impl<Raw, Y> HasY for Xy<Raw, Y>
@@ -71,6 +78,10 @@ where
     /// Returns the computed [`TypeCodom`](crate::Codomain::TypeCodom) for this solution.
     fn y(&self) -> Arc<Self::Y> {
         self.y.clone()
+    }
+    
+    fn set_y(&mut self, y: Arc<Self::Y>) {
+        self.y = y;
     }
 }
 
@@ -245,19 +256,95 @@ where
     }
 }
 
-impl<Dom, X> XToNdArray<Dom> for [X]
+/// Gives access to the [`XToNdArray`] part of a type, so that slices of wrappers (e.g. [`Xy`]) can be converted.
+pub trait AsX<Dom: Domain> {
+    /// The inner type implementing [`XToNdArray`].
+    type Target: XToNdArray<Dom> + ?Sized;
+    /// Returns a reference to the inner [`XToNdArray`] value.
+    fn as_x(&self) -> &Self::Target;
+}
+
+impl<Id, Dom, SInfo> AsX<Dom> for BaseSol<Id, Dom, SInfo>
 where
-    X: XToNdArray<Dom>,
+    Dom: Domain,
+    SInfo: SolInfo,
+    Id: SolId,
+{
+    type Target = Self;
+    fn as_x(&self) -> &Self {
+        self
+    }
+}
+
+impl<Id, Dom, SInfo> AsX<Dom> for FidelitySol<Id, Dom, SInfo>
+where
+    Dom: Domain,
+    SInfo: SolInfo,
+    Id: StepId,
+{
+    type Target = Self;
+    fn as_x(&self) -> &Self {
+        self
+    }
+}
+
+impl<S, Out> AsX<S::Dom> for Computed<S, Out>
+where
+    S: Uncomputed + XToNdArray<S::Dom>,
+    Out: Outcome,
+{
+    type Target = Self;
+    fn as_x(&self) -> &Self {
+        self
+    }
+}
+
+impl<Dom, X> AsX<Dom> for &X
+where
+    Dom: Domain,
+    X: XToNdArray<Dom> + ?Sized,
+{
+    type Target = X;
+    fn as_x(&self) -> &X {
+        self
+    }
+}
+
+impl<Dom> AsX<Dom> for Arc<[Dom::Element]>
+where
+    Dom: Domain,
+{
+    type Target = Self;
+    fn as_x(&self) -> &Self {
+        self
+    }
+}
+
+impl<Dom, X, Y> AsX<Dom> for Xy<X, Y>
+where
+    Dom: Domain,
+    X: XToNdArray<Dom> + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+{
+    type Target = X;
+    fn as_x(&self) -> &X {
+        &self.x
+    }
+}
+
+impl<Dom, T> XToNdArray<Dom> for [T]
+where
+    T: AsX<Dom>,
     Dom: Domain,
 {
     fn x_array(&self) -> Array2<Dom::Element> {
         let n_rows = self.len();
-        let n_col = self[0].x_cols();
+        let n_col = self[0].as_x().x_cols();
         let mut array = Array2::<Dom::Element>::uninit((n_rows, n_col));
         Zip::from(array.rows_mut())
             .and(self)
             .for_each(|mut row, sol| {
-                let x_array = sol.x_array();
+                let x_array = sol.as_x().x_array();
                 for (i, val) in x_array.iter().enumerate() {
                     row[i].write(val.clone());
                 }
@@ -266,21 +353,21 @@ where
     }
 
     fn x_cols(&self) -> usize {
-        self[0].x_cols()
+        self[0].as_x().x_cols()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<U>(&self) -> Array2<U> 
     where
-        T: Copy + 'static,
-        Dom::Element: AsPrimitive<T>
+        U: Copy + 'static,
+        Dom::Element: AsPrimitive<U>
     {
         let n_rows = self.len();
-        let n_col = self[0].x_cols();
-        let mut array = Array2::<T>::uninit((n_rows, n_col));
+        let n_col = self[0].as_x().x_cols();
+        let mut array = Array2::<U>::uninit((n_rows, n_col));
         Zip::from(array.rows_mut())
             .and(self)
             .for_each(|mut row, sol| {
-                let x_array = sol.x_array_type::<T>();
+                let x_array = sol.as_x().x_array_type::<U>();
                 for (i, val) in x_array.iter().enumerate() {
                     row[i].write(*val);
                 }

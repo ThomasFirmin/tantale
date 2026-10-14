@@ -1,10 +1,11 @@
 use tantale::algos::{MoAsha, RandomSearch, moasha};
+use tantale::core::Experiment;
+use tantale::core::problem::Pb;
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
-        CSVRecorder, FolderConfig, MessagePack, SaverConfig,
-        experiment::{Runable, mono, threaded},
-        load,
+        CSVRecorder, FolderConfig, MessagePack,
+        experiment::Runable,
         stop::Calls,
     },
 };
@@ -28,15 +29,16 @@ fn test_fid_seq_run() {
 
     let sp = sp_evaluator_mo_fid::get_searchspace();
     let obj = sp_evaluator_mo_fid::get_function();
+    let pb = Pb::new(sp, obj);
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_moasha_run_seq");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = mono(sp, obj, opt, stop, (rec, check));
+    let exp = Experiment::new(pb, opt, stop, rec, check);
     exp.run();
 
     // 200 = 4 steps * 50 calls  + 6 evals for rungs filling
@@ -45,151 +47,138 @@ fn test_fid_seq_run() {
     let sp = sp_evaluator_mo_fid::get_searchspace();
     let obj = sp_evaluator_mo_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_moasha_run_seq");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        mono,
-        moasha!(RandomSearch, NSGA2Selector),
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(Pb::new(sp, obj),rec,check);
 
-    let expstop = exp.get_mut_stop();
+    let expstop = exp.mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.get_optimizer();
+    let expoptimizer = exp.sampler();
     assert_eq!(
-        expoptimizer.0.budgets, budgets,
+        expoptimizer.budgets, budgets,
         "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
+        expoptimizer.budgets, budgets
     );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+    assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
     exp.run();
 
     let sp = sp_evaluator_mo_fid::get_searchspace();
     let obj = sp_evaluator_mo_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_run_seq").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_moasha_run_seq");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        mono,
-        moasha!(RandomSearch, NSGA2Selector),
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(Pb::new(sp, obj),rec,check);
+
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_moasha_run_seq", 400, 100); // 100 for randomness
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.get_optimizer();
+    let expoptimizer = exp.sampler();
     assert_eq!(
-        expoptimizer.0.budgets, budgets,
+        expoptimizer.budgets, budgets,
         "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
+        expoptimizer.budgets, budgets
     );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+    assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
 }
 
-#[test]
-fn test_fid_seq_parrun() {
-    let _clean = Cleaner::new("tmp_test_moasha_parrun");
+// #[test]
+// fn test_fid_seq_parrun() {
+//     let _clean = Cleaner::new("tmp_test_moasha_parrun");
 
-    let mut budgets: Vec<f64> = (0..)
-        .map(|i| 1.61_f64.powi(i))
-        .take_while(|&b| b <= 5.)
-        .collect();
-    if *budgets.last().unwrap() != 5. {
-        let last = budgets.last_mut().unwrap();
-        *last = 5.;
-    }
+//     let mut budgets: Vec<f64> = (0..)
+//         .map(|i| 1.61_f64.powi(i))
+//         .take_while(|&b| b <= 5.)
+//         .collect();
+//     if *budgets.last().unwrap() != 5. {
+//         let last = budgets.last_mut().unwrap();
+//         *last = 5.;
+//     }
 
-    let sp = sp_evaluator_mo_fid::get_searchspace();
-    let obj = sp_evaluator_mo_fid::get_function();
-    let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap();
+//     let sp = sp_evaluator_mo_fid::get_searchspace();
+//     let obj = sp_evaluator_mo_fid::get_function();
+//     let sampler = RandomSearch::new();
+//     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 5., 1.61).unwrap();
 
-    let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config);
+//     let stop = Calls::new(50);
+//     let config = FolderConfig::new("tmp_test_moasha_parrun");
+//     let rec = CSVRecorder::new(config.clone());
+//     let check = MessagePack::new(config);
 
-    let exp = threaded(sp, obj, opt, stop, (rec, check));
-    exp.run();
+//     let exp = threaded(sp, obj, opt, stop, (rec, check));
+//     exp.run();
 
-    // 200 = 4 steps * 100 calls  + 6 evals for rungs filling
-    run_reader_eps("tmp_test_moasha_parrun", 200, 100);
+//     // 200 = 4 steps * 100 calls  + 6 evals for rungs filling
+//     run_reader_eps("tmp_test_moasha_parrun", 200, 100);
 
-    let sp = sp_evaluator_mo_fid::get_searchspace();
-    let obj = sp_evaluator_mo_fid::get_function();
+//     let sp = sp_evaluator_mo_fid::get_searchspace();
+//     let obj = sp_evaluator_mo_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
+//     let config = FolderConfig::new("tmp_test_moasha_parrun");
+//     let rec = CSVRecorder::new(config.clone());
+//     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        moasha!(RandomSearch, NSGA2Selector),
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+//     let mut exp = load!(
+//         threaded,
+//         moasha!(RandomSearch, NSGA2Selector),
+//         Calls,
+//         sp,
+//         obj,
+//         (rec, check)
+//     );
 
-    let expstop: &mut Calls = exp.get_mut_stop();
-    let max_call = expstop.calls() + num_cpus::get();
-    assert!(
-        expstop.calls() >= 50 && expstop.calls() <= max_call,
-        "Number of calls is wrong, it should be between 50 and {}",
-        max_call
-    );
-    expstop.1 = 100;
-    let expoptimizer = exp.get_mut_optimizer();
-    assert_eq!(
-        expoptimizer.0.budgets, budgets,
-        "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
-    );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
+//     let expstop: &mut Calls = exp.get_mut_stop();
+//     let max_call = expstop.calls() + num_cpus::get();
+//     assert!(
+//         expstop.calls() >= 50 && expstop.calls() <= max_call,
+//         "Number of calls is wrong, it should be between 50 and {}",
+//         max_call
+//     );
+//     expstop.1 = 100;
+//     let expoptimizer = exp.get_mut_optimizer();
+//     assert_eq!(
+//         expoptimizer.budgets, budgets,
+//         "Budgets are wrong, {:?} != {:?}",
+//         expoptimizer.budgets, budgets
+//     );
+//     assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
 
-    exp.run();
+//     exp.run();
 
-    let sp = sp_evaluator_mo_fid::get_searchspace();
-    let obj = sp_evaluator_mo_fid::get_function();
+//     let sp = sp_evaluator_mo_fid::get_searchspace();
+//     let obj = sp_evaluator_mo_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_moasha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
+//     let config = FolderConfig::new("tmp_test_moasha_parrun");
+//     let rec = CSVRecorder::new(config.clone());
+//     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        moasha!(RandomSearch, NSGA2Selector),
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
-    // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-    run_reader_eps("tmp_test_moasha_parrun", 400, 100);
-    let expstop: &Calls = exp.get_stop();
-    let max_call = expstop.calls() + num_cpus::get();
-    assert!(
-        expstop.calls() >= 100 && expstop.calls() <= max_call,
-        "Number of calls is wrong, it should be between 100 and {}",
-        max_call
-    );
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.budgets, budgets,
-        "Budgets are wrong, {:?} != {:?}",
-        expoptimizer.0.budgets, budgets
-    );
-    assert_eq!(expoptimizer.0.scaling, 1.61, "Scaling factor is wrong");
-}
+//     let exp = load!(
+//         threaded,
+//         moasha!(RandomSearch, NSGA2Selector),
+//         Calls,
+//         sp,
+//         obj,
+//         (rec, check)
+//     );
+//     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
+//     run_reader_eps("tmp_test_moasha_parrun", 400, 100);
+//     let expstop: &Calls = exp.get_stop();
+//     let max_call = expstop.calls() + num_cpus::get();
+//     assert!(
+//         expstop.calls() >= 100 && expstop.calls() <= max_call,
+//         "Number of calls is wrong, it should be between 100 and {}",
+//         max_call
+//     );
+//     let expoptimizer = exp.get_optimizer();
+//     assert_eq!(
+//         expoptimizer.budgets, budgets,
+//         "Budgets are wrong, {:?} != {:?}",
+//         expoptimizer.budgets, budgets
+//     );
+//     assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
+// }

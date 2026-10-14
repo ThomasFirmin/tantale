@@ -1,5 +1,5 @@
 use tantale::core::Codomain;
-use tantale::core::domain::Elem;
+use tantale::core::aliases::Elem;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::Uncomputed;
 use tantale::core::{BaseSol, Computed, HasId, HasInfo, HasX, HasY, ParSId};

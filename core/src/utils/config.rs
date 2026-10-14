@@ -48,24 +48,6 @@
 //! - [`Checkpointer`](crate::Checkpointer) - Experiment checkpointing
 //! - [`MessagePack`](crate::checkpointer::MessagePack) - Default checkpointer implementation
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-/// Base trait for configuration objects used by recorders and checkpointers.
-///
-/// Implementations of this trait provide an initialization method that returns
-/// a shareable configuration instance wrapped in [`Arc`].
-///
-/// # Example
-///
-/// ```ignore
-/// let config = FolderConfig::new("./my_run").init();
-/// let checkpointer = MessagePack::new(config.clone());
-/// let recorder = CSVRecorder::new(config);
-/// ```
-pub trait SaverConfig<C> {
-    /// Initialize the configuration and return it in a shared [`Arc`].
-    fn init(self, ctx: &C) -> Arc<Self>;
-}
 
 /// Folder hierarchy for file-based [`Recorder`](crate::Recorder) and [`Checkpointer`](crate::Checkpointer).
 ///
